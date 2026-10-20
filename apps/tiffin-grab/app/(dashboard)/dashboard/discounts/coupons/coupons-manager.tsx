@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, XIcon } from "lucide-react";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
-import { DataTable, SectionCard, type Column } from "@/components/ds";
+import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CouponSortColumn } from "./page";
 import { Button } from "@foundry/ui/button";
@@ -36,6 +37,7 @@ import {
   toLocalInput,
 } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
+import { DateTimeInput } from "@/components/dashboard/date-fields";
 
 type CouponRow = {
   publicId: string;
@@ -51,6 +53,7 @@ type CouponRow = {
   redemptionCount: number;
   stackable: boolean;
   autoApply: boolean;
+  visible: boolean;
   planTypes: string[];
   startsAt: number | null;
   expiresAt: number | null;
@@ -75,6 +78,7 @@ type Draft = {
   expiresAt: string;
   stackable: boolean;
   autoApply: boolean;
+  visible: boolean;
   active: boolean;
 };
 
@@ -96,6 +100,7 @@ function emptyDraft(): Draft {
     expiresAt: "",
     stackable: false,
     autoApply: false,
+    visible: true,
     active: true,
   };
 }
@@ -118,6 +123,7 @@ function toDraft(c: CouponRow): Draft {
     expiresAt: toLocalInput(c.expiresAt),
     stackable: c.stackable,
     autoApply: c.autoApply,
+    visible: c.visible,
     active: c.active,
   };
 }
@@ -136,6 +142,8 @@ function couponValue(c: CouponRow): string {
       return "Free delivery";
     case "rep_daily":
       return "Capped";
+    case "rep_code":
+      return money(c.valueAmount);
   }
 }
 
@@ -151,21 +159,25 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
   { key: "code", label: "Code", sortable: true },
   { key: "kind", label: "Kind", sortable: true },
   { key: "value", label: "Value", align: "right" },
-  { key: "autoApply", label: "Auto-apply", sortable: true },
+  { key: "autoApply", label: "Auto-apply", sortable: true, width: "w-24" },
+  { key: "visible", label: "Visible", sortable: true, width: "w-24" },
   { key: "window", label: "Window", sortable: true },
-  { key: "stackable", label: "Stackable", sortable: true },
+  { key: "stackable", label: "Stackable", sortable: true, width: "w-24" },
   { key: "status", label: "Status", sortable: true },
-  { key: "actions", label: "", width: "w-44" },
+  // Two icon buttons; sized so the table fits the card without a sideways scroll.
+  { key: "actions", label: "", width: "w-20" },
 ];
 
 export function CouponsManager({
   coupons,
   sort,
   pagination,
+  spec,
 }: {
   coupons: CouponRow[];
   sort: SortState<CouponSortColumn>;
   pagination: { page: number; size: number };
+  spec: FacetDef[];
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
@@ -192,6 +204,7 @@ export function CouponsManager({
       maxPerUser: numOrNull(draft.maxPerUser),
       stackable: draft.stackable,
       autoApply: draft.autoApply,
+      visible: draft.visible,
       planTypes: draft.planTypes,
       startsAt: fromLocalInput(draft.startsAt),
       expiresAt: fromLocalInput(draft.expiresAt),
@@ -238,7 +251,7 @@ export function CouponsManager({
         rows={coupons}
         rowKey={(c) => c.publicId}
         sort={sort}
-        search={{ placeholder: "Search coupons…", shortPlaceholder: "Search…", keys: ["code", "name"] }}
+        filters={<ListSearchFilters spec={spec} placeholder="Search coupons…" shortPlaceholder="Search…" />}
         pagination={pagination}
         rowClassName={(c) => (c.active ? "" : "opacity-60")}
         emptyIcon={TicketPercentIcon}
@@ -265,6 +278,9 @@ export function CouponsManager({
             <TableCell>
               <YesNo value={c.autoApply} />
             </TableCell>
+            <TableCell>
+              <YesNo value={c.visible} />
+            </TableCell>
             <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
               {formatWindow(c.startsAt, c.expiresAt)}
             </TableCell>
@@ -280,25 +296,14 @@ export function CouponsManager({
             </TableCell>
             <TableCell>
               <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => open(toDraft(c))}
-                  className="transition-transform active:scale-[0.96]"
-                >
-                  <PencilIcon className="size-3.5" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <RowActionTooltipButton icon={PencilIcon} label={`Edit ${c.code}`} hint="Edit" onClick={() => open(toDraft(c))} />
+                <RowActionTooltipButton
+                  icon={c.active ? XIcon : RotateCcwIcon}
+                  label={`${c.active ? "Disable" : "Enable"} ${c.code}`}
+                  hint={c.active ? "Disable" : "Enable"}
                   disabled={pending}
                   onClick={() => toggleActive(c)}
-                  className="text-muted-foreground transition-[color,transform] active:scale-[0.96]"
-                >
-                  {c.active ? <XIcon className="size-3.5" /> : <RotateCcwIcon className="size-3.5" />}
-                  {c.active ? "Disable" : "Enable"}
-                </Button>
+                />
               </div>
             </TableCell>
           </>
@@ -441,20 +446,20 @@ export function CouponsManager({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="grid gap-1.5">
                     <Label htmlFor="cpn-start">Starts at ({BUSINESS_TZ_LABEL})</Label>
-                    <Input
+                    <DateTimeInput
+                      clearable
                       id="cpn-start"
-                      type="datetime-local"
                       value={draft.startsAt}
-                      onChange={(e) => setDraft({ ...draft, startsAt: e.target.value })}
+                      onChange={(v) => setDraft({ ...draft, startsAt: v })}
                     />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="cpn-end">Expires at ({BUSINESS_TZ_LABEL})</Label>
-                    <Input
+                    <DateTimeInput
+                      clearable
                       id="cpn-end"
-                      type="datetime-local"
                       value={draft.expiresAt}
-                      onChange={(e) => setDraft({ ...draft, expiresAt: e.target.value })}
+                      onChange={(v) => setDraft({ ...draft, expiresAt: v })}
                     />
                   </div>
                 </div>
@@ -465,6 +470,13 @@ export function CouponsManager({
                   hint="Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
                   checked={draft.autoApply}
                   onChange={(v) => setDraft({ ...draft, autoApply: v })}
+                />
+                <ToggleRow
+                  id="cpn-visible"
+                  label="Visible to customers"
+                  hint="Show this code under Available for you on checkout and other customer coupon lists. Turn off for private/manual-entry codes; customers can still type the code if Active."
+                  checked={draft.visible}
+                  onChange={(v) => setDraft({ ...draft, visible: v })}
                 />
                 <ToggleRow
                   id="cpn-stack"

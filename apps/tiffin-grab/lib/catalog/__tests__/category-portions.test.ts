@@ -57,4 +57,16 @@ describe("categoryPortionSlotsForMealSize", () => {
     );
     expect(slots).toEqual({ sabzi: ["12oz", "8oz"] });
   });
+
+  it("appends a row add-on at its own portion; a folded add-on is not a slot", () => {
+    const slots = categoryPortionSlotsForMealSize(
+      [{ id: 1n, items: [{ category: "sabzi", portion: "12oz" }, { category: "sabzi", portion: "8oz" }, { category: "roti", portion: "4 roti" }] }],
+      1n,
+      [
+        { category: "sabzi", qty: 1, folded: false, portion: "12oz" },
+        { category: "roti", qty: 2, folded: true, portion: "4 roti" },
+      ],
+    );
+    expect(slots).toEqual({ sabzi: ["12oz", "8oz", "12oz"], roti: ["4 roti"] });
+  });
 });

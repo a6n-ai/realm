@@ -86,7 +86,7 @@ export function LogsTable({
       idHref={(r) => (r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : "/dashboard/payments/logs")}
       rowClassName={() => "group"}
       sort={sort as SortState<LogSortKey | "detail">}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={ActivityIcon}
       emptyMessage="No payment events yet."
       emptySearchMessage="No payment events match your search."

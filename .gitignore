@@ -103,3 +103,6 @@ dump.rdb
 # Never commit — regenerate locally from the legacy DB when needed.
 apps/tiffin-grab/db/legacy-export/
 apps/tiffin-grab/db/migrations-manual/
+
+# VibeWise learner notes (local only)
+.vibe-wise/

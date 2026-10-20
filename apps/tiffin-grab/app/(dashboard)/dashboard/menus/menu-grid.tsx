@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, CopyPlus, Plus, Star, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, CopyPlus, MoreHorizontal, Plus, Star, Trash2 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@foundry/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { Button } from "@foundry/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { cn } from "@foundry/ui/cn";
+import { Badge } from "@/components/reui/badge";
 import { DAYS, DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };
@@ -30,124 +33,158 @@ export type GridProblem = {
   categoryLabel: string;
   dishNames: string[];
 };
+export type CellRef = { day: DayOfWeek; slotKey: string };
+/** A side item row: what it packs each day, and whether a day was changed from its default. */
+export type SideRow = { key: string; label: string; sub: string; cell: (day: DayOfWeek) => { text: string; changed: boolean } };
 
 const CREATE_VALUE = "__create__";
 
-/**
- * Icon buttons are 32px so the chips stay compact, but a 32px tap target is below the
- * 40px floor. The pseudo-element widens the hit area without moving anything visually.
- */
-const ICON_BUTTON =
-  "relative flex size-8 shrink-0 items-center justify-center rounded-md transition-colors " +
-  "before:absolute before:-inset-1 before:content-[''] active:scale-[0.96] disabled:opacity-50";
+/** Server verdicts per cell (`day:slotKey`): "missing" is a plan that gets nothing, "extra" a fixed slot with surplus. */
+export function problemsByCell(problems: GridProblem[]) {
+  const map = new Map<string, { missing: boolean; extra: boolean }>();
+  for (const p of problems) {
+    const key = `${p.day}:${p.categoryKey}|${p.planPublicId}`;
+    const entry = map.get(key) ?? { missing: false, extra: false };
+    if (p.kind === "missing") entry.missing = true; else entry.extra = true;
+    map.set(key, entry);
+  }
+  return map;
+}
 
+/**
+ * A row's plan comes from its dish — menu_items carries no plan column of its own. So a slot's
+ * rows are the category rows whose dish lands on that slot's plan.
+ */
+export function rowsOf(rows: GridRow[], dishById: Map<string, GridDish>, day: DayOfWeek, slot: Slot) {
+  return rows.filter((r) => r.dayOfWeek === day && r.slot === slot.categoryKey && dishById.get(r.dishId)?.planId === slot.planPublicId);
+}
+
+// What is wrong with one cell, most serious first: this plan getting nothing beats a shortfall,
+// which beats dishes that will never be served.
+export function cellWarning(slot: Slot, needed: number, count: number, verdict?: { missing: boolean; extra: boolean }): string | null {
+  if (verdict?.missing) return `No dish here for ${slot.planName}`;
+  if (slot.selectable && needed > 0 && count > 0 && count < needed) return `Only ${count} of ${needed}: customers have less to choose from than they ordered`;
+  if (slot.selectable && count === 1 && needed > 1) return "One dish only: nothing to choose between";
+  if (verdict?.extra) return "Only one is served: the rest never reach a plate";
+  return null;
+}
+
+/**
+ * The whole week at a glance: rows are (category, plan) slots, columns are Mon–Sun, and each cell
+ * shows its default dish plus how many more. Read-only; clicking a cell opens it in the panel.
+ */
 export function MenuGrid({
-  slots, rows, dishes, categoryCounts, problems, editable,
-  onAdd, onRemove, onMove, onToggleDefault, onCopyAcrossDays, onCreateDish,
+  slots, rows, dishes, categoryCounts, problems, selected, onSelect, sideRows = [], sideActions,
 }: {
+  sideRows?: SideRow[];
+  /** Controls for the side section header (the standing defaults). */
+  sideActions?: ReactNode;
   slots: Slot[];
   rows: GridRow[];
   dishes: GridDish[];
   categoryCounts: Record<string, number>;
   problems: GridProblem[];
-  editable: boolean;
-  onAdd: (day: DayOfWeek, slot: Slot, dishId: string) => void;
-  onRemove: (key: string) => void;
-  onMove: (key: string, dir: -1 | 1) => void;
-  onToggleDefault: (key: string) => void;
-  onCopyAcrossDays: (day: DayOfWeek, slot: Slot) => void;
-  onCreateDish: (day: DayOfWeek, slot: Slot) => void;
+  selected: CellRef | null;
+  onSelect: (cell: CellRef) => void;
 }) {
   const dishById = useMemo(() => new Map(dishes.map((d) => [d.id, d])), [dishes]);
-
-  // Server verdicts per cell, keyed for O(1) lookup while rendering ~150 of them (one per
-  // slot x day). Split by kind: "missing" is a plan that gets nothing here, "extra" is a
-  // fixed category holding more than one dish for the SAME plan (only that surplus is dead).
-  const problemsByCell = useMemo(() => {
-    const map = new Map<string, { missing: boolean; extra: boolean }>();
-    for (const p of problems) {
-      const key = `${p.day}:${p.categoryKey}|${p.planPublicId}`;
-      const entry = map.get(key) ?? { missing: false, extra: false };
-      if (p.kind === "missing") entry.missing = true; else entry.extra = true;
-      map.set(key, entry);
-    }
-    return map;
-  }, [problems]);
-
-  // A row's plan comes from its dish — menu_items carries no plan column of its own, it's
-  // always the dish's single plan. So a slot's rows are the category rows whose dish lands
-  // on that slot's plan.
-  const cellRows = (day: DayOfWeek, slot: Slot) =>
-    rows.filter((r) => r.dayOfWeek === day && r.slot === slot.categoryKey && dishById.get(r.dishId)?.planId === slot.planPublicId);
+  const verdicts = useMemo(() => problemsByCell(problems), [problems]);
 
   return (
-    // The grid is wider than a phone and must scroll inside its own container — the page
-    // body never scrolls sideways. The height cap is what makes the sticky day header and
-    // sticky category column work: they stick to this box, so it has to be the scroller.
-    <div className="max-h-[70vh] overflow-auto rounded-2xl border shadow-sm">
-      <div
-        className="grid min-w-max"
-        style={{ gridTemplateColumns: `minmax(9rem, 12rem) repeat(${DAYS.length}, minmax(12rem, 1fr))` }}
-      >
-        <div className="sticky left-0 top-0 z-20 border-b border-r bg-background p-3 text-xs font-medium text-muted-foreground">
-          Category · Plan
-        </div>
-        {DAYS.map((day) => {
-          const count = slots.reduce((n, s) => n + cellRows(day, s).length, 0);
-          return (
-            <div key={day} className="sticky top-0 z-10 border-b bg-background p-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold">{DAY_LABELS[day]}</span>
-                <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-              </div>
-            </div>
-          );
-        })}
+    <div className="bg-card overflow-x-auto rounded-xl border" data-testid="menu-grid">
+      <div className="grid min-w-[38rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${DAYS.length}, minmax(0, 1fr))` }}>
+        <div className="text-muted-foreground border-e border-b p-2 text-xs font-medium">Category · Plan</div>
+        {DAYS.map((day) => (
+          <div key={day} className="border-b p-2 text-xs font-semibold">{DAY_LABELS[day].slice(0, 3)}</div>
+        ))}
 
         {slots.map((slot) => {
           const needed = categoryCounts[slot.key] ?? 0;
           return (
             <div key={slot.key} className="contents">
-              <div className="sticky left-0 z-10 border-b border-r bg-background p-3">
+              <div className="border-e border-b p-2">
                 <p className="text-sm font-medium text-pretty">{slot.categoryLabel}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{slot.planName}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {slot.selectable
-                    ? needed > 0 ? <>Customer picks <span className="tabular-nums">{needed}</span></> : "Customer picks"
-                    : "Fixed"}
-                </p>
+                <p className="text-muted-foreground text-xs">{slot.planName}</p>
               </div>
-
-              {DAYS.map((day) => (
-                <Cell
-                  key={`${slot.key}-${day}`}
-                  day={day}
-                  slot={slot}
-                  needed={needed}
-                  rows={cellRows(day, slot)}
-                  dishes={dishes}
-                  dishById={dishById}
-                  missing={problemsByCell.get(`${day}:${slot.key}`)?.missing ?? false}
-                  hasSurplus={problemsByCell.get(`${day}:${slot.key}`)?.extra ?? false}
-                  editable={editable}
-                  onAdd={onAdd}
-                  onRemove={onRemove}
-                  onMove={onMove}
-                  onToggleDefault={onToggleDefault}
-                  onCopyAcrossDays={onCopyAcrossDays}
-                  onCreateDish={onCreateDish}
-                />
-              ))}
+              {DAYS.map((day) => {
+                const cell = rowsOf(rows, dishById, day, slot);
+                const verdict = verdicts.get(`${day}:${slot.key}`);
+                const warning = cellWarning(slot, needed, cell.length, verdict);
+                const lead = cell.find((r) => r.isDefault) ?? cell[0];
+                const isSelected = selected?.day === day && selected.slotKey === slot.key;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    aria-pressed={isSelected}
+                    aria-label={`${DAY_LABELS[day]}, ${slot.categoryLabel} (${slot.planName}): ${cell.length ? `${cell.length} ${cell.length === 1 ? "dish" : "dishes"}` : "empty"}${warning ? `, ${warning}` : ""}`}
+                    onClick={() => onSelect({ day, slotKey: slot.key })}
+                    className={cn(
+                      "flex min-h-14 flex-col items-start gap-1 border-b p-1.5 text-left text-xs transition-colors hover:bg-muted/50",
+                      verdict?.missing && "bg-warning/10",
+                      isSelected && "bg-primary/10 ring-primary ring-2 ring-inset",
+                    )}
+                  >
+                    {lead ? (
+                      <>
+                        <span className="line-clamp-2 font-medium">{dishById.get(lead.dishId)?.name ?? lead.dishId}</span>
+                        {cell.length > 1 && <span className="text-muted-foreground tabular-nums">+{cell.length - 1} more</span>}
+                      </>
+                    ) : verdict?.missing ? (
+                      <span className="text-warning-foreground dark:text-warning font-medium">Missing</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                    {warning && !verdict?.missing && <span className="bg-warning mt-auto size-1.5 rounded-full" aria-hidden />}
+                  </button>
+                );
+              })}
             </div>
           );
         })}
+
+        {sideRows.length > 0 && (
+          <div className="bg-muted/40 col-span-full flex items-center justify-between gap-2 border-b px-2 py-1">
+            <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Side dishes</span>
+            {sideActions}
+          </div>
+        )}
+        {sideRows.map((side) => (
+          <div key={side.key} className="contents">
+            <div className="border-e border-b p-2">
+              <p className="text-sm font-medium text-pretty">{side.label}</p>
+              <p className="text-muted-foreground line-clamp-2 text-xs">{side.sub}</p>
+            </div>
+            {DAYS.map((day) => {
+              const { text, changed } = side.cell(day);
+              const isSelected = selected?.day === day && selected.slotKey === side.key;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  aria-pressed={isSelected}
+                  aria-label={`${DAY_LABELS[day]}, ${side.label}: packs ${text}${changed ? ", changed for this day" : ""}`}
+                  onClick={() => onSelect({ day, slotKey: side.key })}
+                  className={cn(
+                    "flex min-h-14 flex-col items-start gap-1 border-b p-1.5 text-left text-xs transition-colors hover:bg-muted/50",
+                    isSelected && "bg-primary/10 ring-primary ring-2 ring-inset",
+                  )}
+                >
+                  <span className="text-muted-foreground line-clamp-2">{text}</span>
+                  {changed && <span className="text-warning-foreground dark:text-warning font-medium">Changed</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function Cell({
-  day, slot, needed, rows, dishes, dishById, missing, hasSurplus, editable,
+/** One day × slot: its dishes in order, the default, and everything that edits them. */
+export function CellPanel({
+  day, slot, needed, rows, dishes, dishById, warning, editable,
   onAdd, onRemove, onMove, onToggleDefault, onCopyAcrossDays, onCreateDish,
 }: {
   day: DayOfWeek;
@@ -156,8 +193,7 @@ function Cell({
   rows: GridRow[];
   dishes: GridDish[];
   dishById: Map<string, GridDish>;
-  missing: boolean;
-  hasSurplus: boolean;
+  warning: string | null;
   editable: boolean;
   onAdd: (day: DayOfWeek, slot: Slot, dishId: string) => void;
   onRemove: (key: string) => void;
@@ -167,146 +203,94 @@ function Cell({
   onCreateDish: (day: DayOfWeek, slot: Slot) => void;
 }) {
   const [open, setOpen] = useState(false);
-
-  // Each warning names what is wrong with THIS cell, in the order that matters: this plan
-  // getting nothing beats a shortfall, which beats dishes that will never be served. A cell
-  // is already one (category, plan) slot, so there's only ever one plan to name.
-  const warning =
-    missing
-      ? `No dish here for ${slot.planName}`
-      : slot.selectable && needed > 0 && rows.length > 0 && rows.length < needed
-        ? `Only ${rows.length} of ${needed} — customers have less to choose from than they ordered`
-        : slot.selectable && rows.length === 1 && needed > 1
-          ? "One dish only — nothing to choose between"
-          : hasSurplus
-            // A fixed category serves one dish per subscriber — anything past the first in
-            // this slot never reaches a plate.
-            ? `Only one is served — the rest never reach a plate`
-            : null;
-
-  // Plan-scoped: a dish from the wrong plan is never offered here, even if it shares
-  // the category — that's the whole point of slotting by (category, plan).
+  // Plan-scoped: a dish from the wrong plan is never offered here, even if it shares the category.
   const addable = dishes.filter(
     (d) => !rows.some((r) => r.dishId === d.id) && (d.category == null || d.category === slot.categoryKey) && d.planId === slot.planPublicId,
   );
 
   return (
-    <div className={cn("group/cell border-b p-2", warning && "bg-warn/5 ring-1 ring-inset ring-warn/30")}>
-      <div className="space-y-1">
-        {rows.map((row, index) => {
-          const dish = dishById.get(row.dishId);
-          return (
-            <div
-              key={row.key}
-              className={cn(
-                "group flex animate-in fade-in slide-in-from-top-1 items-center gap-1 rounded-lg py-1 pl-2 pr-0.5 text-sm duration-200",
-                row.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40",
-              )}
-            >
-              <span className="flex-1 text-pretty leading-snug">{dish?.name ?? row.dishId}</span>
-              {editable && (
-                <>
-                  <button
-                    className={cn(ICON_BUTTON, "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground")}
-                    disabled={index === 0}
-                    aria-label={`Move ${dish?.name ?? "dish"} up`}
-                    onClick={() => onMove(row.key, -1)}
-                  >
-                    <ChevronUp className="size-3.5" />
-                  </button>
-                  <button
-                    className={cn(ICON_BUTTON, "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground")}
-                    disabled={index === rows.length - 1}
-                    aria-label={`Move ${dish?.name ?? "dish"} down`}
-                    onClick={() => onMove(row.key, 1)}
-                  >
-                    <ChevronDown className="size-3.5" />
-                  </button>
-                  <button
-                    className={cn(ICON_BUTTON, row.isDefault
-                      ? "text-primary"
-                      : "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-primary")}
-                    aria-pressed={row.isDefault}
-                    aria-label={row.isDefault ? `Unset ${dish?.name ?? "dish"} as default` : `Set ${dish?.name ?? "dish"} as default`}
-                    title={row.isDefault ? "Served unless the customer picks otherwise" : "Set as default"}
-                    onClick={() => onToggleDefault(row.key)}
-                  >
-                    <Star className={cn("size-3.5", row.isDefault && "fill-current")} />
-                  </button>
-                  <button
-                    className={cn(ICON_BUTTON, "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-destructive/10 hover:text-destructive")}
-                    aria-label={`Remove ${dish?.name ?? "dish"}`}
-                    onClick={() => onRemove(row.key)}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </>
-              )}
-            </div>
-          );
-        })}
+    <section aria-label={`${DAY_LABELS[day]} ${slot.categoryLabel}`} data-testid="cell-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
+      <div className="flex flex-col gap-1">
+        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_LABELS[day]}</p>
+        <h3 className="text-lg font-semibold">{slot.categoryLabel}</h3>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{slot.planName}</span>
+          <Badge variant={slot.selectable ? "info-light" : "invert-light"}>
+            {slot.selectable ? (needed > 0 ? `Customer picks ${needed}` : "Customer picks") : "Fixed"}
+          </Badge>
+        </div>
       </div>
 
+      {warning && <p className="border-warning/40 bg-warning/10 rounded-lg border px-3 py-2 text-sm">{warning}</p>}
+
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No dishes yet.</p>
+      ) : (
+        <ol className="flex flex-col gap-1.5">
+          {rows.map((row, index) => {
+            const name = dishById.get(row.dishId)?.name ?? row.dishId;
+            return (
+              <li key={row.key} className={cn("flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm", row.isDefault && "border-primary/40 bg-primary/5")}>
+                <span className="text-muted-foreground w-4 text-xs tabular-nums">{index + 1}</span>
+                <span className="min-w-0 flex-1 text-pretty">{name}</span>
+                {row.isDefault && <Badge variant="primary-light"><Star className="size-3 fill-current" aria-hidden />Default</Badge>}
+                {editable && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Options for ${name}`}><MoreHorizontal /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => onToggleDefault(row.key)}>
+                        <Star />{row.isDefault ? "Unset default" : "Set as default"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={index === 0} onSelect={() => onMove(row.key, -1)}><ArrowUp />Move up</DropdownMenuItem>
+                      <DropdownMenuItem disabled={index === rows.length - 1} onSelect={() => onMove(row.key, 1)}><ArrowDown />Move down</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => onRemove(row.key)}><Trash2 />Remove</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
       {editable && (
-        <div className="mt-1 flex items-center gap-1">
+        <div className="flex flex-wrap gap-2 border-t pt-3">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded={open}
-                aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_LABELS[day]}`}
-                className="flex h-9 flex-1 items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground active:scale-[0.96]"
-              >
-                <Plus className="size-3.5" />
-                {rows.length === 0 ? "Add dish" : "Add"}
-              </button>
+              <Button type="button" variant="outline" size="sm" aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_LABELS[day]}`}>
+                <Plus data-icon="inline-start" />Add dish
+              </Button>
             </PopoverTrigger>
-            {/* Typing filters; Enter takes the highlighted dish; Escape closes. cmdk owns
-                the arrow keys, so the whole cell is reachable without the mouse. */}
-            <PopoverContent className="w-64 p-0" align="start">
+            {/* Typing filters; Enter takes the highlighted dish; Escape closes. */}
+            <PopoverContent className="w-72 p-0" align="start">
               <Command>
                 <CommandInput placeholder={`Add to ${slot.categoryLabel} (${slot.planName})…`} />
                 <CommandList>
                   <CommandEmpty>No dish in this category.</CommandEmpty>
                   <CommandGroup>
                     {addable.map((d) => (
-                      <CommandItem
-                        key={d.id}
-                        value={d.name}
-                        onSelect={() => { onAdd(day, slot, d.id); setOpen(false); }}
-                      >
+                      <CommandItem key={d.id} value={d.name} onSelect={() => { onAdd(day, slot, d.id); setOpen(false); }}>
                         {d.name}
                       </CommandItem>
                     ))}
-                    <CommandItem
-                      value={CREATE_VALUE}
-                      className="text-primary"
-                      onSelect={() => { onCreateDish(day, slot); setOpen(false); }}
-                    >
-                      <Plus className="size-3.5" /> Create new dish…
+                    <CommandItem value={CREATE_VALUE} className="text-primary" onSelect={() => { onCreateDish(day, slot); setOpen(false); }}>
+                      <Plus /> Create new dish…
                     </CommandItem>
                   </CommandGroup>
                 </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
-
           {rows.length > 0 && (
-            <button
-              type="button"
-              className={cn(ICON_BUTTON, "text-muted-foreground opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground")}
-              aria-label={`Copy ${DAY_LABELS[day]}'s ${slot.categoryLabel} (${slot.planName}) to every day`}
-              title="Copy to every day"
-              onClick={() => onCopyAcrossDays(day, slot)}
-            >
-              <CopyPlus className="size-3.5" />
-            </button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => onCopyAcrossDays(day, slot)}>
+              <CopyPlus data-icon="inline-start" />Copy {DAY_LABELS[day]} to every day
+            </Button>
           )}
         </div>
       )}
-
-      {warning && <p className="mt-1 text-[11px] leading-snug text-warn">{warning}</p>}
-    </div>
+    </section>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { CheckIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CatalogAddon } from "@/lib/catalog/types";
-import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import {
@@ -35,12 +35,14 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { appToday } from "@/lib/services/start-date";
+import { staffStartBase } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo } from "./actions";
+import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
+import { discountLine } from "@/components/customer/home/coupons-section";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const APP_NAME = "Tiffin Grab";
 
@@ -75,6 +77,21 @@ type Catalog = {
 
 type EnabledSlot = { key: string; label: string };
 
+const FIELD_LABELS: Record<string, string> = {
+  email: "Email",
+  planKey: "Diet",
+  mealSizeId: "Meal size",
+  frequencyKey: "Delivery days",
+  eatingDays: "Eating days",
+  persons: "Persons",
+  mealSlots: "Meals",
+  durationWeeks: "Duration",
+  startDate: "Start date",
+  addressLine: "Street address",
+  city: "City",
+  postalCode: "Postal code",
+};
+
 /** CRM toggle pill for DropOffPicker and address types (the customer kit pill is public-site styled). */
 function AdminPill({ on, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }) {
   return (
@@ -94,6 +111,8 @@ function chargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValu
   if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
   return item.chargeType === "fixed" ? `+$${item.chargeValue.toFixed(2)}` : `+${item.chargeValue}%`;
 }
+
+const NO_CUSTOMER: CustomerOrderContext = { renewFrom: null, plans: [], conflict: false, addresses: [] };
 
 type DeliveryOptions = Awaited<ReturnType<typeof orderFormDeliveryOptions>>;
 
@@ -124,6 +143,7 @@ export function OrderForm({
   page,
   onContinue,
   summary,
+  priceSummary,
 }: {
   /** Split into two steps: "order" = meal + schedule, "payment" = delivery + payment + review. Unset = one page. */
   page?: "order" | "payment";
@@ -131,6 +151,8 @@ export function OrderForm({
   onContinue?: () => void;
   /** Review block on top of the "payment" page, fed the live order and price. */
   summary?: (draft: { order: CreateOrderInput; preview: PricingResult | null }) => React.ReactNode;
+  /** Price block under the delivery address on the "payment" page. */
+  priceSummary?: (draft: { order: CreateOrderInput; preview: PricingResult | null }) => React.ReactNode;
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
@@ -154,6 +176,26 @@ export function OrderForm({
   const [repInfo, setRepInfo] = useState<RepCouponInfo | null>(null);
   const [discount, setDiscount] = useState(0);
   const [discountOpen, setDiscountOpen] = useState(false);
+  // The customer coupon code on this order; the preview says whether it landed.
+  // Every code staff entered; the preview says which landed and why the others didn't.
+  const [couponCodes, setCouponCodes] = useState<string[]>([]);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
+  const removeCoupon = (code: string) => setCouponCodes((cs) => cs.filter((c) => c !== code.toUpperCase()));
+  const applyCoupon = (code: string) => {
+    const next = code.trim().toUpperCase();
+    if (next) setCouponCodes((cs) => (cs.includes(next) ? cs : [...cs, next]));
+    setCouponInput("");
+  };
+  // Apply all: offer every listed code, let the server pick the best combination, then drop
+  // the ones that didn't make it so only real savings stay on the order.
+  const bulkCodes = useRef<string[] | null>(null);
+  const applyAllCoupons = (codes: string[]) => {
+    const fresh = codes.map((c) => c.toUpperCase()).filter((c) => !couponCodes.includes(c));
+    if (fresh.length === 0) return;
+    bulkCodes.current = fresh;
+    setCouponCodes((cs) => [...cs, ...fresh]);
+  };
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
@@ -161,7 +203,7 @@ export function OrderForm({
   const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
   // First free day after the customer's running plans; the new plan renews from there.
-  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>({ renewFrom: null, addresses: [] });
+  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>(NO_CUSTOMER);
   const renewFrom = customerCtx.renewFrom;
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOptions | null>(null);
   // A picked saved address (its fields and notes come from the address book), or null for a typed one.
@@ -237,8 +279,8 @@ export function OrderForm({
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const baseMinStart = isTrial && trialSettings
-    ? earliestTrialIso(appToday(catalog.timezone), trialWeekdays)
-    : nextWeekday(appToday(catalog.timezone)).toISOString().slice(0, 10);
+    ? earliestTrialIso(staffStartBase(catalog.timezone), trialWeekdays)
+    : nextWeekday(staffStartBase(catalog.timezone)).toISOString().slice(0, 10);
   const renewalBound = renewFrom != null && renewFrom > baseMinStart;
   const minStart = renewalBound ? renewFrom : baseMinStart;
   // The renewal date itself may fall on a non-start day; offer the first one on/after it.
@@ -282,12 +324,12 @@ export function OrderForm({
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      customerOrderContext(email ?? "")
+      customerOrderContext(email ?? "", contact.phone)
         .then((c) => { if (live) setCustomerCtx(c); })
-        .catch(() => { if (live) setCustomerCtx({ renewFrom: null, addresses: [] }); });
+        .catch(() => { if (live) setCustomerCtx(NO_CUSTOMER); });
     }, 300);
     return () => { live = false; clearTimeout(t); };
-  }, [email]);
+  }, [email, contact.phone]);
 
   // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
   useEffect(() => {
@@ -382,6 +424,7 @@ export function OrderForm({
       deliveryInstructions: notes.trim() || null,
     },
     paymentMethodId: realPayments ? paymentMethodId : null,
+    couponCodes,
     repCoupon: repInfo?.available && discount > 0
       ? { code: repInfo.code, requestedAmount: discount }
       : undefined,
@@ -428,6 +471,13 @@ export function OrderForm({
       .then((r) => {
         if (cancelled) return;
         setPreview("error" in r ? null : r.preview);
+        setCoupons("error" in r ? null : r.coupons);
+        const bulk = bulkCodes.current;
+        if (bulk && !("error" in r)) {
+          bulkCodes.current = null;
+          const drop = bulk.filter((c) => !r.coupons.applied.some((a) => a.code.toUpperCase() === c));
+          if (drop.length) setCouponCodes((cs) => cs.filter((c) => !drop.includes(c)));
+        }
         setPreviewError("error" in r ? r.error : null);
       })
       .catch(() => {
@@ -442,7 +492,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -541,6 +591,13 @@ export function OrderForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create order");
     }
+  }, (errors) => {
+    // Some fields live on another step (email on Contact, plan on Order), where their own message
+    // can't be seen; name the first failing one here so Create never fails silently.
+    const [field, err] = Object.entries(errors)[0] ?? [];
+    if (!field) return;
+    const label = FIELD_LABELS[field] ?? field;
+    setError(`${label}: ${err?.message || "check this field"}${field === "email" && page ? " (go back to Contact to fix it)" : ""}`);
   });
 
   const orderMissing = [
@@ -620,18 +677,7 @@ export function OrderForm({
           </FormSection>
 
           <FormSection hidden={page === "payment"} title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
-            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-2" : "sm:grid-cols-3")} disabled={submitting}>
-              <FormField
-                control={form.control}
-                name="persons"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Persons <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input type="number" min={1} max={5} {...field} value={String(field.value ?? "")} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-1" : "sm:grid-cols-2")} disabled={submitting}>
               {!isTrial && (
               <FormField
                 control={form.control}
@@ -640,7 +686,7 @@ export function OrderForm({
                   <FormItem>
                     <FormLabel>Duration (weeks) <span className="text-destructive">*</span></FormLabel>
                     <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
@@ -654,7 +700,7 @@ export function OrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Start date <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input type="date" min={minStart} {...field} /></FormControl>
+                    <FormControl><DateInput min={minStart} value={field.value} onChange={field.onChange} className="w-full" /></FormControl>
                     {renewalBound ? (
                       <p className="text-muted-foreground text-xs text-pretty">
                         Renewal: current plan runs through {dayBeforeIso(renewFrom!)}. The new plan starts on or after{" "}
@@ -663,11 +709,37 @@ export function OrderForm({
                         </button>.
                       </p>
                     ) : null}
+                    {startDate === zonedDateIso(Date.now(), catalog.timezone ?? "America/Toronto") ? (
+                      <p className="text-muted-foreground text-xs text-pretty">
+                        Starts today. If today&apos;s run is already on OptimoRoute, push this stop from Dispatch.
+                      </p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </fieldset>
+
+          {customerCtx.conflict && (
+            <p className="text-destructive text-xs text-pretty">
+              This phone number and this email belong to two different customers. Correct one of them before creating the order.
+            </p>
+          )}
+          {customerCtx.plans.length > 0 && (
+            <div className="bg-muted/40 grid gap-1.5 rounded-md border p-3 text-xs">
+              <p className="font-medium">This customer&apos;s running plans</p>
+              <ul className="text-muted-foreground grid gap-1">
+                {customerCtx.plans.map((p) => (
+                  <li key={p.publicId}>
+                    <a href={`/dashboard/orders/${p.publicId}`} target="_blank" rel="noreferrer" className="text-primary font-medium underline-offset-2 hover:underline">
+                      {p.deploymentId}
+                    </a>
+                    {" · "}{p.mealSize}{" · "}<span className="capitalize">{p.status}</span>{" · "}{p.startDate} to {p.lastDay}{" · "}{p.tiffinCount} tiffins
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {isTrial && (
             <fieldset className="grid gap-2" disabled={submitting}>
@@ -845,6 +917,8 @@ export function OrderForm({
           </fieldset>
           </FormSection>
 
+          {liveDraft && priceSummary && <section className="grid gap-5">{priceSummary(liveDraft)}</section>}
+
           <FormSection hidden={page === "order"} title="Payment" hint={realPayments ? "How the customer pays. Attach proof if they already paid; otherwise share the payment link after create." : undefined}>
           <fieldset className="space-y-3" disabled={submitting}>
             {realPayments ? (
@@ -887,6 +961,62 @@ export function OrderForm({
               <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
                 <ShieldCheckIcon className="size-4" /> Simulated — no real payment methods enabled.
               </p>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2" disabled={submitting}>
+            <Label htmlFor="couponCode">Coupon</Label>
+            {coupons?.applied.map((c) => (
+              <div key={c.code} className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                <span>
+                  <span className="nums font-medium">{c.code}</span>{" "}
+                  <span className="text-muted-foreground">{c.auto ? "Applied automatically" : c.name}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="nums">−${c.amount.toFixed(2)}</span>
+                  {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => removeCoupon(c.code)}>Remove</Button>}
+                </span>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                id="couponCode"
+                value={couponInput}
+                placeholder="Enter code"
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                // Enter would otherwise submit the order form.
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (couponInput.trim()) applyCoupon(couponInput); } }}
+              />
+              <Button type="button" variant="outline" disabled={!couponInput.trim()} onClick={() => applyCoupon(couponInput)}>Apply</Button>
+            </div>
+            {coupons && couponCodes
+              .filter((code) => !coupons.applied.some((c) => c.code.toUpperCase() === code))
+              .map((code) => {
+                const why = coupons.codeErrors.find((e) => e.code === code)?.error
+                  ?? coupons.notApplied.find((n) => n.code.toUpperCase() === code)?.reason
+                  ?? "Not applied";
+                return (
+                  <p key={code} role="alert" className="text-destructive flex items-center gap-2 text-sm">
+                    <span><span className="nums">{code}</span>: {why}</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeCoupon(code)}>Remove</Button>
+                  </p>
+                );
+              })}
+            {coupons?.error && <p role="alert" className="text-destructive text-sm">{coupons.error}</p>}
+            {coupons && coupons.available.some((c) => !couponCodes.includes(c.code.toUpperCase())) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground text-xs">Available</span>
+                {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).length > 1 && (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => applyAllCoupons(coupons.available.map((c) => c.code))}>
+                    Apply all applicable
+                  </Button>
+                )}
+                {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).map((c) => (
+                  <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => applyCoupon(c.code)}>
+                    <span className="nums">{c.code}</span> · {discountLine(c)}
+                  </Button>
+                ))}
+              </div>
             )}
           </fieldset>
 

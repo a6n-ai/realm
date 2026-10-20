@@ -79,7 +79,7 @@ export function LogsTable({
           shortPlaceholder: "Search…",
           debounceMs: 300,
         }}
-        filters={<ReuiFacetFilters spec={spec} />}
+        filters={<ReuiFacetFilters spec={spec} hideDate />}
         emptyIcon={BellIcon}
         emptyMessage="No notifications have been queued yet."
         emptySearchMessage="No notifications match your search."

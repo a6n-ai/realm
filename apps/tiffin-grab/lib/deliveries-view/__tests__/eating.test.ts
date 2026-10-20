@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, moveNotes, moveTags, tiffinBreakdown } from "../eating";
+import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, moveNotes, moveTags } from "../eating";
 import type { Trip } from "../index";
 
 const day = (date: string, dish: string | null = null, locksWith: string | null = null) => ({ date, dishSummary: dish, swaps: [], locksWith });
@@ -145,10 +145,16 @@ describe("a day whose own tiffin left while another moved in (Wed -> Thu, then T
   });
 });
 
-describe("tiffinBreakdown", () => {
-  it("names each day the truck carries, moved-in tiffins by the day they left", () => {
-    expect(tiffinBreakdown({ units: 2, coversDates: ["2026-09-21", "2026-09-22"] })).toBe("1 Mon + 1 Tue");
-    expect(tiffinBreakdown({ units: 1, coversDates: ["2026-10-08"], movesIn: [{ from: "2026-10-07", to: "2026-10-08" }] })).toBe("1 Wed's");
-    expect(tiffinBreakdown({ units: 3, coversDates: ["2026-10-12"], movesIn: [{ from: "2026-10-09", to: "2026-10-12" }, { from: null, to: "2026-10-12" }] })).toBe("1 Mon + 1 Fri's + 1 held day's");
+describe("deliveryLine on a holiday", () => {
+  const closed = (o: Partial<Trip> = {}) => buildEatingDays([trip({ status: "holiday", holidayName: "Diwali", ...o })])[0]!;
+  it("names where the tiffin went once the extra day is placed", () => {
+    const line = deliveryLine(closed({ movedTo: "2026-09-25" }));
+    expect(line).toBe("Holiday: Diwali. Moved to Fri, Sep 25");
+    expect(line).not.toContain("Arrives");
+  });
+  it("says the tiffin goes to the end of the plan while the extra day is unplaced", () => {
+    const line = deliveryLine(closed({ movedTo: null }));
+    expect(line).toBe("Holiday: Diwali. The kitchen is closed that day. The team will place this tiffin on a new day.");
+    expect(line).not.toContain("Arrives");
   });
 });

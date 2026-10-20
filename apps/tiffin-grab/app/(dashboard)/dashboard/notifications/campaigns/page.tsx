@@ -1,15 +1,15 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { and, count, desc, isNull } from "drizzle-orm";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
-import { Button } from "@foundry/ui/button";
 import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
+import { NewCampaignButtons } from "./new-campaign-buttons";
 import { db } from "@/db/client";
 import { campaign, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
 
@@ -57,9 +57,7 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
         title="Campaigns"
         subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
         action={
-          <Button asChild size="sm">
-            <Link href="/dashboard/notifications/campaigns/new">New campaign</Link>
-          </Button>
+          <NewCampaignButtons />
         }
       >
         <Suspense fallback={<CampaignsTableSkeleton />}>
@@ -95,7 +93,7 @@ async function SesQuotaCard() {
 
 async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
 
   const sort: SortState<CampaignSortColumn> = parseSort(sp, ["name", "status", "createdAt"], {
     column: "createdAt",

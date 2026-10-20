@@ -6,6 +6,10 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { buildDayLedger } from "@/lib/services/optimoroute/ledger";
+import { HolidayBanner } from "@/components/dashboard/holiday-banner";
+import { getSession } from "@/lib/auth/session";
+import { holidaysOn } from "@/lib/services/holidays.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "./day-header";
 import { DispatchTabs } from "./dispatch-tabs";
@@ -42,16 +46,20 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
+  const closed = await holidaysOn(date, await resolveSessionVisibleOrgIds(await getSession()));
 
   if (!status.hasApiKey) {
     return (
-      <SectionCard title="Not configured">
-        <p className="text-muted-foreground text-sm">
-          Set <code>OPTIMOROUTE_API_KEY</code> in the server environment to enable route sync.
-          The key is read server-side only — it is never stored in the database and never
-          reaches the browser.
-        </p>
-      </SectionCard>
+      <>
+        <HolidayBanner closed={closed} />
+        <SectionCard title="Not configured">
+          <p className="text-muted-foreground text-sm">
+            Set <code>OPTIMOROUTE_API_KEY</code> in the server environment to enable route sync.
+            The key is read server-side only — it is never stored in the database and never
+            reaches the browser.
+          </p>
+        </SectionCard>
+      </>
     );
   }
 
@@ -61,6 +69,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   } catch (e) {
     return (
       <>
+        <HolidayBanner closed={closed} />
         <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
         <DispatchTabs date={date} />
         <SectionCard title="OptimoRoute unreachable">
@@ -85,6 +94,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
+      <HolidayBanner closed={closed} />
       <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
       <DispatchTabs date={date} />
 

@@ -1,6 +1,8 @@
 import type { AttendanceMode, SessionCategory } from "@/db/schema/studio";
 import type { PublicSession } from "@/lib/services/studio-sessions.service";
-import { formatMoney } from "@foundry/commons";
+import type { ClassBookingType } from "@/db/schema/studio";
+import { priceLine } from "@/lib/pricing/price-line";
+import type { PriceTable } from "@/lib/pricing/types";
 import { dayKey } from "./timezone";
 
 export type BoardTone = "muted" | "action" | "ink";
@@ -85,11 +87,17 @@ function attendanceLabel(mode: AttendanceMode): string | null {
   }
 }
 
+export function audienceLabel(c: { ageMin: number | null; ageMax: number | null }): string | null {
+  if (c.ageMin != null && c.ageMax != null) return `Ages ${c.ageMin}-${c.ageMax}`;
+  if (c.ageMin != null) return `Ages ${c.ageMin}+`;
+  if (c.ageMax != null) return `Up to age ${c.ageMax}`;
+  return null;
+}
+
 export function toPublicSessionCard(session: PublicSession, timeZone: string): PublicSessionCard {
   const specParts = [
-    session.audience,
+    audienceLabel(session),
     attendanceLabel(session.attendanceMode),
-    session.priceDisplay,
     session.location,
   ].filter(Boolean);
   const spec = specParts.length ? specParts.join(" · ") : CATEGORY_LABELS[session.category];
@@ -108,7 +116,7 @@ export function toPublicSessionCard(session: PublicSession, timeZone: string): P
     remaining: session.remaining,
     category: session.category,
     photos: session.photos ?? [],
-    description: session.description,
+    description: session.summary || null,
   };
 }
 
@@ -148,9 +156,16 @@ export type PublicClass = {
   title: string;
   category: SessionCategory;
   audience: string | null;
-  description: string | null;
+  summary: string;
+  included: string | null;
+  scheduleLine: string | null;
+  groupSize: string | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  color: string;
+  bookingType: ClassBookingType;
   photos: string[];
-  price: string;
+  priceLine: string;
   location: string | null;
   /** First upcoming date, or null when nothing is scheduled. */
   nextDate: string | null;
@@ -159,21 +174,30 @@ export type PublicClass = {
 
 type ClassFields = Pick<
   PublicSession,
-  "publicId" | "title" | "category" | "audience" | "description" | "photos" | "priceDisplay" | "priceAmount" | "location"
+  | "publicId"
+  | "title"
+  | "category"
+  | "ageMin"
+  | "ageMax"
+  | "summary"
+  | "included"
+  | "scheduleLine"
+  | "groupSize"
+  | "color"
+  | "bookingType"
+  | "pricing"
+  | "photos"
+  | "prices"
+  | "location"
 >;
 
-/** Classes with dates come first (soonest first); unscheduled ones follow by title. */
-function priceLabel(c: ClassFields, currency: string): string {
-  if (c.priceDisplay?.trim()) return c.priceDisplay;
-  const amount = Number(c.priceAmount);
-  return Number.isFinite(amount) && amount > 0 ? formatMoney(amount, currency) : "Free";
-}
-
+/** Keeps the caller's order (the admin's sortOrder). */
 export function groupPublicClasses(
   classes: ClassFields[],
   sessions: PublicSession[],
   timeZone: string,
   currency: string,
+  globalPrices: PriceTable,
 ): PublicClass[] {
   const byClass = new Map<string, PublicSession[]>();
   for (const s of sessions) byClass.set(s.publicId, [...(byClass.get(s.publicId) ?? []), s]);
@@ -185,10 +209,20 @@ export function groupPublicClasses(
         publicId: c.publicId,
         title: c.title,
         category: c.category,
-        audience: c.audience,
-        description: c.description,
+        audience: audienceLabel(c),
+        summary: c.summary,
+        included: c.included,
+        scheduleLine: c.scheduleLine,
+        groupSize: c.groupSize,
+        ageMin: c.ageMin,
+        ageMax: c.ageMax,
+        color: c.color,
+        bookingType: c.bookingType,
         photos: c.photos ?? [],
-        price: priceLabel(c, currency),
+        priceLine:
+          c.bookingType === "enquire_only"
+            ? "Enquire for dates & pricing"
+            : priceLine(c.pricing, c.prices, globalPrices, currency),
         location: c.location,
         nextDate: upcoming[0] ? formatSessionDay(upcoming[0].startsAt, timeZone) : null,
         // Rows span several days on a class page, so the day leads the time.
@@ -196,9 +230,10 @@ export function groupPublicClasses(
           const card = toPublicSessionCard(s, timeZone);
           return { ...card, time: `${formatSessionDay(s.startsAt, timeZone)} · ${card.time}` };
         }),
-        first: upcoming[0]?.startsAt.getTime() ?? Number.POSITIVE_INFINITY,
       };
-    })
-    .sort((a, b) => a.first - b.first || a.title.localeCompare(b.title))
-    .map(({ first: _first, ...c }) => c);
+    });
 }
+
+/** Named swatches matching the printed class palette; the class stores the name. */
+export const CLASS_COLORS = ["pink", "sky", "blue", "purple", "orange", "green", "yellow"] as const;
+export type ClassColor = (typeof CLASS_COLORS)[number];

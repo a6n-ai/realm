@@ -8,7 +8,7 @@ import {
   Sheet, Skeleton, StatusDot, StatusRing, Stepper, Tabs, Toast, Toggle, type DeliveryStatus,
 } from "@/components/customer/kit";
 
-const S: DeliveryStatus[] = ["delivered", "upcoming", "vacation", "hold", "combined"];
+const S: DeliveryStatus[] = ["delivered", "upcoming", "paused", "hold", "combined"];
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -116,7 +116,7 @@ export function KitGallery() {
         <Card className="p-4">
           <MonthGrid month="2026-09" selected={sel} onSelect={setSel} days={{
             "2026-09-21": { status: "delivered" }, "2026-09-22": { status: "upcoming" }, "2026-09-25": { status: "hold" },
-            "2026-09-28": { status: "vacation" }, "2026-09-29": { status: "combined" }, "2026-09-30": { disabledReason: "Past cutoff" },
+            "2026-09-28": { status: "paused" }, "2026-09-29": { status: "combined" }, "2026-09-30": { disabledReason: "Past cutoff" },
           }} />
         </Card>
         <Countdown target={Date.now() + 26 * 3600_000} />

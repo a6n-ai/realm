@@ -54,7 +54,7 @@ export const orders = pgTable("orders", {
   trialWeekdays: text("trial_weekdays").array(),
   startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
-  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).
+  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/pause misses).
   // Customer schedules these after the last delivery via scheduleFromPool.
   pooledTiffinCount: integer("pooled_tiffin_count").notNull().default(0),
   // Free tiffins staff gave on top of tiffin_count (one complimentary delivery row each, times
@@ -99,7 +99,14 @@ export const orders = pgTable("orders", {
   // rule as pricing/totals (AGENTS.md). Nullable during the Task-5 backfill window;
   // a follow-up migration can tighten to NOT NULL once every existing row is backfilled.
   organizationId: text("organization_id").references(() => organization.id),
+  // "Look out for": any staff member flags an order the whole team should watch, with why.
+  // Null lookOutAt means not flagged; by/note are cleared with it.
+  lookOutAt: bigint("look_out_at", { mode: "number" }),
+  lookOutBy: bigint("look_out_by", { mode: "bigint" }).references(() => users.id),
+  lookOutNote: text("look_out_note"),
 }, (t) => [
+  // The Orders "Look out for" tab: only flagged rows, newest flag first.
+  index("orders_look_out_idx").on(t.lookOutAt).where(sql`${t.lookOutAt} is not null`),
   // Customer 360 + lists filter user_id and sort created_at desc.
   index("orders_user_created_idx").on(t.userId, t.createdAt),
   // Reassignment: staff "my queue" views filter by current_owner.
@@ -177,6 +184,8 @@ export const orderAddons = pgTable("order_addons", {
   category: text("category").notNull(),
   // addons.plan_id at order time: the menu this row's picks come from.
   planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
+  // addons.fallback_plan_ids at order time: plans tried, in order, when the day has no plan_id dish.
+  fallbackPlanIds: bigint("fallback_plan_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
   tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull(),
   pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").notNull().default(1),

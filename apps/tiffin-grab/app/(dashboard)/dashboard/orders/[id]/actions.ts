@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@foundry/commons";
+import { formatMoney, ValidationError } from "@foundry/commons";
 import { memoryBus } from "@foundry/realtime/server";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
@@ -13,21 +13,32 @@ import {
   cancelOrder,
   startMigratedOrder,
   changeOrderStartDate,
-  changeMealSize,
+  changeOrderEatingDays,
   rejectPayment,
   updatePaymentReference,
+  setOrderLookOut,
   verifyPayment,
   assertOrderVisible,
+  assertDeliveryVisible,
+  assertPaymentVisible,
   resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { addOrderAddons, quoteOrderAddons, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
+import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
+
+// Staff of one organization must not act on another's order: every action below checks the
+// order (or the order behind the delivery/payment) against the caller's organizations.
+const visibleOrgs = async () => resolveSessionVisibleOrgIds(await getSession());
 
 export async function activate(orderId: string) {
   await requireStaff();
+  await assertOrderVisible(orderId, await visibleOrgs());
   await activateOrder(orderId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -35,6 +46,7 @@ export async function activate(orderId: string) {
 export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
     await startMigratedOrder(orderId, startDate);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -44,7 +56,18 @@ export async function startMigrated(orderId: string, startDate: string): Promise
 export async function changeStartDateAction(orderId: string, startDate: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
     await changeOrderStartDate(orderId, startDate);
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
+export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    await changeOrderEatingDays(orderId, days);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
   return res;
@@ -52,19 +75,15 @@ export async function changeStartDateAction(orderId: string, startDate: string):
 
 export async function cancel(orderId: string) {
   await requireStaff();
+  await assertOrderVisible(orderId, await visibleOrgs());
   await cancelOrder(orderId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
-}
-
-export async function changePlan(orderId: string, mealSizePublicId: string) {
-  await requireStaff();
-  await changeMealSize(orderId, mealSizePublicId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     const session = await getSession();
     await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
   });
@@ -88,9 +107,71 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
   return res;
 }
 
+function parseAddonSelections(raw: FormDataEntryValue | null): AddonSelection[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(typeof raw === "string" ? raw : "");
+  } catch {
+    throw new ValidationError("Pick at least one add-on");
+  }
+  if (!Array.isArray(parsed)) throw new ValidationError("Pick at least one add-on");
+  return parsed.map((s) => {
+    const { key, qty } = (s ?? {}) as { key?: unknown; qty?: unknown };
+    if (typeof key !== "string" || typeof qty !== "number") throw new ValidationError("Pick at least one add-on");
+    return { key, qty };
+  });
+}
+
+// Display only: the save reprices everything server-side.
+export async function quoteOrderAddonsAction(
+  orderId: string,
+  selections: AddonSelection[],
+  methodId: string,
+): Promise<ActionResult<{ quote: AddonQuote }>> {
+  return runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    return { quote: await quoteOrderAddons(orderId, selections, methodId) };
+  });
+}
+
+// FormData: selections (JSON), method, expected_amount_due (the quote on screen), reference (optional), proof + proof_thumb (images).
+export async function addOrderAddonsAction(orderId: string, form: FormData): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    const selections = parseAddonSelections(form.get("selections"));
+    const method = form.get("method");
+    const methodId = typeof method === "string" ? method : "";
+    const shown = form.get("expected_amount_due");
+    const expectedAmountDue = typeof shown === "string" && shown.trim() !== "" ? Number(shown) : NaN;
+    if (!Number.isFinite(expectedAmountDue) || expectedAmountDue < 0) throw new ValidationError("Add-on amount missing, reopen the dialog");
+    // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
+    const fresh = await quoteOrderAddons(orderId, selections, methodId);
+    if (fresh.amountDue.toFixed(2) !== expectedAmountDue.toFixed(2)) {
+      throw new ValidationError(`The amount changed to ${formatMoney(fresh.amountDue)}. Check with the customer and try again.`);
+    }
+    const actorId = await currentUserId();
+    // The first argument only names the storage folder; the payment row does not exist yet.
+    const proof = await uploadPaymentProof(orderId, form.get("proof"), form.get("proof_thumb"));
+    const ref = form.get("reference");
+    await addOrderAddons(
+      orderId,
+      { selections, methodId, expectedAmountDue, proof, reference: typeof ref === "string" ? ref : null },
+      actorId,
+    );
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
+  }
+  return res;
+}
+
 export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     await rejectPayment(paymentPublicId, note, await currentUserId());
   });
   if ("ok" in res) {
@@ -116,7 +197,7 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
 export async function updatePaymentReferenceAction(orderId: string, paymentPublicId: string, reference: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     await updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId());
   });
   if ("ok" in res) {
@@ -126,11 +207,24 @@ export async function updatePaymentReferenceAction(orderId: string, paymentPubli
   return res;
 }
 
-/** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
+/** Any staff member marks, re-notes or unmarks an order on the Look out for tab. */
+export async function setLookOutAction(orderId: string, on: boolean, note: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    await setOrderLookOut(orderId, on, note, await currentUserId());
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/orders");
+  }
+  return res;
+}
+
 export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
@@ -139,6 +233,7 @@ export async function sendPaymentReminderAction(orderId: string, paymentPublicId
 
 export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
   await requireStaff();
+  await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await pushOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -147,6 +242,7 @@ export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublic
  *  the day-level stale check has caught up to it yet. */
 export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
   await requireStaff();
+  await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await removeOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -158,6 +254,7 @@ export async function setDeliveryStatusAction(
 ): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireAdmin();
+    await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
     if (!isAdminDeliveryStatus(status)) throw new ValidationError("Unknown delivery status");
     await adminSetDeliveryStatus(deliveryPublicId, status, await currentUserId());
     return "Delivery status updated";
@@ -181,6 +278,7 @@ export async function setDeliveryStatusAction(
 export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
     const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
     return `Re-delivering on ${targetDate}`;
   });
@@ -196,7 +294,7 @@ export async function grantComplimentaryAction(
 ): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireAdmin();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     const { reopened } = await grantComplimentaryTiffin(
       orderId,
       {

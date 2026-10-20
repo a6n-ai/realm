@@ -1,15 +1,12 @@
 import type { CSSProperties } from "react";
-import { SITE_NAME } from "@/lib/brand";
-import { Role } from "@foundry/commons";
-import { buildMetadata } from "@/lib/seo";
-import { BookControl } from "@/components/marketing/book-control";
-import { SessionList } from "@/components/marketing/session-list";
-import { Eyebrow, Notice, stagger } from "@/components/marketing/ui";
-import { getSession } from "@/lib/auth/session";
-import { bookingsService } from "@/lib/services/bookings.service";
-import { walletService } from "@/lib/services/wallet.service";
-import { loadPublicSessionCards } from "@/lib/sessions/public";
 import { Users } from "lucide-react";
+import { SITE_NAME } from "@/lib/brand";
+import { buildMetadata } from "@/lib/seo";
+import { PublicCalendar } from "@/components/marketing/public-calendar";
+import { SessionList } from "@/components/marketing/session-list";
+import { Button, Eyebrow, Notice, stagger } from "@/components/marketing/ui";
+import { getSession } from "@/lib/auth/session";
+import { bookHref, loadPublicSessionCards } from "@/lib/sessions/public";
 
 export const metadata = buildMetadata({
   title: `What's On · ${SITE_NAME}`,
@@ -20,16 +17,10 @@ export const metadata = buildMetadata({
 export default async function WhatsOnPage({
   searchParams,
 }: {
-  searchParams: Promise<{ book?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const [{ groups }, session, params] = await Promise.all([loadPublicSessionCards(), getSession(), searchParams]);
+  const [{ groups }, session, sp] = await Promise.all([loadPublicSessionCards(), getSession(), searchParams]);
   const signedIn = Boolean(session?.user);
-  const isFamily = session?.user?.role === Role.USER;
-  const focusId = params.book;
-  const bookedIds = new Set(
-    isFamily && session?.user ? await bookingsService.listConfirmedOccurrencePublicIds(session.user.id) : [],
-  );
-  const coins = isFamily && session?.user ? await walletService.coinsForFamily(session.user.id) : null;
 
   return (
     <article>
@@ -42,12 +33,12 @@ export default async function WhatsOnPage({
             Find your next session.
           </h1>
           <p className="xl-lede" style={stagger(2)}>
-            Every published session, day by day. Book a seat for each child; prices are on the session. Spots update as
-            people book.
+            Every published session, week by week. Pick one to book a seat for each child. Spots update as people book.
           </p>
         </div>
       </header>
       <section className="xl-wrap xl-section xl-stack" style={{ "--gap": "28px" } as CSSProperties}>
+        <PublicCalendar searchParams={sp} />
         {groups.length === 0 ? (
           <div className="xl-panel">
             <p className="xl-body">
@@ -60,18 +51,11 @@ export default async function WhatsOnPage({
               <h2 className="xl-day-label">{group.tape}</h2>
               <SessionList
                 rows={group.rows}
-                focusId={focusId}
                 showDescription
                 action={(row) => (
-                  <BookControl
-                    publicId={row.publicId}
-                    remaining={row.remaining}
-                    signedIn={signedIn}
-                    isFamily={isFamily}
-                    booked={bookedIds.has(row.publicId)}
-                    coins={coins}
-                    autofocus={focusId === row.publicId}
-                  />
+                  <Button size="xs" variant="secondary" href={bookHref(row.publicId, signedIn)}>
+                    {row.remaining > 0 ? "Book" : "Details"}
+                  </Button>
                 )}
               />
             </div>

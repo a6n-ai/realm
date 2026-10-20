@@ -31,7 +31,6 @@ describe("listCustomerActivitiesPage (integration)", () => {
     const page = await listCustomerActivitiesPage(undefined, { page: 0, size: 10 });
 
     expect(page.total).toBe(2);
-    // `by` is the actor's display name; who they are (staff vs the customer) is `actorKind`.
     expect(page.items.map((r) => [r.actionKey, r.customerEmail, r.by, r.actorKind])).toEqual([
       ["address_updated", "c@example.com", "Staffer", "staff"],
       ["address_added", "c@example.com", "Cust", "customer"],

@@ -1,4 +1,4 @@
-import { eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
+import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
@@ -6,6 +6,7 @@ import { notificationOutbox, orderActivities, orders, payments, stripeEvents, us
 import type { SendState } from "@/lib/services/customers.service";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -27,15 +28,9 @@ const SORT_COL = {
 
 type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string };
 
-/** The FacetFilters `dateRange` facet writes epoch-ms `from`/`to` params; either end may be open. */
+/** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
 export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
-  const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
-  const a = n(sp.from);
-  const b = n(sp.to);
-  if (a != null && b != null) return and(gte(col, Math.min(a, b)), lte(col, Math.max(a, b)));
-  if (a != null) return gte(col, a);
-  if (b != null) return lte(col, b);
-  return undefined;
+  return epochBoundsWhere(col, sp);
 }
 
 // Prefixes written to order_activities (type payment_failed) by payment-stripe.ts when a card payment needs staff.
@@ -80,18 +75,19 @@ export async function listPayments(
   sp: Sp,
   opts: { where?: SQL } = {},
 ): Promise<{ rows: PaymentRow[]; total: number; page: number; size: number; sort: SortState<PaymentSortKey> }> {
-  const { page } = parseFilterState([], sp);
-  const sort = parseSort(sp, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
-  const q = sp.q?.trim();
-  const statuses = csv(sp.status, PAYMENT_STATUS_OPTIONS);
-  const methods = csv(sp.method, PAYMENT_METHOD_OPTIONS);
-  const attention = csv(sp.attention, STRIPE_FACETS);
+  const dated = await withListDates(sp);
+  const { page } = parseFilterState([], dated);
+  const sort = parseSort(dated, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
+  const q = dated.q?.trim();
+  const statuses = csv(dated.status, PAYMENT_STATUS_OPTIONS);
+  const methods = csv(dated.method, PAYMENT_METHOD_OPTIONS);
+  const attention = csv(dated.attention, STRIPE_FACETS);
 
   const where = and(
     opts.where,
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
-    dateRangeWhere(payments.createdAt, sp),
+    dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
     q
       ? or(

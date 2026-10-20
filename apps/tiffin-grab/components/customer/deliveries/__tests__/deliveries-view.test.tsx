@@ -10,6 +10,9 @@ import type { Agenda } from "@/lib/deliveries-view/week";
 
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));
+const rel = vi.hoisted(() => vi.fn());
+const pse = vi.hoisted(() => vi.fn());
+vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ releaseMyDays: rel, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), pauseMyDays: pse }));
 const replace = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn(), replace }) }));
@@ -37,7 +40,7 @@ const plan = mk("o", { size: "Large", remaining: 16, total: 20 });
 const trips = [
   trip({ date: "2026-09-21", status: "delivered", units: 2, coversLabel: "Covers Mon + Tue", coversDates: ["2026-09-21", "2026-09-22"] }),
   trip({}),
-  trip({ date: "2026-09-25", status: "failed" }),
+  trip({ date: "2026-09-25", status: "failed", optimoCompletionStatus: "failed" }),
 ];
 const cut = NOW + 30 * 3600e3;
 const dot = (orderId: string, deliveryDate: string, covers: string[], units = 1, status: "scheduled" | "skipped" = "scheduled") =>
@@ -116,10 +119,90 @@ describe("DeliveriesView (one plan)", () => {
   });
   it("move only: no Hold or Resume anywhere; a failed drop offers Move as its one action", () => {
     view();
-    expect(screen.queryByRole("button", { name: /Hold|Resume/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hold|Resume(?! all)|On hold|Release hold/ })).toBeNull();
     cleanup();
     view("2026-09-25");
-    expect(screen.queryByRole("button", { name: /Hold|Resume|Edit meal/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hold|Resume(?! all)|Edit meal|On hold|Release hold/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
+  });
+  describe("pause", () => {
+    const pausedTrip = (date: string) => trip({ date, status: "paused", deliveryId: `d-${date}` });
+    const pdot = (date: string): readonly [string, Agenda[string][number]] => [date, { orderId: "o", status: "paused", cutoffAt: cut, deliveryDate: date, truck: true, units: 1, covers: [date] }];
+    it("a plan offers Pause; a trial does not", () => {
+      view();
+      expect(screen.getByRole("button", { name: "Pause multiple days" })).toBeInTheDocument();
+      cleanup();
+      view("2026-09-23", trips, { ...plan, sub: { ...plan.sub, trial: true } } as PlanView);
+      expect(screen.queryByRole("button", { name: /^Pause/ })).toBeNull();
+    });
+    it("an upcoming day offers Pause this day, which pauses only that date", async () => {
+      pse.mockReset();
+      pse.mockResolvedValue({ ok: true, paused: ["2026-09-23"], skipped: [] });
+      view();
+      fireEvent.click(screen.getAllByRole("button", { name: "Pause this day" })[0]!);
+      await vi.waitFor(() => expect(pse).toHaveBeenCalledWith("o", ["2026-09-23"]));
+    });
+    it("a paused day reads Paused and offers Resume this day beside Move", () => {
+      view("2026-09-23", [pausedTrip("2026-09-23")], plan, { agenda: agendaOf([pdot("2026-09-23")]) });
+      expect(screen.getAllByText("Paused").length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("button", { name: "Resume this day" }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
+      // One paused day is enough for Resume all.
+      expect(screen.getByRole("button", { name: "Resume all" })).not.toHaveAttribute("aria-disabled");
+    });
+    it("Resume all is always there: greyed with nothing paused, and it says so on a tap", () => {
+      view();
+      const all = screen.getByRole("button", { name: "Resume all" });
+      expect(all).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(all);
+      expect(screen.getAllByText("No paused days to resume.").length).toBeGreaterThan(0);
+      expect(rel).not.toHaveBeenCalled();
+    });
+    it("only a past-cutoff paused day left: Resume all points to Move instead of resuming", async () => {
+      rel.mockReset();
+      const past: readonly [string, Agenda[string][number]] = ["2026-09-21", { orderId: "o", status: "skipped", lapsedPause: true, cutoffAt: 1, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"] }];
+      view("2026-09-23", trips, plan, { agenda: agendaOf([past]) });
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
+      expect(await screen.findByRole("button", { name: "Move Mon, Sep 21" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /resume the rest/i })).toBeNull();
+      expect(rel).not.toHaveBeenCalled();
+    });
+    it("with two paused days ahead, Resume all is offered and releases every one", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
+      view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
+      // One Resume all, beside Pause; the day's card and bottom bar keep only this day's Resume.
+      expect(screen.getAllByRole("button", { name: "Resume all" })).toHaveLength(1);
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
+    });
+    it("Resume all first warns about a paused day past its cutoff, which only Move can save", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
+      const past: readonly [string, Agenda[string][number]] = ["2026-09-21", { orderId: "o", status: "skipped", lapsedPause: true, cutoffAt: 1, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"] }];
+      view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([past], [pdot("2026-09-23")], [pdot("2026-09-25")]) });
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
+      expect(await screen.findByText(/Mon, Sep 21 is past cutoff/)).toBeInTheDocument();
+      expect(rel).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Only resume the rest" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
+    });
+    it("Resume this day releases only the selected date", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23"] });
+      view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
+      fireEvent.click(screen.getAllByRole("button", { name: "Resume this day" })[0]!);
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", ["2026-09-23"]));
+    });
+    it("a plan that is fully paused says Paused without calling the plan inactive", () => {
+      const fully = { ...plan, sub: { ...plan.sub, fullyPaused: true } } as PlanView;
+      view("2026-09-23", [pausedTrip("2026-09-23")], fully, { agenda: agendaOf([pdot("2026-09-23")]) });
+      expect(screen.getByTestId("plan-summary")).toHaveTextContent(/Active.*All upcoming days paused/);
+    });
+  });
+  it("any hold is the customer's to move, as on a failed drop", () => {
+    view("2026-09-26", [trip({ date: "2026-09-26", status: "failed" })]);
+    expect(screen.queryByRole("button", { name: /On hold|Release hold/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });
   it("delivered eating day: no action rows", () => {

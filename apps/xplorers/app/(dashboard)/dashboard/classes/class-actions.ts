@@ -15,16 +15,22 @@ function formFields(formData: FormData) {
     title: String(formData.get("title") ?? ""),
     category: String(formData.get("category") ?? ""),
     description: String(formData.get("description") ?? ""),
-    startsAt: String(formData.get("startsAt") ?? ""),
-    endsAt: String(formData.get("endsAt") ?? ""),
-    audience: String(formData.get("audience") ?? ""),
     capacity: Number(formData.get("capacity")),
-    priceDisplay: String(formData.get("priceDisplay") ?? ""),
-    priceAmount: String(formData.get("priceAmount") ?? "0"),
     location: String(formData.get("location") ?? ""),
     attendanceMode: String(formData.get("attendanceMode") ?? "either"),
     published: formData.get("published") === "on",
     photos: formData.getAll("photos").map((value) => String(value)),
+    included: String(formData.get("included") ?? ""),
+    scheduleLine: String(formData.get("scheduleLine") ?? ""),
+    groupSize: String(formData.get("groupSize") ?? ""),
+    ageMin: String(formData.get("ageMin") ?? ""),
+    ageMax: String(formData.get("ageMax") ?? ""),
+    ageWaiver: formData.get("ageWaiver") === "on",
+    color: String(formData.get("color") ?? "pink"),
+    bookingType: String(formData.get("bookingType") ?? "bookable"),
+    pricing: String(formData.get("pricing") ?? ""),
+    prices: String(formData.get("prices") ?? ""),
+    pattern: String(formData.get("pattern") ?? "null"),
   };
 }
 
@@ -32,8 +38,7 @@ export async function createClassAction(_prev: ClassFormState, formData: FormDat
   await requirePermission({ studioSession: ["create"] });
   let publicId: string;
   try {
-    const timeZone = await studioSessionsService.timezone();
-    const row = await studioSessionsService.createClass(formFields(formData), timeZone);
+    const row = await studioSessionsService.createClass(formFields(formData));
     publicId = row.publicId;
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
@@ -53,8 +58,7 @@ export async function updateClassAction(
 ): Promise<ClassFormState> {
   await requirePermission({ studioSession: ["update"] });
   try {
-    const timeZone = await studioSessionsService.timezone();
-    await studioSessionsService.updateClass(publicId, formFields(formData), timeZone);
+    await studioSessionsService.updateClass(publicId, formFields(formData));
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
     throw err;

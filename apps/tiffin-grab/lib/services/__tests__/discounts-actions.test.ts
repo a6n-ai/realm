@@ -22,6 +22,7 @@ const basePatch = {
   name: "Welcome offer",
   stackable: false,
   autoApply: false,
+  visible: true,
   active: true,
   planTypes: [] as string[],
 };
@@ -36,7 +37,7 @@ async function reset() {
   // saveCoupon's enabled-kind gate doesn't depend on cross-file run order.
   await setDiscountPolicy({
     enabledKinds: [...couponKind.enumValues],
-    repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, defaultDailyUses: 1, perRep: {} },
+    repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, defaultDailyUses: 1, codeValidityHours: 48, perRep: {} },
   });
 }
 
@@ -58,9 +59,22 @@ describe("discounts settings actions", () => {
     expect(row.kind).toBe("percentage");
     expect(row.valuePct).toBe("10.00");
     expect(row.active).toBe(true);
+    expect(row.visible).toBe(true);
 
     await setCouponActive(row.publicId, false);
     const [after] = await db.select().from(coupons).where(eq(coupons.publicId, row.publicId));
     expect(after.active).toBe(false);
+  });
+
+  it("persists visible=false for private/manual-entry codes", async () => {
+    await saveCoupon(null, {
+      ...basePatch,
+      code: "PRIVATE10",
+      kind: "percentage",
+      valuePct: 10,
+      visible: false,
+    });
+    const [row] = await db.select().from(coupons).where(eq(coupons.code, "PRIVATE10"));
+    expect(row.visible).toBe(false);
   });
 });

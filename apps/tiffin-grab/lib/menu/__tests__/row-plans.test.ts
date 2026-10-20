@@ -15,12 +15,21 @@ const customItems = [
 describe("rowPlanIds", () => {
   it("maps each pick of a custom meal to its own row's plan, in sortOrder", () => {
     const plans = rowPlanIds(customItems, true)!;
-    expect(plans.get("sabzi")).toEqual([NONVEG, VEG, VEG]);
-    expect(plans.get("roti")).toEqual([NONVEG]);
+    expect(plans.get("sabzi")).toEqual([[NONVEG], [VEG], [VEG]]);
+    expect(plans.get("roti")).toEqual([[NONVEG]]);
   });
 
   it("is null for catalog sizes — their rows stay a union of reachable plans", () => {
     expect(rowPlanIds(customItems, false)).toBeNull();
+  });
+
+  it("gives a catalog add-on row its plan then its fallbacks; meal rows stay open", () => {
+    const plans = rowPlanIds([
+      { category: "sabzi", planId: NONVEG, sortOrder: 0 },
+      { category: "sabzi", planId: VEG, sortOrder: 1 },
+      { category: "sabzi", planId: NONVEG, sortOrder: 1000, addon: true, fallbackPlanIds: [VEG] },
+    ], false)!;
+    expect(plans.get("sabzi")).toEqual([null, null, [NONVEG, VEG]]);
   });
 });
 
@@ -49,6 +58,12 @@ describe("itemsForRow", () => {
   it("keeps the whole menu when the row's diet has nothing on it that day", () => {
     expect(itemsForRow([paneer], plans, "sabzi", 1)).toEqual([paneer]);
   });
+
+  it("tries an add-on's plans in priority order: non-veg first, veg on a veg-only day", () => {
+    const addon = new Map([["sabzi", [[NONVEG, VEG]]]]);
+    expect(itemsForRow(menu, addon, "sabzi", 1)).toEqual([chicken]);
+    expect(itemsForRow([paneer], addon, "sabzi", 1)).toEqual([paneer]);
+  });
 });
 
 describe("rowDietLabel", () => {
@@ -60,6 +75,13 @@ describe("rowDietLabel", () => {
     expect(rowDietLabel(plans, keys, "sabzi", 3)).toBe("Veg");
   });
 
+  it("names the plan that serves an add-on that day: its fallback on a veg-only day", () => {
+    const addon = new Map([["sabzi", [null, [NONVEG, VEG]]]]);
+    expect(rowDietLabel(addon, keys, "sabzi", 2, [{ planId: NONVEG }, { planId: VEG }])).toBe("Non-Veg");
+    expect(rowDietLabel(addon, keys, "sabzi", 2, [{ planId: VEG }])).toBe("Veg");
+    expect(rowDietLabel(addon, keys, "sabzi", 1, [{ planId: VEG }])).toBeUndefined();
+  });
+
   it("stays silent for a single-diet category and for catalog sizes", () => {
     expect(rowDietLabel(plans, keys, "roti", 1)).toBeUndefined();
     expect(rowDietLabel(null, keys, "sabzi", 1)).toBeUndefined();
@@ -69,14 +91,14 @@ describe("rowDietLabel", () => {
 describe("rowPlansAfterSwaps", () => {
   const VEG = 1n, NONVEG = 2n;
   // Deepak's custom meal: sabzi row 0 = non-veg 8oz, row 1 = veg 12oz.
-  const plans = new Map([["sabzi", [NONVEG, VEG]], ["rice", [VEG]]]);
+  const plans = new Map([["sabzi", [[NONVEG], [VEG]]], ["rice", [[VEG]]]]);
   it("giving up row 0 keeps row 1's own (veg) diet as the remaining sabzi; the received daal is plan-less", () => {
     const out = rowPlansAfterSwaps(plans, [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 0 }])!;
-    expect(out.get("sabzi")).toEqual([VEG]);
+    expect(out.get("sabzi")).toEqual([[VEG]]);
     expect(out.get("daal")).toEqual([null]);
   });
   it("giving up row 1 leaves the non-veg row", () => {
-    expect(rowPlansAfterSwaps(plans, [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 1 }])!.get("sabzi")).toEqual([NONVEG]);
+    expect(rowPlansAfterSwaps(plans, [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 1 }])!.get("sabzi")).toEqual([[NONVEG]]);
   });
   it("no swaps or a catalog meal: unchanged", () => {
     expect(rowPlansAfterSwaps(plans, [])).toBe(plans);

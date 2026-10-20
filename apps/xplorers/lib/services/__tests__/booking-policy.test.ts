@@ -42,7 +42,7 @@ describe("assertCanBook", () => {
   });
 
   it("rejects when remaining capacity is below requested seats", () => {
-    expect(() => assertCanBook(bookable({ remaining: 1, seats: 2 }))).toThrow(/Only 1 seat left/);
+    expect(() => assertCanBook(bookable({ remaining: 1, seats: 2 }))).toThrow(/Only 1 place left/);
   });
 
   it("rejects the last-seat oversell", () => {

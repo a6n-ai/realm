@@ -22,6 +22,7 @@ export const EMPLOYEE_COLUMNS: readonly Column<
 export function EmployeesTable({ rows }: { rows: EmployeeRow[] }) {
   return (
     <DataTable
+      pagination="client"
       columns={EMPLOYEE_COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}

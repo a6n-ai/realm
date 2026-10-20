@@ -3,6 +3,7 @@ import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@foundry/clover";
 import type { PaymentConfig } from "@foundry/payments";
 import type { DiscountPolicy } from "./coupons";
+import type { SupportHours } from "@/lib/support/support-hours";
 
 // The app/tenant entity (formerly app_settings): one row today. Holds currency,
 // timezone and other settings that other tables resolve through their app_id FK.
@@ -31,6 +32,8 @@ export const app = pgTable("app", {
   paymentConfig: jsonb("payment_config").$type<PaymentConfig>(),
   // Non-payment plugins (Clover, …). NULL/empty → nothing installed.
   integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),
+  // Support hours per weekday + usual reply time, shown to customers in Support. NULL = not set.
+  supportHours: jsonb("support_hours").$type<SupportHours>(),
   // Ceiling on how many coins a single wallet can hold from new awards. NULL = unlimited.
   maxWalletBalance: integer("max_wallet_balance"),
   // Ceiling on how much of an order's PRE-TAX SUBTOTAL a customer may settle

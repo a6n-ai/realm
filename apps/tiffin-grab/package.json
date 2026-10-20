@@ -24,6 +24,7 @@
   "dependencies": {
     "@aws-sdk/client-geo-maps": "^3.1106.0",
     "@base-ui/react": "^1.6.0",
+    "@date-fns/tz": "^1.5.0",
     "@foundry/address": "github:a6n-ai/foundry#path:packages/address",
     "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/auth-ui": "github:a6n-ai/foundry#path:packages/auth-ui",

@@ -4,6 +4,7 @@ import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type 
 import { addressTags, deliveryStrategies, deliveryStrategyGroups, deliveryZones } from "./delivery";
 import { customerAddresses } from "./addresses";
 import { orders } from "./orders";
+import { holidays } from "./holidays";
 import { organization } from "./organizations";
 
 export const deliveryStatus = pgEnum("delivery_status", ["scheduled", "paused", "skipped", "cancelled"]);
@@ -79,6 +80,16 @@ export const deliveries = pgTable("deliveries", {
   optimoCompletedAt: bigint("optimo_completed_at", { mode: "number" }),
   // Driver's failure note (OptimoRoute's `form.note`) — null on a success completion.
   optimoCompletionNote: text("optimo_completion_note"),
+  // Set on the row a holiday closed (the row stays on the closed date). It tells "we were
+  // closed" from a customer pause or a hold: every pause rule skips it (CUSTOMER_PAUSED in
+  // lib/services/pause-state.ts). Status is `paused` for a declared holiday; a hold tagged
+  // after the fact keeps `skipped`.
+  holidayId: bigint("holiday_id", { mode: "bigint" }).references(() => holidays.id),
+  // Set on an ordinary delivery a holiday added at plan end: the closed row it stands in for.
+  // Not a make-up (the customer can move, pause or hold it). A closed trip that carried
+  // several eating days has several rows pointing at it, so this is not unique.
+  holidayExtraForDeliveryId: bigint("holiday_extra_for_delivery_id", { mode: "bigint" })
+    .references((): AnyPgColumn => deliveries.id),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
@@ -94,4 +105,6 @@ export const deliveries = pgTable("deliveries", {
   index("deliveries_delivery_tag_idx").on(t.deliveryTagId),
   index("deliveries_merged_into_idx").on(t.mergedIntoDeliveryId).where(sql`${t.mergedIntoDeliveryId} is not null`),
   index("deliveries_organization_idx").on(t.organizationId),
+  index("deliveries_holiday_idx").on(t.holidayId).where(sql`${t.holidayId} is not null`),
+  index("deliveries_holiday_extra_for_idx").on(t.holidayExtraForDeliveryId).where(sql`${t.holidayExtraForDeliveryId} is not null`),
 ]);

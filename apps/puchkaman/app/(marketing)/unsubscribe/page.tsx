@@ -24,7 +24,8 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   // Same handler as the API route. It is a no-op on a bad or missing token, and
   // the page below says the same thing either way — so this page cannot be used
   // to test whether an address is on the list.
-  await applyUnsubscribe(url);
+  // `address` comes back only for a valid signed link — the recipient's own.
+  const { applied, address } = await applyUnsubscribe(url, "link");
 
   return (
     <div>
@@ -42,6 +43,9 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
               You will no longer receive marketing email from Puchkaman. It can take a few minutes for
               anything already on its way to stop.
             </p>
+            {applied && address && (
+              <p style={{ fontWeight: 700, marginBottom: 20, wordBreak: "break-all" }}>{address} is off our marketing list.</p>
+            )}
             {/* The honest distinction, stated up front — it pre-empts the
                 "I unsubscribed but still got email" complaint. */}
             <p style={{ fontWeight: 500, opacity: 0.7, marginBottom: 0 }}>

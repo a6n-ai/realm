@@ -1,9 +1,14 @@
 import { Suspense } from "react";
 import { count } from "drizzle-orm";
-import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon } from "lucide-react";
+import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
+import { Role } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { getSupportHours } from "@/lib/services/app-settings.service";
+import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/services/analytics/complaint-filters";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
@@ -14,11 +19,11 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
 } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 const SORT_COLUMNS = [
   "subject",
@@ -47,11 +52,24 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
   return (
     <PageShell>
       <MarkSectionRead section="tickets" />
-      <PageHeader icon={LifeBuoyIcon} title="Tickets" />
-
-      <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
-        <TicketStats />
-      </Suspense>
+      <PageHeader
+        icon={LifeBuoyIcon}
+        title="Tickets"
+        actions={
+          <Suspense fallback={null}>
+            <SupportHoursAction />
+          </Suspense>
+        }
+      />
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <TicketStats searchParams={searchParams} />
+        </Suspense>
+      </div>
 
       <SectionCard title="All tickets">
         <Suspense fallback={<TicketsListSkeleton />}>
@@ -62,12 +80,21 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
   );
 }
 
-async function TicketStats() {
+// Admins only: the hours are a promise to customers.
+async function SupportHoursAction() {
   await requireStaff();
+  if ((await getSession())?.user.role !== Role.ADMIN) return null;
+  return <SupportHoursDialog value={await getSupportHours()} />;
+}
+
+async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
+  await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
+  const filters = parseComplaintFilters(sp);
 
   const [statusCounts, { overdueCount: overdue }] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
-    ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 1 } }),
+    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
+    ticketsService.listQueuePage(undefined, filters, { page: { page: 0, size: 1 } }),
   ]);
 
   const countOf = (...statuses: string[]) =>
@@ -77,11 +104,12 @@ async function TicketStats() {
   const resolved = countOf("resolved", "closed");
 
   return (
-    <StatGrid
-      cols={3}
+    <StatCards
       items={[
+        { icon: TicketIcon, label: "Created", value: countOf("open", "in_progress", "waiting_on_customer", "resolved", "closed"), hint: "in selected dates" },
         { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting" },
-        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h" },
+        { icon: HourglassIcon, label: "Waiting on customer", value: countOf("waiting_on_customer"), hint: "staff replied, customer hasn't" },
+        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h", tone: overdue > 0 ? "bad" : undefined },
         { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed" },
       ]}
     />
@@ -91,7 +119,7 @@ async function TicketStats() {
 async function TicketsData({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, SORT_COLUMNS, {
     column: "lastMessage",
     dir: "desc",
@@ -102,7 +130,7 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
   const { page } = parseFilterState([], sp);
 
   const [statusCounts, result, owners, allowReassign] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
+    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
     ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q }),
     ticketsService.listQueueOwners(),
     canReassign(),

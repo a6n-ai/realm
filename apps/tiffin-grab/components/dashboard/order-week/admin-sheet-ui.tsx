@@ -17,7 +17,7 @@ import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address
 // language. Every rule and server call stays in the shared sheets; this file is look only.
 
 export const STATUS_TONE: Record<string, string> = {
-  delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
+  delivered: "bg-emerald-500", upcoming: "bg-sky-500", paused: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground", holiday: "bg-slate-600",
 };
 
 function ChoiceRow({
@@ -105,6 +105,9 @@ export const ADMIN_SHEET_UI: SheetUi = {
       <Button disabled={disabled || !!disabledReason || pending} onClick={onClick}>{pending ? "Saving…" : children}</Button>
     </div>
   ),
+  SecondaryButton: ({ pending, onClick, children }) => (
+    <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>{children}</Button>
+  ),
   Notice: ({ tone = "info", children }) => (
     <div
       role={tone === "error" ? "alert" : "status"}
@@ -137,11 +140,10 @@ export const ADMIN_SHEET_UI: SheetUi = {
     </Tabs>
   ),
   ChoiceRow,
+  // The shared sheet wraps sections in a clipped, divided, rounded list: pad inside it so option
+  // borders and the selected ring are never cut, and let each row's own label name it (no second heading).
   CategorySection: ({ label, children }) => (
-    <section aria-label={label} className="grid gap-3 border-t pt-4 first:border-t-0 first:pt-0">
-      <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{label}</h4>
-      <div className="grid gap-4">{children}</div>
-    </section>
+    <section aria-label={label} className="grid gap-4 p-4">{children}</section>
   ),
   OptionCard: ({ selected, className, children, type = "button", ...rest }) => (
     <button

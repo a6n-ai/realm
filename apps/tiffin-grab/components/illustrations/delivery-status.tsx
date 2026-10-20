@@ -45,7 +45,7 @@ export function UpcomingStatusIcon(props: IconProps) {
 }
 
 /** Paused for a stretch of days — a palm-and-sun scene reading plainly as "away." */
-export function VacationStatusIcon(props: IconProps) {
+export function PausedStatusIcon(props: IconProps) {
   return (
     <Base {...props}>
       <circle cx="22" cy="10" r="3.4" fill={C.orange} />
@@ -78,6 +78,6 @@ export function OnHoldStatusIcon(props: IconProps) {
 export const DELIVERY_STATUS_ILLUSTRATION = {
   delivered: DeliveredStatusIcon,
   upcoming: UpcomingStatusIcon,
-  vacation: VacationStatusIcon,
+  paused: PausedStatusIcon,
   onHold: OnHoldStatusIcon,
 } as const;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { usePresence } from "@foundry/realtime/client";
 import { Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
@@ -33,7 +33,18 @@ type ThreadMessage = {
   attachments?: { thumbUrl: string; name: string; href: string }[] | null;
 };
 
-export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTicket; messages: ThreadMessage[]; timezone: string }) {
+export function TicketThread({
+  ticket,
+  messages,
+  timezone,
+  hours = null,
+}: {
+  ticket: ThreadTicket;
+  messages: ThreadMessage[];
+  timezone: string;
+  /** Support hours line, rendered by the server page; hidden once the chat is completed. */
+  hours?: ReactNode;
+}) {
   const status = ticket.status as TicketStatus;
   const closed = status === "resolved" || status === "closed";
   const channel = `ticket:${ticket.publicId}`;
@@ -62,8 +73,9 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
         </span>
       </div>
 
-      <div className="shrink-0">
+      <div className="shrink-0 space-y-2">
         <StatusBanner status={status} />
+        {closed ? null : hours}
       </div>
 
       {/* The chat window: the one scrolling part. Short chats sit at its bottom, like a chat app. */}

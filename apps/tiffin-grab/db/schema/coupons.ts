@@ -11,6 +11,7 @@ export const couponKind = pgEnum("coupon_kind", [
   "free_delivery",
   "first_order",
   "rep_daily",
+  "rep_code",
 ]);
 
 export type CouponKind = (typeof couponKind.enumValues)[number];
@@ -22,7 +23,8 @@ export type CouponConfig =
   | { kind: "fixed" }
   | { kind: "free_delivery" }
   | { kind: "first_order"; mode: "percentage" | "fixed" }
-  | { kind: "rep_daily" };
+  | { kind: "rep_daily" }
+  | { kind: "rep_code" };
 
 // Admin discount governance blob on app_settings (mirrors leadAssignment).
 export interface DiscountPolicy {
@@ -35,6 +37,8 @@ export interface DiscountPolicy {
     // day (snapshotted onto the minted coupon's maxRedemptions). 1 = single-use,
     // preserving the legacy behavior until an admin raises it.
     defaultDailyUses: number;
+    // How long a code a staff member generates for a customer stays usable.
+    codeValidityHours: number;
     perRep: Record<string, { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean }>;
   };
 }
@@ -63,6 +67,9 @@ export const coupons = pgTable("coupons", {
   // Auto-applied at checkout when valid (no code needed). Festival/launch promos
   // are just autoApply coupons with a startsAt/expiresAt window — no special kind.
   autoApply: boolean("auto_apply").notNull().default(false),
+  // When false, omitted from customer browse/suggestion lists (checkout
+  // "Available for you", home, subscribe). Manual code entry still works if active.
+  visible: boolean("visible").notNull().default(true),
   planTypes: text("plan_types").array().notNull().default([]),
   // Payment methods this coupon is valid with (payment_method ids). Empty = all methods.
   allowedPaymentMethods: text("allowed_payment_methods").array().notNull().default([]),

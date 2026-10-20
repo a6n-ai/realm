@@ -2,12 +2,24 @@ import { ValidationError } from "@foundry/commons";
 import { findMethod, providerFor } from "@foundry/payments";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { bookings, couponRedemptions, coupons, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
-import { priceBooking, toPricing, type CodeError } from "@/lib/discounts/quote";
-import { occurrenceStartsAt } from "@/lib/sessions/schedule";
-import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
+import {
+  bookingChildren,
+  bookings,
+  children,
+  couponRedemptions,
+  coupons,
+  payments,
+  studioSessionOccurrences,
+  studioSessions,
+  users,
+} from "@/db/schema";
+import { priceBooking, toPricing, type BookingQuote, type CodeError } from "@/lib/discounts/quote";
+import { ageOn, checkAge } from "@/lib/children/age";
+import { quoteBooking } from "@/lib/pricing/quote";
+import type { BookingChoice, Quote } from "@/lib/pricing/types";
+import { getAppClock, getDefaultPrices, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
 import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
-import { discountsService } from "./discounts.service";
+import { discountsService, type Tx } from "./discounts.service";
 import { ledgerService } from "./ledger.service";
 import { lockedBalance, spendBookingCoins, takeBackBookingCoins, walletService } from "./wallet.service";
 import { paymentsService } from "./payments.service";
@@ -16,101 +28,165 @@ import { bookingsRepository, type BookingRow } from "./bookings.repository";
 
 export type CreateBookingResult = BookingRow & { paymentPublicId: string | null; codeError: CodeError | null };
 
+export type BookingRequest = {
+  occurrencePublicId: string;
+  startsAt: string;
+  choice: BookingChoice;
+  extensionSteps: number;
+  childPublicIds: string[];
+  adults: number;
+  code?: string | null;
+  useCoins?: boolean;
+  methodId?: string;
+};
+
+function validateRequest(input: BookingRequest): Date {
+  if (!Number.isInteger(input.adults) || input.adults < 0) throw new ValidationError("Adults is invalid.");
+  if (!Number.isInteger(input.extensionSteps) || input.extensionSteps < 0) throw new ValidationError("Extension is invalid.");
+  const ids = input.childPublicIds;
+  if (!Array.isArray(ids) || ids.length === 0) throw new ValidationError("Pick at least one child.");
+  if (new Set(ids).size !== ids.length) throw new ValidationError("A child can only be picked once.");
+  const startsAt = new Date(input.startsAt);
+  if (Number.isNaN(startsAt.getTime())) throw new ValidationError("Start time is invalid.");
+  return startsAt;
+}
+
 class BookingsService extends SessionUpdatableService<typeof bookings> {
-  async createForUser(
-    userPublicId: string,
-    occurrencePublicId: string,
-    seats: number,
-    opts: { methodId?: string; code?: string | null; useCoins?: boolean } = {},
-  ): Promise<CreateBookingResult> {
-    const actorId = await currentUserId();
-    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
+  /**
+   * Everything a booking charges, from one code path. With `lock` it runs inside the
+   * booking transaction and takes the row locks; without, it only reads (preview).
+   */
+  private async compute(tx: Tx, userPublicId: string, input: BookingRequest, lock: boolean) {
+    const startsAt = validateRequest(input);
+    const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
     if (!user) throw new ValidationError("Sign in to book.");
 
     const rails = await paymentsService.enabledRails();
-    const { timezone, currency } = await getAppClock();
+    const { currency } = await getAppClock();
     const cfg = await getPaymentConfig();
     const { maxDiscountPct } = await getDiscountSettings();
-    const code = opts.code?.trim() ? opts.code : null;
+    const globalTable = await getDefaultPrices();
+    const code = input.code?.trim() ? input.code : null;
+
+    const occQ = tx
+      .select()
+      .from(studioSessionOccurrences)
+      .where(eq(studioSessionOccurrences.publicId, input.occurrencePublicId))
+      .limit(1);
+    const [occurrence] = lock ? await occQ.for("update") : await occQ;
+    if (!occurrence) throw new ValidationError("Session not found.");
+    if (occurrence.status === "cancelled") throw new ValidationError("This session was cancelled.");
+
+    const sessQ = tx.select().from(studioSessions).where(eq(studioSessions.id, occurrence.sessionId)).limit(1);
+    const [session] = lock ? await sessQ.for("update") : await sessQ;
+    if (!session) throw new ValidationError("Session not found.");
+    if (session.bookingType === "enquire_only") throw new ValidationError("This class is by enquiry only.");
+
+    const kids = await tx
+      .select()
+      .from(children)
+      .where(and(eq(children.userId, user.id), inArray(children.publicId, input.childPublicIds)));
+    if (kids.length !== input.childPublicIds.length) throw new ValidationError("Pick your own children.");
+    const waivers = new Map<bigint, boolean>();
+    for (const kid of kids) {
+      const verdict = checkAge(session, ageOn(kid.dateOfBirth, occurrence.occursOn));
+      if (verdict === "blocked") throw new ValidationError(`${kid.name} is outside the age range for this class.`);
+      waivers.set(kid.id, verdict === "waiver");
+    }
+
+    const [existing] = await tx
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.occurrenceId, occurrence.id),
+          eq(bookings.userId, user.id),
+          inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]),
+        ),
+      )
+      .limit(1);
+    if (existing) throw new ValidationError("You've already booked this class on that day.");
+
+    const [sum] = await tx
+      .select({ seats: sql<number>`coalesce(sum(${bookings.seats}), 0)` })
+      .from(bookings)
+      .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
+
+    const now = new Date();
+    assertCanBook({
+      published: session.published,
+      archived: session.archived,
+      startsAt: occurrence.startsAt,
+      now,
+      remaining: remainingSeats(occurrence.capacity, Number(sum?.seats ?? 0)),
+      seats: kids.length,
+    });
+
+    const price: Quote = quoteBooking({
+      pricing: session.pricing,
+      layers: [occurrence.prices, session.prices, globalTable],
+      globalTable,
+      occursOn: occurrence.occursOn,
+      windowStart: occurrence.startsAt,
+      windowEnd: occurrence.endsAt,
+      startsAt,
+      choice: input.choice,
+      extensionSteps: input.extensionSteps,
+      children: kids.length,
+      adults: input.adults,
+    });
+
+    const pricedClass = rails.length > 0 && price.subtotal > 0;
+    const method = pricedClass
+      ? findMethod(cfg, input.methodId ?? rails[0]!.id) ?? rails.find((r) => r.enabled) ?? rails[0]
+      : undefined;
+    if (pricedClass && !method?.enabled) throw new ValidationError("No payment method is enabled.");
+
+    // The coupon row is locked when booking, so a racing booking for the same code
+    // waits and then sees the incremented redemption count.
+    const rules = pricedClass
+      ? await discountsService.loadPricing(tx, { code, userId: user.id, lock })
+      : { discounts: [], coupon: null };
+    // Coins: only with a coin rate set; the balance is read under the family's lock when booking.
+    const rate = input.useCoins && pricedClass ? await walletService.walletRate() : null;
+    const balance = rate ? (lock ? await lockedBalance(tx, user.id) : await walletService.balance(user.id)) : 0;
+    const coins = rate && balance > 0 ? { balance, rate } : null;
+
+    // ponytail: discounts see the whole booking as one line; split per child when per-child discounts exist.
+    const lines: BookingQuote | null = pricedClass
+      ? priceBooking({
+          unitPrice: price.subtotal,
+          seats: 1,
+          session: { id: session.id, category: session.category },
+          method: method ?? null,
+          discounts: rules.discounts,
+          coupon: rules.coupon,
+          codeTyped: Boolean(code),
+          maxDiscountPct,
+          now: now.getTime(),
+          coins,
+        })
+      : null;
+    return { user, occurrence, session, kids, waivers, startsAt, price, lines, method, currency };
+  }
+
+  async quote(input: BookingRequest, userPublicId: string): Promise<Quote & { total: number; lines: BookingQuote; currency: string }> {
+    const c = await db.transaction((tx) => this.compute(tx, userPublicId, input, false));
+    const lines: BookingQuote = c.lines ?? { subtotal: c.price.subtotal, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null };
+    return { ...c.price, total: lines.total, lines, currency: c.currency };
+  }
+
+  async createForUser(userPublicId: string, input: BookingRequest): Promise<CreateBookingResult> {
+    const actorId = await currentUserId();
+    const { currency } = await getAppClock();
 
     const { booking, paymentPublicId, codeError } = await db.transaction(async (tx) => {
-      const [occurrence] = await tx
-        .select()
-        .from(studioSessionOccurrences)
-        .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
-        .for("update")
-        .limit(1);
-      if (!occurrence) throw new ValidationError("Session not found.");
-
-      const [session] = await tx
-        .select()
-        .from(studioSessions)
-        .where(eq(studioSessions.id, occurrence.sessionId))
-        .for("update")
-        .limit(1);
-      if (!session) throw new ValidationError("Session not found.");
-
-      const now = new Date();
-      const startsAt = occurrenceStartsAt(occurrence.occursOn, session.startsAt, timezone);
-
-      const [existing] = await tx
-        .select({ id: bookings.id })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.occurrenceId, occurrence.id),
-            eq(bookings.userId, user.id),
-            inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]),
-          ),
-        )
-        .limit(1);
-      if (existing) throw new ValidationError("You've already booked this class on that day.");
-
-      const [sum] = await tx
-        .select({ seats: sql<number>`coalesce(sum(${bookings.seats}), 0)` })
-        .from(bookings)
-        .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
-
-      assertCanBook({
-        published: session.published,
-        archived: session.archived,
-        startsAt,
-        now,
-        remaining: remainingSeats(session.capacity, Number(sum?.seats ?? 0)),
-        seats,
-      });
-
-      const unit = Number(session.priceAmount);
-      const pricedClass = rails.length > 0 && Number.isFinite(unit) && unit > 0;
-      const method = pricedClass
-        ? findMethod(cfg, opts.methodId ?? rails[0]!.id) ?? rails.find((r) => r.enabled) ?? rails[0]
-        : undefined;
-      if (pricedClass && !method?.enabled) throw new ValidationError("No payment method is enabled.");
-
-      // The coupon row is locked here, so a racing booking for the same code waits
-      // and then sees the incremented redemption count.
-      const rules = pricedClass
-        ? await discountsService.loadPricing(tx, { code, userId: user.id, lock: true })
-        : { discounts: [], coupon: null };
-      // Coins: only with a coin rate set; the balance is read under the family's lock.
-      const rate = opts.useCoins && pricedClass ? await walletService.walletRate() : null;
-      const balance = rate ? await lockedBalance(tx, user.id) : 0;
-      const coins = rate && balance > 0 ? { balance, rate } : null;
-
-      const quote = pricedClass
-        ? priceBooking({
-            unitPrice: session.priceAmount,
-            seats,
-            session: { id: session.id, category: session.category },
-            method: method ?? null,
-            discounts: rules.discounts,
-            coupon: rules.coupon,
-            codeTyped: Boolean(code),
-            maxDiscountPct,
-            now: now.getTime(),
-            coins,
-          })
-        : null;
+      const { user, occurrence, session, kids, waivers, startsAt, price, lines: quote, method } = await this.compute(
+        tx,
+        userPublicId,
+        input,
+        true,
+      );
       const needsPay = quote != null && quote.total > 0;
 
       const [row] = await tx
@@ -119,7 +195,13 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
           sessionId: session.id,
           occurrenceId: occurrence.id,
           userId: user.id,
-          seats,
+          seats: kids.length,
+          startsAt,
+          endsAt: price.endsAt,
+          optionKey: input.choice.kind === "option" ? input.choice.key : null,
+          lengthMinutes: Math.round((price.endsAt.getTime() - startsAt.getTime()) / 60_000),
+          extensionSteps: input.extensionSteps,
+          adults: input.adults,
           status: needsPay ? "pending" : "confirmed",
           pricing: quote ? toPricing(quote) : null,
           createdBy: actorId,
@@ -127,6 +209,16 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
         })
         .returning();
       if (!row) throw new ValidationError("Could not save the booking.");
+
+      await tx.insert(bookingChildren).values(
+        kids.map((kid) => ({
+          bookingId: row.id,
+          childId: kid.id,
+          waiverUsed: waivers.get(kid.id) ?? false,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })),
+      );
 
       const applied = quote?.adjustments.find((a) => a.kind === "coupon");
       if (applied) {
@@ -192,8 +284,9 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       entityPublicId: booking.publicId,
       operation: "create",
       changes: {
-        occurrencePublicId,
-        seats,
+        occurrencePublicId: input.occurrencePublicId,
+        seats: booking.seats,
+        adults: input.adults,
         status: booking.status,
         paymentPublicId,
         adjustments: booking.pricing?.adjustments ?? [],
@@ -274,15 +367,13 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
 
   async listForUser(
     userPublicId: string,
-  ): Promise<Array<BookingRow & { sessionTitle: string; startsAt: Date; paymentPublicId: string | null }>> {
+  ): Promise<Array<BookingRow & { sessionTitle: string; paymentPublicId: string | null }>> {
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
     if (!user) return [];
-    const { timezone } = await getAppClock();
     const rows = await db
       .select({
         booking: bookings,
         sessionTitle: studioSessions.title,
-        sessionStartsAt: studioSessions.startsAt,
         occursOn: studioSessionOccurrences.occursOn,
         paymentPublicId: payments.publicId,
       })
@@ -292,12 +383,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       .leftJoin(payments, eq(payments.bookingId, bookings.id))
       .where(eq(bookings.userId, user.id))
       .orderBy(desc(studioSessionOccurrences.occursOn));
-    return rows.map(({ booking, sessionTitle, sessionStartsAt, occursOn, paymentPublicId }) => ({
-      ...booking,
-      sessionTitle,
-      startsAt: occurrenceStartsAt(occursOn, sessionStartsAt, timezone),
-      paymentPublicId,
-    }));
+    return rows.map(({ booking, sessionTitle, paymentPublicId }) => ({ ...booking, sessionTitle, paymentPublicId }));
   }
 
   async listConfirmedOccurrencePublicIds(userPublicId: string): Promise<string[]> {

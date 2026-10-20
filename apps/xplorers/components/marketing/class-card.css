@@ -1,0 +1,178 @@
+/* The shared class card. Self-contained so it renders the same in the public shell (.xl),
+   the customer app and the dashboard: no .xl ancestor and no global resets needed. */
+
+.xl-card {
+  --prog-explore: #3fb6ea;
+  --prog-explore-tint: #e3f4fc;
+  --prog-scientist: #3b5bd6;
+  --prog-scientist-tint: #e6eafc;
+  --prog-sensory: #a25ddc;
+  --prog-sensory-tint: #f1e6fb;
+  --prog-private: #ef3f8c;
+  --prog-private-tint: #fde3ef;
+  --prog-bake: #f28a2e;
+  --prog-bake-tint: #fdeedd;
+  --prog-wood: #2f9e5e;
+  --prog-wood-tint: #e1f3e8;
+  --prog-camps: #e0b31c;
+  --prog-camps-tint: #fdf4cf;
+
+  --card-ink: #16295a;
+  --card-body: #2a3b66;
+  --card-muted: #4a5a82;
+  --card-line: #e1e7f2;
+  --card-action: #bfe4fb;
+  --card-action-hover: #a6d8f8;
+  --card-action-border: #8fcdf3;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--card-line);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--card-ink);
+  font-family: var(--font-body, system-ui, sans-serif);
+  line-height: 1.6;
+}
+
+.xl-card[data-programme="explore"] { --p: var(--prog-explore); --pt: var(--prog-explore-tint); }
+.xl-card[data-programme="scientist"] { --p: var(--prog-scientist); --pt: var(--prog-scientist-tint); }
+.xl-card[data-programme="sensory"] { --p: var(--prog-sensory); --pt: var(--prog-sensory-tint); }
+.xl-card[data-programme="private"] { --p: var(--prog-private); --pt: var(--prog-private-tint); }
+.xl-card[data-programme="bake"] { --p: var(--prog-bake); --pt: var(--prog-bake-tint); }
+.xl-card[data-programme="wood"] { --p: var(--prog-wood); --pt: var(--prog-wood-tint); }
+.xl-card[data-programme="camps"] { --p: var(--prog-camps); --pt: var(--prog-camps-tint); }
+
+.xl-card :where(h3, p) {
+  margin: 0;
+}
+
+/* Programme colour as a straight band inside the clipped head, so it meets
+   the rounded corners cleanly instead of tapering like a thick border. */
+.xl-card .xl-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 25px 22px 20px;
+  background: var(--pt);
+  box-shadow: inset 0 5px 0 var(--p);
+  color: #1e4aa6;
+}
+
+.xl-card .xl-card-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--card-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.xl-card .xl-card-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.xl-card .xl-card-next {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xl-card .xl-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 22px 24px;
+}
+
+/* :is(html.dark) outranks the customer app's themed h3 colour. */
+:is(html, html.dark) .xl-card h3.xl-card-title {
+  font-family: var(--font-display, var(--font-body, system-ui, sans-serif));
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--card-ink);
+}
+
+.xl-card .xl-card-when {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.xl-card .xl-card-when span {
+  display: block;
+  font-weight: 600;
+  color: var(--card-muted);
+}
+
+.xl-card .xl-card-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--card-body);
+  text-wrap: pretty;
+}
+
+.xl-card .xl-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.xl-card .xl-card-price {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.xl-card .xl-card-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 20px;
+  border: 1px solid var(--card-action-border);
+  border-radius: 10px;
+  background: var(--card-action);
+  color: #1e4aa6;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition:
+    background-color 150ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.xl-card .xl-card-btn:active {
+  transform: scale(0.97);
+}
+
+.xl-card .xl-card-btn:focus-visible {
+  outline: 2px solid #e8177a;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .xl-card .xl-card-btn:hover {
+    background: var(--card-action-hover);
+  }
+}

@@ -1,10 +1,12 @@
 import type { CSSProperties } from "react";
-import { loadPublicSessionCards } from "@/lib/sessions/public";
+import { getSession } from "@/lib/auth/session";
+import { bookHref, loadPublicSessionCards } from "@/lib/sessions/public";
 import { Button, SectionHeading } from "@/components/marketing/ui";
 import { SessionList } from "@/components/marketing/session-list";
 
 export async function HomeSessions() {
-  const { groups } = await loadPublicSessionCards();
+  const [{ groups }, session] = await Promise.all([loadPublicSessionCards(), getSession()]);
+  const signedIn = Boolean(session?.user);
   const upcoming = groups.slice(0, 2);
 
   return (
@@ -27,7 +29,7 @@ export async function HomeSessions() {
               <SessionList
                 rows={group.rows}
                 action={(row) => (
-                  <Button size="xs" variant="secondary" href={`/whats-on?book=${row.publicId}#session-${row.publicId}`}>
+                  <Button size="xs" variant="secondary" href={bookHref(row.publicId, signedIn)}>
                     {row.remaining > 0 ? "Book" : "Details"}
                   </Button>
                 )}

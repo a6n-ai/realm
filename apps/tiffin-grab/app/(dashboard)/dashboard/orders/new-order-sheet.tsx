@@ -9,6 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
+import { emailSchema } from "@foundry/commons";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
@@ -117,6 +118,7 @@ export function NewOrderSheet({
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   // Inquiry saved when leaving step 1 (not a staff pick, so no prefill/source lock).
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -128,6 +130,8 @@ export function NewOrderSheet({
   const [stage, setStage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
+  // What was submitted, kept so Done can show the summary staff read back to the customer.
+  const [createdDraft, setCreatedDraft] = useState<OrderDraft | null>(null);
   const router = useRouter();
   const [proof, setProof] = useState<PaymentProofValue>({ file: null, reference: "" });
   // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
@@ -140,11 +144,14 @@ export function NewOrderSheet({
 
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
   const phoneValid = isValidPhone(phone);
+  // Same rule the order form applies on Create; checked here so a bad email is caught where it is typed.
+  const emailError = email.trim() ? emailSchema.safeParse(email).error?.issues[0]?.message ?? null : null;
   const existingCustomer = useExistingCustomer(phone, email, pickedCustomerId);
   const contactReady =
     fullName.trim().length > 0 &&
     phone.trim().length > 0 &&
     email.trim().length > 0 &&
+    !emailError &&
     !existingCustomer;
 
   function onPick(id: string | null, lockedSourceKey?: string) {
@@ -196,6 +203,7 @@ export function NewOrderSheet({
       setFetchedPrefill(null);
       setCreateError(null);
       setCreated(null);
+      setCreatedDraft(null);
       setProof({ file: null, reference: "" });
       setPaidNow(false);
     }
@@ -253,6 +261,7 @@ export function NewOrderSheet({
         paid = "error" in settled ? { ok: false, error: settled.error } : { ok: true };
       }
       setCreated({ ...result, paid });
+      setCreatedDraft(draft);
       setStep(4);
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Failed to create order");
@@ -262,7 +271,7 @@ export function NewOrderSheet({
     }
   }
 
-  function reviewSummary({ order, preview }: { order: CreateOrderInput; preview: PricingResult | null }) {
+  function reviewSummary({ order }: { order: CreateOrderInput; preview: PricingResult | null }, editable = true) {
     const mealLabel = catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.name ?? "Meal";
     const planLabel = catalog.plans.find((p) => p.key === order.planKey)?.name
       ?? catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.diet
@@ -284,13 +293,13 @@ export function NewOrderSheet({
         <section className="grid gap-3">
           <div className="flex items-center justify-between">
             <SectionLabel>Plan</SectionLabel>
-            <button
+            {editable && <button
               type="button"
               onClick={() => setStep(2)}
               className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
             >
               Edit
-            </button>
+            </button>}
           </div>
           <div className="space-y-2 rounded-lg border p-4 text-sm">
             <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
@@ -311,12 +320,16 @@ export function NewOrderSheet({
             <p className="text-muted-foreground">Starts {order.selections.startDate || "—"}</p>
           </div>
         </section>
-
-        <section className="grid gap-3">
-          <SectionLabel>Price breakup</SectionLabel>
-          <OrderPricingBreakdown result={preview} currency={currency} />
-        </section>
       </>
+    );
+  }
+
+  function priceSummary({ preview }: { preview: PricingResult | null }) {
+    return (
+      <div className="grid gap-3">
+        <SectionLabel>Price breakup</SectionLabel>
+        <OrderPricingBreakdown result={preview} currency={currency} />
+      </div>
     );
   }
 
@@ -505,7 +518,10 @@ export function NewOrderSheet({
                       placeholder="name@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => setEmailTouched(true)}
+                      aria-invalid={emailTouched && !!emailError}
                     />
+                    {emailTouched && emailError && <p className="text-destructive text-sm">{emailError}</p>}
                   </div>
                   <InquiryMatch
                     phone={phone}
@@ -564,6 +580,7 @@ export function NewOrderSheet({
                   page={step === 3 ? "payment" : "order"}
                   onContinue={() => setStep(3)}
                   summary={reviewSummary}
+                  priceSummary={priceSummary}
                   onReview={(next) => void createFromDraft(next)}
                 />
               )}
@@ -572,6 +589,18 @@ export function NewOrderSheet({
             {step === 4 && created ? (
               <div className="px-5 py-5 sm:px-6">
                 <AdminOrderCreatedPanel key={created.publicId} result={created} heading />
+                {createdDraft && (
+                  <div className="mt-6 grid gap-5">
+                    {reviewSummary(createdDraft, false)}
+                    <section className="grid gap-3">
+                      <SectionLabel>Delivery</SectionLabel>
+                      <div className="text-muted-foreground rounded-lg border p-4 text-sm">
+                        {[createdDraft.order.contact.addressUnit, createdDraft.order.contact.addressLine, createdDraft.order.contact.city, createdDraft.order.contact.postalCode].filter(Boolean).join(", ")}
+                      </div>
+                    </section>
+                    {priceSummary(createdDraft)}
+                  </div>
+                )}
               </div>
             ) : null}
           </>

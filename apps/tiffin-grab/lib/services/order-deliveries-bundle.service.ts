@@ -45,7 +45,7 @@ export async function loadOrderDeliveriesBundle(
   const categoryLabels: Record<string, string> = {};
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
   const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
-  const categoryPortionSlots = categoryPortionSlotsForMealSize(catalog.mealSizes, selected.mealSizeId);
+  const categoryPortionSlots = categoryPortionSlotsForMealSize(catalog.mealSizes, selected.mealSizeId, selected.addons);
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 

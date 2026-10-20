@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
+import { buildUnsubscribeUrl } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
-import { listTemplates } from "@/lib/services/notification-template.service";
+import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
-import { notificationTables } from "@/lib/notifications/tables";
+import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
 import { eventLabel } from "@relay/engine/ui";
 import { BackButton } from "@foundry/design-system";
@@ -64,19 +64,20 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       html: t.html ?? "",
       text: t.text ?? "",
       enabled: t.enabled,
+      revision: t.revision,
     }));
 
-  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
-  const footer = campaignConfig
+  const config = await campaignConfig();
+  const footer = config
     ? {
-        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
-        sender: campaignConfig.sender.name,
-        address: campaignConfig.sender.postalAddress,
+        url: buildUnsubscribeUrl(config.unsubscribe.baseUrl, config.unsubscribe.secret, "preview@example.com"),
+        sender: config.sender.name,
+        address: config.sender.postalAddress,
       }
     : undefined;
 
   return (
-    <TemplateEditor
+    <TemplateEditor samples={sampleMap(event as AppEvent)}
       event={event}
       variables={availableVariables(event as AppEvent)}
       initial={initial}

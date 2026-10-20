@@ -1,16 +1,21 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { db } = await import("@/db/client");
 const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders } = await import("../orders.service");
+const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
+const { ticketsService } = await import("../tickets.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
+const schema = await import("@/db/schema");
 const { eq } = await import("drizzle-orm");
 
 async function reset() {
@@ -39,6 +44,169 @@ const baseInput = (mealSizePublicId: string, planKey: string, fullName = "Jane C
 describe("order CRM queries (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
+
+  it("ending soon: lists running plans whose last tiffin falls in the window, with that date", async () => {
+    const snap = await loadCatalogSnapshot();
+    const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await db.update(orders).set({ status: "active" }).where(eq(orders.publicId, o.publicId));
+    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries)
+      .innerJoin(orders, eq(orders.id, schema.deliveries.orderId)).where(eq(orders.publicId, o.publicId));
+    expect(last).toBeTruthy();
+
+    const hit = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
+    expect(hit.items.map((r) => [r.publicId, r.lastTiffin])).toEqual([[o.publicId, last]]);
+    expect(await countEndingOrders("all", { from: last, to: last })).toBe(1);
+    expect(await countEndingOrders("all", { from: "1999-01-01", to: "1999-01-03" })).toBe(0);
+    expect(hit.items[0].renewed).toBe(false);
+
+    // A later plan for the same customer marks the ending one Renewed.
+    const next = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [first] = await db.select({ userId: orders.userId, startDate: orders.startDate }).from(orders).where(eq(orders.publicId, o.publicId));
+    await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
+    const renewed = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
+    expect(renewed.items[0].renewed).toBe(true);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, o.publicId));
+    expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
+  });
+
+  it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {
+    const { getOrdersOverview } = await import("../orders-stats.service");
+    const snap = await loadCatalogSnapshot();
+    const a = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await db.update(orders).set({ status: "active", trialLength: null }).where(eq(orders.publicId, a.publicId));
+    const now = Date.now();
+    const range = { from: now - 864e5, to: now + 864e5 };
+
+    const first = await getOrdersOverview(range, "all");
+    expect(first.newOrders).toMatchObject({ count: 1, returning: 0, prevCount: 0 });
+    expect(first.running.count).toBe(1);
+    expect(await getOrdersOverview(range, [])).toMatchObject({ newOrders: { count: 0 }, running: { count: 0 } });
+
+    // Same customer books again: the second order is returning.
+    const b = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [{ userId }] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, a.publicId));
+    await db.update(orders).set({ userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, b.publicId));
+    expect((await getOrdersOverview(range, "all")).newOrders).toMatchObject({ count: 2, returning: 1 });
+
+    // Starting soon: an unpaid plan whose first tiffin is a day out counts; 2099 does not.
+    const soon = new Date(now + 864e5).toISOString().slice(0, 10);
+    await db.update(orders).set({ startDate: "2099-01-05" }).where(eq(orders.publicId, a.publicId));
+    expect((await getOrdersOverview(range, "all")).startingSoon).toMatchObject({ count: 0 });
+    await db.update(orders).set({ startDate: soon }).where(eq(orders.publicId, b.publicId));
+    expect((await getOrdersOverview(range, "all")).startingSoon).toMatchObject({ count: 1, unpaid: 1, waitlisted: 0 });
+
+    // Cancelled counts by the cancel activity's date, not the order's.
+    const [{ id: bId }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, b.publicId));
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, bId));
+    await db.insert(orderActivities).values({ orderId: bId, type: "cancelled", fromStatus: "pending", toStatus: "cancelled" });
+    expect((await getOrdersOverview(range, "all")).cancelled).toMatchObject({ count: 1, prevCount: 0 });
+    expect((await getOrdersOverview(range, [])).cancelled.count).toBe(0);
+  });
+
+  it("payment review: only open orders with a payment awaiting claim or verification", async () => {
+    const snap = await loadCatalogSnapshot();
+    const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [row] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, o.publicId));
+    await db.update(payments).set({ status: "paid" });
+    expect(await countPaymentReviewOrders("all")).toBe(0);
+
+    await db.update(payments).set({ status: "pending_verification" }).where(eq(payments.orderId, row.id));
+    await db.update(orders).set({ status: "active" }).where(eq(orders.id, row.id));
+    const page = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { paymentReview: true });
+    expect(page.items.map((r) => r.publicId)).toEqual([o.publicId]);
+    expect(await countPaymentReviewOrders("all")).toBe(1);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, row.id));
+    expect(await countPaymentReviewOrders("all")).toBe(0);
+  });
+
+  it("look out for: a flagged order gets its own list and count, and clearing takes it back out", async () => {
+    const snap = await loadCatalogSnapshot();
+    const flagged = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"));
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+
+    await expect(setOrderLookOut(flagged.publicId, true, "   ")).rejects.toThrow("Add a note");
+    await setOrderLookOut(flagged.publicId, true, "  Call first  ");
+    await setOrderLookOut(flagged.publicId, true, "  Call before delivery  ");
+    const only = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { lookOutOnly: true });
+    expect(only.items.map((o) => o.fullName)).toEqual(["Jane Customer"]);
+    expect(only.items[0]).toMatchObject({ lookOut: true, lookOutNote: "Call before delivery" });
+    expect(await countLookOutOrders("all")).toBe(1);
+    expect(await countLookOutOrders([])).toBe(0);
+    expect((await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all")).total).toBe(2);
+
+    await expect(setOrderLookOut(flagged.publicId, false, "")).rejects.toThrow("why it is being unmarked");
+    await setOrderLookOut(flagged.publicId, false, "Sorted with customer");
+    expect(await countLookOutOrders("all")).toBe(0);
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.type, "note"));
+    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared: Sorted with customer", "Look out for note changed: Call before delivery", "Marked look out for: Call first"]);
+  });
+
+  it("look out for: a ticket flags its order, and leaves a flag staff already set", async () => {
+    const snap = await loadCatalogSnapshot();
+    const order = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [{ id }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, order.publicId));
+    const note = async () => (await db.select({ note: orders.lookOutNote }).from(orders).where(eq(orders.id, id)))[0].note;
+
+    await lookOutForTicket(id, "Missing roti");
+    expect(await note()).toBe("Support ticket: Missing roti");
+
+    // Resolving clears it only once no other ticket on the order is still open.
+    const [{ userId }] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.id, id));
+    const [open] = await db.insert(schema.tickets).values({ publicId: "tkt_lookout_open", raisedBy: userId!, subject: "Still open", category: "order", orderId: id, createdAt: Date.now(), updatedAt: Date.now() }).returning({ id: schema.tickets.id });
+    await clearTicketLookOut(id);
+    expect(await note()).toBe("Support ticket: Missing roti");
+    await db.delete(schema.tickets).where(eq(schema.tickets.id, open.id));
+    await clearTicketLookOut(id);
+    expect(await note()).toBeNull();
+
+    await setOrderLookOut(order.publicId, true, "Call first", userId);
+    await lookOutForTicket(id, "Late again");
+    await clearTicketLookOut(id);
+    expect(await note()).toBe("Call first");
+  });
+
+  it("look out for: the tab leads with the newest flag, and an ended order leaves it", async () => {
+    const snap = await loadCatalogSnapshot();
+    const jane = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"));
+    const bob = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    await setOrderLookOut(bob.publicId, true, "Bob first");
+    await setOrderLookOut(jane.publicId, true, "Jane later");
+    // Jane's order is older but flagged later; set the time outright so one millisecond can't tie them.
+    await db.update(orders).set({ lookOutAt: Date.now() + 60_000 }).where(eq(orders.publicId, jane.publicId));
+    const tab = await listOrdersPage(undefined, { page: 0, size: 10 }, { column: "flagged", dir: "desc" }, "all", { lookOutOnly: true });
+    expect(tab.items.map((o) => o.fullName)).toEqual(["Jane Customer", "Bob Buyer"]);
+
+    const [{ id }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, jane.publicId));
+    await db.transaction((tx) => clearLookOutOnEnd(tx, id, "order cancelled"));
+    await db.transaction((tx) => clearLookOutOnEnd(tx, id, "order cancelled"));
+    expect(await countLookOutOrders("all")).toBe(1);
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, id));
+    expect(notes.filter((n) => n.note === "Look out for cleared: order cancelled")).toHaveLength(1);
+  });
+
+  it("look out for: reopening a resolved ticket puts its order back on the list", async () => {
+    const snap = await loadCatalogSnapshot();
+    const order = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [{ id, userId }] = await db.select({ id: orders.id, userId: orders.userId }).from(orders).where(eq(orders.publicId, order.publicId));
+    const [staff] = await db.insert(users).values({ email: `s${Math.random().toString(36).slice(2)}@test.invalid`, name: "Staff", role: "admin" }).returning({ publicId: users.publicId });
+    const [ticket] = await db.insert(schema.tickets).values({ publicId: "tkt_lookout_reopen", raisedBy: userId!, subject: "Missing roti", category: "order", orderId: id, createdAt: Date.now(), updatedAt: Date.now() }).returning();
+    await lookOutForTicket(id, ticket.subject);
+    session.user = { id: staff.publicId, role: "admin" };
+    try {
+      await ticketsService.changeStatus(ticket.publicId, "resolved");
+      expect(await countLookOutOrders("all")).toBe(0);
+      await ticketsService.changeStatus(ticket.publicId, "open");
+      const [row] = await db.select({ note: orders.lookOutNote }).from(orders).where(eq(orders.id, id));
+      expect(row.note).toBe("Support ticket: Missing roti");
+    } finally {
+      session.user = null;
+      await db.delete(schema.ticketMessages).where(eq(schema.ticketMessages.ticketId, ticket.id));
+      await db.delete(schema.tickets).where(eq(schema.tickets.id, ticket.id));
+    }
+  });
 
   it("listOrdersPage filters by Condition, search, and paginates with a total", async () => {
     const snap = await loadCatalogSnapshot();
@@ -143,5 +311,25 @@ describe("order CRM queries (integration)", () => {
     expect(detail.publicId).toBe(publicId);
     const allDetail = await readOrder(publicId, "all");
     expect(allDetail.publicId).toBe(publicId);
+  });
+
+  it("delivery and payment guards follow the row's own order", async () => {
+    const snap = await loadCatalogSnapshot();
+    const suffix = Math.random().toString(36).slice(2);
+    const [orgA] = await db.insert(organization).values({ name: "Org A", clientCode: `GA-${suffix}` }).returning({ id: organization.id });
+    const { publicId } = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [order] = await db.update(orders).set({ organizationId: orgA.id }).where(eq(orders.publicId, publicId)).returning({ id: orders.id });
+    const [delivery] = await db.insert(schema.deliveries)
+      .values({ orderId: order.id, deliveryDate: "2031-06-02", cutoffAt: 1, tiffinUnits: 1 }).returning({ publicId: schema.deliveries.publicId });
+    const [payment] = await db.insert(schema.payments)
+      .values({ orderId: order.id, amount: "1.00", method: "simulated", status: "paid" }).returning({ publicId: schema.payments.publicId });
+
+    for (const [guard, id] of [[assertDeliveryVisible, delivery.publicId], [assertPaymentVisible, payment.publicId]] as const) {
+      await expect(guard(id, ["org_someone_else"])).rejects.toThrow(/not found/i);
+      await expect(guard(id, [])).rejects.toThrow(/not found/i);
+      await expect(guard("missing", "all")).rejects.toThrow(/not found/i);
+      await expect(guard(id, [orgA.id])).resolves.toBeUndefined();
+      await expect(guard(id, "all")).resolves.toBeUndefined();
+    }
   });
 });

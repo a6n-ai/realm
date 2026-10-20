@@ -1,12 +1,11 @@
 "use client";
-import { LifeBuoy, MapPin, MoreHorizontal } from "lucide-react";
-import Link from "next/link";
+import { MapPin, MoreHorizontal } from "lucide-react";
 import { Popover } from "radix-ui";
 import { useState } from "react";
 import { Button, Reason } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type TripAction } from "@/lib/deliveries-view";
-import { ACTION_LABEL, ACTION_SHORT, type actionModel } from "./action-model";
+import { ACTION_LABEL, ACTION_SHORT, PAUSE_DAY_LABEL, type actionModel } from "./action-model";
 
 type Model = ReturnType<typeof actionModel>;
 interface Props {
@@ -14,25 +13,26 @@ interface Props {
   layout: "card" | "bar";
   onAction: (a: TripAction) => void;
   onGoTo: (date: string) => void;
-  /** "Get help" in the overflow menu. */
-  helpHref?: string;
   /** Actions offered elsewhere on the page (address edits from its own row). */
   hide?: TripAction[];
+  /** Pauses this one day; shown last in the row when the day can be paused. */
+  onPause?: () => void;
+  pausing?: boolean;
 }
 
 /** Edit meal (or Move, for a day that wasn't delivered) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
-export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = [] }: Props) {
+export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPause, pausing }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
   const primary = model.rows.find((r) => r.key === model.primary);
-  // Only Move sits beside the primary; the rest (address) and help live behind "•••".
+  // Only Move sits beside the primary; the rest (address) lives behind "•••".
   const others = model.rows.filter((r) => r.key !== model.primary && r.key !== "pick");
   const secondary = others.filter((r) => r.key === "move");
   const overflow = others.filter((r) => r.key !== "move" && !hide.includes(r.key));
   const [menu, setMenu] = useState(false);
   const item = cn(FOCUS, "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-[var(--muted)] [touch-action:manipulation]");
-  const more = (overflow.length > 0 || helpHref) && (
+  const more = overflow.length > 0 && (
     <Popover.Root open={menu} onOpenChange={setMenu}>
       <Popover.Trigger asChild>
         <Button size={bar ? "lg" : "md"} aria-label="More actions" className={cn("shrink-0", bar ? "px-4" : "px-4")}>
@@ -47,12 +47,6 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
               {ACTION_LABEL[r.key]}
             </button>
           ))}
-          {helpHref && (
-            <Link href={helpHref} className={item} data-testid="delivery-help" onClick={() => setMenu(false)}>
-              <LifeBuoy aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
-              Get help
-            </Link>
-          )}
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -61,7 +55,7 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
   if (model.rows.length === 0) {
     if (!model.goTo) return null;
     return (
-      <div className={cn(FONT, "space-y-3")}>
+      <div className={cn(FONT, "space-y-3", bar && "min-w-0 flex-1")}>
         {model.goTo && <Button variant="primary" size="lg" className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
       </div>
     );
@@ -85,7 +79,7 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
   // when there is nothing else to sit beside it.
   const cardRow = !bar && secondary.length > 0;
   return (
-    <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
+    <div className={cn(FONT, bar ? "min-w-0 flex-1 space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
       <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
         {!primary && model.goTo && <Button variant="primary" size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
@@ -101,8 +95,11 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
             {ACTION_SHORT[primary.key]}
           </Button>
         )}
-        <div className={cn("flex gap-2", (bar || cardRow) && "contents")}>
+        <div className={bar || cardRow ? "contents" : "flex gap-2"}>
           {secondary.map((r) => btn(r.key, r.av, ACTION_SHORT[r.key]))}
+          {model.pause && onPause && (
+            <Button size={bar ? "lg" : "md"} aria-label={PAUSE_DAY_LABEL} pending={pausing} className={bar ? "min-w-0 flex-1 whitespace-nowrap px-1" : "shrink-0 px-5"} onClick={onPause}>Pause</Button>
+          )}
           {more}
         </div>
       </div>

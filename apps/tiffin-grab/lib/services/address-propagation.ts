@@ -111,7 +111,7 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   if (direct.length) {
     await tx
       .update(deliveries)
-      .set({ ...snapshotColumns(to), addressId: toAddressId, zoneId })
+      .set({ ...snapshotColumns(to), fullName: to.fullName ?? undefined, addressId: toAddressId, zoneId })
       .where(inArray(deliveries.id, direct.map((d) => d.id)));
   }
 }

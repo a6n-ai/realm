@@ -42,7 +42,13 @@ describe("parseComplaintFilters", () => {
     expect(f).toEqual({
       from: undefined,
       to: undefined,
-      categories: [], subcategories: [], statuses: [], priorities: [], plans: [], zones: [],
+      categories: [],
+      subcategories: [],
+      statuses: [],
+      priorities: [],
+      plans: [],
+      mealSizes: [],
+      zones: [],
     });
   });
 });
@@ -50,8 +56,15 @@ describe("parseComplaintFilters", () => {
 describe("complaintHref", () => {
   it("round-trips through parseComplaintFilters, so a drill-through lands on the same scope", () => {
     const filters = parseComplaintFilters({
-      from: "5", to: "9", category: "delivery", subcategory: "late_delivery",
-      status: "open", priority: "high", plan: "veg", zone: "Downtown",
+      from: "5",
+      to: "9",
+      category: "delivery",
+      subcategory: "late_delivery",
+      status: "open",
+      priority: "high",
+      plan: "veg",
+      mealSize: "item5_large",
+      zone: "Downtown",
     });
     const href = complaintHref("/dashboard/tickets", filters);
     const back = parseComplaintFilters(

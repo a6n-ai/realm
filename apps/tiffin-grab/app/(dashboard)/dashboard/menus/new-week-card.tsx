@@ -2,18 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@foundry/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { WeekStartPicker } from "./week-start-picker";
 import { upsertWeek } from "./actions";
 import { sanitizeClientError } from "@/lib/format/client-error";
 
 /**
- * Starting a week is a decision, so it lives on the list page; building it is a workspace,
- * so it gets its own route. Creating a draft goes straight into the editor — nobody picks a
- * Monday in order to stay on the index.
+ * Starting a week is a rare decision, so it is a button that opens the Monday picker instead of a
+ * card on top of the list. Creating a draft goes straight into the editor.
  */
-export function NewWeekCard({ takenWeekStarts }: { takenWeekStarts: string[] }) {
+export function NewWeekButton({ takenWeekStarts }: { takenWeekStarts: string[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [weekStart, setWeekStart] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,18 +38,24 @@ export function NewWeekCard({ takenWeekStarts }: { takenWeekStarts: string[] }) 
   };
 
   return (
-    <div className="space-y-3">
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Monday</label>
-          {/* Weeks already built are disabled in the picker, so a duplicate cannot be started. */}
-          <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
-        </div>
-        <Button className="transition-transform active:scale-[0.96]" onClick={create} disabled={pending || !weekStart}>
-          Start this week
-        </Button>
-      </div>
-    </div>
+    <>
+      <Button onClick={() => setOpen(true)}><Plus data-icon="inline-start" />New week</Button>
+      <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Start a week</DialogTitle>
+            <DialogDescription>Weeks start on Monday. Weeks that already have a menu can&apos;t be picked.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
+            {error ? <p className="text-destructive text-sm" role="alert">{error}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={create} disabled={pending || !weekStart}>Start this week</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

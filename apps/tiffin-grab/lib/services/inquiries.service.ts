@@ -10,7 +10,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { createOrder, type CreateOrderInput } from "./orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolForSource } from "./inquiry-user-config.service";
@@ -72,6 +72,7 @@ function inquiriesResolver() {
     createdAt: inquiries.createdAt,
     fullName: inquiries.fullName,
     phone: inquiries.phone,
+    email: inquiries.email,
   });
   const valuesOf = (f: FilterCondition) =>
     f.operator === "in" ? (f.value as string[]) : [f.value as string];
@@ -353,10 +354,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       address: [orderInput.contact.addressLine, orderInput.contact.city, orderInput.contact.postalCode].filter(Boolean).join(", "),
     });
 
+    assertOnePerson(orderInput);
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },
-      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, basePriceOverride: opts?.basePriceOverride },
+      // convert is the staff order path, and staff may start a plan today.
+      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, allowSameDayStart: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
       .select({ id: orders.id })

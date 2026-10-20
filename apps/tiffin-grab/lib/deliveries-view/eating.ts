@@ -1,4 +1,4 @@
-import { humanDate, type Trip, type TripStatus } from "./index";
+import { humanDate, isPastPause, type Trip, type TripStatus } from "./index";
 
 /** The customer's unit of thought: one eating day, fed by the trip (delivery day) that carries it. */
 export type EatingRow = {
@@ -28,7 +28,7 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
   const rows: EatingRow[] = [];
   const covered = new Set(trips.filter((t) => t.status !== "combined-into").flatMap((t) => t.coversDates));
   for (const trip of trips) {
-    const moved = trip.status === "rescheduled" || trip.status === "combined-into";
+    const moved = trip.status === "rescheduled" || trip.status === "combined-into" || trip.status === "holiday";
     const outTo = new Map((trip.movesOut ?? []).flatMap((m) => (m.from ? [[m.from, m.to] as const] : [])));
     for (const e of trip.eatingDays) {
       // A merged source shows only the days its target does not already carry: those read "Moved to ...".
@@ -98,27 +98,6 @@ export function movedOutNote(r: EatingRow, history = false): string | null {
 
 export type MoveFact = { kind: "in" | "out"; text: string };
 
-/**
- * What this truck carries, by day: "1 Mon + 1 Tue", or "1 Thu + 1 Wed's" when a tiffin moved in.
- * Own tiffins split evenly over the days it covers; moved-in ones are named by the day they left.
- */
-export function tiffinBreakdown(trip: Pick<Trip, "units" | "coversDates" | "movesIn">): string {
-  const moved = new Map<string, number>();
-  for (const m of trip.movesIn ?? []) {
-    const k = m.from ? `${weekdayShort(m.from)}'s` : "held day's";
-    moved.set(k, (moved.get(k) ?? 0) + 1);
-  }
-  const own = trip.units - [...moved.values()].reduce((a, b) => a + b, 0);
-  const covers = trip.coversDates.length ? trip.coversDates : [];
-  const parts: string[] = [];
-  if (own > 0) {
-    if (covers.length > 1 && own % covers.length === 0) parts.push(...covers.map((d) => `${own / covers.length} ${weekdayShort(d)}`));
-    else parts.push(`${own} ${covers.map(weekdayShort).join(" + ")}`.trim());
-  }
-  for (const [k, n] of moved) parts.push(`${n} ${k}`);
-  return parts.join(" + ");
-}
-
 /** Short list-row tags: "Wed's in", "own → Oct 13". Empty when nothing moved on this day. */
 export function moveTags(r: EatingRow): MoveFact[] {
   const tags: MoveFact[] = [];
@@ -138,8 +117,37 @@ export function moveNotes(r: EatingRow, history = false): string[] {
   return moveFacts(r, history).map((f) => f.text);
 }
 
+const dateList = (dates: string[]): string => {
+  const names = dates.map(humanDate);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "");
+};
+
+/**
+ * Visible lines for a day a holiday closed: the holiday's name, then where its tiffin went.
+ * Keyed on the name, not the trip status, so a hold tagged after the fact is covered too.
+ * A tagged day still holding its tiffin says the kitchen was closed and what to do with it
+ * (`staff`: place it; the customer moves it, or waits for the team when the day is a make-up). Empty for every other day.
+ */
+export function dayNote(r: EatingRow, staff = false): string[] {
+  const t = r.trip;
+  if (!t.holidayName) return [];
+  const where = t.holidayExtras?.length ? `Added at the end of the plan: ${dateList(t.holidayExtras)}`
+    // Moved to an earlier day: that happened before the closure, not because of it.
+    : r.movedTo && r.movedTo < r.date ? `This day's tiffin was already moved to ${humanDate(r.movedTo)}`
+    : r.movedTo ? `Moved to ${humanDate(r.movedTo)}`
+    : t.status === "holiday" ? "The kitchen is closed that day. The team will place this tiffin on a new day."
+    : staff ? "The kitchen was closed that day. Place this tiffin on another day."
+    // A make-up day cannot be moved by the customer, and a trial has no Move at all.
+    : t.isMakeup ? "The kitchen was closed that day. Our team will place this tiffin on another day."
+    : "The kitchen was closed that day. Move this tiffin to another day, or contact us and we will place it.";
+  return [`Holiday: ${t.holidayName}`, where];
+}
+
 /** "Arrives Mon, Sep 21" / "Comes with the Fri, Sep 25 delivery" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
 export function deliveryLine(r: EatingRow): string {
+  // A closed day has no truck, so it never "arrives"; the extra day may not be placed yet.
+  if (r.trip.holidayName) return dayNote(r).join(". ");
+  if (r.trip.status === "holiday") return r.movedTo ? `Kitchen closed. Moved to ${humanDate(r.movedTo)}` : "The kitchen is closed that day. The team will place this tiffin on a new day.";
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
   const t = r.trip;
   const day = humanDate(t.date);
@@ -149,11 +157,11 @@ export function deliveryLine(r: EatingRow): string {
   switch (t.status) {
     case "delivered": return `Delivered ${day}`;
     case "unconfirmed": return `Awaiting confirmation, ${day}`;
-    case "failed": return `Delivery failed ${day}`;
+    case "failed": return isPastPause(t) ? "Paused" : `Delivery failed ${day}`;
     case "cutoff-passed": return `Being prepared, ${arrives}`;
     case "upcoming": return Arrives;
     case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";
-    case "vacation": return "Paused";
+    case "paused": return "Paused";
     default: return Arrives;
   }
 }

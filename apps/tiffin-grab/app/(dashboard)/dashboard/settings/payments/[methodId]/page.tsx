@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
 import { ensurePaymentCatalog } from "@/lib/services/app-settings.service";
+import { PaymentsBackLink } from "../back-link";
 import { PaymentsForm, PaymentsFormSkeleton } from "../payments-form";
 
 type Props = { params: Promise<{ methodId: string }> };
@@ -11,9 +12,12 @@ export default async function PaymentMethodSettingsPage({ params }: Props) {
   const { methodId } = await params;
 
   return (
-    <Suspense fallback={<PaymentsFormSkeleton />}>
-      <MethodFormLoader methodId={methodId} />
-    </Suspense>
+    <div className="space-y-4">
+      <PaymentsBackLink />
+      <Suspense fallback={<PaymentsFormSkeleton />}>
+        <MethodFormLoader methodId={methodId} />
+      </Suspense>
+    </div>
   );
 }
 

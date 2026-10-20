@@ -6,12 +6,14 @@ import {
   BellIcon,
   Building2Icon,
   CalendarIcon,
+  CalendarOffIcon,
   CheckIcon,
   ClipboardListIcon,
   CoinsIcon,
   CopyIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
+  Loader2Icon,
   LockIcon,
   LogOutIcon,
   TruckIcon,
@@ -30,7 +32,7 @@ import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@foundry/ui/cn";
@@ -61,6 +63,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };
 
+// Swaps the nav icon for a spinner while this link's navigation is in flight.
+// Dashboard routes are dynamic and unprefetched, so a click otherwise shows
+// nothing until the server answers (300ms-1s+ from far regions).
+function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <Loader2Icon aria-hidden className="animate-spin" />
+  ) : (
+    <Icon className="transition-transform duration-200 group-hover/nav:scale-110" />
+  );
+}
+
+/** Fired by MarkSectionRead so the sidebar clears a section's dot without a router.refresh(). */
+export const SECTION_READ_EVENT = "section-read";
+
 const SECTION_BY_HREF: Record<string, Section> = {
   "/dashboard/tickets": "tickets",
   "/dashboard/inquiries": "inquiries",
@@ -80,6 +97,7 @@ export const SECTIONS: NavSection[] = [
       { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
       { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon, roles: ["admin", "member"] },
       { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, roles: ["admin", "member"] },
+      { title: "Holidays", href: "/dashboard/holidays", icon: CalendarOffIcon, roles: ["admin", "member"] },
       { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
       { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: ["admin", "member"] },
     ],
@@ -146,6 +164,18 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  // Sections read since the layout last rendered `activity`. A fresh `activity`
+  // (any refresh) already reflects those reads, so the set resets with it.
+  const [read, setRead] = React.useState<{ from: typeof activity; set: ReadonlySet<Section> }>({ from: activity, set: new Set() });
+  const readSet = read.from === activity ? read.set : new Set<Section>();
+  React.useEffect(() => {
+    const onRead = (e: Event) => {
+      const section = (e as CustomEvent<Section>).detail;
+      setRead((prev) => ({ from: activity, set: new Set([...(prev.from === activity ? prev.set : []), section]) }));
+    };
+    window.addEventListener(SECTION_READ_EVENT, onRead);
+    return () => window.removeEventListener(SECTION_READ_EVENT, onRead);
+  }, [activity]);
   const initials = (user.name?.trim() || user.email).slice(0, 2).toUpperCase();
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
@@ -186,11 +216,11 @@ export function AppSidebar({
                         onMouseEnter={() => router.prefetch(item.href)}
                         onFocus={() => router.prefetch(item.href)}
                       >
-                        <item.icon className="transition-transform duration-200 group-hover/nav:scale-110" />
+                        <NavIcon icon={item.icon} />
                         <span>{item.title}</span>
                         {(() => {
                           const section = SECTION_BY_HREF[item.href];
-                          return section && activity?.[section] ? (
+                          return section && activity?.[section] && !readSet.has(section) ? (
                             <span
                               aria-label="New activity"
                               className="bg-primary ml-auto size-2 shrink-0 rounded-full"

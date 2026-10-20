@@ -9,8 +9,12 @@ import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/
 import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
+import { clearTicketLookOut, lookOutForTicket } from "./orders.service";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
+import { createLogger } from "@foundry/commons/logger";
+
+const log = createLogger("tickets.service");
 
 export type TicketStatus = (typeof tickets.status.enumValues)[number];
 export type TicketCategory = (typeof tickets.category.enumValues)[number];
@@ -119,6 +123,8 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);
+    // The ticket is already saved; a failed flag must not make the customer submit it twice.
+    if (input.orderId != null) await lookOutForTicket(input.orderId, subject).catch((err) => log.error({ err, ticket: ticket.publicId }, "look out flag failed"));
     // Fan-out to staff SSE so sidebar dots / queue refresh without polling.
     publishTicketsInbox();
     return ticket;
@@ -152,6 +158,9 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const trimmed = (body ?? "").trim();
     if (!trimmed && attachments.length === 0) throw new ValidationError("Message is required");
 
+    // Whoever answers the customer owns the ticket from then on, whoever held it before.
+    if (actor.isStaff && ticket.currentOwner !== actor.id) await this.setOwner(ticket, actor.id, actor.id);
+
     const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
     await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
 
@@ -166,9 +175,13 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const ticket = await this.read(publicId);
     const previous = ticket.status as TicketStatus;
     if (previous === toStatus) return { previous };
-    const closing = toStatus === "resolved" || toStatus === "closed";
+    const isClosed = (s: TicketStatus) => s === "resolved" || s === "closed";
+    const closing = isClosed(toStatus);
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
     await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    if (closing && ticket.orderId != null) await clearTicketLookOut(ticket.orderId).catch((err) => log.error({ err, ticket: publicId }, "look out clear failed"));
+    // Reopening puts the order back on the list its resolve took it off.
+    if (!closing && isClosed(previous) && ticket.orderId != null) await lookOutForTicket(ticket.orderId, ticket.subject).catch((err) => log.error({ err, ticket: publicId }, "look out flag failed"));
     return { previous };
   }
 
@@ -193,24 +206,24 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     // assignment of an unowned ticket stays open to any staff member.
     if (ticket.currentOwner) await assertReassignAllowed();
     const owner = await resolveAssignableOwner(ownerId);
+    await this.setOwner(ticket, owner.id, actor.id);
+  }
 
-    let previousOwnerName: string | null = null;
-    if (ticket.currentOwner) {
-      const [previousOwner] = await db
-        .select({ name: users.name })
-        .from(users)
-        .where(eq(users.id, ticket.currentOwner))
-        .limit(1);
-      previousOwnerName = previousOwner?.name ?? null;
-    }
+  /** Hands the ticket to `ownerId` and leaves the staff-only note saying who had it before. */
+  private async setOwner(ticket: typeof tickets.$inferSelect, ownerId: bigint, actorId: bigint): Promise<void> {
+    const ids = ticket.currentOwner ? [ownerId, ticket.currentOwner] : [ownerId];
+    const rows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, ids));
+    const nameOf = (id: bigint) => rows.find((r) => r.id === id)?.name ?? null;
+    const ownerName = nameOf(ownerId) ?? "staff";
+    const previousOwnerName = ticket.currentOwner ? nameOf(ticket.currentOwner) : null;
 
-    await this.update(publicId, { currentOwner: owner.id });
+    await this.update(ticket.publicId, { currentOwner: ownerId });
     const message = ticket.currentOwner
       ? previousOwnerName
-        ? `Reassigned from ${previousOwnerName} to ${owner.name ?? "staff"}`
-        : `Reassigned to ${owner.name ?? "staff"}`
-      : `Assigned to ${owner.name ?? "staff"}`;
-    await this.message(ticket.id, actor.id, "system", message);
+        ? `Reassigned from ${previousOwnerName} to ${ownerName}`
+        : `Reassigned to ${ownerName}`
+      : `Assigned to ${ownerName}`;
+    await this.message(ticket.id, actorId, "system", message);
   }
 
   async setPriority(publicId: string, priority: TicketPriority): Promise<void> {

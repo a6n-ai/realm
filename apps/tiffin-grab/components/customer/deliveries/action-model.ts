@@ -1,5 +1,10 @@
 import { actionAvailability, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
 
+export const RESUME_DAY_LABEL = "Resume this day";
+export const RESUME_ALL_LABEL = "Resume all";
+export const MOVE_DAY_LABEL = "Move";
+export const PAUSE_DAY_LABEL = "Pause this day";
+
 export const ACTION_LABEL: Record<TripAction, string> = {
   pick: "Edit meal",
   swap: "Swap items",
@@ -7,7 +12,7 @@ export const ACTION_LABEL: Record<TripAction, string> = {
   address: "Change address",
 };
 
-const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-passed", "locked", "combined-into", "rescheduled"]);
+const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-passed", "locked", "combined-into", "rescheduled", "holiday"]);
 
 /** Move stays available; pick needs a resolved menu, so a not-yet-released week disables it with one reason. */
 const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet.", sub: "" };
@@ -19,8 +24,8 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
  */
 export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string; trial?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
-  // Not delivered (a failed drop, or a legacy paused day): the only thing to do is move it.
-  const moveOnly = trip.status === "failed" || trip.status === "vacation";
+  // Not delivered (a failed drop, a hold, or a paused day past its cutoff): the only thing to do is move it.
+  const moveOnly = trip.status === "failed" || trip.status === "paused";
   // A moved-away eating day has nothing to edit here except its truck's address (the delivery
   // day never moves), plus "go to" where its tiffin is eaten now.
   const movedAway = !!opts.movedTo;
@@ -32,11 +37,19 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
     : moveOnly ? (opts.trial ? [] : ["move"])
     : opts.trial ? ["pick", ...(showAddress ? (["address"] as const) : [])]
     : ["pick", "move", ...(showAddress ? (["address"] as const) : [])];
-  const primary: TripAction | null = opts.locked || closed || movedAway ? null
+  // A paused day's one primary is Resume; Move sits beside it.
+  const canResume = trip.status === "paused" && !closed && !opts.locked && !movedAway;
+  const primary: TripAction | null = opts.locked || closed || movedAway || canResume ? null
     : moveOnly ? (opts.trial ? null : "move") : trip.status === "upcoming" ? "pick" : null;
+  // Same rules the server applies to one day: still open, an original delivery, nothing moved onto it.
+  const canPause = trip.status === "upcoming" && !opts.locked && !movedAway && !opts.trial && !trip.isMakeup && (trip.movesIn?.length ?? 0) === 0;
+  // A paused day (still before cutoff) goes back on the same date; Move stays its own action.
+  // A hold, a lapsed pause and a failed drop only move.
   return {
     av,
     primary,
+    resume: { day: canResume },
+    pause: canPause,
     rows: keys.map((key) => ({
       key,
       label: ACTION_LABEL[key],
@@ -44,7 +57,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
     })),
     bar: (closed || opts.locked ? [] : movedAway ? (showAddress ? ["address"] : []) : moveOnly ? (opts.trial ? [] : ["move"]) : opts.trial ? ["pick"] : ["pick", "move"]) as TripAction[],
     closedReason: movedAway ? null : closed ? av.pick.why : null,
-    goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" ? (trip.movedTo ?? null) : null),
+    goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" || trip.status === "holiday" ? (trip.movedTo ?? null) : null),
   };
 }
 

@@ -48,12 +48,14 @@ export function CustomerLogsTable({
   page,
   size,
   sort,
+  hideDate = false,
 }: {
   rows: CustomerActivityListRow[];
   total: number;
   page: number;
   size: number;
   sort: SortState<CustomerActivitySortColumn>;
+  hideDate?: boolean;
 }) {
   const timezone = useTimezone();
   const formatTime = (value: number) =>
@@ -73,7 +75,7 @@ export function CustomerLogsTable({
           shortPlaceholder: "Search customer…",
           debounceMs: 250,
         }}
-        filters={<ReuiFacetFilters spec={CUSTOMER_ACTIVITY_FACETS} />}
+        filters={<ReuiFacetFilters spec={CUSTOMER_ACTIVITY_FACETS} hideDate={hideDate} />}
         emptyIcon={UserRoundSearchIcon}
         emptyMessage="No customer activity yet."
         emptySearchMessage="No customer activity matches your filters."

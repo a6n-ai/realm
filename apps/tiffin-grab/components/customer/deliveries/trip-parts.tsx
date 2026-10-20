@@ -2,8 +2,8 @@
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
+import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
@@ -13,6 +13,8 @@ export const dayNum = (iso: string) => d(iso).getUTCDate();
 export const weekday = (iso: string) => WD.format(d(iso));
 
 export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryStatus | null } {
+  // A day a holiday closed reads Holiday whatever its row status (paused, or held and tagged after the fact).
+  if (t.holidayName) return { label: "Holiday", tone: "neutral", dot: "holiday" };
   switch (t.status) {
     case "upcoming": return { label: t.isMakeup ? "Make-up" : "Upcoming", tone: "up", dot: "upcoming" };
     case "delivered": return { label: "Delivered", tone: "ok", dot: "delivered" };
@@ -20,16 +22,18 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
-    case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
+    case "paused": return { label: "Paused", tone: "vac", dot: "paused" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
-    case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
+    case "holiday": return { label: "Holiday", tone: "neutral", dot: "holiday" };
+    case "failed": return isPastPause(t) ? { label: "Paused", tone: "vac", dot: "paused" } : { label: "Not delivered", tone: "hold", dot: "hold" };
   }
 }
 
-const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into"];
+const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into", "holiday"];
 
 /** A moved-away eating day reads "Moved" even while its old trip keeps delivering other days. */
 export function rowMeta(row: EatingRow): ReturnType<typeof statusMeta> {
+  if (row.trip.holidayName) return statusMeta(row.trip);
   return row.movedTo && !MOVED_TRIP.includes(row.trip.status) ? { label: "Moved", tone: "neutral", dot: "combined" } : statusMeta(row.trip);
 }
 
@@ -138,8 +142,9 @@ const STOPS = [
   { label: "Delivered", Icon: House },
 ] as const;
 
-export function Journey({ status, caption }: { status: Trip["status"]; caption?: string | null }) {
-  const at = STAGE[status];
+export function Journey({ status, pushed, caption }: { status: Trip["status"]; pushed?: boolean; caption?: string | null }) {
+  // Delivery day alone proves nothing: the tiffin is on the way only once its stop is on a route.
+  const at = status === "unconfirmed" && !pushed ? 0 : STAGE[status];
   if (at == null) return null;
   const done = at === STOPS.length - 1;
   const tone = done ? "var(--s-delivered,#10b981)" : "var(--s-upcoming,#0ea5e9)";
@@ -175,7 +180,7 @@ const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = { "cutoff-passed":
 
 /** Dated in/out chips for a day: "In from Thu, Oct 8", "Out to Mon, Oct 12". Customer card and admin hub share them. */
 export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"; text: string }[] {
-  if (row.movedTo) return [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }];
+  if (row.movedTo) return row.trip.holidayName ? [] : [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }];
   if (isDone(row) && !history) return [];
   return [
     ...(row.movedFrom ?? []).map((d) => ({ kind: "in" as const, text: d ? `In from ${humanDate(d)}` : "In from a held day" })),
@@ -189,14 +194,16 @@ export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en
 export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, addonTiles, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; addonTiles?: MealCategory[]; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
-  const facts = row.movedTo ? []
-    : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
+  // A holiday day says why in its own note, so "Not delivered" never sits beside it.
+  const facts = row.movedTo || trip.holidayName ? []
+    : trip.status === "failed" ? [isPastPause(trip) ? "Paused. Move it to another day." : "Not delivered. Move it to another day."]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
   const moves = moveChips(row);
+  const note = dayNote(row);
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
-  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
+  const tiffinCount = tiffins(trip.units);
   const meta = arriving ? [
     // A day carried on another day's truck says which one.
     trip.date !== row.date ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
@@ -218,11 +225,16 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             <span className="text-[var(--muted-foreground,#6E6558)]">{trip.complimentaryNote}</span>
           </p>
         )}
-        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
+        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} pushed={trip.routePushed} caption={JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
             {eyebrow ?? m.label}
           </p>
+        )}
+        {note.length > 0 && (
+          <div className="mt-3 space-y-0.5 break-words text-[14px] text-[var(--muted-foreground,#6E6558)]" data-testid="holiday-note">
+            {note.map((l) => <p key={l}>{l}</p>)}
+          </div>
         )}
         {moves.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2" data-testid="move-pills">
@@ -243,7 +255,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         )}
       </div>
 
-      {!row.movedTo && (
+      {!row.movedTo && !trip.holidayName && (
         <div>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Your meal</h3>
@@ -276,7 +288,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         </div>
       )}
 
-      {address && !row.movedTo && GOES_OUT.has(trip.status) && (
+      {address && !row.movedTo && !trip.holidayName && GOES_OUT.has(trip.status) && (
         <div>
           {label("Destination", MUTED)}
           <p className="flex items-center gap-2 text-[15px]" data-testid="delivery-address">
@@ -296,18 +308,6 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
     </section>
   );
 }
-
-export const EXPLAIN: Record<Trip["status"], string> = {
-  upcoming: "Scheduled. Changes open until cutoff.",
-  delivered: "This delivery has been made.",
-  unconfirmed: "Out for delivery.",
-  "cutoff-passed": "Being prepared. Can't be changed.",
-  rescheduled: "Moved to another day.",
-  locked: "Closed for changes.",
-  vacation: "Paused. Move it to another day.",
-  "combined-into": "Combined into another delivery.",
-  failed: "Not delivered. Move it to another day.",
-};
 
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
 export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null }[] };

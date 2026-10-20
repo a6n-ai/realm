@@ -20,6 +20,20 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // checkout that happens to share their phone/email (checked here).
 export const STAFF_ACCOUNT_MESSAGE = "This phone or email belongs to a staff account — please sign in to the Tiffin Grab dashboard instead.";
 
+/**
+ * Customer accounts a phone and an email point at. One id is the customer; two means
+ * the number is one customer's and the address another's. createOrder and the staff
+ * order form both use this, so the form shows the account the order would land on.
+ */
+export async function matchCustomerAccounts(tx: Tx | typeof db, phone: string, email: string): Promise<bigint[]> {
+  const rows = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
+    .limit(2);
+  return rows.map((r) => r.id);
+}
+
 // Find-or-provision a customer (role "user") by phone. Returns internal users.id.
 // Lifted verbatim from createOrder so both paths share one provisioning rule.
 export async function provisionCustomerByPhone(
@@ -216,7 +230,7 @@ export async function findExistingByContact(phone: string, email?: string | null
   return row ? { publicId: row.publicId, fullName: row.name ?? "Customer" } : null;
 }
 
-// Staff typeahead: find customers by a name or phone fragment. Light rows for a
+// Staff typeahead: find customers by a name, phone or email fragment. Light rows for a
 // picker — publicId + contact only. Empty for <2 chars so a keystroke never scans.
 export async function searchCustomers(query: string) {
   const q = query.trim();
@@ -225,7 +239,7 @@ export async function searchCustomers(query: string) {
   return db
     .select({ publicId: users.publicId, fullName: users.name, phone: users.phone, email: users.email })
     .from(users)
-    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like))))
+    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like), ilike(users.email, like))))
     .orderBy(users.name)
     .limit(8);
 }
@@ -287,6 +301,7 @@ export async function listCustomersPage(
       columnResolver({
         name: users.name,
         phone: users.phone,
+        email: users.email,
         createdAt: users.createdAt,
       }),
     ),

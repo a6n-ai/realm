@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { landingPathFor } from "../landing";
+import { afterSignupPath, landingPathFor, safeCallback, signupHref } from "../landing";
 
 describe("landingPathFor", () => {
   it("sends a customer to their own area", () => {
@@ -51,4 +51,42 @@ describe("landingPathFor", () => {
       expect(landingPathFor("admin", callback)).toBe("/dashboard");
     },
   );
+});
+
+describe("safeCallback", () => {
+  const of = (q: string) => safeCallback(new URLSearchParams(q));
+  it("keeps same-site paths from callbackUrl or next", () => {
+    expect(of("next=/me/book?session=x")).toBe("/me/book?session=x");
+    expect(of("callbackUrl=/dashboard")).toBe("/dashboard");
+    expect(of("next=/me")).toBe("/me");
+    expect(of("next=/me/book?session=abc")).toBe("/me/book?session=abc");
+  });
+  it("drops off-site targets", () => {
+    for (const bad of ["//evil.com", "/\\evil.com", "https://evil.com", "/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/ /evil.com"]) {
+      expect(of(`next=${encodeURIComponent(bad)}`)).toBeNull();
+      expect(of(`callbackUrl=${encodeURIComponent(bad)}`)).toBeNull();
+    }
+  });
+});
+
+describe("signup hop", () => {
+  it("carries a same-site target into the signup link", () => {
+    expect(signupHref("/whats-on/x?session=1")).toBe("/signup?next=%2Fwhats-on%2Fx%3Fsession%3D1");
+    expect(signupHref(null)).toBe("/signup");
+    expect(signupHref("//evil.test")).toBe("/signup");
+  });
+
+  it("flags a refused Google sign-up without dropping the picked session", () => {
+    expect(signupHref(null, { error: "signup_disabled" })).toBe("/signup?error=signup_disabled");
+    expect(signupHref("/me/book?session=x", { error: "signup_disabled" })).toBe(
+      "/signup?next=%2Fme%2Fbook%3Fsession%3Dx&error=signup_disabled",
+    );
+  });
+
+  it("lands a new family on the target, else the welcome page", () => {
+    expect(afterSignupPath("/me/book?session=abc")).toBe("/me/book?session=abc");
+    expect(afterSignupPath(null)).toBe("/me/welcome");
+    expect(afterSignupPath("/dashboard")).toBe("/me/welcome");
+    expect(afterSignupPath("//evil.test")).toBe("/me/welcome");
+  });
 });

@@ -66,6 +66,7 @@ export function MealRulesGrid({
       }
     >
       <DataTable
+        pagination="client"
         columns={COLUMNS}
         rows={rules}
         rowKey={(r) => r.id}

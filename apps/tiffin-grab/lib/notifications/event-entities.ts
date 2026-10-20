@@ -50,6 +50,28 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "reason", label: "Reason" },
     ],
   },
+  holiday_declared: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "holidayName", label: "Holiday name" },
+      { name: "date", label: "Closed date" },
+      { name: "movedTo", label: "Extra delivery day(s)" },
+      { name: "lastDate", label: "New last delivery date" },
+      { name: "outcome", label: "What changed for the customer" },
+    ],
+  },
+  holiday_removed: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "holidayName", label: "Holiday name" },
+      { name: "date", label: "Date that is open again" },
+      { name: "outcome", label: "What changed for the customer" },
+    ],
+  },
   payment_received: {
     entity: "payment",
     fields: [
@@ -126,7 +148,8 @@ export function availableVariables(event: AppEvent): string[] {
   return e ? e.fields.map((f) => `${e.entity}.${f.name}`) : [];
 }
 
-const VAR_RE = /\{\{\s*([\w.]+)\s*\}\}/g;
+// Same grammar as @relay/engine interpolate, including `{{a.b|fallback}}`.
+const VAR_RE = /\{\{\s*([\w.]+)\s*(?:\|[^}]*)?\}\}/g;
 
 /** Returns variables used in `body` that aren't valid for the event. */
 export function validateTemplateVars(event: AppEvent, body: string): string[] {

@@ -1,12 +1,11 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { count, desc } from "drizzle-orm";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
-import { Button } from "@foundry/ui/button";
 import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
+import { NewCampaignButtons } from "./new-campaign-buttons";
 import { db } from "@/db/client";
 import { app, campaign, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -56,9 +55,7 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
         title="Campaigns"
         subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
         action={
-          <Button asChild size="sm">
-            <Link href="/dashboard/notifications/campaigns/new">New campaign</Link>
-          </Button>
+          <NewCampaignButtons />
         }
       >
         <Suspense fallback={<CampaignsTableSkeleton />}>

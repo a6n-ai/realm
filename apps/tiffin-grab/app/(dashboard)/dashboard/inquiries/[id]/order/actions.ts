@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
-import { ValidationError, zonedDateIso } from "@foundry/commons";
+import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { weekendDaysError } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -11,12 +11,16 @@ import { db } from "@/db/client";
 import { coupons, orders, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/services/orders.service";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
+import { postCatalogSubtotal } from "@/lib/pricing/discounts";
+import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { findMethod } from "@foundry/payments";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { staffStartBase } from "@/lib/services/start-date";
+import { earliestNewPlanStart, runningPlans, type RunningPlan } from "@/lib/services/order-window";
+import { matchCustomerAccounts } from "@/lib/services/customers.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
@@ -24,7 +28,7 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
-import { type PricingLine, type PricingResult, type PricingSelections } from "@/lib/pricing";
+import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 
@@ -61,7 +65,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
       name: coupons.name,
       capPct: coupons.capPct,
       capAmount: coupons.capAmount,
-      redemptionCount: coupons.redemptionCount,
+      maxRedemptions: coupons.maxRedemptions,
       startsAt: coupons.startsAt,
       expiresAt: coupons.expiresAt,
     })
@@ -77,7 +81,8 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
     .limit(1);
 
   if (!c) return { available: false, reason: "none-today" };
-  if (c.redemptionCount !== 0) return { available: false, reason: "used" };
+  // The day's budget covers codes the rep issued as well as uses of this coupon.
+  if ((await couponsService.repUsesToday(db, actorId, istDate)) >= (c.maxRedemptions ?? 1)) return { available: false, reason: "used" };
   const now = Date.now();
   if ((c.startsAt != null && now < c.startsAt) || (c.expiresAt != null && now > c.expiresAt)) {
     return { available: false, reason: "expired" };
@@ -104,35 +109,58 @@ export async function trialFormSettings() {
 export type CustomerOrderContext = {
   /** First day a new plan may start (after their running plans), or null. Same rule createOrder enforces. */
   renewFrom: string | null;
+  /** The plans holding those days, earliest first. */
+  plans: Omit<RunningPlan, "organizationId">[];
+  /** The phone is one customer's and the email another's: createOrder will refuse this order. */
+  conflict: boolean;
   /** Saved addresses with the drop-off picked under each. */
   addresses: (SavedAddress & { dropOff: DropOffValue | null })[];
 };
 
-const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, addresses: [] };
+const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, plans: [], conflict: false, addresses: [] };
 
-// An existing customer's renewal date and address book for the staff order form, or
-// empty for a new customer.
-export async function customerOrderContext(email: string): Promise<CustomerOrderContext> {
-  await requireStaff();
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) return NO_CONTEXT;
-  const [user] = await db.select({ id: users.id }).from(users)
-    .where(and(eq(users.email, normalized), eq(users.role, "user"))).limit(1);
-  if (!user) return NO_CONTEXT;
-  // Only reveal plan dates and addresses to staff who can already see one of this customer's orders.
+// An existing customer's running plans, renewal date and address book for the staff order
+// form, or empty for a new customer. Matches the account by phone or email, as createOrder does.
+// The accounts this phone or email matches that the acting staff member may know about.
+async function knownCustomerAccounts(email: string, phone: string) {
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  if (visible !== "all") {
-    if (visible.length === 0) return NO_CONTEXT;
-    const [seen] = await db.select({ id: orders.id }).from(orders)
-      .where(and(eq(orders.userId, user.id), inArray(orders.organizationId, visible))).limit(1);
-    if (!seen) return NO_CONTEXT;
-  }
-  const [renewFrom, saved] = await Promise.all([
-    earliestNewPlanStart(db, user.id),
-    addressService.list({ userId: user.id, orgId: await resolveRequestOrg() }),
+  // Unparseable input matches nobody: the form calls this while staff are still typing.
+  const parsedEmail = emailSchema.safeParse(email.trim());
+  const parsedPhone = phoneSchema().safeParse(phone);
+  if (!parsedEmail.success && !parsedPhone.success) return { known: [], visible };
+  const matches = await matchCustomerAccounts(db, parsedPhone.success ? parsedPhone.data : "", parsedEmail.success ? parsedEmail.data : "");
+  // Only reveal anything about an account, even that one exists, to staff who can already
+  // see one of its orders. An account they cannot see is dropped here, so it answers exactly
+  // as a phone or email that matches nobody would: no conflict flag, and no change to what
+  // is shown for the account they can see.
+  if (visible === "all" || matches.length === 0) return { known: matches, visible };
+  if (visible.length === 0) return { known: [], visible };
+  const seen = await db.selectDistinct({ userId: orders.userId }).from(orders)
+    .where(and(inArray(orders.userId, matches), inArray(orders.organizationId, visible)));
+  return { known: matches.filter((id) => seen.some((s) => s.userId === id)), visible };
+}
+
+export async function customerOrderContext(email: string, phone = ""): Promise<CustomerOrderContext> {
+  await requireStaff();
+  const { known, visible } = await knownCustomerAccounts(email, phone);
+  if (known.length > 1) return { ...NO_CONTEXT, conflict: true };
+  const userId = known[0];
+  if (!userId) return NO_CONTEXT;
+  const [renewFrom, plans, saved] = await Promise.all([
+    earliestNewPlanStart(db, userId),
+    runningPlans(db, userId),
+    addressService.list({ userId, orgId: await resolveRequestOrg() }),
   ]);
   const dropOffs = await dropOffsFor(saved.map((a) => a.publicId));
-  return { renewFrom, addresses: saved.map((a) => ({ ...a, dropOff: dropOffs[a.publicId] ?? null })) };
+  return {
+    renewFrom,
+    // A plan in an organization this staff member cannot open still moves renewFrom, but is not listed.
+    plans: plans
+      .filter((p) => visible === "all" || (p.organizationId != null && visible.includes(p.organizationId)))
+      .map(({ organizationId: _org, ...p }) => p),
+    conflict: false,
+    addresses: saved.map((a) => ({ ...a, dropOff: dropOffs[a.publicId] ?? null })),
+  };
 }
 
 // Address types and drop-off strategies with their fees, as checkout offers them.
@@ -148,49 +176,106 @@ export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-): Promise<ActionResult<{ preview: PricingResult }>> {
-  return runAction(async () => ({ preview: await quotePrice(input, couponCode, requestedAmount) }));
+): Promise<ActionResult<StaffPricePreview>> {
+  return runAction(() => quotePrice(input, couponCode, requestedAmount));
+}
+
+// The customer coupon lane as createOrder will resolve it: what landed on the price, why the
+// entered code did not, and the codes checkout suggests to this customer.
+export type StaffCouponPreview = {
+  applied: AppliedCoupon[];
+  // Not tied to one typed code (the rep discount pairing rule).
+  error?: string;
+  // Per typed code: why it was refused, or why a valid one was left out of the best set.
+  codeErrors: { code: string; error: string }[];
+  notApplied: { code: string; reason: string }[];
+  available: AvailableCoupon[];
+};
+export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview };
+
+// The account createOrder would bill, when the contact matches exactly one. Usage-capped and
+// first-order coupons are judged against it; no match leaves those gates to createOrder. An
+// account this staff member cannot see counts as no match, or a coupon's rejection reason
+// would say that it exists.
+async function previewCustomerId(contact: CreateOrderInput["contact"]): Promise<bigint | null> {
+  const { known } = await knownCustomerAccounts(contact.email, contact.phone);
+  return known.length === 1 ? known[0]! : null;
 }
 
 async function quotePrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-): Promise<PricingResult> {
+): Promise<StaffPricePreview> {
   await requireStaff();
   const snap = await loadCatalogSnapshot();
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
   if (weekendErr) throw new ValidationError(weekendErr);
-  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
+  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections, staffStartBase(snap.timezone)) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.
   const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;
   const methodTaxes = method?.enabled ? method.taxes : [];
   const address = { line1: input.contact.addressLine, city: input.contact.city, postalCode: input.contact.postalCode };
-  const quote = (selections: PricingSelections, adjustments: PricingLine[]) =>
-    priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true }).then((r) => r.pricing);
-  const base = await quote(trial ? trial.pricingSelections : input.selections, []);
-
-  const code = couponCode?.trim();
-  if (!code || requestedAmount == null || requestedAmount <= 0) return base;
-
-  const actorId = await actingStaffId();
-  if (actorId == null) return base;
+  const selections = trial ? trial.pricingSelections : input.selections;
+  const quote = async (adjustments: PricingLine[]) =>
+    (await priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true })).pricing;
+  const base = await quote([]);
   const plan = snap.plans.find((p) => p.key === input.planKey);
+  const lines: PricingLine[] = [];
 
-  try {
-    const line: PricingLine = await couponsService.validateRepCoupon(code, {
-      subtotal: base.subtotal,
-      requestedAmount,
-      actorId,
-      planType: plan?.planType,
-    });
-    return await quote(input.selections, [line]);
-  } catch {
-    return base;
+  // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts.
+  const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
+  const best = await couponsService.resolveBestCoupons({
+    subtotal: postCatalog,
+    planType: plan?.planType,
+    userId: await previewCustomerId(input.contact),
+    paymentMethodId: method?.enabled ? method.id : "simulated",
+    manualCode: input.couponCode,
+    manualCodes: input.couponCodes,
+  });
+  let error: string | undefined;
+  const applied: AppliedCoupon[] = [];
+  for (const r of best.redemptions) {
+    const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
+    if (amount <= 0) continue;
+    lines.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
+    applied.push({ code: r.coupon.code, name: r.coupon.name, amount, auto: r.coupon.autoApply });
   }
+
+  // The rep discount goes on top of the coupons, judged against what is left, as in createOrder.
+  const code = couponCode?.trim();
+  const repAmount = requestedAmount ?? 0;
+  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
+  const hasStaffCode = best.redemptions.some((r) => r.coupon.kind === "rep_code");
+  if (code && actorId != null && hasStaffCode) {
+    error = "Only one staff discount per order: remove the staff code or the rep discount";
+  } else if (code && actorId != null) {
+    try {
+      const line = await couponsService.validateRepCoupon(code, {
+        subtotal: postCatalogSubtotal(postCatalog, lines),
+        requestedAmount: repAmount,
+        actorId,
+        planType: plan?.planType,
+      });
+      if (line.amount > 0) lines.push(line);
+    } catch {
+      // A rep coupon that no longer validates leaves the price undiscounted; createOrder is the gate.
+    }
+  }
+
+  return {
+    preview: lines.length > 0 ? await quote(lines) : base,
+    coupons: {
+      applied,
+      error,
+      codeErrors: best.manualErrors,
+      notApplied: best.notApplied,
+      available: (await couponsService.listAvailable()).filter((c) => !c.autoApply),
+    },
+  };
 }
 
 export async function convertInquiry(

@@ -31,7 +31,7 @@ import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
-import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
+import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
 import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
@@ -152,7 +152,8 @@ export function Checkout({
   const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string | null } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  // Typed codes that landed in the price; several can stack, each removable on its own.
+  const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [coinsInput, setCoinsInput] = useState("");
@@ -188,7 +189,7 @@ export function Checkout({
 
   const refreshPrice = async (
     s: WizardSelections,
-    code: string | undefined,
+    codes: string[] | undefined,
     methodId: string | null,
     coins?: number,
     postalCode = contact.postalCode,
@@ -196,7 +197,7 @@ export function Checkout({
   ) => {
     // Postal code drives province sales tax, so the receipt must be re-priced
     // with it — otherwise the preview total would omit tax the order charges.
-    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins, postalCode || undefined, addr.addressLine || undefined, addr.city || undefined);
+    const r = await reprice(s, codes?.length ? codes : undefined, s.planKey ?? undefined, methodId, coins, postalCode || undefined, addr.addressLine || undefined, addr.city || undefined);
     if ("error" in r) {
       setPriceError(r.error);
       throw new UnpriceableCart(r.error);
@@ -210,7 +211,7 @@ export function Checkout({
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
       setPaymentMethodId(r.paymentMethods[0]!.id);
-      return refreshPrice(s, code, r.paymentMethods[0]!.id, coins, postalCode, addr);
+      return refreshPrice(s, codes, r.paymentMethods[0]!.id, coins, postalCode, addr);
     }
     return r;
   };
@@ -274,7 +275,7 @@ export function Checkout({
     setZone(res.served ? { served: true, name: res.zone!.name, slotWindow: res.zone!.slotWindow } : { served: false });
     // A served address fixes the province, so the total shown from here on includes its tax.
     if (res.served && withPrice && selections) {
-      void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined, postalCode, addr).catch(() => undefined);
+      void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined, postalCode, addr).catch(() => undefined);
     }
   };
 
@@ -321,35 +322,55 @@ export function Checkout({
   const applyCoupon = async (picked?: string) => {
     if (!selections) return;
     if (picked) setCouponCode(picked);
-    const code = (picked ?? couponCode).trim();
-    setCouponState({ status: code ? "checking" : "idle" });
-    const r = await refreshPrice(selections, code || undefined, paymentMethodId, appliedCoins || undefined);
+    const code = (picked ?? couponCode).trim().toUpperCase();
     if (!code) {
-      setAppliedCode(null);
       setCouponState({ status: "idle" });
       return;
     }
-    if (r.couponError) {
-      setAppliedCode(null);
-      setCouponState({ status: "error", message: r.couponError });
+    if (appliedCodes.includes(code)) {
+      setCouponState({ status: "applied", message: "That code is already applied" });
       return;
     }
-    // The manual code is honored only if it landed in the winning set — a better
-    // auto-apply combo can beat it, in which case the auto set still applies.
-    const inSet = r.appliedCoupons.some((c) => c.code.toUpperCase() === code.toUpperCase());
-    setAppliedCode(inSet ? code : null);
-    setCouponState({
-      status: "applied",
-      message: inSet ? "Coupon applied" : "A better discount is already applied",
-    });
+    setCouponState({ status: "checking" });
+    const tried = [...appliedCodes, code];
+    const r = await refreshPrice(selections, tried, paymentMethodId, appliedCoins || undefined);
+    const error = r.couponErrors ? r.couponErrors.find((e) => e.code === code)?.error : r.couponError;
+    // A refused code, or one a better combination beat, is not kept: price again without it
+    // so the total on screen is what the order will charge.
+    const left = r.couponsNotApplied?.find((n) => n.code.toUpperCase() === code)?.reason;
+    const inSet = r.appliedCoupons.some((c) => c.code.toUpperCase() === code);
+    if (error || !inSet) {
+      await refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined);
+      setCouponState(error ? { status: "error", message: error } : { status: "applied", message: left ?? "A better discount is already applied" });
+      return;
+    }
+    setAppliedCodes(tried);
+    setCouponCode("");
+    setCouponState({ status: "applied", message: "Coupon applied" });
   };
 
-  const removeCoupon = async () => {
+  // Offer every listed code at once; the server keeps the best combination, and anything it
+  // left out is dropped so the codes shown are the ones the order will use.
+  const applyAllCoupons = async (codes: string[]) => {
     if (!selections) return;
-    setCouponCode("");
-    setAppliedCode(null);
+    const tried = [...appliedCodes, ...codes.map((c) => c.toUpperCase()).filter((c) => !appliedCodes.includes(c))];
+    setCouponState({ status: "checking" });
+    const r = await refreshPrice(selections, tried, paymentMethodId, appliedCoins || undefined);
+    const kept = tried.filter((c) => r.appliedCoupons.some((a) => a.code.toUpperCase() === c));
+    if (kept.length !== tried.length) await refreshPrice(selections, kept, paymentMethodId, appliedCoins || undefined);
+    setAppliedCodes(kept);
+    const added = kept.length - appliedCodes.filter((c) => kept.includes(c)).length;
+    setCouponState(added > 0
+      ? { status: "applied", message: added === 1 ? "1 coupon applied" : `${added} coupons applied` }
+      : { status: "applied", message: "None of these coupons lowers this order" });
+  };
+
+  const removeCoupon = async (code: string) => {
+    if (!selections) return;
+    const next = appliedCodes.filter((c) => c !== code.toUpperCase());
+    setAppliedCodes(next);
     setCouponState({ status: "idle" });
-    await refreshPrice(selections, undefined, paymentMethodId, appliedCoins || undefined);
+    await refreshPrice(selections, next, paymentMethodId, appliedCoins || undefined);
   };
 
   const applyCoins = async () => {
@@ -358,11 +379,11 @@ export function Checkout({
     if (!coinsInput.trim() || !Number.isFinite(requested) || requested <= 0) {
       setAppliedCoins(0);
       setCoinsState({ status: "idle" });
-      await refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, undefined);
+      await refreshPrice(selections, appliedCodes, paymentMethodId, undefined);
       return;
     }
     setCoinsState({ status: "checking" });
-    const r = await refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, requested);
+    const r = await refreshPrice(selections, appliedCodes, paymentMethodId, requested);
     if (r.coinsError) {
       setAppliedCoins(0);
       setCoinsState({ status: "error", message: r.coinsError });
@@ -375,14 +396,14 @@ export function Checkout({
   const selectMethod = async (id: string) => {
     if (!selections) return;
     setPaymentMethodId(id);
-    await refreshPrice(selections, appliedCode ?? undefined, id, appliedCoins || undefined);
+    await refreshPrice(selections, appliedCodes, id, appliedCoins || undefined);
   };
 
   const handleAddressTagSelect = (tagId: string) => {
     if (!selections) return;
     const next = { ...selections, addressTagId: tagId === selections.addressTagId ? null : tagId };
     setSelections(next);
-    void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
+    void refreshPrice(next, appliedCodes, paymentMethodId, appliedCoins || undefined);
   };
 
   function handleDropOffChange(value: DropOffValue) {
@@ -393,7 +414,7 @@ export function Checkout({
     if (same) return;
     const next = { ...selections, deliveryTagId: value.tagId, deliveryStrategyIds: value.strategyIds };
     setSelections(next);
-    void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
+    void refreshPrice(next, appliedCodes, paymentMethodId, appliedCoins || undefined);
   }
 
   const confirm = async () => {
@@ -410,7 +431,7 @@ export function Checkout({
         contact,
         addressPublicId,
         renewal: lockContact,
-        couponCode: appliedCode ?? undefined,
+        couponCodes: appliedCodes,
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
@@ -692,24 +713,23 @@ export function Checkout({
                             </div>
                             <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
                             {!c.auto && (
-                              <button type="button" onClick={removeCoupon} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                              <button type="button" onClick={() => void removeCoupon(c.code)} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
                                 <X aria-hidden className="size-[18px]" />
                               </button>
                             )}
                           </motion.div>
                         ))}
                       </AnimatePresence>
-                      {!appliedCode && (
-                        <CouponEntry
-                          value={couponCode}
-                          onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
-                          onApply={() => applyCoupon()}
-                          state={couponState}
-                          reveal={reveal}
-                          suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
-                          onPick={(code) => void applyCoupon(code)}
-                        />
-                      )}
+                      <CouponEntry
+                        value={couponCode}
+                        onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
+                        onApply={() => applyCoupon()}
+                        state={couponState}
+                        reveal={reveal}
+                        suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
+                        onPick={(code) => void applyCoupon(code)}
+                        onApplyAll={(codes) => void applyAllCoupons(codes)}
+                      />
                       {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
                       {coinBalance == null || coinBalance === 0 ? null : (
                         <div className="px-4 py-3.5">
@@ -782,7 +802,7 @@ export function Checkout({
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
                 setStep(2);
                 // The address is final now — re-price so tax reflects its province.
-                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined)
+                void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined)
                   .then(() => setPriceFailed(false), () => setPriceFailed(true));
               }}>Continue to payment</Button>
             ) : (
@@ -886,7 +906,7 @@ function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save
 
 // A collapsed "Add a coupon code" row that opens into one field with Apply inside it,
 // so the action never sits off-screen and the row costs one line until it's needed.
-function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick }: {
+function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick, onApplyAll }: {
   value: string;
   onChange: (v: string) => void;
   onApply: () => void;
@@ -894,6 +914,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
   reveal: object;
   suggestions: AvailableCoupon[];
   onPick: (code: string) => void;
+  onApplyAll: (codes: string[]) => void;
 }) {
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
   return (
@@ -919,7 +940,19 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
       </AnimatePresence>
       {suggestions.length > 0 && (
         <div className="pb-4">
-          <p id="coupon-suggestions" className="text-muted-foreground px-4 text-[13px] font-semibold">Available for you</p>
+          <div className="flex items-center justify-between gap-3 px-4">
+            <p id="coupon-suggestions" className="text-muted-foreground text-[13px] font-semibold">Available for you</p>
+            {suggestions.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onApplyAll(suggestions.map((c) => c.code))}
+                disabled={state.status === "checking"}
+                className="text-primary -mr-2 min-h-11 rounded-full px-2 text-[13px] font-semibold transition-transform active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
+              >
+                Apply all applicable
+              </button>
+            )}
+          </div>
           {/* Edge-to-edge scroller on phones: chips peek past the card padding instead of wrapping into a wall. */}
           <ul aria-labelledby="coupon-suggestions" className="mt-2 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {suggestions.map((c) => (

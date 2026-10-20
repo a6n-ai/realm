@@ -88,7 +88,7 @@ describe("order lifecycle (integration)", () => {
 
     // The activity IS written — the customer paused something even though no status
     // transition followed. This assertion previously required the opposite, which is how
-    // partial vacations stayed invisible in the log.
+    // partial pauses stayed invisible in the log.
     const acts = await svc.listOrderActivities(o.id);
     const paused = acts.filter((a) => a.type === "paused");
     expect(paused).toHaveLength(1);
@@ -118,37 +118,5 @@ describe("order lifecycle (integration)", () => {
     const acts = await svc.listOrderActivities(o.id);
     expect(acts[0].type).toBe("cancelled");
     expect(acts[0].toStatus).toBe("cancelled");
-  });
-
-  // Admin correction tool for the legacy migration (docs/realm/legacy-order-migration-plan.md):
-  // orders land on a closest-match meal size at import time, and staff need a way to move one
-  // onto the customer's real plan afterward without another migration pass.
-  it("changeMealSize swaps plan/mealSize, recomputes price server-side, and logs the change", async () => {
-    const snap = await loadCatalogSnapshot();
-    const from = snap.mealSizes.find((m) => m.key === "sabzi_only_regular_veg")!;
-    const to = snap.mealSizes.find((m) => m.key === "item4_regular_veg")!;
-    const id = await makeOrder("active", from.publicId);
-    const [before] = await db.select().from(orders).where(eq(orders.publicId, id));
-
-    await svc.changeMealSize(id, to.publicId);
-
-    const [after] = await db.select().from(orders).where(eq(orders.publicId, id));
-    expect(after.mealSizeId).toBe(to.id);
-    expect(after.planId).toBe(to.planId);
-    // Price must come from the NEW meal size's own base price, not carried over —
-    // this is the same "never trust a stale snapshot" rule createOrder follows.
-    expect(Number(after.perTiffinPrice)).not.toBe(Number(before.perTiffinPrice));
-    expect(Number(after.perTiffinPrice)).toBeGreaterThan(0);
-
-    const acts = await svc.listOrderActivities(after.id);
-    expect(acts.some((a) => a.type === "note" && a.note?.includes(to.name))).toBe(true);
-  });
-
-  it("changeMealSize rejects a cancelled order", async () => {
-    const snap = await loadCatalogSnapshot();
-    const to = snap.mealSizes.find((m) => m.key === "item4_regular_veg")!;
-    const id = await makeOrder("active");
-    await svc.cancelOrder(id);
-    await expect(svc.changeMealSize(id, to.publicId)).rejects.toBeInstanceOf(ValidationError);
   });
 });

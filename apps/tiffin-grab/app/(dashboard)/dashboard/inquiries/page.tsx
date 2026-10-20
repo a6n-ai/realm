@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { count, eq } from "drizzle-orm";
-import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
+import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, FileTextIcon, XCircleIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
@@ -19,8 +20,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -28,6 +27,8 @@ import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -68,9 +69,15 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         }
       />
 
-      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
-        <InquiryStats />
-      </Suspense>
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <InquiryStats searchParams={searchParams} />
+        </Suspense>
+      </div>
 
       <SectionCard title="All inquiries">
         <Suspense fallback={<InquiriesListSkeleton />}>
@@ -175,12 +182,13 @@ async function NewInquiryAction() {
   );
 }
 
-async function InquiryStats() {
+async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const where = epochBoundsWhere(inquiries.createdAt, await withDefaultMonth(await searchParams));
 
   const [stageCounts, [{ total }]] = await Promise.all([
-    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
-    db.select({ total: count() }).from(inquiries),
+    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).where(where).groupBy(inquiries.stage),
+    db.select({ total: count() }).from(inquiries).where(where),
   ]);
 
   const countOf = (...stages: string[]) =>
@@ -191,17 +199,18 @@ async function InquiryStats() {
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
 
   return (
-    <StatGrid
-      cols={3}
+    <StatCards
       items={[
-        { icon: InboxIcon, label: "Total", value: total, hint: "all inquiries" },
+        { icon: InboxIcon, label: "Total", value: total, hint: "created in selected dates" },
         { icon: UsersIcon, label: "Open", value: open, hint: "new · contacted · follow-up" },
+        { icon: FileTextIcon, label: "Quoted", value: countOf("quoted"), hint: "waiting on the customer's answer" },
         {
           icon: TrendingUpIcon,
           label: "Converted",
           value: converted,
           hint: `${conversionRate}% conversion`,
         },
+        { icon: XCircleIcon, label: "Lost", value: countOf("lost"), hint: total > 0 ? `${Math.round((countOf("lost") / total) * 100)}% of inquiries` : "—" },
       ]}
     />
   );
@@ -210,7 +219,7 @@ async function InquiryStats() {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(
     sp,
     ["name", "owner", "stage", "source", "lastTouch", "created"],
@@ -234,7 +243,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
     { kind: "dateRange", field: "createdAt", label: "Created" },
-    { kind: "search", fields: ["fullName", "phone"] },
+    { kind: "search", fields: ["fullName", "phone", "email"] },
   ];
 
   const { condition, page } = parseFilterState(spec, sp);

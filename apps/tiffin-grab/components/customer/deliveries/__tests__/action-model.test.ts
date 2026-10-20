@@ -23,10 +23,16 @@ describe("actionModel", () => {
     expect([m.rows, m.bar, m.goTo]).toEqual([[], [], "2026-09-29"]);
   });
   it("failed drop: Move is the only action and the primary", () => {
-    const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
+    const m = actionModel(trip({ status: "failed", optimoCompletionStatus: "failed" }), Date.now(), ctx);
     expect(m.primary).toBe("move");
     expect(m.rows.map((r) => r.key)).toEqual(["move"]);
     expect(m.bar).toEqual(["move"]);
+  });
+  it("any hold: the customer and an admin both get Move, there is no staff-only hold", () => {
+    const held = trip({ status: "failed" });
+    for (const m of [actionModel(held, Date.now(), ctx), actionModel(held, Date.now(), ctx, { trial: false })]) {
+      expect([m.primary, m.rows.map((r) => r.key), m.bar, m.closedReason]).toEqual(["move", ["move"], ["move"], null]);
+    }
   });
   it("delivered: no rows, reason instead", () => {
     const m = actionModel(trip({ status: "delivered" }), Date.now(), ctx);
@@ -39,9 +45,9 @@ describe("actionModel", () => {
     expect(m.closedReason).toMatch(/Combined into Fri, Sep 25/);
     expect(m.goTo).toBe("2026-09-25");
   });
-  it("a legacy paused day: nothing to resume, its tiffin is moved", () => {
-    const m = actionModel(trip({ status: "vacation" }), Date.now(), ctx);
-    expect([m.primary, m.rows.map((r) => r.key)]).toEqual(["move", ["move"]]);
+  it("a paused day: Resume is the one primary and Move sits beside it", () => {
+    const m = actionModel(trip({ status: "paused" }), Date.now(), ctx);
+    expect([m.primary, m.rows.map((r) => r.key), m.resume.day]).toEqual([null, ["move"], true]);
   });
   it("payment locked: view-only, no actions and no bar (not even Edit meal)", () => {
     const m = actionModel(trip(), Date.now(), ctx, { locked: true });
@@ -53,5 +59,44 @@ describe("actionModel", () => {
     const m = actionModel(trip({ status: "failed" }), Date.now(), ctx, { locked: true });
     expect(m.rows).toEqual([]);
     expect(m.primary).toBeNull();
+  });
+  describe("Resume on a paused day", () => {
+    const paused = trip({ status: "paused" });
+    it("a future paused day offers Resume this day beside Move", () => {
+      const m = actionModel(paused, Date.now(), ctx);
+      expect(m.resume).toEqual({ day: true });
+      expect(m.rows.map((r) => r.key)).toEqual(["move"]);
+    });
+    it("an expired pause (lapsedPause hold): Move only, no Resume", () => {
+      const m = actionModel(trip({ status: "failed", lapsedPause: true }), Date.now(), ctx);
+      expect([m.resume, m.rows.map((r) => r.key), m.primary]).toEqual([{ day: false }, ["move"], "move"]);
+    });
+    it("an ordinary hold: Move only, no Resume", () => {
+      const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
+      expect([m.resume, m.rows.map((r) => r.key)]).toEqual([{ day: false }, ["move"]]);
+    });
+    it("a payment-locked plan offers no Resume", () => {
+      expect(actionModel(paused, Date.now(), ctx, { locked: true }).resume).toEqual({ day: false });
+    });
+    it("an upcoming day has nothing to resume", () => {
+      expect(actionModel(trip(), Date.now(), ctx).resume).toEqual({ day: false });
+    });
+  });
+
+  describe("Pause on one day", () => {
+    const pause = (t: Trip, opts = {}) => actionModel(t, Date.now(), ctx, opts).pause;
+    it("an upcoming original day can be paused", () => expect(pause(trip())).toBe(true));
+    it("not a paused, held or delivered day", () => {
+      expect(pause(trip({ status: "paused" }))).toBe(false);
+      expect(pause(trip({ status: "failed" }))).toBe(false);
+      expect(pause(trip({ status: "delivered" }))).toBe(false);
+    });
+    it("not a trial, a payment-locked plan, a make-up, a moved-away day, or a day carrying a moved-in tiffin", () => {
+      expect(pause(trip(), { trial: true })).toBe(false);
+      expect(pause(trip(), { locked: true })).toBe(false);
+      expect(pause(trip({ isMakeup: true }))).toBe(false);
+      expect(pause(trip(), { movedTo: "2026-09-25" })).toBe(false);
+      expect(pause(trip({ movesIn: [{}] as Trip["movesIn"] }))).toBe(false);
+    });
   });
 });

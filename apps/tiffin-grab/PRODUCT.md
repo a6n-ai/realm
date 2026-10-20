@@ -40,7 +40,7 @@ life instead of the reverse.
 
 **You build the plan.** Most tiffin services sell one fixed plan and one menu. Here
 every axis is the subscriber's: what nutrition baseline, what size, how often, for how
-long. Weekly meal-picking and post-subscription control (skip, hold, vacation,
+long. Weekly meal-picking and post-subscription control (skip, hold, pause,
 reschedule, makeup deliveries) are what make that promise survive contact with a real
 week.
 
@@ -68,7 +68,7 @@ week.
   timezone. Week boundaries are computed in that timezone, never the server's.
 - Pricing and totals are computed server-side only; client-submitted amounts are never
   trusted. Audit fields are stamped from the session, never from input.
-- Subscription control surface: skip days and holds, vacation pause with resume,
+- Subscription control surface: skip days and holds, day-level pause with resume and move,
   reschedule to a chosen date (consuming a hold day), and makeup deliveries appended
   after the plan's last delivery.
 - Money runs through prepaid orders, payments and ledger entries; wallet coins are a
@@ -102,7 +102,7 @@ week.
 
 1. **Every axis belongs to the subscriber.** If a decision could reasonably be theirs
    — size, rhythm, duration, today's meal — it is.
-2. **A subscription must bend, not break.** Life interrupts; skip, hold, vacation and
+2. **A subscription must bend, not break.** Life interrupts; skip, hold, pause and
    makeup exist so an interruption never costs a paid meal.
 3. **Settings decide the market, code never does.** Currency, timezone, cutoff and
    country come from app settings so a second market needs no fork.

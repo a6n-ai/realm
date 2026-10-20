@@ -63,7 +63,7 @@ export function ContactListsTable({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/notifications/contact-lists/${r.publicId}`}
         search={{ placeholder: "Search lists…", shortPlaceholder: "Search…", debounceMs: 300 }}
-        filters={<ReuiFacetFilters spec={spec} />}
+        filters={<ReuiFacetFilters spec={spec} hideDate />}
         emptyIcon={ListIcon}
         emptyMessage="No lists yet."
         emptySearchMessage="No lists match your search."

@@ -4,34 +4,60 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { DiscountPolicy } from "@/db/schema/coupons";
-import { SectionCard } from "@/components/ds";
+import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Switch } from "@foundry/ui/switch";
+import { BanIcon, Loader2Icon, SaveIcon, UsersIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import Link from "next/link";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
-import { saveDiscountPolicy, setRepCeiling } from "../actions";
+import { saveDiscountPolicy, setCouponActive, setRepCeiling } from "../actions";
 
-type RepOption = { publicId: string; name: string | null; email: string | null };
+type RepOption = { publicId: string; name: string | null; email: string | null; role: string };
+
+export type IssuedCode = {
+  publicId: string;
+  code: string;
+  amount: number;
+  note: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+  issuer: string;
+  status: "unused" | "used" | "expired" | "revoked";
+  customer: string | null;
+  orderPublicId: string | null;
+  applied: number | null;
+};
 
 // Single source of truth for the two section headers, consumed by both the real
 // sections and the .Skeleton twin so the loading state can't drift from them.
 const GLOBAL_SECTION = {
-  title: "Rep daily allowance",
+  title: "Staff discount allowance",
   subtitle:
-    "The daily discount each sales rep may grant. The lower of the two ceilings applies to any single rep discount.",
+    "What each staff member may give per day, either applied on an order they create or as a one-off code from the Create coupon button. The lower of the two ceilings applies to any single discount.",
 } as const;
 const PER_REP_SECTION = {
   title: "Per-rep overrides",
   subtitle:
-    "Override the default ceilings for an individual rep, or disable their allowance. Blank fields fall back to the global default.",
+    "Override the default ceilings for an individual staff member, or disable their allowance. Blank fields fall back to the global default.",
+} as const;
+const CODES_SECTION = {
+  title: "Issued codes",
+  subtitle: "One-off codes staff generated, who issued each, and the customer and order that used it.",
 } as const;
 
-export function RepAllowanceForm({ reps, policy }: { reps: RepOption[]; policy: DiscountPolicy }) {
+export function RepAllowanceForm({ reps, policy, codes, pagination, repSpec }: { reps: RepOption[]; policy: DiscountPolicy; codes: IssuedCode[]; pagination: { page: number; size: number }; repSpec: FacetDef[] }) {
   return (
     <div className="grid gap-6">
       <GlobalCeilingsSection policy={policy} />
-      <PerRepSection reps={reps} policy={policy} />
+      <PerRepSection reps={reps} policy={policy} pagination={pagination} spec={repSpec} />
+      <IssuedCodesSection codes={codes} />
     </div>
   );
 }
@@ -61,40 +87,116 @@ export function RepAllowanceFormSkeleton() {
             {field()}
             {field()}
           </div>
-          <div className="grid gap-1.5 sm:max-w-[13rem]">
-            {field()}
-            <Skeleton className="h-3 w-full" />
+          <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              {field()}
+              <Skeleton className="h-3 w-full" />
+            </div>
+            <div className="grid gap-1.5">
+              {field()}
+              <Skeleton className="h-3 w-full" />
+            </div>
           </div>
           <Skeleton className="h-9 w-28" />
         </div>
       </SectionCard>
       <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
-        <div className="grid gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-lg border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-14" />
-                  <Skeleton className="h-5 w-9 rounded-full" />
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-end gap-3">
-                {field("w-32")}
-                {field("w-32")}
-                {field("w-32")}
-                <Skeleton className="h-8 w-16" />
-              </div>
-            </div>
+        <DataTable.Skeleton columns={PER_REP_COLUMNS} serial={false} />
+      </SectionCard>
+      <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
+        <div className="grid gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
           ))}
         </div>
       </SectionCard>
     </div>
   );
 };
+
+const STATUS_LABEL: Record<IssuedCode["status"], string> = { unused: "Unused", used: "Used", expired: "Expired", revoked: "Revoked" };
+
+function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <RowActionTooltipButton
+      icon={BanIcon}
+      label={`Revoke ${code}`}
+      hint="Revoke: the code stops working"
+      tone="text-destructive"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await setCouponActive(publicId, false);
+          toast.success(`${code} revoked`);
+          router.refresh();
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Couldn't revoke the code");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    />
+  );
+}
+
+function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
+  const tz = useTimezone();
+  return (
+    <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
+      {codes.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No codes issued yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Code</TableHead>
+              <TableHead>Issued by</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Used by</TableHead>
+              <TableHead>Order</TableHead>
+              <TableHead className="sr-only">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {codes.map((c) => (
+              <TableRow key={c.code}>
+                <TableCell>
+                  <span className="nums font-medium">{c.code}</span>
+                  {c.note && <span className="text-muted-foreground block text-xs">{c.note}</span>}
+                </TableCell>
+                <TableCell>{c.issuer}</TableCell>
+                <TableCell className="nums text-right">
+                  ${(c.applied ?? c.amount).toFixed(2)}
+                  {c.applied != null && c.applied < c.amount && (
+                    <span className="text-muted-foreground block text-xs">of ${c.amount.toFixed(2)}</span>
+                  )}
+                </TableCell>
+                <TableCell>{formatEpoch(c.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
+                <TableCell>
+                  <Badge variant={c.status === "used" ? "default" : "secondary"}>{STATUS_LABEL[c.status]}</Badge>
+                </TableCell>
+                <TableCell>{c.customer ?? "—"}</TableCell>
+                <TableCell>
+                  {c.orderPublicId ? (
+                    <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-primary hover:underline">View order</Link>
+                  ) : "—"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {c.status === "unused" && <RevokeButton publicId={c.publicId} code={c.code} />}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </SectionCard>
+  );
+}
 
 function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const router = useRouter();
@@ -103,8 +205,10 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const [capPct, setCapPct] = React.useState(String(policy.repDaily.defaultCapPct));
   const [capAmount, setCapAmount] = React.useState(String(policy.repDaily.defaultCapAmount));
   const [dailyUses, setDailyUses] = React.useState(String(policy.repDaily.defaultDailyUses));
+  const [validity, setValidity] = React.useState(String(policy.repDaily.codeValidityHours));
 
   const dirty =
+    (numOrNull(validity) ?? policy.repDaily.codeValidityHours) !== policy.repDaily.codeValidityHours ||
     enabled !== policy.repDaily.enabled ||
     Number(capPct) !== policy.repDaily.defaultCapPct ||
     Number(capAmount) !== policy.repDaily.defaultCapAmount ||
@@ -122,6 +226,11 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
       toast.error("Discounts per day must be a whole number of 1 or more");
       return;
     }
+    const hoursN = numOrNull(validity);
+    if (hoursN == null || hoursN < 1 || hoursN > 720 || !Number.isInteger(hoursN)) {
+      toast.error("Code validity must be a whole number of hours from 1 to 720");
+      return;
+    }
     start(async () => {
       try {
         await saveDiscountPolicy({
@@ -132,6 +241,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             defaultCapPct: pctN,
             defaultCapAmount: amtN,
             defaultDailyUses: usesN,
+            codeValidityHours: hoursN,
           },
         });
         toast.success("Rep ceilings saved");
@@ -147,8 +257,8 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
       <div className="grid gap-4">
         <ToggleRow
           id="rep-enabled"
-          label="Enable rep daily coupons"
-          hint="When off, reps cannot grant discounts and no daily coupons are minted."
+          label="Enable staff discounts"
+          hint="When off, staff cannot give discounts or create codes, and no daily coupons are minted."
           checked={enabled}
           onChange={setEnabled}
         />
@@ -171,19 +281,35 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             onChange={setCapAmount}
           />
         </div>
-        <div className="grid gap-1.5 sm:max-w-[13rem]">
-          <NumberField
-            id="rep-daily-uses"
-            label="Discounts per day"
-            min={1}
-            max={99}
-            step={1}
-            value={dailyUses}
-            onChange={setDailyUses}
-          />
-          <p className="text-muted-foreground text-xs text-pretty">
-            How many discounts each rep can give per day. Sets a daily target so reps don&apos;t discount every order.
-          </p>
+        <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <NumberField
+              id="rep-daily-uses"
+              label="Discounts per day"
+              min={1}
+              max={99}
+              step={1}
+              value={dailyUses}
+              onChange={setDailyUses}
+            />
+            <p className="text-muted-foreground text-xs text-pretty">
+              How many discounts each staff member can give per day, applied discounts and created codes together.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <NumberField
+              id="rep-code-validity"
+              label="Code validity (hours)"
+              min={1}
+              max={720}
+              step={1}
+              value={validity}
+              onChange={setValidity}
+            />
+            <p className="text-muted-foreground text-xs text-pretty">
+              How long a created code can be used before it expires.
+            </p>
+          </div>
         </div>
         <Button onClick={save} disabled={pending || !dirty} className="w-fit">
           Save ceilings
@@ -193,27 +319,42 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   );
 }
 
-function PerRepSection({ reps, policy }: { reps: RepOption[]; policy: DiscountPolicy }) {
+const PER_REP_COLUMNS = [
+  { key: "staff", label: "Staff" },
+  { key: "role", label: "Role" },
+  { key: "capPct", label: "Cap (%)", width: "w-32" },
+  { key: "capAmount", label: "Cap ($)", width: "w-32" },
+  { key: "dailyUses", label: "Per day", width: "w-28" },
+  { key: "allowed", label: "Allowed", width: "w-24" },
+  { key: "actions", label: "", align: "right", width: "w-24" },
+] as const satisfies readonly Column<string>[];
+
+function PerRepSection({ reps, policy, pagination, spec }: { reps: RepOption[]; policy: DiscountPolicy; pagination: { page: number; size: number }; spec: FacetDef[] }) {
+  const rows = reps.map((r) => ({ ...r, label: r.name ?? r.email ?? r.publicId }));
   return (
     <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
-      {reps.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No sales reps (members) yet.</p>
-      ) : (
-        <div className="grid gap-3">
-          {reps.map((rep) => (
-            <RepRow key={rep.publicId} rep={rep} override={policy.repDaily.perRep[rep.publicId]} />
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={PER_REP_COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        serial={false}
+        filters={<ListSearchFilters spec={spec} placeholder="Search staff…" shortPlaceholder="Search…" />}
+        pagination={pagination}
+        emptyIcon={UsersIcon}
+        emptyMessage="No staff yet."
+        emptySearchMessage="No staff match your search or filters."
+        renderRow={(r) => <RepCells key={r.publicId} rep={r} override={policy.repDaily.perRep[r.publicId]} />}
+      />
     </SectionCard>
   );
 }
 
-function RepRow({
+// One row's cells. Each row edits and saves on its own, so it keeps its own draft.
+function RepCells({
   rep,
   override,
 }: {
-  rep: RepOption;
+  rep: RepOption & { label: string };
   override?: { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean };
 }) {
   const router = useRouter();
@@ -237,7 +378,7 @@ function RepRow({
           dailyUses: usesN ?? undefined,
           active,
         });
-        toast.success(`Saved ${rep.name ?? rep.publicId}`);
+        toast.success(`Saved ${rep.label}`);
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -245,52 +386,31 @@ function RepRow({
     });
   };
 
+  const muted = !active && "opacity-60";
   return (
-    <div className={cn("rounded-lg border p-3", !active && "opacity-60")}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{rep.name ?? rep.email ?? rep.publicId}</span>
-          <Badge variant="secondary">Member</Badge>
-        </div>
-        <ToggleRow id={`rep-${rep.publicId}`} label="Allowed" checked={active} onChange={setActive} inline />
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <NumberField
-          id={`rep-${rep.publicId}-pct`}
-          label="Cap (%)"
-          suffix="%"
-          min={0}
-          max={100}
-          placeholder="default"
-          value={capPct}
-          onChange={setCapPct}
-          className="w-32"
-        />
-        <NumberField
-          id={`rep-${rep.publicId}-amt`}
-          label="Cap ($)"
-          prefix="$"
-          min={0}
-          placeholder="default"
-          value={capAmount}
-          onChange={setCapAmount}
-          className="w-32"
-        />
-        <NumberField
-          id={`rep-${rep.publicId}-uses`}
-          label="Per day"
-          min={1}
-          max={99}
-          step={1}
-          placeholder="default"
-          value={dailyUses}
-          onChange={setDailyUses}
-          className="w-32"
-        />
-        <Button onClick={save} disabled={pending} size="sm" variant="outline">
-          Save
-        </Button>
-      </div>
-    </div>
+    <>
+      <TableCell className={cn(muted)}>
+        <span className="block truncate text-sm font-medium">{rep.label}</span>
+        {rep.name && rep.email && <span className="text-muted-foreground block truncate text-xs">{rep.email}</span>}
+      </TableCell>
+      <TableCell className={cn(muted)}>
+        <Badge variant="secondary" className="capitalize">{rep.role}</Badge>
+      </TableCell>
+      <TableCell>
+        <NumberField id={`rep-${rep.publicId}-pct`} label={`${rep.label} cap (%)`} hideLabel suffix="%" min={0} max={100} placeholder="default" value={capPct} onChange={setCapPct} />
+      </TableCell>
+      <TableCell>
+        <NumberField id={`rep-${rep.publicId}-amt`} label={`${rep.label} cap ($)`} hideLabel prefix="$" min={0} placeholder="default" value={capAmount} onChange={setCapAmount} />
+      </TableCell>
+      <TableCell>
+        <NumberField id={`rep-${rep.publicId}-uses`} label={`${rep.label} discounts per day`} hideLabel min={1} step={1} placeholder="default" value={dailyUses} onChange={setDailyUses} />
+      </TableCell>
+      <TableCell>
+        <Switch aria-label={`${rep.label} allowed`} checked={active} onCheckedChange={setActive} />
+      </TableCell>
+      <TableCell className="text-right">
+        <RowActionTooltipButton icon={pending ? Loader2Icon : SaveIcon} label={`Save ${rep.label}`} hint="Save" onClick={save} disabled={pending} />
+      </TableCell>
+    </>
   );
 }

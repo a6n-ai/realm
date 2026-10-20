@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { sampleVars, assertValidVars, upsertTemplate } from "@/lib/services/notification-template.service";
+import { sampleMap, sampleVars, assertValidVars, upsertTemplate } from "@/lib/services/notification-template.service";
 
 describe("notification-template.service", () => {
   it("builds sample vars from the registry", () => {
@@ -12,6 +12,10 @@ describe("notification-template.service", () => {
   });
   it("accepts a body with only known variables", () => {
     expect(() => assertValidVars("order_activated", "{{order.code}}")).not.toThrow();
+  });
+  it("flattens sample vars to dotted keys for the editor preview", () => {
+    expect(sampleMap("order_activated")["order.code"]).toBeTypeOf("string");
+    expect(sampleMap("manual_adjustment")).toEqual({});
   });
   it("returns {} sample for events with no entity", () => {
     expect(sampleVars("manual_adjustment")).toEqual({});

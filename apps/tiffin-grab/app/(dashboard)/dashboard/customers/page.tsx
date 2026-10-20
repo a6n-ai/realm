@@ -1,7 +1,8 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
-import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
-import { eq, sql } from "drizzle-orm";
+import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -18,8 +19,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -27,6 +26,8 @@ import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -47,9 +48,15 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <CustomersStats />
-      </Suspense>
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <CustomersStats searchParams={searchParams} />
+        </Suspense>
+      </div>
       <SectionCard
         title="All customers"
         action={
@@ -72,8 +79,9 @@ async function InvitePendingAction() {
   return <InvitePendingButton count={await countPendingInvites()} />;
 }
 
-async function CustomersStats() {
+async function CustomersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
 
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -83,31 +91,38 @@ async function CustomersStats() {
     .groupBy(orders.userId)
     .as("oc");
 
-  const [s] = await db
-    .select({
-      total: sql<number>`count(*)`.mapWith(Number),
-      withOrders: sql<number>`count(*) filter (where ${oc.c} > 0)`.mapWith(Number),
-      repeat: sql<number>`count(*) filter (where ${oc.c} >= 2)`.mapWith(Number),
-      newThisWeek: sql<number>`count(*) filter (where ${users.createdAt} >= ${weekAgo})`.mapWith(Number),
-    })
-    .from(users)
-    .leftJoin(oc, eq(oc.userId, users.id))
-    .where(eq(users.role, "user"));
+  const [[s], [week]] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*)`.mapWith(Number),
+        withOrders: sql<number>`count(*) filter (where ${oc.c} > 0)`.mapWith(Number),
+        repeat: sql<number>`count(*) filter (where ${oc.c} >= 2)`.mapWith(Number),
+      })
+      .from(users)
+      .leftJoin(oc, eq(oc.userId, users.id))
+      .where(and(eq(users.role, "user"), epochBoundsWhere(users.createdAt, sp))),
+    db
+      .select({ n: sql<number>`count(*)`.mapWith(Number) })
+      .from(users)
+      .where(and(eq(users.role, "user"), gte(users.createdAt, weekAgo))),
+  ]);
 
-  const stats = [
-    { label: "Total customers", value: s.total, icon: UsersIcon },
-    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon },
-    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: "2+ orders" },
-    { label: "New this week", value: s.newThisWeek, icon: UserPlusIcon },
+  const pct = (n: number) => (s.total > 0 ? `${Math.round((n / s.total) * 100)}% of customers` : "—");
+  const stats: StatCardItem[] = [
+    { label: "Total customers", value: s.total, icon: UsersIcon, hint: "joined in selected dates" },
+    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon, hint: pct(s.withOrders) },
+    { label: "No order yet", value: s.total - s.withOrders, icon: UserXIcon, hint: "signed up, never ordered" },
+    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: `2+ orders · ${pct(s.repeat)}` },
+    { label: "New this week", value: week.n, icon: UserPlusIcon, hint: "joined in the last 7 days" },
   ];
 
-  return <StatGrid cols={4} items={stats} />;
+  return <StatCards items={stats} />;
 }
 
 export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, ["name", "email", "phone", "orders"], { column: "orders", dir: "desc" });
 
   const spec: FacetDef[] = [
@@ -124,7 +139,7 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
         { value: "14", label: "Next 14 days" },
       ],
     },
-    { kind: "search", fields: ["name", "phone"] },
+    { kind: "search", fields: ["name", "phone", "email"] },
   ];
 
   // planCompletesInDays is a derived value, not a column: the full spec drives the

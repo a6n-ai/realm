@@ -40,6 +40,9 @@ export const appEvent = pgEnum("app_event", [
   "payment_approved",
   // Staff gave a free tiffin on the customer's plan.
   "order_complimentary",
+  // A holiday closed one of the customer's delivery days / a declared holiday was removed.
+  "holiday_declared",
+  "holiday_removed",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

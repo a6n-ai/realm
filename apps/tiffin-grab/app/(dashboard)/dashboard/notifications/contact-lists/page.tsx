@@ -8,6 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { ContactListFromSegment, ContactListManualAdd } from "@relay/engine/ui";
@@ -45,7 +46,7 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
   return (
     <div className="space-y-6">
       <Suspense fallback={<StatsSkeleton />}>
-        <StatsData />
+        <StatsData searchParams={searchParams} />
       </Suspense>
 
       <SectionCard
@@ -85,11 +86,12 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
   );
 }
 
-async function StatsData() {
+async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
+  const where = epochBoundsWhere(contactList.createdAt, await withDefaultMonth(await searchParams));
   const [[{ n: listCount }], [{ total }]] = await Promise.all([
-    db.select({ n: count() }).from(contactList),
-    db.select({ total: sql<number>`cast(coalesce(sum(${contactList.memberCount}), 0) as int)` }).from(contactList),
+    db.select({ n: count() }).from(contactList).where(where),
+    db.select({ total: sql<number>`cast(coalesce(sum(${contactList.memberCount}), 0) as int)` }).from(contactList).where(where),
   ]);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -110,7 +112,7 @@ function StatsSkeleton() {
 
 async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
 
   const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {
     column: "createdAt",

@@ -8,6 +8,7 @@ export const KIND_LABELS: Record<CouponKind, string> = {
   free_delivery: "Free delivery",
   first_order: "First order",
   rep_daily: "Rep daily",
+  rep_code: "Staff code",
 };
 export const ALL_KINDS = Object.keys(KIND_LABELS) as CouponKind[];
-export const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily");
+export const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily" && k !== "rep_code");

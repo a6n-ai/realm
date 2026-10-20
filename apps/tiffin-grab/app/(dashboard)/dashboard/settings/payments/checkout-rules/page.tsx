@@ -3,6 +3,7 @@ import { getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getProvinceTaxes
 import { CoinCapForm } from "./coin-cap-form";
 import { WalletRedeemCapForm } from "./wallet-redeem-cap-form";
 import { ProvinceTaxForm } from "./province-tax-form";
+import { PaymentsBackLink } from "../back-link";
 
 export default async function CheckoutRulesPage() {
   await requireAdmin();
@@ -10,6 +11,7 @@ export default async function CheckoutRulesPage() {
 
   return (
     <div className="grid gap-6">
+      <PaymentsBackLink />
       <WalletRedeemCapForm current={maxRedeemPct} />
       <CoinCapForm current={maxCoinPct} />
       <ProvinceTaxForm overrides={provinceTaxes} />

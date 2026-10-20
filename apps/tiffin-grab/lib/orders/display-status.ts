@@ -19,7 +19,7 @@ const OVERLAY_ORDER = new Set(["active", "pending", "paused"]);
  *
  * DB `orders.status` can stay `active` while e-Transfer is unpaid so deliveries materialize
  * early; the UI must not look settled until money is verified. `paused` maps to Active —
- * vacation is day-level, not a plan tag.
+ * a pause is day-level, not a plan tag.
  */
 export function orderDisplayStatus(
   orderStatus: string,
@@ -68,4 +68,18 @@ export function complimentaryBlocker(orderStatus: string, paymentStatuses: reado
   if (paymentStatuses.some((s) => PAYMENT_REVIEW.has(s))) return "Payment is still pending on this plan. Confirm it first.";
   if (paymentStatuses.length > 0 && paymentStatuses.every((s) => s === PAYMENT_REJECTED_STATUS)) return "This plan's payment was rejected";
   return null;
+}
+
+/**
+ * Why add-on money can't be recorded on a plan, or null when it can. The add-on payment is
+ * written as settled, and fulfillmentReadyOrder() treats any settled payment as "plan is paid",
+ * so it must never be the first settled money on a plan that was rejected or never paid.
+ * A WordPress-imported plan (`wc-`) was prepaid there and carries no payment rows.
+ */
+export function canTakeAddonPayment(order: { deploymentId: string }, paymentStatuses: readonly string[]): string | null {
+  if (paymentStatuses.some((s) => PAYMENT_REVIEW.has(s) || s === "pending")) return "A payment is still pending on this plan. Confirm it first.";
+  if (paymentStatuses.includes(PAYMENT_REJECTED_STATUS)) return "This plan's payment was rejected. Settle the plan before adding add-ons.";
+  if (paymentStatuses.some((s) => PAYMENT_SETTLED.has(s))) return null;
+  if (paymentStatuses.length === 0 && order.deploymentId.startsWith("wc-")) return null;
+  return "This plan has no confirmed payment yet.";
 }

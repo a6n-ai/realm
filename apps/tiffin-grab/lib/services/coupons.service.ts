@@ -1,11 +1,14 @@
+import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
+import { getDiscountPolicy } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
+import { repAllowanceFor } from "./rep-allowance";
 import { SessionUpdatableService } from "./session-service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -13,6 +16,11 @@ type Coupon = typeof coupons.$inferSelect;
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 const num = (v: string | null): number => (v == null ? 0 : Number(v));
+
+// No 0/O or 1/I: these codes are read out over the phone.
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const randomCode = (length: number): string =>
+  Array.from({ length }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
 export interface ResolveContext {
   subtotal: number;
@@ -39,23 +47,33 @@ export interface BestCouponsContext {
   userId?: bigint | null;
   paymentMethodId?: string | null;
   manualCode?: string | null;
-  // When set, enumerate ONLY the all-stackable set and skip the per-exclusive
-  // sets. createOrder passes this when a rep_daily coupon is also applied: an
-  // exclusive coupon must be used alone, so it can never ride alongside the rep
-  // lane. Resolving stackable-only here picks the best stackable combo that *can*
-  // legally combine with the rep coupon, instead of letting an exclusive win the
-  // global optimum only to be discarded by the caller.
-  stackableOnly?: boolean;
+  // Several typed codes; merged with manualCode, deduped, at most MAX_MANUAL_CODES.
+  manualCodes?: readonly string[] | null;
 }
 
+export const MAX_MANUAL_CODES = 5;
+
 // The winning set: discount lines (already distributed against the running
-// subtotal) plus the coupon rows + applied amount for in-tx redemption. When a
-// manual code was supplied but rejected, manualError carries the reason so the
-// caller can surface it inline without failing the whole resolution.
+// subtotal) plus the coupon rows + applied amount for in-tx redemption. Typed codes
+// that were rejected carry their reason in manualErrors (manualError is the first),
+// so the caller can surface each inline without failing the whole resolution. A
+// typed code that is valid but lost to a better combination lands in notApplied.
 export interface BestCouponsResult {
   lines: PricingLine[];
   redemptions: { coupon: Coupon; amount: number }[];
   manualError?: string;
+  manualErrors: { code: string; error: string }[];
+  notApplied: { code: string; reason: string }[];
+}
+
+// Typed codes as the resolver reads them: trimmed, uppercased, deduped, capped.
+export function normalizeCodes(...lists: (readonly (string | null | undefined)[] | null | undefined)[]): string[] {
+  const out: string[] = [];
+  for (const list of lists) for (const c of list ?? []) {
+    const code = c?.trim().toUpperCase();
+    if (code && !out.includes(code)) out.push(code);
+  }
+  return out.slice(0, MAX_MANUAL_CODES);
 }
 
 // Customer-safe projection of a coupon for the browse list — no admin-only
@@ -99,6 +117,18 @@ export interface MintRepDailyInput {
   // The rep's daily use budget → snapshotted onto maxRedemptions (floored at 1).
   dailyUses: number;
   expiresAt: number;
+}
+
+export interface IssueRepCodeInput {
+  ownerUserId: bigint;
+  istDate: string;
+  amount: number;
+  // The issuer's ceilings and daily budget, resolved from the policy by the caller.
+  capPct: number;
+  capAmount: number;
+  dailyUses: number;
+  expiresAt: number;
+  note?: string | null;
 }
 
 // Serializable projection of a rep's coupon for the day — safe to hand to a
@@ -149,6 +179,12 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         magnitude = ceilings.length ? Math.min(...ceilings) : 0;
         break;
       }
+      case "rep_code": {
+        // The amount was fixed at issue; the percent ceiling can only be judged against the cart.
+        const pctCeiling = coupon.capPct != null ? round2((subtotal * num(coupon.capPct)) / 100) : Infinity;
+        magnitude = Math.min(num(coupon.valueAmount), pctCeiling);
+        break;
+      }
     }
     const amount = Math.max(0, Math.min(round2(magnitude), subtotal));
     return { label: `${coupon.name} (${coupon.code})`, amount };
@@ -197,32 +233,38 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
     }
 
-    // Plus the manual code (need not be autoApply). A failure is reported via
-    // manualError rather than thrown, so the auto set still resolves.
-    let manualError: string | undefined;
-    const manualCode = ctx.manualCode?.trim();
-    if (manualCode) {
+    // Plus the typed codes (need not be autoApply). A failure is reported per code
+    // rather than thrown, so the rest still resolve. A staff code stays out of the
+    // optimizer: it goes on top of whatever set wins, and only one rides an order.
+    const manualErrors: { code: string; error: string }[] = [];
+    const typed: Coupon[] = [];
+    let staffCode: Coupon | null = null;
+    for (const code of normalizeCodes([ctx.manualCode], ctx.manualCodes)) {
       try {
-        const coupon = await this.loadByCode(manualCode);
+        const coupon = await this.loadByCode(code);
         const err = await this.publicEligibilityError(coupon, pubCtx);
         if (err) {
-          manualError = err;
-        } else if (!candidates.some((c) => c.coupon.id === coupon.id)) {
-          candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+          manualErrors.push({ code, error: err });
+        } else if (coupon.kind === "rep_code") {
+          if (staffCode) manualErrors.push({ code, error: "Only one staff code per order" });
+          else staffCode = coupon;
+        } else {
+          typed.push(coupon);
+          if (!candidates.some((c) => c.coupon.id === coupon.id)) {
+            candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+          }
         }
       } catch (e) {
-        manualError = e instanceof Error ? e.message : "Invalid coupon code";
+        manualErrors.push({ code, error: e instanceof Error ? e.message : "Invalid coupon code" });
       }
     }
 
-    // (b) Enumerate stacking-valid final sets. When stackableOnly is set (rep lane
-    // present) the per-exclusive sets are skipped entirely, since an exclusive
-    // coupon could never legally combine with the rep coupon anyway.
+    // (b) Enumerate stacking-valid final sets.
     const stackables = candidates.filter((c) => c.coupon.stackable);
     const exclusives = candidates.filter((c) => !c.coupon.stackable);
     const sets: Candidate[][] = [];
     if (stackables.length) sets.push(stackables);
-    if (!ctx.stackableOnly) for (const ex of exclusives) sets.push([ex]);
+    for (const ex of exclusives) sets.push([ex]);
 
     // (c) Distribute each set against the running remaining subtotal and pick the
     // set with the largest total discount (lowest customer total). The empty set
@@ -251,7 +293,27 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       if (discount > best.discount) best = { lines, redemptions, discount };
     }
 
-    return { lines: best.lines, redemptions: best.redemptions, manualError };
+    // Staff codes stack on any coupon, exclusive ones included; the percent ceiling is
+    // judged against what the customer still pays after them.
+    if (staffCode) {
+      const line = this.resolveDiscount(staffCode, { ...pubCtx, subtotal: round2(ctx.subtotal - best.discount) });
+      if (line.amount > 0) {
+        best.lines.push(line);
+        best.redemptions.push({ coupon: staffCode, amount: line.amount });
+      }
+    }
+
+    // A valid typed code the winning set left out: an exclusive one that a better set beat,
+    // or a stackable one that lost to an exclusive. Say which won so the customer can choose.
+    const won = best.redemptions.map((r) => r.coupon.code).filter((c) => c !== staffCode?.code);
+    const notApplied = typed
+      .filter((c) => !best.redemptions.some((r) => r.coupon.id === c.id))
+      .map((c) => ({
+        code: c.code,
+        reason: won.length ? `Can't be combined with ${won.join(", ")}, which saves more` : "Gives no discount on this order",
+      }));
+
+    return { lines: best.lines, redemptions: best.redemptions, manualError: manualErrors[0]?.error, manualErrors, notApplied };
   }
 
   // Staff: validate the actor's OWN rep_daily coupon and clamp to the dual ceiling.
@@ -262,11 +324,14 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       throw new ValidationError("This coupon is not yours to apply");
     }
     this.assertWindow(coupon);
-    // Per-rep daily budget: maxRedemptions is the snapshotted daily use count. The
-    // atomic guard in redeem() is authoritative under concurrency; this is the
-    // clean up-front rejection once the rep has spent today's budget.
-    if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
-      throw new ValidationError("You have reached today's discount limit");
+    // Per-rep daily budget: maxRedemptions is the snapshotted daily use count, shared with
+    // the codes the rep issued today. The atomic guard in redeem() is authoritative under
+    // concurrency; this is the clean up-front rejection once the rep has spent today's budget.
+    if (coupon.maxRedemptions != null) {
+      const used = coupon.istDate
+        ? await this.repUsesToday(db, coupon.ownerUserId, coupon.istDate)
+        : coupon.redemptionCount;
+      if (used >= coupon.maxRedemptions) throw new ValidationError("You have reached today's discount limit");
     }
     return this.resolveDiscount(coupon, ctx);
   }
@@ -275,6 +340,16 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // bump the count atomically, and record the discount ledger debit.
   async redeem(tx: Tx, input: RedeemInput): Promise<void> {
     const { coupon, userId, orderId, amountApplied } = input;
+
+    // A rep's day budget is shared with the codes they issued, which this coupon's own count
+    // can't see. Recount under the same user-row lock issueRepCode takes, so a concurrent
+    // issue or apply can't both take the last use.
+    if (coupon.kind === "rep_daily" && coupon.ownerUserId != null && coupon.istDate && coupon.maxRedemptions != null) {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, coupon.ownerUserId)).for("update");
+      if ((await this.repUsesToday(tx, coupon.ownerUserId, coupon.istDate)) >= coupon.maxRedemptions) {
+        throw new ValidationError("You have reached today's discount limit");
+      }
+    }
 
     // Atomic global-cap guard: bump only while under the cap; no row → cap hit.
     // The UPDATE ... RETURNING also locks the coupon row for the rest of the tx,
@@ -349,6 +424,51 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     return inserted.length > 0;
   }
 
+  // Discounts a rep has given on an IST day: uses of their daily coupon plus codes they
+  // issued. One count, so the two lanes share the daily budget.
+  async repUsesToday(conn: Tx | typeof db, ownerUserId: bigint, istDate: string): Promise<number> {
+    const [row] = await conn
+      .select({
+        n: sql<number>`cast(coalesce(sum(case when ${coupons.kind} = 'rep_daily' then ${coupons.redemptionCount} else 1 end), 0) as int)`,
+      })
+      .from(coupons)
+      .where(and(eq(coupons.ownerUserId, ownerUserId), eq(coupons.istDate, istDate), inArray(coupons.kind, ["rep_daily", "rep_code"])));
+    return row?.n ?? 0;
+  }
+
+  // A one-off code a staff member hands to a customer: a fixed amount within their ceiling,
+  // single use, never combinable, and counted against their daily budget when issued.
+  async issueRepCode(input: IssueRepCodeInput): Promise<{ code: string; usedToday: number }> {
+    const amount = round2(input.amount);
+    if (!(amount > 0)) throw new ValidationError("Enter a discount amount");
+    if (!(input.capPct > 0) || amount > input.capAmount) {
+      throw new ValidationError(`You can give up to $${input.capAmount.toFixed(2)} per discount`);
+    }
+    return db.transaction(async (tx) => {
+      // Serialize this rep's issues, or two requests could both take the last use of the day.
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, input.ownerUserId)).for("update");
+      const used = await this.repUsesToday(tx, input.ownerUserId, input.istDate);
+      if (used >= input.dailyUses) throw new ValidationError("You have reached today's discount limit");
+      const code = `TG-${randomCode(6)}`;
+      await tx.insert(coupons).values({
+        code,
+        kind: "rep_code",
+        name: "Staff discount",
+        description: input.note?.trim() || null,
+        valueAmount: amount.toFixed(2),
+        capPct: input.capPct.toFixed(2),
+        maxRedemptions: 1,
+        stackable: true,
+        visible: false,
+        ownerUserId: input.ownerUserId,
+        istDate: input.istDate,
+        expiresAt: input.expiresAt,
+        config: { kind: "rep_code" },
+      });
+      return { code, usedToday: used + 1 };
+    });
+  }
+
   // Public accessor: createOrder validates a code, then needs the resolved row to
   // redeem inside its tx. Shares the active-coupon guard with the validators.
   async findByCode(code: string): Promise<Coupon> {
@@ -385,7 +505,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
 
     return {
       code: row.code,
-      used: row.redemptionCount,
+      used: await this.repUsesToday(db, ownerId, istDate),
       total: row.maxRedemptions ?? 1,
       capPct: row.capPct != null ? num(row.capPct) : null,
       capAmount: row.capAmount != null ? num(row.capAmount) : null,
@@ -398,7 +518,15 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     const rows = await db
       .select()
       .from(coupons)
-      .where(and(eq(coupons.active, true), ne(coupons.kind, "rep_daily")));
+      .where(
+        and(
+          eq(coupons.active, true),
+          eq(coupons.visible, true),
+          // Staff coupons (a rep's daily lane, one-off issued codes) are never listed or bulk-applied;
+          // an issued code still works when typed.
+          notInArray(coupons.kind, ["rep_daily", "rep_code"]),
+        ),
+      );
     return rows
       .filter((c) => !this.windowError(c))
       .map((c) => ({
@@ -433,6 +561,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // validatePublicCode (which throws) and resolveBestCoupons (which skips).
   private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<string | null> {
     if (coupon.kind === "rep_daily") return "This code cannot be used here";
+    if (coupon.kind === "rep_code" && !(await this.issuerStillAllowed(coupon))) return "This code is no longer valid";
     const w = this.windowError(coupon);
     if (w) return w;
     if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
@@ -462,6 +591,19 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       if (n > 0) return "This coupon is only valid on your first order";
     }
     return null;
+  }
+
+  // A staff code dies with its issuer's allowance: switching a rep off, or turning staff
+  // discounts off, also stops the codes they already handed out.
+  private async issuerStillAllowed(coupon: Coupon): Promise<boolean> {
+    if (coupon.ownerUserId == null) return false;
+    const [owner] = await db
+      .select({ publicId: users.publicId, role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.id, coupon.ownerUserId))
+      .limit(1);
+    if (!owner || owner.status !== "active" || (owner.role !== "admin" && owner.role !== "member")) return false;
+    return repAllowanceFor(await getDiscountPolicy(), owner.publicId) != null;
   }
 
   private windowError(coupon: Coupon): string | null {

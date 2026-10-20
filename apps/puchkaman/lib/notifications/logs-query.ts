@@ -1,9 +1,10 @@
 import { and, count, eq } from "drizzle-orm";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
+import { canClearSuppression, suppressionKind } from "@relay/engine";
 import { eventLabel } from "@relay/engine/ui";
 import { db } from "@/db/client";
-import { appEvent, messageSuppression, notificationOutbox, users } from "@/db/schema";
+import { appEvent, campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import type { LogSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/logs-table";
 import type { SuppressedSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/suppressed-table";
@@ -169,6 +170,16 @@ export const SUPPRESSED_SPEC: FacetDef[] = [
       { value: "whatsapp", label: "WhatsApp" },
     ],
   },
+  {
+    kind: "select",
+    field: "source",
+    label: "Source",
+    options: [
+      { value: "link", label: "Unsubscribe link" },
+      { value: "one-click", label: "Mail client button" },
+      { value: "admin", label: "Added by staff" },
+    ],
+  },
   { kind: "dateRange", field: "createdAt", label: "Time" },
   { kind: "search", fields: ["address"] },
 ];
@@ -180,6 +191,11 @@ export interface SuppressedAddressRow {
   scope: string;
   reason: string;
   createdAt: number;
+  source: string | null;
+  campaignPublicId: string | null;
+  campaignName: string | null;
+  /** Staff may clear it: provider feedback or a staff block, never a recipient's own opt-out. */
+  clearable: boolean;
 }
 
 export async function loadSuppressedAddresses(
@@ -199,6 +215,7 @@ export async function loadSuppressedAddresses(
       channel: messageSuppression.channel,
       createdAt: messageSuppression.createdAt,
       address: messageSuppression.address,
+      source: messageSuppression.source,
     }),
   );
 
@@ -214,8 +231,12 @@ export async function loadSuppressedAddresses(
         scope: messageSuppression.scope,
         reason: messageSuppression.reason,
         createdAt: messageSuppression.createdAt,
+        source: messageSuppression.source,
+        campaignPublicId: campaign.publicId,
+        campaignName: campaign.name,
       })
       .from(messageSuppression)
+      .leftJoin(campaign, eq(campaign.id, messageSuppression.campaignId))
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
@@ -223,5 +244,40 @@ export async function loadSuppressedAddresses(
     db.select({ n: count() }).from(messageSuppression).where(where),
   ]);
 
-  return { rows, sort, total: Number(totalRow?.n ?? 0), page: page.page, size: page.size };
+  return {
+    rows: rows.map((r) => ({ ...r, clearable: canClearSuppression(r.reason) })),
+    sort,
+    total: Number(totalRow?.n ?? 0),
+    page: page.page,
+    size: page.size,
+  };
+}
+
+const zero = () => ({ unsubscribe: 0, bounce: 0, complaint: 0, manual: 0 });
+
+/**
+ * Counts for the Unsubscribed tab's summary row. Reasons are free text
+ * ("SES hard bounce", "sms STOP keyword"), so they go through relay's classifier.
+ * Month boundaries are UTC — a summary, not a ledger.
+ */
+export function summarizeSuppressions(rows: { reason: string; createdAt: number }[], now: number) {
+  const out = { total: zero(), last30: zero(), thisMonth: zero() };
+  const d = new Date(now);
+  const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  for (const r of rows) {
+    const kind = suppressionKind(r.reason);
+    const reason = kind === "other" ? "manual" : kind;
+    out.total[reason] += 1;
+    if (r.createdAt >= now - 30 * 86_400_000) out.last30[reason] += 1;
+    if (r.createdAt >= monthStart) out.thisMonth[reason] += 1;
+  }
+  return out;
+}
+
+export async function suppressionSummary(now = Date.now()) {
+  // ponytail: loads every row's reason + time; switch to a grouped SQL count if the table passes ~50k rows.
+  const rows = await db
+    .select({ reason: messageSuppression.reason, createdAt: messageSuppression.createdAt })
+    .from(messageSuppression);
+  return summarizeSuppressions(rows, now);
 }

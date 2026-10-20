@@ -1,46 +1,89 @@
 /* eslint-disable */
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SideDishesCard } from "../side-dishes-card";
+import { MenuBuilder } from "../menu-builder";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock("../actions", () => ({ setDaySide: vi.fn(), setSideDefault: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+vi.mock("../actions", () => ({
+  setDaySide: vi.fn(async () => ({ ok: true })), setSideDefault: vi.fn(async () => ({ ok: true })),
+  markReady: vi.fn(), backToDraft: vi.fn(), releaseWeek: vi.fn(), saveWeek: vi.fn(), amendImpact: vi.fn(), copyWeek: vi.fn(), createDish: vi.fn(),
+}));
 
-const slot = {
+const sideSlot = {
   category: "sabzi", categoryLabel: "Sabzi", role: "side_1" as const,
   meals: ["5 Item Thali — Large (8oz)", "Maharaja Thali (8oz)"], defaultSource: "daal",
 };
-const categories = [{ key: "sabzi", label: "Sabzi" }, { key: "daal", label: "Dal" }];
-const dayDishes = {
-  mon: [
-    { publicId: "d1", name: "Veg Korma", category: "sabzi", isDefault: true },
-    { publicId: "d2", name: "Masoor Dal", category: "daal", isDefault: true },
+const slot = (categoryKey: string, label: string) => ({
+  key: `${categoryKey}|p1`, categoryKey, categoryLabel: label, selectable: true, sortOrder: 1, planPublicId: "p1", planName: "Veg Plan",
+});
+
+const props = {
+  mealType: { key: "tiffin", label: "Tiffin" } as any,
+  slots: [slot("sabzi", "Sabzi"), slot("daal", "Dal")],
+  plans: [{ publicId: "p1", name: "Veg Plan" }],
+  categoryCounts: {},
+  dishes: [
+    { id: "d1", name: "Veg Korma", category: "sabzi", planId: "p1" },
+    { id: "d2", name: "Masoor Dal", category: "daal", planId: "p1" },
+    { id: "d3", name: "Aloo Matar", category: "sabzi", planId: "p1" },
   ],
-  tue: [{ publicId: "d3", name: "Aloo Matar", category: "sabzi", isDefault: true }],
+  week: { id: "w", weekStart: "2026-09-21", status: "released", updatedAt: 1 },
+  items: [
+    { id: "i1", dayOfWeek: "mon", slot: "sabzi", dishId: "d1", position: 0, isDefault: true },
+    { id: "i2", dayOfWeek: "mon", slot: "daal", dishId: "d2", position: 0, isDefault: true },
+    { id: "i3", dayOfWeek: "tue", slot: "sabzi", dishId: "d3", position: 0, isDefault: true },
+  ],
+  copySources: [],
+  problems: [],
 };
+const sides = (daySides: any[] = []) => ({ weekId: "w", slots: [sideSlot], categories: [{ key: "sabzi", label: "Sabzi" }, { key: "daal", label: "Dal" }], daySides });
 
 afterEach(cleanup);
 
-describe("SideDishesCard", () => {
-  it("shows the side's meals and what each day packs from the default", () => {
-    render(<SideDishesCard weekId="w" slots={[slot]} categories={categories} days={["mon", "tue"]} dayDishes={dayDishes} daySides={[]} />);
-    expect(screen.getByText("Sabzi · Side 1")).toBeInTheDocument();
-    expect(screen.getByText(/5 Item Thali — Large \(8oz\)/)).toBeInTheDocument();
-    expect(screen.getByText("→ Masoor Dal")).toBeInTheDocument();
+describe("side dishes in the menu maker", () => {
+  it("adds a row per side under the grid showing what each day packs", () => {
+    render(<MenuBuilder {...props} sides={sides()} />);
+    expect(screen.getByText("Side dishes")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1: packs Masoor Dal$/ })).toBeInTheDocument();
     // Tuesday has no dal on the menu, so the side falls back to the sabzi.
-    expect(screen.getByText(/No dal on the menu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tuesday, Sabzi · Side 1: packs No dal on the menu/ })).toBeInTheDocument();
   });
 
-  it("shows a day's dish override", () => {
-    render(<SideDishesCard weekId="w" slots={[slot]} categories={categories} days={["mon"]} dayDishes={dayDishes}
-      daySides={[{ day: "mon", category: "sabzi", role: "side_1", source: { kind: "dish", dishPublicId: "d1" } }]} />);
-    expect(screen.getByText("→ Veg Korma")).toBeInTheDocument();
+  it("opens the side in the panel with its meals and this day only; the standing default is separate", () => {
+    render(<MenuBuilder {...props} sides={sides()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
+    const panel = within(screen.getByTestId("side-panel"));
+    expect(panel.getByText(/5 Item Thali — Large \(8oz\)/)).toBeInTheDocument();
+    expect(panel.getByText("Masoor Dal")).toBeInTheDocument();
+    expect(panel.getByRole("combobox", { name: "Monday source" })).toBeInTheDocument();
+    expect(panel.queryByRole("combobox", { name: /default/i })).toBeNull();
+    // The every-week default lives behind the Side dishes header's Defaults button.
+    fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+    expect(within(screen.getByRole("dialog")).getByRole("combobox", { name: "Sabzi · Side 1 default" })).toBeInTheDocument();
   });
 
-  it("renders nothing when no meal has a side", () => {
-    const { container } = render(<SideDishesCard weekId="w" slots={[]} categories={categories} days={["mon"]} dayDishes={dayDishes} daySides={[]} />);
-    expect(container).toBeEmptyDOMElement();
+  it("a day's side is a menu edit: locked on a released week until Amend, open on a draft", () => {
+    render(<MenuBuilder {...props} sides={sides()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Amend" }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeEnabled();
+    expect(screen.getByText(/Saved with the menu/)).toBeInTheDocument();
+    cleanup();
+    render(<MenuBuilder {...props} week={{ ...props.week, status: "draft" }} sides={sides()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeEnabled();
+  });
+
+  it("marks a day's dish override as changed", () => {
+    render(<MenuBuilder {...props} sides={sides([{ day: "mon", category: "sabzi", role: "side_1", source: { kind: "dish", dishPublicId: "d1" } }])} />);
+    expect(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1: packs Veg Korma, changed for this day$/ })).toBeInTheDocument();
+  });
+
+  it("adds no side rows when no meal has a side", () => {
+    render(<MenuBuilder {...props} sides={{ ...sides(), slots: [] }} />);
+    expect(screen.queryByText("Side dishes")).toBeNull();
   });
 });

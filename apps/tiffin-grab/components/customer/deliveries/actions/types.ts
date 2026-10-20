@@ -5,7 +5,7 @@ import type { SheetUi } from "./sheet-ui";
 
 /** Contract every action sheet implements. Mounted only while its action is active. */
 export type ActionSheetProps = {
-  /** Vacation is not a trip action, so the shell may mount it without one. */
+  /** Pause is not a trip action, so the shell may mount it without one. */
   trip: Trip;
   plan: PlanView;
   /** Eating day the customer selected; pick/swap open on it. */

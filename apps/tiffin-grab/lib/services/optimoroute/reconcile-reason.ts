@@ -34,7 +34,7 @@ export const GROUP_LABEL: Record<ReasonGroup, string> = {
 
 const HERE: Record<Exclude<OurSide["status"], "scheduled">, string> = {
   skipped: "On hold",
-  paused: "Vacation",
+  paused: "Paused",
   cancelled: "Cancelled",
 };
 

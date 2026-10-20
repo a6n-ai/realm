@@ -1,6 +1,7 @@
 import { updatableColumns } from "@foundry/database";
 import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import type { PaymentConfig } from "@foundry/payments";
+import type { PriceTable } from "@/lib/pricing/types";
 
 export type DiscountSettings = { maxDiscountPct: number };
 
@@ -13,4 +14,5 @@ export const app = pgTable("app", {
   discountSettings: jsonb("discount_settings").$type<DiscountSettings>(),
   /** Most coins one family wallet may hold; null = no cap. */
   maxWalletBalance: integer("max_wallet_balance"),
+  defaultPrices: jsonb("default_prices").$type<PriceTable>(),
 });

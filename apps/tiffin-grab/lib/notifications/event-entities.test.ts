@@ -11,6 +11,9 @@ describe("event-entities", () => {
   it("flags unknown variables", () => {
     expect(validateTemplateVars("order_activated", "{{order.nope}} {{x.y}}")).toEqual(["order.nope", "x.y"]);
   });
+  it("checks variables that carry a |fallback", () => {
+    expect(validateTemplateVars("order_activated", "Hi {{order.code|friend}} {{ordr.code | x}}")).toEqual(["ordr.code"]);
+  });
   it("returns [] available for events with no entity", () => {
     expect(availableVariables("manual_adjustment")).toEqual([]);
   });

@@ -13,7 +13,7 @@ import { orderDisplayStatus } from "@/lib/orders/display-status";
 import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
-import { TrialPill } from "./trial-pill";
+import { RowTag } from "./row-tags";
 
 // ORDER_STATUS_PILLS lives in ./status-pills (a non-client module) because the
 // server page maps over it; re-exporting it here would hand the RSC graph a
@@ -43,6 +43,9 @@ export function OrdersList({
   sort,
   canReassign,
   staff,
+  lookOutView = false,
+  endingView = false,
+  paymentReviewView = false,
 }: {
   spec: FacetDef[];
   rows: OrderListRow[];
@@ -52,6 +55,11 @@ export function OrdersList({
   sort: SortState<OrderSortColumn>;
   canReassign: boolean;
   staff: { publicId: string; name: string }[];
+  /** The Look out for tab: each row shows why it was flagged. */
+  lookOutView?: boolean;
+  /** The Ending soon tab: each row shows its last tiffin date. */
+  endingView?: boolean;
+  paymentReviewView?: boolean;
 }) {
   const tz = useTimezone();
   return (
@@ -65,9 +73,9 @@ export function OrdersList({
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
-      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
-      emptyMessage="No orders yet."
+      emptyMessage={lookOutView ? "No orders are marked look out for." : endingView ? "No plans end in the next two days." : paymentReviewView ? "No payments are waiting for review." : "No orders yet."}
       emptySearchMessage="No orders match your search."
       renderRow={(o) => (
         <>
@@ -75,7 +83,11 @@ export function OrdersList({
             <Link href={`/dashboard/orders/${o.publicId}`} className="group-hover:underline">
               {o.fullName}
             </Link>
-            {o.trial && <TrialPill className="ml-2" />}
+            {o.trial && <RowTag tag="trial" />}
+            {o.lookOut && !lookOutView && <RowTag tag="lookOut" title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : undefined} />}
+            {endingView && o.renewed && <RowTag tag="renewed" title="Renewed: next plan already booked" />}
+            {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
+            {endingView && o.lastTiffin && <p className="text-muted-foreground text-xs font-normal tabular-nums">Last tiffin {o.lastTiffin}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>

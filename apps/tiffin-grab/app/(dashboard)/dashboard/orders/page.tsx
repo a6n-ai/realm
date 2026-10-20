@@ -1,14 +1,14 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
-import { sql } from "drizzle-orm";
-import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
-import { formatMoney } from "@foundry/commons";
+import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
+import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
+import { leadSources, leadSubsources, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countEndingOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds, type EndingWindow } from "@/lib/services/orders.service";
+import { addDays } from "@/lib/deliveries-view/week";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -20,12 +20,18 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
+import { OrdersViewTabs } from "./orders-view-tabs";
+import { getOrdersOverview } from "@/lib/services/orders-stats.service";
+import { OrderTagsLegend } from "./row-tags";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { MissedList } from "./missed-list";
+import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
@@ -54,10 +60,20 @@ export default function OrdersPage({
           </div>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <OrdersStats />
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+          <OrderTagsLegend />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <OrdersStats searchParams={searchParams} />
+        </Suspense>
+      </div>
+      <Suspense fallback={<Skeleton className="h-9 w-56" />}>
+        <OrdersViews />
       </Suspense>
-      <SectionCard title="All orders">
+      <SectionCard title="Orders">
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
@@ -73,36 +89,89 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
-async function OrdersStats() {
+/** Today through two days out, in the app timezone: plans whose last tiffin lands here are up for renewal. */
+async function endingWindow(): Promise<EndingWindow> {
+  const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const today = zonedDateIso(Date.now(), timezone);
+  return { from: today, to: addDays(today, 2) };
+}
+
+async function OrdersViews() {
   await requireStaff();
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const [lookOutCount, missedCount, endingCount, paymentReviewCount] = await Promise.all([
+    countLookOutOrders(visible),
+    countMissedDeliveries(visible),
+    endingWindow().then((w) => countEndingOrders(visible, w)),
+    countPaymentReviewOrders(visible),
+  ]);
+  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} endingCount={endingCount} paymentReviewCount={paymentReviewCount} />;
+}
 
-  const [s] = await db
-    .select({
-      total: sql<number>`count(*)`.mapWith(Number),
-      active: sql<number>`count(*) filter (where ${orders.status} = 'active')`.mapWith(Number),
-      pending: sql<number>`count(*) filter (where ${orders.status} = 'pending')`.mapWith(Number),
-      revenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.status} <> 'cancelled'), 0)`.mapWith(Number),
-    })
-    .from(orders);
+async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
+  await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
+  const range = { from: Number(sp.from), to: Number(sp.to) };
+  const o = await getOrdersOverview(range, await resolveSessionVisibleOrgIds(await getSession()));
 
-  const stats = [
-    { label: "Total orders", value: s.total, icon: PackageIcon },
-    { label: "Active", value: s.active, icon: ActivityIcon },
-    { label: "Pending", value: s.pending, icon: ClockIcon },
-    { label: "Revenue", value: formatMoney(s.revenue), icon: WalletIcon, hint: "excl. cancelled" },
+  const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
+
+  const stats: StatCardItem[] = [
+    {
+      label: "New orders",
+      value: o.newOrders.count,
+      icon: PackageIcon,
+      hint: `${o.newOrders.count - o.newOrders.returning} first-time · ${o.newOrders.returning} returning`,
+      delta: { now: o.newOrders.count, before: o.newOrders.prevCount, good: "up" },
+    },
+    {
+      label: "Starting soon",
+      value: o.startingSoon.count,
+      icon: CalendarClockIcon,
+      hint: `Next 7 days · ${o.startingSoon.unpaid} unpaid · ${o.startingSoon.waitlisted} waitlisted`,
+    },
+    { label: "Running plans", value: o.running.count, icon: ActivityIcon, hint: `${o.running.trials} on trial · right now` },
+    {
+      label: "Renewal rate",
+      value: pct(o.renewals.renewed, o.renewals.ended),
+      icon: RefreshCwIcon,
+      hint: `${o.renewals.renewed} of ${o.renewals.ended} plans that ended booked again`,
+    },
+    {
+      label: "Cancelled",
+      value: o.cancelled.count,
+      icon: CircleXIcon,
+      hint: `${o.cancelled.prevCount} in the previous period`,
+      delta: { now: o.cancelled.count, before: o.cancelled.prevCount, good: "down" },
+    },
   ];
 
-  return <StatGrid cols={4} items={stats} />;
+  return <StatCards items={stats} />;
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const raw = await searchParams;
+  if (raw.view === "missed") {
+    const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
+    const rows = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));
+    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+    const today = zonedDateIso(Date.now(), timezone);
+    return <MissedList rows={rows} isAdmin={session?.user?.role === "admin"} today={today} />;
+  }
+  const lookOutOnly = raw.view === "lookout";
+  const ending = raw.view === "ending" ? await endingWindow() : undefined;
+  const paymentReview = raw.view === "payment";
+  // A flagged, ending or unpaid order stays on its tab however old it is. The date picker
+  // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
+  const sp = lookOutOnly || ending || paymentReview ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
-    { column: "created", dir: "desc" },
+    // The Look out for tab leads with the newest flag, however old the order is.
+    lookOutOnly ? { column: "flagged", dir: "desc" } : { column: "created", dir: "desc" },
   );
 
   const planOptions = await db
@@ -129,7 +198,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       ],
     },
     { kind: "dateRange", field: "createdAt", label: "Created" },
-    { kind: "search", fields: ["fullName", "deploymentId"] },
+    { kind: "search", fields: ["fullName", "deploymentId", "email"] },
   ];
 
   const { sp: filterSp, extra } = ongoingFilter(sp);
@@ -140,7 +209,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(session);
 
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible),
+    listOrdersPage(finalCondition, page, sort, visible, { lookOutOnly, ending, paymentReview }),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];
@@ -155,6 +224,9 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       canReassign={reassignAllowed}
       staff={staff}
+      lookOutView={lookOutOnly}
+      endingView={ending != null}
+      paymentReviewView={paymentReview}
     />
   );
 }

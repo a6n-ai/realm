@@ -6,6 +6,7 @@ import { orderActivities, orders, payments, stripeEvents, users } from "@/db/sch
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
+import { withListDates } from "@/lib/list/default-month";
 import { dateRangeWhere } from "../payment-queries";
 import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS, STRIPE_EVENT_FILTER } from "../payment-facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
@@ -46,7 +47,7 @@ const CMP = {
 // yields its first (offset + size) rows in the chosen order, the union is sorted and sliced.
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const q = sp.q?.trim();
   const sort = parseSort(sp, LOG_SORT_KEYS, { column: "time", dir: "desc" });
   const picked = (sp.event ?? "").split(",").filter((e) => LOG_EVENT_OPTIONS.some((o) => o.value === e));

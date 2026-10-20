@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Clock, MapPin } from "lucide-react";
+import { postalArea } from "@foundry/delivery/fsa";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listFranchiseLocations } from "@/lib/services/organizations.service";
 import { Section } from "@/components/marketing/section";
@@ -48,11 +49,19 @@ export default async function LocationsPage() {
               )}
               {zone.postalPrefixes.length > 0 ? (
                 <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label={`${zone.name} postal codes`}>
-                  {zone.postalPrefixes.map((prefix) => (
-                    <li key={prefix} className="rounded-full border border-foreground/30 px-2.5 py-0.5 font-mono text-xs">
-                      {prefix}
-                    </li>
-                  ))}
+                  {zone.postalPrefixes.map((prefix) => {
+                    const area = postalArea(prefix);
+                    return (
+                      <li
+                        key={prefix}
+                        title={area?.neighbourhoods ?? undefined}
+                        className="rounded-full border border-foreground/30 px-2.5 py-0.5 text-xs"
+                      >
+                        <span className="font-mono font-semibold">{prefix}</span>
+                        {area && <span className="text-muted-foreground"> · {area.name}</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 zone.radiusKm != null && (
@@ -61,6 +70,9 @@ export default async function LocationsPage() {
               )}
             </div>
           ))}
+          <p className="text-muted-foreground m-0 text-xs sm:col-span-2 lg:col-span-3">
+            Area names from <a href="https://www.geonames.org/" className="underline">GeoNames</a> (CC BY 4.0).
+          </p>
         </div>
       )}
 

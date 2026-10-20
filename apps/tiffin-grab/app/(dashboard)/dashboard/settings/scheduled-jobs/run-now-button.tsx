@@ -5,10 +5,10 @@ import { useState, useTransition } from "react";
 import { Loader2Icon, PlayIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import type { CronJob } from "@/lib/cron/jobs";
 import { runCronJobAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const DATE_HINT: Record<NonNullable<CronJob["inputs"]>, string> = {
   date: "Leave empty to pull yesterday and today",
@@ -34,12 +34,11 @@ export function RunNowButton({ job, inputs }: { job: string; inputs?: CronJob["i
         </Select>
       )}
       {inputs && (
-        <Input
-          type="date"
+        <DateInput
           aria-label="Date"
           title={DATE_HINT[inputs]}
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={setDate}
           className="h-8 w-40"
         />
       )}

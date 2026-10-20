@@ -1,0 +1,1 @@
+ALTER TABLE "app" ADD COLUMN "support_hours" jsonb;

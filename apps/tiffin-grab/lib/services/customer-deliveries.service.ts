@@ -3,9 +3,9 @@ import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orderAddons, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { formatTuHuman, isContainerCategory, type TuCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
@@ -23,6 +23,8 @@ import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
+import { CUSTOMER_PAUSED, isLapsedPause, isOrderFullyPaused, lapsedPauseDates } from "./pause-state";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
@@ -79,7 +81,18 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; dropOff?: DropOffValue };
+export type CustomerDelivery = Delivery & {
+  /** Name of the holiday that closed this row; null otherwise. */
+  holidayName?: string | null;
+  orderPublicId: string;
+  planName: string;
+  isMakeup: boolean;
+  dropOff?: DropOffValue;
+  /** A held day that was paused and never put back: it has no route stop, so Move is open at once. */
+  lapsedPause?: boolean;
+  /** A route_pushed activity exists: the stop reached OptimoRoute. */
+  routePushed?: boolean;
+};
 /** One add-on on a plan: shown under "Add-ons", never part of the meal or its swaps. */
 export type SubscriptionAddon = {
   name: string;
@@ -121,6 +134,8 @@ export type Subscription = {
   frequencyKey?: string;
   /** The plan's place type and strategies, as still offered. */
   dropOff?: DropOffValue;
+  /** Computed on read: paused days remain and nothing is scheduled today or later. orders.status stays active. */
+  fullyPaused?: boolean;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -141,9 +156,13 @@ async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint,
 }
 
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
-  // Flip any elapsed pause window back to "active" before reporting status — otherwise a
-  // customer whose pause silently expired keeps seeing "paused" until some other write touches
-  // the order.
+  // A paused day past its cutoff did not go out: make it a hold before anything reads it, so the
+  // timeline and Move see the same row. Each conversion takes the order's lock and runs once.
+  const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
+    .innerJoin(deliveries, eq(deliveries.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), CUSTOMER_PAUSED, lte(deliveries.cutoffAt, Date.now())));
+  await Promise.all(stranded.map((o) => lapseElapsedPausesSafe(o.id)));
+  // Legacy range pauses: close an elapsed window and return an order that has nothing paused left to active.
   const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));
   await Promise.all(pausedOrderIds.map((o) => autoResumeIfElapsed(o.id)));
@@ -181,20 +200,11 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
-  const addonRows = rows.length
-    ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty, category: orderAddons.category, tuAmount: orderAddons.tuAmount }).from(orderAddons)
-      .where(inArray(orderAddons.orderId, rows.map((r) => r.id))).orderBy(asc(orderAddons.id))
-    : [];
-  // Portions read as oz/roti, never raw TU; roti/rice add-ons fold into one total, a sabzi is a row each.
-  const addonCats = addonRows.length
-    ? new Map((await db.select({ key: dishCategories.key, selectable: dishCategories.selectable, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories))
-      .map((c) => [c.key, { selectable: c.selectable, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]))
-    : new Map<string, TuCategory>();
-  const addonView = (a: (typeof addonRows)[number]): SubscriptionAddon => {
-    const tu = addonCats.get(a.category);
-    const folded = !!tu && !isContainerCategory(tu) && !tu.selectable;
-    return { name: a.name, qty: a.qty, category: a.category, folded, portion: tu ? formatTuHuman(tu, Number(a.tuAmount) * (folded ? a.qty : 1)) : null };
-  };
+  const addonsByOrder = await loadSubscriptionAddons(rows.map((r) => r.id));
+  const { timezone } = await getAppSettings();
+  const today = zonedDateIso(Date.now(), timezone);
+  const fullyPaused = new Set<bigint>();
+  for (const r of rows) if (r.status === "active" && (await isOrderFullyPaused(db, r.id, today))) fullyPaused.add(r.id);
   return rows
     .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
     .map((r) => {
@@ -215,13 +225,14 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         mealSizeName: r.mealSizeName,
         mealSizeCustom: r.mealSizeCustom,
         trial: r.trialLength != null,
-        addons: addonRows.filter((a) => a.orderId === r.id).map(addonView),
+        addons: addonsByOrder.get(r.id) ?? [],
         persons: r.persons,
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,
         tagColor: r.tagColor,
         frequencyKey: r.frequencyKey,
         dropOff: dropOffs[rows.indexOf(r)],
+        fullyPaused: fullyPaused.has(r.id),
       };
     });
 }
@@ -281,6 +292,8 @@ export async function mySubscriptionWindows(userId: bigint, today: string): Prom
 
 /** One entry per (plan, EATING day). `truck` marks the eating day the delivery arrives on. */
 export type AgendaDay = {
+  /** Name of the holiday that closed this day. */
+  holiday?: string | null;
   orderId: string;
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   cutoffAt: number;
@@ -294,7 +307,12 @@ export type AgendaDay = {
   optimoCompletionStatus?: string | null;
   /** The delivery row's public id (what OptimoRoute knows the stop as). */
   deliveryId?: string;
+  /** A hold that began as a pause and never had a route stop: still drawn as Paused. */
+  lapsedPause?: boolean;
 };
+
+/** The holiday name of a row, only while the row is closed: a scheduled row is going out whatever tag it kept. Every read uses this one expression. */
+const closedHolidayName = sql<string | null>`case when ${deliveries.status} <> 'scheduled' then ${holidays.name} end`;
 
 /**
  * Light agenda for the week strip: one query, no meals/menus. Keyed by EATING day (a trip fans out to each
@@ -302,17 +320,18 @@ export type AgendaDay = {
  */
 export async function myAgendaDots(userId: bigint, from: string, until: string): Promise<Record<string, AgendaDay[]>> {
   const rows = await db
-    .select({ d: deliveries, orderId: orders.publicId })
+    .select({ d: deliveries, orderId: orders.publicId, holidayName: closedHolidayName })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .leftJoin(holidays, eq(holidays.id, deliveries.holidayId))
     .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)))
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
-  const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
+  const lapsed = await lapsedPauseDates(db, [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))]);
   // A whole-trip reschedule leaves the old row skipped and inserts a makeup.
   // The old day is no longer a delivery, so it must not keep a status dot.
   const replacedByMakeup = new Set(
-    rows.flatMap(({ d }) => (d.makeupForDeliveryId == null ? [] : [d.makeupForDeliveryId.toString()])),
+    rows.flatMap(({ d }) => [d.makeupForDeliveryId, d.holidayExtraForDeliveryId].flatMap((id) => (id == null ? [] : [id.toString()]))),
   );
   // A merged source's OWN date is now moved: mark it on the target's dot instead of showing the target's live status there.
   const movedDatesByTarget = new Map<string, Set<string>>();
@@ -322,17 +341,23 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const set = movedDatesByTarget.get(key) ?? movedDatesByTarget.set(key, new Set()).get(key)!;
     for (const date of coveredDates(d)) set.add(date);
   }
-  for (const { d, orderId } of rows) {
+  for (const { d, orderId, holidayName } of rows) {
+    // A day a holiday closed keeps its own dot whatever happened to its tiffins (paused with added
+    // days, or held and moved after the fact). No truck: nothing arrives that day.
+    if (holidayName) {
+      for (const date of new Set([d.deliveryDate, ...coveredDates(d)])) {
+        (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: 0, covers: coveredDates(d), optimoCompletionStatus: null, deliveryId: d.publicId, holiday: holidayName });
+      }
+      continue;
+    }
     if (d.mergedIntoDeliveryId != null || replacedByMakeup.has(d.id.toString())) continue;
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId, lapsedPause: isLapsedPause(d, lapsed.get(d.orderId)) });
     }
-    // A doubled day (moved tiffin landed on an eating day) gets a second dot.
-    for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
-    }
+    // A doubled day (moved tiffin landed on an eating day) keeps ONE dot: both tiffins share the trip's
+    // status, and a second "Moved" dot read as if the day moved away. The day panel's "In from" pill says where it came from.
     // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
       (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
@@ -344,7 +369,11 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .from(deliveryMoves).where(inArray(deliveryMoves.fromDeliveryId, rows.map((r) => r.d.id)));
   for (const m of moves) {
     const src = byId.get(m.fromId!)!;
-    if (!m.from || m.from < from || m.from > until || out[m.from]?.some((x) => x.orderId === src.orderId)) continue;
+    if (!m.from || m.from < from || m.from > until) continue;
+    const mine = out[m.from]?.filter((x) => x.orderId === src.orderId) ?? [];
+    // The truck still came that day, but nothing is eaten there any more: the day reads Moved.
+    if (mine.length && mine.every((x) => x.truck && !x.covers.includes(m.from!))) { for (const x of mine) x.moved = true; continue; }
+    if (mine.length) continue;
     const t = byId.get(m.toId)?.d ?? src.d;
     out[m.from] = [{ orderId: src.orderId, status: t.status as AgendaDay["status"], cutoffAt: Number(t.cutoffAt), deliveryDate: t.deliveryDate, truck: false, units: t.tiffinUnits, covers: coveredDates(t), moved: true, optimoCompletionStatus: t.optimoCompletionStatus, deliveryId: t.publicId }];
   }
@@ -361,10 +390,17 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .select({
+      d: deliveries,
+      orderPublicId: orders.publicId,
+      planName: plans.name,
+      holidayName: closedHolidayName,
+      routePushed: sql<boolean>`exists (select 1 from ${orderActivities} where ${orderActivities.deliveryId} = ${deliveries.id} and ${orderActivities.type} = 'route_pushed')`,
+    })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(holidays, eq(holidays.id, deliveries.holidayId))
     .where(
       and(
         eq(orders.userId, userId),
@@ -375,13 +411,18 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     )
     .orderBy(asc(deliveries.deliveryDate));
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.d.deliveryTagId, strategyIds: r.d.deliveryStrategyIds })));
+  const held = [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))];
+  const lapsed = await lapsedPauseDates(db, held);
   return rows.map((r, i) => ({
     ...r.d,
     orderPublicId: r.orderPublicId,
     planName: r.planName,
+    holidayName: r.holidayName,
     isMakeup: r.d.makeupForDeliveryId !== null,
     // The delivery's own drop-off; only meaningful when re-addressed (then no tag = none).
     dropOff: dropOffs[i],
+    lapsedPause: isLapsedPause(r.d, lapsed.get(r.d.orderId)),
+    routePushed: r.routePushed,
   }));
 }
 
@@ -534,7 +575,7 @@ export async function myRenewalWindow(userId: bigint): Promise<{ earliestStart: 
   return { earliestStart, lastTiffin };
 }
 
-/** Original delivery id -> the day its tiffin moved to (the picked eat day for a single-day trip, else the make-up's delivery date). */
+/** Original delivery id -> the day its tiffin moved to: the picked eat day for a single-day make-up, the make-up's date otherwise, or the first day a holiday added for it. */
 export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Map<string, string>> {
   const [order] = await db
     .select({ id: orders.id })
@@ -543,10 +584,17 @@ export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Ma
     .limit(1);
   if (!order) return new Map();
   const rows = await db
-    .select({ src: deliveries.makeupForDeliveryId, deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
+    .select({ src: deliveries.makeupForDeliveryId, extraFor: deliveries.holidayExtraForDeliveryId, deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries)
-    .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
-  return new Map(rows.map((r) => [r.src!.toString(), r.coversDates?.length === 1 ? r.coversDates[0]! : r.deliveryDate]));
+    .where(and(eq(deliveries.orderId, order.id), or(isNotNull(deliveries.makeupForDeliveryId), isNotNull(deliveries.holidayExtraForDeliveryId))))
+    .orderBy(asc(deliveries.deliveryDate));
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    // A closed holiday day may have several added days; the earliest is where its tiffins start.
+    const key = (r.src ?? r.extraFor)!.toString();
+    if (!out.has(key)) out.set(key, r.src != null && r.coversDates?.length === 1 ? r.coversDates[0]! : r.deliveryDate);
+  }
+  return out;
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and
@@ -769,6 +817,10 @@ export type EatingDaySwaps = {
   swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
 };
 export type CalendarDay = {
+  /** Name of the holiday that closed this trip. */
+  holidayName?: string | null;
+  /** Dates of the ordinary deliveries a holiday added for this trip, earliest first. */
+  holidayExtras?: string[];
   date: string;
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   locked: boolean;
@@ -848,7 +900,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     loadExtraDates(db, rowIds),
     db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
       .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds))),
-    db.select({ src: deliveries.makeupForDeliveryId }).from(deliveries).where(inArray(deliveries.makeupForDeliveryId, rowIds)),
+    db.select({ src: deliveries.makeupForDeliveryId, extraFor: deliveries.holidayExtraForDeliveryId, deliveryDate: deliveries.deliveryDate }).from(deliveries)
+      .where(or(inArray(deliveries.makeupForDeliveryId, rowIds), inArray(deliveries.holidayExtraForDeliveryId, rowIds))).orderBy(asc(deliveries.deliveryDate)),
     dishCategoriesService.swapPairsForMealSize(order.mealSizeId),
     db
       .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu, forDate: deliveryCategorySwaps.forDate })
@@ -860,13 +913,17 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
-  const replaced = new Set(replacedRows.map((r) => r.src));
+  const replaced = new Set(replacedRows.flatMap((r) => [r.src, r.extraFor]));
+  const extrasBySource = new Map<bigint, string[]>();
+  for (const r of replacedRows) if (r.extraFor != null) extrasBySource.set(r.extraFor, [...(extrasBySource.get(r.extraFor) ?? []), r.deliveryDate]);
 
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
-      emptied: row.status !== "scheduled" && (row.mergedIntoDeliveryId != null || replaced.has(row.id)),
-      movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to })),
+      // A cancelled row is void too: moving onto its day drops it (dropVoidRows).
+      emptied: row.status === "cancelled" || (row.status !== "scheduled" && (row.mergedIntoDeliveryId != null || replaced.has(row.id))),
+      // A moved day carries one tiffin per person.
+      movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to, units: order.persons })),
       movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,
@@ -874,6 +931,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
       combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
       complimentaryNote: row.complimentaryNote,
+      holidayName: row.holidayName ?? null,
+      holidayExtras: extrasBySource.get(row.id) ?? [],
       cutoffAt: Number(row.cutoffAt),
     };
   };

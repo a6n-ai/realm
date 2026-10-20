@@ -29,6 +29,7 @@ export function StepDuration({
   minStartDate = null,
   lastTiffin = null,
   trial = null,
+  holidayDates = [],
 }: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
@@ -40,6 +41,8 @@ export function StepDuration({
   lastTiffin?: string | null;
   /** Set when the chosen size is a trial: day count replaces the week commitment. */
   trial?: { maxDays: number; weekdays: string[] } | null;
+  /** Closed days (YYYY-MM-DD) the start date cannot be. */
+  holidayDates?: string[];
 }) {
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const plan = catalog.plans.find((p) => p.key === selections.planKey);
@@ -47,14 +50,15 @@ export function StepDuration({
   const multiDay = !!trial && trial.maxDays > 1;
   const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
   const allowed = trial ? (picks.length ? picks : trial.weekdays) : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
-  const today = appToday(catalog.timezone);
+  const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
+  const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
   // The day the customer reads as "my plan ends": the real last tiffin when known.
   const runsThrough = lastTiffin ?? (minStartDate ? dayBefore(minStartDate) : null);
   // First day on/after minDate that the plan actually delivers on.
-  const earliest = firstStartOnOrAfter(minDate, allowed);
+  const earliest = firstStartOnOrAfter(minDate, allowed, closed);
   const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
   const schedule = plannedSchedule(
     trial
@@ -65,7 +69,7 @@ export function StepDuration({
   // Pre-select the earliest selectable date; a stale or now-invalid pick is replaced too.
   useEffect(() => {
     const cur = selections.startDate;
-    const valid = cur && cur >= minDate && allowed.includes(weekdayKey(parseIsoDateUtc(cur)));
+    const valid = cur && cur >= minDate && allowed.includes(weekdayKey(parseIsoDateUtc(cur))) && !closed.has(cur);
     const days = selections.trialDays;
     const picked = selections.eatingDays ?? [];
     const daysOk = !trial || (multiDay
@@ -76,7 +80,7 @@ export function StepDuration({
     if (!valid) set({ startDate: earliest, ...fix });
     else if (!daysOk) set(fix);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [earliest, selections.startDate, plan?.key, trial?.maxDays, picks.join()]);
+  }, [earliest, closed, selections.startDate, plan?.key, trial?.maxDays, picks.join()]);
   const dayLabel: Record<string, string> = {
     mon: "Mon",
     tue: "Tue",
@@ -100,6 +104,11 @@ export function StepDuration({
             ? `Current plan ends ${formatDateOnly(runsThrough!, { mode: "short" })}. Pick a later date`
             : `Earliest available start date is ${minDate}`,
         );
+        return;
+      }
+      if (closed.has(v)) {
+        set({ startDate: "" });
+        setStartDateError("We are closed that day. Pick another start date");
         return;
       }
       const wk = weekdayKey(parseIsoDateUtc(v));

@@ -13,6 +13,10 @@ export const subscriptionPauses = pgTable("subscription_pauses", {
   fromDate: date("from_date").notNull(),
   untilDate: date("until_date").notNull(),
   isIndefinite: boolean("is_indefinite").notNull().default(false),
+  // Delivery dates this pause action selected. Null on older range rows, which still
+  // bill the calendar span. A day released before cutoff is listed in releasedDates.
+  deliveryDates: text("delivery_dates").array(),
+  releasedDates: text("released_dates").array().notNull().default(sql`'{}'::text[]`),
   resumedAt: timestamp("resumed_at", { withTimezone: true }),
   resumedBy: bigint("resumed_by", { mode: "bigint" }).references(() => users.id),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.

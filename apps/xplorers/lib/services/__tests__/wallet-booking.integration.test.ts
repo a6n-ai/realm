@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
+import { bookReq, flatPrice, PRICED_PRICING, pricedWindow } from "./test-fixtures";
 
 // Local dev DB. Tax-free cash rail and CAD are pinned so amounts are exact.
 const cash = { id: "cash", kind: "manual" as const, enabled: true, label: "Cash", taxes: [] };
@@ -26,6 +27,7 @@ const { walletService } = await import("../wallet.service");
 const MARK = "wallet-bk-it";
 let userId: bigint;
 let userPublicId: string;
+let childPublicId: string;
 let classIds: bigint[] = [];
 let rateIds: bigint[] = [];
 let parkedDiscountIds: bigint[] = [];
@@ -39,19 +41,18 @@ async function occurrence(price: string, days: number) {
     .values({
       title: `${MARK} class`,
       category: "kids",
-      startsAt,
-      endsAt: new Date(startsAt.getTime() + 3_600_000),
       capacity: 10,
-      priceAmount: price,
+      pricing: PRICED_PRICING,
+      prices: flatPrice(price),
       published: true,
     })
     .returning({ id: schema.studioSessions.id });
   classIds.push(s!.id);
   const [occ] = await db
     .insert(schema.studioSessionOccurrences)
-    .values({ sessionId: s!.id, occursOn: startsAt.toISOString().slice(0, 10) })
+    .values({ sessionId: s!.id, occursOn: startsAt.toISOString().slice(0, 10), ...pricedWindow(startsAt) })
     .returning({ publicId: schema.studioSessionOccurrences.publicId });
-  return occ!.publicId;
+  return { publicId: occ!.publicId, startsAt };
 }
 
 async function setRate() {
@@ -77,6 +78,11 @@ beforeEach(async () => {
     .returning({ id: schema.users.id, publicId: schema.users.publicId });
   userId = u!.id;
   userPublicId = u!.publicId;
+  const [kid] = await db
+    .insert(schema.children)
+    .values({ userId, name: `${MARK} kid`, dateOfBirth: "2020-01-01" })
+    .returning({ publicId: schema.children.publicId });
+  childPublicId = kid!.publicId;
   classIds = [];
   rateIds = [];
 });
@@ -89,12 +95,14 @@ afterEach(async () => {
   if (bookingIds.length) {
     const publicIds = (await db.select({ p: schema.bookings.publicId }).from(schema.bookings).where(inArray(schema.bookings.id, bookingIds))).map((b) => b.p);
     await db.delete(schema.auditLog).where(and(eq(schema.auditLog.entity, "bookings"), inArray(schema.auditLog.entityPublicId, publicIds)));
+    await db.delete(schema.bookingChildren).where(inArray(schema.bookingChildren.bookingId, bookingIds));
     await db.delete(schema.bookings).where(inArray(schema.bookings.id, bookingIds));
   }
   if (classIds.length) {
     await db.delete(schema.studioSessionOccurrences).where(inArray(schema.studioSessionOccurrences.sessionId, classIds));
     await db.delete(schema.studioSessions).where(inArray(schema.studioSessions.id, classIds));
   }
+  await db.delete(schema.children).where(eq(schema.children.userId, userId));
   await db.delete(schema.users).where(eq(schema.users.id, userId));
   if (rateIds.length) await db.delete(schema.coinRate).where(inArray(schema.coinRate.id, rateIds));
   if (parkedRates.length) {
@@ -112,7 +120,7 @@ describe("spending coins on bookings", () => {
   it("covers a whole booking from coins and confirms it straight away", async () => {
     await setRate();
     await walletService.adjust({ userId, coins: 300, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     expect(b.status).toBe("confirmed");
     expect(b.paymentPublicId).toBeNull();
     expect(b.pricing?.adjustments).toEqual([expect.objectContaining({ kind: "wallet", amount: 25, coins: 250 })]);
@@ -122,7 +130,7 @@ describe("spending coins on bookings", () => {
   it("holds coins while payment is pending and spends them on verify", async () => {
     await setRate();
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(pay!.amount).toBe("15.00");
     expect(await walletService.balance(userId)).toBe(0);
@@ -140,8 +148,8 @@ describe("spending coins on bookings", () => {
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
     const [a, c] = await Promise.all([occurrence("25.00", 7), occurrence("25.00", 8)]);
     await Promise.all([
-      bookingsService.createForUser(userPublicId, a, 1, { useCoins: true }),
-      bookingsService.createForUser(userPublicId, c, 1, { useCoins: true }),
+      bookingsService.createForUser(userPublicId, bookReq(a, [childPublicId], { useCoins: true })),
+      bookingsService.createForUser(userPublicId, bookReq(c, [childPublicId], { useCoins: true })),
     ]);
     const held = await db
       .select({ coins: schema.walletLedger.coins })
@@ -154,7 +162,7 @@ describe("spending coins on bookings", () => {
   async function expiredHoldBooking() {
     await setRate();
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     await db.update(schema.walletLedger).set({ reservedUntil: 1 }).where(eq(schema.walletLedger.orderId, b.id));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     await paymentsService.claim(pay!.publicId, userPublicId, "ref");
@@ -202,7 +210,7 @@ describe("spending coins on bookings", () => {
   it("cancelling an unpaid booking frees the seat, returns held coins and blocks a later claim", async () => {
     await setRate();
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(await walletService.balance(userId)).toBe(0);
 
@@ -223,7 +231,7 @@ describe("spending coins on bookings", () => {
     await db.update(schema.eventPayout).set({ enabled: true, coins: 10 }).where(eq(schema.eventPayout.eventType, "booking_paid"));
     await db.update(schema.eventPayout).set({ enabled: true, coins: 5 }).where(eq(schema.eventPayout.eventType, "first_booking"));
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     await paymentsService.claim(pay!.publicId, userPublicId, "ref");
     await paymentsService.verify(pay!.publicId);
@@ -237,7 +245,7 @@ describe("spending coins on bookings", () => {
 
   it("ignores coins when no coin rate is set", async () => {
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
-    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const b = await bookingsService.createForUser(userPublicId, bookReq(await occurrence("25.00", 7), [childPublicId], { useCoins: true }));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(pay!.amount).toBe("25.00");
     expect(await walletService.balance(userId)).toBe(100);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionAvailability, buildDayStatusMap, buildTrips, type CalendarDayInput, type PlanContext, type TripAction } from "../index";
+import { actionAvailability, buildDayStatusMap, buildTrips, holdAwaitingReconcile, type CalendarDayInput, type PlanContext, type TripAction } from "../index";
 
 // Mon 2026-09-21 12:00 America/Toronto (EDT, UTC-4)
 const NOW = Date.UTC(2026, 8, 21, 16, 0);
@@ -21,7 +21,7 @@ describe("buildTrips status", () => {
     ["today, confirmed by OptimoRoute or an admin", { date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }, "delivered"],
     ["skipped (a failed drop; nobody holds days)", { date: "2026-09-25", status: "skipped" }, "failed"],
     ["skipped, rescheduled", { date: "2026-09-25", status: "skipped", rescheduled: true }, "rescheduled"],
-    ["paused", { date: "2026-09-25", status: "paused" }, "vacation"],
+    ["paused", { date: "2026-09-25", status: "paused" }, "paused"],
     ["skipped past cutoff stays failed, so it can still move", { date: "2026-09-22", status: "skipped", locked: true }, "failed"],
     ["merged source", { date: "2026-09-25", status: "skipped", combinedInto: "2026-09-28" }, "combined-into"],
     ["make-up stays upcoming", { date: "2026-09-25", isMakeup: true }, "upcoming"],
@@ -74,7 +74,7 @@ type Case = [string, Partial<CalendarDayInput> & { date: string }, Partial<Recor
 const off = { pick: false, swap: false, move: false, address: false };
 const cases: Case[] = [
   ["upcoming", { date: "2026-09-23" }, { pick: true, swap: true, move: true, address: true }],
-  ["make-up upcoming (a moved tiffin can't move again)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, move: false, address: true }],
+  ["make-up upcoming (a moved tiffin can move again)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, move: true, address: true }],
   ["failed drop", { date: "2026-09-25", status: "skipped" }, { pick: false, swap: false, move: true, address: false }],
   ["failed drop past its cutoff is still movable", { date: "2026-09-22", status: "skipped", locked: true }, { pick: false, swap: false, move: true, address: false }],
   ["moved away (make-up)", { date: "2026-09-25", status: "skipped", rescheduled: true }, off],
@@ -109,6 +109,14 @@ describe("actionAvailability copy", () => {
     expect(a.pick.why).toBe("Changes closed. This trip is being prepared.");
     expect(a.move.why).toBe("Changes closed. This trip is being prepared.");
   });
+  it("delivery day, stop pushed to the route: on the way", () => {
+    const a = actionAvailability(one({ date: "2026-09-21", locked: true, routePushed: true }), NOW, plan);
+    expect(a.pick.why).toBe("Changes closed. This trip is on the way.");
+  });
+  it("delivery day, not pushed yet: still being prepared", () => {
+    const a = actionAvailability(one({ date: "2026-09-21", locked: true }), NOW, plan);
+    expect(a.pick.why).toBe("Changes closed. This trip is being prepared.");
+  });
   it("delivered copy", () => {
     const a = actionAvailability(one({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }), NOW, plan);
     expect(a.pick.why).toBe("Delivered. Changes closed.");
@@ -120,6 +128,11 @@ describe("actionAvailability copy", () => {
     expect(a.pick.why).toBe("Not delivered. Move it to another day to choose meals.");
     expect(a.swap.why).toBe("Not delivered. Move it to another day to swap items.");
   });
+  it("paused day: says Paused and that it can be resumed, not that it was not delivered", () => {
+    const a = actionAvailability(one({ date: "2026-09-25", status: "paused" }), NOW, plan);
+    expect(a.pick.why).toBe("Paused. Resume this day to choose meals, or move it to another day.");
+    expect(a.swap.why).toBe("Paused. Resume this day to swap items, or move it to another day.");
+  });
   it("held after cutoff: stays put until the day is reconciled", () => {
     const held = { date: "2026-09-22", status: "skipped" as const, locked: true, cutoffAt: NOW - 1 };
     expect(actionAvailability(one(held), NOW, plan).move.why).toBe("On hold. Release it to a new day after midnight, once Tue, Sep 22's deliveries are reconciled.");
@@ -127,6 +140,15 @@ describe("actionAvailability copy", () => {
     expect(actionAvailability(one(held, plan, NOW + 2 * 86_400_000), NOW + 2 * 86_400_000, plan).move.ok).toBe(true);
     // OptimoRoute already reported the failure: reconciled, movable right away.
     expect(actionAvailability(one({ ...held, optimoCompletionStatus: "failed" }), NOW, plan).move.ok).toBe(true);
+  });
+  it("a hold with no route stop still waits; only a lapsed pause is movable at once", () => {
+    const held = { date: "2026-09-22", status: "skipped" as const, locked: true, cutoffAt: NOW - 1 };
+    expect(holdAwaitingReconcile({ cutoffAt: NOW - 1, date: "2026-09-22" }, NOW, plan.timezone)).toBe(true);
+    expect(holdAwaitingReconcile({ cutoffAt: NOW - 1, date: "2026-09-22", lapsedPause: true }, NOW, plan.timezone)).toBe(false);
+    expect(actionAvailability(one(held), NOW, plan).move.ok).toBe(false);
+    const lapsed = actionAvailability(one({ ...held, lapsedPause: true }), NOW, plan);
+    expect(lapsed.move.ok).toBe(true);
+    expect(lapsed.move.sub).toBe("Pick a new day for this tiffin");
   });
   it("a moved-away day can't move again", () => {
     const a = actionAvailability(one({ date: "2026-09-25", status: "skipped", rescheduled: true }), NOW, plan);
@@ -145,6 +167,7 @@ describe("buildDayStatusMap", () => {
       day({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }),
       day({ date: "2026-09-28", status: "skipped" }),
       day({ date: "2026-09-30", status: "paused" }),
+      day({ date: "2026-10-01", status: "skipped", lapsedPause: true }),
       day({ date: "2026-10-02", status: "skipped", combinedInto: "2026-10-05" }),
     ], NOW, plan);
     const m = buildDayStatusMap(trips);
@@ -152,7 +175,9 @@ describe("buildDayStatusMap", () => {
     expect(m["2026-09-21"]!.legend).toBe("delivered");
     expect(m["2026-09-21"]!.label).toBe("Delivered");
     expect(m["2026-09-28"]!.legend).toBe("onHold");
-    expect(m["2026-09-30"]!.legend).toBe("vacation");
+    expect(m["2026-09-30"]!.legend).toBe("paused");
+    // A pause past its cutoff is a hold underneath (Move only) but still reads Paused.
+    expect(m["2026-10-01"]).toEqual({ status: "failed", legend: "paused", label: "Paused" });
     expect(m["2026-10-02"]!.legend).toBeNull();
     expect(m["2026-10-03"]).toBeUndefined();
   });

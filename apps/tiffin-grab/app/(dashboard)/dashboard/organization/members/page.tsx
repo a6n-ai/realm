@@ -6,7 +6,9 @@ import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/or
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { parseSort } from "@/lib/list/sort";
 import { SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { InviteUserButton } from "./invite-user-button";
+import { memberStats } from "../org-stats";
 import { UsersList, UsersListSkeleton } from "./users-list";
 import { getMembersForOrgs, type MemberRow } from "./members-query";
 import type { UserStatusValue } from "./actions";
@@ -33,18 +35,34 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
+function MembersCard({ children }: { children: React.ReactNode }) {
   return (
     <SectionCard
-      title="All users"
+      title="Members"
+      subtitle="Everyone with access to the console. Change a role or status inline, or open a member for details."
       action={
         <InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />
       }
     >
-      <Suspense fallback={<UsersListSkeleton />}>
-        <UsersData searchParams={searchParams} />
-      </Suspense>
+      {children}
     </SectionCard>
+  );
+}
+
+export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <StatCardsSkeleton count={5} />
+          <MembersCard>
+            <UsersListSkeleton />
+          </MembersCard>
+        </>
+      }
+    >
+      <UsersData searchParams={searchParams} />
+    </Suspense>
   );
 }
 
@@ -95,5 +113,12 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const total = filtered.length;
   const rows = filtered.slice(page.page * page.size, page.page * page.size + page.size);
 
-  return <UsersList spec={SPEC} rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;
+  return (
+    <>
+      <StatCards items={memberStats(allRows)} />
+      <MembersCard>
+        <UsersList spec={SPEC} rows={rows} total={total} page={page.page} size={page.size} sort={sort} />
+      </MembersCard>
+    </>
+  );
 }

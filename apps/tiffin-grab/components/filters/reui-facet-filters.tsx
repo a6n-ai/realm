@@ -52,15 +52,21 @@ function DateFacetRenderer(label: string) {
   };
 }
 
-export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
+export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[]; hideDate?: boolean }) {
   const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
+  // When the page owns the date picker, this menu must not also write `from`/`to`
+  // — a facet change would otherwise clear the range.
+  const view = useMemo(
+    () => (hideDate ? spec.filter((f) => f.kind !== "dateRange") : spec),
+    [spec, hideDate],
+  );
 
   // Fields describe the menu + chips. dependsOn options are pruned against the
   // parent facet's current URL selection so children stay in sync.
   const fields = useMemo<FilterFieldConfig<Val>[]>(() => {
-    return spec.flatMap((f): FilterFieldConfig<Val>[] => {
+    return view.flatMap((f): FilterFieldConfig<Val>[] => {
       if (f.kind === "search") return [];
       if (f.kind === "dateRange") {
         return [
@@ -106,13 +112,13 @@ export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
         },
       ];
     });
-  }, [spec, params]);
+  }, [view, params]);
 
   // URL is the source of truth: derive the controlled Filter[] from params each
   // render, one Filter per active facet.
   const filters = useMemo<Filter<Val>[]>(() => {
     const out: Filter<Val>[] = [];
-    for (const f of spec) {
+    for (const f of view) {
       if (f.kind === "search") continue;
       if (f.kind === "dateRange") {
         const from = num(params.get("from"));
@@ -141,7 +147,7 @@ export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
       }
     }
     return out;
-  }, [spec, params]);
+  }, [view, params]);
 
   // Serialize the next Filter[] back into the exact URL params parseFilterState
   // reads. Any facet absent from `next` has its param(s) deleted.
@@ -149,7 +155,7 @@ export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
     const sp = new URLSearchParams(params.toString());
     const byField = new Map(next.map((n) => [n.field, n]));
 
-    for (const f of spec) {
+    for (const f of view) {
       if (f.kind === "search") continue;
       if (f.kind === "dateRange") {
         const hit = byField.get(f.field);

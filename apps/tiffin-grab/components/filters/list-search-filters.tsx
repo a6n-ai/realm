@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useListNav } from "@/components/ds";
 import { SearchInput, type FacetDef } from "@/components/ds";
+import { DefaultDateRange } from "./default-date-range";
 import { ReuiFacetFilters } from "./reui-facet-filters";
 
 // Single reusable slot for a server-paginated list page: the search box and
@@ -16,10 +17,13 @@ export function ListSearchFilters({
   spec,
   placeholder = "Search…",
   shortPlaceholder,
+  dateControl = "menu",
 }: {
   spec: FacetDef[];
   placeholder?: string;
   shortPlaceholder?: string;
+  /** `menu` keeps the date inside Filter. `inline` shows it beside search. `external` leaves it to the page. */
+  dateControl?: "menu" | "inline" | "external";
 }) {
   const searchFacet = spec.find((f) => f.kind === "search");
   const nav = useListNav();
@@ -40,8 +44,11 @@ export function ListSearchFilters({
     [params, pathname, nav],
   );
 
+  const hasDate = spec.some((f) => f.kind === "dateRange");
+
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {dateControl === "inline" && hasDate ? <DefaultDateRange /> : null}
       {searchFacet && (
         <SearchInput
           value={q}
@@ -51,7 +58,7 @@ export function ListSearchFilters({
           debounceMs={300}
         />
       )}
-      <ReuiFacetFilters spec={spec} />
+      <ReuiFacetFilters spec={spec} hideDate={dateControl !== "menu" && hasDate} />
     </div>
   );
 }

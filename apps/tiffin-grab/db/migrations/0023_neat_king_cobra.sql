@@ -1,0 +1,1 @@
+ALTER TABLE "coupons" ADD COLUMN "visible" boolean DEFAULT true NOT NULL;

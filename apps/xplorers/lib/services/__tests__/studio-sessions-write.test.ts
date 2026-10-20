@@ -25,8 +25,6 @@ describe("normalizeClassWrite", () => {
     expect(() =>
       normalizeClassWrite({
         title: "Kids Club",
-        startsAt: future,
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
         capacity: 8,
       }),
     ).toThrow(/category/);
@@ -34,55 +32,93 @@ describe("normalizeClassWrite", () => {
       normalizeClassWrite({
         title: "Kids Club",
         category: "kids",
-        startsAt: future,
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
         capacity: 0,
       }),
     ).toThrow(/Capacity/);
   });
 
-  it("stores a clock without scheduling dates", () => {
-    const record = normalizeClassWrite(
-      {
-        title: "Kids Club",
-        category: "kids",
-        startsAt: "16:00",
-        endsAt: "17:30",
-        capacity: 8,
-      },
-      "Asia/Singapore",
-    );
+  it("writes the summary and leaves the rest of the class untouched", () => {
+    const record = normalizeClassWrite({ title: "Kids Club", category: "kids", description: " Hi ", capacity: 8 });
     expect(record.published).toBe(false);
-    expect(record.weekdays).toEqual([]);
+    expect(record.summary).toBe("Hi");
     expect(record.photos).toEqual([]);
-    expect(
-      normalizeClassWrite(
-        {
-          title: "Kids Club",
-          category: "kids",
-          startsAt: "16:00",
-          endsAt: "17:30",
-          capacity: 8,
-          priceAmount: "35.5",
-        },
-        "Asia/Singapore",
-      ).priceAmount,
-    ).toBe("35.50");
+    expect(record).not.toHaveProperty("pricing");
   });
 
-  it("rejects a class clock that wraps past midnight", () => {
+  const base = { title: "Woodwork", category: "kids", capacity: 8 };
+  const pattern = {
+    weekdays: [6],
+    nthOfMonth: null,
+    startClock: "10:00",
+    endClock: "13:00",
+    startsOn: "2026-11-01",
+    endsOn: null,
+    excludeMonths: [],
+  };
+  const lengthPricing = {
+    mode: "length",
+    defaultLengthMinutes: 90,
+    options: [],
+    extension: null,
+    adults: { free: 1, extraPrice: null },
+  };
+
+  it("rejects a len:240 override when the pattern window is 180 minutes", () => {
     expect(() =>
-      normalizeClassWrite(
-        {
-          title: "Kids Club",
-          category: "kids",
-          startsAt: "23:00",
-          endsAt: "01:00",
-          capacity: 8,
-        },
-        "Asia/Singapore",
-      ),
-    ).toThrow(/after start/);
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "len:240": { weekday: 10 } } }),
+    ).toThrow(/len:240/);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "len:180": { weekday: 10 } } }),
+    ).not.toThrow();
+  });
+
+  it("rejects duplicate option keys", () => {
+    const option = { key: "taster", label: "Taster", lengthMinutes: 60, adultsIncluded: 1 };
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: { ...lengthPricing, mode: "options", options: [option, option] } }),
+    ).toThrow(/unique/i);
+  });
+
+  it("accepts Woodwork options (taster 60, regular 120) and keys their prices", () => {
+    const record = normalizeClassWrite({
+      ...base,
+      pattern,
+      pricing: {
+        ...lengthPricing,
+        mode: "options",
+        options: [
+          { key: "taster", label: "Taster", lengthMinutes: 60, adultsIncluded: 1 },
+          { key: "regular", label: "Regular", lengthMinutes: 120, adultsIncluded: 1 },
+        ],
+      },
+      prices: { "opt:taster": { weekday: 40 }, "opt:regular": { weekday: 70 } },
+    });
+    expect((record.pricing as { options: unknown[] }).options).toHaveLength(2);
+  });
+
+  it("rejects an option longer than the window, an unknown opt key and ext without extension", () => {
+    const longOption = { key: "long", label: "Long", lengthMinutes: 240, adultsIncluded: 0 };
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: { ...lengthPricing, mode: "options", options: [longOption] } }),
+    ).toThrow(/window/i);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "opt:nope": { weekday: 1 } } }),
+    ).toThrow(/opt:nope/);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { ext: { weekday: 1 } } }),
+    ).toThrow(/ext/);
+  });
+
+  it("rejects bad lengths, ages and bookingType", () => {
+    expect(() => normalizeClassWrite({ ...base, pricing: { ...lengthPricing, defaultLengthMinutes: 45 } })).toThrow(/30/);
+    expect(() => normalizeClassWrite({ ...base, ageMin: 9, ageMax: 5 })).toThrow(/age/i);
+    expect(() => normalizeClassWrite({ ...base, bookingType: "walkin" })).toThrow(/booking/i);
+  });
+
+  it("skips pricing for enquire-only classes and needs no pattern", () => {
+    const record = normalizeClassWrite({ ...base, bookingType: "enquire_only", prices: { "len:999": { weekday: 1 } } });
+    expect(record.bookingType).toBe("enquire_only");
+    expect(record.prices).toBeNull();
   });
 
   it("keeps uploaded photos", () => {
@@ -91,12 +127,9 @@ describe("normalizeClassWrite", () => {
         {
           title: "Kids Club",
           category: "kids",
-          startsAt: new Date("2026-09-22T08:00:00.000Z"),
-          endsAt: new Date("2026-09-22T09:30:00.000Z"),
           capacity: 8,
           photos: ["/api/files/public/classes/kite.png"],
         },
-        "Asia/Singapore",
       ).photos,
     ).toEqual(["/api/files/public/classes/kite.png"]);
   });

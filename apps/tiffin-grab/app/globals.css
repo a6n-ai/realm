@@ -6,6 +6,7 @@
 /* Tailwind v4 skips node_modules for auto-scan. Git-hosted @foundry/* ship raw
    source — @source those trees or classes (rounded-*, sidebar, nav) vanish. */
 @source "../../../node_modules/@foundry/ui/src";
+@source "../../../node_modules/@relay/engine/src/ui";
 @source "../../../node_modules/@foundry/auth-ui/src";
 @source "../../../node_modules/@foundry/design-system/src";
 @source "../../../node_modules/@foundry/crm/src";
@@ -137,13 +138,16 @@
   --warn: #F58220;
   --warn-hover: #F06B1A;
   --bad: oklch(0.60 0.16 25);
-  --success: var(--ok);
-  --success-foreground: #F7FBF5;
+  /* ReUI defaults: -foreground is the dark text on a pale -light tint (like warning
+     already was), not the text on a solid fill. Solid fills take text-white. Only ReUI
+     badges read these; the app's own status colors stay on --ok / --bad. */
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-900);
   --warning: var(--warn);
   --warning-foreground: #5A2E00;
   --info: oklch(0.62 0.12 240);
-  --info-foreground: oklch(0.985 0.01 240);
-  --destructive-foreground: oklch(0.985 0.01 27);
+  --info-foreground: oklch(0.42 0.12 240);
+  --destructive-foreground: var(--color-red-800);
   /* Decorative secondary accent — forest green, matching the live site's own
      --tg-theme (#1D5C32) and its discount-banner gradient. Used for small
      "attention" badges (e.g. Menu page's "This week" pill) that need to read
@@ -173,6 +177,7 @@
   --s-locked: #3F3A33;
   --s-locked-fg: #3F3A33;
   --s-locked-bg: #E9E4D6;
+  --s-holiday: #475569;
   --dur-press: 150ms;
   --dur-toggle: 250ms;
   --dur-toast: 250ms;
@@ -220,13 +225,13 @@
   --warn: #FF9843;
   --warn-hover: #FFA75E;
   --bad: oklch(0.68 0.17 25);
-  --success: var(--ok);
-  --success-foreground: #0E1712;
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-600);
   --warning: var(--warn);
   --warning-foreground: #2E1200;
   --info: oklch(0.72 0.12 240);
   --info-foreground: oklch(0.18 0.02 240);
-  --destructive-foreground: oklch(0.985 0.01 22);
+  --destructive-foreground: var(--color-red-600);
   --accent-badge: #2E8B57;
   --accent-badge-hover: #3AA168;
   --accent-badge-foreground: #0E1712;
@@ -250,6 +255,7 @@
   --s-locked: #C9CDBF;
   --s-locked-fg: #C9CDBF;
   --s-locked-bg: #2A382F;
+  --s-holiday: #94A3B8;
   --dur-press: 150ms;
   --dur-toggle: 250ms;
   --dur-toast: 250ms;

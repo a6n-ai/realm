@@ -45,21 +45,14 @@ export function tripCounts(trip: Pick<Trip, "coversDates" | "extraDates">): Map<
   return m;
 }
 
-/** Why `date`'s tiffin on this trip can't move, or null: a tiffin that was moved in never moves again. */
-export function moveLockReason(trip: Pick<Trip, "coversDates" | "extraDates" | "movesIn" | "isMakeup">, date: string): string | null {
-  if (trip.isMakeup) return "This tiffin was already moved once. It can't move again.";
-  const movedIn = (trip.movesIn ?? []).filter((m) => m.to === date).length;
-  return (tripCounts(trip).get(date) ?? 0) - movedIn < 1 ? "This tiffin was already moved once. It can't move again." : null;
-}
-
 /**
- * Mirrors rescheduleDelivery: ONE eating day's tiffin moves. The customer picks the day they
- * want to EAT it; it becomes that day's tiffin (that day's menu) and rides the carrying trip
+ * Mirrors rescheduleDelivery: `qty` of ONE eating day's tiffins move. The customer picks the day they
+ * want to EAT them; it becomes that day's tiffin (that day's menu) and rides the carrying trip
  * (nearest plan weekday on or before it, so weekends ride Friday) — possibly this same trip.
  * Every check (past, cutoff, held target, 3-tiffin cap) runs on the carrying trip. The server
  * stays authoritative.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras" | "emptied">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras" | "emptied">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date, qty = 1): MoveOption[] {
   // An emptied row (all its tiffins moved away) is a free day again: the server revives it.
   const byDate = new Map(days.filter((d) => !d.emptied).map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
@@ -78,15 +71,21 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     let disabledReason: string | undefined;
     let merge: MoveOption["merge"] = null;
     if (date === sourceDate) disabledReason = "This is the day you're moving from.";
+    else if (ctx.holidays?.[carriedOn]) disabledReason = `Kitchen is closed on ${humanDate(carriedOn)}: ${ctx.holidays[carriedOn]}.`;
+    else if (ctx.otherPlanDays?.[carriedOn]) disabledReason = `Your ${ctx.otherPlanDays[carriedOn]} already delivers on ${humanDate(carriedOn)}. Pick another day.`;
     else if (ctx.servesWeekends === false && (weekdayKey(cursor) === "sat" || weekdayKey(cursor) === "sun")) disabledReason = `${NO_WEEKEND_DISH}.`;
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (carriedOn === trip.date) {
       if (trip.status !== "upcoming") disabledReason = "This delivery isn't going out. Pick another day.";
-      else merge = { units: trip.units, covers: countsToCoverage(shiftTiffin(counts, sourceDate, date)).covers };
+      else {
+        let shifted = counts;
+        for (let n = 0; n < qty; n++) shifted = shiftTiffin(shifted, sourceDate, date);
+        merge = { units: trip.units, covers: countsToCoverage(shifted).covers };
+      }
     }
     else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)}'s delivery isn't going out. Pick another day.`;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
-      const incoming = new Map([[date, 1]]);
+      const incoming = new Map([[date, qty]]);
       disabledReason ??= mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
       merge = { units: (target.units ?? 1) + tiffinTotal(incoming) * perTiffin, covers: mergeCoverage([...incoming.keys()], target.covers ?? [carriedOn]) };
     }

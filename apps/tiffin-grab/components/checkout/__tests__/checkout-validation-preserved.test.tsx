@@ -142,6 +142,6 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     fireEvent.click(continueBtn());
     fireEvent.click(await screen.findByRole("button", { name: /apply welcome10, 10% off/i }));
 
-    await waitFor(() => expect(reprice.mock.calls.some((c) => c[1] === "WELCOME10")).toBe(true));
+    await waitFor(() => expect(reprice.mock.calls.some((c) => Array.isArray(c[1]) && c[1].includes("WELCOME10"))).toBe(true));
   });
 });

@@ -1,28 +1,28 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
-import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
+import { campaignFromLine, buildUnsubscribeUrl, withPreviewFooter } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
-import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { resolveSegment } from "@/lib/campaigns/segment";
+import { notificationTables } from "@/lib/notifications/tables";
+import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import {
   CampaignAnalytics,
-  CampaignAudienceEditor,
   CampaignCompleteButton,
   CampaignContentSection,
+  CampaignFlow,
   CampaignDeleteButton,
   CampaignDuplicateButton,
   CampaignRetriggerButton,
   CampaignRetryFailedButton,
-  CampaignSendButton,
   formatConsentDate,
+  parseStep,
   type AudienceValue,
 } from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
@@ -32,7 +32,6 @@ import { BulkRuns } from "./bulk-runs";
 // Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
 const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
 
-// Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -78,10 +77,7 @@ export default async function CampaignPage({
   const retriggerable =
     !isSystem &&
     (row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled");
-  // Only resolve a count when it can still be acted on — for a sent campaign
-  // the stored counts are the record, and re-resolving would show today's
-  // audience rather than the one that was actually mailed.
-  const [content, count, lists, { timezone }, unsubscribes] = await Promise.all([
+  const [content, lists, { timezone }, unsubscribes] = await Promise.all([
     db
       .select({
         channel: campaignContent.channel,
@@ -90,17 +86,12 @@ export default async function CampaignPage({
         body: campaignContent.body,
         html: campaignContent.html,
         text: campaignContent.text,
+        revision: campaignContent.revision,
         providerTemplateId: campaignContent.providerTemplateId,
         attachments: campaignContent.attachments,
       })
       .from(campaignContent)
       .where(eq(campaignContent.campaignId, row.id)),
-    sendable
-      ? countAudience(
-          { db, tables: notificationTables, users: usersRef, resolveSegment },
-          row.audience as AudienceDef,
-        )
-      : Promise.resolve(0),
     db
       .select({
         publicId: contactList.publicId,
@@ -125,15 +116,43 @@ export default async function CampaignPage({
 
   const counts = (row.counts ?? {}) as Record<string, number>;
 
-  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
-  const footer = campaignConfig
+  const config = await campaignConfig();
+
+  const from = campaignFromLine(config);
+  const footer = config
     ? {
-        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
-        sender: campaignConfig.sender.name,
-        address: campaignConfig.sender.postalAddress,
+        url: buildUnsubscribeUrl(config.unsubscribe.baseUrl, config.unsubscribe.secret, "preview@example.com"),
+        sender: config.sender.name,
+        address: config.sender.postalAddress,
       }
     : undefined;
   const previewContent = footer ? withPreviewFooter(content, footer) : content;
+
+  if (sendable) {
+    const channel = (row.channels as string[])[0] ?? "email";
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end gap-2">
+          <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
+          <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />
+        </div>
+        <CampaignFlow
+          campaignPublicId={row.publicId}
+          name={row.name}
+          status={row.status as "draft" | "scheduled"}
+          step={parseStep((await searchParams).step)}
+          channel={channel}
+          content={content.find((c) => c.channel === channel) ?? null}
+          audience={row.audience as AudienceValue}
+          lists={lists}
+          timeZone={timezone}
+          footer={footer}
+          from={from}
+          unsubscribedHref="/dashboard/notifications/unsubscribed"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -154,33 +173,14 @@ export default async function CampaignPage({
           {!isSystem && (
             <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
           )}
-          {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {!isSystem && row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
           {failedCount > 0 && (
             <CampaignRetryFailedButton campaignPublicId={row.publicId} failedCount={failedCount} />
           )}
-          {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
         </div>
       </div>
 
-      {sendable ? (
-        <>
-          <SectionCard title="Audience" subtitle="Recomputed now — suppressions and unsubscribes already removed.">
-            <CampaignAudienceEditor
-              campaignPublicId={row.publicId}
-              audience={row.audience as AudienceValue}
-              count={count}
-              lists={lists}
-              requiresVerifiedPhone={(row.channels as string[]).some((c) => c === "sms" || c === "whatsapp")}
-              timeZone={timezone}
-            />
-          </SectionCard>
-          <SectionCard title="Content" subtitle="One row per channel and locale.">
-            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
-          </SectionCard>
-        </>
-      ) : (
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -195,7 +195,7 @@ export default async function CampaignPage({
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} />
+              <CampaignContentSection autosaveDraft={row.status === "draft" && !isSystem} campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"
@@ -245,7 +245,6 @@ export default async function CampaignPage({
             </SectionCard>
           </TabsContent>
         </Tabs>
-      )}
     </div>
   );
 }

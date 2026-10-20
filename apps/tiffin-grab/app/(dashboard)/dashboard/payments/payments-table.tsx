@@ -14,7 +14,7 @@ import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { FacetDef } from "@/components/ds";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
-import { PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
+import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@/lib/list/sort";
 import { sendPaymentReminderAction } from "../orders/[id]/actions";
 
@@ -80,7 +80,7 @@ export function PaymentsTable({
       idAccessor={(r) => r.publicId}
       onRowClick={setViewing}
       rowClassName={() => "group/row"}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
       emptySearchMessage="No payments match your search."
@@ -95,7 +95,7 @@ export function PaymentsTable({
               {r.orderPublicId}
             </Link>
           </TableCell>
-          <TableCell className="capitalize">{r.method}</TableCell>
+          <TableCell>{methodLabel(r.method)}</TableCell>
           <TableCell>
             <PaymentStatusPill status={r.status} />
           </TableCell>

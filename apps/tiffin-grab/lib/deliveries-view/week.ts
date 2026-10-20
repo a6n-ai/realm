@@ -1,6 +1,6 @@
 import type { DeliveryStatus } from "@/components/customer/kit";
 
-export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; optimoCompletionStatus?: string | null; deliveryId?: string };
+export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; holiday?: string | null; optimoCompletionStatus?: string | null; deliveryId?: string; /** A hold that began as a pause: still drawn as Paused. */ lapsedPause?: boolean };
 export type Agenda = Record<string, AgendaDot[]>;
 
 const DAY = 864e5;
@@ -21,13 +21,42 @@ export function defaultWeek(today: string, planFirst: string | null | undefined)
 }
 
 export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
+  if (d.holiday) return "holiday";
   if (d.moved) return "combined";
-  if (d.status === "paused") return "vacation";
-  if (d.status === "skipped") return "hold";
+  if (d.status === "paused") return "paused";
+  if (d.status === "skipped") return d.lapsedPause ? "paused" : "hold";
   if (d.optimoCompletionStatus === "failed") return "hold";
   if (d.optimoCompletionStatus === "success") return "delivered";
   // Not confirmed by OptimoRoute or an admin yet, whatever the cutoff says.
   return "upcoming";
+}
+
+/**
+ * This plan's dots, plus the delivery days another of the customer's live plans already has. Move greys
+ * those out: plans never overlap, so a tiffin moved there would double up with the renewal.
+ * Value: "renewal" when that plan delivers after this one starts, else "earlier plan".
+ */
+export function splitAgenda(all: Agenda, orderId: string, startDate?: string): { agenda: Agenda; otherPlanDays: Record<string, string> } {
+  const agenda: Agenda = {};
+  const otherPlanDays: Record<string, string> = {};
+  for (const [date, ds] of Object.entries(all)) {
+    const mine = ds.filter((d) => d.orderId === orderId);
+    if (mine.length) agenda[date] = mine;
+    for (const d of ds) {
+      if (d.orderId === orderId || !d.truck || d.moved || d.holiday || (d.status !== "scheduled" && d.status !== "paused")) continue;
+      otherPlanDays[d.deliveryDate] = !startDate || d.deliveryDate > startDate ? "renewal" : "earlier plan";
+    }
+  }
+  return { agenda, otherPlanDays };
+}
+
+/** Paused delivery days still before cutoff, from the plan-wide agenda; a moved-away day is not resumable. */
+export function pausedAhead(agenda: Agenda, now: number): number {
+  const seen = new Set<string>();
+  for (const dots of Object.values(agenda)) {
+    for (const d of dots) if (d.truck && !d.moved && !d.holiday && d.status === "paused" && d.cutoffAt > now) seen.add(d.deliveryId ?? d.deliveryDate);
+  }
+  return seen.size;
 }
 
 /** Stable colour per plan, by position in the customer's plan list. */
@@ -51,8 +80,18 @@ export function weekTimeline(agenda: Agenda, monday: string, now: number): {
       dayStatus[weekdayOf(iso)] ??= dotStatus(d, now);
       if (!d.truck || trips.has(d.deliveryDate)) continue;
       const covers = d.covers.filter((c) => inWeek.has(c));
-      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: dotStatus(d, now) });
+      // A moved-away truck day still delivers: the trip keeps its own status.
+      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: dotStatus({ ...d, moved: false }, now) });
     }
   }
   return { trips: [...trips.values()], dayStatus };
+}
+
+/** Paused delivery days past their cutoff whose tiffin has not been moved: Resume can't bring them back, only Move. */
+export function pausedPast(agenda: Agenda, now: number): string[] {
+  const seen = new Set<string>();
+  for (const dots of Object.values(agenda)) {
+    for (const d of dots) if (d.truck && !d.moved && !d.holiday && (d.lapsedPause || (d.status === "paused" && d.cutoffAt <= now))) seen.add(d.deliveryDate);
+  }
+  return [...seen].sort();
 }

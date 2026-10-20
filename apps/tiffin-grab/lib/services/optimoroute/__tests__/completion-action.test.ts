@@ -39,7 +39,7 @@ describe("leaveReason", () => {
     expect(leaveReason({ status: "scheduled", optimoCompletionStatus: "success" }, false)).toBe("Already confirmed delivered");
     expect(leaveReason({ status: "skipped", optimoCompletionStatus: "failed" }, false)).toBe("Already marked not delivered");
     expect(leaveReason({ status: "skipped", optimoCompletionStatus: null }, true)).toBe("Tiffins moved to another day");
-    expect(leaveReason({ status: "paused", optimoCompletionStatus: null }, false)).toBe("Vacation — not revived from a route");
+    expect(leaveReason({ status: "paused", optimoCompletionStatus: null }, false)).toBe("Paused — not revived from a route");
     expect(leaveReason({ status: "cancelled", optimoCompletionStatus: null }, false)).toBe("Cancelled — not revived from a route");
     expect(leaveReason({ status: "skipped", optimoCompletionStatus: null }, false)).toBe("On hold");
   });

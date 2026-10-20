@@ -1,7 +1,7 @@
 "use client";
 
 import { CreditCardIcon, InboxIcon, ReceiptTextIcon, ScrollTextIcon, ActivityIcon } from "lucide-react";
-import { RoutedTabNav } from "@foundry/design-system";
+import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 const TABS = [
   { label: "E-transfer", href: "/dashboard/payments/requests", icon: InboxIcon },
@@ -12,5 +12,5 @@ const TABS = [
 ] as const;
 
 export function PaymentsTabs() {
-  return <RoutedTabNav tabs={TABS} ariaLabel="Payments" />;
+  return <DatedTabNav tabs={TABS} ariaLabel="Payments" />;
 }

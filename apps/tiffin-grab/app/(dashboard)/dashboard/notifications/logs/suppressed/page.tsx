@@ -1,25 +1,11 @@
-import { Suspense } from "react";
-import { SectionCard } from "@/components/ds";
-import { loadSuppressedAddresses, SUPPRESSED_SPEC } from "@/lib/notifications/logs-query";
-import { SuppressedTable, SuppressedTableSkeleton } from "../suppressed-table";
+import { redirect } from "next/navigation";
 
-type SearchParams = Promise<Record<string, string | undefined>>;
-
-export default function SuppressedAddressesPage({ searchParams }: { searchParams: SearchParams }) {
-  return (
-    <SectionCard
-      title="Suppressed addresses"
-      subtitle="Bounced, complained or unsubscribed addresses — no send is attempted against these until cleared."
-    >
-      <Suspense fallback={<SuppressedTableSkeleton />}>
-        <SuppressedAddressesData searchParams={searchParams} />
-      </Suspense>
-    </SectionCard>
-  );
-}
-
-async function SuppressedAddressesData({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
-  const { rows, sort, total, page, size } = await loadSuppressedAddresses(sp);
-  return <SuppressedTable spec={SUPPRESSED_SPEC} rows={rows} sort={sort} total={total} page={page} size={size} />;
+// Moved to its own tab; old links and bookmarks keep their filters.
+export default async function SuppressedRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const q = new URLSearchParams(Object.entries(await searchParams).filter((e): e is [string, string] => !!e[1])).toString();
+  redirect(`/dashboard/notifications/unsubscribed${q ? `?${q}` : ""}`);
 }

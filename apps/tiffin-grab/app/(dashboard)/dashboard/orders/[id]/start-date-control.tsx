@@ -3,12 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { changeStartDateAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 
@@ -81,7 +81,7 @@ export function StartDateControl({
     >
       <div className="grid gap-2">
         <Label htmlFor="order-start-date">Start date</Label>
-        <Input id="order-start-date" type="date" min={minDate} value={value} onChange={(e) => setValue(e.target.value)} className="w-48" />
+        <DateInput id="order-start-date" min={minDate} value={value} onChange={setValue} className="w-48" />
         <p className="text-muted-foreground text-xs">Earliest {minDate} · starts on {allowedDays.map(dayName).join(", ")}</p>
         {otherPlanEnd && otherPlanEnd > minDate ? (
           <p className="text-muted-foreground text-xs text-pretty">

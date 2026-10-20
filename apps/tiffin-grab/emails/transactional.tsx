@@ -558,4 +558,39 @@ export const TEMPLATES: EmailTemplate[] = [
       </Layout>
     ),
   },
+  {
+    event: "holiday_declared",
+    subject: "We are closed on {{order.date}}",
+    inApp: { subject: "Closed on {{order.date}}: {{order.holidayName}}", body: "{{order.outcome}}" },
+    element: (
+      <Layout preview="You keep every tiffin.">
+        <Eyebrow>Holiday</Eyebrow>
+        <Title lead="We are closed for" accent="{{order.holidayName}}." />
+        <P>Hi {"{{order.customerName}}"}, our kitchen is closed on {"{{order.date}}"}. You keep every tiffin and there is nothing you need to do.</P>
+        <P>{"{{order.outcome}}"}</P>
+        <Details
+          rows={[
+            ["Closed", "{{order.date}}"],
+            ["Order", "{{order.code}}"],
+          ]}
+        />
+        <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
+      </Layout>
+    ),
+  },
+  {
+    event: "holiday_removed",
+    subject: "An update on {{order.date}}",
+    inApp: { subject: "An update on {{order.date}}", body: "{{order.outcome}}" },
+    element: (
+      <Layout preview="An earlier closure notice has changed.">
+        <Eyebrow>Update</Eyebrow>
+        <Title lead="An update on" accent="{{order.date}}." />
+        <P>Hi {"{{order.customerName}}"}, we told you our kitchen would be closed on {"{{order.date}}"} for {"{{order.holidayName}}"}.</P>
+        <P>{"{{order.outcome}}"}</P>
+        <Details rows={[["Order", "{{order.code}}"]]} />
+        <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
+      </Layout>
+    ),
+  },
 ];

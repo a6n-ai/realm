@@ -1,6 +1,15 @@
-import { afterAll, beforeEach } from "vitest";
+import { afterAll, beforeEach, vi } from "vitest";
 import { getRedis } from "./lib/redis";
 import { ensureSeededCatalog } from "./db/test-helpers";
+
+// Start dates roll to the next day at the app cutoff hour. Suites book
+// `nextWeekday(new Date())`, which that rule refuses between the cutoff and UTC
+// midnight, so the wall clock is taken out of it here. app-today.test.ts and
+// start-date-cutoff.test.ts unmock this to test the real rule.
+vi.mock("@/lib/services/start-date", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./lib/services/start-date")>();
+  return { ...real, appToday: (timezone?: string, _cutoffHour?: number, now?: number) => real.appToday(timezone, undefined, now) };
+});
 
 // input-otp (and other measure-on-mount UI) needs ResizeObserver, which jsdom
 // lacks. Stub it globally; harmless in the node-env test files.

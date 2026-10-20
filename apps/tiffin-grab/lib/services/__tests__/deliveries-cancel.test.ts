@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
-const { completeFinishedOrders, maybeComplete, skipDelivery } = await import("../deliveries.service");
+const { adminSetDeliveryStatus, completeFinishedOrders, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -100,6 +100,17 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
 
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("cancelled");
+  });
+
+  it("a cancelled delivery on a running plan never comes back through the status control", async () => {
+    const o = await makeOrder();
+    const [row] = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).orderBy(asc(deliveries.deliveryDate)).limit(1);
+    await db.update(deliveries).set({ status: "cancelled" }).where(eq(deliveries.id, row.id));
+    for (const status of ["upcoming", "delivered", "not_delivered"] as const) {
+      await expect(adminSetDeliveryStatus(row.publicId, status, null)).rejects.toBeInstanceOf(ValidationError);
+    }
+    const [after] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect(after.status).toBe("cancelled");
   });
 
   it("a cancelled order cannot be re-activated", async () => {

@@ -1,54 +1,62 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ActivityIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
+import { EyeIcon, PackageIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
-import { findMethod } from "@foundry/payments";
+import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
+import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/services/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
-import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { earliestNewPlanStart, runningPlans } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
-import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
+import { canTakeAddonPayment, complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
+import { lapseElapsedPausesSafe } from "@/lib/services/pause-days.service";
+import { isOrderFullyPaused } from "@/lib/services/pause-state";
+import { getPauseLimits, getPauseUsage } from "@/lib/services/pause-limits.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
 import { deliveryZones, plans, users } from "@/db/schema";
-import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard, StatGrid, type StatItem } from "@/components/ds";
+import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
+import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
-import { ChangePlanControl } from "./change-plan-control";
+import { AddAddonsControl } from "./add-addons-control";
 import { StartDateControl } from "./start-date-control";
+import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
+import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
-import { OptimoRoutePanel } from "./optimoroute-panel";
-import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
+import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "@/components/dashboard/deliveries-section";
+import { TabSkeleton } from "./tab-skeleton";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { stageCards } from "./stage-cards";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
 // the same server actions, so staff can do it for them. Tabs keep each concern one click away.
 
-type SearchParams = Promise<{ week?: string }>;
+type SearchParams = Promise<{ week?: string; free?: string }>;
 
 export default function OrderDetailPage({
   params,
@@ -75,7 +83,7 @@ async function OrderDetail({
 }) {
   await requireStaff();
   const { id } = await params;
-  const { week } = await searchParams;
+  const { week, free } = await searchParams;
 
   const settingsP = getAppSettings();
   const session = await getSession();
@@ -89,7 +97,10 @@ async function OrderDetail({
     throw e;
   }
 
-  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
+  // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
+  if (order.status === "active" || order.status === "paused") await lapseElapsedPausesSafe(order.id);
+
+  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone, lookOutBy] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
@@ -106,6 +117,9 @@ async function OrderDetail({
     order.zoneId != null
       ? db.select({ name: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.id, order.zoneId)).limit(1).then((r) => r[0] ?? null)
       : Promise.resolve(null),
+    order.lookOutBy != null
+      ? db.select({ name: users.name }).from(users).where(eq(users.id, order.lookOutBy)).limit(1).then((r) => r[0]?.name ?? null)
+      : Promise.resolve(null),
   ]);
 
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
@@ -114,6 +128,7 @@ async function OrderDetail({
   const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+  const fullyPaused = (order.status === "active" || order.status === "paused") && (await isOrderFullyPaused(db, order.id, settingsToday));
   const optimoRows = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
     .map((r) => ({
@@ -131,7 +146,8 @@ async function OrderDetail({
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts] = await Promise.all([
+  const running = order.status === "active" || order.status === "paused";
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -151,23 +167,27 @@ async function OrderDetail({
     // Moving the start must not land inside another running plan of this customer.
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
     ended ? orderTiffinCounts(order.publicId) : null,
+    order.userId != null ? runningPlans(db, order.userId) : [],
+    running
+      ? Promise.all([getPauseUsage(order.id), getPauseLimits(order.id)]).then(([u, l]) => ({ daysUsed: u.daysUsed, maxDays: l.maxPauseDaysTotal }))
+      : null,
   ]);
+  // The customer's other running plans: a renewal's days sit on its own order, not this one.
+  // Only plans in organizations this staff member can see: a customer can hold plans in several.
+  const otherPlans = customerPlans.filter((p) => p.publicId !== order.publicId
+    && (visible === "all" || (p.organizationId != null && visible.includes(p.organizationId))));
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
   const checkoutMethodLabel = checkoutMethodId
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
-  const currentMealSizePublicId = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.publicId;
-  const mealSizeOptions = listableMealSizes(catalogSnapshot.mealSizes, currentMealSizePublicId).map((m) => ({
-    publicId: m.publicId,
-    name: m.name,
-    planKey: m.planKey,
-  }));
 
 
   const counts = sub.week?.plan.counts ?? endedCounts;
+  // Today's drop counts until the driver confirms it; a merged-away or empty row never ships.
   const next = deliveryRows
-    .filter((r) => r.deliveryDate >= settingsToday && r.status === "scheduled")
+    .filter((r) => r.deliveryDate >= settingsToday && r.status === "scheduled" && r.optimoCompletionStatus !== "success"
+      && r.tiffinUnits > 0 && r.mergedIntoDeliveryId == null)
     .sort((x, y) => x.deliveryDate.localeCompare(y.deliveryDate))[0];
   const paid = order.payments
     .filter((p) => p.status === "paid" || p.status === "simulated_paid")
@@ -180,6 +200,19 @@ async function OrderDetail({
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
   // balance runs out if it starts on its next due date.
   const migratedPending = order.status === "pending" && order.deploymentId.startsWith("wc-");
+  const addonOptions = mealSizeAddons(catalogSnapshot).map((a) => ({
+    key: a.key,
+    name: a.name,
+    pricePerTiffin: a.pricePerTiffin,
+    maxQty: a.maxQty,
+    existingQty: order.addons.filter((x) => x.key === a.key).reduce((s, x) => s + x.qty, 0),
+  }));
+  const addonMethods = enabledMethods(paymentCfg)
+    .filter((m) => m.id !== "simulated")
+    .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
+  const customMealSize = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.custom === true;
+  const canAddAddons = order.trialLength == null && !customMealSize && (order.status === "active" || order.status === "paused")
+    && canTakeAddonPayment(order, order.payments.map((p) => p.status)) == null;
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
     ? {
@@ -197,7 +230,7 @@ async function OrderDetail({
 
   const notStarted = startBlocker == null;
   const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
-  const startToday = appToday(settings.timezone);
+  const startToday = appToday(settings.timezone, settings.cutoffHour);
   const startAction = (
     <StartDateControl
       blockedReason={startBlocker}
@@ -209,28 +242,76 @@ async function OrderDetail({
     />
   );
 
-  const stats: StatItem[] = [
-    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
-    {
-      label: "Tiffins left",
-      value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
-      icon: PackageIcon,
-      hint: counts
-        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}${order.complimentaryTiffins > 0 ? ` · ${order.complimentaryTiffins} free` : ""}`
-        : "Schedule not started",
+  const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
+  // Saving eating days moves a WordPress plan imported as MWF onto the 5-day route (changeEatingDays).
+  const deliveryRow = order.deploymentId.startsWith("wc-") ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
+  const canEditEating = frequencyRow != null && order.trialLength == null
+    && (order.status === "active" || order.status === "paused" || order.status === "pending");
+  const eatingAction = canEditEating ? (
+    <EatingDaysControl
+      orderId={order.publicId}
+      eatingDays={(order.eatingDays as DayOfWeek[] | null) ?? orderDeliveryDays({
+        frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
+        includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
+      })}
+      deliveryDays={orderDeliveryDays({ frequencyKey: deliveryRow!.key, weekdays: deliveryRow!.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      toFiveDay={deliveryRow !== frequencyRow}
+      servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
+      bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
+    />
+  ) : null;
+
+  const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
+  // A plan closes on dates alone; a past day OptimoRoute never confirmed is what its "left" count
+  // still holds. Same rule as the Missed deliveries list, so staff settle it there.
+  const unconfirmed = order.status === "completed"
+    ? deliveryRows.filter((r) => r.status === "scheduled" && r.deliveryDate < settingsToday && r.optimoCompletionStatus !== "success"
+      && r.tiffinUnits > 0 && r.mergedIntoDeliveryId == null && !compensated.has(String(r.id)))
+    : [];
+  const unconfirmedUnits = unconfirmed.reduce((n, r) => n + r.tiffinUnits, 0);
+
+  // Same rule as lastTiffinSql on the orders list: the last day that was not cancelled.
+  const lastTiffin = deliveryRows.filter((r) => r.status !== "cancelled").map((r) => r.deliveryDate).sort().at(-1) ?? null;
+  const cancelledAt = activities.find((a) => a.type === "cancelled")?.createdAt;
+  const renewal = otherPlans.filter((p) => p.startDate > order.startDate).sort((x, y) => x.startDate.localeCompare(y.startDate))[0];
+  const stats = stageCards({
+    displayStatus,
+    statusLabel: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus,
+    status: order.status,
+    frequencyName: order.frequencyName,
+    fullyPaused,
+    notStarted,
+    today: settingsToday,
+    startDate: order.startDate,
+    createdOn: zonedDateIso(order.createdAt, settings.timezone),
+    meal: `${order.planName} · ${order.mealSizeName}`,
+    zoneName: zone?.name ?? null,
+    tiffinCount: order.tiffinCount,
+    complimentaryTiffins: order.complimentaryTiffins,
+    persons: order.persons,
+    counts,
+    next: next ? { date: next.deliveryDate, driver: next.routeDriverName } : null,
+    lastTiffin,
+    unconfirmed: { units: unconfirmedUnits, dates: unconfirmed.map((r) => r.deliveryDate).sort() },
+    renewal: renewal ? { deploymentId: renewal.deploymentId, startDate: renewal.startDate } : null,
+    holds,
+    money: {
+      paid,
+      total: Number(order.total),
+      due,
+      refunded: order.payments.filter((p) => p.status === "refunded").reduce((n, p) => n + Number(p.amount), 0),
+      toReview,
     },
-    notStarted
-      ? { label: "Starts", value: humanDate(order.startDate), icon: TruckIcon, hint: "Not started · start date can change", pixelValue: false }
-      : { label: "Next delivery", value: next ? humanDate(next.deliveryDate) : "None", icon: TruckIcon, hint: next?.routeDriverName ?? undefined, pixelValue: false },
-    { label: "Paid", value: fmt(paid, settings.currency), icon: WalletIcon, hint: `of ${fmt(Number(order.total), settings.currency)}` },
-    { label: "Balance due", value: fmt(due, settings.currency), icon: ReceiptIcon, tone: due > 0 ? "bad" : "ok", hint: toReview ? `${toReview} payment${toReview === 1 ? "" : "s"} to review` : undefined },
-  ];
+    cancelledOn: cancelledAt != null ? zonedDateIso(Number(cancelledAt), settings.timezone) : null,
+    fmt: (n) => fmt(n, settings.currency),
+    day: humanDate,
+  });
 
   // Past deliveries a free tiffin can make up for, newest first, minus ones that already have one.
   // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
-  const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
   const deliveryState = (r: (typeof deliveryRows)[number]) =>
-    r.status === "paused" ? "vacation"
+    r.holidayId != null && r.status !== "scheduled" ? "closed for a holiday"
+    : r.status === "paused" ? "paused"
     : r.status === "skipped" ? (r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold")
     : r.optimoCompletionStatus === "success" ? "marked delivered"
     : "not confirmed";
@@ -244,8 +325,17 @@ async function OrderDetail({
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
+      {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
-      {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
+      {canAddAddons && (
+        <AddAddonsControl
+          orderId={order.publicId}
+          options={addonOptions}
+          methods={addonMethods}
+          defaultMethodId={checkoutMethodId ?? null}
+          currency={settings.currency}
+        />
+      )}
       {canGiveFree && (
         <ComplimentaryControl
           orderId={order.publicId}
@@ -254,9 +344,9 @@ async function OrderDetail({
           allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun")}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
+          initialForId={free ?? null}
         />
       )}
-      {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );
 
@@ -271,7 +361,38 @@ async function OrderDetail({
       {/* Phones: actions get their own row so the name keeps the full width. */}
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
-      <StatGrid items={stats} cols={5} />
+      <StatCards items={stats} />
+
+      {otherPlans.length > 0 && (
+        <p data-testid="other-plans" className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {otherPlans.map((p) => (
+            <span key={p.publicId}>
+              {p.startDate > order.startDate ? "Renewal" : "Earlier plan"}{" "}
+              <Link href={`/dashboard/orders/${p.publicId}`} className="text-foreground font-medium hover:underline">{p.deploymentId}</Link>
+              {` · ${humanDate(p.startDate)} – ${humanDate(p.lastDelivery ?? p.lastDay)} · ${p.tiffinCount} tiffins`}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {order.lookOutAt != null && (
+        <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+          <EyeIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Look out for this order</p>
+            {/* The note is the point of the flag: its own line, not buried in the byline. */}
+            <p data-testid="look-out-note" className={order.lookOutNote ? "text-foreground my-1 whitespace-pre-line text-base text-pretty" : "text-muted-foreground"}>
+              {order.lookOutNote ?? "No note was added."}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Marked{lookOutBy ? ` by ${lookOutBy}` : ""} on {formatEpoch(order.lookOutAt, { mode: "date", timeZone: settings.timezone })}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <LookOutControl orderId={order.publicId} flaggedNote={order.lookOutNote ?? ""} />
+          </div>
+        </div>
+      )}
 
       {migration && (
         <div role="status" className="border-primary/40 bg-primary/5 rounded-xl border px-4 py-3 text-sm">
@@ -318,14 +439,12 @@ async function OrderDetail({
               currency={settings.currency}
               categoryLabels={categoryLabels}
               startAction={startAction}
+              eatingAction={eatingAction}
             />
           ),
           deliveries: (
             <>
-              <DeliveriesSection data={sub} />
-              <SectionCard title="Routing" subtitle="Push or pull an upcoming delivery in OptimoRoute when the scheduled sync went wrong.">
-                <OptimoRoutePanel orderId={order.publicId} rows={optimoRows} week={sub.week ? { start: sub.week.weekStart, first: sub.week.firstWeek, last: sub.week.lastWeek } : null} />
-              </SectionCard>
+              <DeliveriesSection data={sub} routing={sub.paymentReview ? [] : optimoRows} />
             </>
           ),
           payments: (
@@ -367,23 +486,24 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           <Skeleton className="h-4 w-64" />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-[104px] rounded-xl" />
-        ))}
-      </div>
+      <StatCardsSkeleton count={5} />
       <Skeleton className="h-9 w-full max-w-md" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <SectionCard key={i} title={i === 0 ? "Plan & schedule" : "Customer & delivery"}>
-            <div className="space-y-3">
-              {Array.from({ length: 8 }).map((_, j) => (
-                <Skeleton key={j} className="h-4 w-full" />
-              ))}
-            </div>
-          </SectionCard>
-        ))}
-      </div>
+      <TabSkeleton
+        deliveries={<DeliveriesSectionSkeleton />}
+        overview={
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <SectionCard key={i} title={i === 0 ? "Plan & schedule" : "Customer & delivery"}>
+                <div className="space-y-3">
+                  {Array.from({ length: 8 }).map((_, j) => (
+                    <Skeleton key={j} className="h-4 w-full" />
+                  ))}
+                </div>
+              </SectionCard>
+            ))}
+          </div>
+        }
+      />
     </>
   );
 };

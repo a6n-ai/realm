@@ -20,6 +20,7 @@ export const ADMIN_SIDEBAR_ROUTES: AdminRoute[] = [
   { id: "dispatch-completions", path: "/dashboard/dispatch/completions", heading: /Dispatch/i },
   { id: "dispatch-drivers", path: "/dashboard/dispatch/drivers", heading: /Dispatch/i },
   { id: "dispatch-stale", path: "/dashboard/dispatch/stale", heading: /Dispatch/i },
+  { id: "holidays", path: "/dashboard/holidays", heading: "Holidays" },
   { id: "customers", path: "/dashboard/customers", heading: "Customers" },
   { id: "tickets", path: "/dashboard/tickets", heading: "Tickets" },
   { id: "catalog", path: "/dashboard/catalog", heading: "Catalog" },

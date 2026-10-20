@@ -2,10 +2,10 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
-export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
+export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "paused" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
-export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
+export type LegendKey = "delivered" | "upcoming" | "paused" | "onHold" | "holiday";
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
@@ -38,13 +38,21 @@ export type CalendarDayInput = {
   /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan. */
   dropOff?: DropOffValue;
   optimoCompletionStatus?: string | null;
+  routePushed?: boolean;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
+  /** A day paused through the day-set pause that went past cutoff and became a hold. It has no route stop. */
+  lapsedPause?: boolean;
+  /** Name of the holiday that closed this trip; null otherwise. */
+  holidayName?: string | null;
+  /** Dates of the ordinary deliveries the holiday added for it, earliest first. */
+  holidayExtras?: string[];
 };
 
-export type TiffinMove = { from: string | null; to: string };
+/** `units`: tiffins the moved day carried (the plan's persons); 1 when absent. */
+export type TiffinMove = { from: string | null; to: string; units?: number };
 
 export type PlanContext = {
   cutoffHour: number;
@@ -52,11 +60,15 @@ export type PlanContext = {
   lastDeliveryDate: string | null;
   deliveryWeekdays: string[];
   eatingWeekdays?: string[] | null;
+  /** Closed dates for this plan's organization (ISO date to holiday name); Move never offers them. */
+  holidays?: Record<string, string>;
+  /** Delivery days another live plan of this customer already has (date to "renewal" / "earlier plan"); Move never offers them. */
+  otherPlanDays?: Record<string, string>;
   /** This plan's first delivery date; Move never offers dates before it. */
   startDate?: string;
   active?: boolean;
-  onVacation?: boolean;
-  vacationsLeft?: number | null;
+  onPause?: boolean;
+  pausesLeft?: number | null;
   frequencyKey?: string | null;
   /** False: the meal has no weekend dish, so Move can't target Sat/Sun. */
   servesWeekends?: boolean;
@@ -80,7 +92,7 @@ export type Trip = {
   rescheduled: boolean;
   /** Where a moved trip went: the eat day it was moved to, or the trip it combined into. */
   movedTo?: string | null;
-  /** Tiffins moved onto this trip (they can't move again) and off it (their old day reads "Moved to"). */
+  /** Tiffins moved onto this trip and off it (their old day reads "Moved to"). */
   movesIn?: TiffinMove[];
   movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
@@ -89,8 +101,13 @@ export type Trip = {
   dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
+  /** The stop reached OptimoRoute; "On the way" is shown only then. */
+  routePushed?: boolean;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
+  lapsedPause?: boolean;
+  holidayName?: string | null;
+  holidayExtras?: string[];
 };
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -115,12 +132,15 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       const covers = coveredDates({ deliveryDate: d.date, coversDates: d.covers ?? null });
       const rescheduled = !!d.rescheduled;
       let status: TripStatus;
-      if (d.combinedInto) status = "combined-into";
+      // Closed by a holiday: paused by the declare, or a hold tagged after the fact whose tiffin already
+      // moved. A hold still carrying its tiffin stays "failed" so Move keeps working; holidayName labels it.
+      if (d.holidayName && (d.status === "paused" || (d.status !== "scheduled" && (rescheduled || !!d.combinedInto)))) status = "holiday";
+      else if (d.combinedInto) status = "combined-into";
       else if (d.status !== "scheduled" && rescheduled) status = "rescheduled";
       // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
       else if (d.status === "skipped") status = "failed";
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
-      else if (d.status === "paused") status = "vacation";
+      else if (d.status === "paused") status = "paused";
       else if (d.optimoCompletionStatus === "success") status = "delivered";
       else if (d.optimoCompletionStatus === "failed") status = "failed";
       else if (!past) status = "upcoming";
@@ -134,6 +154,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         addressOverride: d.addressOverride ?? null,
         dropOff: d.dropOff,
         optimoCompletionStatus: d.optimoCompletionStatus ?? null,
+        routePushed: !!d.routePushed,
         units: d.units ?? 1,
         coversDates: covers,
         extraDates: d.extras ?? [],
@@ -153,6 +174,9 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesIn: d.movesIn ?? [],
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
+        lapsedPause: d.lapsedPause,
+        holidayName: d.holidayName ?? null,
+        holidayExtras: d.holidayExtras ?? [],
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -165,17 +189,21 @@ const LEGEND: Record<TripStatus, LegendKey | null> = {
   "cutoff-passed": "delivered",
   rescheduled: "onHold",
   locked: "onHold",
-  vacation: "vacation",
+  paused: "paused",
   "combined-into": null,
   failed: "onHold",
+  holiday: "holiday",
 };
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Paused", onHold: "Not delivered" };
+const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", paused: "Paused", onHold: "Not delivered", holiday: "Holiday" };
+
+/** Paused, then its cutoff passed: stored as a hold (Move only), but the customer still reads it as Paused. */
+export const isPastPause = (t: Pick<Trip, "status" | "lapsedPause">): boolean => t.status === "failed" && !!t.lapsedPause;
 
 /** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
 export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
   const out: Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> = {};
   for (const t of trips) {
-    const legend = LEGEND[t.status];
+    const legend = isPastPause(t) ? "paused" : LEGEND[t.status];
     for (const c of t.coversDates) out[c] = { status: t.status, legend, label: legend ? LEGEND_LABEL[legend] : null };
   }
   return out;
@@ -188,10 +216,13 @@ export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripS
  * already reconciled.
  */
 export function holdAwaitingReconcile(
-  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null },
+  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null; lapsedPause?: boolean },
   now: number,
   timezone: string,
 ): boolean {
+  // A lapsed pause never had a stop on the route, so there is nothing to reconcile and Move is open.
+  // Every other hold waits until its day is over.
+  if (d.lapsedPause) return false;
   return d.optimoCompletionStatus !== "failed" && now >= d.cutoffAt && d.date >= zonedDateIso(now, timezone);
 }
 
@@ -199,13 +230,13 @@ const no = (why: string): Availability => ({ ok: false, why, sub: "" });
 const yes = (sub: string): Availability => ({ ok: true, why: null, sub });
 
 function moveAvailability(trip: Trip, now: number, plan: PlanContext, blocked: (delivered: string) => string): Availability {
-  if (trip.status === "upcoming" && trip.isMakeup) return no("Already moved once. Only one move is allowed.");
   if (trip.status === "upcoming") return yes("Pick a new delivery day");
   if (trip.status === "failed" && holdAwaitingReconcile(trip, now, plan.timezone)) {
+    if (trip.holidayName) return no(`Kitchen is closed: ${trip.holidayName}. This tiffin can be moved after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
     return no(`On hold. Release it to a new day after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
   }
   if (trip.status === "failed") return yes("Pick a new day for this tiffin");
-  if (trip.status === "vacation") return yes("Pick a new delivery day");
+  if (trip.status === "paused") return yes("Pick a new delivery day");
   if (trip.status === "rescheduled") return no("Already moved.");
   return no(blocked("Already delivered."));
 }
@@ -214,19 +245,29 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   const closed = "Changes closed";
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
+  if (s === "holiday") {
+    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin goes on another day.`);
+    return { pick: closedDay, swap: closedDay, move: closedDay, address: closedDay };
+  }
 
   const blocked = (delivered: string): string =>
     s === "combined-into" ? `Combined into ${into}. Go to that trip.`
     : s === "delivered" ? delivered
+    : s === "unconfirmed" && trip.routePushed ? `${closed}. This trip is on the way.`
     : `${closed}. This trip is being prepared.`;
 
   const editable = s === "upcoming";
   // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
-  const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
+  const notHere = s === "failed" || s === "paused" || s === "rescheduled";
+  const pastPause = isPastPause(trip);
   const pick = editable ? yes("Open for changes")
+    : s === "paused" ? no("Paused. Resume this day to choose meals, or move it to another day.")
+    : pastPause ? no("Paused. Move it to another day to choose meals.")
     : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
+    : s === "paused" ? no("Paused. Resume this day to swap items, or move it to another day.")
+    : pastPause ? no("Paused. Move it to another day to swap items.")
     : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
   const move = moveAvailability(trip, now, plan, blocked);

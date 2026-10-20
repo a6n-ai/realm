@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { and as cAnd, eq as cEq, like as cLike } from "@foundry/commons/model/condition";
+import { bookingWindow, occurrenceWindow, TEST_PRICING } from "./test-fixtures";
 
 // Local dev DB.
 const { db } = await import("@/db/client");
@@ -27,23 +28,21 @@ beforeEach(async () => {
     .values({
       title: `${MARK} class`,
       category: "kids",
-      startsAt,
-      endsAt: new Date(startsAt.getTime() + 3_600_000),
       capacity: 10,
-      priceAmount: "20.00",
+      pricing: TEST_PRICING,
       published: true,
     })
     .returning({ id: schema.studioSessions.id });
   sessionId = s!.id;
   const [occ] = await db
     .insert(schema.studioSessionOccurrences)
-    .values({ sessionId, occursOn: startsAt.toISOString().slice(0, 10) })
+    .values({ sessionId, occursOn: startsAt.toISOString().slice(0, 10), ...occurrenceWindow(startsAt) })
     .returning({ id: schema.studioSessionOccurrences.id });
   const [a, b] = await db
     .insert(schema.bookings)
     .values([
-      { sessionId, userId, occurrenceId: occ!.id, seats: 1, status: "confirmed" },
-      { sessionId, userId, occurrenceId: occ!.id, seats: 1, status: "cancelled" },
+      { sessionId, userId, occurrenceId: occ!.id, seats: 1, status: "confirmed", ...bookingWindow(startsAt) },
+      { sessionId, userId, occurrenceId: occ!.id, seats: 1, status: "cancelled", ...bookingWindow(startsAt) },
     ])
     .returning({ id: schema.bookings.id });
   await db.insert(schema.payments).values([

@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Check, Hammer, Heart, MapPin, Sparkle, Users } from "lucide-react";
 import { SITE_NAME, SITE_PITCH, SITE_TAGLINE } from "@/lib/brand";
 import { buildMetadata } from "@/lib/seo";
-import { CONTACT, PRICES, QUOTES } from "@/lib/marketing/content";
+import { CONTACT, QUOTES } from "@/lib/marketing/content";
 import { PHOTOS } from "@/lib/marketing/photos";
 import {
   Button,
@@ -11,7 +11,6 @@ import {
   HeroCollage,
   Notice,
   Pill,
-  PriceTable,
   QuoteCard,
   SectionHeading,
   TrustBar,
@@ -19,7 +18,8 @@ import {
 } from "@/components/marketing/ui";
 import { ClassCard } from "@/components/marketing/class-card";
 import { loadPublicClasses } from "@/lib/sessions/public";
-import { WeekCalendar } from "@/components/marketing/week-calendar";
+import { PublicCalendar } from "@/components/marketing/public-calendar";
+import { GlobalPriceTable } from "@/components/marketing/global-price-table";
 import { HomeSessions } from "@/components/marketing/home-sessions";
 
 export const metadata = buildMetadata({
@@ -33,8 +33,12 @@ export const dynamic = "force-dynamic";
 const pad = (pt: number, pb: number) => ({ "--pt": `${pt}px`, "--pb": `${pb}px` }) as CSSProperties;
 const HOME_CLASSES = 6;
 
-export default async function HomePage() {
-  const classes = await loadPublicClasses();
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const [classes, sp] = await Promise.all([loadPublicClasses(), searchParams]);
   return (
     <>
       <section id="top" className="xl-wrap xl-hero">
@@ -103,7 +107,7 @@ export default async function HomePage() {
 
       <section id="calendar" className="xl-wrap xl-section" style={pad(64, 16)}>
         <SectionHeading eyebrow="Your week at Xplorers.Life" title="A little discovery, every week." />
-        <WeekCalendar />
+        <PublicCalendar searchParams={sp} />
       </section>
 
       <HomeSessions />
@@ -115,7 +119,7 @@ export default async function HomePage() {
             <Eyebrow tone="deep">A little visit or a longer adventure?</Eyebrow>
             <h3 className="xl-panel-title">One simple price. More ways to explore.</h3>
           </div>
-          <PriceTable caption={PRICES.caption} columns={PRICES.columns} rows={PRICES.rows} />
+          <GlobalPriceTable />
         </div>
       </section>
 

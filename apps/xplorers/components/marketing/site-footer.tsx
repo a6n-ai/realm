@@ -1,11 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import { CONTACT, PROGRAMMES, type ProgrammeKey } from "@/lib/marketing/content";
+import { CONTACT } from "@/lib/marketing/content";
 import { Button } from "@/components/marketing/ui";
-
-/** Programmes for families and grown-ups live on /families; the rest on /kids. */
-const FAMILY_PROGRAMMES: ProgrammeKey[] = ["private", "wood"];
+import { loadPublicClasses } from "@/lib/sessions/public";
 
 const PAGES = [
   { href: "/whats-on", label: "What's on" },
@@ -16,7 +14,8 @@ const PAGES = [
   { href: "/faq", label: "FAQ" },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const classes = await loadPublicClasses();
   return (
     <footer id="visit" className="xl-footer">
       <div className="xl-wrap">
@@ -55,17 +54,13 @@ export function SiteFooter() {
 
           <nav aria-labelledby="xl-ft-programmes">
             <h3 id="xl-ft-programmes" className="xl-footer-head">
-              Programmes
+              Classes
             </h3>
             <ul className="xl-footer-list">
-              {PROGRAMMES.map((p) => (
-                <li key={p.key}>
-                  <Link
-                    className="xl-footer-link"
-                    data-programme={p.key}
-                    href={FAMILY_PROGRAMMES.includes(p.key) ? "/families" : "/kids"}
-                  >
-                    {p.short}
+              {classes.slice(0, 7).map((c) => (
+                <li key={c.publicId}>
+                  <Link className="xl-footer-link" href={`/classes/${c.publicId}`}>
+                    {c.title}
                   </Link>
                 </li>
               ))}

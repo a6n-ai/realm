@@ -56,3 +56,26 @@ describe("custom meal rows resolve within their own diet", () => {
     ]);
   });
 });
+
+describe("catalog add-on rows follow their own plans, in priority order", () => {
+  const vegOnlySize = new Set([paneer.dishId, vegRaita.dishId]);
+  // Veg catalog meal size (one sabzi row, open) + a Non-Veg Sabzi add-on with Veg as fallback.
+  const addonRows = rowPlanIds([
+    { category: "sabzi", planId: VEG, sortOrder: 0 },
+    { category: "sabzi", planId: NONVEG, sortOrder: 1000, addon: true, fallbackPlanIds: [VEG] },
+  ], false);
+  const resolveAddon = (dayMenu: typeof menu) =>
+    resolveCategoriesForDay(dayMenu, [], [cats[0]!], { sabzi: 2 }, vegOnlySize, new Set(), new Map(), [], addonRows).find((c) => c.category === "sabzi")!;
+
+  it("serves the add-on a non-veg dish on a veg meal size, while the meal row stays veg", () => {
+    expect(resolveAddon(menu).picks.map((p) => p.name)).toEqual(["Patta Gobhi Matar", "Kadai Chicken"]);
+  });
+
+  it("falls back to the veg dish on a day without non-veg sabzi", () => {
+    expect(resolveAddon([paneer]).picks.map((p) => p.name)).toEqual(["Patta Gobhi Matar", "Patta Gobhi Matar"]);
+  });
+
+  it("keeps a non-veg add-on non-veg even when a veg dish is the menu default", () => {
+    expect(resolveAddon([paneer, chicken]).picks[1]!.name).toBe("Kadai Chicken");
+  });
+});

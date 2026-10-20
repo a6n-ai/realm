@@ -50,6 +50,7 @@ describe("MoveSheet", () => {
     expect(tue.getAttribute("aria-label")).not.toContain("delivery day");
     fireEvent.click(tue);
     expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
+    expect(screen.getByText("No delivery on Tue, Sep 29. It arrives Mon, Sep 28 with Tuesday's menu.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, September 28, .*delivery day/ })).not.toHaveAttribute("aria-disabled");
   });
   it("free day: preview then move", async () => {
@@ -59,10 +60,24 @@ describe("MoveSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
     expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
-    expect(screen.getByText("Can't move again")).toBeInTheDocument();
+    expect(screen.queryByText(/^No delivery on/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 1);
+  });
+  it("a day holding several tiffins asks how many to move", async () => {
+    a.move.mockResolvedValue({ ok: true, message: "moved" });
+    mount(MoveSheet, trip({ coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], coversLabel: null }));
+    fireEvent.click(screen.getByRole("button", { name: "2 tiffins" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
+    expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
+    await waitFor(() => expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 2));
+  });
+  it("one tiffin on the day: no count boxes", () => {
+    mount(MoveSheet, trip());
+    expect(screen.queryByRole("group", { name: "How many tiffins to move" })).toBeNull();
   });
   it("multi-day bundle splits only the chosen day's tiffin", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
@@ -72,7 +87,7 @@ describe("MoveSheet", () => {
     expect(screen.getByText("1 tiffin that day")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 1);
   });
   it("occupied day: merge preview with covered days", async () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });

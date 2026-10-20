@@ -111,6 +111,15 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     });
   });
 
+  it("effectiveAddress names the plan's customer when a re-addressed delivery has no recipient name", async () => {
+    // Prod 2026-10-14: a saved address without a name nulled full_name, and Daily labels crashed sorting by it.
+    const order = await makeOrder();
+    const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
+    const eff = effectiveAddress({ ...d, fullName: null, addressLine: "2 Other St", city: "Toronto", postalCode: "M4C 1A1" }, order);
+    expect(eff.fullName).toBe(order.fullName);
+    expect(eff.addressLine).toBe("2 Other St");
+  });
+
   it("rejects a postal code matching no zone and leaves the row unchanged", async () => {
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });

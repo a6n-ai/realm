@@ -1,8 +1,9 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orderAddons, plans } from "@/db/schema";
+import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
-import type { TuCategory } from "./format-tu";
+import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
+import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
 /**
  * Catalog add-ons as extra rows in every tiffin. Each qty of an order's add-on is one
@@ -20,6 +21,8 @@ export type AddonItemRow = {
   sortOrder: number;
   // Picks follow the add-on's own plan ("Veg Sabzi" → veg), never the order's.
   planId: bigint;
+  // Tried in order on a day with no planId dish in this category (see rowPlanIds).
+  fallbackPlanIds: bigint[];
   maxTuAmount: null;
   addon: true;
 };
@@ -28,18 +31,48 @@ export async function addonItemsByOrder(orderIds: bigint[]): Promise<Map<bigint,
   const out = new Map<bigint, AddonItemRow[]>();
   if (orderIds.length === 0) return out;
   const rows = await db
-    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: sql<bigint>`${orderAddons.planId}`.mapWith(BigInt) })
+    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: sql<bigint>`${orderAddons.planId}`.mapWith(BigInt), fallbackPlanIds: orderAddons.fallbackPlanIds })
     .from(orderAddons)
     .where(and(inArray(orderAddons.orderId, [...new Set(orderIds)]), isNotNull(orderAddons.planId)))
     .orderBy(orderAddons.id);
   for (const r of rows) {
     const list = out.get(r.orderId) ?? [];
     for (let i = 0; i < r.qty; i++) {
-      list.push({ category: r.category, tuAmount: r.tuAmount, sortOrder: ADDON_SORT_BASE + list.length, planId: r.planId, maxTuAmount: null, addon: true });
+      list.push({ category: r.category, tuAmount: r.tuAmount, sortOrder: ADDON_SORT_BASE + list.length, planId: r.planId, fallbackPlanIds: r.fallbackPlanIds, maxTuAmount: null, addon: true });
     }
     out.set(r.orderId, list);
   }
   return out;
+}
+
+type AddonViewRow = { orderId: bigint; name: string; qty: number; category: string; tuAmount: string };
+
+/** Portions read as oz/roti, never raw TU; roti/rice add-ons fold into one total, a sabzi is a row each. */
+export function buildSubscriptionAddons(rows: AddonViewRow[], cats: Map<string, TuCategory>): Map<bigint, SubscriptionAddon[]> {
+  const out = new Map<bigint, SubscriptionAddon[]>();
+  for (const a of rows) {
+    const tu = cats.get(a.category);
+    const folded = !!tu && !isContainerCategory(tu) && !tu.selectable;
+    const list = out.get(a.orderId) ?? [];
+    list.push({ name: a.name, qty: a.qty, category: a.category, folded, portion: tu ? formatTuHuman(tu, Number(a.tuAmount) * (folded ? a.qty : 1)) : null });
+    out.set(a.orderId, list);
+  }
+  return out;
+}
+
+export async function loadSubscriptionAddons(orderIds: bigint[]): Promise<Map<bigint, SubscriptionAddon[]>> {
+  if (orderIds.length === 0) return new Map();
+  const rows = await db
+    .select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty, category: orderAddons.category, tuAmount: orderAddons.tuAmount })
+    .from(orderAddons)
+    .where(inArray(orderAddons.orderId, orderIds))
+    .orderBy(asc(orderAddons.id));
+  if (rows.length === 0) return new Map();
+  const cats = new Map<string, TuCategory>(
+    (await db.select({ key: dishCategories.key, selectable: dishCategories.selectable, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories))
+      .map((c) => [c.key, { selectable: c.selectable, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
+  );
+  return buildSubscriptionAddons(rows, cats);
 }
 
 export async function addonItemsForOrder(orderId: bigint): Promise<AddonItemRow[]> {
@@ -79,6 +112,7 @@ export function orderAddonValues(
       addonName: a.name,
       category: a.category,
       planId: sql<bigint>`(select ${plans.id} from ${plans} where ${plans.key} = ${a.planKey})`,
+      fallbackPlanIds: sql<bigint[]>`coalesce((select ${addonCatalog.fallbackPlanIds} from ${addonCatalog} where ${addonCatalog.key} = ${a.key}), '{}'::bigint[])`,
       tuAmount: a.tuAmount.toFixed(2),
       pricePerTiffin: a.pricePerTiffin.toFixed(2),
       qty: a.qty,

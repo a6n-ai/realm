@@ -37,7 +37,8 @@ import {
 } from "@/lib/services/customer-deliveries.service";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
-import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
+import { holidayNamesForUser } from "@/lib/services/holidays.service";
+import { addDays, defaultWeek, mondayOf, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -78,12 +79,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // The strip starts at this plan's first week (a plan starting next month must not open with empty weeks to scroll past).
   const firstWeek = mondayOf(win && win.first > today ? win.first : today);
   const lastWeek = mondayOf(win && win.last > today ? win.last : today);
-  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
-  const agenda: Agenda = {};
-  for (const [date, ds] of Object.entries(all)) {
-    const mine = ds.filter((d) => d.orderId === sub.publicId);
-    if (mine.length) agenda[date] = mine;
-  }
+  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 13));
+  const { agenda, otherPlanDays } = splitAgenda(all, sub.publicId, win?.first);
 
   const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
   const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, win?.first);
@@ -91,7 +88,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
 
-  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
     orderPaymentLocked(sub.publicId),
     myDeliveries(userId, from, until),
     loadCatalogSnapshot(),
@@ -101,12 +98,13 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     makeupSourceIdsForOrder(sub.publicId),
     dishCategoriesService.forPlanType(sub.planType),
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
+    holidayNamesForUser(userId, today),
   ]);
   // Payment-review plans hide the calendar and show the claim form instead.
   const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
   const cardAvailable = claimPayment?.methodId === "stripe" ? await stripeMethodAvailable() : false;
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first, holidays, otherPlanDays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   const plan: PlanView = {
@@ -119,7 +117,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     days,
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
-    categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId, sub.addons),
     portionsByDate: await portionsAfterSwaps(sub.publicId, days),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,

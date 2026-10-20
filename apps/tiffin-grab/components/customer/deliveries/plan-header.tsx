@@ -18,7 +18,9 @@ const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "v
 const TONE: Record<string, keyof typeof DOT> = { active: "ok", upcoming: "ok", paused: "ok", waitlisted: "warn", payment_review: "warn", cancelled: "bad", rejected: "bad" };
 
 /** Greets the customer by name; the plan gets a bold size title and one summary line (status · diet · tiffins left). */
-export function PlanHeader({ name, sub, counts, renew, color }: {
+export function PlanHeader({ name, sub, counts, renew, color, actions }: {
+  /** Plan-wide actions (pause days, resume all): a row at the foot of the plan box. */
+  actions?: React.ReactNode;
   name?: string | null;
   sub: Subscription;
   counts: TiffinCounts;
@@ -52,12 +54,14 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
           {[
             <span key="diet" className="inline-flex items-center gap-1.5">{dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}{sub.tagLabel || sub.planName}</span>,
             sub.trial ? "Trial" : null,
+            sub.fullyPaused ? "All upcoming days paused" : null,
             ...(sub.addons ?? []).map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`),
             `${counts.remaining} of ${counts.total} tiffins left`,
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>
         {renew != null && <p className={cn("mt-0.5 text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>}
+        {actions && <div className="mt-3 flex gap-2 border-t border-[var(--border)] pt-3 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">{actions}</div>}
       </div>
     </header>
   );

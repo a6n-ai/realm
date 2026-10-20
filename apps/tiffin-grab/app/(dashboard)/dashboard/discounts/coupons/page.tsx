@@ -1,11 +1,20 @@
 import { Suspense } from "react";
-import { asc, desc, ne } from "drizzle-orm";
-import { parseFilterState } from "@/components/ds";
+import { and, asc, desc, eq, ilike, notInArray, or } from "drizzle-orm";
+import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { CREATABLE_KINDS, KIND_LABELS } from "../kind-labels";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
+
+// Same Search + Filter bar as the other lists.
+const SPEC: FacetDef[] = [
+  { kind: "select", field: "kind", label: "Kind", options: CREATABLE_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] })) },
+  { kind: "select", field: "status", label: "Status", options: [{ value: "active", label: "Active" }, { value: "disabled", label: "Disabled" }] },
+  { kind: "search", fields: ["code", "name"] },
+];
 
 // Server-sortable columns → their Drizzle expression. "value" (computed across
 // kinds) and the action cell are intentionally absent.
@@ -13,6 +22,7 @@ const SORT_COL = {
   code: coupons.code,
   kind: coupons.kind,
   autoApply: coupons.autoApply,
+  visible: coupons.visible,
   window: coupons.startsAt,
   stackable: coupons.stackable,
   status: coupons.active,
@@ -33,18 +43,20 @@ export default function CouponsPage({ searchParams }: { searchParams: SearchPara
 async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const sort: SortState<CouponSortColumn> = parseSort(
     sp,
-    ["code", "kind", "autoApply", "window", "stackable", "status"],
+    ["code", "kind", "autoApply", "visible", "window", "stackable", "status"],
     { column: "window", dir: "desc" },
   );
 
+  const kind = CREATABLE_KINDS.find((k) => k === sp.kind);
+  const q = sp.q?.trim();
   const col = SORT_COL[sort.column];
   const primary = sort.dir === "asc" ? asc(col) : desc(col);
 
   // Project to public_id + display fields only — no bigint ids reach the client.
-  // rep_daily coupons are minted by the scheduler, never hand-managed here.
+  // Rep coupons (daily and staff-issued codes) belong to the rep allowance, never hand-managed here.
   // createdAt desc is the stable tiebreaker under every sort.
   const couponRows = await db
     .select({
@@ -61,6 +73,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       redemptionCount: coupons.redemptionCount,
       stackable: coupons.stackable,
       autoApply: coupons.autoApply,
+      visible: coupons.visible,
       planTypes: coupons.planTypes,
       startsAt: coupons.startsAt,
       expiresAt: coupons.expiresAt,
@@ -68,12 +81,18 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       config: coupons.config,
     })
     .from(coupons)
-    .where(ne(coupons.kind, "rep_daily"))
+    .where(and(
+      notInArray(coupons.kind, ["rep_daily", "rep_code"]),
+      epochBoundsWhere(coupons.createdAt, sp),
+      kind ? eq(coupons.kind, kind) : undefined,
+      sp.status === "active" || sp.status === "disabled" ? eq(coupons.active, sp.status === "active") : undefined,
+      q ? or(ilike(coupons.code, `%${q}%`), ilike(coupons.name, `%${q}%`)) : undefined,
+    ))
     .orderBy(primary, desc(coupons.createdAt));
 
-  // Hand-made coupons are a small set, so search and paging stay client-side.
-  const { page } = parseFilterState([], sp);
-  return <CouponsManager coupons={couponRows} sort={sort} pagination={page} />;
+  // Hand-made coupons are a small set: filtered in the query, paged client-side.
+  const { page } = parseFilterState(SPEC, sp);
+  return <CouponsManager coupons={couponRows} sort={sort} pagination={page} spec={SPEC} />;
 }
 
 export type { CouponSortColumn };

@@ -110,7 +110,17 @@ describe("menuService.saveWeek", () => {
     expect(rows[0].publicId).toBe(first.items[0].id);
   });
 
-  it("rejects two defaults in the same day and category", async () => {
+  it("keeps one default per plan in the same day and category (Veg and Non-Veg each have their own)", async () => {
+    const [nv] = await db.insert(dishes).values({ planId: await testPlanId("non-veg"), name: "Chicken Curry", category: "sabzi" }).returning();
+    const saved = await menuService.saveWeek({
+      menuWeekId: weekId, expectedUpdatedAt: updatedAt,
+      items: [item(paneer, "sabzi", "mon", true), item(nv.publicId, "sabzi", "mon", true)],
+    });
+    if ("error" in saved) throw new Error(String(saved.error));
+    expect(saved.items.filter((i: { isDefault: boolean }) => i.isDefault)).toHaveLength(2);
+  });
+
+  it("rejects two defaults in the same day, category and plan", async () => {
     await expect(menuService.saveWeek({
       menuWeekId: weekId, expectedUpdatedAt: updatedAt,
       items: [item(paneer, "sabzi", "mon", true), item(bhindi, "sabzi", "mon", true)],
@@ -133,6 +143,7 @@ describe("menuService.saveWeek", () => {
   });
 
   it("rejects any save on a released week", async () => {
+    await menuService.markReady(weekId);
     await menuService.release(weekId);
     const [w] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, weekId));
     await expect(menuService.saveWeek({
@@ -173,6 +184,7 @@ describe("menuService.copyWeek", () => {
       items: [{ id: null, dayOfWeek: "mon", slot: "sabzi", dishId: paneer, isDefault: false }],
     });
     const target = await draftWeek("2099-08-10");
+    await menuService.markReady(target.id);
     await menuService.release(target.id);
     await expect(menuService.copyWeek({ fromWeekId: source.id, toWeekId: target.id })).rejects.toThrow(/released/i);
   });

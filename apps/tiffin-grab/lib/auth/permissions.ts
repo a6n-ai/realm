@@ -11,6 +11,7 @@ export const statement = {
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
   finance: ["read", "refund", "charge"],
+  holiday: ["read", "write"],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -38,12 +39,14 @@ export const roles = {
     subscription: ["read", "write", "pause"],
     menu: ["read", "write", "publish"],
     finance: ["read", "refund", "charge"],
+    holiday: ["read", "write"],
   }),
   member: ac.newRole({
     order: ["read", "write"],
     subscription: ["read", "write", "pause"],
     menu: ["read"],
     finance: ["read"],
+    holiday: ["read", "write"],
   }),
   user: ac.newRole({}),
 };

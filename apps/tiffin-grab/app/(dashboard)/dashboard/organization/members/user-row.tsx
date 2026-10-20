@@ -32,7 +32,7 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
       }
       disabled={pending}
     >
-      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+      <SelectTrigger size="sm" className="w-32 capitalize"><SelectValue /></SelectTrigger>
       <SelectContent>
         {USER_STATUSES.map((s) => (
           <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -52,7 +52,7 @@ export function RoleSelect({ id, role }: { id: string; role: RoleValue }) {
       onValueChange={(v) => start(() => setUserRole(id, v as RoleValue))}
       disabled={pending}
     >
-      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+      <SelectTrigger size="sm" className="w-32 capitalize"><SelectValue /></SelectTrigger>
       <SelectContent>
         {Object.values(Role).map((r) => (
           <SelectItem key={r} value={r}>{r}</SelectItem>

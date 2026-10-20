@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireAdmin, requireStaff } from "@/lib/auth/guards";
+import { setSupportHours } from "@/lib/services/app-settings.service";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import {
   ticketsService,
   type TicketPriority,
@@ -45,4 +47,15 @@ export async function replyTicket(ticketId: string, form: FormData): Promise<voi
   await ticketsService.reply(ticketId, body, attachments);
   revalidatePath(`/dashboard/tickets/${ticketId}`);
   revalidatePath("/dashboard/tickets");
+}
+
+/** Support days, hours and usual reply time, shown to customers in Support. */
+export async function saveSupportHours(input: unknown): Promise<ActionResult> {
+  // Returned, not thrown: production replaces a thrown action error with React #441.
+  return runAction(async () => {
+    await requireAdmin();
+    await setSupportHours(input);
+    revalidatePath("/dashboard/tickets");
+    revalidatePath("/me/support", "layout");
+  });
 }

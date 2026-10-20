@@ -120,7 +120,7 @@ export function RequestsTable({
         onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
-        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={InboxIcon}
         emptyMessage="No e-transfers yet. Customer claims land here for approval."
         emptySearchMessage="No e-transfers match your filters."
@@ -140,7 +140,7 @@ export function RequestsTable({
               {r.proofThumb ? (
                 <a href={r.proofThumb} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.proofThumb} alt="Payment proof" className="size-10 rounded-md border object-cover" />
+                  <img src={r.proofThumb} alt="Payment proof" className="size-7 rounded border object-cover" />
                 </a>
               ) : (
                 <span className="text-muted-foreground">-</span>

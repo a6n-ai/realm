@@ -128,6 +128,9 @@ export const addons = pgTable("addons", {
   // The plan whose menu the add-on's dish comes from in edit meal and the menu
   // builder ("Veg Sabzi" is always a veg sabzi), never the order's plan.
   planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
+  // Plans tried after plan_id, in priority order, on a day whose menu has no dish of plan_id
+  // in this category (a non-veg sabzi add-on on a veg-only Tuesday -> [veg]). No FK on arrays.
+  fallbackPlanIds: bigint("fallback_plan_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
   pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   // Portion of one add-on row, in the category's TU (same unit as meal_size_items.tu_amount).
   tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull().default("1"),

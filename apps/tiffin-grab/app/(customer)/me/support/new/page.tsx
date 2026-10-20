@@ -5,6 +5,7 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageHeader } from "@/components/customer/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
+import { SupportHoursSlot } from "@/components/customer/support/support-hours";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import { humanDate } from "@/lib/deliveries-view";
 
@@ -17,6 +18,9 @@ export default function NewTicketPage({ searchParams }: { searchParams: SearchPa
     <div className="mx-auto max-w-2xl space-y-6">
       <BackLink href="/me/support" label="Support" />
       <PageHeader eyebrow="Support" title="New" accent="ticket" subtitle="Tell us what's going on. You can attach photos or screenshots, and link a plan if it helps." />
+      <Suspense fallback={null}>
+        <SupportHoursSlot compact />
+      </Suspense>
       <Suspense fallback={<NewTicketFormSkeleton />}>
         <TicketFormData searchParams={searchParams} />
       </Suspense>

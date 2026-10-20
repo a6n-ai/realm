@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray, like } from "drizzle-orm";
+import { bookReq, flatPrice, PRICED_PRICING, pricedWindow, type TestOccurrence } from "./test-fixtures";
 
 // Runs against the local dev DB. Payment rails and settings are pinned so the
 // test does not depend on whatever the local app row has configured.
@@ -21,12 +22,12 @@ const { db } = await import("@/db/client");
 const schema = await import("@/db/schema");
 const { bookingsService } = await import("../bookings.service");
 const { couponsService, discountsService } = await import("../discounts.service");
-const { paymentsService } = await import("../payments.service");
 
 const MARK = "disc-it";
 let sessionId: bigint;
-let occurrencePublicId: string;
+let occ: TestOccurrence;
 let userPublicIds: string[];
+let kidIds: string[];
 // Discounts already active in the dev DB would also apply; park them for the test.
 let parkedDiscountIds: bigint[] = [];
 
@@ -41,27 +42,32 @@ beforeEach(async () => {
   const fams = await db
     .insert(schema.users)
     .values([1, 2].map((i) => ({ name: `${MARK} ${i}`, email: `${MARK}-${i}@example.test`, role: "user" as const })))
-    .returning({ publicId: schema.users.publicId });
+    .returning({ id: schema.users.id, publicId: schema.users.publicId });
+  const famIds = fams.map((f) => f.id);
   userPublicIds = fams.map((f) => f.publicId);
+  const kids = await db
+    .insert(schema.children)
+    .values(fams.map((f, i) => ({ userId: famIds[i]!, name: `${MARK} kid ${i}`, dateOfBirth: "2020-01-01" })))
+    .returning({ publicId: schema.children.publicId });
+  kidIds = kids.map((k) => k.publicId);
   const startsAt = new Date(Date.now() + 7 * 86_400_000);
   const [s] = await db
     .insert(schema.studioSessions)
     .values({
       title: `${MARK} class`,
       category: "kids",
-      startsAt,
-      endsAt: new Date(startsAt.getTime() + 3_600_000),
       capacity: 10,
-      priceAmount: "20.00",
+      pricing: PRICED_PRICING,
+      prices: flatPrice("20.00"),
       published: true,
     })
     .returning({ id: schema.studioSessions.id });
   sessionId = s!.id;
-  const [occ] = await db
+  const [row] = await db
     .insert(schema.studioSessionOccurrences)
-    .values({ sessionId, occursOn: startsAt.toISOString().slice(0, 10) })
+    .values({ sessionId, occursOn: startsAt.toISOString().slice(0, 10), ...pricedWindow(startsAt) })
     .returning({ publicId: schema.studioSessionOccurrences.publicId });
-  occurrencePublicId = occ!.publicId;
+  occ = { publicId: row!.publicId, startsAt };
 });
 
 afterEach(async () => {
@@ -76,7 +82,10 @@ afterEach(async () => {
   if (userIds.length) {
     await db.delete(schema.ledgerEntries).where(inArray(schema.ledgerEntries.userId, userIds));
     await db.delete(schema.payments).where(inArray(schema.payments.userId, userIds));
+    const bk = await db.select({ id: schema.bookings.id }).from(schema.bookings).where(inArray(schema.bookings.userId, userIds));
+    if (bk.length) await db.delete(schema.bookingChildren).where(inArray(schema.bookingChildren.bookingId, bk.map((b) => b.id)));
     await db.delete(schema.bookings).where(inArray(schema.bookings.userId, userIds));
+    await db.delete(schema.children).where(inArray(schema.children.userId, userIds));
   }
   if (couponIds.length) await db.delete(schema.coupons).where(inArray(schema.coupons.id, couponIds));
   await db.delete(schema.discounts).where(like(schema.discounts.name, `${MARK}%`));
@@ -92,7 +101,7 @@ describe("createForUser with discounts", () => {
   it("lets only one of two racing families take a coupon's last use", async () => {
     await db.insert(schema.coupons).values({ code: "DISCIT1", name: `${MARK} last`, amountOff: "5.00", maxRedemptions: 1 });
     const results = await Promise.all(
-      userPublicIds.map((u) => bookingsService.createForUser(u, occurrencePublicId, 1, { code: " discit1 " })),
+      userPublicIds.map((u, i) => bookingsService.createForUser(u, bookReq(occ, [kidIds[i]!], { code: " discit1 " }))),
     );
     const ids = results.map((b) => b.id);
     const mine = await db.select().from(schema.couponRedemptions).where(inArray(schema.couponRedemptions.bookingId, ids));
@@ -104,7 +113,7 @@ describe("createForUser with discounts", () => {
 
   it("confirms a fully discounted booking with no payment and records the discount", async () => {
     await db.insert(schema.coupons).values({ code: "DISCIT2", name: `${MARK} free`, amountOff: "50.00" });
-    const b = await bookingsService.createForUser(userPublicIds[0]!, occurrencePublicId, 1, { code: "DISCIT2" });
+    const b = await bookingsService.createForUser(userPublicIds[0]!, bookReq(occ, [kidIds[0]!], { code: "DISCIT2" }));
     expect(b.status).toBe("confirmed");
     expect(b.paymentPublicId).toBeNull();
     expect(b.pricing).toMatchObject({ subtotal: 20, discountTotal: 20, total: 0 });
@@ -126,7 +135,7 @@ describe("createForUser with discounts", () => {
 
   it("applies an automatic category discount and charges the rest", async () => {
     await db.insert(schema.discounts).values({ name: `${MARK} kids`, scope: "category", category: "kids", percentOff: "25.00" });
-    const b = await bookingsService.createForUser(userPublicIds[0]!, occurrencePublicId, 1);
+    const b = await bookingsService.createForUser(userPublicIds[0]!, bookReq(occ, [kidIds[0]!]));
     expect(b.status).toBe("pending");
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(pay!.amount).toBe("15.00");
@@ -148,19 +157,5 @@ describe("discount and coupon updates", () => {
 
     const c = await couponsService.create({ code: "DISCIT9", name: `${MARK} c`, amountOff: "5", maxRedemptions: "3" });
     expect(await couponsService.update(c.publicId, { active: false })).toMatchObject({ code: "DISCIT9", maxRedemptions: 3, active: false });
-  });
-});
-
-describe("quoteForOccurrence", () => {
-  it("quotes a class as free when no payment method is enabled, like the booking does", async () => {
-    await db.insert(schema.discounts).values({ name: `${MARK} kids`, scope: "category", category: "kids", percentOff: "25.00" });
-    const rails = paymentsService.enabledRails;
-    paymentsService.enabledRails = async () => [];
-    try {
-      const q = await discountsService.quoteForOccurrence(occurrencePublicId, 1, null, userPublicIds[0]!);
-      expect(q).toMatchObject({ subtotal: 0, adjustments: [], total: 0 });
-    } finally {
-      paymentsService.enabledRails = rails;
-    }
   });
 });

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { desc, eq, ne } from "drizzle-orm";
+import { asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -126,6 +126,20 @@ describe("createOrder (integration)", () => {
     expect(o.userId).toBe(matched.id);
   });
 
+  // The phone and the email are two different people's accounts: picking either
+  // one would put this order, and the overlap guard's verdict, on a stranger.
+  it("refuses an order whose phone and email belong to two different accounts", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await db.insert(users).values([
+      { email: "phone-holder@x.com", phone: input.contact.phone, role: "user" },
+      { email: input.contact.email, role: "user" },
+    ]);
+
+    await expect(createOrder(input)).rejects.toThrow(/phone number is saved on a different account/);
+    expect(await db.select().from(orders)).toHaveLength(0);
+  });
+
   it("attaches to ownerUserId without provisioning by phone", async () => {
     const snap = await loadCatalogSnapshot();
     const [owner] = await db.insert(users).values({ email: "owner@x.com", role: "user" }).returning();
@@ -224,6 +238,49 @@ describe("plan overlap guard: only running plans reserve days", () => {
     await db.insert(deliveries).values({ ...last, id: undefined, publicId: undefined, deliveryDate: "2099-01-05", status: "cancelled" });
 
     expect(await earliestNewPlanStart(db, o.userId!)).toBe(before);
+  });
+
+  it("a plan trimmed short frees its weeks: the next plan may start the day after its last tiffin", async () => {
+    const { earliestNewPlanStart } = await import("../order-window");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const first = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, first.publicId));
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).orderBy(asc(deliveries.deliveryDate));
+    await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.id, rows.slice(1).map((r) => r.id)));
+
+    const next = new Date(`${rows[0].deliveryDate}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    expect(await earliestNewPlanStart(db, o.userId!)).toBe(next.toISOString().slice(0, 10));
+  });
+});
+
+describe("runningPlans: what the staff order form lists", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("lists the running plan with the last day it holds, and nothing once it is cancelled", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const { publicId } = await createOrder(input);
+    const { earliestNewPlanStart, runningPlans } = await import("../order-window");
+    const [user] = await db.select().from(users).where(eq(users.email, input.contact.email));
+
+    const [plan, ...rest] = await runningPlans(db, user.id);
+    expect(rest).toHaveLength(0);
+    expect(plan).toMatchObject({ publicId, status: "active", startDate: input.selections.startDate, mealSize: snap.mealSizes[0].name });
+    // The day after the listed last day is the first day a new plan may start.
+    const next = new Date(`${plan.lastDay}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    expect(next.toISOString().slice(0, 10)).toBe(await earliestNewPlanStart(db, user.id));
+    // The last delivery is the real last tiffin day, never past the band the plan holds.
+    const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
+      .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, publicId));
+    expect(plan.lastDelivery).toBe(last);
+    expect(plan.lastDelivery! <= plan.lastDay).toBe(true);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, publicId));
+    expect(await runningPlans(db, user.id)).toHaveLength(0);
   });
 });
 

@@ -34,7 +34,7 @@ const COLUMNS: readonly Column<QueueSortColumn | "chevron">[] = [
   { key: "subject", label: "Subject", sortable: true },
   { key: "customer", label: "Customer", sortable: true },
   { key: "category", label: "Category", sortable: true },
-  { key: "status", label: "Status", sortable: true },
+  { key: "status", label: "Status", sortable: true, width: "w-48" },
   { key: "owner", label: "Owner", sortable: true },
   { key: "priority", label: "Priority", sortable: true },
   { key: "lastMessage", label: "Last activity", sortable: true, align: "right" },

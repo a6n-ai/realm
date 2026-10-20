@@ -1,7 +1,9 @@
 import { ValidationError } from "@foundry/commons";
+import { saveEmailTemplate, type SaveEmailTemplateInput } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTemplate } from "@/db/schema";
-import { EVENT_ENTITY, validateTemplateVars, type AppEvent } from "@/lib/notifications/event-entities";
+import { notificationTables } from "@/lib/notifications/tables";
+import { EVENT_ENTITY, availableVariables, validateTemplateVars, type AppEvent } from "@/lib/notifications/event-entities";
 
 type Locale = "en" | "fr";
 
@@ -21,31 +23,47 @@ export function sampleVars(event: AppEvent): Record<string, unknown> {
   return { [e.entity]: obj };
 }
 
+/** sampleVars flattened to dotted keys — the editor preview's sample data. */
+export function sampleMap(event: AppEvent): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [entity, fields] of Object.entries(sampleVars(event))) {
+    for (const [k, v] of Object.entries(fields as Record<string, string>)) out[`${entity}.${k}`] = v;
+  }
+  return out;
+}
+
 export async function listTemplates() {
   return db.select().from(notificationTemplate);
 }
 
-type EmailInput = { event: AppEvent; channel: "email"; locale: Locale; subject: string; body: string; html: string; text: string; enabled: boolean };
-type InAppInput = { event: AppEvent; channel: "in_app"; locale: Locale; subject: string; body: string; enabled: boolean };
-export type UpsertInput = EmailInput | InAppInput;
+/** Email channel: the shared relay save path (sanitize, preheader, text, variables, revision check). */
+export async function saveTemplateEmail(input: SaveEmailTemplateInput & { event: AppEvent }) {
+  return saveEmailTemplate(db, notificationTables, input, availableVariables(input.event));
+}
 
+export type UpsertInput = { event: AppEvent; channel: "in_app"; locale: Locale; subject: string; body: string; enabled: boolean };
+
+/** In-app channel only; email goes through saveTemplateEmail. */
 export async function upsertTemplate(input: UpsertInput): Promise<void> {
+  if (input.channel !== "in_app") throw new ValidationError("Email templates are saved through saveTemplateEmail");
   assertValidVars(input.event, input.subject);
-  if (input.channel === "email") {
-    if (!input.html || !input.text || !input.body) throw new ValidationError("Email template needs body, html and text");
-  } else {
-    if (!input.body) throw new ValidationError("In-app template needs a body");
-    assertValidVars(input.event, input.body);
-  }
-  const values =
-    input.channel === "email"
-      ? { event: input.event, channel: input.channel, locale: input.locale, subject: input.subject, body: input.body, html: input.html, text: input.text, enabled: input.enabled }
-      : { event: input.event, channel: input.channel, locale: input.locale, subject: input.subject, body: input.body, html: null, text: null, enabled: input.enabled };
+  if (!input.body) throw new ValidationError("In-app template needs a body");
+  assertValidVars(input.event, input.body);
+  const values = {
+    event: input.event,
+    channel: input.channel,
+    locale: input.locale,
+    subject: input.subject,
+    body: input.body,
+    html: null,
+    text: null,
+    enabled: input.enabled,
+  };
   await db
     .insert(notificationTemplate)
     .values(values)
     .onConflictDoUpdate({
       target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
-      set: { subject: values.subject, body: values.body, html: values.html, text: values.text, enabled: values.enabled },
+      set: { subject: values.subject, body: values.body, html: null, text: null, enabled: values.enabled },
     });
 }

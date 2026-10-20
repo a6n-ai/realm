@@ -6,6 +6,8 @@ import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings, getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
+import { repAllowanceFor } from "@/lib/services/rep-allowance";
+import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
@@ -30,11 +32,32 @@ import { AppClock } from "@/components/dashboard/app-clock";
 // ~126 of them once at build time only to discard the result.
 export const dynamic = "force-dynamic";
 
+// This layout blocks first byte of every /dashboard page, so each read is timed
+// and logged as one "[dashboard-timing]" line (CloudWatch /tiffin/prod) to show
+// which one is slow. ponytail: logs every render; sample or drop once tuned.
+function timer() {
+  const start = performance.now();
+  const ms: Record<string, number> = {};
+  const elapsed = (from: number) => Math.round(performance.now() - from);
+  return {
+    timed<T>(label: string, p: Promise<T>): Promise<T> {
+      const t = performance.now();
+      return p.finally(() => {
+        ms[label] = elapsed(t);
+      });
+    },
+    log() {
+      console.info(`[dashboard-timing] ${JSON.stringify({ total: elapsed(start), ...ms })}`);
+    },
+  };
+}
+
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
 // it for the account page.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await getSession();
+  const { timed, log } = timer();
+  const session = await timed("session", getSession());
   if (!session?.user) redirect("/login");
 
   // Customers have their own app at /me — the CRM shell is staff/admin only.
@@ -46,7 +69,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // outlive its user row (e.g. dev DB reseeded) — treat that as expired.
   let user;
   try {
-    user = await usersService.read(session.user.id);
+    user = await timed("user", usersService.read(session.user.id));
   } catch (err) {
     if (err instanceof NotFoundError) redirect("/login");
     throw err;
@@ -69,15 +92,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
 
-  // Sales reps (role member) get today's daily-coupon card in the sidebar, but
-  // only when the allowance is on and this rep is not disabled. publicId is the
-  // session id; the service resolves it to the internal owner id server-side.
+  // Staff with a rep allowance get today's daily-coupon card in the sidebar and the
+  // floating Create coupon button. publicId is the session id; the service resolves it
+  // to the internal owner id server-side.
+  const hasRepAllowance = repAllowanceFor(await getDiscountPolicy(), session.user.id) != null;
   const loadRepCoupon = async (): Promise<RepCouponToday | null> => {
-    if (role !== "member") return null;
-    const policy = await getDiscountPolicy();
-    const override = policy.repDaily.perRep[session.user.id];
-    const repActive = !(override && override.active === false);
-    if (!policy.repDaily.enabled || !repActive) return null;
+    if (!hasRepAllowance) return null;
     // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
     const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
     return couponsService.getTodayRepCoupon(session.user.id, istDate);
@@ -85,13 +105,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
   const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
-    getAppSettings(),
-    getMemberOrganizations(session),
-    newActivity(),
-    loadRepCoupon(),
+    timed("settings", getAppSettings()),
+    timed("orgs", getMemberOrganizations(session)),
+    timed("activity", newActivity()),
+    timed("repCoupon", loadRepCoupon()),
     // Server-rendered so the bell paints with its badge instead of fetching after hydration.
-    getFeed(user.id),
+    timed("feed", getFeed(user.id)),
   ]);
+  log();
 
   return (
     <div className="crm-app">
@@ -123,7 +144,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       bottomNav={<AppBottomNav role={role} />}
     >
       <InboxRealtime tickets payments={role === "admin"} />
+      {hasRepAllowance && <RepCodeFab />}
       {children}
+      {/* Room to scroll the last row out from under the floating button. */}
+      {hasRepAllowance && <div aria-hidden className="h-20" />}
     </CrmShell>
     </QuickAddProvider>
     </TimezoneProvider>

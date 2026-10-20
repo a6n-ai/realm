@@ -26,12 +26,12 @@ export type ClassListRow = {
   sessionCount: number;
 };
 
-type Col = ClassSortColumn | "actions";
+type Col = ClassSortColumn | "schedule" | "actions";
 
 const COLUMNS: readonly Column<Col>[] = [
   { key: "title", label: "Name", sortable: true },
   { key: "category", label: "Category", sortable: true },
-  { key: "startsAt", label: "Time", sortable: true },
+  { key: "schedule", label: "Schedule" },
   { key: "capacity", label: "Capacity", sortable: true, align: "right" },
   { key: "published", label: "Status", sortable: true },
   { key: "actions", label: "Actions", align: "right", width: "w-28" },

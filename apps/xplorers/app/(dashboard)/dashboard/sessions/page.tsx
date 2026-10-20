@@ -6,12 +6,15 @@ import { Button } from "@foundry/ui/button";
 import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
-import { parseMonth } from "@/lib/sessions/calendar";
+import { monthGrid } from "@/lib/sessions/calendar";
+import { isRealDay, parseRange, toCalendarSessions } from "@/lib/sessions/calendar-events";
 import { formatSessionTime } from "@/lib/sessions/format";
-import { dayKey } from "@/lib/sessions/timezone";
+import { addDayKey, dayKey } from "@/lib/sessions/timezone";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { SESSION_FACETS, SESSION_SORT_COLUMNS } from "@/lib/studio/list-spec";
-import { SessionsCalendar } from "./sessions-calendar";
+import { CopyWeekButton } from "./copy-week-button";
+import { SessionsCalendar } from "@/components/calendar/sessions-calendar";
+import { CalendarEmpty, CalendarSkeleton } from "./calendar-states";
 import { SessionsTable, SessionsTableSkeleton } from "./sessions-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -20,7 +23,7 @@ export default function SessionsPage({ searchParams }: { searchParams: SearchPar
   return (
     <PageShell>
       <SessionsHeader searchParams={searchParams} />
-      <Suspense fallback={<SessionsTableSkeleton />}>
+      <Suspense fallback={<CalendarSkeleton />}>
         <SessionsData searchParams={searchParams} />
       </Suspense>
     </PageShell>
@@ -32,9 +35,8 @@ async function SessionsHeader({ searchParams }: { searchParams: SearchParams }) 
   const canCreate = session?.user ? roleCan(session.user.role, { studioSession: ["create"] } as never) : false;
   const sp = await searchParams;
   const view = sp.view === "list" ? "list" : "calendar";
-  const month = sp.month;
-  const calendarHref = month ? `/dashboard/sessions?month=${month}` : "/dashboard/sessions";
-  const listHref = month ? `/dashboard/sessions?view=list&month=${month}` : "/dashboard/sessions?view=list";
+  const calendarHref = "/dashboard/sessions";
+  const listHref = "/dashboard/sessions?view=list";
 
   return (
     <PageHeader
@@ -79,24 +81,27 @@ async function SessionsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const timeZone = await studioSessionsService.timezone();
   const view = sp.view === "list" ? "list" : "calendar";
-  const month = parseMonth(sp.month, timeZone);
   const today = dayKey(new Date(), timeZone);
 
   if (view === "calendar") {
-    const events = await studioSessionsService.listMonth(month, timeZone);
+    const grid = monthGrid(today.slice(0, 7));
+    const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid[grid.length - 1]!.date });
+    const calendarView = sp.view === "week" ? "week" : "month";
+    const date = isRealDay(sp.date) ? sp.date : today;
+    const rows = await studioSessionsService.listRange(from, to, { publicOnly: false });
+    const thisMonday = addDayKey(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7));
     return (
-      <SectionCard title="Month">
+      <SectionCard title="Calendar">
+        {rows.length === 0 && canCreate ? <CalendarEmpty /> : null}
         <SessionsCalendar
-          month={month}
-          today={today}
+          sessions={toCalendarSessions(rows)}
+          defaultView={calendarView}
+          defaultDate={date}
+          timeZone={timeZone}
+          from={from}
+          to={to}
           canCreate={canCreate}
-          events={events.map((item) => ({
-            publicId: item.publicId,
-            title: item.title,
-            occursOn: item.occursOn,
-            timeLabel: formatSessionTime(item.startsAt, timeZone),
-            published: item.published,
-          }))}
+          toolbar={canCreate ? <CopyWeekButton fromMonday={addDayKey(thisMonday, -7)} toMonday={thisMonday} /> : undefined}
         />
       </SectionCard>
     );

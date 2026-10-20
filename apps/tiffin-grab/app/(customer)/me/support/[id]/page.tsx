@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AuthError, ForbiddenError, NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
+import { SupportHoursNote, loadSupportHoursView } from "@/components/customer/support/support-hours";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
@@ -62,7 +63,7 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
     throw e;
   }
 
-  const { timezone } = await getAppSettings();
+  const [{ timezone }, hours] = await Promise.all([getAppSettings(), loadSupportHoursView()]);
 
   const messages = await Promise.all(
     rawMessages.map(async (m) => ({
@@ -79,5 +80,12 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
     })),
   );
 
-  return <TicketThread ticket={ticket} messages={messages} timezone={timezone} />;
+  return (
+    <TicketThread
+      ticket={ticket}
+      messages={messages}
+      timezone={timezone}
+      hours={hours ? <SupportHoursNote view={hours} compact /> : null}
+    />
+  );
 }

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."coupon_kind" ADD VALUE 'rep_code';

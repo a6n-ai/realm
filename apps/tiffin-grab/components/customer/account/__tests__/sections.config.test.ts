@@ -5,8 +5,9 @@ import { ACCOUNT_SECTIONS, accountSectionHref, sectionFromSlug, sectionsForRole 
 const keys = (role: Parameters<typeof sectionsForRole>[0]) => sectionsForRole(role).map((s) => s.key);
 
 describe("account sections", () => {
-  it("customers get every section", () => {
-    expect(keys(Role.USER).sort()).toEqual(ACCOUNT_SECTIONS.map((s) => s.key).sort());
+  it("customers get every section except the hidden dietary one", () => {
+    expect(keys(Role.USER).sort()).toEqual(ACCOUNT_SECTIONS.map((s) => s.key).filter((k) => k !== "dietary").sort());
+    expect(sectionFromSlug("dietary", sectionsForRole(Role.USER))).toBeNull();
   });
 
   it("staff never see the customer-only sections", () => {

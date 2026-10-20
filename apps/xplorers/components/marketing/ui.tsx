@@ -3,27 +3,11 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
-  Blocks,
-  ChefHat,
   FlaskConical,
-  Hammer,
-  Hand,
-  Heart,
   Sparkle,
-  Tent,
   type LucideIcon,
 } from "lucide-react";
-import { programmesFor, type Programme, type ProgrammeKey } from "@/lib/marketing/content";
-
-export const PROGRAMME_ICON: Record<ProgrammeKey, LucideIcon> = {
-  explore: Blocks,
-  scientist: FlaskConical,
-  sensory: Hand,
-  private: Heart,
-  bake: ChefHat,
-  wood: Hammer,
-  camps: Tent,
-};
+import type { ProgrammeKey } from "@/lib/marketing/content";
 
 /** Stagger index for the CSS load sequence (`--i`). */
 export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
@@ -136,38 +120,6 @@ export function Pill({ children, variant }: { children: ReactNode; variant?: "su
   );
 }
 
-export function ProgrammeCard({
-  programme,
-  ctaHref = "/whats-on",
-}: {
-  programme: Programme;
-  ctaHref?: string;
-}) {
-  const Glyph = PROGRAMME_ICON[programme.key];
-  return (
-    <article className="xl-card" data-programme={programme.key}>
-      <div className="xl-card-head">
-        <Glyph size={34} strokeWidth={1.6} aria-hidden />
-        <Pill>{programme.tag}</Pill>
-      </div>
-      <div className="xl-card-body">
-        <h3 className="xl-card-title">{programme.title}</h3>
-        <p className="xl-card-when">
-          {programme.schedule}
-          <span>{programme.detail}</span>
-        </p>
-        <p className="xl-card-desc">{programme.description}</p>
-        <div className="xl-card-foot">
-          <p className="xl-card-price">{programme.price}</p>
-          <Button block icon="arrow-up-right" href={ctaHref}>
-            {programme.ctaLabel ?? "Request a place"}
-          </Button>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 export function Notice({ icon: Glyph, tone, children }: { icon?: LucideIcon; tone?: "sky"; children: ReactNode }) {
   return (
     <div className="xl-notice" data-tone={tone}>
@@ -263,18 +215,5 @@ export function HeroCollage() {
         </div>
       </div>
     </div>
-  );
-}
-
-export function ProgrammeSection({ eyebrow, title, keys }: { eyebrow: string; title: string; keys: ProgrammeKey[] }) {
-  return (
-    <section className="xl-wrap xl-section">
-      <SectionHeading eyebrow={eyebrow} title={title} size="md" />
-      <div className="xl-grid" style={{ marginTop: 28 }}>
-        {programmesFor(keys).map((p) => (
-          <ProgrammeCard key={p.key} programme={p} />
-        ))}
-      </div>
-    </section>
   );
 }
