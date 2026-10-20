@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
@@ -26,6 +26,7 @@ import { AppBrand } from "@/components/app-brand";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { InboxRealtime } from "@/components/dashboard/inbox-realtime";
 import { AppClock } from "@/components/dashboard/app-clock";
+import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this just stops Next from wastefully rendering all
@@ -134,6 +135,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       actions={
         <>
           <AppClock cutoffHour={cutoffHour} />
+          {/* Streams in after the shell: two small reads that must not hold up every page. */}
+          <Suspense fallback={null}>
+            <RoutePushBadge />
+          </Suspense>
           <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
           <NotificationBellMount userPublicId={session.user.id} initial={notificationFeed} />
           <LockButton hasPin={hasPin} />

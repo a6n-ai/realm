@@ -51,6 +51,7 @@ export function DefaultDateRange() {
       label="Date"
       from={hasUrlRange ? from : defaults.from}
       to={hasUrlRange ? to : defaults.to}
+      timeZone={timezone}
       onChange={writeRange}
     />
   );
