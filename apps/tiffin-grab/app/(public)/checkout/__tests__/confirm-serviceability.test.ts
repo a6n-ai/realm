@@ -16,7 +16,10 @@ let matchZoneResult: { name: string } | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
 vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => matchZoneResult }));
-vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
+vi.mock("@/lib/services/orders.service", () => ({
+  assertOnePerson: () => {},
+  createOrder: (...a: unknown[]) => createOrder(...a),
+}));
 const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));

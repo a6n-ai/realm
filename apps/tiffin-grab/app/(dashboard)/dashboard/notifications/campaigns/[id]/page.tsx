@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
-import { buildCampaignConfig, campaignFromLine, buildUnsubscribeUrl, withPreviewFooter } from "@relay/engine";
+import { campaignFromLine, buildUnsubscribeUrl, withPreviewFooter } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
+import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import {
@@ -115,14 +116,14 @@ export default async function CampaignPage({
 
   const counts = (row.counts ?? {}) as Record<string, number>;
 
-  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
+  const config = await campaignConfig();
 
-  const from = campaignFromLine(campaignConfig);
-  const footer = campaignConfig
+  const from = campaignFromLine(config);
+  const footer = config
     ? {
-        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
-        sender: campaignConfig.sender.name,
-        address: campaignConfig.sender.postalAddress,
+        url: buildUnsubscribeUrl(config.unsubscribe.baseUrl, config.unsubscribe.secret, "preview@example.com"),
+        sender: config.sender.name,
+        address: config.sender.postalAddress,
       }
     : undefined;
   const previewContent = footer ? withPreviewFooter(content, footer) : content;
