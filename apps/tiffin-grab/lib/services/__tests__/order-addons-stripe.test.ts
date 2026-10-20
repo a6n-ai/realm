@@ -101,8 +101,16 @@ async function createLink(order: { publicId: string }) {
   return { addon, quote: res, pay: pay! };
 }
 
-const succeeded = (pay: { publicId: string; amount: string }) =>
-  status.mockResolvedValue({ piId: "pi_a", status: "succeeded", amountReceivedCents: toCents(pay.amount), currency: "cad", paymentRef: pay.publicId, created: 1 });
+const charged = (pay: { amount: string; surchargeAmount?: string | null }) => toCents(pay.amount) + toCents(pay.surchargeAmount ?? 0);
+const succeeded = (pay: { publicId: string; amount: string; surchargeAmount?: string | null }) =>
+  status.mockResolvedValue({ piId: "pi_a", status: "succeeded", amountReceivedCents: charged(pay), currency: "cad", paymentRef: pay.publicId, created: 1 });
+
+// A credit card paid the link: a surcharge was charged on top of the add-on amount.
+async function withSurcharge(pay: { id: bigint }, surcharge = "1.23") {
+  const [row] = await db.update(payments).set({ surchargeAmount: surcharge }).where(eq(payments.id, pay.id)).returning();
+  retrieve.mockResolvedValue({ latest_charge: { amount: charged(row!), amount_refunded: 0 } });
+  return row!;
+}
 
 describe("nextCutoffMs", () => {
   it("is today's cutoff while it is ahead, else tomorrow's", () => {
@@ -206,11 +214,12 @@ describe("Stripe add-ons (integration)", () => {
 
   it("applies to fewer tiffins and refunds the difference", async () => {
     const order = await runningOrder();
-    const { addon, quote, pay } = await createLink(order);
+    const link = await createLink(order);
+    const { addon, quote } = link;
+    const pay = await withSurcharge(link.pay);
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
     await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, rows[0]!.id));
     succeeded(pay);
-    retrieve.mockResolvedValue({ latest_charge: { amount: toCents(pay.amount), amount_refunded: 0 } });
 
     expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
 
@@ -219,8 +228,9 @@ describe("Stripe add-ons (integration)", () => {
     expect(applied[0]!.amount).toBe(round2(addon.pricePerTiffin * 4).toFixed(2));
     const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
     const appliedCents = toCents(Number(o!.total)) - toCents(Number(order.total));
-    const refundCents = toCents(quote.amountDue) - appliedCents;
-    expect(refundCents).toBeGreaterThan(0);
+    const diffCents = toCents(quote.amountDue) - appliedCents;
+    expect(diffCents).toBeGreaterThan(0);
+    const refundCents = diffCents + Math.round((123 * diffCents) / toCents(pay.amount));
     expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", refundCents, expect.any(String));
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
     expect(acts.some((a) => /refund/i.test(a.note ?? "") && a.note!.includes((refundCents / 100).toFixed(2)))).toBe(true);
@@ -246,37 +256,37 @@ describe("Stripe add-ons (integration)", () => {
 
   it("refunds it all when no tiffins are left", async () => {
     const order = await runningOrder();
-    const { pay } = await createLink(order);
+    const pay = await withSurcharge((await createLink(order)).pay);
     await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.orderId, order.id));
     succeeded(pay);
-    retrieve.mockResolvedValue({ latest_charge: { amount: toCents(pay.amount), amount_refunded: 0 } });
 
     expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
 
     expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
     const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(o!.total).toBe(order.total);
-    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", toCents(pay.amount), expect.any(String));
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", charged(pay), expect.any(String));
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
-    expect(acts.some((a) => a.note?.includes("no tiffins left") && a.note.includes(pay.amount))).toBe(true);
+    expect(acts.some((a) => a.note?.includes("no tiffins left") && a.note.includes((charged(pay) / 100).toFixed(2)))).toBe(true);
   });
 
   it("refunds it all instead of going past the add-on's max per tiffin", async () => {
     const order = await runningOrder();
-    const { addon, pay } = await createLink(order);
+    const link = await createLink(order);
+    const { addon } = link;
+    const pay = await withSurcharge(link.pay);
     // The link expired, staff then added the most the plan can take by e-Transfer; the old link is paid late.
     await db.update(payments).set({ expiresAt: 0 }).where(eq(payments.id, pay.id));
     const selections = [{ key: addon.key, qty: addon.maxQty }];
     const shown = await quoteOrderAddons(order.publicId, selections, "etransfer");
     await addOrderAddons(order.publicId, { selections, methodId: "etransfer", expectedAmountDue: shown.amountDue }, null);
     succeeded(pay);
-    retrieve.mockResolvedValue({ latest_charge: { amount: toCents(pay.amount), amount_refunded: 0 } });
 
     expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
 
     const rows = await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id));
     expect(rows.reduce((n, r) => n + r.qty, 0)).toBe(addon.maxQty);
-    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", toCents(pay.amount), expect.any(String));
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", charged(pay), expect.any(String));
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
     expect(acts.some((a) => a.note?.includes(`exceed ${addon.maxQty}`))).toBe(true);
   });

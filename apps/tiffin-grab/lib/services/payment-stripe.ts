@@ -480,7 +480,8 @@ export type ReconcileRow =
   | { kind: "unmatched_charge"; piId: string; amount: string };
 
 const MAX_PI_CHECKS = 50;
-const chargedCents = (p: Payment) => toCents(p.amount) + toCents(p.surchargeAmount ?? 0);
+/** What the card was charged: the payment amount plus any surcharge. */
+export const chargedCents = (p: Pick<Payment, "amount" | "surchargeAmount">) => toCents(p.amount) + toCents(p.surchargeAmount ?? 0);
 
 /** Read-only diff between Stripe and our rows. Staff act on rows; nothing is written here. */
 export async function reconcileStripe(range: { from: number; to: number }, cursor?: string): Promise<{ rows: ReconcileRow[]; nextCursor: string | null; truncated: boolean }> {

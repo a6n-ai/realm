@@ -16,7 +16,7 @@ import { publishAnalyticsLive, publishUserRefresh } from "@/lib/realtime/publish
 import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import { getAppSettings, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
-import { refundStripePayment } from "./payment-stripe";
+import { chargedCents, refundStripePayment } from "./payment-stripe";
 import { openTiffinCount } from "./tiffin-counts";
 
 const log = createLogger("order-addons.service");
@@ -326,7 +326,8 @@ export async function settleAddonPayment(
     if (!order?.userId) throw new NotFoundError("Order not found");
     const now = Date.now();
     const surcharge = Number(pay.surchargeAmount ?? 0);
-    const paidCents = toCents(pay.amount);
+    const amountCents = toCents(pay.amount);
+    const charged = chargedCents(pay);
 
     await tx.update(payments).set({ status: "paid", capturedAt: now }).where(eq(payments.id, pay.id));
     await ledgerService.record(tx, {
@@ -349,8 +350,8 @@ export async function settleAddonPayment(
       return { outcome: "not_applied" as const, ...done, refundCents: 0 };
     };
     const refundAll = async (why: string) => {
-      await note(`Add-ons not applied (${why}); refunding ${fromCents(paidCents)} to the card`);
-      return { outcome: "not_applied" as const, ...done, refundCents: paidCents };
+      await note(`Add-ons not applied (${why}); refunding ${fromCents(charged)} to the card`);
+      return { outcome: "not_applied" as const, ...done, refundCents: charged };
     };
     if (order.status !== "active" && order.status !== "paused") return notApplied(`order ${order.status}`);
     const snapshot = order.pricingSnapshot as OrderPricingSnapshot | null;
@@ -384,7 +385,10 @@ export async function settleAddonPayment(
     await applyAddons(tx, order, addons, open, pricing, null);
 
     // Exactly what was charged minus what was applied, so the two always add up.
-    const refundCents = Math.min(Math.max(toCents(req.amountDue) - toCents(pricing.amountDue), 0), paidCents);
+    // Plus the same share of the card surcharge, which was charged on the whole amount.
+    const diffCents = Math.max(toCents(req.amountDue) - toCents(pricing.amountDue), 0);
+    const surchargeShare = amountCents > 0 ? Math.round(((charged - amountCents) * diffCents) / amountCents) : 0;
+    const refundCents = Math.min(diffCents + surchargeShare, charged);
     if (refundCents > 0) {
       await note(`Add-ons applied to ${open} of the ${req.openTiffins} tiffins quoted; refunding ${fromCents(refundCents)} to the card`);
     }
