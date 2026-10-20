@@ -131,7 +131,9 @@ export const orders = pgTable("orders", {
 export type PaymentProof = { path: string; thumbUrl: string; name: string };
 
 export type AddonRequest = {
-  selections: { key: string; qty: number }[];
+  // The quoted price and tax rates: what the customer pays for is what is applied on settle.
+  selections: { key: string; qty: number; pricePerTiffin: number }[];
+  taxes: { name: string; ratePct: number }[];
   openTiffins: number;
   lines: { label: string; amount: number }[];
   addonSubtotal: number;

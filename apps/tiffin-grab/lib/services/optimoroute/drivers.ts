@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, payments, users } from "@/db/schema";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
@@ -112,6 +112,7 @@ export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
         eq(deliveries.status, "scheduled"),
         eq(orders.status, "active"),
         inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]),
+        isNull(payments.addonRequest),
       ),
     )
     .orderBy(orders.fullName);

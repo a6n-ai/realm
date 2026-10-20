@@ -210,11 +210,11 @@ async function OrderDetail({
     existingQty: order.addons.filter((x) => x.key === a.key).reduce((s, x) => s + x.qty, 0),
   }));
   const addonMethods = enabledMethods(paymentCfg)
-    .filter((m) => m.id !== "simulated" && m.id !== "stripe")
+    .filter((m) => m.id !== "simulated")
     .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
   const customMealSize = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.custom === true;
   const canAddAddons = order.trialLength == null && !customMealSize && (order.status === "active" || order.status === "paused")
-    && canTakeAddonPayment(order, order.payments.map((p) => p.status)) == null;
+    && canTakeAddonPayment(order, order.payments) == null;
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
     ? {

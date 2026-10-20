@@ -1,4 +1,4 @@
-import { and, eq, exists, inArray, like, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, like, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { PAYMENT_REVIEW_STATUSES, PAYMENT_SETTLED_STATUSES } from "./display-status";
@@ -28,7 +28,8 @@ export function fulfillmentReadyOrder() {
         db
           .select({ _: sql`1` })
           .from(payments)
-          .where(and(eq(payments.orderId, orders.id), inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]))),
+          // A pending add-on link holds nothing: its add-ons are not on the plan until it is paid.
+          .where(and(eq(payments.orderId, orders.id), inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]), isNull(payments.addonRequest))),
       ),
     ),
   );

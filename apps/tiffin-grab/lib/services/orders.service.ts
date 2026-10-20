@@ -33,6 +33,7 @@ import {
   subscriptionPauses,
   tickets,
   users,
+  type AddonRequest,
   type PaymentProof,
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
@@ -1675,6 +1676,8 @@ export type OrderPaymentDetail = {
   taxSource: string | null;
   providerRef: string | null;
   providerCheckedAt: number | null;
+  expiresAt: number | null;
+  addonRequest: AddonRequest | null;
 };
 
 export type OrderDetail = typeof orders.$inferSelect & {
@@ -1739,6 +1742,8 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
       taxSource: payments.taxSource,
       providerRef: payments.providerRef,
       providerCheckedAt: payments.providerCheckedAt,
+      expiresAt: payments.expiresAt,
+      addonRequest: payments.addonRequest,
     })
     .from(payments)
     .where(eq(payments.orderId, row.order.id));

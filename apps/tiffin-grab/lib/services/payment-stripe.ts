@@ -17,6 +17,7 @@ import {
   NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT,
 } from "./stripe-notes";
 import { ledgerService } from "./ledger.service";
+import { settleAddonPayment } from "./order-addons.service";
 import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
 
 const log = createLogger("payment-stripe");
@@ -107,8 +108,9 @@ export async function settleStripePayment(
     return "amount_mismatch";
   }
 
+  // An add-on payment on a cancelled plan is still recorded (and flagged for refund) by settleAddonPayment.
   const [order] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
-  if (order?.status === "cancelled") {
+  if (order?.status === "cancelled" && !pay.addonRequest) {
     await activityOnce(pay.orderId, "payment_failed", NOTE_CANCELLED_ORDER, piId, "- refund it in Stripe");
     log.error({ paymentId: pay.publicId, piId, source }, "stripe payment on cancelled order");
     return "order_cancelled";
@@ -134,6 +136,10 @@ export async function settleStripePayment(
     .update(payments)
     .set({ providerRef: piId, providerEventId: eventId ?? null })
     .where(and(eq(payments.id, pay.id), sql`${payments.providerEventId} is null`));
+  // Add-on payments must not go through verifyPayment: it settles whole-order coupons, coins and starts.
+  if (pay.addonRequest) {
+    return (await settleAddonPayment(pay.publicId, { providerEventId: eventId ?? null })) === "already_paid" ? "already_paid" : "paid";
+  }
   await verifyPayment(pay.publicId, { actorId: null, providerEventId: eventId ?? null, fromProvider: true });
   return "paid";
 }
@@ -292,12 +298,15 @@ const provinceOf = (order: Order) => resolveProvince({ postalCode: order.postalC
 async function priceCharge(pay: Payment, order: Order, feeCents: number, surchargeTaxable: boolean): Promise<{ calcId: string | null; extraCents: number }> {
   if (pay.taxSource !== "stripe") return { calcId: null, extraCents: feeCents };
   const snap = order.pricingSnapshot as OrderPricingSnapshot;
+  const addon = pay.addonRequest;
   const inBase = feeCents > 0 && surchargeTaxable;
-  const fresh = (snap.tax?.expiresAt ?? 0) > Date.now() + 5 * 60_000;
+  // An add-on's calc expiry is not stored, so its base is always re-checked (the link lives < 1 day).
+  const fresh = !addon && (snap.tax?.expiresAt ?? 0) > Date.now() + 5 * 60_000;
   if (fresh && !inBase) return { calcId: pay.taxCalculationId, extraCents: feeCents };
 
-  const snapTaxCents = toCents(snap.taxTotal ?? 0);
-  const preTaxCents = toCents(pay.amount) - snapTaxCents;
+  // An add-on payment is taxed on the add-on amount alone, never the order's receipt.
+  const snapTaxCents = toCents(addon ? addon.taxTotal : (snap.taxTotal ?? 0));
+  const preTaxCents = addon ? toCents(addon.addonSubtotal) : toCents(pay.amount) - snapTaxCents;
   const address = { line1: order.addressLine, city: order.city, postalCode: order.postalCode, province: provinceOf(order) };
   const base = await stripeTaxFor({ taxableCents: preTaxCents, reference: pay.publicId, address });
   if (!base) return { calcId: null, extraCents: feeCents }; // Stripe Tax unavailable now: charge without a linked calc
@@ -306,7 +315,8 @@ async function priceCharge(pay: Payment, order: Order, feeCents: number, surchar
     throw new ValidationError("Tax has changed since your order was priced. Please contact us to reprice it.");
   }
   if (!inBase) {
-    await persistCalc(pay, order, snap, base.calculationId, base.expiresAt);
+    if (addon) await db.update(payments).set({ taxCalculationId: base.calculationId }).where(eq(payments.id, pay.id));
+    else await persistCalc(pay, order, snap, base.calculationId, base.expiresAt);
     return { calcId: base.calculationId, extraCents: feeCents };
   }
   // The fee calc is for this card only, so it is never persisted for later attempts.
@@ -521,8 +531,8 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
   return { rows, nextCursor: page.nextCursor, truncated };
 }
 
-/** Asks Stripe to refund; the charge.refunded webhook is the only ledger writer. */
-export async function refundStripePayment(paymentPublicId: string, amount: string | null, reason: string, actorPublicId: string): Promise<void> {
+/** Asks Stripe to refund; the charge.refunded webhook is the only ledger writer. A null actor is the system. */
+export async function refundStripePayment(paymentPublicId: string, amount: string | null, reason: string, actorPublicId: string | null): Promise<void> {
   if (!reason.trim()) throw new ValidationError("Add a reason for the refund");
   if (amount != null && !(Number.isFinite(Number(amount)) && Number(amount) > 0)) throw new ValidationError("Enter a refund amount greater than zero");
   const [pay] = await db.select().from(payments).where(and(eq(payments.publicId, paymentPublicId), eq(payments.method, "stripe"))).limit(1);
@@ -541,7 +551,7 @@ export async function refundStripePayment(paymentPublicId: string, amount: strin
   await db.insert(orderActivities).values({
     orderId: pay.orderId,
     type: "note",
-    note: `Refund of ${fromCents(cents)} requested in Stripe by staff: ${reason.trim()} (ledger updates when Stripe confirms)`,
+    note: `Refund of ${fromCents(cents)} requested in Stripe ${actorPublicId ? "by staff" : "automatically"}: ${reason.trim()} (ledger updates when Stripe confirms)`,
     createdBy: await resolveUserId(db, actorPublicId),
   });
 }

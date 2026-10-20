@@ -45,6 +45,8 @@ export function AddAddonsControl({
   const selections = options.filter((o) => (qty[o.key] ?? 0) > 0).map((o) => ({ key: o.key, qty: qty[o.key]! }));
   const selectionKey = JSON.stringify(selections);
   const method = methods.find((m) => m.id === methodId);
+  // Card: nothing is recorded now; the customer pays a link and the add-ons apply when it settles.
+  const isCard = methodId === "stripe";
   const inputKey = `${methodId}|${selectionKey}|${refresh}`;
   const current = open && selections.length > 0 && result?.key === inputKey ? result : null;
   const quote = current?.quote ?? null;
@@ -94,7 +96,7 @@ export function AddAddonsControl({
     if (!quote) return;
     const shown = quote.amountDue;
     setFormError(null);
-    if (method?.requireProof && !file) {
+    if (!isCard && method?.requireProof && !file) {
       setFormError("Attach the payment screenshot");
       return;
     }
@@ -103,8 +105,8 @@ export function AddAddonsControl({
       form.set("selections", selectionKey);
       form.set("method", methodId);
       form.set("expected_amount_due", shown.toFixed(2));
-      if (reference.trim()) form.set("reference", reference.trim());
-      if (file) {
+      if (!isCard && reference.trim()) form.set("reference", reference.trim());
+      if (!isCard && file) {
         const thumb = await makeImageThumbnail(file);
         form.set("proof", file);
         form.set("proof_thumb", thumb, thumb.name);
@@ -115,7 +117,7 @@ export function AddAddonsControl({
         setRefresh((n) => n + 1);
         return;
       }
-      toast.success("Add-ons added and payment recorded");
+      toast.success(isCard ? "Payment link created" : "Add-ons added and payment recorded");
       close();
       router.refresh();
     });
@@ -140,7 +142,7 @@ export function AddAddonsControl({
             Cancel
           </Button>
           <Button onClick={save} disabled={saving || !quote}>
-            {saving ? "Saving…" : quote ? `Add and record ${formatMoney(quote.amountDue, currency)}` : "Add add-ons"}
+            {saving ? "Saving…" : isCard ? "Create payment link" : quote ? `Add and record ${formatMoney(quote.amountDue, currency)}` : "Add add-ons"}
           </Button>
         </div>
       }
@@ -191,15 +193,19 @@ export function AddAddonsControl({
           </select>
         </label>
 
-        <label className="grid gap-1">
-          <span className="font-medium">Payment screenshot{method?.requireProof ? "" : " (optional)"}</span>
-          <input type="file" accept="image/*" onChange={(e) => { setFormError(null); setFile(e.target.files?.[0] ?? null); }} />
-        </label>
+        {!isCard && (
+          <>
+            <label className="grid gap-1">
+              <span className="font-medium">Payment screenshot{method?.requireProof ? "" : " (optional)"}</span>
+              <input type="file" accept="image/*" onChange={(e) => { setFormError(null); setFile(e.target.files?.[0] ?? null); }} />
+            </label>
 
-        <label className="grid gap-1">
-          <span className="font-medium">Reference (optional)</span>
-          <input className="w-full rounded-md border px-3 py-2" value={reference} onChange={(e) => { setFormError(null); setReference(e.target.value); }} />
-        </label>
+            <label className="grid gap-1">
+              <span className="font-medium">Reference (optional)</span>
+              <input className="w-full rounded-md border px-3 py-2" value={reference} onChange={(e) => { setFormError(null); setReference(e.target.value); }} />
+            </label>
+          </>
+        )}
 
         {quote && (
           <dl className="space-y-1 rounded-md border bg-muted/30 p-3 tabular-nums" aria-label="Add-on quote">
