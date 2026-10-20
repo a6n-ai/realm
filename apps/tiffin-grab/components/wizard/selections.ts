@@ -220,30 +220,47 @@ export function selectionsFromPriorOrder(
 }
 
 /**
- * A staff estimate link (`/subscribe?plan=…&meal=…`): the picks a sales rep quoted, carried through
- * sign-in to the renew stepper. Every value is re-checked against the live catalog, so an edited or
- * stale link only drops what no longer exists; the customer re-picks it on that step.
+ * A staff estimate link (`/subscribe?p=veg&m=msz_x&f=5_day&w=4&c=EXTRA5`): the picks a sales rep quoted,
+ * carried through sign-in to the renew stepper. Kept short for WhatsApp: one-letter keys, days as
+ * digits (1 = Mon … 7 = Sun), and defaults left out (Mon–Fri eating days, one week). Every value is
+ * re-checked against the live catalog, so an edited or stale link only drops what no longer exists;
+ * the customer re-picks it on that step.
  */
-export const QUOTE_PARAMS = ["plan", "meal", "freq", "days", "weeks", "addons", "codes"] as const;
+export const QUOTE_PARAMS = ["p", "m", "f", "d", "w", "a", "c"] as const;
 export type QuoteParams = Partial<Record<(typeof QUOTE_PARAMS)[number], string>>;
 
 /** Coupon codes from the quote, handed from the stepper to checkout, which tries them on its first price. */
 export const QUOTE_CODES_KEY = "tiffin.quote.codes";
 
+/** The link's query for these picks (no leading "?"). */
+export function quoteLinkQuery(s: { planKey: string; mealSizeId: string; frequencyKey: string; eatingDays: string[]; durationWeeks: number; addonSelections?: { key: string; qty: number }[]; codes: string[] }): string {
+  const q = new URLSearchParams({ p: s.planKey, m: s.mealSizeId, f: s.frequencyKey });
+  const days = WEEK_DAYS.filter((d) => s.eatingDays.includes(d));
+  if (days.join() !== DEFAULT_EATING_DAYS.join()) q.set("d", days.map((d) => WEEK_DAYS.indexOf(d) + 1).join(""));
+  if (s.durationWeeks !== 1) q.set("w", String(s.durationWeeks));
+  if (s.addonSelections?.length) q.set("a", s.addonSelections.map((a) => `${a.key}:${a.qty}`).join(","));
+  if (s.codes.length) q.set("c", s.codes.join(","));
+  // Commas and colons read fine in a link; keep them literal so the WhatsApp text stays short.
+  return q.toString().replace(/%2C/g, ",").replace(/%3A/g, ":");
+}
+
 export function selectionsFromQuote(catalog: ClientCatalogSnapshot, q: QuoteParams): WizardSelections | null {
-  if (!q.plan) return null;
-  const days = (q.days ?? "").split(",").filter((d): d is DayOfWeek => (WEEK_DAYS as string[]).includes(d));
-  const addonSelections = (q.addons ?? "").split(",").flatMap((pair) => {
+  if (!q.p) return null;
+  const days = [...new Set((q.d ?? "").split(""))].flatMap((n) => {
+    const d = WEEK_DAYS[Number(n) - 1];
+    return d ? [d] : [];
+  });
+  const addonSelections = (q.a ?? "").split(",").flatMap((pair) => {
     const [key, n] = pair.split(":");
     const qty = Number(n);
     return key && Number.isInteger(qty) ? [{ key, qty }] : [];
   });
-  const weeks = Number(q.weeks);
+  const weeks = Number(q.w);
   return reconcileSelections(catalog, {
     ...initialSelections,
-    planKey: q.plan,
-    mealSizeId: q.meal ?? "",
-    frequencyKey: q.freq ?? "",
+    planKey: q.p,
+    mealSizeId: q.m ?? "",
+    frequencyKey: q.f ?? "",
     eatingDays: days.length ? days : DEFAULT_EATING_DAYS,
     includeSaturday: days.includes("sat"),
     includeSunday: days.includes("sun"),
@@ -255,7 +272,7 @@ export function selectionsFromQuote(catalog: ClientCatalogSnapshot, q: QuotePara
 // Codes are only typed into checkout's coupon field; shape-checked here so a mangled link can't
 // smuggle anything else, and capped like the field itself.
 export function quoteCodes(q: QuoteParams): string[] {
-  const codes = (q.codes ?? "").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z0-9-]{2,40}$/.test(c));
+  const codes = (q.c ?? "").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z0-9-]{2,40}$/.test(c));
   return [...new Set(codes)].slice(0, 5);
 }
 

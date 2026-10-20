@@ -9,7 +9,7 @@ import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
-import { BottomBar, Button, Notice, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, Sheet } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
 import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
@@ -180,16 +180,20 @@ export function Wizard({
       <Progress steps={stepLabels} current={progressIndex} />
 
       {quote && quoteChanged(quote.picks, selections) && (
-        <Notice className="mb-4">
-          <span className="flex-1">You changed the plan from your estimate, so the price will be different. The total updates as you go.</span>
+        // Same shape as the BestDeal banner, so it reads as an offer to undo, not an error.
+        <div className="mb-5 flex items-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/10 py-2 pr-1 pl-3" role="status">
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty sm:text-sm">
+            <span className="text-foreground font-semibold">Changed from your estimate</span>
+            <span className="text-muted-foreground"> · price will differ</span>
+          </p>
           <button
             type="button"
-            className="shrink-0 font-semibold underline underline-offset-2"
             onClick={() => set({ ...quote.picks, startDate: selections.startDate })}
+            className="bg-primary text-primary-foreground relative h-9 shrink-0 cursor-pointer rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,color] duration-100 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] active:scale-[0.97] motion-reduce:active:scale-100"
           >
             Use my estimate
           </button>
-        </Notice>
+        </div>
       )}
 
       {step >= 1 && step <= 3 && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}

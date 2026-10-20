@@ -39,6 +39,7 @@ import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
 import { discountLine } from "@/components/customer/home/coupons-section";
+import { quoteLinkQuery } from "@/components/wizard/selections";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -580,10 +581,7 @@ export function OrderForm({
     const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
     const firstName = contact.fullName.trim().split(/\s+/)[0];
     // Opens the customer's subscribe stepper on these picks, codes ready at checkout (see selectionsFromQuote).
-    const q = new URLSearchParams({ plan: planKey, meal: mealSizeId, freq: frequencyKey, days: eatingDays.join(","), weeks: String(durationWeeks) });
-    if (addonSelections?.length) q.set("addons", addonSelections.map((a) => `${a.key}:${a.qty}`).join(","));
-    if (toType.length) q.set("codes", toType.join(","));
-    const link = `${window.location.origin}/subscribe?${q}`;
+    const link = `${window.location.origin}/subscribe?${quoteLinkQuery({ planKey, mealSizeId, frequencyKey, eatingDays, durationWeeks: Number(durationWeeks), addonSelections, codes: toType })}`;
     const copyText = shownPreview
       ? [
           `Hi${firstName ? ` ${firstName}` : ""}! Here is your Tiffin Grab estimate:`,
