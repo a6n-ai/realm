@@ -129,6 +129,9 @@ export async function listPayments(
         cardLast4: payments.cardLast4,
         surchargeAmount: payments.surchargeAmount,
         taxSource: payments.taxSource,
+        isAddon: sql<boolean>`${payments.addonRequest} is not null`,
+        expiresAt: payments.expiresAt,
+        orderStatus: orders.status,
         // Latest payment-reminder email for this order (its vars carry the order code).
         lastReminder: sql<SendState | null>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
           from ${notificationOutbox} o

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CreditCardIcon, RefreshCwIcon, ScaleIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
-import { Badge } from "@foundry/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Textarea } from "@foundry/ui/textarea";
@@ -29,11 +29,12 @@ const SPEC: FacetDef[] = [
   { kind: "search", fields: [] },
 ];
 
-type Key = PaymentSortKey | "card" | "surcharge" | "tax" | "stripe" | "actions";
+type Key = PaymentSortKey | "for" | "card" | "surcharge" | "tax" | "stripe" | "actions";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
   { key: "customer", label: "Customer", sortable: true },
   { key: "order", label: "Order", sortable: true },
+  { key: "for", label: "For", width: "w-40" },
   { key: "card", label: "Card", width: "w-28" },
   { key: "surcharge", label: "Surcharge", align: "right", width: "w-24" },
   { key: "tax", label: "Tax", width: "w-24" },
@@ -43,8 +44,15 @@ const COLUMNS: readonly Column<Key>[] = [
   { key: "actions", label: "Actions", align: "right", width: "w-24" },
 ];
 
+function ExpiryBadge({ r, now, tz }: { r: PaymentRow; now: number; tz: string }) {
+  if (r.status !== "awaiting_payment" || r.expiresAt == null) return null;
+  if (r.expiresAt === 0) return <Badge variant="secondary">Void</Badge>;
+  if (r.expiresAt <= now) return <Badge variant="warning-light">Expired</Badge>;
+  return <Badge variant="info-light">Expires {formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}</Badge>;
+}
+
 export function StripeTable({
-  rows, total, page, size, sort, livemode, canRefund,
+  rows, total, page, size, sort, livemode, canRefund, now,
 }: {
   rows: PaymentRow[];
   total: number;
@@ -53,6 +61,7 @@ export function StripeTable({
   sort: SortState<PaymentSortKey>;
   livemode: boolean;
   canRefund: boolean;
+  now: number;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -113,6 +122,12 @@ export function StripeTable({
             <TableCell className="text-muted-foreground truncate" title={r.email ?? undefined}>{r.email ?? "-"}</TableCell>
             <TableCell>
               <Link href={`/dashboard/orders/${r.orderPublicId}`} className="block truncate hover:underline">{r.orderPublicId}</Link>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-sm">{r.isAddon ? "Add-ons" : "Order"}</span>
+                <ExpiryBadge r={r} now={now} tz={tz} />
+              </div>
             </TableCell>
             <TableCell className="whitespace-nowrap text-xs">
               {r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : "-"}

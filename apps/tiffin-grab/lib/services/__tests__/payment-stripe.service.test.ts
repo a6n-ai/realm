@@ -518,7 +518,7 @@ describe("reconcileStripe", () => {
     const { rows } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
     expect(rows).toHaveLength(4);
     expect(rows).toEqual(expect.arrayContaining([
-      { kind: "unpaid_here", piId: "pi_a", paymentRef: unpaid.publicId, amount: "10.00" },
+      { kind: "unpaid_here", piId: "pi_a", paymentRef: unpaid.publicId, amount: "10.00", effect: expect.any(String) },
       { kind: "amount_differs", piId: "pi_b", paymentRef: differs.publicId, stripe: "19.99", ours: "20.00" },
       { kind: "unmatched_charge", piId: "pi_z", amount: "5.00" },
       { kind: "paid_here_not_in_stripe", paymentRef: paidMissing.publicId, piId: "pi_c", amount: "30.00" },
@@ -575,7 +575,7 @@ describe("reconcileStripe late and missing payments", () => {
     await db.update(payments).set({ createdAt: 1000 }).where(eq(payments.id, old.id));
     list.mockResolvedValue({ nextCursor: null, items: [{ piId: "pi_late", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: old.publicId, created: 1 }] });
     const { rows } = await svc.reconcileStripe({ from: Date.now() - 1000, to: Date.now() + 60_000 });
-    expect(rows).toEqual([{ kind: "unpaid_here", piId: "pi_late", paymentRef: old.publicId, amount: "10.00" }]);
+    expect(rows).toEqual([{ kind: "unpaid_here", piId: "pi_late", paymentRef: old.publicId, amount: "10.00", effect: expect.any(String) }]);
   });
 
   it("does not flag a paid row whose PI succeeded outside the listed page", async () => {

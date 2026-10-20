@@ -7,7 +7,7 @@ import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import type { ReconcileRow } from "@/lib/services/payment-stripe";
+import type { ReconcileRow, SettleEffect } from "@/lib/services/payment-stripe";
 import { reconcileAction, settleFromReconcileAction } from "./actions";
 
 const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -18,6 +18,12 @@ const LABEL: Record<ReconcileRow["kind"], string> = {
   amount_differs: "Amount differs",
   paid_here_not_in_stripe: "Paid here, not in Stripe",
   unmatched_charge: "Charge with no order",
+};
+
+const SETTLE_LABEL: Record<SettleEffect, string> = {
+  start: "Settle and start order",
+  addons: "Settle and add add-ons",
+  plain: "Settle",
 };
 
 function detail(r: ReconcileRow): string {
@@ -81,7 +87,7 @@ export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenC
                   <p className="truncate font-mono text-xs text-muted-foreground">{detail(r)}</p>
                 </div>
                 {r.kind === "unpaid_here" && (
-                  <Button size="sm" disabled={pending} onClick={() => settle(r.paymentRef)}>Settle</Button>
+                  <Button size="sm" disabled={pending} onClick={() => settle(r.paymentRef)}>{SETTLE_LABEL[r.effect]}</Button>
                 )}
               </div>
             ))}

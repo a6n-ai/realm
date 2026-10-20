@@ -39,6 +39,8 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
       page={page}
       size={size}
       sort={sort}
+      // Server clock so expiry badges match on first paint (the table is a client component).
+      now={Date.now()}
       livemode={rt?.cfg.livemode ?? false}
       canRefund={roleCan(role, { finance: ["refund"] })}
     />

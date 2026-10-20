@@ -23,6 +23,11 @@ export type PaymentRow = {
   cardLast4: string | null;
   surchargeAmount: string;
   taxSource: string | null;
+  /** Set for a mid-plan add-on payment; null for the order's own payment. */
+  isAddon: boolean;
+  /** Link expiry in epoch ms; 0 is a void link, null never expires. */
+  expiresAt: number | null;
+  orderStatus: string;
   lastReminder: { status: string; at: number; deliveredAt: number | null; openedAt: number | null } | null;
 };
 

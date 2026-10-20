@@ -473,8 +473,11 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
   });
 }
 
+/** What settling a payment does beyond marking it paid. */
+export type SettleEffect = "start" | "addons" | "plain";
+
 export type ReconcileRow =
-  | { kind: "unpaid_here"; piId: string; paymentRef: string; amount: string }
+  | { kind: "unpaid_here"; piId: string; paymentRef: string; amount: string; effect: SettleEffect }
   | { kind: "amount_differs"; piId: string; paymentRef: string; stripe: string; ours: string }
   | { kind: "paid_here_not_in_stripe"; paymentRef: string; piId: string | null; amount: string }
   | { kind: "unmatched_charge"; piId: string; amount: string };
@@ -512,7 +515,9 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
     if (i.amountReceivedCents !== expected) {
       rows.push({ kind: "amount_differs", piId: i.piId, paymentRef: p.publicId, stripe: fromCents(i.amountReceivedCents), ours: fromCents(expected) });
     } else if (p.status !== "paid" && p.status !== "refunded") {
-      rows.push({ kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected) });
+      const [o] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, p.orderId)).limit(1);
+      const effect: SettleEffect = p.addonRequest ? "addons" : o?.status === "pending" ? "start" : "plain";
+      rows.push({ kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected), effect });
     }
   }
   // Absence from the range proves nothing, so each paid row not seen is checked by retrieving its own PI.
