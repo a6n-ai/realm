@@ -476,7 +476,7 @@ function StatusCard({
           <div className="grid gap-2">
             <Button asChild variant="outline" size="sm">
               <Link href="/dashboard/payments/stripe" prefetch={false}>
-                Card payments
+                Stripe payments
                 <ArrowUpRightIcon className="size-3.5" aria-hidden />
               </Link>
             </Button>

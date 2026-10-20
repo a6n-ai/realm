@@ -44,7 +44,7 @@ export const PAYMENT_METHOD_OPTIONS = [
   { value: "cash", label: "Cash" },
   { value: "manual", label: "Manual" },
   { value: "simulated", label: "Simulated" },
-  { value: "stripe", label: "Card" },
+  { value: "stripe", label: "Stripe" },
 ] as const;
 
 export const methodLabel = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;

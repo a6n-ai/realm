@@ -14,7 +14,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Card payments (Stripe)">
+    <SectionCard title="Stripe payments">
       <Suspense fallback={<StripeTableSkeleton />}>
         <StripeData searchParams={searchParams} />
       </Suspense>
