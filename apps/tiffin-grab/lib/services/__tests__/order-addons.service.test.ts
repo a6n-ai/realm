@@ -340,4 +340,17 @@ describe("order add-ons mid-plan (integration)", () => {
     expect(pays.filter((p) => p.note?.startsWith("Add-ons:"))).toHaveLength(1);
     expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(1);
   });
+
+  it("refuses to record a Stripe add-on as paid", async () => {
+    const order = await runningOrder();
+    const addon = await anAddon();
+    await setPaymentConfig({ methods: [{ id: "stripe", kind: "online", enabled: true, label: "Card", taxes: [] }] });
+    await sharedCache("app-settings").evictAll();
+    const selections = [{ key: addon.key, qty: 1 }];
+    await expect(addOrderAddons(order.publicId, { selections, methodId: "stripe", expectedAmountDue: 1 }, null))
+      .rejects.toThrow("Card add-ons need a payment link");
+    const pays = await db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(pays.some((p) => p.method === "stripe")).toBe(false);
+    expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
+  });
 });

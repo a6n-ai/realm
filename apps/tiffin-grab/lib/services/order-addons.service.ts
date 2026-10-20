@@ -92,6 +92,8 @@ async function priceAddons(
     throw new ValidationError("Choose the payment method the customer used");
   }
 
+  if (method.id === "stripe") throw new ValidationError("Card add-ons need a payment link");
+
   const addons = resolveAddonSelections(await loadCatalogSnapshot(order.organizationId), selections);
   const existing = await reader.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id));
   for (const a of addons) {
