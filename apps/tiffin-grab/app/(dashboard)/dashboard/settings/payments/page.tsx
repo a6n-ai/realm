@@ -68,12 +68,9 @@ export default async function PaymentsSettingsHub() {
                   <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-md">
                     <provider.icon className="size-4" />
                   </span>
-                  <span className="grid min-w-0 flex-1">
-                    <span className="truncate font-medium">{method!.label}</span>
-                    {/* The checkout label ("Card") hides which provider it is; name it for staff. */}
-                    {method!.label !== provider.label && (
-                      <span className="text-muted-foreground truncate text-xs">{provider.label}</span>
-                    )}
+                  {/* Staff see the provider ("Stripe"); the checkout label is set on its own page. */}
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {provider.id === "stripe" ? "Stripe" : method!.label}
                   </span>
                   <TonePill tone={method!.enabled ? "ok" : "neutral"}>{method!.enabled ? "On" : "Off"}</TonePill>
                   <ChevronRightIcon className="text-muted-foreground size-4" />
