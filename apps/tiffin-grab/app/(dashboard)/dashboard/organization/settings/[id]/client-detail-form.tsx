@@ -7,7 +7,7 @@ import { MapPinIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { AddressFields } from "@foundry/ui/address-fields";
+import { AddressFields, defaultAddressUi, type AddressFieldSlotProps } from "@foundry/ui/address-fields";
 import type { OrgLocation } from "@foundry/commons";
 import { SectionCard, StaticMap } from "@/components/ds";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
@@ -21,6 +21,9 @@ function Field({ id, label, hint, children }: { id: string; label: string; hint?
     </div>
   );
 }
+
+// The shared form labels this "Street address"; here it holds the whole postal address.
+const addressUi = { Field: (p: AddressFieldSlotProps) => <defaultAddressUi.Field {...p} label="Address" /> };
 
 export function ClientDetailForm({
   organizationId,
@@ -120,6 +123,7 @@ export function ClientDetailForm({
               }}
               onResolve={(p) => setPin({ lat: p.lat, lng: p.lng })}
               resolveUrl="/api/address/resolve"
+              ui={addressUi}
             />
             {pin ? (
               <div className="flex flex-col gap-2">

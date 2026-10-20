@@ -147,7 +147,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {hasRepAllowance && <RepCodeFab />}
       {children}
       {/* Room to scroll the last row out from under the floating button. */}
-      {hasRepAllowance && <div aria-hidden className="h-16" />}
+      {hasRepAllowance && <div aria-hidden className="h-20" />}
     </CrmShell>
     </QuickAddProvider>
     </TimezoneProvider>

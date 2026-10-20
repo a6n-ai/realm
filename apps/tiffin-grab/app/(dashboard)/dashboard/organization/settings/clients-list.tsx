@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
@@ -58,7 +59,6 @@ export function ClientsList({
       sort={sort}
       idAccessor={(r) => r.id}
       idHref={(r) => `/dashboard/organization/settings/${r.id}`}
-      rowClassName={() => "group cursor-pointer"}
       search={{ placeholder: "Search clients…", shortPlaceholder: "Search…", keys: ["name", "clientCode"] }}
       filters={
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -76,10 +76,10 @@ export function ClientsList({
       renderRow={(r) => (
         <>
           <TableCell className="font-medium">
-            <span className="group-hover:underline flex items-center gap-3">
+            <Link href={`/dashboard/organization/settings/${r.id}`} className="flex items-center gap-3 hover:underline">
               <UserAvatar name={r.name} size="sm" />
               {r.name}
-            </span>
+            </Link>
           </TableCell>
           <TableCell className="font-mono text-sm">{r.clientCode}</TableCell>
           <TableCell>

@@ -2,18 +2,35 @@ import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { SectionCard } from "@/components/ds";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { clientStats } from "../org-stats";
 import { listOrganizations } from "@/lib/services/organizations.service";
 import { ClientsList, ClientsListSkeleton, type ClientListRow } from "./clients-list";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
-export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+function ClientsCard({ children }: { children: React.ReactNode }) {
   return (
     <SectionCard title="Clients" subtitle="Your brand and its franchises. Open one to edit its details, address and members.">
-      <Suspense fallback={<ClientsListSkeleton />}>
-        <ClientsData searchParams={searchParams} />
-      </Suspense>
+      {children}
     </SectionCard>
+  );
+}
+
+export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <StatCardsSkeleton count={5} />
+          <ClientsCard>
+            <ClientsListSkeleton />
+          </ClientsCard>
+        </>
+      }
+    >
+      <ClientsData searchParams={searchParams} />
+    </Suspense>
   );
 }
 
@@ -44,5 +61,12 @@ async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
     return String(av).localeCompare(String(bv)) * dir;
   });
 
-  return <ClientsList rows={rows} sort={sort} />;
+  return (
+    <>
+      <StatCards items={clientStats(rows)} />
+      <ClientsCard>
+        <ClientsList rows={rows} sort={sort} />
+      </ClientsCard>
+    </>
+  );
 }
