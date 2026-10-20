@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
   transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: { root: monorepoRoot },
-  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
+  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a
     // t3.small. Blobs are immutable — a changed photo is a new key, not a new body.
