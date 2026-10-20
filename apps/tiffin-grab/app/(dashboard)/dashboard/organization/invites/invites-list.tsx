@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/purity */
 "use client";
+/* eslint-disable react-hooks/purity */
 import type { ReactNode } from "react";
 import { AppDate } from "@/components/dashboard/app-date";
 import { useTransition } from "react";
