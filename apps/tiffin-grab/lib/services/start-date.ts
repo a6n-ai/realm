@@ -14,17 +14,6 @@ export function appToday(timezone = "America/Toronto", cutoffHour?: number, now 
   return now >= cutoffMsFor(tomorrow.toISOString().slice(0, 10), cutoffHour, timezone) ? tomorrow : today;
 }
 
-/**
- * The day staff start-date rules count from: yesterday, which makes today the earliest
- * start. Staff may book a plan for today because they know whether today's run has
- * already gone out; customers never can, and go through appToday's cutoff instead.
- */
-export function staffStartBase(timezone = "America/Toronto", now = Date.now()): Date {
-  const base = appToday(timezone, undefined, now);
-  base.setUTCDate(base.getUTCDate() - 1);
-  return base;
-}
-
 // Validate a customer-chosen subscription start date.
 // - must be on/after the next weekday after `today` (no past, no same-day, skip weekends);
 //   `today` comes from appToday, so it is already tomorrow once the cutoff has passed
