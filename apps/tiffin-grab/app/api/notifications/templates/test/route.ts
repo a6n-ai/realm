@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { handler, problem } from "@foundry/routes";
-import { appendUnsubscribeFooter, buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
+import { appendUnsubscribeFooter, buildUnsubscribeUrl } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { getEmailProvider } from "@/lib/email/provider";
-import { notificationTables } from "@/lib/notifications/tables";
+import { campaignConfig } from "@/lib/notifications/campaign-config";
 
 /**
  * Send a pre-rendered template (html/text from the client editor) to the acting
@@ -32,26 +32,25 @@ export const POST = handler(async (req: Request): Promise<Response> => {
   // A test send should show the same footer a real recipient gets — this is
   // exactly where an admin would notice it's missing (see appendUnsubscribeFooter);
   // no config means no footer, same as a real send, rather than faking one.
-  const campaignConfig =
-    marketing === true ? buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" }) : undefined;
-  const stamped = campaignConfig
+  const config = marketing === true ? await campaignConfig() : undefined;
+  const stamped = config
     ? appendUnsubscribeFooter(
         { html, text },
         {
-          url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, recipient),
-          sender: campaignConfig.sender.name,
-          address: campaignConfig.sender.postalAddress,
+          url: buildUnsubscribeUrl(config.unsubscribe.baseUrl, config.unsubscribe.secret, recipient),
+          sender: config.sender.name,
+          address: config.sender.postalAddress,
         },
       )
     : { html, text };
 
-  const from = campaignConfig?.sender.email;
+  const from = config?.sender.email;
   await getEmailProvider().send({
     to: { email: recipient },
-    from: from ? { email: from, name: campaignConfig!.sender.name } : undefined,
+    from: from ? { email: from, name: config!.sender.name } : undefined,
     subject: `[TEST] ${subject}`,
     html: stamped.html,
     text: stamped.text,
   });
-  return Response.json({ sent: true, footerIncluded: !!campaignConfig });
+  return Response.json({ sent: true, footerIncluded: !!config });
 });

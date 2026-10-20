@@ -1,8 +1,9 @@
-import { buildCampaignConfig, createRateLimiter, drainPending as drain, dueCampaigns, sendScheduledCampaign } from "@relay/engine";
+import { createRateLimiter, drainPending as drain, dueCampaigns, sendScheduledCampaign } from "@relay/engine";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";
+import { campaignConfig } from "./campaign-config";
 import { resolveSegment } from "@/lib/campaigns/segment";
 
 // SES MaxSendRate is 14/s on this account, shared with puchkaman (5/s); stay
@@ -36,7 +37,7 @@ export async function materializeDue(): Promise<number> {
     const r = await sendScheduledCampaign(
       { db, tables: notificationTables, users: usersRef, resolveSegment },
       publicId,
-      { footerConfigured: !!buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" }) },
+      { footerConfigured: !!(await campaignConfig()) },
     );
     if (r.blocked) log.warn({ publicId, blocked: r.blocked.map((b) => b.code) }, "scheduled campaign failed its checklist; returned to draft");
     queued += r.queued;
