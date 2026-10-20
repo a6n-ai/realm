@@ -342,7 +342,7 @@ html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > 
 }
 
 /* Pin sticky chrome out of the page snapshot. */
-.customer-app header {
+.customer-app [data-customer-header] {
   view-transition-name: customer-header;
 }
 .customer-app nav[aria-label="Primary"] {

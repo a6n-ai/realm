@@ -13,10 +13,14 @@ const LINKS = [
   { href: "/me/account", label: "Settings" },
 ];
 
+/** Top-bar pills for /me from md up; phones use the bottom nav. */
 export function CustomerNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-col gap-1 p-2" aria-label="Your account">
+    <nav
+      className="col-span-2 row-start-2 hidden items-center gap-1 overflow-x-auto md:flex lg:col-span-1 lg:col-start-2 lg:row-start-1"
+      aria-label="Your account"
+    >
       {LINKS.map((link) => {
         const active =
           link.href === "/me" ? pathname === "/me" : pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -27,10 +31,10 @@ export function CustomerNav() {
             prefetch={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-xl px-3 py-2.5 text-sm",
+              "inline-flex h-10 shrink-0 items-center rounded-full px-4 text-sm transition-colors",
               active
                 ? "bg-secondary text-secondary-foreground font-semibold"
-                : "text-foreground/80 hover:bg-secondary/60 font-medium",
+                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground font-medium",
             )}
           >
             {link.label}

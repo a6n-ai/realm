@@ -5,20 +5,21 @@ import { useTheme } from "@foundry/themes";
 import { Button } from "@foundry/ui/button";
 import { HeaderTooltip } from "@/components/customer/header-tooltip";
 
+// The server can't know the theme, so the icon swaps in CSS off html.dark rather than
+// from resolvedTheme, which would render differently on the client and fail hydration.
 export function ModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
-  const label = dark ? "Light mode" : "Dark mode";
   return (
-    <HeaderTooltip label={label}>
+    <HeaderTooltip label="Toggle theme">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-        onClick={() => setTheme(dark ? "light" : "dark")}
+        aria-label="Toggle light or dark mode"
+        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       >
-        {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
+        <SunIcon className="hidden size-4 dark:block" />
+        <MoonIcon className="size-4 dark:hidden" />
       </Button>
     </HeaderTooltip>
   );

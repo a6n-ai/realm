@@ -176,3 +176,28 @@
     background: var(--card-action-hover);
   }
 }
+
+.xl-card[data-compact] .xl-card-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Inside the dark app shells the card follows the theme; the public site is always light. */
+html.dark .crm-app .xl-card {
+  --card-ink: var(--card-foreground);
+  --card-body: color-mix(in srgb, var(--card-foreground) 82%, transparent);
+  --card-muted: var(--muted-foreground);
+  --card-line: var(--border);
+  background: var(--card);
+}
+
+html.dark .crm-app .xl-card .xl-card-head {
+  background: color-mix(in srgb, var(--p) 22%, var(--card));
+  color: var(--card-foreground);
+}
+
+html.dark .crm-app .xl-card .xl-card-pill {
+  background: color-mix(in srgb, var(--card-foreground) 12%, transparent);
+}

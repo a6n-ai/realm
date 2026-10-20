@@ -1,4 +1,3 @@
-import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -12,7 +11,7 @@ import { addDays } from "@/lib/deliveries-view/week";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
+import { orderFormCatalog } from "./order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -32,6 +31,7 @@ import { OrderTagsLegend } from "./row-tags";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
+import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
@@ -156,17 +156,23 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
   if (raw.view === "missed") {
     const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
-    const rows = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));
+    const all = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));
     // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
     const today = zonedDateIso(Date.now(), timezone);
-    return <MissedList rows={rows} isAdmin={session?.user?.role === "admin"} today={today} />;
+    const rows = filterMissedRows(all, raw, today);
+    const spec: FacetDef[] = [
+      { kind: "pills", field: "why", label: "Why", options: Object.entries(MISSED_WHY).map(([value, label]) => ({ value, label })) },
+      { kind: "select", field: "day", label: "Day", options: [...MISSED_DAYS] },
+      { kind: "search", fields: ["customerName", "orderCode", "planName"] },
+    ];
+    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={session?.user?.role === "admin"} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
   const ending = raw.view === "ending" ? await endingWindow() : undefined;
   const paymentReview = raw.view === "payment";
-  // A flagged, ending or unpaid order stays on its tab however old it is. The date picker
+  // A flagged, ending, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
-  const sp = lookOutOnly || ending || paymentReview ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const sp = lookOutOnly || ending || paymentReview || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -198,18 +204,33 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       ],
     },
     { kind: "dateRange", field: "createdAt", label: "Created" },
+    {
+      kind: "select",
+      field: "missed",
+      label: "Deliveries",
+      options: [{ value: "yes", label: "Has missed deliveries" }],
+    },
     { kind: "search", fields: ["fullName", "deploymentId", "email"] },
   ];
 
-  const { sp: filterSp, extra } = ongoingFilter(sp);
+  // "missed" isn't an orders column: strip it before parseFilterState and filter by subquery instead.
+  const missedOnly = sp.missed === "yes";
+  const { sp: filterSp, extra } = ongoingFilter({ ...sp, missed: undefined });
   const { condition, page } = parseFilterState(spec, filterSp);
   const finalCondition = extra ? and(...[condition, extra].filter((c) => c != null)) : condition;
 
   const session = await getSession();
   const visible = await resolveSessionVisibleOrgIds(session);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const missedAsOf = missedOnly ? zonedDateIso(Date.now(), (await getAppSettings()).timezone) : undefined;
 
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible, { lookOutOnly, ending, paymentReview }),
+    listOrdersPage(finalCondition, page, sort, visible, {
+      lookOutOnly,
+      ending,
+      paymentReview,
+      missedAsOf,
+    }),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];
@@ -262,15 +283,7 @@ async function NewOrderAction() {
         .map((sub) => ({ key: sub.key, label: sub.label })),
     }));
 
-  const orderCatalog = {
-    plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog) })),
-    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
-    minTiffinsPerWeek: catalog.minTiffinsPerWeek,
-    timezone: catalog.timezone,
-    maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
-    durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
-  };
+  const orderCatalog = orderFormCatalog(catalog);
 
   return (
     <NewOrderSheet

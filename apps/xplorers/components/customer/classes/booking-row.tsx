@@ -20,7 +20,7 @@ export function BookingRow({
   timeZone: string;
 }) {
   return (
-    <li className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+    <li className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="min-w-0">
         <p className="truncate font-semibold tracking-tight">{booking.sessionTitle}</p>
         <p className="text-muted-foreground text-sm">

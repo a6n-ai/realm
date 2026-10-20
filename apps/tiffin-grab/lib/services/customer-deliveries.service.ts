@@ -924,7 +924,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       emptied: row.status === "cancelled" || (row.status !== "scheduled" && (row.mergedIntoDeliveryId != null || replaced.has(row.id))),
       // A moved day carries one tiffin per person.
       movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to, units: order.persons })),
-      movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
+      // Same-row moves count too: Mon's tiffin moved to Tue on Monday's truck still leaves Monday reading "Out to Tue".
+      movesOut: moves.filter((m) => m.fromId === row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,
       extras: row.mergedIntoDeliveryId ? [] : (extrasById.get(row.id) ?? []),

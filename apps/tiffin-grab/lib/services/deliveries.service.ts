@@ -436,7 +436,8 @@ export async function adminSetDeliveryStatus(
       throw new ValidationError("An on-hold tiffin can't go back to this day. Release it to a new day instead.");
     }
 
-    if (status === "delivered" && row.deliveryDate > zonedDateIso(now, (await getAppSettings()).timezone)) {
+    const dayCame = row.deliveryDate <= zonedDateIso(now, (await getAppSettings()).timezone);
+    if (status === "delivered" && !dayCame) {
       throw new ValidationError("This delivery's day hasn't come yet, so it can't be marked Delivered.");
     }
 
@@ -452,13 +453,18 @@ export async function adminSetDeliveryStatus(
         label = "Delivered";
         break;
       case "not_delivered":
-        patch = {
-          status: "skipped",
-          ...(row.optimoCompletionStatus === "success"
-            ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
-            : {}),
-        };
-        label = "On hold";
+        // Once the day has come, staff are saying the drop didn't happen: record it the way an
+        // OptimoRoute failure is recorded, so it reads Not delivered and can still be corrected.
+        // Before the day it is a hold: the tiffin never leaves the kitchen.
+        patch = dayCame
+          ? { status: "skipped", optimoCompletionStatus: "failed", optimoCompletedAt: now, optimoCompletionNote: "Marked not delivered by staff" }
+          : {
+            status: "skipped",
+            ...(row.optimoCompletionStatus === "success"
+              ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
+              : {}),
+          };
+        label = dayCame ? "Not delivered" : "On hold";
         syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
         break;
       default: {

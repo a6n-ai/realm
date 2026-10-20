@@ -19,6 +19,7 @@ export type QuickAddCatalog = {
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   timezone?: string;
+  cutoffHour?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
@@ -73,6 +74,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
       frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     timezone: catalog.timezone,
+    cutoffHour: catalog.cutoffHour,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
       durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
     },

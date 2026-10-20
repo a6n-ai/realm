@@ -105,6 +105,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
               <li key={b.publicId} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{b.family}</p>
+                  {b.children.length ? <p>{b.children.join(", ")}</p> : null}
                   <p className="text-muted-foreground">
                     {b.publicId} · {b.seats} seat{b.seats === 1 ? "" : "s"} · {b.status}
                     {b.paymentStatus ? ` · payment ${b.paymentStatus.replaceAll("_", " ")}` : ""}
