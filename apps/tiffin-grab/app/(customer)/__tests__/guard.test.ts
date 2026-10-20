@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({
   getAppSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Kolkata", cutoffHour: 18, currency: "INR" }),
+  getIntegrationsConfigFresh: vi.fn().mockResolvedValue({}),
+  setIntegrationsConfig: vi.fn(),
 }));
 vi.mock("@/lib/services/users.service", () => ({
   usersService: { read: vi.fn().mockResolvedValue({ id: 1n, name: "Demo", email: "d@x.ca", image: null, status: "active" }) },

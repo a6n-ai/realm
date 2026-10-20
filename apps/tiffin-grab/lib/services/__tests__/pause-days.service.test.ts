@@ -35,6 +35,8 @@ vi.mock("@/lib/services/optimoroute/push", () => ({
 const { db } = await import("@/db/client");
 const { deliveries, deliveryMoves, durationPackages, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
+const { setPaymentConfig } = await import("../app-settings.service");
+const { sharedCache } = await import("@/lib/cache");
 const { createOrder } = await import("../orders.service");
 const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseElapsedPausesSafe, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
 const { isOrderFullyPaused } = await import("../pause-state");
@@ -55,6 +57,10 @@ async function reset() {
   await db.delete(orders);
   await db.delete(users).where(ne(users.isSystem, true));
   await db.delete(durationPackages).where(eq(durationPackages.weeks, LIMIT_WEEKS));
+  // Orders here are created without a payment method, which needs simulated mode (no methods).
+  // Set it explicitly: other suites share this test DB and may leave a method enabled.
+  await setPaymentConfig({ methods: [] });
+  await sharedCache("app-settings").evictAll();
   deletedStops.length = 0;
   failLapse = 0;
   failDelete = false;
