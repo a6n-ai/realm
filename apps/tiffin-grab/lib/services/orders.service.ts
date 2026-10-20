@@ -7,6 +7,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
@@ -1434,13 +1435,15 @@ export async function listOrdersPage(
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
-  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean } = {},
+  /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
+  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean; missedAsOf?: string } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
     opts.ending ? endingWhere(opts.ending) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
+    opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 

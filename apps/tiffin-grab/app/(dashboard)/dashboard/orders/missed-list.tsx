@@ -8,7 +8,9 @@ import { CalendarClockIcon, CircleCheckIcon, GiftIcon, TruckIcon } from "lucide-
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, ResponsiveDialog, RowActionTooltipButton, type Column } from "@/components/ds";
+import { DataTable, ResponsiveDialog, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { MISSED_WHY } from "@/lib/missed-filter";
 import { humanDate } from "@/lib/deliveries-view";
 import type { MissedDeliveryRow } from "@/lib/services/missed-deliveries.service";
 import type { ActionResult } from "@/app/(customer)/me/action-result";
@@ -25,17 +27,14 @@ const COLUMNS: readonly Column<"date" | "customer" | "order" | "tiffins" | "why"
   { key: "actions", label: "", align: "right" },
 ];
 
-const WHY: Record<MissedDeliveryRow["kind"], string> = {
-  not_sent: "Never sent to OptimoRoute",
-  no_confirmation: "Sent, no confirmation",
-};
 
 /**
  * Past days nobody confirmed went out. Staff settle each one: it did go out (Mark delivered), it
  * did not and the tiffin goes on another day (Move), or the customer gets a free tiffin for it
  * (on the order page, where the dialog knows the plan's days).
  */
-export function MissedList({ rows, isAdmin, today }: { rows: MissedDeliveryRow[]; isAdmin: boolean; today: string }) {
+/** `rows` arrive filtered; `anyMissed` says whether the unfiltered list has anything, so Reconcile stays put while filtering. */
+export function MissedList({ rows, anyMissed, spec, isAdmin, today }: { rows: MissedDeliveryRow[]; anyMissed: boolean; spec: FacetDef[]; isAdmin: boolean; today: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [moving, setMoving] = useState<MissedDeliveryRow | null>(null);
@@ -51,7 +50,7 @@ export function MissedList({ rows, isAdmin, today }: { rows: MissedDeliveryRow[]
 
   return (
     <div className="space-y-3">
-      {rows.length > 0 && (
+      {anyMissed && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-muted-foreground text-sm">Ask OptimoRoute what happened on these days. Confirmed stops drop off this list.</p>
           <Button size="sm" disabled={pending} onClick={() => run(reconcileMissedAction)}>
@@ -65,7 +64,9 @@ export function MissedList({ rows, isAdmin, today }: { rows: MissedDeliveryRow[]
         rows={rows}
         rowKey={(r) => r.deliveryPublicId}
         emptyIcon={TruckIcon}
-        emptyMessage="No missed deliveries. Every past day is confirmed."
+        filters={<ListSearchFilters spec={spec} placeholder="Search customer or order…" shortPlaceholder="Search…" dateControl="external" />}
+        emptyMessage={anyMissed ? "No missed deliveries match these filters." : "No missed deliveries. Every past day is confirmed."}
+        emptySearchMessage="No missed deliveries match your search."
         renderRow={(r) => (
           <>
             <TableCell className="whitespace-nowrap">{humanDate(r.deliveryDate)}</TableCell>
@@ -76,7 +77,7 @@ export function MissedList({ rows, isAdmin, today }: { rows: MissedDeliveryRow[]
             </TableCell>
             <TableCell className="text-right tabular-nums">{r.tiffinUnits}</TableCell>
             <TableCell>
-              <Badge variant={r.kind === "not_sent" ? "destructive" : "secondary"}>{WHY[r.kind]}</Badge>
+              <Badge variant={r.kind === "not_sent" ? "destructive" : "secondary"}>{MISSED_WHY[r.kind]}</Badge>
               {r.driver && <span className="text-muted-foreground block text-xs">{r.driver}</span>}
             </TableCell>
             <TableCell>
