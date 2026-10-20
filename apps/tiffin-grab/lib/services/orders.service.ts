@@ -115,6 +115,7 @@ export async function recordPayment(
     creditLedger?: boolean;
     taxSource?: string | null;
     taxCalculationId?: string | null;
+    expiresAt?: number | null;
   },
 ): Promise<{ id: bigint; publicId: string }> {
   const [pay] = await tx
@@ -128,6 +129,7 @@ export async function recordPayment(
       createdBy: input.createdBy ?? null,
       taxSource: input.taxSource ?? null,
       taxCalculationId: input.taxCalculationId ?? null,
+      expiresAt: input.expiresAt ?? null,
     })
     .returning({ id: payments.id, publicId: payments.publicId });
   if (input.creditLedger !== false) {

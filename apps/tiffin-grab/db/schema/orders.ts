@@ -130,6 +130,16 @@ export const orders = pgTable("orders", {
 // attachments): path = secured original, thumbUrl = public inline thumbnail.
 export type PaymentProof = { path: string; thumbUrl: string; name: string };
 
+export type AddonRequest = {
+  selections: { key: string; qty: number }[];
+  openTiffins: number;
+  lines: { label: string; amount: number }[];
+  addonSubtotal: number;
+  taxTotal: number;
+  amountDue: number;
+  quotedAt: number;
+};
+
 export const payments = pgTable("payments", {
   ...baseColumns("pay"),
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
@@ -156,6 +166,10 @@ export const payments = pgTable("payments", {
   taxSource: text("tax_source"), // 'stripe' | 'fallback' | null
   // Count of definitively failed saved-card charges; part of the Stripe idempotency key (same value = same charge).
   chargeAttempt: integer("charge_attempt").notNull().default(0),
+  // When an unpaid Stripe payment link stops working (ms).
+  expiresAt: bigint("expires_at", { mode: "number" }),
+  // Priced add-on request, applied once Stripe confirms payment.
+  addonRequest: jsonb("addon_request").$type<AddonRequest>(),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
