@@ -10,6 +10,12 @@ const refund = vi.fn();
 const retrieve = vi.fn();
 const stripeTax = vi.fn();
 const verify = vi.fn();
+const logError = vi.fn();
+// Settle logs on purpose (e.g. a paid add-on that cannot be applied); captured here and asserted where expected.
+vi.mock("@foundry/commons/logger", async (orig) => {
+  const quiet: object = new Proxy({}, { get: (_, k) => (k === "error" ? logError : () => quiet) });
+  return { ...(await orig<object>()), createLogger: () => quiet };
+});
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
@@ -211,10 +217,13 @@ describe("Stripe add-ons (integration)", () => {
     const applied = await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id));
     expect(applied).toHaveLength(1);
     expect(applied[0]!.amount).toBe(round2(addon.pricePerTiffin * 4).toFixed(2));
-    const perTiffinCents = Math.round(toCents(quote.amountDue) / 5);
-    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", perTiffinCents, expect.any(String));
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    const appliedCents = toCents(Number(o!.total)) - toCents(Number(order.total));
+    const refundCents = toCents(quote.amountDue) - appliedCents;
+    expect(refundCents).toBeGreaterThan(0);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", refundCents, expect.any(String));
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
-    expect(acts.some((a) => /refund/i.test(a.note ?? "") && a.note!.includes((perTiffinCents / 100).toFixed(2)))).toBe(true);
+    expect(acts.some((a) => /refund/i.test(a.note ?? "") && a.note!.includes((refundCents / 100).toFixed(2)))).toBe(true);
   });
 
   it("records but does not apply when the order was cancelled", async () => {
@@ -231,17 +240,57 @@ describe("Stripe add-ons (integration)", () => {
     expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(1);
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
     expect(acts.some((a) => a.note?.includes("refund needed"))).toBe(true);
+    expect(logError).toHaveBeenCalledWith(expect.objectContaining({ why: "order cancelled" }), "stripe add-on paid but not applied");
+    expect(refund).not.toHaveBeenCalled();
   });
 
-  it("charges tax on the add-on base only", async () => {
+  it("refunds it all when no tiffins are left", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.orderId, order.id));
+    succeeded(pay);
+    retrieve.mockResolvedValue({ latest_charge: { amount: toCents(pay.amount), amount_refunded: 0 } });
+
+    expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
+
+    expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o!.total).toBe(order.total);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", toCents(pay.amount), expect.any(String));
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(acts.some((a) => a.note?.includes("no tiffins left") && a.note.includes(pay.amount))).toBe(true);
+  });
+
+  it("refunds it all instead of going past the add-on's max per tiffin", async () => {
+    const order = await runningOrder();
+    const { addon, pay } = await createLink(order);
+    // The link expired, staff then added the most the plan can take by e-Transfer; the old link is paid late.
+    await db.update(payments).set({ expiresAt: 0 }).where(eq(payments.id, pay.id));
+    const selections = [{ key: addon.key, qty: addon.maxQty }];
+    const shown = await quoteOrderAddons(order.publicId, selections, "etransfer");
+    await addOrderAddons(order.publicId, { selections, methodId: "etransfer", expectedAmountDue: shown.amountDue }, null);
+    succeeded(pay);
+    retrieve.mockResolvedValue({ latest_charge: { amount: toCents(pay.amount), amount_refunded: 0 } });
+
+    expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
+
+    const rows = await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id));
+    expect(rows.reduce((n, r) => n + r.qty, 0)).toBe(addon.maxQty);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_a", toCents(pay.amount), expect.any(String));
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(acts.some((a) => a.note?.includes(`exceed ${addon.maxQty}`))).toBe(true);
+  });
+
+  it("charges tax on the add-on base only, at Stripe's own tax amount", async () => {
+    // Stripe's figure is a cent off rate × base (its own rounding), so rebuilding from the rate would refuse the charge.
     stripeTax.mockImplementation(async (i: { taxableCents: number }) => {
-      const taxCents = Math.round(i.taxableCents * 0.13);
+      const taxCents = Math.round(i.taxableCents * 0.13) + 1;
       return { calculationId: `tc_${i.taxableCents}`, taxCents, totalCents: i.taxableCents + taxCents, expiresAt: Date.now() + 3600_000, lines: [{ label: "HST", ratePct: 13, amountCents: taxCents }], reasons: [] };
     });
     const order = await runningOrder();
     const { quote, pay } = await createLink(order);
     expect(pay).toMatchObject({ taxSource: "stripe", taxCalculationId: `tc_${toCents(quote.addonSubtotal)}` });
-    expect(quote.taxTotal).toBe(round2(quote.addonSubtotal * 0.13));
+    expect(quote.taxTotal).toBe((Math.round(toCents(quote.addonSubtotal) * 0.13) + 1) / 100);
     stripeTax.mockClear();
 
     const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, order.userId!));
@@ -251,5 +300,12 @@ describe("Stripe add-ons (integration)", () => {
 
     expect(stripeTax.mock.calls[0]![0]).toMatchObject({ taxableCents: toCents(quote.addonSubtotal) });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: toCents(quote.amountDue) });
+
+    // Settled at the full count, the plan grows by exactly what was charged.
+    succeeded(pay);
+    expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_t")).toBe("paid");
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(toCents(Number(o!.total)) - toCents(Number(order.total))).toBe(toCents(quote.amountDue));
+    expect(refund).not.toHaveBeenCalled();
   });
 });

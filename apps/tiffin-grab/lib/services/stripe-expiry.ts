@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lt, not, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
@@ -78,7 +78,7 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
 
 export function expireUnpaidStripeOrders(scope: { userId?: bigint; orderId?: bigint }, now = Date.now()): Promise<number> {
   return cancelUnpaidStripeOrders(and(
-    lt(payments.expiresAt, now),
+    lte(payments.expiresAt, now),
     scope.userId != null ? eq(orders.userId, scope.userId) : undefined,
     scope.orderId != null ? eq(orders.id, scope.orderId) : undefined,
   ));

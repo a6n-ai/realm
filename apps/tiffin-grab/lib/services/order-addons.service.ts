@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { findMethod } from "@foundry/payments";
@@ -24,7 +24,9 @@ const log = createLogger("order-addons.service");
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 type Order = typeof orders.$inferSelect;
-type TaxRate = { name: string; ratePct: number };
+type TaxRate = { name: string; ratePct: number; amount?: number };
+// The tax worked out for one add-on amount (taxableCents): Stripe's own figures, or app rates.
+type AddonTax = { source: "stripe" | "fallback"; calculationId: string | null; taxableCents: number; taxes: TaxRate[] };
 
 export type AddonSelection = { key: string; qty: number };
 
@@ -43,7 +45,7 @@ type Priced = {
   openTiffins: number;
   method: { id: PaymentMethodValue; requireProof: boolean };
   pricing: MidPlanAddonPricing;
-  tax: { source: "stripe" | "fallback"; calculationId: string | null; taxes: TaxRate[] };
+  tax: AddonTax;
 };
 
 // What the order column will hold once these add-ons are in: grown from the column, not reset
@@ -63,14 +65,16 @@ const toQuote = (p: Priced): AddonQuote => ({
 
 // Every rule and every number for a mid-plan add-on, shared by the quote and the save so the
 // amount staff are shown is the amount that is written. `lock` takes the order row for the
-// save's transaction: two staff saving at once then price one after the other.
+// save's transaction: two staff saving at once then price one after the other. Under the lock
+// Stripe is never called: the save passes the tax it quoted just before (`presetTax`).
 async function priceAddons(
   reader: Pick<Tx, "select">,
   orderPublicId: string,
   selections: AddonSelection[],
   methodId: string,
-  lock: boolean,
+  opts: { lock?: boolean; freshTax?: boolean; presetTax?: AddonTax } = {},
 ): Promise<Priced> {
+  const lock = opts.lock === true;
   const base = reader.select().from(orders).where(eq(orders.publicId, orderPublicId));
   const [order] = lock ? await base.for("update").limit(1) : await base.limit(1);
   if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
@@ -122,18 +126,30 @@ async function priceAddons(
   // Same rule as checkout (priceWithTax): Stripe Tax on the add-on amount when it is on,
   // else destination rates plus the chosen method's own taxes.
   const fallback = await resolveCheckoutTaxes({ postalCode: order.postalCode, methodTaxes: method.taxes });
-  const preTax = addAddonsToSnapshot(snapshot, addons, openTiffins, []);
-  const quote = await stripeTaxFor(
-    {
-      taxableCents: toCents(preTax.addonSubtotal),
-      reference: `addons:${order.publicId}`,
-      address: { line1: order.addressLine ?? "", city: order.city, postalCode: order.postalCode ?? "", province: fallback.province },
-    },
-    { cache: !lock },
-  );
-  const tax: Priced["tax"] = quote
-    ? { source: "stripe", calculationId: quote.calculationId, taxes: quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct })) }
-    : { source: "fallback", calculationId: null, taxes: fallback.taxes };
+  const taxableCents = toCents(addAddonsToSnapshot(snapshot, addons, openTiffins, []).addonSubtotal);
+  let tax: AddonTax = { source: "fallback", calculationId: null, taxableCents, taxes: fallback.taxes };
+  if (opts.presetTax) {
+    // A different base means the price moved since the pre-lock quote; the amount check then refuses the save.
+    if (opts.presetTax.taxableCents === taxableCents) tax = opts.presetTax;
+  } else if (!lock) {
+    const quote = await stripeTaxFor(
+      {
+        taxableCents,
+        reference: `addons:${order.publicId}`,
+        address: { line1: order.addressLine ?? "", city: order.city, postalCode: order.postalCode ?? "", province: fallback.province },
+      },
+      { cache: !opts.freshTax },
+    );
+    // Stripe's own line amounts, not rate × base: the charge is later checked against Stripe's taxCents exactly.
+    if (quote) {
+      tax = {
+        source: "stripe",
+        calculationId: quote.calculationId,
+        taxableCents,
+        taxes: quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct, amount: l.amountCents / 100 })),
+      };
+    }
+  }
 
   return {
     order,
@@ -167,7 +183,7 @@ async function applyAddons(tx: Tx, order: Order, addons: ResolvedAddon[], openTi
 
 /** What adding these add-ons would cost right now. No writes. Callers MUST requireStaff first. */
 export async function quoteOrderAddons(orderPublicId: string, selections: AddonSelection[], methodId: string): Promise<AddonQuote> {
-  return toQuote(await priceAddons(db, orderPublicId, selections, methodId, false));
+  return toQuote(await priceAddons(db, orderPublicId, selections, methodId));
 }
 
 /**
@@ -184,8 +200,10 @@ export async function addOrderAddons(
   input: { selections: AddonSelection[]; methodId: string; expectedAmountDue: number; proof?: PaymentProof | null; reference?: string | null },
   actorId: bigint | null,
 ): Promise<AddonQuote & { paymentPublicId?: string }> {
+  // Stripe Tax is asked before the order row is locked, never while holding it.
+  const { tax: presetTax } = await priceAddons(db, orderPublicId, input.selections, input.methodId, { freshTax: true });
   const { quote, userPublicId } = await db.transaction(async (tx): Promise<{ quote: AddonQuote & { paymentPublicId?: string }; userPublicId: string | null }> => {
-    const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, true);
+    const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, { lock: true, presetTax });
     const { order, pricing } = p;
     const userId = order.userId!;
     const [customer] = await tx.select({ publicId: users.publicId }).from(users).where(eq(users.id, userId)).limit(1);
@@ -289,8 +307,9 @@ const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
 /**
  * Stripe confirmed an add-on payment: mark it paid and apply its request to the tiffins open now,
  * in one transaction. Fewer open than quoted (paused/held before paying) applies to those and
- * refunds the rest to the card after commit. A plan that is no longer running keeps the money
- * recorded and is flagged for a staff refund. Idempotent: a replay finds the row paid.
+ * refunds the difference to the card after commit; none open, or a quantity the plan can no longer
+ * take, refunds it all. A plan that is no longer running keeps the money recorded and is flagged
+ * for a staff refund. Idempotent: a replay finds the row paid.
  */
 export async function settleAddonPayment(
   paymentPublicId: string,
@@ -300,11 +319,14 @@ export async function settleAddonPayment(
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay?.addonRequest) throw new NotFoundError(`Add-on payment not found: ${paymentPublicId}`);
     if (!SETTLEABLE.includes(pay.status)) return { outcome: "already_paid" as const };
+    // Same order as other order mutations: payment row, then the order's advisory lock, then the order row.
+    await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
     const req = pay.addonRequest;
     const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).for("update").limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
     const now = Date.now();
     const surcharge = Number(pay.surchargeAmount ?? 0);
+    const paidCents = toCents(pay.amount);
 
     await tx.update(payments).set({ status: "paid", capturedAt: now }).where(eq(payments.id, pay.id));
     await ledgerService.record(tx, {
@@ -319,15 +341,16 @@ export async function settleAddonPayment(
     });
     await tx.insert(orderActivities).values({ orderId: order.id, type: "payment_verified", note: `stripe · ${pay.amount}`, organizationId: order.organizationId });
 
+    const note = (text: string) => tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: text, organizationId: order.organizationId });
+    const done = { orderId: order.id, organizationId: order.organizationId, userId: order.userId };
     const notApplied = async (why: string) => {
-      await tx.insert(orderActivities).values({
-        orderId: order.id,
-        type: "note",
-        note: `Add-ons paid but not applied (${why}) — refund needed`,
-        organizationId: order.organizationId,
-      });
+      await note(`Add-ons paid but not applied (${why}) — refund needed`);
       log.error({ paymentId: pay.publicId, why }, "stripe add-on paid but not applied");
-      return { outcome: "not_applied" as const };
+      return { outcome: "not_applied" as const, ...done, refundCents: 0 };
+    };
+    const refundAll = async (why: string) => {
+      await note(`Add-ons not applied (${why}); refunding ${fromCents(paidCents)} to the card`);
+      return { outcome: "not_applied" as const, ...done, refundCents: paidCents };
     };
     if (order.status !== "active" && order.status !== "paused") return notApplied(`order ${order.status}`);
     const snapshot = order.pricingSnapshot as OrderPricingSnapshot | null;
@@ -343,36 +366,36 @@ export async function settleAddonPayment(
       throw e;
     }
 
+    // The same add-on may have been added another way since the link was made (it can still be paid after expiry).
+    const existing = await tx.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id));
+    const over = addons.find((a) => existing.filter((e) => e.key === a.key).reduce((n, e) => n + e.qty, 0) + a.qty > a.maxQty);
+    if (over) return refundAll(`${over.name} would exceed ${over.maxQty} per tiffin`);
+
     const rows = await tx
       .select({ status: deliveries.status, cutoffAt: deliveries.cutoffAt, tiffinUnits: deliveries.tiffinUnits, complimentaryNote: deliveries.complimentaryNote, mergedIntoDeliveryId: deliveries.mergedIntoDeliveryId })
       .from(deliveries)
       .where(eq(deliveries.orderId, order.id));
     const open = Math.min(openTiffinCount(order.tiffinCount, rows, now), req.openTiffins);
-    if (open < 1) return notApplied("no tiffins left");
+    if (open < 1) return refundAll("no tiffins left");
 
-    await applyAddons(tx, order, addons, open, addAddonsToSnapshot(snapshot, addons, open, req.taxes), null);
+    // Stripe's tax amounts hold only for the quoted count; a smaller count is re-taxed from the rates.
+    const taxes = open === req.openTiffins ? req.taxes : req.taxes.map(({ name, ratePct }) => ({ name, ratePct }));
+    const pricing = addAddonsToSnapshot(snapshot, addons, open, taxes);
+    await applyAddons(tx, order, addons, open, pricing, null);
 
-    // Per-tiffin share of what was charged (tax included), never more than the add-on amount.
-    const refundCents = open < req.openTiffins
-      ? Math.min(Math.round(((req.openTiffins - open) * toCents(req.amountDue)) / req.openTiffins), toCents(pay.amount))
-      : 0;
+    // Exactly what was charged minus what was applied, so the two always add up.
+    const refundCents = Math.min(Math.max(toCents(req.amountDue) - toCents(pricing.amountDue), 0), paidCents);
     if (refundCents > 0) {
-      await tx.insert(orderActivities).values({
-        orderId: order.id,
-        type: "note",
-        note: `Add-ons applied to ${open} of the ${req.openTiffins} tiffins quoted; refunding ${fromCents(refundCents)} to the card`,
-        organizationId: order.organizationId,
-      });
+      await note(`Add-ons applied to ${open} of the ${req.openTiffins} tiffins quoted; refunding ${fromCents(refundCents)} to the card`);
     }
-    const [customer] = await tx.select({ publicId: users.publicId }).from(users).where(eq(users.id, order.userId)).limit(1);
-    return { outcome: "applied" as const, orderId: order.id, organizationId: order.organizationId, refundCents, userPublicId: customer?.publicId ?? null };
+    return { outcome: "applied" as const, ...done, refundCents };
   });
-  if (res.outcome !== "applied") return res.outcome;
+  if (res.outcome === "already_paid") return res.outcome;
 
   // After commit: Stripe is never called while the settle transaction holds its locks.
   if (res.refundCents > 0) {
     try {
-      await refundStripePayment(paymentPublicId, fromCents(res.refundCents), "Fewer tiffins left than quoted", null);
+      await refundStripePayment(paymentPublicId, fromCents(res.refundCents), "Add-ons could not all be applied", null);
     } catch (e) {
       log.error({ paymentId: paymentPublicId, err: e }, "automatic add-on refund failed");
       await db.insert(orderActivities).values({
@@ -385,9 +408,10 @@ export async function settleAddonPayment(
   }
   try {
     publishAnalyticsLive();
-    if (res.userPublicId) publishUserRefresh(res.userPublicId);
+    const [customer] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, res.userId)).limit(1);
+    if (customer) publishUserRefresh(customer.publicId);
   } catch (e) {
     log.error({ err: e }, "add-on live refresh failed");
   }
-  return "applied";
+  return res.outcome;
 }

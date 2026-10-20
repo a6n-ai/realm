@@ -133,7 +133,7 @@ export type PaymentProof = { path: string; thumbUrl: string; name: string };
 export type AddonRequest = {
   // The quoted price and tax rates: what the customer pays for is what is applied on settle.
   selections: { key: string; qty: number; pricePerTiffin: number }[];
-  taxes: { name: string; ratePct: number }[];
+  taxes: { name: string; ratePct: number; amount?: number }[]; // amount: Stripe Tax figure for openTiffins
   openTiffins: number;
   lines: { label: string; amount: number }[];
   addonSubtotal: number;

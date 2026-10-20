@@ -235,7 +235,7 @@ async function loadOwned(paymentPublicId: string, userPublicId: string | null) {
   if (!row || (userPublicId && row.user.publicId !== userPublicId)) throw new NotFoundError("Payment not found");
   if (row.order.status === "cancelled") throw new ValidationError("This order was cancelled");
   if (row.pay.status !== "awaiting_payment" && row.pay.status !== "rejected") throw new ValidationError("This payment is already settled");
-  if (row.pay.expiresAt != null && Number(row.pay.expiresAt) < Date.now()) throw new ValidationError("This payment link has expired. Ask us for a new one.");
+  if (row.pay.expiresAt != null && Number(row.pay.expiresAt) <= Date.now()) throw new ValidationError("This payment link has expired. Ask us for a new one.");
   return row;
 }
 

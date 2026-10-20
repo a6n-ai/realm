@@ -23,7 +23,8 @@ export function addAddonsToSnapshot(
   snapshot: OrderPricingSnapshot,
   addons: MidPlanAddon[],
   openTiffins: number,
-  taxes: { name: string; ratePct: number }[],
+  // `amount`, when given, is the provider's own figure (Stripe Tax) and is used as is.
+  taxes: { name: string; ratePct: number; amount?: number }[],
 ): MidPlanAddonPricing {
   const lines = addons.map((a) => ({
     // Same wording as the engine's checkout add-on line.
@@ -35,7 +36,7 @@ export function addAddonsToSnapshot(
   const taxLines = snapshot.taxLines.map((t) => ({ ...t }));
   let taxTotal = 0;
   for (const t of taxes) {
-    const amount = round2(addonSubtotal * (t.ratePct / 100));
+    const amount = t.amount ?? round2(addonSubtotal * (t.ratePct / 100));
     taxTotal = round2(taxTotal + amount);
     const existing = taxLines.find((l) => l.name === t.name && l.ratePct === t.ratePct);
     if (existing) existing.amount = round2(existing.amount + amount);
