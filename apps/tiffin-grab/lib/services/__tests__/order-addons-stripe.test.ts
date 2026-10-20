@@ -49,7 +49,10 @@ const { mealSizeAddons } = await import("@/lib/catalog/types");
 const { getAppSettings, setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { cancelOrder, createOrder } = await import("../orders.service");
-const { addOrderAddons, quoteOrderAddons } = await import("../order-addons.service");
+const { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment } = await import("../order-addons.service");
+const { findUnpaidPayment } = await import("../payment-settle");
+const { listOrdersPage } = await import("../orders.service");
+const { orderPaymentLocked } = await import("../customer-deliveries.service");
 const { payByCard, settleStripePayment } = await import("../payment-stripe");
 const { nextCutoffMs } = await import("@/lib/orders/paid-start");
 const { toCents } = await import("@/lib/payments/stripe");
@@ -171,7 +174,7 @@ describe("Stripe add-ons (integration)", () => {
     const { pay } = await createLink(order);
     await expect(createLink(order)).rejects.toThrow("Regenerate or cancel the existing link first");
     // An expired link no longer blocks a new one.
-    await db.update(payments).set({ expiresAt: 0 }).where(eq(payments.id, pay.id));
+    await db.update(payments).set({ expiresAt: 1 }).where(eq(payments.id, pay.id));
     await expect(createLink(order)).resolves.toBeTruthy();
   });
 
@@ -276,7 +279,7 @@ describe("Stripe add-ons (integration)", () => {
     const { addon } = link;
     const pay = await withSurcharge(link.pay);
     // The link expired, staff then added the most the plan can take by e-Transfer; the old link is paid late.
-    await db.update(payments).set({ expiresAt: 0 }).where(eq(payments.id, pay.id));
+    await db.update(payments).set({ expiresAt: 1 }).where(eq(payments.id, pay.id));
     const selections = [{ key: addon.key, qty: addon.maxQty }];
     const shown = await quoteOrderAddons(order.publicId, selections, "etransfer");
     await addOrderAddons(order.publicId, { selections, methodId: "etransfer", expectedAmountDue: shown.amountDue }, null);
@@ -317,5 +320,91 @@ describe("Stripe add-ons (integration)", () => {
     const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(toCents(Number(o!.total)) - toCents(Number(order.total))).toBe(toCents(quote.amountDue));
     expect(refund).not.toHaveBeenCalled();
+  });
+
+  it("regenerates an expired link: the old row is void, its intent cancelled, a fresh link priced for today", async () => {
+    const order = await runningOrder();
+    const { addon, pay: old } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1, providerRef: "pi_old" }).where(eq(payments.id, old.id));
+    retrieve.mockResolvedValue({ status: "requires_payment_method" });
+    const before = Date.now();
+
+    const res = await regenerateAddonPayment(old.publicId, null);
+
+    const [o] = await db.select().from(payments).where(eq(payments.id, old.id));
+    expect(o).toMatchObject({ status: "rejected", expiresAt: 0, note: "Replaced" });
+    const [fresh] = await db.select().from(payments).where(eq(payments.publicId, res.paymentPublicId));
+    expect(fresh).toMatchObject({ status: "awaiting_payment", method: "stripe", amount: res.amountDue.toFixed(2) });
+    expect(fresh!.expiresAt!).toBeGreaterThan(before);
+    expect(fresh!.addonRequest).toMatchObject({ selections: [{ key: addon.key, qty: 1 }], openTiffins: 5 });
+    expect(fresh!.id).not.toBe(old.id);
+  });
+
+  it("refuses to regenerate or cancel while the old intent is in flight", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1, providerRef: "pi_old" }).where(eq(payments.id, pay.id));
+    retrieve.mockResolvedValue({ status: "processing" });
+
+    await expect(regenerateAddonPayment(pay.publicId, null)).rejects.toThrow(/in progress|being paid/i);
+    await expect(cancelAddonPayment(pay.publicId, null)).rejects.toThrow(/in progress|being paid/i);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ status: "awaiting_payment", expiresAt: 1 });
+    expect(await db.select().from(payments).where(eq(payments.orderId, order.id))).toHaveLength(2);
+  });
+
+  it("refuses to regenerate a link that is still live", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await expect(regenerateAddonPayment(pay.publicId, null)).rejects.toThrow(/not expired|cancel/i);
+  });
+
+  it("cancels a link: void row, nothing applied, and a new link can be made", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+
+    await cancelAddonPayment(pay.publicId, null);
+
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ status: "rejected", expiresAt: 0, note: "Cancelled by staff" });
+    await expect(createLink(order)).resolves.toBeTruthy();
+  });
+
+  it("never applies a void link: a late payment is recorded and flagged for refund", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await cancelAddonPayment(pay.publicId, null);
+    succeeded(pay);
+
+    expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_void")).toBe("paid");
+
+    const [p] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(p!.status).toBe("paid");
+    expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o!.total).toBe(order.total);
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(1);
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(acts.some((a) => a.note === "Add-ons paid on a cancelled link — refund needed")).toBe(true);
+    expect(refund).not.toHaveBeenCalled();
+  });
+
+  it("plan-payment readers ignore add-on links, live or void", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    const inReview = async () =>
+      (await listOrdersPage(undefined, { page: 0, size: 50 }, undefined, "all", { paymentReview: true })).items.some((r) => r.publicId === order.publicId);
+
+    expect(await inReview()).toBe(false);
+    await expect(findUnpaidPayment(order.publicId)).rejects.toThrow("No unpaid payment");
+    expect(await orderPaymentLocked(order.publicId)).toBe(false);
+    await cancelAddonPayment(pay.publicId, null);
+    expect(await orderPaymentLocked(order.publicId)).toBe(false);
+    await expect(findUnpaidPayment(order.publicId)).rejects.toThrow("No unpaid payment");
+
+    const [plan] = await db.select().from(payments).where(eq(payments.orderId, order.id)).orderBy(asc(payments.id));
+    await db.update(payments).set({ status: "awaiting_payment" }).where(eq(payments.id, plan!.id));
+    expect(await findUnpaidPayment(order.publicId)).toBe(plan!.publicId);
+    expect(await inReview()).toBe(true);
   });
 });

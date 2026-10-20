@@ -1211,7 +1211,7 @@ export async function grantComplimentaryTiffin(
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
     if (!order) throw new ValidationError("Order not found");
     if (order.trialLength != null) throw new ValidationError("A trial can't get complimentary tiffins");
-    const pays = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id));
+    const pays = await tx.select({ status: payments.status }).from(payments).where(and(eq(payments.orderId, order.id), isNull(payments.addonRequest)));
     const blocked = complimentaryBlocker(order.status, pays.map((p) => p.status));
     if (blocked) throw new ValidationError(blocked);
 

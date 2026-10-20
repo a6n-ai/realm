@@ -1,7 +1,7 @@
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
@@ -68,7 +68,7 @@ export async function orderPaymentLocked(orderPublicId: string): Promise<boolean
     .select({ status: payments.status })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(eq(orders.publicId, orderPublicId));
+    .where(and(eq(orders.publicId, orderPublicId), isNull(payments.addonRequest)));
   return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === "rejected");
 }
 
@@ -146,7 +146,7 @@ async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint,
   const rows = await db
     .select({ orderId: payments.orderId, status: payments.status })
     .from(payments)
-    .where(inArray(payments.orderId, orderIds));
+    .where(and(inArray(payments.orderId, orderIds), isNull(payments.addonRequest)));
   for (const r of rows) {
     const list = map.get(r.orderId) ?? [];
     list.push(r.status);

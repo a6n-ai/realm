@@ -37,6 +37,7 @@ import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { payLink } from "@/lib/payments/stripe";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
@@ -155,7 +156,7 @@ async function OrderDetail({
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
     Promise.all(
       order.payments
-        .filter((p) => p.status === "awaiting_payment" || p.status === "rejected")
+        .filter((p) => !p.addonRequest && (p.status === "awaiting_payment" || p.status === "rejected"))
         .map(async (p) => {
           const ctx = await getClaimPaymentContext(p.publicId);
           if (ctx) claimContexts[p.publicId] = ctx;
@@ -197,7 +198,7 @@ async function OrderDetail({
   const due = Math.max(Number(order.total) - paid, 0);
   const toReview = order.payments.filter((p) => p.status === "pending_verification").length;
   const pendingPay = order.payments.find((p) => p.status === "pending_verification");
-  const displayStatus = orderDisplayStatus(order.status, order.payments.map((p) => p.status));
+  const displayStatus = orderDisplayStatus(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status));
 
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
   // balance runs out if it starts on its next due date.
@@ -323,7 +324,7 @@ async function OrderDetail({
     .map((r) => ({ publicId: r.publicId, label: `${humanDate(r.deliveryDate)} · ${deliveryState(r)}` }));
   // Admin only; a trial, a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
   const canGiveFree = session?.user?.role === "admin" && order.trialLength == null
-    && complimentaryBlocker(order.status, order.payments.map((p) => p.status)) == null;
+    && complimentaryBlocker(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status)) == null;
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
@@ -460,6 +461,8 @@ async function OrderDetail({
                 checkoutMethodLabel={checkoutMethodLabel}
                 pricingSnapshot={order.pricingSnapshot}
                 payments={order.payments}
+                payLinks={Object.fromEntries(order.payments.filter((p) => p.method === "stripe").map((p) => [p.publicId, payLink(p.publicId)]))}
+                now={Date.now()}
                 claimContexts={claimContexts}
                 canCheck={roleCan(role, { finance: ["read"] })}
                 canRefund={roleCan(role, { finance: ["refund"] })}

@@ -83,6 +83,14 @@ export function appBaseUrl(): string {
   return (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
 }
 
+export const payLink = (paymentPublicId: string): string => `${appBaseUrl()}/me/pay/${paymentPublicId}`;
+
+/** The customer pay page for a card payment, null for any other method. Lets client code show the link without the server-only base URL. */
+export async function stripePayLink(paymentPublicId: string): Promise<string | null> {
+  const [row] = await db.select({ method: payments.method }).from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  return row?.method === "stripe" ? payLink(paymentPublicId) : null;
+}
+
 export async function webhookUrl(): Promise<string> {
   return `${appBaseUrl()}/api/webhooks/stripe`;
 }

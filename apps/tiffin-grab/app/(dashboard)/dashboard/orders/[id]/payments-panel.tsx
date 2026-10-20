@@ -7,7 +7,7 @@ import { CheckIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon, MailIcon, Refres
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
-import { Badge } from "@foundry/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Separator } from "@foundry/ui/separator";
@@ -15,7 +15,8 @@ import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import type { ClaimPaymentContext, OrderPaymentDetail } from "@/lib/services/orders.service";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";
-import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
+import { ResponsiveDialog } from "@/components/ds";
+import { cancelAddonLinkAction, regenerateAddonLinkAction, rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
 import { ReferenceEditor } from "./reference-editor";
 import { chargeSavedCardAction, checkStatusAction, refundAction } from "../../payments/stripe/actions";
 
@@ -64,7 +65,8 @@ function isSettled(status: OrderPaymentDetail["status"]): boolean {
   return status === "paid" || status === "simulated_paid";
 }
 
-function customerPayUrl(deploymentId: string): string {
+// Non-card payments are paid on the activate page; card payments have their own pay link (built server-side).
+function activateUrl(deploymentId: string): string {
   const path = `/activate/${deploymentId}`;
   if (typeof window === "undefined") return path;
   return `${window.location.origin}${path}`;
@@ -149,6 +151,8 @@ function PaymentRow({
   orderId,
   deploymentId,
   payment,
+  payLink,
+  now,
   currency,
   timezone,
   claimCtx,
@@ -164,6 +168,9 @@ function PaymentRow({
   canCharge: boolean;
   canCheck: boolean;
   payment: OrderPaymentDetail;
+  /** Card payments only: the customer's pay page. */
+  payLink: string | undefined;
+  now: number;
   currency: string;
   timezone: string;
   /** Staff-on-behalf claim form when the payment still needs a customer claim. */
@@ -177,17 +184,27 @@ function PaymentRow({
   const [showRefund, setShowRefund] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
+  const [showCancel, setShowCancel] = useState(false);
   const isCard = payment.method === "stripe";
-  const unpaid = payment.status === "awaiting_payment" || payment.status === "rejected";
+  const isAddon = payment.addonRequest != null;
+  // expiresAt 0 is a link staff cancelled or replaced: it is void and can never be paid.
+  const isVoid = isAddon && payment.expiresAt === 0;
+  const expired = isAddon && payment.expiresAt != null && payment.expiresAt <= now;
+  const openLink = isAddon && payment.status === "awaiting_payment" && !expired;
+  const unpaid = (payment.status === "awaiting_payment" || payment.status === "rejected") && (!isAddon || openLink);
 
   const canVerify =
     !isCard && (payment.status === "pending_verification" || payment.status === "awaiting_payment");
   const canReject = !isCard && payment.status === "pending_verification";
-  const canShareLink =
-    payment.status === "awaiting_payment" ||
-    payment.status === "pending_verification" ||
-    payment.status === "rejected";
-  const canRemind = payment.status === "awaiting_payment" || payment.status === "rejected";
+  const canShareLink = isAddon
+    ? openLink
+    : payment.status === "awaiting_payment" ||
+      payment.status === "pending_verification" ||
+      payment.status === "rejected";
+  const canRemind = isAddon ? openLink : payment.status === "awaiting_payment" || payment.status === "rejected";
+  const canRegenerate = isAddon && payment.status === "awaiting_payment" && expired && !isVoid;
+  const canCancel = isAddon && payment.status === "awaiting_payment" && !isVoid;
+  const shareUrl = (): string => payLink ?? (typeof window === "undefined" ? "" : `${window.location.origin}${activateUrl(deploymentId)}`);
   const canClaim =
     claimCtx != null &&
     (payment.status === "awaiting_payment" || payment.status === "rejected");
@@ -274,9 +291,28 @@ function PaymentRow({
     });
   }
 
+  function regenerate() {
+    start(async () => {
+      const res = await regenerateAddonLinkAction(orderId, payment.publicId);
+      if ("error" in res) return void toast.error(res.error);
+      toast.success("New payment link created");
+      router.refresh();
+    });
+  }
+
+  function cancelLink() {
+    start(async () => {
+      const res = await cancelAddonLinkAction(orderId, payment.publicId);
+      if ("error" in res) return void toast.error(res.error);
+      setShowCancel(false);
+      toast.success("Payment link cancelled");
+      router.refresh();
+    });
+  }
+
   async function copyPayLink() {
     try {
-      await navigator.clipboard.writeText(customerPayUrl(deploymentId));
+      await navigator.clipboard.writeText(shareUrl());
       setCopied(true);
       toast.success("Customer payment link copied");
       setTimeout(() => setCopied(false), 2000);
@@ -291,18 +327,26 @@ function PaymentRow({
         <div className="space-y-1.5 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium tabular-nums">{formatMoney(Number(payment.amount), currency)}</span>
-            <Badge variant="secondary">{statusLabel(payment.status)}</Badge>
+            <Badge variant="secondary">{isVoid ? "Void" : statusLabel(payment.status)}</Badge>
             <span className="text-muted-foreground text-xs uppercase tracking-wide">
               {methodLabel(payment.method)}
             </span>
+            {isAddon && <Badge variant="outline">Add-ons</Badge>}
+            {isAddon && payment.status === "awaiting_payment" && !isVoid &&
+              (expired ? (
+                <Badge variant="warning-light">Expired</Badge>
+              ) : (
+                payment.expiresAt != null && <span className="text-muted-foreground text-xs">Expires {fmt(payment.expiresAt)}</span>
+              ))}
           </div>
           <p data-testid="payment-public-id" className="text-muted-foreground font-mono text-xs">{payment.publicId}</p>
           {(payment.reference || payment.method !== "simulated") && (
             <ReferenceEditor orderId={orderId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} />
           )}
-          {payment.note && payment.status === "rejected" && (
+          {payment.note && payment.status === "rejected" && !isVoid && (
             <p className="text-destructive text-sm">Rejected: {payment.note}</p>
           )}
+          {isVoid && payment.note && <p className="text-muted-foreground text-sm">{payment.note}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {canShareLink && (
@@ -313,10 +357,10 @@ function PaymentRow({
                 ) : (
                   <CopyIcon data-icon="inline-start" />
                 )}
-                {copied ? "Copied" : "Copy pay link"}
+                {copied ? "Copied" : isCard ? "Copy link" : "Copy pay link"}
               </Button>
               <Button size="sm" variant="ghost" asChild>
-                <a href={`/activate/${deploymentId}`} target="_blank" rel="noreferrer">
+                <a href={payLink ?? activateUrl(deploymentId)} target="_blank" rel="noopener noreferrer">
                   <ExternalLinkIcon data-icon="inline-start" />
                   Open
                 </a>
@@ -345,6 +389,17 @@ function PaymentRow({
             <Button size="sm" variant="outline" disabled={pending} onClick={remind}>
               <MailIcon data-icon="inline-start" />
               Email reminder
+            </Button>
+          )}
+          {canRegenerate && (
+            <Button size="sm" disabled={pending} onClick={regenerate}>
+              <RefreshCwIcon data-icon="inline-start" />
+              Regenerate link
+            </Button>
+          )}
+          {canCancel && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowCancel(true)}>
+              Cancel
             </Button>
           )}
           {canVerify && (
@@ -420,6 +475,27 @@ function PaymentRow({
         </div>
       )}
 
+      <ResponsiveDialog
+        open={showCancel}
+        onOpenChange={(o) => {
+          if (!pending) setShowCancel(o);
+        }}
+        title="Cancel this payment link?"
+        description="The customer will no longer be able to pay it. Nothing is added to the plan."
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" disabled={pending} onClick={() => setShowCancel(false)}>
+              Keep link
+            </Button>
+            <Button type="button" variant="destructive" disabled={pending} onClick={cancelLink}>
+              {pending ? "Cancelling…" : "Cancel link"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-muted-foreground text-sm">{formatMoney(Number(payment.amount), currency)} for add-ons.</p>
+      </ResponsiveDialog>
+
       {showRefund && (
         <div className="flex flex-wrap items-end gap-2 border-t pt-3">
           <div className="grid w-40 gap-1.5">
@@ -466,6 +542,8 @@ export function PaymentsPanel({
   checkoutMethodLabel,
   pricingSnapshot,
   payments,
+  payLinks = {},
+  now,
   claimContexts = {},
   canRefund = false,
   canCharge = false,
@@ -479,6 +557,10 @@ export function PaymentsPanel({
   checkoutMethodLabel: string | null;
   pricingSnapshot: unknown;
   payments: OrderPaymentDetail[];
+  /** paymentPublicId → customer pay page, for card payments. */
+  payLinks?: Record<string, string>;
+  /** Server time, so expiry reads the same on first paint (no clock in the client). */
+  now: number;
   /** paymentPublicId → claim form context for staff-on-behalf uploads. */
   claimContexts?: Record<string, ClaimPaymentContext>;
   canRefund?: boolean;
@@ -521,6 +603,8 @@ export function PaymentsPanel({
             orderId={orderId}
             deploymentId={deploymentId}
             payment={p}
+            payLink={payLinks[p.publicId]}
+            now={now}
             currency={currency}
             timezone={timezone}
             claimCtx={claimContexts[p.publicId] ?? null}

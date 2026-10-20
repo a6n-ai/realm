@@ -11,6 +11,9 @@ import { emailPaymentLinkAction } from "./actions";
 export type AdminOrderCreated = {
   publicId: string;
   deploymentId: string;
+  /** Card orders: the payment's page, built server-side (the base URL is server-only). Absent for other methods. */
+  paymentPublicId?: string;
+  payUrl?: string | null;
   /** Set when staff attached a payment screenshot at create time. */
   paid?: { ok: true } | { ok: false; error: string };
 };
@@ -26,8 +29,8 @@ export function AdminOrderCreatedPanel({ result, heading = false }: { result: Ad
   const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState<"idle" | "sending" | "sent">("idle");
 
-  const payPath = `/activate/${result.deploymentId}`;
-  const payUrl = typeof window !== "undefined" ? `${window.location.origin}${payPath}` : payPath;
+  const payPath = result.payUrl ?? `/activate/${result.deploymentId}`;
+  const payUrl = result.payUrl ?? (typeof window !== "undefined" ? `${window.location.origin}${payPath}` : payPath);
 
   async function copyLink() {
     try {
@@ -42,7 +45,7 @@ export function AdminOrderCreatedPanel({ result, heading = false }: { result: Ad
 
   async function emailLink() {
     setEmail("sending");
-    const res = await emailPaymentLinkAction(result.publicId);
+    const res = await emailPaymentLinkAction(result.publicId, result.payUrl ? result.paymentPublicId : undefined);
     if ("error" in res) {
       setEmail("idle");
       toast.error(res.error);

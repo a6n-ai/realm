@@ -26,6 +26,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
+import { stripePayLink } from "@/lib/payments/stripe";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
@@ -281,13 +282,13 @@ async function quotePrice(
 export async function convertInquiry(
   inquiryId: string,
   input: CreateOrderInput,
-): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
+): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   return runAction(async () => {
     await requireStaff();
     const result = await inquiriesService.convert(inquiryId, input);
     revalidatePath("/dashboard/orders");
     revalidatePath("/dashboard/inquiries");
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
-    return result;
+    return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
   });
 }

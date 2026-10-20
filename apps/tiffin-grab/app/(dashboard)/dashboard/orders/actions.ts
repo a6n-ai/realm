@@ -9,6 +9,7 @@ import { assertOrderVisible, resolveSessionVisibleOrgIds, reassignOrder, startAl
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
+import { stripePayLink } from "@/lib/payments/stripe";
 import { findUnpaidPayment, settleWithStaffProof } from "@/lib/services/payment-settle";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 
@@ -56,7 +57,7 @@ export async function createOrderFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
   order: CreateOrderInput;
-}): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
+}): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   return runAction(async () => {
     await requireStaff();
     const email = input.contact.email?.trim();
@@ -80,7 +81,7 @@ export async function createOrderFlow(input: {
     );
     revalidatePath("/dashboard/orders");
     revalidatePath("/dashboard/inquiries");
-    return result;
+    return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
   });
 }
 
@@ -111,11 +112,12 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
 }
 
 // Optional, staff-clicked: emails the customer a sign-in link to pay this new order.
-export async function emailPaymentLinkAction(orderPublicId: string): Promise<ActionResult> {
+// A Stripe order passes its paymentPublicId (the link is that payment's page); others default to the order's unpaid payment.
+export async function emailPaymentLinkAction(orderPublicId: string, paymentPublicId?: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
     await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
-    await sendPaymentReminder(orderPublicId, await findUnpaidPayment(orderPublicId), await currentUserId());
+    await sendPaymentReminder(orderPublicId, paymentPublicId ?? (await findUnpaidPayment(orderPublicId)), await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderPublicId}`);
   return res;

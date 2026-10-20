@@ -16,7 +16,8 @@ import { publishAnalyticsLive, publishUserRefresh } from "@/lib/realtime/publish
 import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import { getAppSettings, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
-import { chargedCents, refundStripePayment } from "./payment-stripe";
+import { chargedCents, refundStripePayment, tryChargeLock } from "./payment-stripe";
+import { cancelOpenIntent } from "./stripe-expiry";
 import { openTiffinCount } from "./tiffin-counts";
 
 const log = createLogger("order-addons.service");
@@ -186,6 +187,44 @@ export async function quoteOrderAddons(orderPublicId: string, selections: AddonS
   return toQuote(await priceAddons(db, orderPublicId, selections, methodId));
 }
 
+// The awaiting payment that carries a priced request until the next cutoff (see addOrderAddons).
+async function insertAddonLink(tx: Tx, p: Priced, actorId: bigint | null): Promise<string> {
+  const { order, pricing } = p;
+  const { timezone, cutoffHour } = await getAppSettings();
+  const now = Date.now();
+  const addonRequest: AddonRequest = {
+    selections: p.addons.map((a) => ({ key: a.key, qty: a.qty, pricePerTiffin: a.pricePerTiffin })),
+    taxes: p.tax.taxes,
+    openTiffins: p.openTiffins,
+    lines: pricing.lines,
+    addonSubtotal: pricing.addonSubtotal,
+    taxTotal: pricing.taxTotal,
+    amountDue: pricing.amountDue,
+    quotedAt: now,
+  };
+  const [pay] = await tx.insert(payments).values({
+    orderId: order.id,
+    status: "awaiting_payment",
+    method: "stripe",
+    amount: pricing.amountDue.toFixed(2),
+    addonRequest,
+    expiresAt: nextCutoffMs(now, cutoffHour, timezone),
+    note: `Add-ons: ${summaryOf(p.addons)}`,
+    taxSource: p.tax.source,
+    taxCalculationId: p.tax.calculationId,
+    createdBy: actorId,
+    organizationId: order.organizationId,
+  }).returning({ publicId: payments.publicId });
+  await tx.insert(orderActivities).values({
+    orderId: order.id,
+    type: "note",
+    note: "Add-on payment link created",
+    createdBy: actorId,
+    organizationId: order.organizationId,
+  });
+  return pay!.publicId;
+}
+
 /**
  * Staff add add-ons to a running plan and record the money they already hold for them.
  * The payment is written as paid, never awaiting: an open payment on an order holds kitchen
@@ -212,42 +251,10 @@ export async function addOrderAddons(
     if (pricing.amountDue.toFixed(2) !== input.expectedAmountDue.toFixed(2)) {
       throw new ValidationError(`The amount changed to ${formatMoney(pricing.amountDue)}. Check with the customer and try again.`);
     }
-    const summary = summaryOf(p.addons);
 
     if (p.method.id === "stripe" && pricing.amountDue > 0) {
-      const { timezone, cutoffHour } = await getAppSettings();
-      const now = Date.now();
-      const addonRequest: AddonRequest = {
-        selections: p.addons.map((a) => ({ key: a.key, qty: a.qty, pricePerTiffin: a.pricePerTiffin })),
-        taxes: p.tax.taxes,
-        openTiffins: p.openTiffins,
-        lines: pricing.lines,
-        addonSubtotal: pricing.addonSubtotal,
-        taxTotal: pricing.taxTotal,
-        amountDue: pricing.amountDue,
-        quotedAt: now,
-      };
-      const [pay] = await tx.insert(payments).values({
-        orderId: order.id,
-        status: "awaiting_payment",
-        method: "stripe",
-        amount: pricing.amountDue.toFixed(2),
-        addonRequest,
-        expiresAt: nextCutoffMs(now, cutoffHour, timezone),
-        note: `Add-ons: ${summary}`,
-        taxSource: p.tax.source,
-        taxCalculationId: p.tax.calculationId,
-        createdBy: actorId,
-        organizationId: order.organizationId,
-      }).returning({ publicId: payments.publicId });
-      await tx.insert(orderActivities).values({
-        orderId: order.id,
-        type: "note",
-        note: "Add-on payment link created",
-        createdBy: actorId,
-        organizationId: order.organizationId,
-      });
-      return { quote: { ...toQuote(p), paymentPublicId: pay!.publicId }, userPublicId: customer?.publicId ?? null };
+      const paymentPublicId = await insertAddonLink(tx, p, actorId);
+      return { quote: { ...toQuote(p), paymentPublicId }, userPublicId: customer?.publicId ?? null };
     }
 
     const proof = input.proof ?? null;
@@ -269,7 +276,7 @@ export async function addOrderAddons(
         claimedAt: now,
         reference,
         proof,
-        note: `Add-ons: ${summary}`,
+        note: `Add-ons: ${summaryOf(p.addons)}`,
         createdBy: actorId,
         organizationId: order.organizationId,
       }).returning({ id: payments.id });
@@ -300,6 +307,59 @@ export async function addOrderAddons(
     log.error({ err: e }, "add-on live refresh failed");
   }
   return quote;
+}
+
+// expiresAt = 0 marks a link that was cancelled or replaced: it can never be applied (see settleAddonPayment).
+const VOID = 0;
+
+/** Locks the link against a charge in progress and its row; refuses a card that may be mid-payment. */
+async function lockOpenLink(tx: Tx, paymentPublicId: string) {
+  if (!(await tryChargeLock(tx, paymentPublicId))) throw new ValidationError("This link is being paid right now. Try again in a moment.");
+  const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
+  if (!pay?.addonRequest) throw new NotFoundError(`Add-on payment not found: ${paymentPublicId}`);
+  if (pay.status !== "awaiting_payment" || pay.expiresAt === VOID) throw new ValidationError("This link is no longer open");
+  if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") {
+    throw new ValidationError("A card payment on this link is in progress or already went through. Check Stripe before changing it.");
+  }
+  return pay;
+}
+
+const voidLink = (tx: Tx, id: bigint, note: string) =>
+  tx.update(payments).set({ status: "rejected", expiresAt: VOID, note }).where(eq(payments.id, id));
+
+/** Staff cancel an open add-on link. Callers MUST requireStaff first. */
+export async function cancelAddonPayment(paymentPublicId: string, actorId: bigint | null): Promise<void> {
+  await db.transaction(async (tx) => {
+    const pay = await lockOpenLink(tx, paymentPublicId);
+    await voidLink(tx, pay.id, "Cancelled by staff");
+    await tx.insert(orderActivities).values({ orderId: pay.orderId, type: "note", note: "Add-on payment link cancelled", createdBy: actorId, organizationId: pay.organizationId });
+  });
+}
+
+/**
+ * Replaces an expired add-on link with a new one priced for the tiffins open today (same add-ons, current
+ * prices and tax). The old row is void. Callers MUST requireStaff first.
+ */
+export async function regenerateAddonPayment(paymentPublicId: string, actorId: bigint | null): Promise<{ paymentPublicId: string; amountDue: number }> {
+  const [old] = await db
+    .select({ addonRequest: payments.addonRequest, expiresAt: payments.expiresAt, orderPublicId: orders.publicId })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(eq(payments.publicId, paymentPublicId))
+    .limit(1);
+  if (!old?.addonRequest) throw new NotFoundError(`Add-on payment not found: ${paymentPublicId}`);
+  if (old.expiresAt == null || old.expiresAt > Date.now()) throw new ValidationError("This link has not expired. Cancel it to make a new one.");
+  const selections = old.addonRequest.selections.map(({ key, qty }) => ({ key, qty }));
+  // Stripe Tax is asked before any row is locked, as in addOrderAddons.
+  const { tax: presetTax } = await priceAddons(db, old.orderPublicId, selections, "stripe", { freshTax: true });
+  const res = await db.transaction(async (tx) => {
+    const pay = await lockOpenLink(tx, paymentPublicId);
+    await voidLink(tx, pay.id, "Replaced");
+    const p = await priceAddons(tx, old.orderPublicId, selections, "stripe", { lock: true, presetTax });
+    if (p.pricing.amountDue <= 0) throw new ValidationError("These add-ons no longer cost anything");
+    return { paymentPublicId: await insertAddonLink(tx, p, actorId), amountDue: p.pricing.amountDue };
+  });
+  return res;
 }
 
 const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
@@ -343,6 +403,11 @@ export async function settleAddonPayment(
     await tx.insert(orderActivities).values({ orderId: order.id, type: "payment_verified", note: `stripe · ${pay.amount}`, organizationId: order.organizationId });
 
     const note = (text: string) => tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: text, organizationId: order.organizationId });
+    if (pay.expiresAt === VOID) {
+      await note("Add-ons paid on a cancelled link — refund needed");
+      log.error({ paymentId: pay.publicId }, "stripe add-on paid on a void link");
+      return { outcome: "not_applied" as const, orderId: order.id, organizationId: order.organizationId, userId: order.userId, refundCents: 0 };
+    }
     const done = { orderId: order.id, organizationId: order.organizationId, userId: order.userId };
     const notApplied = async (why: string) => {
       await note(`Add-ons paid but not applied (${why}) — refund needed`);

@@ -1355,7 +1355,7 @@ function endingWhere(w: EndingWindow) {
 function paymentReviewWhere() {
   return and(
     inArray(orders.status, ["active", "pending", "paused"]),
-    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
+    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
   );
 }
 
@@ -1428,6 +1428,7 @@ export async function getClaimPaymentContextForOrder(orderPublicId: string): Pro
     .where(
       and(
         eq(orders.publicId, orderPublicId),
+        isNull(payments.addonRequest),
         inArray(payments.status, ["awaiting_payment", "pending_verification", "rejected"]),
       ),
     )
@@ -1625,7 +1626,7 @@ export async function listOrdersPage(
     const pays = await db
       .select({ orderId: payments.orderId, status: payments.status, createdAt: payments.createdAt })
       .from(payments)
-      .where(inArray(payments.orderId, rows.map((r) => r.id)))
+      .where(and(inArray(payments.orderId, rows.map((r) => r.id)), isNull(payments.addonRequest)))
       .orderBy(desc(payments.createdAt));
     for (const p of pays) {
       const key = p.orderId.toString();

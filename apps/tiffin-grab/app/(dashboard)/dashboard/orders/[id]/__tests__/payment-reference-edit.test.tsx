@@ -21,7 +21,7 @@ const payment = (over: Record<string, unknown> = {}) => ({
   proof: null, claimedAt: null, capturedAt: null, createdAt: 0, note: null, proofThumbUrl: null, proofHref: null, ...over,
 });
 const mount = (p: ReturnType<typeof payment>) =>
-  render(<PaymentsPanel orderId="ord_1" deploymentId="SUB-1" orderTotal={100} currency="CAD" timezone="America/Toronto" checkoutMethodLabel={null} pricingSnapshot={null} payments={[p as never]} />);
+  render(<PaymentsPanel orderId="ord_1" deploymentId="SUB-1" orderTotal={100} currency="CAD" timezone="America/Toronto" checkoutMethodLabel={null} pricingSnapshot={null} payments={[p as never]} now={0} />);
 
 describe("payment reference edit", () => {
   afterEach(() => (cleanup(), update.mockReset()));

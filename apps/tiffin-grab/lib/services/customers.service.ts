@@ -608,19 +608,21 @@ export async function getCustomer360(userPublicId: string) {
           amount: payments.amount,
           capturedAt: payments.capturedAt,
           createdAt: payments.createdAt,
+          addonRequest: payments.addonRequest,
         })
         .from(payments)
         .where(inArray(payments.orderId, orderIds))
         .orderBy(desc(payments.createdAt))
     : [];
   const paymentStatusByOrder = new Map<string, string>();
-  for (const p of paymentRows) {
+  const planPayments = paymentRows.filter((p) => !p.addonRequest);
+  for (const p of planPayments) {
     const key = p.orderId.toString();
     if (!paymentStatusByOrder.has(key)) paymentStatusByOrder.set(key, p.status);
   }
   const payment = {
     totalPaid: paymentRows.filter((p) => PAID_STATUSES.has(p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
-    pendingCount: paymentRows.filter((p) => p.status === "pending_verification" || p.status === "awaiting_payment").length,
+    pendingCount: planPayments.filter((p) => p.status === "pending_verification" || p.status === "awaiting_payment").length,
     lastMethod: paymentRows[0]?.method ?? null,
   };
 

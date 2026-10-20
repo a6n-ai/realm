@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orders, payments, type PaymentProof } from "@/db/schema";
@@ -10,7 +10,7 @@ export async function findUnpaidPayment(orderPublicId: string): Promise<string> 
     .select({ publicId: payments.publicId })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(and(eq(orders.publicId, orderPublicId), inArray(payments.status, ["awaiting_payment", "rejected"])))
+    .where(and(eq(orders.publicId, orderPublicId), inArray(payments.status, ["awaiting_payment", "rejected"]), isNull(payments.addonRequest)))
     .limit(1);
   if (!pay) throw new NotFoundError("No unpaid payment on this order");
   return pay.publicId;

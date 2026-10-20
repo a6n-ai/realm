@@ -24,7 +24,7 @@ import {
   resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
-import { addOrderAddons, quoteOrderAddons, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
+import { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
@@ -226,6 +226,28 @@ export async function sendPaymentReminderAction(orderId: string, paymentPublicId
     await requireStaff();
     await assertOrderVisible(orderId, await visibleOrgs());
     await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
+  });
+  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
+export async function regenerateAddonLinkAction(orderId: string, paymentPublicId: string): Promise<ActionResult<{ paymentPublicId: string }>> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
+    return { paymentPublicId: (await regenerateAddonPayment(paymentPublicId, await currentUserId())).paymentPublicId };
+  });
+  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
+export async function cancelAddonLinkAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
+    await cancelAddonPayment(paymentPublicId, await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
   return res;

@@ -43,7 +43,7 @@ export async function loadSubscription(
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
   const displayStatus = orderDisplayStatus(
     order.status,
-    order.payments.map((p) => p.status),
+    order.payments.filter((p) => !p.addonRequest).map((p) => p.status),
   );
   // While payment is unconfirmed, match the customer: schedule and picks stay hidden.
   const paymentReview = displayStatus === "payment_review";
