@@ -58,8 +58,8 @@ describe("WalletLog", () => {
             publicId: "w3",
             direction: "debit",
             coins: 20,
-            eventType: "wallet_redeemed",
-            sourceType: "order",
+            eventType: null,
+            sourceType: "redemption",
             sourceId: "o",
             memo: null,
             createdAt: 1_700_000_000_000,
@@ -85,10 +85,10 @@ describe("WalletLog", () => {
     expect(screen.getByText(/Signup/)).toBeInTheDocument();
     expect(screen.getAllByText(/\+50/)).toHaveLength(2);
     
-    expect(screen.getByText(/Order activated/)).toBeInTheDocument();
+    expect(screen.getByText(/Earned on order/)).toBeInTheDocument();
     expect(screen.getByText(/\+100/)).toBeInTheDocument();
     
-    expect(screen.getByText(/Wallet redeemed/)).toBeInTheDocument();
+    expect(screen.getByText(/Spent at checkout/)).toBeInTheDocument();
     expect(screen.getByText(/−20/)).toBeInTheDocument();
     
     expect(screen.getByText(/Meal payout/)).toBeInTheDocument();
