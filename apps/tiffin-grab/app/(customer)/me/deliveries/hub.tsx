@@ -37,7 +37,7 @@ import {
 } from "@/lib/services/customer-deliveries.service";
 import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
-import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
+import { addDays, defaultWeek, mondayOf, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -78,12 +78,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // The strip starts at this plan's first week (a plan starting next month must not open with empty weeks to scroll past).
   const firstWeek = mondayOf(win && win.first > today ? win.first : today);
   const lastWeek = mondayOf(win && win.last > today ? win.last : today);
-  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
-  const agenda: Agenda = {};
-  for (const [date, ds] of Object.entries(all)) {
-    const mine = ds.filter((d) => d.orderId === sub.publicId);
-    if (mine.length) agenda[date] = mine;
-  }
+  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 13));
+  const { agenda, otherPlanDays } = splitAgenda(all, sub.publicId, win?.first);
 
   const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
   const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, win?.first);
@@ -106,7 +102,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // Payment-review plans hide the calendar and show the claim form instead.
   const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first, holidays });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first, holidays, otherPlanDays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   const plan: PlanView = {

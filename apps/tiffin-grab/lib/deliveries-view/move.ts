@@ -72,6 +72,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     let merge: MoveOption["merge"] = null;
     if (date === sourceDate) disabledReason = "This is the day you're moving from.";
     else if (ctx.holidays?.[carriedOn]) disabledReason = `Kitchen is closed on ${humanDate(carriedOn)}: ${ctx.holidays[carriedOn]}.`;
+    else if (ctx.otherPlanDays?.[carriedOn]) disabledReason = `Your ${ctx.otherPlanDays[carriedOn]} already delivers on ${humanDate(carriedOn)}. Pick another day.`;
     else if (ctx.servesWeekends === false && (weekdayKey(cursor) === "sat" || weekdayKey(cursor) === "sun")) disabledReason = `${NO_WEEKEND_DISH}.`;
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (carriedOn === trip.date) {

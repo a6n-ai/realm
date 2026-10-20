@@ -9,7 +9,7 @@ import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/
 import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildTrips, type Trip } from "@/lib/deliveries-view";
-import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
+import { addDays, defaultWeek, mondayOf, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   makeupSourceIdsForOrder,
@@ -48,12 +48,8 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
 
   const firstWeek = mondayOf(window.first);
   const lastWeek = mondayOf(window.last);
-  const all = await myAgendaDots(userId, addDays(firstWeek, -3), addDays(lastWeek, 6));
-  const agenda: Agenda = {};
-  for (const [date, ds] of Object.entries(all)) {
-    const mine = ds.filter((d) => d.orderId === sub.publicId);
-    if (mine.length) agenda[date] = mine;
-  }
+  const all = await myAgendaDots(userId, addDays(firstWeek, -3), addDays(lastWeek, 13));
+  const { agenda, otherPlanDays } = splitAgenda(all, sub.publicId, window.first);
   const requested = parseWeekParam(weekParam) ?? defaultWeek(today, window.first);
   const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
   const from = addDays(weekStart, -3);
@@ -71,7 +67,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     holidayNamesForUser(userId, today),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first, holidays });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first, holidays, otherPlanDays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const plan: PlanView = {
     orderId: sub.publicId,

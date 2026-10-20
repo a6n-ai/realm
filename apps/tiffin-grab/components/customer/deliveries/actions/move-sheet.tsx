@@ -46,6 +46,8 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
     setPicked(end);
     setWeek(mondayOf(end));
   };
+  // First day the next plan delivers inside this sheet's range: those days are greyed, so say why up front.
+  const renewalFrom = options.find((o) => plan.ctx.otherPlanDays?.[o.carriedOn] === "renewal")?.carriedOn;
   const { pending, error, run } = useCommit(onDone);
   const chosen = options.find((o) => o.date === picked);
   const day = humanDate(source);
@@ -96,6 +98,7 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                   </span>
                 </OptionCard>
               )}
+              {renewalFrom && <Reason>Renewal starts {humanDate(renewalFrom)}. Its days are greyed out.</Reason>}
               <WeekTimeline
                 firstWeek={mondayOf(options[0]?.date ?? plan.today)}
                 lastWeek={mondayOf(options[options.length - 1]?.date ?? plan.today)}
