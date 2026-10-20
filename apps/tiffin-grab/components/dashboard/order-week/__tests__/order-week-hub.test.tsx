@@ -81,7 +81,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     const block = screen.getByTestId("delivery-block");
     expect(block).toHaveTextContent("Tue, Sep 22");
     expect(block).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
-    expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
+    expect(block).toHaveTextContent("2 tiffins");
   });
   it("the calendar is the only navigator: a day in this week selects it, one in another week navigates there and keeps the tab", () => {
     replace.mockClear();

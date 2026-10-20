@@ -98,27 +98,6 @@ export function movedOutNote(r: EatingRow, history = false): string | null {
 
 export type MoveFact = { kind: "in" | "out"; text: string };
 
-/**
- * What this truck carries, by day: "1 Mon + 1 Tue", or "1 Thu + 1 Wed's" when a tiffin moved in.
- * Own tiffins split evenly over the days it covers; moved-in ones are named by the day they left.
- */
-export function tiffinBreakdown(trip: Pick<Trip, "units" | "coversDates" | "movesIn">): string {
-  const moved = new Map<string, number>();
-  for (const m of trip.movesIn ?? []) {
-    const k = m.from ? `${weekdayShort(m.from)}'s` : "held day's";
-    moved.set(k, (moved.get(k) ?? 0) + (m.units ?? 1));
-  }
-  const own = trip.units - [...moved.values()].reduce((a, b) => a + b, 0);
-  const covers = trip.coversDates.length ? trip.coversDates : [];
-  const parts: string[] = [];
-  if (own > 0) {
-    if (covers.length > 1 && own % covers.length === 0) parts.push(...covers.map((d) => `${own / covers.length} ${weekdayShort(d)}`));
-    else parts.push(`${own} ${covers.map(weekdayShort).join(" + ")}`.trim());
-  }
-  for (const [k, n] of moved) parts.push(`${n} ${k}`);
-  return parts.join(" + ");
-}
-
 /** Short list-row tags: "Wed's in", "own → Oct 13". Empty when nothing moved on this day. */
 export function moveTags(r: EatingRow): MoveFact[] {
   const tags: MoveFact[] = [];

@@ -327,7 +327,6 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)))
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
-  const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
   const lapsed = await lapsedPauseDates(db, [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))]);
   // A whole-trip reschedule leaves the old row skipped and inserts a makeup.
   // The old day is no longer a delivery, so it must not keep a status dot.
@@ -357,10 +356,8 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     for (const date of covers) {
       (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId, lapsedPause: isLapsedPause(d, lapsed.get(d.orderId)) });
     }
-    // A doubled day (moved tiffin landed on an eating day) gets a second dot.
-    for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
-    }
+    // A doubled day (moved tiffin landed on an eating day) keeps ONE dot: both tiffins share the trip's
+    // status, and a second "Moved" dot read as if the day moved away. The day panel's "In from" pill says where it came from.
     // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
       (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });

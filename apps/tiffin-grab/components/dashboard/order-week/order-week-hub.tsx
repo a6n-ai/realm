@@ -13,7 +13,7 @@ import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
@@ -370,7 +370,7 @@ function SelectedDelivery({
                   {rest.map((d) => <li key={d} className="text-muted-foreground text-sm">{d}</li>)}
                 </ul>
               )}
-              {trip.status !== "failed" ? <p className="text-muted-foreground mt-1 text-sm">{tiffins(trip.units)}{trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}</p> : null}
+              {trip.status !== "failed" ? <p className="text-muted-foreground mt-1 text-sm">{tiffins(trip.units)}</p> : null}
             </section>
             <section>
               <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">Destination</p>
