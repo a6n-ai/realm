@@ -190,6 +190,9 @@ export interface CreateOrderInput {
   paymentMethodId?: string | null;
 }
 
+export const STRIPE_ORDER_TTL_MS = 48 * 3600_000;
+export const STRIPE_STAFF_ORDER_TTL_MS = 7 * 24 * 3600_000;
+
 export interface CreateOrderOptions {
   // Who performed the action — stamped as createdBy (the acting user's public_id).
   // For an agent order this is the staff member, NOT the order owner.
@@ -208,6 +211,8 @@ export interface CreateOrderOptions {
   allowCustomMeal?: boolean;
   /** Staff only: the plan may start today. Customers start tomorrow at the earliest, before the cutoff. */
   allowSameDayStart?: boolean;
+  /** Staff-created order: a Stripe payment link stays payable for 7 days instead of 48 hours. */
+  staffCreated?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -257,7 +262,7 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string; paymentPublicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, basePriceOverride } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, staffCreated = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
   const startBase = allowSameDayStart ? staffStartBase(snapshot.timezone) : appToday(snapshot.timezone, snapshot.cutoffHour);
 
@@ -614,7 +619,8 @@ export async function createOrder(
         : {}),
     };
 
-    const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
+    // Stripe orders start only once Stripe confirms payment (verifyPayment activates them).
+    const status: OrderStatusValue = zoneRow ? (paymentMethodId === "stripe" ? "pending" : "active") : "waitlisted";
 
     // buildPricingCatalog already refused unknown/retired picks, so every id resolves.
     const selectedStrategyIds = (input.selections.deliveryStrategyIds ?? []).flatMap(
@@ -702,6 +708,7 @@ export async function createOrder(
       creditLedger: !deferSettlement,
       taxSource: pricingSnapshot.tax?.source ?? null,
       taxCalculationId: pricingSnapshot.tax?.calculationId ?? null,
+      ...(paymentMethodId === "stripe" ? { expiresAt: Date.now() + (staffCreated ? STRIPE_STAFF_ORDER_TTL_MS : STRIPE_ORDER_TTL_MS) } : {}),
     });
 
     // Simulated path redeems immediately. Real-method path defers until verify

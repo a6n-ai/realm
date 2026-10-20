@@ -359,7 +359,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },
       // convert is the staff order path, and staff may start a plan today.
-      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, allowSameDayStart: true, basePriceOverride: opts?.basePriceOverride },
+      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, allowSameDayStart: true, staffCreated: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
       .select({ id: orders.id })
