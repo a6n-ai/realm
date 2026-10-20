@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { Role } from "@foundry/commons";
-import { CrmShell } from "@foundry/crm";
 import { Toaster } from "@foundry/ui/sonner";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { db } from "@/db/client";
@@ -12,9 +11,7 @@ import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";
 import { getSession } from "@/lib/auth/session";
 import { InviteBanner } from "@/components/customer/invite-banner";
-import { CustomerNav } from "@/components/customer/customer-nav";
-import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
-import { CustomerBrand } from "@/components/customer/customer-brand";
+import { CustomerShell } from "@/components/customer/customer-shell";
 import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
 import { PageTransition } from "@/components/motion/page-transition";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
@@ -89,10 +86,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
               {children}
             </div>
           ) : (
-            <CrmShell
-              hideSidebarOnMobile
-              brand={<CustomerBrand href="/me" />}
-              sidebar={<CustomerNav />}
+            <CustomerShell
               actions={
                 <CustomerHeaderActions
                   coinBalance={wallet?.balance ?? 0}
@@ -100,11 +94,10 @@ export default async function CustomerLayout({ children }: { children: ReactNode
                   notificationFeed={notificationFeed}
                 />
               }
-              bottomNav={<CustomerBottomNav />}
             >
               {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
               <PageTransition>{children}</PageTransition>
-            </CrmShell>
+            </CustomerShell>
           )}
           <Toaster position="top-right" />
         </TooltipProvider>

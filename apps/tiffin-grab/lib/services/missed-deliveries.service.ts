@@ -5,14 +5,14 @@
 // stop never sent to OptimoRoute, or one sent with no completion back. An OptimoRoute `failed`
 // already turns the row into a hold with its tiffin in the pool, so it is not listed here.
 // A row a free tiffin was given for is settled and drops off.
-import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, notExists, or, sql, type SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, asc, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { pullCompletions } from "@/lib/services/optimoroute/completions";
 import { rescheduleDelivery } from "@/lib/services/deliveries.service";
+import { missedWhere } from "@/lib/services/missed-where";
 
 export type MissedKind = "not_sent" | "no_confirmation";
 
@@ -27,24 +27,6 @@ export type MissedDeliveryRow = {
   customerName: string;
   planName: string;
 };
-
-const compensation = alias(deliveries, "compensation");
-
-/** Order statuses whose past days can still be owed. A cancelled plan's days are void. */
-const OWED_ORDER_STATUSES = ["active", "paused", "completed"] as const;
-
-function missedWhere(today: string, visible: "all" | string[]): SQL {
-  return and(
-    eq(deliveries.status, "scheduled"),
-    lt(deliveries.deliveryDate, today),
-    or(isNull(deliveries.optimoCompletionStatus), ne(deliveries.optimoCompletionStatus, "success")),
-    gt(deliveries.tiffinUnits, 0),
-    isNull(deliveries.mergedIntoDeliveryId),
-    inArray(orders.status, [...OWED_ORDER_STATUSES]),
-    notExists(db.select({ _: sql`1` }).from(compensation).where(eq(compensation.complimentaryForDeliveryId, deliveries.id))),
-    visible === "all" ? undefined : inArray(orders.organizationId, visible),
-  )!;
-}
 
 async function appToday(): Promise<string> {
   return zonedDateIso(Date.now(), (await getAppSettings()).timezone);

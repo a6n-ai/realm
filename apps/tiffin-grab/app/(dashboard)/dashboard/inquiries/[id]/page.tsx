@@ -57,6 +57,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     timezone: catalog.timezone,
+    cutoffHour: catalog.cutoffHour,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
     durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
   };

@@ -6,6 +6,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
@@ -57,7 +58,7 @@ import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { appToday, staffStartBase, validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
@@ -198,8 +199,6 @@ export interface CreateOrderOptions {
   // Staff-only (set by dashboard server actions, never from client input): may
   // order a hidden custom meal size for any customer.
   allowCustomMeal?: boolean;
-  /** Staff only: the plan may start today. Customers start tomorrow at the earliest, before the cutoff. */
-  allowSameDayStart?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -249,9 +248,10 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, basePriceOverride } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
-  const startBase = allowSameDayStart ? staffStartBase(snapshot.timezone) : appToday(snapshot.timezone, snapshot.cutoffHour);
+  // Staff included: a day past its cutoff has already been routed and cooked without this plan.
+  const startBase = appToday(snapshot.timezone, snapshot.cutoffHour);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
@@ -1417,13 +1417,15 @@ export async function listOrdersPage(
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
-  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean } = {},
+  /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
+  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean; missedAsOf?: string } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
     opts.ending ? endingWhere(opts.ending) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
+    opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 

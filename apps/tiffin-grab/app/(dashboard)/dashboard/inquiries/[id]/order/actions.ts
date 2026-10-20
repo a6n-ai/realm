@@ -18,7 +18,6 @@ import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings
 import { findMethod } from "@foundry/payments";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { staffStartBase } from "@/lib/services/start-date";
 import { earliestNewPlanStart, runningPlans, type RunningPlan } from "@/lib/services/order-window";
 import { matchCustomerAccounts } from "@/lib/services/customers.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -212,7 +211,7 @@ async function quotePrice(
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
   if (weekendErr) throw new ValidationError(weekendErr);
-  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections, staffStartBase(snap.timezone)) : null;
+  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.

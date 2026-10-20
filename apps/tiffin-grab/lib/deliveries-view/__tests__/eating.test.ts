@@ -9,6 +9,12 @@ const trip = (o: Partial<Trip>): Trip => ({
 });
 
 describe("moved days", () => {
+  it("a tiffin moved to a later day on the same truck leaves its own day reading Moved to", () => {
+    // MWF plan: Monday's tiffin eats Tuesday, still on Monday's truck.
+    const mon = trip({ date: "2026-10-19", coversDates: ["2026-10-20"], units: 1, eatingDays: [day("2026-10-20", "Kadhi", "2026-10-19")], status: "delivered", movesIn: [{ from: "2026-10-19", to: "2026-10-20" }], movesOut: [{ from: "2026-10-19", to: "2026-10-20" }] });
+    const rows = buildEatingDays([mon]);
+    expect(rows.map((r) => [r.date, r.movedTo, r.movedFrom])).toEqual([["2026-10-19", "2026-10-20", undefined], ["2026-10-20", undefined, ["2026-10-19"]]]);
+  });
   it("a rescheduled day reads Moved to <date> with no dish", () => {
     const rows = buildEatingDays([trip({ date: "2026-09-23", coversDates: ["2026-09-23"], eatingDays: [day("2026-09-23", "Dal")], status: "rescheduled", movedTo: "2026-09-25" })]);
     expect(rows[0]!.dish).toBeNull();

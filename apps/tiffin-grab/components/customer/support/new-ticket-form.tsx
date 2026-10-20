@@ -96,6 +96,12 @@ export function NewTicketForm({
       } catch (e) {
         // redirect() throws a special NEXT_REDIRECT — don't surface it as an error.
         if (e && typeof e === "object" && "digest" in e) throw e;
+        // The request never reached the server (weak signal, big photos). Each browser
+        // words it differently: Chrome "Failed to fetch", Safari "Load failed", Firefox "NetworkError…".
+        if (e instanceof TypeError && /failed to fetch|load failed|networkerror/i.test(e.message)) {
+          setError("Upload interrupted — check your connection and try again. Fewer or smaller photos help.");
+          return;
+        }
         setError(e instanceof Error ? e.message : "Couldn't create the ticket. Please try again.");
       }
     });

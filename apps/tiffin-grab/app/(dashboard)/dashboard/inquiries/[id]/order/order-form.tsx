@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { CheckIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CatalogAddon } from "@/lib/catalog/types";
-import { nextWeekday, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import {
@@ -35,7 +35,7 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { staffStartBase } from "@/lib/services/start-date";
+import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
 import { discountLine } from "@/components/customer/home/coupons-section";
@@ -71,6 +71,8 @@ type Catalog = {
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   timezone?: string;
+  /** App-settings cutoff hour: a day whose cutoff has passed can't be a start date. */
+  cutoffHour?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
@@ -279,8 +281,8 @@ export function OrderForm({
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const baseMinStart = isTrial && trialSettings
-    ? earliestTrialIso(staffStartBase(catalog.timezone), trialWeekdays)
-    : nextWeekday(staffStartBase(catalog.timezone)).toISOString().slice(0, 10);
+    ? earliestTrialIso(appToday(catalog.timezone, catalog.cutoffHour), trialWeekdays)
+    : nextWeekday(appToday(catalog.timezone, catalog.cutoffHour)).toISOString().slice(0, 10);
   const renewalBound = renewFrom != null && renewFrom > baseMinStart;
   const minStart = renewalBound ? renewFrom : baseMinStart;
   // The renewal date itself may fall on a non-start day; offer the first one on/after it.
@@ -707,11 +709,6 @@ export function OrderForm({
                         <button type="button" className="text-primary font-medium underline-offset-2 hover:underline" onClick={() => form.setValue("startDate", renewalStart!, { shouldDirty: true, shouldValidate: true })}>
                           {renewalStart}
                         </button>.
-                      </p>
-                    ) : null}
-                    {startDate === zonedDateIso(Date.now(), catalog.timezone ?? "America/Toronto") ? (
-                      <p className="text-muted-foreground text-xs text-pretty">
-                        Starts today. If today&apos;s run is already on OptimoRoute, push this stop from Dispatch.
                       </p>
                     ) : null}
                     <FormMessage />

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewTicketForm } from "../new-ticket-form";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
+import { createTicket } from "@/app/(customer)/me/support/actions";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
@@ -115,5 +116,23 @@ describe("NewTicketForm - Order Selection with Meal Size", () => {
       { value: "ord_2", label: "SUB-A1B2C3 · Vegetarian Plan · Standard" },
       { value: "ord_3", label: "SUB-EMPTY · Tiffin Plan" },
     ]);
+  });
+});
+
+describe("NewTicketForm - submit errors", () => {
+  it("replaces the browser's network error with a plain-language message", async () => {
+    vi.mocked(createTicket).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<NewTicketForm categories={TICKET_CATEGORIES} orders={[]} />);
+
+    fireEvent.change(screen.getByLabelText(/subject/i), { target: { value: "Missing roti" } });
+    const category = screen.getByLabelText(/^category/i) as HTMLSelectElement;
+    fireEvent.change(category, { target: { value: category.options[1].value } });
+    const sub = screen.getByLabelText(/sub-category/i) as HTMLSelectElement;
+    fireEvent.change(sub, { target: { value: sub.options[1].value } });
+    fireEvent.change(document.getElementById("ticket-body")!, { target: { value: "Only 4 roti" } });
+    fireEvent.submit(document.getElementById("ticket-body")!.closest("form")!);
+
+    await waitFor(() => expect(screen.getByText(/Upload interrupted/)).toBeInTheDocument());
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
   });
 });

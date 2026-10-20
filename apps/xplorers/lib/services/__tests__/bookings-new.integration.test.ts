@@ -183,6 +183,8 @@ describe("createForUser on the new model", () => {
     const b = await bookingsService.createForUser(fams[0]!.publicId, bookReq(waiverOcc, [kids[0]![0]!]));
     const [link] = await db.select().from(schema.bookingChildren).where(eq(schema.bookingChildren.bookingId, b.id));
     expect(link!.waiverUsed).toBe(true);
+    const [staffRow] = await bookingsService.listForOccurrence(waiverOcc.publicId);
+    expect(staffRow!.children).toEqual([`${MARK} kid 00 (age waiver)`]);
 
     const strictOcc = await makeOccurrence({ classValues: { ageMin: 9, ageMax: 12, ageWaiver: false } });
     await expect(bookingsService.createForUser(fams[1]!.publicId, bookReq(strictOcc, [kids[1]![0]!]))).rejects.toThrow(/kid 10 is outside the age range/);
@@ -201,6 +203,23 @@ describe("createForUser on the new model", () => {
     await expect(book(await makeOccurrence({ classValues: { published: false } }))).rejects.toThrow(/not open/);
     await expect(book(await makeOccurrence({ classValues: { archived: true } }))).rejects.toThrow(/no longer offered/);
     await expect(book(await makeOccurrence({ days: -1 }))).rejects.toThrow(/already started/);
+  });
+
+  it("refuses a priced class when no payment method is enabled, instead of booking it free", async () => {
+    const { paymentsService } = await import("../payments.service");
+    const rails = paymentsService.enabledRails;
+    paymentsService.enabledRails = async () => [];
+    try {
+      const occ = await makeOccurrence();
+      const req = bookReq(occ, [kids[0]![0]!]);
+      await expect(bookingsService.quote(req, fams[0]!.publicId)).rejects.toThrow(/payment isn't set up/);
+      await expect(bookingsService.createForUser(fams[0]!.publicId, req)).rejects.toThrow(/payment isn't set up/);
+      const free = await makeOccurrence({ classValues: { prices: flatPrice("0.00") } });
+      const b = await bookingsService.createForUser(fams[0]!.publicId, bookReq(free, [kids[0]![0]!]));
+      expect(b.status).toBe("confirmed");
+    } finally {
+      paymentsService.enabledRails = rails;
+    }
   });
 
   it("validates adults, extension and children at the boundary", async () => {

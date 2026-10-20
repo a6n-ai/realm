@@ -66,13 +66,16 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
       </SectionCard>
 
       {classes.length ? (
-        <SectionCard title="Book a class">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="flex flex-col gap-3" aria-labelledby="book-a-class">
+          <h2 id="book-a-class" className="text-base font-semibold">
+            Book a class
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {classes.map((c) => (
-              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} compact />
             ))}
           </div>
-        </SectionCard>
+        </section>
       ) : null}
 
       <SectionCard title="Past">

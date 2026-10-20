@@ -7,7 +7,8 @@
 @source "../../../node_modules/@foundry/crm/src";
 @source "../../../node_modules/@foundry/auth-ui/src";
 
-@custom-variant dark (&:is(.dark *));
+/* The public site (.xl) is always light; the shared theme preference only themes the apps. */
+@custom-variant dark (&:is(.dark *):not(.xl, .xl *));
 
 @theme inline {
   --color-background: var(--background);
@@ -55,7 +56,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+:root,
+.dark .xl {
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --brand-pink: oklch(0.608 0.237 1);
@@ -122,4 +125,13 @@
   --ok: oklch(0.74 0.14 160);
   --warn: oklch(0.889 0.147 90.7);
   --bad: oklch(0.68 0.19 27);
+}
+
+/* Components on the public site (the event calendar) draw borders with no colour of their own. */
+@layer base {
+  .xl *,
+  .xl *::before,
+  .xl *::after {
+    border-color: var(--border);
+  }
 }
