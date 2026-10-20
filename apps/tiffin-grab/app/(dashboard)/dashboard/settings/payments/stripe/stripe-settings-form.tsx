@@ -134,7 +134,7 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Stripe Tax" subtitle="Stripe works out sales tax from the delivery address on every card payment.">
+        <SectionCard title="Stripe Tax" subtitle="Stripe works out sales tax from the delivery address on every order, whatever the payment method.">
           <div className="grid gap-4">
             <div className="grid gap-1.5 sm:max-w-md">
               <Label htmlFor="taxCode">Tax code</Label>
@@ -198,7 +198,7 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
             <SettingRow
               id="taxOn"
               title="Use Stripe Tax"
-              description="Replaces the province table for card payments. Tax waivers are ignored."
+              description="Off: your app tax rates apply (Settings → Payment → Taxes & coins). On: Stripe calculates it, and the app rates still apply if Stripe can't be reached. Tax waivers are ignored."
             >
               <Switch
                 id="taxOn"
@@ -462,7 +462,7 @@ function StatusCard({
                 )}
               </Fact>
               <Fact label="Checkout">{view.enabled ? "Accepting cards" : "Off"}</Fact>
-              <Fact label="Stripe Tax">{tax.enabled ? "On" : "Off"}</Fact>
+              <Fact label="Tax">{tax.enabled ? "Stripe Tax" : "App tax rates"}</Fact>
               <Fact label="Surcharge">
                 <span className="tabular-nums">{sur.enabled ? `${sur.ratePct}% on credit` : "Off"}</span>
               </Fact>
