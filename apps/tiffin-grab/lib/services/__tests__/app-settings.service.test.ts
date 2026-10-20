@@ -126,3 +126,22 @@ describe("app-settings service (integration)", () => {
     expect(audits.some((r) => r.operation === "update")).toBe(true);
   });
 });
+
+describe("coin earn percent", () => {
+  afterAll(restoreAppSingleton);
+
+  it("defaults to 0 (earning off) and stores a whole percent", async () => {
+    const { getCoinEarnPct, setCoinEarnPct } = await import("../app-settings.service");
+    await resetAppToDefaults();
+    expect(await getCoinEarnPct()).toBe(0);
+    await setCoinEarnPct(10);
+    expect(await getCoinEarnPct()).toBe(10);
+  });
+
+  it("refuses values outside 0-100 or fractional", async () => {
+    const { setCoinEarnPct } = await import("../app-settings.service");
+    await expect(setCoinEarnPct(101)).rejects.toThrow(/whole percent/);
+    await expect(setCoinEarnPct(-1)).rejects.toThrow(/whole percent/);
+    await expect(setCoinEarnPct(2.5)).rejects.toThrow(/whole percent/);
+  });
+});
