@@ -973,6 +973,8 @@ export async function refundOrder(
         eventType: "order_activated",
         source: { type: "order", id: order.publicId },
       });
+      // Money back means coins back: a refunded order's spent coins return too.
+      await reverseCoinRedemption(tx, { userId: order.userId, orderId: order.id });
     }
   });
   publishAnalyticsLive();

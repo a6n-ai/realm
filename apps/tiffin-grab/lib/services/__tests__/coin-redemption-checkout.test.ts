@@ -19,7 +19,7 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const { cancelOrder, createOrder, verifyPayment } = await import("../orders.service");
+const { cancelOrder, createOrder, refundOrder, verifyPayment } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
 const { setMaxCoinPctOfSubtotal, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
@@ -119,6 +119,16 @@ describe("createOrder — coin redemption", () => {
   });
   afterAll(async () => {
     await reset();
+  });
+
+  it("refund gives back the coins spent on the order", async () => {
+    const owner = await seedUserWithCoins(50);
+    const { publicId } = await createOrder(await baseInput({ coins: 10 }), { ownerUserId: owner.publicId });
+    expect(await walletService.balance(owner.id)).toBe(40);
+
+    await refundOrder(publicId);
+
+    expect(await walletService.balance(owner.id)).toBe(50);
   });
 
   it("spends coins as a discount: total drops, wallet debit + discount ledger row match", async () => {
