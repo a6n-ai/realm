@@ -12,6 +12,7 @@ import { useCommit } from "./use-commit";
 import { useSheetUi } from "./sheet-ui";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
+const weekdayLong = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 
 // Plain spans on theme tokens, so the admin (shadcn) and kit sheets both render them.
 const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
@@ -114,6 +115,10 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                 deliveryDay={(iso) => !!agenda?.[iso]?.some((x) => x.truck) || (!!byDate.get(iso) && !byDate.get(iso)!.disabledReason && byDate.get(iso)!.carriedOn === iso)}
               />
               {reason && <Reason>{reason}</Reason>}
+              {chosen && chosen.carriedOn !== chosen.date && (
+                // Staff and customers read "Move to Tue" as a Tuesday drop-off; on a plan with no Tuesday truck it isn't.
+                <Notice>No delivery on {humanDate(chosen.date)}. It arrives {humanDate(chosen.carriedOn)} with {weekdayLong(chosen.date)}&apos;s menu.</Notice>
+              )}
               {chosen ? (
                 <ul aria-label="What happens" className="flex flex-wrap gap-2">
                   <Pill icon={Truck}>Arrives {humanDate(chosen.carriedOn)}</Pill>

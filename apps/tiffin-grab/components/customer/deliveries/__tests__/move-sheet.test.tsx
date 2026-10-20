@@ -50,6 +50,7 @@ describe("MoveSheet", () => {
     expect(tue.getAttribute("aria-label")).not.toContain("delivery day");
     fireEvent.click(tue);
     expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
+    expect(screen.getByText("No delivery on Tue, Sep 29. It arrives Mon, Sep 28 with Tuesday's menu.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, September 28, .*delivery day/ })).not.toHaveAttribute("aria-disabled");
   });
   it("free day: preview then move", async () => {
@@ -59,6 +60,7 @@ describe("MoveSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
     expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
+    expect(screen.queryByText(/^No delivery on/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
     expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 1);

@@ -369,7 +369,11 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .from(deliveryMoves).where(inArray(deliveryMoves.fromDeliveryId, rows.map((r) => r.d.id)));
   for (const m of moves) {
     const src = byId.get(m.fromId!)!;
-    if (!m.from || m.from < from || m.from > until || out[m.from]?.some((x) => x.orderId === src.orderId)) continue;
+    if (!m.from || m.from < from || m.from > until) continue;
+    const mine = out[m.from]?.filter((x) => x.orderId === src.orderId) ?? [];
+    // The truck still came that day, but nothing is eaten there any more: the day reads Moved.
+    if (mine.length && mine.every((x) => x.truck && !x.covers.includes(m.from!))) { for (const x of mine) x.moved = true; continue; }
+    if (mine.length) continue;
     const t = byId.get(m.toId)?.d ?? src.d;
     out[m.from] = [{ orderId: src.orderId, status: t.status as AgendaDay["status"], cutoffAt: Number(t.cutoffAt), deliveryDate: t.deliveryDate, truck: false, units: t.tiffinUnits, covers: coveredDates(t), moved: true, optimoCompletionStatus: t.optimoCompletionStatus, deliveryId: t.publicId }];
   }

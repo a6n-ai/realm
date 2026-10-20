@@ -80,7 +80,8 @@ export function weekTimeline(agenda: Agenda, monday: string, now: number): {
       dayStatus[weekdayOf(iso)] ??= dotStatus(d, now);
       if (!d.truck || trips.has(d.deliveryDate)) continue;
       const covers = d.covers.filter((c) => inWeek.has(c));
-      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: dotStatus(d, now) });
+      // A moved-away truck day still delivers: the trip keeps its own status.
+      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: dotStatus({ ...d, moved: false }, now) });
     }
   }
   return { trips: [...trips.values()], dayStatus };

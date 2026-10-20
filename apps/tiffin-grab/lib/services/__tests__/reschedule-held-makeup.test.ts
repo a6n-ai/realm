@@ -11,6 +11,7 @@ const { deliveries, ledgerEntries, orders, payments, users } = await import("@/d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
+const { myAgendaDots } = await import("../customer-deliveries.service");
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
@@ -29,11 +30,11 @@ afterEach(async () => {
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const weekdayAfter = (date: string) => iso(nextWeekday(new Date(`${date}T00:00:00Z`)));
 
-async function makeOrder(startDate: string, email = `u${Math.random().toString(36).slice(2)}@test.invalid`, phone = `+1647555${Math.floor(1000 + Math.random() * 9000)}`) {
+async function makeOrder(startDate: string, frequencyKey = "5_day", email = `u${Math.random().toString(36).slice(2)}@test.invalid`, phone = `+1647555${Math.floor(1000 + Math.random() * 9000)}`) {
   const snap = await loadCatalogSnapshot();
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
-    selections: { mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"], includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate },
+    selections: { mealSizeId: snap.mealSizes[0].publicId, frequencyKey, persons: 1, mealSlots: ["lunch"], includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate },
     contact: { email, fullName: "A B", phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
@@ -68,12 +69,28 @@ describe("rescheduleDelivery onto a renewal day", () => {
     const first = await makeOrder(weekdayAfter(iso(new Date(Date.now() + 3 * 864e5))));
     const firstRows = await rowsOf(first.order.id);
     const renewalStart = weekdayAfter(firstRows.at(-1)!.deliveryDate);
-    const renewal = await makeOrder(renewalStart, first.email, first.phone);
+    const renewal = await makeOrder(renewalStart, "5_day", first.email, first.phone);
     expect(renewal.order.userId).toBe(first.order.userId);
     const [renewalDay] = await db.select().from(deliveries)
       .where(and(eq(deliveries.orderId, renewal.order.id), eq(deliveries.deliveryDate, renewalStart)));
     expect(renewalDay).toBeDefined();
 
     await expect(rescheduleDelivery(firstRows[0]!.publicId, renewalStart, null)).rejects.toThrow(/renewal already delivers/);
+  });
+});
+
+describe("myAgendaDots on a truck day whose tiffin moved to a no-truck day", () => {
+  it("marks the truck day Moved, not Delivered, and the eating day carries the tiffin", async () => {
+    // MWF plan: Monday's tiffin moved to Tuesday still rides Monday's truck.
+    const start = iso(new Date(Date.now() + 7 * 864e5));
+    const monday = (() => { const d = new Date(`${start}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + ((8 - d.getUTCDay()) % 7)); return iso(d); })();
+    const { order } = await makeOrder(monday, "mwf");
+    const [mon] = await db.select().from(deliveries).where(and(eq(deliveries.orderId, order.id), eq(deliveries.deliveryDate, monday)));
+    const tuesday = weekdayAfter(monday);
+    await rescheduleDelivery(mon!.publicId, tuesday, null);
+
+    const dots = await myAgendaDots(order.userId!, monday, tuesday);
+    expect(dots[monday]).toEqual([expect.objectContaining({ truck: true, moved: true, covers: [tuesday] })]);
+    expect(dots[tuesday]).toEqual([expect.objectContaining({ truck: false, moved: undefined })]);
   });
 });
