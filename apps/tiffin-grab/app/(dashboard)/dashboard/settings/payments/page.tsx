@@ -4,24 +4,14 @@ import { Button } from "@foundry/ui/button";
 import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
 import { requireAdmin } from "@/lib/auth/guards";
 import { SectionCard, TonePill } from "@/components/ds";
-import {
-  ensurePaymentCatalog,
-  getMaxCoinPctOfSubtotal,
-  getMaxCoinRedeemPctOfBalance,
-  getProvinceTaxes,
-} from "@/lib/services/app-settings.service";
+import { ensurePaymentCatalog, getProvinceTaxes } from "@/lib/services/app-settings.service";
 
 // Stripe joins this list once its provider ships; the hub needs no other change.
 const PROVIDER_IDS = new Set(["cash", "etransfer"]);
 
 export default async function PaymentsSettingsHub() {
   await requireAdmin();
-  const [cfg, maxCoinPct, maxRedeemPct, provinceTaxes] = await Promise.all([
-    ensurePaymentCatalog(),
-    getMaxCoinPctOfSubtotal(),
-    getMaxCoinRedeemPctOfBalance(),
-    getProvinceTaxes(),
-  ]);
+  const [cfg, provinceTaxes] = await Promise.all([ensurePaymentCatalog(), getProvinceTaxes()]);
 
   const providers = PAYMENT_PROVIDERS.filter((p) => PROVIDER_IDS.has(p.id));
   const installed = providers
@@ -71,8 +61,8 @@ export default async function PaymentsSettingsHub() {
       </SectionCard>
 
       <SectionCard
-        title="Taxes & coins"
-        subtitle="Order-wide rules. Tax follows the delivery province; a provider's own taxes apply only when the province is unknown."
+        title="Taxes"
+        subtitle="Tax follows the delivery province; a provider's own taxes apply only when the province is unknown. Coin limits live in Wallet → Settings."
         action={
           <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/settings/payments/checkout-rules" prefetch={false}>
@@ -89,14 +79,6 @@ export default async function PaymentsSettingsHub() {
                 ? "By delivery province, standard rates"
                 : `By delivery province, ${customizedProvinces} customized`
             }
-          />
-          <SummaryRow
-            label="Coins per order"
-            value={maxCoinPct == null ? "No limit" : `Up to ${maxCoinPct}% of subtotal`}
-          />
-          <SummaryRow
-            label="Wallet per order"
-            value={maxRedeemPct == null ? "No limit" : `Up to ${maxRedeemPct}% of balance`}
           />
         </dl>
       </SectionCard>
