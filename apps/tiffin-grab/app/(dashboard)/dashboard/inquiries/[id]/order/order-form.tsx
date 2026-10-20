@@ -39,6 +39,7 @@ import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
 import { discountLine } from "@/components/customer/home/coupons-section";
+import { quoteLinkQuery } from "@/components/wizard/selections";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -579,6 +580,8 @@ export function OrderForm({
     const days = eatingDays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
     const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
     const firstName = contact.fullName.trim().split(/\s+/)[0];
+    // Opens the customer's subscribe stepper on these picks, codes ready at checkout (see selectionsFromQuote).
+    const link = `${window.location.origin}/subscribe?${quoteLinkQuery({ planKey, mealSizeId, frequencyKey, eatingDays, durationWeeks: Number(durationWeeks), addonSelections, codes: toType })}`;
     const copyText = shownPreview
       ? [
           `Hi${firstName ? ` ${firstName}` : ""}! Here is your Tiffin Grab estimate:`,
@@ -596,7 +599,7 @@ export function OrderForm({
             ? ["", `*Coupon code${toType.length > 1 ? "s" : ""} to enter at checkout:*`, ...toType.map((c) => "```" + c + "```")]
             : []),
           "",
-          `Order here: ${window.location.origin}/subscribe`,
+          `Order here: ${link}`,
         ].join("\n")
       : null;
     onEstimate({

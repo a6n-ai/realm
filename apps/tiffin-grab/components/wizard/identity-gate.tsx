@@ -11,6 +11,7 @@ import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/k
 import { tiffinAuthUi } from "@/components/auth/auth-kit";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { promptGoogleOneTap } from "@/lib/auth/one-tap";
+import { quoteQuery } from "./selections";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the
@@ -108,7 +109,7 @@ export function IdentityGate({
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
     // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
     // leaving it in history turns the wizard's Back (and the phone's back gesture) into a loop.
-    router.replace("/me/renew", { transitionTypes: ["nav-forward"] });
+    router.replace(`/me/renew${quoteQuery(new URLSearchParams(window.location.search))}`, { transitionTypes: ["nav-forward"] });
     router.refresh();
   }
 
@@ -161,7 +162,7 @@ export function IdentityGate({
               start={() =>
                 promptGoogleOneTap(googleClientId, {
                   onSignedIn: () => {
-                    router.replace("/me/renew", { transitionTypes: ["nav-forward"] });
+                    router.replace(`/me/renew${quoteQuery(new URLSearchParams(window.location.search))}`, { transitionTypes: ["nav-forward"] });
                     router.refresh();
                   },
                   onRefused: () => setOauthError("signup_disabled"),
@@ -172,7 +173,12 @@ export function IdentityGate({
             <GoogleSignInButton
               ui={tiffinAuthUi}
               onSignIn={() =>
-                signIn.social({ provider: "google", requestSignUp: true, callbackURL: "/me/renew", errorCallbackURL: "/subscribe" })
+                {
+                // A staff estimate link's quote survives the Google round trip. The error page stays
+                // bare: the auth library appends its own ?error= to it.
+                const quote = quoteQuery(new URLSearchParams(window.location.search));
+                return signIn.social({ provider: "google", requestSignUp: true, callbackURL: `/me/renew${quote}`, errorCallbackURL: "/subscribe" });
+              }
               }
             />
             {oauthError ? <Notice tone={oauthError === "signup_disabled" ? "info" : "error"}>{oauthErrorMessage(oauthError)}</Notice> : null}
