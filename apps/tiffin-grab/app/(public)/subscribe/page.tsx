@@ -8,6 +8,10 @@ import { isStaffRole } from "@/lib/auth/landing";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/landing/meta";
+
+export const metadata: Metadata = pageMeta("Build your tiffin plan | Tiffin Grab", "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.", "/subscribe");
 
 export const dynamic = "force-dynamic";
 

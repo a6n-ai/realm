@@ -3,7 +3,7 @@ name: Tiffin Grab
 description: A soft, warm-cream identity for the public and customer surfaces (cream page, hairline cards, pill CTA with glow, one italic saffron accent word)
 colors:
   brand-orange: "#F06B1A"
-  brand-orange-foreground: "#FFFFFF"
+  brand-orange-foreground: "#2E1200"
   brand-orange-hover: "#D85F14"
   primary-wash: "#FBE3D2"
   warm-cream: "#FBF4E7"
@@ -73,6 +73,7 @@ Tokens live in `app/globals.css`; light / dark.
 - Card `#FFFFFF` / `#1B2921`; muted `#F1EEE5` / `#223229`; muted-fg `#6E6558` / `#A9AFA3`
 - Border `#E3DFD1` / white 10%
 - Primary (saffron) `#F06B1A` / `#FF9843`, hover `#D85F14` / `#FFA75E`, wash `#FBE3D2` / `#3A2A1C`
+- Text on primary is dark ink `#2E1200` in both themes (5.6:1; white was 3.07:1). Set as `--primary-foreground` in the `.customer-app` block.
 - Forest `#1D5C32` is status only, never decorative. Destructive is red, for errors only.
 
 ### Status palette (`--s-*`)
@@ -196,3 +197,13 @@ Back  Title            Title *accent*            Tabs (desktop) / rows (mobile)
 Reusable as-is: option cards (now `SelectableCard`), day pills (h-48 pill, primary fill), progress bar (h-1 rounded, primary/border), glass bottom bar (`BottomBar`), invoice sheet (`Sheet`).
 Fixed: Card selected ring became 10% wash + 2px border cue; Field 1.5px border/48px -> 1px/52px; Sheet radius on token.
 The wizard and checkout now render on the kit (no `@foundry/ui` Button, Input, Label, RadioGroup, Badge, Separator; the only stock pieces left are `PhoneInput` and the shared `AddressFields`). The wizard is the reference implementation: change a kit primitive and the wizard changes with it.
+
+## Public pages (`/`, `app/(home)`, `app/(marketing)`, 404)
+
+Every public page sits in `PublicShell` (`components/landing/public-shell.tsx`): `.tg-land.customer-app`, the landing header, the ink close band as footer, no bottom dock. Inner pages open with `PageIntro` (eyebrow, one h1 with its accent word, lede) and use the same `.tg-*` classes.
+
+- **Two landing-only type steps** stretch the DS for a hero: display `clamp(40px, 6.2vw, 76px)`/700/-0.035em and section title `clamp(30px, 4.2vw, 48px)`/700/-0.03em; lede 18px muted. Every title keeps one italic saffron accent word under a `c-eyebrow`.
+- **Links styled as kit buttons:** `.tg-cta` is the kit `hero` pill (52px, glow), `.tg-btn` the kit `outline` (14px radius, 1.5px ink border). Lists are `.tg-card` + `.tg-rows` (56px rows, hairline dividers).
+- **Fig 1, the tiffin.** The mark built as an isometric steel tiffin with the anatomy kit (`scripts/tiffin-figure/build.mjs` → `public/landing/tiffin-figure.svg`, fetched into a 24px plate card with `Fig 1` / readout corners). The logo's own colours live only in the figure's materials (`tiffin-figure.css`): leaf tiers `#72a94b`/`#9cc654`, marigold lid `#f6a934`, orange knob and spoon `#fb801c`, forest edges `#185936`. The part the current chapter is about takes the saffron `--primary` edge.
+- **The story.** Seven chapters (`data-step`) drive one pose on GSAP's ticker (Lenis for scroll): packed, in the kitchen (the stove lit), rice and dal, palak paneer and roti, sides, delivery days (a desk calendar at the back lights the picked days' columns), and ready for delivery: the plan-length picker fills the calendar week by week (the page folds over and a fresh one drops past four weeks) while the tiffin latches shut and steams on its steel thali. The kitchen chapter is the prep board: dal and rice cooking on a two-burner gas stove (flickering flames), a masala dabba and an achar jar; the tiffin stays closed there. A steel tumbler sits by the thali. Dishes are real menu items; chapter rows are live catalog data (plans, sizes, add-ons, frequencies, durations with their discounts). Reduced motion lands each pose at once with native scroll.
+- **Menu:** Mon–Fri cards (dishes deduped across plans, six then "+N more"); the weekend's single dish sits on one wide line under them.

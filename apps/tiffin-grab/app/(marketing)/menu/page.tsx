@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@foundry/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { Section } from "@/components/marketing/section";
+import { PageIntro } from "@/components/landing/public-shell";
 import { MealCard } from "@/components/marketing/meal-card";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = { title: "Menu — Tiffin Grab", description: "Browse meal sizes by tier, with calories and macros, available across the GTA." };
+export const metadata: Metadata = pageMeta("Meal sizes | Tiffin Grab", "Every tiffin meal size by tier, with calories, protein, carbs, fat and the per-tiffin rate.", "/menu");
 
 // Catalog is cached (loadCatalogSnapshot) and admin edits revalidate this path,
 // so the page can be static with a 10m ISR safety net instead of force-dynamic.
@@ -24,25 +23,28 @@ export default async function MenuPage() {
   const orgId = await resolveRequestOrg();
   const { mealSizes } = await loadCatalogSnapshot(orgId);
   return (
-    <Section className="space-y-10">
-      <div className="max-w-2xl">
-        <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">What&apos;s cooking</p>
-        <h1 className="m-0 text-[clamp(30px,5vw,54px)] font-bold tracking-[-1.5px]">Our menu.</h1>
-        <p className="text-muted-foreground mt-3">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
-      </div>
+    <div className="tg-wrap tg-section flex flex-col gap-12">
+      <PageIntro
+        eyebrow="Meal sizes"
+        title={<>As much as you <span className="c-accent">need.</span></>}
+        lede="Every size with its calories, macros and per-tiffin rate. The dishes change weekly; see this week's menu for them."
+      />
       {TIERS.map((tier) => {
         const meals = listableMealSizes(mealSizes).filter((m) => m.tier === tier.key);
         if (meals.length === 0) return null;
         return (
-          <div key={tier.key} className="space-y-4">
-            <h2 className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">{tier.label}</h2>
+          <section key={tier.key} className="flex flex-col gap-4" aria-label={tier.label}>
+            <h2 className="c-eyebrow !mb-0">{tier.label}</h2>
             <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-              {meals.map((m) => <div key={m.id} className="hover-lift rounded-2xl border-[1.5px] border-foreground"><MealCard meal={m} /></div>)}
+              {meals.map((m) => <MealCard key={m.id} meal={m} className="tg-card p-6" />)}
             </div>
-          </div>
+          </section>
         );
       })}
-      <Button asChild size="lg" className="hover-lift group h-14 w-fit rounded-full px-8"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
-    </Section>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href="/subscribe" className="tg-cta">Build my tiffin</Link>
+        <Link href="/menu/weekly" className="tg-btn">This week&apos;s menu</Link>
+      </div>
+    </div>
   );
 }

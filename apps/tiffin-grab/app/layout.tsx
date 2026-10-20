@@ -26,7 +26,9 @@ const poppins = Poppins({
 // --font-geist-sans is scoped to the dashboard shell only (.crm-app in
 // globals.css) — public/customer pages keep Poppins.
 
+// Absolute URLs for canonical and share-card tags; SITE_URL is the deployed origin.
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL ?? "https://app.tiffingrab.ca"),
   title: "Tiffin Grab",
   description: "Customizable tiffin subscriptions across the GTA.",
 };

@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { HelpCircle } from "lucide-react";
-import { Section } from "@/components/marketing/section";
+import Link from "next/link";
+import { FAQS } from "@/components/landing/faqs";
+import { PageIntro } from "@/components/landing/public-shell";
 import { listPublicFaqs } from "@/lib/services/faqs.service";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "FAQ — Tiffin Grab",
-  description: "Answers on plans, delivery, meal sizes, pausing and billing — Tiffin Grab's most-asked questions.",
-};
+export const metadata: Metadata = pageMeta("FAQ | Tiffin Grab", "Answers on plans, delivery, meal sizes, pausing and billing: Tiffin Grab's most-asked questions.", "/faq");
 
 // Content is admin-editable (Settings > Public Website > FAQ) and org-scoped
 // from the request — force-dynamic for the same reason as /contact.
@@ -26,36 +25,22 @@ function faqJsonLd(faqs: { question: string; answer: string }[]) {
 }
 
 export default async function FaqPage() {
-  const faqs = await listPublicFaqs();
+  const saved = await listPublicFaqs();
+  const faqs = saved.length > 0 ? saved.map((f) => ({ question: f.question, answer: f.answer })) : FAQS.map((f) => ({ question: f.q, answer: f.a }));
 
   return (
-    <Section className="space-y-10">
-      {faqs.length > 0 && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }} />
-      )}
-      <div className="flex items-center gap-3">
-        <HelpCircle className="animate-float text-muted-foreground size-7" />
-        <div className="max-w-2xl">
-          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">Got questions?</p>
-          <h1 className="m-0 mb-2.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Frequently asked questions.</h1>
-        </div>
+    <div className="tg-wrap tg-section">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }} />
+      <PageIntro eyebrow="FAQ" title={<>Before you <span className="c-accent">order.</span></>} />
+      <div className="tg-card tg-faq max-w-[820px]">
+        {faqs.map((f) => (
+          <details key={f.question}>
+            <summary>{f.question}</summary>
+            <p className="whitespace-pre-line">{f.answer}</p>
+          </details>
+        ))}
       </div>
-
-      {faqs.length === 0 ? (
-        <p className="text-muted-foreground">Nothing here yet — check back soon.</p>
-      ) : (
-        <div className="max-w-2xl divide-y divide-border">
-          {faqs.map((f) => (
-            <details key={f.publicId} className="group py-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
-                <span>{f.question}</span>
-                <span aria-hidden className="text-muted-foreground shrink-0 transition-transform group-open:rotate-45">+</span>
-              </summary>
-              <p className="text-muted-foreground mt-2 whitespace-pre-line">{f.answer}</p>
-            </details>
-          ))}
-        </div>
-      )}
-    </Section>
+      <p className="mt-6">Something else? <Link href="/contact" className="tg-link tg-link--tap">Ask us</Link></p>
+    </div>
   );
 }
