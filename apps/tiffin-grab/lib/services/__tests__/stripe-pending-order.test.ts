@@ -1,10 +1,20 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const status = vi.fn();
+vi.mock("@/lib/payments/stripe", async (orig) => ({
+  ...(await orig<object>()),
+  stripeRuntime: async () => ({
+    stripe: {},
+    cfg: { surcharge: { enabled: false, ratePct: 0, excludeProvinces: [], networksNotifiedOn: "2026-09-01" }, tax: { enabled: false, taxCode: "txcd_x", surchargeTaxable: false } },
+  }),
+}));
+vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), fetchIntentStatus: (...a: unknown[]) => status(...a) }));
 
 const { db } = await import("@/db/client");
-const { deliveries, orders, payments } = await import("@/db/schema");
+const { couponRedemptions, coupons, deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
+const { settleStripePayment } = await import("../payment-stripe");
 const { createOrder } = await import("../orders.service");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
@@ -19,6 +29,11 @@ async function load(publicId: string) {
   return { order: order!, pay: pay!, deliveries: rows.length };
 }
 
+const dropCoupons = async () => {
+  await db.delete(couponRedemptions);
+  await db.delete(coupons);
+};
+
 describe("Stripe orders wait pending until paid", () => {
   beforeEach(async () => {
     await reset();
@@ -29,8 +44,13 @@ describe("Stripe orders wait pending until paid", () => {
       ],
     });
     await sharedCache("app-settings").evictAll();
+    status.mockReset();
+    await dropCoupons();
   });
-  afterAll(cleanup);
+  afterAll(async () => {
+    await dropCoupons();
+    await cleanup();
+  });
 
   it("creates a Stripe checkout order pending with no deliveries", async () => {
     const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
@@ -61,5 +81,72 @@ describe("Stripe orders wait pending until paid", () => {
     input.contact.postalCode = "V6B 1A1";
     const { publicId } = await createOrder(input);
     expect((await load(publicId)).order.status).toBe("waitlisted");
+  });
+
+  async function pendingStripe(input?: Awaited<ReturnType<typeof baseInput>>) {
+    const { publicId } = await createOrder(input ?? (await baseInput({ paymentMethodId: "stripe" })));
+    const r = await load(publicId);
+    await db.update(payments).set({ providerRef: "pi_1" }).where(eq(payments.id, r.pay.id));
+    status.mockResolvedValue({
+      piId: "pi_1", status: "succeeded", amountReceivedCents: Math.round(Number(r.pay.amount) * 100),
+      currency: "cad", paymentRef: r.pay.publicId, created: 1,
+    });
+    return { ...r, publicId, ref: { paymentRef: r.pay.publicId } };
+  }
+  const activities = async (orderId: bigint, type: "activated" | "note") =>
+    db.select().from(orderActivities).where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, type)));
+
+  it("starts a pending Stripe order when Stripe confirms", async () => {
+    const p = await pendingStripe();
+    expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
+    const r = await load(p.publicId);
+    expect(r.order.status).toBe("active");
+    expect(r.deliveries).toBeGreaterThan(0);
+    expect(r.order.startDate).toBe(p.order.startDate);
+    expect(await activities(r.order.id, "activated")).toHaveLength(1);
+  });
+
+  it("settles once when webhook and return race", async () => {
+    const p = await pendingStripe();
+    const out = await Promise.all([settleStripePayment(p.ref, "webhook", "evt_1"), settleStripePayment(p.ref, "return")]);
+    expect(out.every((o) => o === "paid" || o === "already_paid")).toBe(true);
+    expect(await activities(p.order.id, "activated")).toHaveLength(1);
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, p.pay.id))).toHaveLength(1);
+  });
+
+  it("moves the start when the chosen date passed", async () => {
+    const p = await pendingStripe();
+    const yesterday = new Date(Date.now() - 24 * HOUR).toISOString().slice(0, 10);
+    await db.update(orders).set({ startDate: yesterday }).where(eq(orders.id, p.order.id));
+    expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
+    const r = await load(p.publicId);
+    expect(r.order.status).toBe("active");
+    expect(r.order.startDate > new Date().toISOString().slice(0, 10)).toBe(true);
+    expect(r.deliveries).toBeGreaterThan(0);
+  });
+
+  async function overlapped(couponCode?: string) {
+    const input = await baseInput({ paymentMethodId: "stripe", ...(couponCode ? { couponCode } : {}) });
+    const p = await pendingStripe(input);
+    await createOrder({ ...input, couponCode: null, paymentMethodId: "etransfer" });
+    return p;
+  }
+
+  it("records the payment but stays pending when another plan now overlaps", async () => {
+    const p = await overlapped();
+    expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
+    const r = await load(p.publicId);
+    expect(r.pay.status).toBe("paid");
+    expect(r.order.status).toBe("pending");
+    expect(r.deliveries).toBe(0);
+    expect((await activities(r.order.id, "note")).some((a) => a.note?.includes("could not start"))).toBe(true);
+  });
+
+  it("settles coupons and coins even when it cannot start", async () => {
+    await db.insert(coupons).values({ code: "SAVE10", kind: "fixed", name: "Save 10", valueAmount: "10", maxRedemptions: 5, maxPerUser: 1 });
+    const p = await overlapped("SAVE10");
+    expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
+    expect((await load(p.publicId)).order.status).toBe("pending");
+    expect(await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, p.order.id))).toHaveLength(1);
   });
 });

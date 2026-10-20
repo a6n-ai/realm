@@ -53,7 +53,8 @@ import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
-import { assertStartNotHoliday } from "./holiday-dates";
+import { assertStartNotHoliday, upcomingHolidays } from "./holiday-dates";
+import { paidStartDate } from "@/lib/orders/paid-start";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
@@ -688,9 +689,8 @@ export async function createOrder(
       await tx.insert(orderAddons).values(orderAddonValues(order.id, pricingCatalog.addons, pricing.tiffinCount, organizationId));
     }
 
-    // Start immediately: in-zone orders materialize deliveries now, even when
-    // payment is still awaiting. UI tells the customer delivery begins once
-    // payment is confirmed; unpaid days can be moved ahead later.
+    // In-zone orders start now and materialize deliveries, except Stripe orders:
+    // those stay pending and start when the card payment settles (startPaidStripeOrder).
     if (order.status === "active") {
       // The order id is not visible to any other transaction yet; the lock is the contract applyHolidaysToOrder expects.
       await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
@@ -818,6 +818,46 @@ export function paymentTemplateVars(
   };
 }
 
+// A pending Stripe order starts when its payment settles. Pending orders reserve no days, so
+// the overlap guard runs here with the final dates. A start that can't happen leaves the
+// order pending with a note: the money is already in, staff resolve it.
+async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
+  await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+  const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
+  if (current?.status !== "pending") return { started: false, reason: `order is ${current?.status ?? "missing"}` };
+
+  const { timezone, cutoffHour } = await getAppSettings();
+  const todayBase = appToday(timezone, cutoffHour);
+  const closed = new Set((await upcomingHolidays(tx, order.organizationId, todayBase.toISOString().slice(0, 10))).keys());
+  const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+  const startDate = paidStartDate({
+    chosen: order.startDate,
+    allowedStartDays: plan?.allowedStartDays ?? [],
+    trialSendDays: order.trialLength != null ? (order.trialWeekdays ?? []) : null,
+    todayBase,
+    closed,
+  });
+  try {
+    await assertNoPlanOverlap(tx, { userId: order.userId!, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
+  } catch (e) {
+    if (!(e instanceof ValidationError)) throw e;
+    await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: `Paid, but could not start: ${e.message}`, createdBy: actorId });
+    return { started: false, reason: e.message };
+  }
+  const [row] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId }).where(eq(orders.id, order.id)).returning();
+  await tx.insert(orderActivities).values({
+    orderId: order.id,
+    type: "activated",
+    fromStatus: "pending",
+    toStatus: "active",
+    note: startDate === order.startDate ? null : `Start moved to ${startDate}`,
+    createdBy: actorId,
+  });
+  await materializeDeliveries(tx, row!);
+  await applyHolidaysToOrder(tx, row!, actorId);
+  return { started: true };
+}
+
 // Staff settles a real-method payment: credits the ledger, redeems any deferred
 // coupons from the pricing snapshot, awards activation coins, and marks paid.
 // Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
@@ -838,13 +878,14 @@ export async function verifyPayment(
       throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
     }
 
-    const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+    let [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
+    const orderUserId = order.userId;
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 
     await ledgerService.record(tx, {
-      userId: order.userId,
+      userId: orderUserId,
       orderId: order.id,
       paymentId: pay.id,
       direction: "credit",
@@ -878,7 +919,7 @@ export async function verifyPayment(
         : null;
       await couponsService.redeem(tx, {
         coupon,
-        userId: order.userId,
+        userId: orderUserId,
         orderId: order.id,
         redeemedBy,
         amountApplied: r.amount,
@@ -887,12 +928,12 @@ export async function verifyPayment(
     }
 
     if (snap.pendingCoinRedemption && snap.pendingCoinRedemption.coins > 0) {
-      const settled = await settleCoinReservation(tx, { userId: order.userId, orderId: order.id });
+      const settled = await settleCoinReservation(tx, { userId: orderUserId, orderId: order.id });
       if (settled.status === "none") {
         // An order placed before checkout holds existed: nothing was reserved,
         // so debit now exactly as this path always did.
         await commitCoinRedemption(tx, {
-          userId: order.userId,
+          userId: orderUserId,
           coins: snap.pendingCoinRedemption.coins,
           currencyValue: snap.pendingCoinRedemption.amount,
           orderId: order.id,
@@ -903,7 +944,7 @@ export async function verifyPayment(
         // never block the verify: the customer's money has arrived. Whatever
         // was already spent is left for staff on the order's activity log.
         const { collected, notCollected } = await recollectLapsedCoins(tx, {
-          userId: order.userId,
+          userId: orderUserId,
           orderId: order.id,
           orderRef: order.publicId,
           coins: settled.coins,
@@ -929,14 +970,20 @@ export async function verifyPayment(
         .where(eq(orders.id, order.id));
     }
 
+    // After coupons/coins settle so they apply even when the start fails. WordPress-migrated pending orders are started by staff.
+    if (order.status === "pending" && pay.method === "stripe" && !order.deploymentId.startsWith("wc-")) {
+      const { started } = await startPaidStripeOrder(tx, order, actorInternalId);
+      if (started) [order] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+    }
+
     if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
 
-    const [user] = await tx.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
+    const [user] = await tx.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, orderUserId)).limit(1);
     const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
 
     await enqueueNotification(tx, {
       event: "payment_approved",
-      recipientId: order.userId,
+      recipientId: orderUserId,
       title: "Payment confirmed",
       body: `Your payment of ${formatMoney(Number(pay.amount))} for order ${order.deploymentId} is confirmed.`,
       href: "/me/wallet?tab=bills",
@@ -956,7 +1003,7 @@ export async function verifyPayment(
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
     const award = order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
-      userId: order.userId, 
+      userId: orderUserId, 
       orderPublicId: order.publicId,
       userPublicId: user.publicId,
     } : null;
