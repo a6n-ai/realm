@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings, getCoinEarnPct } from "@/lib/services/app-settings.service";
 import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { walletService } from "@/lib/services/wallet.service";
@@ -71,10 +71,11 @@ async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchPara
   const { currency } = await getAppSettings();
   const { condition, page } = parseFilterState(WALLET_FACETS, await searchParams);
 
-  const [balance, { earned, spent }, ledger] = await Promise.all([
+  const [balance, { earned, spent }, ledger, earnPct] = await Promise.all([
     walletService.balance(userId),
     walletService.earnSpendTotals(userId),
     walletService.ledgerPage(userId, condition, page),
+    getCoinEarnPct(),
   ]);
   const money = await walletService.moneyValue(balance, currency);
 
@@ -84,6 +85,9 @@ async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchPara
         <WalletHero coins={balance} money={money} currency={currency} />
         <EarnSpendTiles earned={earned} spent={spent} />
       </div>
+      {earnPct > 0 && (
+        <p className="text-muted-foreground text-sm">Earn {earnPct}% back as coins on every paid order.</p>
+      )}
       <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} />
     </div>
   );

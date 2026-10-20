@@ -31,6 +31,7 @@ const basePricing = {
 // Mutable per-test so the reprice mock's "signed in" state can vary without
 // re-mocking the module.
 let coinBalance: number | null = 100;
+let coinsToEarn: number | null = null;
 
 // Mirrors the real reprice contract: caps the requested coins against the
 // balance and folds a "Coins (N)" adjustment line into pricing, or returns
@@ -46,6 +47,7 @@ const reprice = vi.fn(async (...args: unknown[]) => {
     appliedCoupons: [],
     paymentMethods: [],
     coinBalance,
+    coinsToEarn,
   };
 });
 const validatePostal = vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
@@ -86,6 +88,23 @@ describe("Checkout coins control", () => {
     sessionStorage.clear();
     reprice.mockClear();
     coinBalance = 100;
+    coinsToEarn = null;
+  });
+
+  it("shows the coins this order will earn, and hides the line at 0", async () => {
+    coinsToEarn = 45;
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
+    expect(await screen.findByText(/coins when this order is paid/i)).toBeTruthy();
+    expect(screen.getByText("45")).toBeTruthy();
+
+    cleanup();
+    coinsToEarn = 0;
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
+    await waitFor(() => expect(reprice).toHaveBeenCalled());
+    expect(screen.queryByText(/coins when this order is paid/i)).toBeNull();
   });
 
   it("is absent, with no sign-in prompt, when the balance is unknown (coinBalance null)", async () => {

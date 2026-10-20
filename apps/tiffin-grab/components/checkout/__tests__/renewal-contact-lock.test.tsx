@@ -28,6 +28,7 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
     appliedCoupons: [],
     paymentMethods: [],
     coinBalance: null,
+    coinsToEarn: null,
     coinCap: null,
   }),
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
