@@ -7,6 +7,9 @@ const { orderActivities, stripeEvents } = await import("@/db/schema");
 const { listPayments } = await import("@/app/(dashboard)/dashboard/payments/payment-queries");
 const { STRIPE_FACETS } = await import("@/app/(dashboard)/dashboard/payments/payment-facets");
 const { makeStripePayment, reset, cleanup } = await import("./stripe-fixture");
+// The fixture's reset() enables e-Transfer in the shared test DB; restore an empty
+// payment config after the whole file so later suites (which order in simulated mode) still work.
+afterAll(cleanup);
 
 describe("Stripe tab attention facets", () => {
   afterAll(cleanup);

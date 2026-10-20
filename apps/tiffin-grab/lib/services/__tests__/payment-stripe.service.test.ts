@@ -43,6 +43,9 @@ const svc = await import("../payment-stripe");
 const { claimPayment } = await import("../orders.service");
 const fx = await import("./stripe-fixture");
 const { makeStripePayment, reset, cleanup } = fx;
+// The fixture's reset() enables e-Transfer in the shared test DB; restore an empty
+// payment config after the whole file so later suites (which order in simulated mode) still work.
+afterAll(cleanup);
 
 describe("settleStripePayment", () => {
   afterAll(cleanup);
