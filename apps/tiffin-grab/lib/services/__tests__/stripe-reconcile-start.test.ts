@@ -132,4 +132,25 @@ describe("Reconcile settle starts orders and applies add-ons", () => {
     expect(await settleStripePayment({ paymentRef: pay!.publicId }, "reconcile")).toBe("paid");
     expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order!.id))).not.toHaveLength(0);
   });
+
+  it("leaves WordPress-migrated pending orders plain", async () => {
+    const { publicId } = await createOrder(await fx.baseInput({ paymentMethodId: "stripe" }));
+    await db.update(orders).set({ deploymentId: "wc-1" }).where(eq(orders.publicId, publicId));
+    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+    expect(await reconcileOne(pay!, "pi_wc")).toMatchObject({ kind: "unpaid_here", effect: "plain" });
+  });
+
+  it("labels a void add-on link plain", async () => {
+    const { publicId } = await createOrder(await fx.baseInput({ paymentMethodId: "etransfer" }));
+    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    await db.update(payments).set({ status: "paid" }).where(eq(payments.orderId, order!.id));
+    const addon = mealSizeAddons(await loadCatalogSnapshot())[0]!;
+    const selections = [{ key: addon.key, qty: 1 }];
+    const shown = await quoteOrderAddons(publicId, selections, "stripe");
+    const res = await addOrderAddons(publicId, { selections, methodId: "stripe", expectedAmountDue: shown.amountDue }, null);
+    const [pay] = await db.select().from(payments).where(eq(payments.publicId, res.paymentPublicId!));
+    await db.update(payments).set({ expiresAt: 0 }).where(eq(payments.id, pay!.id));
+    expect(await reconcileOne(pay!, "pi_void")).toMatchObject({ kind: "unpaid_here", effect: "plain" });
+  });
 });

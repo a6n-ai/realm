@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, like, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type Stripe from "stripe";
 import { NotFoundError, ValidationError } from "@foundry/commons";
@@ -501,6 +501,7 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
   const byPi = new Map(ours.filter((p) => p.providerRef).map((p) => [p.providerRef!, p]));
   const rows: ReconcileRow[] = [];
   const seen = new Set<string>();
+  const unpaid: { row: ReconcileRow & { kind: "unpaid_here" }; orderId: bigint; addon: boolean; voided: boolean }[] = [];
 
   for (const i of succeeded) {
     // A payment created before the range can be charged inside it (late payment), so look outside the range too.
@@ -515,9 +516,18 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
     if (i.amountReceivedCents !== expected) {
       rows.push({ kind: "amount_differs", piId: i.piId, paymentRef: p.publicId, stripe: fromCents(i.amountReceivedCents), ours: fromCents(expected) });
     } else if (p.status !== "paid" && p.status !== "refunded") {
-      const [o] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, p.orderId)).limit(1);
-      const effect: SettleEffect = p.addonRequest ? "addons" : o?.status === "pending" ? "start" : "plain";
-      rows.push({ kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected), effect });
+      const row: ReconcileRow & { kind: "unpaid_here" } = { kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected), effect: "plain" };
+      rows.push(row);
+      unpaid.push({ row, orderId: p.orderId, addon: p.addonRequest != null, voided: p.expiresAt === 0 });
+    }
+  }
+  if (unpaid.length) {
+    const os = await db.select({ id: orders.id, status: orders.status, deploymentId: orders.deploymentId }).from(orders).where(inArray(orders.id, unpaid.map((u) => u.orderId)));
+    const byId = new Map(os.map((o) => [o.id, o]));
+    for (const u of unpaid) {
+      const o = byId.get(u.orderId);
+      // Mirrors verifyPayment: a void add-on link is only recorded (refund needed); wc- orders are started by staff.
+      u.row.effect = u.voided ? "plain" : u.addon ? "addons" : o?.status === "pending" && !o.deploymentId.startsWith("wc-") ? "start" : "plain";
     }
   }
   // Absence from the range proves nothing, so each paid row not seen is checked by retrieving its own PI.

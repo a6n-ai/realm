@@ -27,7 +27,6 @@ export type PaymentRow = {
   isAddon: boolean;
   /** Link expiry in epoch ms; 0 is a void link, null never expires. */
   expiresAt: number | null;
-  orderStatus: string;
   lastReminder: { status: string; at: number; deliveredAt: number | null; openedAt: number | null } | null;
 };
 
