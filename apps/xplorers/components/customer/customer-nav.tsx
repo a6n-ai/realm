@@ -13,10 +13,11 @@ const LINKS = [
   { href: "/me/account", label: "Settings" },
 ];
 
+/** Desktop top-bar pills for /me; phones use the bottom nav. */
 export function CustomerNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-col gap-1 p-2" aria-label="Your account">
+    <nav className="hidden items-center gap-1 lg:flex" aria-label="Your account">
       {LINKS.map((link) => {
         const active =
           link.href === "/me" ? pathname === "/me" : pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -27,10 +28,10 @@ export function CustomerNav() {
             prefetch={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-xl px-3 py-2.5 text-sm",
+              "inline-flex h-10 items-center rounded-full px-4 text-sm transition-colors",
               active
                 ? "bg-secondary text-secondary-foreground font-semibold"
-                : "text-foreground/80 hover:bg-secondary/60 font-medium",
+                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground font-medium",
             )}
           >
             {link.label}

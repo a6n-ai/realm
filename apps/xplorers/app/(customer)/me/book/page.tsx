@@ -106,7 +106,7 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {classes.map((c) => (
-              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} compact />
             ))}
           </div>
         )}

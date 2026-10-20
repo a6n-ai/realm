@@ -101,7 +101,7 @@ async function SessionsData({ searchParams }: { searchParams: SearchParams }) {
           from={from}
           to={to}
           canCreate={canCreate}
-          toolbar={canCreate ? <CopyWeekButton fromMonday={addDayKey(thisMonday, -7)} toMonday={thisMonday} /> : undefined}
+          toolbar={canCreate ? <CopyWeekButton key="copy-week" fromMonday={addDayKey(thisMonday, -7)} toMonday={thisMonday} /> : undefined}
         />
       </SectionCard>
     );

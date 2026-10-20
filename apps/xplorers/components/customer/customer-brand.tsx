@@ -18,8 +18,8 @@ export function CustomerBrand({ href = "/me" }: { href?: string }) {
         priority
       />
       <span
-        className="truncate text-sm font-bold tracking-tight md:text-base"
-        style={{ fontFamily: "var(--font-display)", color: "var(--xl-navy-800, var(--foreground))" }}
+        className="text-(--xl-navy-800) dark:text-foreground truncate text-sm font-bold tracking-tight md:text-base"
+        style={{ fontFamily: "var(--font-display)" }}
       >
         {SITE_NAME}
       </span>
