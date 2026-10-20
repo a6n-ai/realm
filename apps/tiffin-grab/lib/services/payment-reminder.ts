@@ -58,6 +58,9 @@ export async function sendPaymentReminder(
   if (row.pay.status !== "awaiting_payment" && row.pay.status !== "rejected") {
     throw new ValidationError("Only an unpaid or rejected payment can be reminded");
   }
+  if (row.pay.addonRequest && (row.pay.expiresAt == null || row.pay.expiresAt <= Date.now())) {
+    throw new ValidationError("This add-on link is expired or cancelled. Regenerate it first.");
+  }
   if (!row.email) throw new ValidationError("Customer has no email address");
 
   const method = findMethod(await getPaymentConfig(), row.pay.method) as MethodConfig | undefined;

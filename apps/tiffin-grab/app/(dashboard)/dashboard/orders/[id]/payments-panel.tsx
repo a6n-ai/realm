@@ -188,7 +188,9 @@ function PaymentRow({
   const isCard = payment.method === "stripe";
   const isAddon = payment.addonRequest != null;
   // expiresAt 0 is a link staff cancelled or replaced: it is void and can never be paid.
-  const isVoid = isAddon && payment.expiresAt === 0;
+  const isVoid = isAddon && payment.expiresAt === 0 && !isSettled(payment.status);
+  // A void link a late webhook still charged: the money is in, the add-ons are not applied.
+  const refundNeeded = isAddon && payment.expiresAt === 0 && isSettled(payment.status);
   const expired = isAddon && payment.expiresAt != null && payment.expiresAt <= now;
   const openLink = isAddon && payment.status === "awaiting_payment" && !expired;
   const unpaid = (payment.status === "awaiting_payment" || payment.status === "rejected") && (!isAddon || openLink);
@@ -204,7 +206,7 @@ function PaymentRow({
   const canRemind = isAddon ? openLink : payment.status === "awaiting_payment" || payment.status === "rejected";
   const canRegenerate = isAddon && payment.status === "awaiting_payment" && expired && !isVoid;
   const canCancel = isAddon && payment.status === "awaiting_payment" && !isVoid;
-  const shareUrl = (): string => payLink ?? (typeof window === "undefined" ? "" : `${window.location.origin}${activateUrl(deploymentId)}`);
+  const shareUrl = (): string => payLink ?? activateUrl(deploymentId);
   const canClaim =
     claimCtx != null &&
     (payment.status === "awaiting_payment" || payment.status === "rejected");
@@ -332,6 +334,7 @@ function PaymentRow({
               {methodLabel(payment.method)}
             </span>
             {isAddon && <Badge variant="outline">Add-ons</Badge>}
+            {refundNeeded && <Badge variant="destructive-light">Refund needed</Badge>}
             {isAddon && payment.status === "awaiting_payment" && !isVoid &&
               (expired ? (
                 <Badge variant="warning-light">Expired</Badge>

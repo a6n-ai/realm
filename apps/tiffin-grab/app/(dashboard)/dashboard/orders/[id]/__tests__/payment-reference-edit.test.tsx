@@ -46,4 +46,12 @@ describe("payment reference edit", () => {
     mount(payment({ reference: null, method: "simulated", status: "simulated_paid" }));
     expect(screen.queryByRole("button", { name: "Add reference" })).toBeNull();
   });
+
+  it("copies an e-Transfer pay link with exactly one origin", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    mount(payment({ status: "awaiting_payment" }));
+    fireEvent.click(screen.getByRole("button", { name: /Copy pay link/ }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/activate/SUB-1`));
+  });
 });

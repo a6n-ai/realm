@@ -8,6 +8,7 @@ const preview = vi.fn();
 const create = vi.fn();
 const refund = vi.fn();
 const retrieve = vi.fn();
+const cancelIntent = vi.fn();
 const stripeTax = vi.fn();
 const verify = vi.fn();
 const logError = vi.fn();
@@ -19,7 +20,7 @@ vi.mock("@foundry/commons/logger", async (orig) => {
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
-    stripe: { paymentIntents: { cancel: vi.fn(), retrieve: (...a: unknown[]) => retrieve(...a) } },
+    stripe: { paymentIntents: { cancel: (...a: unknown[]) => cancelIntent(...a), retrieve: (...a: unknown[]) => retrieve(...a) } },
     cfg: {
       surcharge: { enabled: true, ratePct: 2.4, excludeProvinces: ["QC"], networksNotifiedOn: "2026-09-01" },
       tax: { enabled: true, taxCode: "txcd_x", surchargeTaxable: true },
@@ -50,6 +51,7 @@ const { getAppSettings, setPaymentConfig } = await import("../app-settings.servi
 const { sharedCache } = await import("@/lib/cache");
 const { cancelOrder, createOrder } = await import("../orders.service");
 const { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment } = await import("../order-addons.service");
+const { sendPaymentReminder } = await import("../payment-reminder");
 const { findUnpaidPayment } = await import("../payment-settle");
 const { listOrdersPage } = await import("../orders.service");
 const { orderPaymentLocked } = await import("../customer-deliveries.service");
@@ -338,6 +340,16 @@ describe("Stripe add-ons (integration)", () => {
     expect(fresh!.expiresAt!).toBeGreaterThan(before);
     expect(fresh!.addonRequest).toMatchObject({ selections: [{ key: addon.key, qty: 1 }], openTiffins: 5 });
     expect(fresh!.id).not.toBe(old.id);
+    expect(cancelIntent).toHaveBeenCalledWith("pi_old");
+  });
+
+  it("will not email a reminder for an expired or void link", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1 }).where(eq(payments.id, pay.id));
+    await expect(sendPaymentReminder(order.publicId, pay.publicId, null)).rejects.toThrow(/expired or cancelled/);
+    await cancelAddonPayment(pay.publicId, null);
+    await expect(sendPaymentReminder(order.publicId, pay.publicId, null)).rejects.toThrow(/expired or cancelled/);
   });
 
   it("refuses to regenerate or cancel while the old intent is in flight", async () => {
