@@ -138,6 +138,8 @@ export type EstimateState = {
   preview: PricingResult | null;
   error: string | null;
   copyText: string | null;
+  /** The long subscribe link inside copyText, so the panel can swap in a short /q/ link. */
+  link: string | null;
   coupons: StaffCouponPreview | null;
   codes: string[];
   apply: (code: string) => void;
@@ -606,6 +608,7 @@ export function OrderForm({
       preview: shownPreview,
       error: shownPreview ? null : previewError,
       copyText,
+      link: shownPreview ? link : null,
       coupons,
       codes: couponCodes,
       apply: applyCoupon,
