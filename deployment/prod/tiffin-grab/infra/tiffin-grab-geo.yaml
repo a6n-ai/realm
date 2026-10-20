@@ -30,3 +30,21 @@ Resources:
               - geo-places:Geocode
               - geo-places:GetPlace
             Resource: !Sub "arn:aws:geo-places:${AWS::Region}::provider/default"
+
+  GeoMapsPolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref RoleName
+      PolicyName: geo-maps
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # The /api/map/* proxy routes (lib/maps/geo-maps.ts) issue exactly these.
+          - Sid: GeoMaps
+            Effect: Allow
+            Action:
+              - geo-maps:GetTile
+              - geo-maps:GetStyleDescriptor
+              - geo-maps:GetSprites
+              - geo-maps:GetGlyphs
+            Resource: !Sub "arn:aws:geo-maps:${AWS::Region}::provider/default"

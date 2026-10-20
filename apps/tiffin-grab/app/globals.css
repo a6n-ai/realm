@@ -502,6 +502,10 @@ button, a, [role="button"], summary { touch-action: manipulation; }
    admin app is untouched. Portaled overlays reach these via body:has(). */
 .customer-app,
 body:has(.customer-app) {
+  /* Dark ink on saffron in both themes: white on #F06B1A is 3.07:1, this is 5.6:1. */
+  --primary-foreground: #2E1200;
+  /* Saffron as text (eyebrows, accent words): #F06B1A on cream is 2.8:1, this is 5:1. */
+  --primary-text: #B4470F;
   --c-radius-chip: 10px;
   --c-radius-input: 16px;
   --c-radius-select: 20px;
@@ -522,8 +526,8 @@ body:has(.customer-app) {
 @layer utilities {
   .c-title { font-size: clamp(34px, 6vw, 40px); line-height: 1.06; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
   .c-title-page { font-size: clamp(28px, 5vw, 40px); line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
-  .c-accent { font-style: italic; color: var(--primary); }
-  .c-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--primary); }
+  .c-accent { font-style: italic; color: var(--primary-text, var(--primary)); }
+  .c-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--primary-text, var(--primary)); }
   .c-h2 { font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.03em; }
   .c-label { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
   .c-body { font-size: 16px; line-height: 1.5; }
@@ -533,4 +537,10 @@ body:has(.customer-app) {
 }
 @media (prefers-reduced-transparency: reduce) {
   .c-glass { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Dark ground: the bright saffron already reads as text. */
+.dark .customer-app,
+.dark body:has(.customer-app) {
+  --primary-text: var(--primary);
 }
