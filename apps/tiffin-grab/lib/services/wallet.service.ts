@@ -15,7 +15,7 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, walletLedger } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
-import { earnCoins } from "@/lib/wallet/earn-coins";
+import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "./app-settings.service";
 
@@ -198,7 +198,7 @@ export async function awardOrderCoins(
 
   await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${order.userId} FOR UPDATE`);
   const cap = await getMaxWalletBalance();
-  if (cap !== null && (await balanceInTx(tx, order.userId)) + coins > cap) {
+  if (cap !== null && coinsUnderCap({ coins, balance: await balanceInTx(tx, order.userId), cap }) === 0) {
     await note(`No coins earned: wallet cap reached (${coins} coins skipped)`);
     return { coins: 0, skipped: "cap" };
   }

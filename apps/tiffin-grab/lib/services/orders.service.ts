@@ -783,8 +783,13 @@ export async function verifyPayment(
       throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
     }
 
+    // Same lock order as cancel and activate (order advisory lock, then the
+    // customer), so a verify racing either one waits instead of deadlocking, and
+    // reads the order's status only after a concurrent activate has committed.
+    await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
     const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
+    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${order.userId} FOR UPDATE`);
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 

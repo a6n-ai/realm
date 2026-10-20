@@ -12,8 +12,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
-import { earnCoins } from "@/lib/wallet/earn-coins";
+import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
@@ -176,6 +176,7 @@ async function quote(
   let coinsError: string | undefined;
   let coinCap: RepriceResult["coinCap"] = null;
   let rate: number | null = null;
+  let coinsSpent = 0;
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
@@ -197,15 +198,22 @@ async function quote(
         coinsError = `Coins can cover up to ${maxPct}% of your subtotal — you can use up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
         const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
-        const { coinsSpent, currencyValue } = capRedemption(coins, rate, Math.min(remaining, pctCap));
-        if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
+        const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
+        if (redemption.currencyValue > 0) {
+          coinsSpent = redemption.coinsSpent;
+          lines.push({ label: `Coins (${coinsSpent})`, amount: redemption.currencyValue });
+        }
       }
     }
   }
 
   const pricing = priceSubscription(pricedSelections, catalog, lines, taxes);
-  const coinsToEarn = userId == null ? null : earnCoins({
-    total: pricing.total, taxTotal: pricing.taxTotal, pct: await getCoinEarnPct(), valuePerCoin: rate,
+  // Hidden (0) when the wallet cap would skip the award, as awardOrderCoins does;
+  // the coins spent here are already gone from the balance by then.
+  const coinsToEarn = userId == null || coinBalance == null ? null : coinsUnderCap({
+    coins: earnCoins({ total: pricing.total, taxTotal: pricing.taxTotal, pct: await getCoinEarnPct(), valuePerCoin: rate }),
+    balance: coinBalance - coinsSpent,
+    cap: await getMaxWalletBalance(),
   });
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,

@@ -10,3 +10,8 @@ export function earnCoins(input: { total: number; taxTotal: number; pct: number;
   // Same epsilon as foundry's capRedemption: 30 × 10% ÷ 0.1 is 29.999… in floats.
   return Math.floor((base * pct) / 100 / valuePerCoin + 1e-9);
 }
+
+/** The award's cap rule: an award that would take the wallet past the cap is skipped whole, not trimmed. */
+export function coinsUnderCap(input: { coins: number; balance: number; cap: number | null }): number {
+  return input.cap !== null && input.balance + input.coins > input.cap ? 0 : input.coins;
+}

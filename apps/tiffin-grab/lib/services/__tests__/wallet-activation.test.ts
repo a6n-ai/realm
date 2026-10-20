@@ -86,8 +86,9 @@ const TEST_PHONE_6 = "+16475550024";
 const TEST_PHONE_7 = "+16475550025";
 const TEST_PHONE_8 = "+16475550026";
 const TEST_PHONE_9 = "+16475550027";
+const TEST_PHONE_10 = "+16475550028";
 
-const TEST_PHONES = [TEST_PHONE, TEST_PHONE_2, TEST_PHONE_3, TEST_PHONE_4, TEST_PHONE_5, TEST_PHONE_6, TEST_PHONE_7, TEST_PHONE_8, TEST_PHONE_9];
+const TEST_PHONES = [TEST_PHONE, TEST_PHONE_2, TEST_PHONE_3, TEST_PHONE_4, TEST_PHONE_5, TEST_PHONE_6, TEST_PHONE_7, TEST_PHONE_8, TEST_PHONE_9, TEST_PHONE_10];
 
 async function cleanup() {
   // Unconditional wallet clear first: a row leaked by a failed test (before the
@@ -439,4 +440,44 @@ describe("percent earn edge cases", () => {
     expect(await db.select().from(walletLedger).where(eq(walletLedger.sourceId, row.publicId))).toHaveLength(0);
     expect(await notesFor(row.id)).toEqual([]);
   });
+
+  it("activating while the payment is verified still awards exactly once", async () => {
+    // Race: activate reads the payment as unpaid while verify reads the order as
+    // waitlisted, so neither awards. Several rounds to give the race a chance.
+    for (let i = 0; i < 6; i++) {
+      const snap = await loadCatalogSnapshot();
+      const { publicId } = await svc.createOrder({
+        planKey: snap.plans[0].key,
+        selections: {
+          mealSizeId: snap.mealSizes[0].publicId,
+          frequencyKey: "5_day",
+          persons: 1,
+          mealSlots: ["lunch"],
+          includeSaturday: false,
+          includeSunday: false,
+          durationWeeks: 1,
+          startDate: nextWeekday(new Date(Date.now() + i * 14 * 86_400_000)).toISOString().slice(0, 10),
+        },
+        contact: {
+          email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
+          fullName: "Wallet Race Test",
+          phone: TEST_PHONE_10,
+          addressLine: "9 Etobicoke Ave",
+          city: "Etobicoke",
+          postalCode: "M9V 1A1",
+        },
+      });
+      const [row] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+      await db.delete(walletLedger).where(eq(walletLedger.sourceId, publicId));
+      await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.id, row.id));
+      const [pay] = await db.select().from(payments).where(eq(payments.orderId, row.id));
+      await db.update(payments).set({ status: "awaiting_payment" }).where(eq(payments.id, pay.id));
+
+      await Promise.all([svc.activateOrder(publicId), svc.verifyPayment(pay.publicId)]);
+
+      const credits = await db.select().from(walletLedger).where(eq(walletLedger.sourceId, publicId));
+      expect(credits, `round ${i}`).toHaveLength(1);
+    }
+  });
 });
+
