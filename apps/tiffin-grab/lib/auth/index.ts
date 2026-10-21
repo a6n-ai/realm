@@ -23,6 +23,8 @@ import {
   sendVerification,
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
+import { attachReferral } from "@/lib/services/referrals.service";
+import { readReferralCookie } from "@/lib/referrals/cookie";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
 
@@ -277,6 +279,18 @@ export const auth = betterAuth({
             throw new APIError("FORBIDDEN", {
               message: "Verify your email address first — check your inbox (and spam folder) for the link.",
             });
+          }
+        },
+        // Referral: a share-link or signup code attaches at the friend's sign-in,
+        // never at provisioning, so accounts that never sign in can't be referred.
+        // attachReferral re-checks eligibility; a failure must not block sign-in.
+        after: async (sess, ctx) => {
+          const code = readReferralCookie(ctx?.headers ?? ctx?.request?.headers);
+          if (!code) return;
+          try {
+            await attachReferral(BigInt(sess.userId as string), code);
+          } catch (err) {
+            log.error({ err }, "referral attach failed");
           }
         },
       },

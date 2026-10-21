@@ -8,6 +8,9 @@ import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+import { cookies } from "next/headers";
+import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { findReferrerByCode } from "@/lib/services/referrals.service";
 
 const log = createLogger("signup");
 
@@ -25,6 +28,7 @@ export async function signUpCustomer(input: {
   email: string;
   name?: string;
   password: string;
+  referralCode?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = signUpSchema.safeParse({
     phone: input.phone,
@@ -39,6 +43,12 @@ export async function signUpCustomer(input: {
   }
 
   const { phone, email, name, password } = parsed.data;
+  // The code attaches at first sign-in (session hook); here it is only checked and
+  // remembered, so a typo is caught while the person is still on the form.
+  const referralCode = normalizeReferralCode(input.referralCode ?? "");
+  if (referralCode && !(await findReferrerByCode(referralCode))) {
+    return { ok: false, error: "That referral code isn't valid" };
+  }
   // Hash outside the transaction — scrypt is CPU-bound and must not hold the DB
   // connection open.
   const passwordHash = await hashPassword(password);
@@ -90,6 +100,7 @@ export async function signUpCustomer(input: {
     // slow SES call must not hold the connection, and a delivery failure must
     // not roll back a created account (the user can re-trigger by attempting to
     // sign in, which re-sends via sendOnSignIn).
+    if (created && referralCode) (await cookies()).set(REFERRAL_COOKIE, referralCode, REFERRAL_COOKIE_OPTIONS);
     if (created) {
       try {
         const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");

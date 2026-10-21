@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
+import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "./lib/referrals/cookie";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
 // runtime` here throws — the option isn't available for proxy files), so a
@@ -81,6 +82,14 @@ function unauthorized(): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  const res = await route(request);
+  // A share link: remember the code until the friend signs in (attached there).
+  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "").slice(0, 32);
+  if (ref) res.cookies.set(REFERRAL_COOKIE, ref, REFERRAL_COOKIE_OPTIONS);
+  return res;
+}
+
+async function route(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
 

@@ -30,18 +30,19 @@ const schema = z.object({
   name: z.string().trim().optional(),
   // Shared schema so the form and the server agree on the 12-char minimum.
   password: passwordSchema,
+  referralCode: z.string().trim().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
+export function SignupForm({ defaultCountry, defaultReferralCode = "" }: { defaultCountry: Country; defaultReferralCode?: string }) {
   const [error, setError] = useState<string | null>(null);
   // Set once the account exists and the verification mail has gone out.
   const [sent, setSent] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { phone: "", email: "", name: "", password: "" },
+    defaultValues: { phone: "", email: "", name: "", password: "", referralCode: defaultReferralCode },
   });
 
   async function onSubmit(values: FormValues) {
@@ -51,6 +52,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
       email: values.email,
       name: values.name || undefined,
       password: values.password,
+      referralCode: values.referralCode || undefined,
     });
     if (!result.ok) {
       setError(result.error);
@@ -158,6 +160,19 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                             {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                           </button>
                         </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="referralCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Referral code <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                      <FormControl>
+                        <Input className={IOS_INPUT} autoComplete="off" autoCapitalize="characters" placeholder="From a friend" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

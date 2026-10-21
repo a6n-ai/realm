@@ -106,6 +106,19 @@ describe("proxy URL-based org resolution", () => {
     }
   }
 
+  it("remembers a ?ref= share code in a 30-day cookie", async () => {
+    const res = await proxy(new NextRequest("http://localhost/?ref=ab12"));
+    const set = res?.headers.get("set-cookie") ?? "";
+    expect(set).toMatch(/tg_ref=AB12/);
+    expect(set).toMatch(/Max-Age=2592000/);
+    expect(set).toMatch(/HttpOnly/i);
+  });
+
+  it("sets no referral cookie without ?ref=", async () => {
+    const res = await proxy(new NextRequest("http://localhost/menu"));
+    expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);
+  });
+
   it("redirects to /locations when nothing matches and no default exists", async () => {
     await withNoDefaultOrg(async () => {
       const req = new NextRequest("http://localhost/nosuchcode/menu");

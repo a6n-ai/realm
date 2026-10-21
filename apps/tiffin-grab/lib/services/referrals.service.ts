@@ -2,15 +2,14 @@ import { randomInt } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, referrals, users } from "@/db/schema";
+import { normalizeReferralCode } from "@/lib/referrals/cookie";
 
 // No 0/O, 1/I/L: codes get read out loud and typed from screenshots.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
 const PAID = ["paid", "simulated_paid"] as const;
 
-export function normalizeReferralCode(raw: string): string {
-  return raw.replace(/\s+/g, "").toUpperCase();
-}
+export { normalizeReferralCode };
 
 function newCode(): string {
   let s = "";

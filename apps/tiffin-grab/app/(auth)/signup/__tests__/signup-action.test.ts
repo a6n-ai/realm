@@ -5,6 +5,8 @@ import { eq, ne } from "drizzle-orm";
 // (which fails, is caught, and just logs a stack). Keep it hermetic.
 const sendVerificationEmail = vi.fn(async () => ({}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail } } }));
+const cookieSet = vi.fn();
+vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
 
 const { db } = await import("@/db/client");
 const { account, users } = await import("@/db/schema");
@@ -53,5 +55,24 @@ describe("signUpCustomer", () => {
   it("rejects a too-short password", async () => {
     const r = await signUpCustomer({ phone: "+16475550112", email: "c@example.invalid", password: "short" });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("signUpCustomer referral code", () => {
+  beforeEach(async () => { await reset(); cookieSet.mockClear(); });
+  afterAll(reset);
+
+  it("refuses a code nobody has, and creates no account", async () => {
+    const r = await signUpCustomer({ phone: "+16475550121", email: "r1@example.invalid", password: PASSWORD, referralCode: "nope" });
+    expect(r).toEqual({ ok: false, error: "That referral code isn't valid" });
+    expect(await db.select().from(users).where(eq(users.phone, "+16475550121"))).toHaveLength(0);
+  });
+
+  it("remembers a valid code for the first sign-in", async () => {
+    const [referrer] = await db.insert(users).values({ phone: "+16475550122", email: "r2@example.invalid", role: "user", referralCode: "ABCD2345" }).returning();
+    const r = await signUpCustomer({ phone: "+16475550123", email: "r3@example.invalid", password: PASSWORD, referralCode: "abcd 2345" });
+    expect(r.ok).toBe(true);
+    expect(cookieSet).toHaveBeenCalledWith("tg_ref", "ABCD2345", expect.objectContaining({ httpOnly: true, maxAge: 2592000 }));
+    expect(referrer.id).toBeDefined();
   });
 });
