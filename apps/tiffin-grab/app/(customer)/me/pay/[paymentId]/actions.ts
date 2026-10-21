@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { abandonCardAttempt, payByCard, settleStripePayment, type PayByCardResult } from "@/lib/services/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
+import { withCustomerPayLock } from "@/lib/services/customer-pay-lock";
 
 export async function submitCardPayment(
   paymentId: string,
@@ -16,13 +17,15 @@ export async function submitCardPayment(
   return runAction(async () => {
     const session = await getSession();
     if (!session?.user) throw new Error("Sign in to pay");
-    return payByCard({
-      paymentPublicId: paymentId,
-      userPublicId: session.user.id,
-      source: { confirmationTokenId: tokenId },
-      acceptSurcharge,
-      returnUrl: `${appBaseUrl()}/me/pay/${paymentId}?return=1`,
-    });
+    return withCustomerPayLock(session.user.id, () =>
+      payByCard({
+        paymentPublicId: paymentId,
+        userPublicId: session.user.id,
+        source: { confirmationTokenId: tokenId },
+        acceptSurcharge,
+        returnUrl: `${appBaseUrl()}/me/pay/${paymentId}?return=1`,
+      }),
+    );
   });
 }
 

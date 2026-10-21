@@ -6,6 +6,22 @@ const payByCard = vi.fn();
 const settle = vi.fn();
 const abandon = vi.fn();
 
+const locks = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/lib/redis", async (orig) => {
+  const real = await orig<typeof import("@/lib/redis")>();
+  return {
+    ...real,
+    getRedis: () =>
+      new Proxy(real.getRedis(), {
+        get: (t, prop) => {
+          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as Function)(k, ...rest));
+          if (prop === "eval") return async (_s: string, _n: number, k: string, owner: string) => (locks.get(k) === owner ? (locks.delete(k), 1) : 0);
+          const v = (t as unknown as Record<string | symbol, unknown>)[prop];
+          return typeof v === "function" ? v.bind(t) : v;
+        },
+      }),
+  };
+});
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/payments/stripe", () => ({ appBaseUrl: () => "https://app.test" }));
 vi.mock("@/lib/services/payment-stripe", () => ({
@@ -27,8 +43,20 @@ describe("pay page actions", () => {
     session.current = null;
     owned.rows = [];
     payByCard.mockReset();
+    locks.clear();
     settle.mockReset();
     abandon.mockReset();
+  });
+
+  it("refuses a card submit while a checkout holds the customer lock, and frees the lock after", async () => {
+    session.current = { user: { id: "usr_1" } };
+    locks.set("pay-lock:usr_1", "checkout");
+    expect(await submitCardPayment("pay_1", "ct", false)).toEqual({ error: "A payment is already in progress." });
+    expect(payByCard).not.toHaveBeenCalled();
+    locks.clear();
+    payByCard.mockResolvedValue({ kind: "succeeded" });
+    expect("ok" in (await submitCardPayment("pay_1", "ct", false))).toBe(true);
+    expect(locks.size).toBe(0);
   });
 
   it("refuse a signed-out caller without touching Stripe", async () => {

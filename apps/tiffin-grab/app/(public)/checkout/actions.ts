@@ -81,14 +81,12 @@ export type PayCheckoutInput = ConfirmInput & { paymentPublicId: string | null; 
 
 /**
  * The card order is created only when the customer presses Pay. A retry (declined card, 3DS
- * abandoned) passes the payment it got back and reuses that order only if a fresh server quote of
- * the submitted inputs still matches it; anything else gets a fresh order, which cancels the older
- * unpaid one.
+ * abandoned) passes the payment it got back and reuses that order only if every submitted input
+ * matches the ones it was placed with and a fresh server quote still equals its amount; anything
+ * else gets a fresh order, which cancels the older unpaid one.
  *
- * One press per customer at a time: a second concurrent call (double tap, second tab) fails with
- * "A payment is already in progress." instead of creating and charging a second order. The lock
- * holds a pooled connection for the whole place+charge (same ceiling as payment-stripe's
- * tryChargeLock).
+ * One card flow per customer at a time (checkout and /me/pay share the lock): a concurrent call
+ * fails with "A payment is already in progress." instead of creating or charging a second order.
  */
 export async function payCheckout(
   input: PayCheckoutInput,
@@ -99,12 +97,9 @@ export async function payCheckout(
     const session = await getSession();
     if (!session?.user) throw new ValidationError("Sign in to place your order.");
     const userPublicId = session.user.id;
-    const [{ sql }, { db }] = await Promise.all([import("drizzle-orm"), import("@/db/client")]);
+    const { withCustomerPayLock } = await import("@/lib/services/customer-pay-lock");
 
-    return db.transaction(async (tx) => {
-      const got = await tx.execute(sql`select pg_try_advisory_xact_lock(hashtextextended(${"checkout-pay:" + userPublicId}, 0)) as ok`);
-      if (!(got as unknown as { ok: boolean }[])[0]?.ok) throw new ValidationError("A payment is already in progress.");
-
+    return withCustomerPayLock(userPublicId, async () => {
       let paymentPublicId: string;
       let deploymentId: string;
       const reusable = reuseId ? await findReusableCheckout(reuseId, userPublicId, order) : null;
@@ -114,6 +109,7 @@ export async function payCheckout(
         const placed = await placeSubscription(order);
         if (placed.waitlisted) throw new ValidationError("We do not deliver to that address yet. We have added you to our waitlist.");
         ({ paymentPublicId, deploymentId } = placed);
+        await stampInputsFingerprint(paymentPublicId, order);
       }
       const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/services/payment-stripe"), import("@/lib/payments/stripe")]);
       const result = await payByCard({
@@ -128,28 +124,49 @@ export async function payCheckout(
   });
 }
 
-const adjustmentKey = (xs: { label: string; amount: number }[]) => JSON.stringify(xs.map((a) => [a.label, Number(a.amount).toFixed(2)]));
+function stable(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stable);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, stable(x)]));
+  }
+  return v;
+}
+
+/** Every submitted field, so reuse can't miss one the order table stores in a normalized form. */
+async function inputsFingerprint(input: ConfirmInput): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  // Name and email are re-taken from the session by resolveContact, so they never distinguish an order.
+  const { fullName: _n, email: _e, ...contact } = input.contact;
+  return createHash("sha256").update(JSON.stringify(stable({ ...input, contact }))).digest("hex");
+}
+
+async function stampInputsFingerprint(paymentPublicId: string, input: ConfirmInput) {
+  const [{ eq, sql }, { db }, { orders, payments }] = await Promise.all([import("drizzle-orm"), import("@/db/client"), import("@/db/schema")]);
+  const checkoutInputs = await inputsFingerprint(input);
+  await db
+    .update(orders)
+    .set({ pricingSnapshot: sql`${orders.pricingSnapshot} || ${JSON.stringify({ checkoutInputs })}::jsonb` })
+    .where(eq(orders.id, sql`(select ${payments.orderId} from ${payments} where ${payments.publicId} = ${paymentPublicId})`));
+}
 
 /**
  * A payment is reusable only while it is a live, unexpired card checkout of this customer's pending
- * order AND the order still says what the customer is now submitting: same plan, meal size, start
- * date, address, and a fresh server quote with the same total and discount lines (coupons, coins).
+ * order AND the order was placed from exactly these inputs AND a fresh server quote (coupons, coins,
+ * tax) still equals what the payment will charge.
  */
 async function findReusableCheckout(paymentPublicId: string, userPublicId: string, input: CreateOrderInput & { paymentMethodId?: string | null }) {
   // Lazy: keeps the confirm-only path (and its tests) free of the db and Stripe module graph.
-  const [{ and, eq, gt, inArray, isNull, or }, { db }, { orders, payments, users, plans, mealSizes }, { reprice }] = await Promise.all([
+  const [{ and, eq, gt, inArray, isNull, or }, { db }, { orders, payments, users }, { reprice }] = await Promise.all([
     import("drizzle-orm"),
     import("@/db/client"),
     import("@/db/schema"),
     import("@/app/(public)/subscribe/actions"),
   ]);
   const [row] = await db
-    .select({ order: orders, amount: payments.amount, planKey: plans.key, mealSizePublicId: mealSizes.publicId })
+    .select({ order: orders, amount: payments.amount })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
     .innerJoin(users, eq(users.id, orders.userId))
-    .innerJoin(plans, eq(plans.id, orders.planId))
-    .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
     .where(
       and(
         eq(payments.publicId, paymentPublicId),
@@ -165,27 +182,12 @@ async function findReusableCheckout(paymentPublicId: string, userPublicId: strin
   if (!row) return null;
 
   const { order } = row;
+  const stored = order.pricingSnapshot as { checkoutInputs?: string };
+  if (!stored.checkoutInputs || stored.checkoutInputs !== (await inputsFingerprint(input))) return null;
   const c = input.contact;
-  if (
-    row.planKey !== input.planKey ||
-    row.mealSizePublicId !== input.selections.mealSizeId ||
-    order.startDate !== input.selections.startDate ||
-    order.addressLine !== c.addressLine ||
-    order.postalCode !== parseCanadianPostalCode(c.postalCode)
-  ) {
-    return null;
-  }
   const codes = [...(input.couponCodes ?? []), ...(input.couponCode ? [input.couponCode] : [])];
   const fresh = await reprice(input.selections, codes, input.planKey, "stripe", input.coins, c.postalCode, c.addressLine, c.city);
-  if ("error" in fresh) return null;
-  const stored = order.pricingSnapshot as { adjustments?: { label: string; amount: number }[] };
-  if (
-    fresh.pricing.total.toFixed(2) !== row.amount ||
-    fresh.pricing.tiffinCount !== order.tiffinCount ||
-    adjustmentKey(fresh.pricing.adjustments) !== adjustmentKey(stored.adjustments ?? [])
-  ) {
-    return null;
-  }
+  if ("error" in fresh || fresh.pricing.total.toFixed(2) !== row.amount) return null;
   return { paymentPublicId, deploymentId: order.deploymentId };
 }
 

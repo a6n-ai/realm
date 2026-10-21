@@ -1,6 +1,22 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
+const locks = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/lib/redis", async (orig) => {
+  const real = await orig<typeof import("@/lib/redis")>();
+  return {
+    ...real,
+    getRedis: () =>
+      new Proxy(real.getRedis(), {
+        get: (t, prop) => {
+          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as Function)(k, ...rest));
+          if (prop === "eval") return async (_s: string, _n: number, k: string, owner: string) => (locks.get(k) === owner ? (locks.delete(k), 1) : 0);
+          const v = (t as unknown as Record<string | symbol, unknown>)[prop];
+          return typeof v === "function" ? v.bind(t) : v;
+        },
+      }),
+  };
+});
 let session: { user: { id: string; email: string } } | null = null;
 let sessionUserId: bigint | null = null;
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -35,8 +51,9 @@ async function signInAs(email: string) {
   sessionUserId = u!.id;
 }
 
-async function pay(over: { paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string } = {}) {
+async function pay(over: { paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string; mutate?: (base: Awaited<ReturnType<typeof baseInput>>) => void } = {}) {
   const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone, couponCode: over.couponCode });
+  over.mutate?.(base as Awaited<ReturnType<typeof baseInput>>);
   return payCheckout({
     ...base,
     paymentMethodId: paymentMethodId!,
@@ -59,6 +76,7 @@ describe("payCheckout", () => {
     });
     await sharedCache("app-settings").evictAll();
     payByCard.mockClear();
+    locks.clear();
     await signInAs("a@test.invalid");
   });
   afterAll(async () => {
@@ -151,6 +169,26 @@ describe("payCheckout", () => {
     expect(results.filter((r) => "error" in r)).toEqual([{ error: "A payment is already in progress." }]);
     expect(await allOrders()).toHaveLength(1);
     expect(payByCard).toHaveBeenCalledTimes(1);
+  });
+
+  it("changed eating days with the same price place a new order", async () => {
+    const days = (d: string[]) => (base: Awaited<ReturnType<typeof baseInput>>) => { Object.assign(base.selections, { eatingDays: d }); };
+    const first = await pay({ mutate: days(["mon", "tue", "wed", "thu", "fri"]) });
+    if (!("ok" in first)) throw new Error(first.error);
+    const same = await pay({ paymentPublicId: first.paymentPublicId, mutate: days(["mon", "tue", "wed", "thu", "fri"]) });
+    if (!("ok" in same)) throw new Error(same.error);
+    expect(same.paymentPublicId).toBe(first.paymentPublicId);
+    const moved = await pay({ paymentPublicId: first.paymentPublicId, mutate: days(["mon", "tue", "wed", "thu", "sat"]) });
+    if (!("ok" in moved)) throw new Error(moved.error);
+    expect(moved.paymentPublicId).not.toBe(first.paymentPublicId);
+  });
+
+  it("is refused while another card flow holds the customer lock", async () => {
+    locks.set(`pay-lock:${session!.user.id}`, "someone-else");
+    const r = await pay();
+    expect(r).toEqual({ error: "A payment is already in progress." });
+    expect(await allOrders()).toHaveLength(0);
+    expect(payByCard).not.toHaveBeenCalled();
   });
 
   it("rejects non-card method", async () => {
