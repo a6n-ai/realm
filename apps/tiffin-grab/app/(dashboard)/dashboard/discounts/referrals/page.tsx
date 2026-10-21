@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { parseFilterState, type FacetDef } from "@/components/ds";
+import { parseFilterState, SkeletonFormCard, type FacetDef } from "@/components/ds";
 import { listReferrals, type ReferralFriendStatus } from "@/lib/services/referrals.service";
+import { getReferralSettings } from "@/lib/services/app-settings.service";
+import { ReferralForm } from "./referral-form";
 import { REFERRAL_STATUS } from "./referral-status";
 import { ReferralsTable, ReferralsTableSkeleton } from "./referrals-table";
 
@@ -14,12 +16,22 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function WalletReferralsPage({ searchParams }: { searchParams: SearchParams }) {
+export default function DiscountReferralsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<ReferralsTableSkeleton />}>
-      <ReferralsData searchParams={searchParams} />
-    </Suspense>
+    <div className="grid gap-6">
+      <Suspense fallback={<SkeletonFormCard fields={4} />}>
+        <ReferralSettingsData />
+      </Suspense>
+      <Suspense fallback={<ReferralsTableSkeleton />}>
+        <ReferralsData searchParams={searchParams} />
+      </Suspense>
+    </div>
   );
+}
+
+async function ReferralSettingsData() {
+  await requireAdmin();
+  return <ReferralForm current={await getReferralSettings()} />;
 }
 
 async function ReferralsData({ searchParams }: { searchParams: SearchParams }) {
