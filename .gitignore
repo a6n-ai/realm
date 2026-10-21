@@ -93,6 +93,8 @@ dump.rdb
 !apps/puchkaman/public/instagram/*.jpg
 !apps/puchkaman/public/about/*.jpg
 !apps/puchkaman/public/hero/*.jpg
+!apps/tiffin-grab/app/opengraph-image.png
+!apps/tiffin-grab/app/twitter-image.png
 !apps/xplorers/public/brand/*.png
 !apps/tiffin-grab/components/marketing/hero-thali.jpg
 !apps/puchkaman/public/fusion/*.jpg

@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, SeeSection, type KeyPoint } from "@/components/marketing/legal";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "Refund & return policy — Tiffin Grab",
-  description: "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.",
-};
+export const metadata: Metadata = pageMeta("Refund and return policy | Tiffin Grab", "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.", "/refund-policy");
 
 
 const SECTIONS = [

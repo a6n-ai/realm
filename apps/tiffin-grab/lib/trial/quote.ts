@@ -24,7 +24,7 @@ export type TrialQuote = {
 export async function quoteTrial(
   snapshot: CatalogSnapshot,
   selections: PricingSelections,
-  /** The day start rules count from; staff pass staffStartBase to allow today. */
+  /** The day start rules count from. */
   startBase: Date = appToday(snapshot.timezone, snapshot.cutoffHour),
 ): Promise<TrialQuote> {
   const meal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);

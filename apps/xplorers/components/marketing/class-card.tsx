@@ -14,13 +14,16 @@ const COLOR_TONE: Record<string, string> = {
   yellow: "camps",
 };
 
-/** One card for the public site, /me and the dashboard; `href` is where Book goes (enquire-only classes always go to contact). */
-export function ClassCard({ item, href }: { item: PublicClass; href?: string }) {
+/**
+ * One card for the public site, /me and the dashboard; `href` is where Book goes (enquire-only classes always go to contact).
+ * `compact` clamps the copy for grids inside the app; the full text stays on the public class page.
+ */
+export function ClassCard({ item, href, compact = false }: { item: PublicClass; href?: string; compact?: boolean }) {
   const enquire = item.bookingType === "enquire_only";
   const to = enquire ? `/contact?class=${encodeURIComponent(item.title)}` : (href ?? `/classes/${item.publicId}`);
   const meta = [item.audience, item.groupSize].filter(Boolean).join(" · ");
   return (
-    <article className="xl-card" data-programme={COLOR_TONE[item.color] ?? "private"}>
+    <article className="xl-card" data-programme={COLOR_TONE[item.color] ?? "private"} data-compact={compact || undefined}>
       {item.photos[0] ? (
         // Uploaded class photos, not the static marketing set.
         // eslint-disable-next-line @next/next/no-img-element
@@ -39,7 +42,7 @@ export function ClassCard({ item, href }: { item: PublicClass; href?: string }) 
           </p>
         ) : null}
         {item.summary ? <p className="xl-card-desc">{item.summary}</p> : null}
-        {item.included ? <p className="xl-card-desc">{item.included}</p> : null}
+        {item.included && !compact ? <p className="xl-card-desc">{item.included}</p> : null}
         <div className="xl-card-foot">
           <p className="xl-card-price">{item.priceLine}</p>
           <Link className="xl-card-btn" href={to}>

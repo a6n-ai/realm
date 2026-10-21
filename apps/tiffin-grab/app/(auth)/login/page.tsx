@@ -6,6 +6,10 @@ import { isLocked } from "@/lib/auth/lock";
 import { roleLanding } from "@/lib/auth/landing";
 import { LAST_USER_COOKIE, googleSignInEnabled, maskEmail, parseLastUser } from "@foundry/auth";
 import { AuthForm } from "./auth-form";
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/landing/meta";
+
+export const metadata: Metadata = pageMeta("Sign in | Tiffin Grab", "Sign in to Tiffin Grab with your email to manage deliveries, pauses, menus and payments.", "/login");
 
 // Reads session from the DB — must not be statically prerendered at build
 // time (no DB in the build container).

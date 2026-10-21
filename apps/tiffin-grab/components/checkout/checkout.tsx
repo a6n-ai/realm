@@ -20,7 +20,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, pickedAddons, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
@@ -247,8 +247,23 @@ export function Checkout({
     if (!selections) setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
-    refreshPrice(s, undefined, null).then(
-      () => sessionStorage.removeItem(PRICE_RELOAD_KEY),
+    // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
+    // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
+    let quoted: string[] = [];
+    try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
+    refreshPrice(s, quoted, null).then(
+      async (r) => {
+        sessionStorage.removeItem(PRICE_RELOAD_KEY);
+        if (!quoted.length) return;
+        sessionStorage.removeItem(QUOTE_CODES_KEY);
+        const kept = quoted.filter((c) => r.appliedCoupons.some((a) => a.code.toUpperCase() === c));
+        if (kept.length !== quoted.length) await refreshPrice(s, kept, null).catch(() => undefined);
+        setAppliedCodes(kept);
+        const dropped = quoted.filter((c) => !kept.includes(c));
+        setCouponState(dropped.length
+          ? { status: "error", message: `${dropped.join(", ")} couldn't be applied to this plan` }
+          : { status: "applied", message: kept.length > 1 ? "Your estimate's coupons are applied" : "Your estimate's coupon is applied" });
+      },
       (err) => {
         if (err instanceof UnpriceableCart) { sessionStorage.removeItem(PRICE_RELOAD_KEY); setResult(null); return; }
         // A tab left open across a deploy calls Server Action ids the new build no longer

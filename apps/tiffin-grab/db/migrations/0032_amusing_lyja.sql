@@ -22,6 +22,8 @@ ALTER TABLE "payments" ADD COLUMN "surcharge_amount" numeric(10, 2) DEFAULT '0' 
 ALTER TABLE "payments" ADD COLUMN "tax_calculation_id" text;--> statement-breakpoint
 ALTER TABLE "payments" ADD COLUMN "tax_source" text;--> statement-breakpoint
 ALTER TABLE "payments" ADD COLUMN "charge_attempt" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "payments" ADD COLUMN "expires_at" bigint;--> statement-breakpoint
+ALTER TABLE "payments" ADD COLUMN "addon_request" jsonb;--> statement-breakpoint
 ALTER TABLE "ledger_entries" ADD COLUMN "provider_event_id" text;--> statement-breakpoint
 ALTER TABLE "stripe_events" ADD CONSTRAINT "stripe_events_payment_id_payments_id_fk" FOREIGN KEY ("payment_id") REFERENCES "public"."payments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "stripe_events_received_idx" ON "stripe_events" USING btree ("received_at");--> statement-breakpoint

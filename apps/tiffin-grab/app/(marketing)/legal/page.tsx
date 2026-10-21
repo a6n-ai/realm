@@ -3,11 +3,9 @@ import Link from "next/link";
 import { ArrowRight, FileText, RotateCcw, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 import { LEGAL_DOCS, Mail } from "@/components/marketing/legal";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "Policies — Tiffin Grab",
-  description: "TiffinGrab's terms of service, privacy practices, refund rules, and delivery standards for customers in Ontario, Canada.",
-};
+export const metadata: Metadata = pageMeta("Policies | Tiffin Grab", "TiffinGrab's terms of service, privacy practices, refund rules, and delivery standards for customers in Ontario, Canada.", "/legal");
 
 const ICONS: Record<(typeof LEGAL_DOCS)[number]["href"], LucideIcon> = {
   "/terms": FileText,

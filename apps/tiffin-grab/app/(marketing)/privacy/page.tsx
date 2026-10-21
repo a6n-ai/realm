@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "Privacy policy — Tiffin Grab",
-  description: "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.",
-};
+export const metadata: Metadata = pageMeta("Privacy policy | Tiffin Grab", "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.", "/privacy");
 
 
 const SECTIONS = [

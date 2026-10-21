@@ -67,7 +67,7 @@ describe("Stripe orders wait pending until paid", () => {
   });
 
   it("gives staff-created Stripe orders 7 days", async () => {
-    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }), { staffCreated: true, allowSameDayStart: true });
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }), { staffCreated: true });
     const r = await load(publicId);
     expect(r.order.status).toBe("pending");
     expect(Math.abs(Number(r.pay.expiresAt) - (Date.now() + 7 * 24 * HOUR))).toBeLessThan(60_000);

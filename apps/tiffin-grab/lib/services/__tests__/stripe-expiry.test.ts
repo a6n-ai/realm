@@ -144,7 +144,7 @@ describe("unpaid Stripe orders expire", () => {
   it("does not replace the customer's older order for a staff-created one", async () => {
     const input = await baseInput({ paymentMethodId: "stripe" });
     const first = await createOrder(input);
-    await createOrder(input, { staffCreated: true, allowSameDayStart: true });
+    await createOrder(input, { staffCreated: true });
     expect((await load(first.publicId)).order.status).toBe("pending");
   });
 
@@ -218,8 +218,8 @@ describe("unpaid Stripe orders expire", () => {
 
   it("a checkout's replace step never cancels a newer unpaid order (double submit)", async () => {
     const input = await baseInput({ paymentMethodId: "stripe" });
-    const older = await createOrder(input, { staffCreated: true, allowSameDayStart: true });
-    const newer = await createOrder(input, { staffCreated: true, allowSameDayStart: true });
+    const older = await createOrder(input, { staffCreated: true });
+    const newer = await createOrder(input, { staffCreated: true });
     const o = await load(older.publicId);
     // The older checkout's replace step runs after the newer one committed.
     expect(await replaceOlderUnpaidCheckouts(o.order.userId!, o.order.id)).toBe(0);

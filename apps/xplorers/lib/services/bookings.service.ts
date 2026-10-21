@@ -136,7 +136,9 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       adults: input.adults,
     });
 
-    const pricedClass = rails.length > 0 && price.subtotal > 0;
+    const pricedClass = price.subtotal > 0;
+    // Never fall back to a free booking: a priced class needs a way to pay.
+    if (pricedClass && rails.length === 0) throw new ValidationError("Online payment isn't set up yet. Message us to book this class.");
     const method = pricedClass
       ? findMethod(cfg, input.methodId ?? rails[0]!.id) ?? rails.find((r) => r.enabled) ?? rails[0]
       : undefined;
@@ -339,10 +341,11 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
   }
 
   async listForOccurrence(occurrencePublicId: string): Promise<
-    { publicId: string; seats: number; status: BookingRow["status"]; family: string; paymentStatus: string | null }[]
+    { publicId: string; seats: number; status: BookingRow["status"]; family: string; children: string[]; paymentStatus: string | null }[]
   > {
     const rows = await db
       .select({
+        id: bookings.id,
         publicId: bookings.publicId,
         seats: bookings.seats,
         status: bookings.status,
@@ -356,11 +359,19 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       .leftJoin(payments, eq(payments.bookingId, bookings.id))
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .orderBy(desc(bookings.createdAt));
+    const kids = rows.length
+      ? await db
+          .select({ bookingId: bookingChildren.bookingId, name: children.name, waiver: bookingChildren.waiverUsed })
+          .from(bookingChildren)
+          .innerJoin(children, eq(children.id, bookingChildren.childId))
+          .where(inArray(bookingChildren.bookingId, rows.map((r) => r.id)))
+      : [];
     return rows.map((r) => ({
       publicId: r.publicId,
       seats: r.seats,
       status: r.status,
       family: r.name ?? r.email ?? "Customer",
+      children: kids.filter((k) => k.bookingId === r.id).map((k) => (k.waiver ? `${k.name} (age waiver)` : k.name)),
       paymentStatus: r.paymentStatus,
     }));
   }

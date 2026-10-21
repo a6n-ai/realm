@@ -1,0 +1,211 @@
+/* Materials for the tiffin carrier figure. Each class is a token set the kit's
+   solids already read (paper, top, four shades, line tones), so the four-tone
+   shading stays the kit's and only the inks change: the mark's own colours. */
+
+.tf-figure {
+  --anatomy-paper: var(--card, #fff);
+  --anatomy-halo: #6b5a3a;
+  --anatomy-halo-opacity: 0.4;
+  --anatomy-weight: 0.7px;
+  --tf-edge: #185936;
+}
+
+/* Edges of every coloured part are the mark's forest outline. */
+.tf-figure :is(.tf-leaf, .tf-lid, .tf-knob, .tf-mat, .tf-rice, .tf-dal, .tf-roti) {
+  --anatomy-hi: var(--tf-edge);
+  --anatomy-lit: #0f3a22;
+}
+
+.tf-leaf {
+  --anatomy-paper: #72a94b;
+  --anatomy-face: #72a94b;
+  --anatomy-top: #9cc654;
+  --anatomy-shade-0: #5a8f3a;
+  --anatomy-shade-1: #659c41;
+  --anatomy-shade-2: #6fa647;
+  --anatomy-shade-3: #7bb350;
+  --anatomy-mid: #2f6b38;
+  --anatomy-lo: #4d8438;
+  --anatomy-faint: #8fbd5c;
+  --anatomy-dot: #185936;
+}
+.tf-lid {
+  --anatomy-paper: #f6a934;
+  --anatomy-face: #f6a934;
+  --anatomy-top: #f9bf5c;
+  --anatomy-shade-0: #de8f1e;
+  --anatomy-shade-1: #e89a24;
+  --anatomy-shade-2: #f0a32c;
+  --anatomy-shade-3: #f7ae3a;
+  --anatomy-mid: #a8670f;
+  --anatomy-lo: #cf8a1f;
+  --anatomy-faint: #f3b754;
+  --anatomy-dot: #7a4a08;
+}
+.tf-knob {
+  --anatomy-paper: #fb801c;
+  --anatomy-face: #fb801c;
+  --anatomy-top: #fd9b4b;
+  --anatomy-shade-0: #dc6510;
+  --anatomy-shade-1: #e96f15;
+  --anatomy-shade-2: #f37819;
+  --anatomy-shade-3: #fb8526;
+  --anatomy-mid: #a94a08;
+  --anatomy-lo: #c95a0c;
+  --anatomy-faint: #fca15c;
+}
+.tf-mat {
+  --anatomy-paper: #dcc28d;
+  --anatomy-top: #e6d0a1;
+  --anatomy-shade-0: #b99c62;
+  --anatomy-shade-1: #c4a76c;
+  --anatomy-shade-2: #ceb27a;
+  --anatomy-shade-3: #d8bd86;
+  --anatomy-mid: #8f7341;
+  --anatomy-lo: #c3a66d;
+  --anatomy-faint: #d2b87f;
+}
+.tf-cavity { --anatomy-paper: #3f6f2a; }
+.tf-rice {
+  --anatomy-paper: #f6efdd;
+  --anatomy-top: #fbf6ea;
+  --anatomy-shade-0: #e7dcc1; --anatomy-shade-1: #ece2ca; --anatomy-shade-2: #f0e7d3; --anatomy-shade-3: #f4ecdc;
+  --anatomy-lo: #d2c39f;
+  --anatomy-dot: #b9a679;
+}
+.tf-dal {
+  --anatomy-paper: #e3a838;
+  --anatomy-top: #ebb54a;
+  --anatomy-shade-0: #c98d22; --anatomy-shade-1: #d3972a; --anatomy-shade-2: #dca031; --anatomy-shade-3: #e2a837;
+  --anatomy-lo: #cf9628;
+  --anatomy-faint: #f0c464;
+}
+.tf-seed { --anatomy-dot: #4a2a0c; }
+.tf-roti {
+  --anatomy-paper: #e9c88b;
+  --anatomy-top: #f1d6a2;
+  --anatomy-shade-0: #cfa865; --anatomy-shade-1: #d8b273; --anatomy-shade-2: #e0bc7f; --anatomy-shade-3: #e7c58a;
+  --anatomy-mid: #a87d3c;
+  --anatomy-lo: #c9a061;
+}
+.tf-char { --anatomy-dot: #6e4318; }
+.tf-steam { --anatomy-mid: #b6a98f; }
+
+/* The part the current chapter is about: its silhouettes take the saffron accent. */
+.tf-figure .iso-edge { transition: stroke 250ms ease; }
+.tf-figure [data-part][data-active="true"] .iso-edge { stroke: var(--primary, #f06b1a); stroke-width: 1.3px; }
+
+.tf-steel {
+  --anatomy-paper: #c9ccc8;
+  --anatomy-face: #d4d6d2;
+  --anatomy-top: #e6e8e4;
+  --anatomy-shade-0: #9da29e; --anatomy-shade-1: #aeb2ae; --anatomy-shade-2: #bcc0bb; --anatomy-shade-3: #cacdc8;
+  --anatomy-hi: #4b524d; --anatomy-mid: #7b827d; --anatomy-lo: #9ea39f; --anatomy-faint: #d8dad6; --anatomy-dot: #4b524d;
+}
+.tf-iron {
+  --anatomy-paper: #4a4a46;
+  --anatomy-top: #5d5d58;
+  --anatomy-shade-0: #2f2f2c; --anatomy-shade-1: #383835; --anatomy-shade-2: #41413d; --anatomy-shade-3: #4a4a46;
+  --anatomy-hi: #1d1d1b; --anatomy-mid: #2a2a27; --anatomy-lo: #6a6a64; --anatomy-faint: #6a6a64;
+}
+.tf-wood {
+  --anatomy-paper: #b98552;
+  --anatomy-top: #c8955f;
+  --anatomy-shade-0: #93643a; --anatomy-shade-1: #a16f41; --anatomy-shade-2: #ad7a49; --anatomy-shade-3: #b98552;
+  --anatomy-hi: #5b3b1d; --anatomy-mid: #7a5229; --anatomy-lo: #8f6236; --anatomy-faint: #ad7c4b;
+}
+.tf-palak {
+  --anatomy-paper: #7c9a2e; --anatomy-top: #8aa836;
+  --anatomy-shade-0: #66821f; --anatomy-shade-1: #6e8a24; --anatomy-shade-2: #759229; --anatomy-shade-3: #7c9a2e;
+  --anatomy-lo: #5f7a1d; --anatomy-faint: #dfe3c4; --anatomy-dot: #4e6816;
+}
+.tf-paneer {
+  --anatomy-paper: #f4eedb; --anatomy-top: #fbf7ea;
+  --anatomy-shade-0: #ddd2b1; --anatomy-shade-1: #e5dbbd; --anatomy-shade-2: #ece3c9; --anatomy-shade-3: #f1e9d3;
+  --anatomy-hi: #8c7a4c; --anatomy-lo: #b4a274;
+}
+.tf-raita { --anatomy-paper: #f7f4ec; }
+.tf-salad { --anatomy-paper: #eef0e2; }
+.tf-boondi { --anatomy-dot: #b0701e; }
+.tf-mint { --anatomy-dot: #3f7a2c; }
+.tf-tomato { --anatomy-dot: #d2412b; }
+.tf-cucumber { --anatomy-dot: #4f8c33; }
+.tf-onion { --anatomy-dot: #a85a8e; }
+.tf-cumin { --anatomy-dot: #5a3a16; }
+.tf-figure :is(.tf-steel, .tf-iron, .tf-wood, .tf-palak, .tf-paneer) { --anatomy-lit: #0f3a22; }
+
+/* The calendar: paper panel, saffron header. Day cells are pale card when off; a
+   delivery day's column steps out of the page and takes the lid's marigold. */
+.tf-paper {
+  --anatomy-paper: #fbf7ee; --anatomy-face: #fbf7ee; --anatomy-top: #ffffff;
+  --anatomy-shade-0: #e6dfcf; --anatomy-shade-1: #ece6d8; --anatomy-shade-2: #f2ede2; --anatomy-shade-3: #f7f3ea;
+  --anatomy-hi: #a88a52; --anatomy-mid: #a88a52; --anatomy-lo: #c8b48a;
+}
+.tf-cal-head {
+  --anatomy-paper: #fb801c; --anatomy-top: #fd9a45;
+  --anatomy-shade-0: #d9670f; --anatomy-shade-1: #e57114; --anatomy-shade-2: #ef7a18; --anatomy-shade-3: #f7861f;
+  --anatomy-hi: #185936;
+}
+.tf-tile {
+  --anatomy-paper: #efe2c2; --anatomy-top: #f6ecd3;
+  --anatomy-shade-0: #d9c69c; --anatomy-shade-1: #e1cfa8; --anatomy-shade-2: #e8d8b4; --anatomy-shade-3: #ede0bf;
+  --anatomy-hi: #a88a52; --anatomy-dot: #a88a52;
+}
+.tf-figure [data-day][data-on="true"] [data-week]:not([data-off="true"]) .tf-tile {
+  --anatomy-paper: #f6a934; --anatomy-top: #f9bf5c;
+  --anatomy-shade-0: #de8f1e; --anatomy-shade-1: #e89a24; --anatomy-shade-2: #f0a32c; --anatomy-shade-3: #f7ae3a;
+  --anatomy-hi: #185936; --anatomy-dot: #185936;
+}
+.tf-figure [data-day] .iso-fill, .tf-figure [data-day] .iso-shade, .tf-figure [data-day] .iso-top { transition: fill 300ms ease; }
+
+/* The thali's well, the achar and the tumbler's water. */
+.tf-plate-well { --anatomy-paper: #dfe1dd; }
+.tf-achar {
+  --anatomy-paper: #c2410c; --anatomy-face: #c2410c; --anatomy-top: #e0531b;
+  --anatomy-shade-0: #8f2f08; --anatomy-shade-1: #a3360a; --anatomy-shade-2: #b23b0b; --anatomy-shade-3: #c0420e;
+  --anatomy-hi: #5a1f05; --anatomy-mid: #7a2a07; --anatomy-lo: #e98a4d;
+}
+.tf-water { --anatomy-paper: #cfe6ef; }
+
+/* The masala dabba: the box's well and seven spices, each its own colour. */
+.tf-dabba-in { --anatomy-paper: #a7aca8; }
+.tf-chilli { --anatomy-paper: #c8301d; --anatomy-dot: #8f1e10; }
+.tf-haldi { --anatomy-paper: #e9b20e; --anatomy-dot: #b88406; }
+.tf-jeera { --anatomy-paper: #9a6a37; --anatomy-dot: #5e3a17; }
+.tf-rai { --anatomy-paper: #3b2a22; --anatomy-dot: #120b08; }
+.tf-dhania { --anatomy-paper: #a4a252; --anatomy-dot: #6c6a2c; }
+.tf-garam { --anatomy-paper: #6b3f22; --anatomy-dot: #3e2210; }
+.tf-salt { --anatomy-paper: #f4f1ea; --anatomy-dot: #c9c3b6; }
+
+/* The stove: dark steel, burners, and flames that flicker (still under reduced motion). */
+.tf-stove {
+  --anatomy-paper: #3a3d3b; --anatomy-face: #3a3d3b; --anatomy-top: #4a4e4b;
+  --anatomy-shade-0: #222523; --anatomy-shade-1: #2b2e2c; --anatomy-shade-2: #333634; --anatomy-shade-3: #3b3f3c;
+  --anatomy-hi: #151716; --anatomy-mid: #6d726e; --anatomy-lo: #7e837f; --anatomy-faint: #5a5f5b;
+}
+.tf-stove-burner {
+  --anatomy-paper: #2a2c2b; --anatomy-top: #1d1f1e;
+  --anatomy-shade-0: #151716; --anatomy-shade-1: #1a1c1b; --anatomy-shade-2: #202221; --anatomy-shade-3: #262827;
+  --anatomy-hi: #0d0e0d;
+}
+.tf-flame { fill: #2563eb; stroke: #60a5fa; stroke-width: 0.4; transform-box: fill-box; transform-origin: 50% 100%; animation: tf-flicker 0.9s ease-in-out infinite alternate; }
+.tf-flame-core { fill: #bfdbfe; opacity: 0.9; }
+@keyframes tf-flicker { from { transform: scaleY(0.78); opacity: 0.85; } to { transform: scaleY(1.12); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tf-flame { animation: none; } }
+
+.tf-brass {
+  --anatomy-paper: #c9a227; --anatomy-face: #c9a227; --anatomy-top: #dfba45;
+  --anatomy-shade-0: #9c7a14; --anatomy-shade-1: #ad891a; --anatomy-shade-2: #bb9620; --anatomy-shade-3: #c7a127;
+  --anatomy-hi: #5c4709; --anatomy-mid: #7d610d; --anatomy-lo: #e6c867;
+}
+.tf-stove-tray { --anatomy-paper: #262827; }
+.tf-stove-iron {
+  --anatomy-paper: #1e201f; --anatomy-top: #2c2f2d;
+  --anatomy-shade-0: #121413; --anatomy-shade-1: #171918; --anatomy-shade-2: #1c1e1d; --anatomy-shade-3: #222423;
+  --anatomy-hi: #050606;
+}
+.tf-stove-knob {
+  --anatomy-paper: #d9dbd8; --anatomy-top: #f1f2f0;
+  --anatomy-shade-0: #9da29e; --anatomy-shade-1: #b0b4b0; --anatomy-shade-2: #c2c5c1; --anatomy-shade-3: #d1d3cf;
+  --anatomy-hi: #3f4542; --anatomy-lit: #c2410c;
+}
