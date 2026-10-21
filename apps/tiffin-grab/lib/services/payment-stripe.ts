@@ -68,8 +68,8 @@ async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof 
     if (toCents(pay.surchargeAmount ?? 0) !== 0) return;
     const pi = await rt.stripe.paymentIntents.retrieve(piId, { expand: ["latest_charge"] });
     const charge = pi.latest_charge;
-    const funding = charge && typeof charge !== "string" ? charge.payment_method_details?.card?.funding : undefined;
-    if (funding !== "credit") return;
+    const card = charge && typeof charge !== "string" ? charge.payment_method_details?.card : undefined;
+    if (card?.wallet || card?.funding !== "credit") return; // wallets carry no fee by policy
     const [row] = await db
       .select({ order: orders })
       .from(orders)
@@ -266,6 +266,11 @@ async function withChargeLock<T>(paymentPublicId: string, busy: T, fn: () => Pro
   });
 }
 
+async function bumpAttempt(pay: Payment) {
+  await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));
+  pay.chargeAttempt += 1;
+}
+
 type Prior = "succeeded" | "processing" | "cleared" | "stuck";
 
 /**
@@ -276,6 +281,11 @@ async function clearPrior(stripe: Stripe, pay: Payment): Promise<Prior> {
   if (!pay.providerRef) return "cleared";
   const st = await fetchIntentStatus(stripe, pay.providerRef);
   if (st.status === "succeeded" || st.status === "processing") return st.status;
+  if (st.status === "canceled") {
+    // A saved-card idempotency key replays a cancelled PI for 24h; a new attempt number forces a fresh charge.
+    await bumpAttempt(pay);
+    return "cleared";
+  }
   if (st.status !== "requires_action" && st.status !== "requires_payment_method" && st.status !== "other") return "cleared";
   try {
     await stripe.paymentIntents.cancel(pay.providerRef);
@@ -287,9 +297,7 @@ async function clearPrior(stripe: Stripe, pay: Payment): Promise<Prior> {
       return "stuck";
     }
   }
-  // A cancelled PI's idempotency key would replay it; a new attempt number forces a fresh charge.
-  await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));
-  pay.chargeAttempt += 1;
+  await bumpAttempt(pay);
   return "cleared";
 }
 
@@ -371,6 +379,7 @@ export async function abandonCardAttempt(paymentPublicId: string, userPublicId: 
         if (again.status === "succeeded" || again.status === "processing") return;
         if (again.status !== "canceled") log.error({ paymentId: pay.publicId, piId: pay.providerRef, err: e }, "could not cancel abandoned intent");
       }
+      await bumpAttempt(pay);
     }
     await clearCard(pay.id);
   });
@@ -437,8 +446,9 @@ export async function payByCard(i: {
       r = await createIntent(customerId);
     } catch (e) {
       if (!isMissingCustomer(e)) throw e;
-      // Stored id is from another Stripe account/mode: drop it and retry once with a fresh customer.
       await clearStripeCustomer(user.publicId);
+      if (saved) throw new ValidationError("That card is not available. Choose another card.");
+      // Stored id is from another Stripe account/mode: drop it and retry once with a fresh customer.
       r = await createIntent(await ensureCustomer(rt.stripe, customerStore, who));
     }
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));

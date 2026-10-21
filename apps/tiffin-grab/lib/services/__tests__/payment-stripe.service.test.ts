@@ -488,6 +488,15 @@ describe("surcharge bypass detection and abandon cancel", () => {
     expect(acts[0]!.note).toContain("4.80");
   });
 
+  it("does not flag a credit card paid through a wallet", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: "pi_s", postalCode: "M5H 2N2" });
+    succeeded(pay, 20000);
+    retrieve.mockResolvedValue({ latest_charge: { payment_method_details: { card: { funding: "credit", wallet: { type: "apple_pay" } } } } });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("paid");
+    expect(retrieve).toHaveBeenCalled();
+    expect(await flagged(pay.orderId)).toHaveLength(0);
+  });
+
   it("does not flag a debit card", async () => {
     const pay = await makeStripePayment({ amount: "200.00", piId: "pi_s", postalCode: "M5H 2N2" });
     succeeded(pay, 20000);
@@ -691,6 +700,21 @@ describe("payByCard sources", () => {
     expect((await go(pay, { savedPaymentMethodId: "pm_saved" })).kind).toBe("failed");
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.chargeAttempt).toBe(1);
+  });
+
+  it("retry after an abandoned 3DS uses a new attempt value", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    cards.mockResolvedValue([saved("debit")]);
+    create.mockResolvedValue({ status: "requires_action", piId: "pi_3ds", clientSecret: "cs" });
+    await go(pay, { savedPaymentMethodId: "pm_saved" });
+    status.mockResolvedValue({ piId: "pi_3ds", status: "requires_action", amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    cancel.mockResolvedValue({});
+    await svc.abandonCardAttempt(pay.publicId, fx.OWNER);
+    status.mockResolvedValue({ piId: "pi_3ds", status: "canceled", amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    await go(pay, { savedPaymentMethodId: "pm_saved" });
+    const attempts = create.mock.calls.map((c) => (c[1] as { attempt: string }).attempt);
+    expect(attempts[0]).toBe("0");
+    expect(attempts[1]).not.toBe(attempts[0]);
   });
 
   it("foreign saved card rejected", async () => {
