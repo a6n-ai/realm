@@ -8,6 +8,7 @@ import {
   setMaxCoinPctOfSubtotal,
   setMaxCoinRedeemPctOfBalance,
   setMaxWalletBalance,
+  setReferralSettings,
 } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/wallet";
@@ -29,6 +30,13 @@ export async function setCoinEarnPctAction(input: unknown): Promise<void> {
   await requireAdmin();
   const { pct } = earnPctSchema.parse(input);
   await setCoinEarnPct(pct);
+  revalidatePath(PATH, "layout");
+}
+
+// Validated again in the service; this is the admin gate.
+export async function setReferralSettingsAction(input: unknown): Promise<void> {
+  await requireAdmin();
+  await setReferralSettings(input);
   revalidatePath(PATH, "layout");
 }
 

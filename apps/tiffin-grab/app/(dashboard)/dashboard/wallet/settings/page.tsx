@@ -8,6 +8,7 @@ import {
   getMaxCoinPctOfSubtotal,
   getMaxCoinRedeemPctOfBalance,
   getMaxWalletBalance,
+  getReferralSettings,
 } from "@/lib/services/app-settings.service";
 import { CoinRateForm, WalletCapForm } from "@foundry/crm";
 import { saveCoinRate } from "../actions";
@@ -16,6 +17,7 @@ import { CoinRateFormSkeleton } from "./coin-rate-form-skeleton";
 import { EarnPctForm } from "./earn-pct-form";
 import { CoinCapForm } from "./coin-cap-form";
 import { WalletRedeemCapForm } from "./wallet-redeem-cap-form";
+import { ReferralForm } from "./referral-form";
 
 export default function WalletSettingsPage() {
   return (
@@ -28,12 +30,13 @@ export default function WalletSettingsPage() {
 async function WalletSettingsData() {
   await requireAdmin();
 
-  const [[latestRate], maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
+  const [[latestRate], maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct, referral] = await Promise.all([
     db.select({ valuePerCoin: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1),
     getMaxWalletBalance(),
     getCoinEarnPct(),
     getMaxCoinPctOfSubtotal(),
     getMaxCoinRedeemPctOfBalance(),
+    getReferralSettings(),
   ]);
 
   return (
@@ -47,6 +50,7 @@ async function WalletSettingsData() {
       <WalletCapForm current={maxWalletBalance} onSave={setWalletCapAction} />
       <CoinCapForm current={maxCoinPct} />
       <WalletRedeemCapForm current={maxRedeemPct} />
+      <ReferralForm current={referral} />
     </div>
   );
 }

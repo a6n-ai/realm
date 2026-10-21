@@ -145,3 +145,29 @@ describe("coin earn percent", () => {
     await expect(setCoinEarnPct(2.5)).rejects.toThrow(/whole percent/);
   });
 });
+
+describe("referral settings", () => {
+  afterAll(restoreAppSingleton);
+
+  it("defaults to flat, both values 0, no cap", async () => {
+    const { getReferralSettings } = await import("../app-settings.service");
+    await resetAppToDefaults();
+    await db.update(app).set({ referralMode: "flat", referralReferrerValue: 0, referralFriendValue: 0, referralMaxPerReferrer: null });
+    const { sharedCache } = await import("@/lib/cache");
+    await sharedCache("app-settings").evictAll();
+    expect(await getReferralSettings()).toEqual({ mode: "flat", referrerValue: 0, friendValue: 0, maxPerReferrer: null });
+  });
+
+  it("round-trips what admin saves", async () => {
+    const { getReferralSettings, setReferralSettings } = await import("../app-settings.service");
+    await setReferralSettings({ mode: "pct", referrerValue: 10, friendValue: 5, maxPerReferrer: 3 });
+    expect(await getReferralSettings()).toEqual({ mode: "pct", referrerValue: 10, friendValue: 5, maxPerReferrer: 3 });
+  });
+
+  it("refuses a percent over 100 and a cap of 0", async () => {
+    const { setReferralSettings } = await import("../app-settings.service");
+    const { ValidationError } = await import("@foundry/commons");
+    await expect(setReferralSettings({ mode: "pct", referrerValue: 150, friendValue: 0, maxPerReferrer: null })).rejects.toBeInstanceOf(ValidationError);
+    await expect(setReferralSettings({ mode: "flat", referrerValue: 10, friendValue: 10, maxPerReferrer: 0 })).rejects.toBeInstanceOf(ValidationError);
+  });
+});
