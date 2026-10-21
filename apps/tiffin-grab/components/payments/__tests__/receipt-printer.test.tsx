@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReceiptPrinter, type Receipt } from "../receipt-printer";
+import { ReceiptPrinter, steppedEase, type Receipt } from "../receipt-printer";
 
 // motion caches the media query at first use, so drive the hook directly.
 let reduced = false;
@@ -75,5 +75,17 @@ describe("ReceiptPrinter", () => {
     expect(screen.getByText("Total paid")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
     expect(onPrinted).toHaveBeenCalledTimes(1);
+  });
+
+  it("the feed moves in whole rows, not a smooth slide", () => {
+    const ease = steppedEase(4);
+    expect([0, 0.1, 0.24, 0.26, 0.6, 0.99, 1].map(ease)).toEqual([0, 0, 0, 0.25, 0.5, 0.75, 1]);
+  });
+
+  it("reduced motion under printing shows the full receipt and its action at once", () => {
+    reduced = true;
+    render(<ReceiptPrinter stage="printing" receipt={receipt} action={action} onPrinted={() => {}} />);
+    expect(screen.getByText("$226.00")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
   });
 });

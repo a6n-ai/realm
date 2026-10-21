@@ -7,7 +7,8 @@ import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 
@@ -23,6 +24,14 @@ vi.mock("@/app/(customer)/me/pay/[paymentId]/actions", () => ({
 }));
 
 const warm = vi.hoisted(() => vi.fn());
+const hoistedReceipt = vi.hoisted(() => ({ fn: null as null | ((i: { paidWith: string | null; totalCents: number | null; feeCents: number }) => { receipt: Record<string, unknown>; secondary?: unknown }) }));
+const etransferProps = vi.hoisted(() => ({ value: null as null | { open: boolean; payment: Record<string, unknown>; renderSubmitted: () => ReactNode; onClosedWithoutProof?: () => void; onOpenChange: (o: boolean) => void } }));
+vi.mock("@/components/payments/etransfer-dialog", () => ({
+  EtransferDialog: (p: NonNullable<typeof etransferProps.value>) => {
+    etransferProps.value = p;
+    return p.open ? <div data-testid="etransfer-dialog">{p.renderSubmitted()}</div> : null;
+  },
+}));
 const lastCtx = vi.hoisted(() => ({ value: null as CardCheckoutContext | null }));
 // The real pieces need Stripe.js; these stand-ins call the same props the real ones do.
 vi.mock("@/components/payments/pay-panel", () => {
@@ -30,12 +39,15 @@ vi.mock("@/components/payments/pay-panel", () => {
     onPay: (s: { savedPaymentMethodId: string }, accept: boolean) => Promise<{ kind: string }>;
     onPaid: () => void;
     onProcessing: () => void;
+    receipt: (i: { paidWith: string | null; totalCents: number | null; feeCents: number }) => { receipt: Record<string, unknown>; secondary?: unknown };
     disabled?: boolean;
     children: ReactNode;
   };
   let current: P;
+  const receiptOf = hoistedReceipt;
   return {
-    CardPayProvider: (p: P) => { current = p; lastCtx.value = (p as unknown as { ctx: CardCheckoutContext }).ctx; return <div data-testid="provider">{p.children}</div>; },
+    PaidSwitch: ({ children }: { children: ReactNode }) => <>{children}</>,
+    CardPayProvider: (p: P) => { current = p; receiptOf.fn = p.receipt; lastCtx.value = (p as unknown as { ctx: CardCheckoutContext }).ctx; return <div data-testid="provider">{p.children}</div>; },
     ExpressPay: () => <div data-testid="express" />,
     useWarmStripe: (key: string | null | undefined) => warm(key),
     CardPay: (props: { savedCardId: string | null; dialogOpen: boolean }) => (
@@ -104,15 +116,67 @@ describe("Checkout Pay step", () => {
     vi.clearAllMocks();
   });
 
-  it("stripe pays in place", async () => {
+  it("stripe pays in place: no navigation, wizard cleared, Back blocked, receipt built from the server result in cents", async () => {
     await toPayment();
     expect(screen.getByTestId("express")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
 
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/activate/dep_1", expect.anything()));
+    await waitFor(() => expect(sessionStorage.getItem("tg:paid")).toContain("dep_1"));
     expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "stripe", paymentPublicId: null }));
-    expect(mockRouter.push.mock.calls.some(([u]) => String(u).startsWith("/me/pay/"))).toBe(false);
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(WIZARD_STORAGE_KEY)).toBeNull();
     expect(confirmSubscription).not.toHaveBeenCalled();
+    const { receipt, secondary } = hoistedReceipt.fn!({ paidWith: "Visa •••• 4242", totalCents: 5150, feeCents: 150 });
+    expect(receipt).toMatchObject({
+      title: "Your plan", total: 5150, orderRef: "dep_1", paidWith: "Visa •••• 4242",
+      lines: [{ label: "Subtotal", amount: 5000 }, { label: "Card fee", amount: 150 }],
+    });
+    expect(secondary).toEqual({ label: "View order details", href: "/activate/dep_1" });
+  });
+
+  it("e-Transfer confirm creates the order then opens the dialog instead of navigating", async () => {
+    reprice.mockImplementation(async () => ({ pricing, paymentMethods: [...methods, { id: "etransfer", label: "e-Transfer", payeeHandle: "pay@tiffin.ca", instructions: "Auto-deposit", requireProof: true }], coinBalance: null, appliedCoupons: [] }));
+    await toPayment();
+    fireEvent.click(await screen.findByRole("radio", { name: /e-transfer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm subscription/i }));
+    expect(await screen.findByTestId("etransfer-dialog")).toBeTruthy();
+    expect(confirmSubscription).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "etransfer" }));
+    expect(confirmSubscription).toHaveBeenCalledTimes(1);
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    expect(etransferProps.value!.payment).toMatchObject({ paymentPublicId: "pay_2", deploymentId: "dep_2", amount: 50, payeeHandle: "pay@tiffin.ca", requireProof: true });
+    expect(screen.getByText("Submitted · we'll verify your e-Transfer")).toBeTruthy();
+    expect(screen.getByText("Paid with")).toBeTruthy();
+    expect(within(screen.getByTestId("etransfer-dialog")).getByText("e-Transfer")).toBeTruthy();
+    expect(sessionStorage.getItem("tg:paid")).toContain("dep_2");
+  });
+
+  it("closing the e-Transfer dialog without proof toasts and replaces to /activate", async () => {
+    reprice.mockImplementation(async () => ({ pricing, paymentMethods: [...methods, { id: "etransfer", label: "e-Transfer" }], coinBalance: null, appliedCoupons: [] }));
+    await toPayment();
+    fireEvent.click(await screen.findByRole("radio", { name: /e-transfer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm subscription/i }));
+    await screen.findByTestId("etransfer-dialog");
+    etransferProps.value!.onClosedWithoutProof!();
+    expect(toast).toHaveBeenCalledWith("You can upload the screenshot later from Finances");
+    expect(mockRouter.replace).toHaveBeenCalledWith("/activate/dep_2");
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    expect(confirmSubscription).toHaveBeenCalledTimes(1);
+  });
+
+  it("Back into checkout after paying goes to /me/deliveries", async () => {
+    window.history.replaceState({ tgSeen: true }, "");
+    sessionStorage.setItem("tg:paid", JSON.stringify({ deploymentId: "dep_1", at: 1 }));
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/me/deliveries"));
+  });
+
+  it("a normal visit clears the paid flag and renders checkout", async () => {
+    window.history.replaceState(null, "", "/checkout");
+    sessionStorage.setItem("tg:paid", JSON.stringify({ deploymentId: "dep_1", at: 1 }));
+    await toPayment();
+    expect(sessionStorage.getItem("tg:paid")).toBeNull();
+    expect(mockRouter.replace).not.toHaveBeenCalledWith("/me/deliveries");
   });
 
   it("the card's billing details are this order's phone and delivery address, in Canada", async () => {
@@ -238,11 +302,12 @@ describe("Checkout Pay step", () => {
     await waitFor(() => expect((screen.getByRole("button", { name: /pay now/i }) as HTMLButtonElement).disabled).toBe(false));
   });
 
-  it("a processing card goes to the pay page to watch it settle", async () => {
+  it("a processing card stays on the page (the receipt waits) and blocks Back", async () => {
     payCheckout.mockResolvedValue({ paymentPublicId: "pay_1", deploymentId: "dep_1", result: { kind: "processing" } });
     await toPayment();
     fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/me/pay/pay_1?return=1", expect.anything()));
+    await waitFor(() => expect(sessionStorage.getItem("tg:paid")).toContain("dep_1"));
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
   it("changing coupon clears the remembered payment", async () => {

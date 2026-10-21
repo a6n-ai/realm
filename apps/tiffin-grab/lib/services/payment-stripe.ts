@@ -224,9 +224,20 @@ export async function recordStripeDispute(n: { piId: string; disputeId: string; 
   // ponytail: no staff-alert channel yet; dispute shows in Payments → Stripe "Disputed" facet
 }
 
+/** What the paid screen prints; server-computed so the card fee and brand are never client-supplied. */
+export type CardReceipt = { paidWith: string | null; feeCents: number; totalCents: number };
+
+const WALLETS: Record<string, string> = { apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link" };
+const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export function paidWithLabel(card: { brand: string | null; last4: string | null; wallet?: string | null }): string | null {
+  if (card.wallet) return WALLETS[card.wallet] ?? titleCase(card.wallet);
+  return card.brand ? (card.last4 ? `${titleCase(card.brand)} •••• ${card.last4}` : titleCase(card.brand)) : null;
+}
+
 export type PayByCardResult =
   | { kind: "confirm_surcharge"; surcharge: string; newTotal: string; brand: string | null; last4: string | null }
-  | { kind: "succeeded" }
+  | { kind: "succeeded"; receipt?: CardReceipt }
   | { kind: "processing" }
   | { kind: "requires_action"; clientSecret: string }
   | { kind: "failed"; message: string };
@@ -413,7 +424,10 @@ export async function payByCard(i: {
     if (!rt) return { kind: "failed", message: "Card payments are unavailable right now. Please try again shortly." };
 
     const prior = await clearPrior(rt.stripe, pay);
-    if (prior === "succeeded") return (await settled({ paymentRef: pay.publicId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
+    if (prior === "succeeded") {
+      const receipt = { paidWith: paidWithLabel({ brand: pay.cardBrand, last4: pay.cardLast4 }), feeCents: toCents(pay.surchargeAmount), totalCents: toCents(pay.amount) + toCents(pay.surchargeAmount) };
+      return (await settled({ paymentRef: pay.publicId }, "return")) ? { kind: "succeeded", receipt } : { kind: "processing" };
+    }
     if (prior === "processing") return { kind: "processing" };
     if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open. Please try again in a moment." };
 
@@ -454,7 +468,10 @@ export async function payByCard(i: {
     }
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
 
-    if (r.status === "succeeded") return (await settled({ paymentRef: pay.publicId, piId: r.piId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
+    if (r.status === "succeeded") {
+      const receipt = { paidWith: paidWithLabel(card), feeCents: extraCents, totalCents: baseCents + extraCents };
+      return (await settled({ paymentRef: pay.publicId, piId: r.piId }, "return")) ? { kind: "succeeded", receipt } : { kind: "processing" };
+    }
     if (r.status === "processing") return { kind: "processing" };
     if (r.status === "requires_action" && r.clientSecret) return { kind: "requires_action", clientSecret: r.clientSecret };
     // Saved-card keys are per attempt; only a definitive decline may open a new one (tokens are unique per submit).

@@ -17,7 +17,11 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { CardPay, CardPayProvider, ExpressPay, useWarmStripe } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { EtransferDialog } from "@/components/payments/etransfer-dialog";
+import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
+import { markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
+import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
@@ -149,6 +153,11 @@ export function Checkout({
   cardContext?: CardCheckoutContext | null;
 }) {
   const router = useRouter();
+  useBounceAfterPaid();
+  // Set once confirmSubscription placed an e-Transfer order: the dialog takes over from navigating to /activate.
+  const [etransfer, setEtransfer] = useState<{ paymentPublicId: string; deploymentId: string; receipt: Receipt } | null>(null);
+  const [etransferOpen, setEtransferOpen] = useState(false);
+  const proofSent = useRef(false);
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
   /** The wizard's saved plan, plus the default address's own drop-off unless this order already chose one. */
@@ -524,6 +533,24 @@ export function Checkout({
         setStep(1);
         return;
       }
+      if (paymentMethodId === "etransfer" && result) {
+        const total = Math.round(result.total * 100);
+        setEtransfer({
+          paymentPublicId: res.paymentPublicId,
+          deploymentId: res.deploymentId,
+          receipt: {
+            title: meal?.name ?? "Your plan",
+            subtitle: baseline ?? null,
+            lines: receiptLines({ totalCents: total, taxCents: Math.round(result.taxTotal * 100), feeCents: 0 }),
+            total,
+            orderRef: res.deploymentId,
+            paidWith: "e-Transfer",
+            paidAt: Date.now(),
+          },
+        });
+        setEtransferOpen(true);
+        return;
+      }
       router.push(paymentMethodId === "stripe" ? `/me/pay/${res.paymentPublicId}` : `/activate/${res.deploymentId}`, { transitionTypes: ["nav-forward"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -557,12 +584,23 @@ export function Checkout({
     placed.current = { paymentPublicId: res.paymentPublicId, deploymentId: res.deploymentId };
     return res.result;
   };
-  const leaveAfterCard = (to: (p: NonNullable<typeof placed.current>) => string) => () => {
-    if (!placed.current) return;
-    sessionStorage.removeItem(WIZARD_STORAGE_KEY);
-    sessionStorage.removeItem(WIZARD_STEP_KEY);
-    router.push(to(placed.current), { transitionTypes: ["nav-forward"] });
+  const cardReceipt = (info: PaidInfo): ReceiptView => {
+    const total = info.totalCents ?? Math.round((result?.total ?? 0) * 100);
+    const id = placed.current?.deploymentId ?? "";
+    return {
+      receipt: {
+        title: meal?.name ?? "Your plan",
+        subtitle: baseline ?? null,
+        lines: receiptLines({ totalCents: total, taxCents: Math.round((result?.taxTotal ?? 0) * 100), feeCents: info.feeCents }),
+        total,
+        orderRef: id,
+        paidWith: info.paidWith,
+        paidAt: Date.now(),
+      },
+      secondary: id ? { label: "View order details", href: `/activate/${id}` } : undefined,
+    };
   };
+  const settledCard = () => { if (placed.current) markPaid(placed.current.deploymentId); };
 
   // A signed-in customer's name and email are their account's, changed from Account
   // and not here. confirmSubscription re-takes both from the session regardless, so
@@ -978,6 +1016,33 @@ export function Checkout({
       </Sheet>
     </div>
   );
+  const withDialog = (
+    <>
+      {page}
+      {etransfer && (
+        <EtransferDialog
+          open={etransferOpen}
+          onOpenChange={(open) => {
+            setEtransferOpen(open);
+            if (!open && proofSent.current) router.replace("/me/deliveries");
+          }}
+          payment={{
+            paymentPublicId: etransfer.paymentPublicId,
+            deploymentId: etransfer.deploymentId,
+            amount: etransfer.receipt.total / 100,
+            payeeHandle: selectedMethod?.payeeHandle ?? null,
+            instructions: selectedMethod?.instructions ?? null,
+            requireProof: selectedMethod?.requireProof === true,
+          }}
+          renderSubmitted={() => <EtransferSubmitted deploymentId={etransfer.deploymentId} receipt={etransfer.receipt} proofSent={proofSent} />}
+          onClosedWithoutProof={() => {
+            toast("You can upload the screenshot later from Finances");
+            router.replace(`/activate/${etransfer.deploymentId}`);
+          }}
+        />
+      )}
+    </>
+  );
   // Mounted for the whole checkout (Stripe needs it for the phone pay bar too); the key never changes, so no remounts.
   return cardContext?.publishableKey ? (
     <CardPayProvider
@@ -986,17 +1051,35 @@ export function Checkout({
       amountCents={result ? Math.round(result.total * 100) : 50}
       disabled={repricing > 0 || result == null}
       onPay={payByCard}
-      onPaid={leaveAfterCard((p) => `/activate/${p.deploymentId}`)}
-      onProcessing={leaveAfterCard((p) => `/me/pay/${p.paymentPublicId}?return=1`)}
+      onPaid={settledCard}
+      onProcessing={settledCard}
+      receipt={cardReceipt}
       abandon={async () => { if (placed.current) await abandonCard(placed.current.paymentPublicId); }}
       afterAction={async () => {
         const r = placed.current ? await confirmReturn(placed.current.paymentPublicId) : null;
         return r && !("error" in r) && r.paid ? "paid" : "processing";
       }}
     >
-      {page}
+      <PaidSwitch>{withDialog}</PaidSwitch>
     </CardPayProvider>
-  ) : page;
+  ) : withDialog;
+}
+
+/** The dialog's body once the proof is in; flags the order as paid-for so Back cannot return to checkout. */
+function EtransferSubmitted({ deploymentId, receipt, proofSent }: { deploymentId: string; receipt: Receipt; proofSent: { current: boolean } }) {
+  useEffect(() => {
+    proofSent.current = true;
+    markPaid(deploymentId);
+  }, [deploymentId, proofSent]);
+  return (
+    <ReceiptPrinter
+      stage="complete"
+      receipt={receipt}
+      status="Submitted · we'll verify your e-Transfer"
+      action={{ label: "Go to my deliveries", href: "/me/deliveries" }}
+      secondary={{ label: "View order details", href: `/activate/${deploymentId}` }}
+    />
+  );
 }
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */

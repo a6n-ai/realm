@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useState } from "react";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -30,12 +30,18 @@ vi.mock("@stripe/react-stripe-js", () => ({
     return <div data-testid="express" />;
   },
 }));
+vi.mock("motion/react", async (orig) => ({ ...(await orig<typeof import("motion/react")>()), useReducedMotion: () => true }));
 vi.mock("@foundry/themes", () => ({ useTheme: () => ({ resolvedTheme: "light" }) }));
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
 import type { SavedCard } from "@foundry/payments/stripe";
 import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "@/components/checkout/payment-method-cards";
-import { CardPay, CardPayProvider, ExpressPay } from "../pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo } from "../pay-panel";
+
+const receipt = (info: PaidInfo) => ({
+  receipt: { title: "Veg thali", subtitle: "Regular", lines: [{ label: "Subtotal", amount: info.totalCents ?? 5000 }], total: info.totalCents ?? 5000, orderRef: "SUB-REF1", paidWith: info.paidWith, paidAt: Date.UTC(2026, 9, 21, 15, 0) },
+  secondary: { label: "View order details", href: "/activate/SUB-REF1" },
+});
 
 const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutContext => ({
   publishableKey: "pk_test_x",
@@ -66,8 +72,8 @@ function Choices({ saved }: { saved: SavedCard[] }) {
 
 function setup(over: Partial<React.ComponentProps<typeof CardPayProvider>> = {}, saved = [card("pm_other", false), card("pm_default", true)]) {
   const onPay = vi.fn(async () => ({ kind: "succeeded" as const }));
-  const props = { ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const), ...over };
-  const ui = (p: typeof props) => <CardPayProvider {...p}><Choices saved={p.ctx.savedCards} /></CardPayProvider>;
+  const props = { ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const), ...over };
+  const ui = (p: typeof props) => <CardPayProvider {...p}><PaidSwitch><Choices saved={p.ctx.savedCards} /></PaidSwitch></CardPayProvider>;
   const r = render(ui(props));
   return { ...props, rerender: (n: Partial<typeof props>) => r.rerender(ui({ ...props, ...n })) };
 }
@@ -198,7 +204,7 @@ describe("PayPanel", () => {
   });
 
   it("express wallets stay in place but inert while the total is re-quoted", () => {
-    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
     const ui = (disabled: boolean) => <CardPayProvider {...props} disabled={disabled}><ExpressPay /></CardPayProvider>;
     const r = render(ui(true));
     expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
@@ -208,7 +214,7 @@ describe("PayPanel", () => {
 
   it("the wallet slot shows a skeleton until Stripe reports ready", () => {
     h.expressReady = false;
-    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
     render(<CardPayProvider {...props}><ExpressPay /></CardPayProvider>);
     expect(document.querySelector("[data-slot=skeleton]")).toBeInTheDocument();
     expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
@@ -218,5 +224,35 @@ describe("PayPanel", () => {
   it("trust line shows Secured by Stripe", () => {
     setup();
     expect(screen.getByText("Secured by Stripe")).toBeInTheDocument();
+  });
+
+  it("a saved-card success prints the receipt in place of the pay area, with no navigation", async () => {
+    const onPay = vi.fn(async () => ({ kind: "succeeded" as const, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } }));
+    const s = setup({ onPay });
+    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
+    await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
+    expect(screen.getByRole("link", { name: "Go to my deliveries" })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getAllByText("$51.50")).toHaveLength(2);
+    expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View order details" })).toHaveAttribute("href", "/activate/SUB-REF1");
+    expect(screen.queryByRole("button", { name: /^Pay \$/ })).toBeNull();
+    expect(s.onPaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("a new-card success shrinks the open dialog to the printer", async () => {
+    setup({}, []);
+    fireEvent.click(screen.getByRole("button", { name: "Add a card and pay" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
+    await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
+    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
+    expect(screen.queryByTestId("payment-element")).toBeNull();
+  });
+
+  it("a processing charge prints the waiting state with the same action", async () => {
+    const s = setup({ onPay: vi.fn(async () => ({ kind: "processing" as const })) });
+    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
+    expect(await screen.findByText("We'll confirm by email.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
+    expect(s.onProcessing).toHaveBeenCalled();
   });
 });

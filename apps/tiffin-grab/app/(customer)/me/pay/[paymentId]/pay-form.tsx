@@ -4,7 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { markPaid } from "@/lib/payments/paid-flag";
 import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
@@ -53,6 +54,10 @@ function PayChoices({ ctx }: { ctx: CardCheckoutContext }) {
 
 export function PayForm(p: {
   paymentId: string;
+  /** The order's reference, printed on the receipt. */
+  deploymentId: string;
+  planTitle: string;
+  planSubtitle: string | null;
   status: string;
   method: string;
   ctx: CardCheckoutContext;
@@ -63,9 +68,7 @@ export function PayForm(p: {
   /** Why this payment can no longer be paid (cancelled order, expired or void link), or null. */
   closed?: string | null;
 }) {
-  const [done, setDone] = useState<"paid" | "processing" | null>(null);
-  if (p.status === "paid" || p.status === "simulated_paid" || done === "paid") return <Paid />;
-  if (done === "processing") return <Processing />;
+  if (p.status === "paid" || p.status === "simulated_paid") return <Paid />;
   if (p.method !== "stripe" || (p.status !== "awaiting_payment" && p.status !== "rejected")) {
     return (
       <Shell>
@@ -97,22 +100,43 @@ export function PayForm(p: {
       ctx={p.ctx}
       amountCents={p.amountCents}
       onPay={(source, accept) => submitCardPayment(p.paymentId, source, accept)}
-      onPaid={() => setDone("paid")}
-      onProcessing={() => setDone("processing")}
+      onPaid={() => markPaid(p.deploymentId)}
+      onProcessing={() => markPaid(p.deploymentId)}
+      receipt={(info) => receiptFor(p, info)}
       abandon={async () => { await abandonCard(p.paymentId); }}
       afterAction={async () => {
         const c = await confirmReturn(p.paymentId);
         return "error" in c || !c.paid ? "processing" : "paid";
       }}
     >
-      <Shell after={<PayChoices ctx={p.ctx} />}>
-        <div>
-          {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
-          <Row label="Total" amount={p.total} strong />
-        </div>
-      </Shell>
+      <PaidSwitch>
+        <Shell after={<PayChoices ctx={p.ctx} />}>
+          <div>
+            {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
+            <Row label="Total" amount={p.total} strong />
+          </div>
+        </Shell>
+      </PaidSwitch>
     </CardPayProvider>
   );
+}
+
+const toCents = (n: number) => Math.round(n * 100);
+
+function receiptFor(p: { deploymentId: string; planTitle: string; planSubtitle: string | null; lines: Line[]; amountCents: number }, info: PaidInfo): ReceiptView {
+  const total = info.totalCents ?? p.amountCents;
+  return {
+    receipt: {
+      title: p.planTitle,
+      subtitle: p.planSubtitle,
+      lines: [...p.lines.map((l) => ({ label: l.label, amount: toCents(l.amount) })), ...(info.feeCents > 0 ? [{ label: "Card fee", amount: info.feeCents }] : [])],
+      total,
+      orderRef: p.deploymentId,
+      paidWith: info.paidWith,
+      paidAt: Date.now(),
+    },
+    secondary: { label: "View order details", href: `/activate/${p.deploymentId}` },
+  };
 }
 
 function ReturnState({ paymentId }: { paymentId: string }) {

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
+import { mealSizes, orders, payments, plans, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { cardPayClosed } from "@/lib/orders/display-status";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -21,9 +21,11 @@ export default async function PayPage({
   if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(`/me/pay/${paymentId}`)}`);
 
   const [row] = await db
-    .select({ pay: payments, order: orders })
+    .select({ pay: payments, order: orders, meal: mealSizes.name, plan: plans.name })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
+    .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+    .innerJoin(plans, eq(plans.id, orders.planId))
     .innerJoin(users, eq(users.id, orders.userId))
     .where(and(eq(payments.publicId, paymentId), eq(users.publicId, session.user.id)))
     .limit(1);
@@ -36,6 +38,9 @@ export default async function PayPage({
   return (
     <PayForm
       paymentId={paymentId}
+      deploymentId={row.order.deploymentId}
+      planTitle={row.meal}
+      planSubtitle={row.plan}
       status={row.pay.status}
       method={row.pay.method}
       ctx={ctx}

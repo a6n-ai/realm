@@ -9,6 +9,7 @@ import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
+import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
@@ -60,6 +61,7 @@ export function Wizard({
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const router = useRouter();
+  useBounceAfterPaid();
   // A quote opens on the first step that still needs the customer, normally Start.
   const [step, setStepState] = useState(() => (quote ? (firstBlockedStep(catalog, reconcileSelections(catalog, quote.picks)) ?? 3) : 0));
   const setStep = (n: number | ((s: number) => number)) =>

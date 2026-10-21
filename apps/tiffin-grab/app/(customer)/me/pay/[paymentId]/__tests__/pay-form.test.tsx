@@ -11,6 +11,7 @@ vi.mock("@/components/payments/pay-panel", () => ({
     panel.amount = p.amountCents;
     return <>{p.children}</>;
   },
+  PaidSwitch: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ExpressPay: () => <div data-testid="express" />,
   CardPay: () => <div data-testid="card-pay" />,
 }));
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } }, feeNote: null };
-const base = { paymentId: "pay_1", status: "awaiting_payment", method: "stripe", ctx, amountCents: 1000, lines: [], total: 10, isReturn: false };
+const base = { paymentId: "pay_1", deploymentId: "SUB-X1", planTitle: "Veg thali", planSubtitle: "Regular", status: "awaiting_payment", method: "stripe", ctx, amountCents: 1000, lines: [], total: 10, isReturn: false };
 
 describe("PayForm", () => {
   it("renders the shared Pay pieces with the row amount when payable", () => {

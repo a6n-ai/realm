@@ -30,6 +30,10 @@ type Props = {
 const TORN_EDGE =
   "polygon(0 0,100% 0,100% calc(100% - 8px),95% 100%,90% calc(100% - 8px),85% 100%,80% calc(100% - 8px),75% 100%,70% calc(100% - 8px),65% 100%,60% calc(100% - 8px),55% 100%,50% calc(100% - 8px),45% 100%,40% calc(100% - 8px),35% 100%,30% calc(100% - 8px),25% 100%,20% calc(100% - 8px),15% 100%,10% calc(100% - 8px),5% 100%,0 calc(100% - 8px))";
 
+/** Easing that holds still between rows, so the paper jumps out line by line like a thermal printer. */
+export const steppedEase = (rows: number) => (t: number) => Math.min(1, Math.floor(t * rows) / rows);
+const PER_ROW = 0.16;
+
 // Amounts are CAD minor units; en-CA renders "$" rather than "CA$".
 const cad = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
@@ -92,6 +96,8 @@ export function ReceiptPrinter({
   const reduce = useReducedMotion();
   const [fed, setFed] = useState(false);
   const feeding = stage === "printing" && !reduce && !fed;
+  // Title, subtitle, each line, total, three detail rows and the status line.
+  const rows = receipt.lines.length + 7;
 
   const finish = () => {
     if (fed) return;
@@ -125,7 +131,7 @@ export function ReceiptPrinter({
               <motion.div
                 initial={stage === "printing" && !reduce && !fed ? { y: "-100%" } : false}
                 animate={{ y: 0 }}
-                transition={{ duration: 2.2, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: rows * PER_ROW, ease: steppedEase(rows) }}
                 onAnimationComplete={stage === "printing" ? finish : undefined}
               >
                 <Paper receipt={receipt} status={status} timeZone={timeZone} />

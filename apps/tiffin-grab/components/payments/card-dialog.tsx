@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ResponsiveDialog } from "@foundry/design-system";
@@ -53,12 +53,14 @@ export function SurchargeConfirm({ surcharge, newTotal, busy, onConfirm, onCance
   );
 }
 
-export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
+export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ctx: CardCheckoutContext;
   amountCents: number;
   pay: (source: CardSource, acceptSurcharge: boolean) => Promise<PayOutcome>;
+  /** The receipt printer once the charge settled: the dialog shrinks to it instead of closing. */
+  printer: ReactNode;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -99,7 +101,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
       }
       const r = await pay({ confirmationTokenId: tokenId }, accept);
       if (r.kind === "busy") return;
-      if (r.kind === "done") return close(false);
+      if (r.kind === "done") return;
       if (r.kind === "confirm_surcharge") return setFee({ surcharge: r.surcharge, newTotal: r.newTotal, tokenId });
       setFee(null);
       setError(r.message);
@@ -111,6 +113,13 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
     }
   }
 
+  if (printer) {
+    return (
+      <ResponsiveDialog open={open} onOpenChange={close} direction="bottom" title="Payment received" description="Your receipt is printing.">
+        <div className="flex flex-col items-center pt-1 pb-2">{printer}</div>
+      </ResponsiveDialog>
+    );
+  }
   return (
     <ResponsiveDialog
       open={open}
