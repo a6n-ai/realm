@@ -66,7 +66,7 @@ const cardCtx: CardCheckoutContext = {
   publishableKey: "pk_test_x",
   methodLabel: "Credit or debit card",
   savedCards: [],
-  prefill: { email: "jane@example.com", name: "Jane Doe", phone: null, country: "CA", postalCode: null },
+  prefill: { email: "jane@example.com", name: "Jane Doe", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: "+2.9% fee on credit cards",
 };
 
@@ -110,9 +110,13 @@ describe("Checkout Pay step", () => {
     expect(confirmSubscription).not.toHaveBeenCalled();
   });
 
-  it("the card form is prefilled with this order's phone and postal code, in Canada", async () => {
+  it("the card's billing details are this order's phone and delivery address, in Canada", async () => {
     await toPayment();
-    expect(lastCtx.value?.prefill).toMatchObject({ phone: "+14165551234", postalCode: "M5H 1A1", country: "CA", email: "jane@example.com" });
+    expect(lastCtx.value?.prefill).toMatchObject({
+      email: "jane@example.com",
+      phone: "+14165551234",
+      address: { line1: "10 King St W", postal_code: "M5H 1A1", state: "ON", country: "CA" },
+    });
   });
 
   it("express is only offered while Stripe is selected", async () => {

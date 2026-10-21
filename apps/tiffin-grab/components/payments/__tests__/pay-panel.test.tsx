@@ -33,7 +33,7 @@ const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutCo
   publishableKey: "pk_test_x",
   methodLabel: "Pay with Stripe",
   savedCards,
-  prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100", country: "CA", postalCode: "M5H 2N2" },
+  prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: null,
 });
 const card = (id: string, isDefault: boolean) => ({ paymentMethodId: id, brand: "visa", last4: "4242", funding: "debit" as const, expMonth: 4, expYear: 2030, isDefault });
@@ -75,8 +75,22 @@ describe("PayPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use another card" }));
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
     expect(h.paymentElement).toHaveBeenCalledWith(
-      expect.objectContaining({ defaultValues: { billingDetails: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { country: "CA", postal_code: "M5H 2N2" } } } }),
+      expect.objectContaining({
+        fields: { billingDetails: { name: "never", email: "never", phone: "never", address: "never" } },
+        defaultValues: { billingDetails: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } } },
+      }),
     );
+    expect(h.paymentElement.mock.calls[0]![0].wallets).not.toHaveProperty("link");
+  });
+
+  it("the card token carries the full billing details the form hides", async () => {
+    setup({}, []);
+    fireEvent.click(screen.getByRole("button", { name: "Add a card and pay" }));
+    fireEvent.click(screen.getByRole("button", { name: /pay \$50\.00/i }));
+    await waitFor(() => expect(h.createToken).toHaveBeenCalled());
+    expect(h.createToken.mock.calls[0]![0].params).toEqual({
+      payment_method_data: { billing_details: { name: "Ada", email: "a@b.co", phone: "+14165550100", address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } } },
+    });
   });
 
   it("closing the dialog calls nothing", async () => {

@@ -39,11 +39,11 @@ describe("cardCheckoutContext", () => {
   });
   it("returns prefill, key, label and no cards without a customer", async () => {
     const c = await cardCheckoutContext("u1", "ON");
-    expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null, country: "CA", postalCode: null } });
+    expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null, address: { line1: "", line2: "", city: "", state: "", postal_code: "", country: "CA" } } });
   });
-  it("billing defaults to the market country, the order postal code and an E.164 phone", async () => {
+  it("billing details carry the full order address in the market country and an E.164 phone", async () => {
     phone = "(647) 555-0143";
-    const c = await cardCheckoutContext("u1", "ON", "M5H 2N2");
-    expect(c.prefill).toMatchObject({ phone: "+16475550143", country: "CA", postalCode: "M5H 2N2" });
+    const c = await cardCheckoutContext("u1", "ON", { addressLine: "100 Queen St W", addressUnit: "1204", city: "Toronto", postalCode: "M5H 2N2" });
+    expect(c.prefill).toMatchObject({ phone: "+16475550143", address: { line1: "100 Queen St W", line2: "1204", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } });
   });
 });

@@ -22,7 +22,7 @@ afterEach(() => {
   panel.amount = null;
 });
 
-const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null, country: "CA", postalCode: null }, feeNote: null };
+const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } }, feeNote: null };
 const base = { paymentId: "pay_1", status: "awaiting_payment", method: "stripe", ctx, amountCents: 1000, lines: [], total: 10, isReturn: false };
 
 describe("PayForm", () => {

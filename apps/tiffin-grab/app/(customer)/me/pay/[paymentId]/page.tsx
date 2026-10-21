@@ -29,7 +29,7 @@ export default async function PayPage({
     .limit(1);
   if (!row) notFound();
 
-  const ctx = await cardCheckoutContext(session.user.id, resolveProvince({ postalCode: row.order.postalCode }), row.order.postalCode);
+  const ctx = await cardCheckoutContext(session.user.id, resolveProvince({ postalCode: row.order.postalCode }), row.order);
   const pl = payPageLines(row.pay, row.order);
   const isReturn = (await searchParams).return === "1";
 

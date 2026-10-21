@@ -88,7 +88,12 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
       if (!tokenId) {
         const { error: submitError } = await elements.submit();
         if (submitError) return setError(submitError.message ?? "Check your card details");
-        const { error: tokErr, confirmationToken } = await stripe.createConfirmationToken({ elements });
+        const { name, email, phone, address } = ctx.prefill;
+        const { error: tokErr, confirmationToken } = await stripe.createConfirmationToken({
+          elements,
+          // The form hides every billing field (checkout already has them), so Stripe needs them here.
+          params: { payment_method_data: { billing_details: { name, email, phone: phone ?? "", address } } },
+        });
         if (tokErr || !confirmationToken) return setError(tokErr?.message ?? "Could not read your card");
         tokenId = confirmationToken.id;
       }
@@ -130,14 +135,9 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
             options={{
               layout: "tabs",
               wallets: { applePay: "never", googlePay: "never" },
-              defaultValues: {
-                billingDetails: {
-                  email: ctx.prefill.email,
-                  name: ctx.prefill.name,
-                  phone: ctx.prefill.phone ?? undefined,
-                  address: { country: ctx.prefill.country, postal_code: ctx.prefill.postalCode ?? undefined },
-                },
-              },
+              // Checkout already has these: hidden here, sent with the token, and prefilled so Link's opt-in is one tick.
+              fields: { billingDetails: { name: "never", email: "never", phone: "never", address: "never" } },
+              defaultValues: { billingDetails: { name: ctx.prefill.name, email: ctx.prefill.email, phone: ctx.prefill.phone ?? undefined, address: ctx.prefill.address } },
             }}
           />
           <p className="text-xs text-muted-foreground">We&apos;ll save this card for your renewals.</p>

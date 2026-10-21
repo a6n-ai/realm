@@ -22,6 +22,7 @@ import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-
 import { PaymentMethodCards, payMethodTitle } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
+import { billingAddress, e164 } from "@/lib/payments/billing-address";
 import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
@@ -768,8 +769,8 @@ export function Checkout({
   );
   const payStep = cardOn ? (
     <CardPayProvider
-      // Step 1's phone and address are this order's; they beat the account's for the card form too.
-      ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: contact.phone.trim() || cardContext!.prefill.phone, postalCode: contact.postalCode || cardContext!.prefill.postalCode } }}
+      // Step 1's phone and address are this order's, so they are the card's billing details too.
+      ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: e164(contact.phone, cardContext!.prefill.address.country) ?? cardContext!.prefill.phone, address: billingAddress(contact, cardContext!.prefill.address.country) } }}
       amountCents={Math.round(result.total * 100)}
       disabled={repricing > 0}
       onPay={payByCard}
