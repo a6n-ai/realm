@@ -20,7 +20,7 @@ overrides:
   "@foundry/email": "github:a6n-ai/foundry#path:packages/email"
   "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime"
   "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes"
-  "@foundry/ui": "github:a6n-ai/foundry#b21f566&path:packages/ui"
+  "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui"
   "@relay/email": "github:a6n-ai/relay#path:packages/email"
   "@relay/engine": "github:a6n-ai/relay#path:packages/engine"
   "@relay/sdk": "github:a6n-ai/relay#path:packages/sdk"

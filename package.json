@@ -34,7 +34,7 @@
     "@foundry/storage": "github:a6n-ai/foundry#path:packages/storage",
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/uber-eats": "github:a6n-ai/foundry#path:packages/uber-eats",
-    "@foundry/ui": "github:a6n-ai/foundry#b21f566&path:packages/ui",
+    "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
     "@relay/email": "github:a6n-ai/relay#path:packages/email",
     "@relay/engine": "github:a6n-ai/relay#path:packages/engine",

@@ -14,7 +14,7 @@ export function SavedCards({ cards, value, onChange }: { cards: SavedCard[]; val
       {cards.map((c) => (
         <FieldLabel key={c.paymentMethodId} htmlFor={`card-${c.paymentMethodId}`} className="relative p-0! transition-colors">
           <Field orientation="horizontal">
-            <RadioGroupItem value={c.paymentMethodId} id={`card-${c.paymentMethodId}`} aria-labelledby={`card-${c.paymentMethodId}-title`} className="absolute top-3 right-3" />
+            <RadioGroupItem value={c.paymentMethodId} id={`card-${c.paymentMethodId}`} aria-labelledby={`card-${c.paymentMethodId}-title`} className="absolute top-3 right-3 data-[state=checked]:border-primary data-[state=checked]:bg-primary" />
             <FieldTitle className="flex flex-col items-start gap-0.5">
               <span className="flex items-center gap-2 text-sm font-medium">
                 <span id={`card-${c.paymentMethodId}-title`}>{brandName(c.brand)} ending in {c.last4 ?? "----"}</span>

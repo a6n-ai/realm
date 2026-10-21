@@ -31,6 +31,8 @@ const MastercardMark = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+// Until foundry main has the radio data-state fix (branch fix/ui-radio-state): Radix sets data-state, not data-checked.
+const CHECKED_DOT = "data-[state=checked]:border-primary data-[state=checked]:bg-primary";
 
 export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNote }: {
   methods: PayMethodOption[];
@@ -48,7 +50,7 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
         return (
           <FieldLabel key={m.id} htmlFor={id} className="relative p-0! transition-colors">
             <Field orientation="horizontal">
-              <RadioGroupItem value={m.id} id={id} aria-labelledby={`${id}-title`} aria-describedby={stripe ? `${id}-desc` : undefined} className="absolute top-3 right-3" />
+              <RadioGroupItem value={m.id} id={id} aria-labelledby={`${id}-title`} aria-describedby={stripe ? `${id}-desc` : undefined} className={`absolute top-3 right-3 ${CHECKED_DOT}`} />
               <FieldTitle className="flex w-full flex-row items-center gap-3 pr-8 sm:flex-col sm:items-start sm:pr-0">
                 <span aria-hidden className={`bg-background border-border text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg border transition-colors group-has-[[data-state=checked]]/field-label:border-primary/40 group-has-[[data-state=checked]]/field-label:text-primary`}>
                   <Icon className={`size-5 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-has-[[data-state=checked]]/field-label:scale-110`} />
