@@ -27,6 +27,7 @@ export function OrderSummary({
   deliveryType,
   startNote,
   plain = false,
+  deliverTo,
   children,
 }: {
   selections: WizardSelections;
@@ -44,6 +45,8 @@ export function OrderSummary({
   startNote?: string | null;
   /** Inside a sheet that already has the card surface and the "Your order" title. */
   plain?: boolean;
+  /** Where and who, once checkout has them; Change goes back to that step. */
+  deliverTo?: { address: string; window?: string | null; phone?: string | null; onChange: () => void };
   children?: ReactNode;
 }) {
   const days = [...(selections.eatingDays ?? [])].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
@@ -89,6 +92,16 @@ export function OrderSummary({
         ) : null}
         {start && <p className="text-muted-foreground">Starts {start}</p>}
         {start && startNote && <p className="text-muted-foreground text-[13px] text-pretty">{startNote}</p>}
+        {deliverTo && (
+          <div className="flex items-start justify-between gap-3 pt-1">
+            <div className="min-w-0 space-y-0.5">
+              <p className="font-medium text-pretty">To {deliverTo.address}</p>
+              {deliverTo.window && <p className="text-muted-foreground">Arrives {deliverTo.window}</p>}
+              {deliverTo.phone && <p className="text-muted-foreground nums">{deliverTo.phone}</p>}
+            </div>
+            <button type="button" onClick={deliverTo.onChange} className="text-primary -my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-[13px] font-semibold">Change</button>
+          </div>
+        )}
       </div>
 
       <Divider className="my-4" />

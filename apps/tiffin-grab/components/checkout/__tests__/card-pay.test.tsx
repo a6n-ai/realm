@@ -155,18 +155,20 @@ describe("Checkout Pay step", () => {
     expect(await screen.findByTestId("card-dialog")).toBeTruthy();
   });
 
-  it("the order card replaces Review: total up front, address, start and contact on expand, Edit and Change still work", async () => {
+  it("no Review section: the order card carries address, window, phone and total, and Change goes back", async () => {
     await toPayment();
     expect(screen.queryByRole("heading", { name: "Review" })).toBeNull();
-    const card = screen.getByRole("button", { name: /order details/i });
+    const card = screen.getByRole("complementary", { name: "Order summary" });
+    expect(card.textContent).toContain("10 King St W");
+    expect(card.textContent).toContain("Arrives 6-8pm");
+    expect(card.textContent).toContain("+1 416 555 1234");
     expect(card.textContent).toContain("$50.00");
-    expect(card.textContent).toMatch(/starts /);
-    fireEvent.click(card);
-    expect(await screen.findByText(/10 King St W/)).toBeTruthy();
-    expect(screen.getByText(/\+1 416 555 1234/)).toBeTruthy();
-    expect(screen.getAllByRole("link", { name: "Edit" }).map((a) => a.getAttribute("href"))).toEqual(expect.arrayContaining(["/subscribe"]));
-    fireEvent.click(screen.getAllByRole("button", { name: "Change" })[0]!);
+    expect(within(card).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/subscribe");
+    // The mobile glance shows the address too, and opens the same summary.
+    expect(screen.getAllByRole("button", { name: /your order/i }).some((b) => b.getAttribute("aria-haspopup") === "dialog" && b.textContent?.includes("To 10 King St W"))).toBe(true);
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
     expect(await screen.findByRole("button", { name: /continue to payment/i })).toBeTruthy();
+    expect(within(screen.getByRole("complementary", { name: "Order summary" })).queryByRole("button", { name: "Change" })).toBeNull();
   });
 
   it("express is only offered while Stripe is selected", async () => {

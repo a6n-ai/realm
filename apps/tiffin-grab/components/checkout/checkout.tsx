@@ -19,7 +19,6 @@ import {
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { CardPay, CardPayProvider, ExpressPay, useWarmStripe } from "@/components/payments/pay-panel";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
@@ -40,7 +39,7 @@ import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
-import { Check, ChevronDown, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
+import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
@@ -587,6 +586,15 @@ export function Checkout({
   const retryPrice = () => window.location.reload();
   const actionReason = step === 1 ? step1Reason : payReason;
   const addressLine = oneLine(contact);
+  // Pay step only: step 1 is where these are edited, so the order card would just repeat them there.
+  const deliverTo = step === 2 && addressLine
+    ? {
+        address: addressLine,
+        window: zone?.slotWindow ?? null,
+        phone: formatPhoneNumberIntl(contact.phone) || contact.phone || null,
+        onChange: () => { setSummaryOpen(false); setStep(1); },
+      }
+    : undefined;
   // Drop-off belongs to the picked address, so it renders under that address, not in its own section.
   const hasDropOffChoices = Boolean(catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || dropOff.groups.length > 0));
   const dropOffChoices = catalog?.deliveryCharges && (
@@ -624,7 +632,7 @@ export function Checkout({
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref}>
+    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} deliverTo={deliverTo}>
       {applied.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Applied coupons">
           {applied.map((c) => (
@@ -806,34 +814,14 @@ export function Checkout({
             >
               <h1 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
 
-              {step === 1 ? (
-                <OrderGlance
-                  title={meal?.name ?? "Your plan"}
-                  baseline={baseline}
-                  meta={[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `Starts ${start}` : null].filter(Boolean).join(" · ")}
-                  total={result?.total}
-                  onOpen={() => setSummaryOpen(true)}
-                />
-              ) : (
-                <OrderReview
-                  title={[meal?.name ?? "Your plan", baseline].filter(Boolean).join(" · ")}
-                  keyLine={[result ? `${result.tiffinCount} tiffins` : null, start ? `starts ${start}` : null].filter(Boolean).join(" · ")}
-                  total={result?.total}
-                >
-                  <ReviewRow term="Order" action={<Link href={editHref} transitionTypes={["nav-back"]} className="text-primary text-[13px] font-semibold">Edit</Link>}>
-                    {[meal?.name, baseline].filter(Boolean).join(" · ")}
-                    <span className="text-muted-foreground block text-[13px]">{[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `starts ${start}` : null].filter(Boolean).join(", ")}</span>
-                  </ReviewRow>
-                  <ReviewRow term="Deliver to" action={<button type="button" onClick={() => setStep(1)} className="text-primary text-[13px] font-semibold">Change</button>}>
-                    {addressLine}
-                    {dropOffText && <span className="text-muted-foreground block text-[13px]">{dropOffText}</span>}
-                    {zone?.slotWindow && <span className="text-muted-foreground block text-[13px]">Arrives {zone.slotWindow}</span>}
-                  </ReviewRow>
-                  <ReviewRow term="Contact" action={<button type="button" onClick={() => setStep(1)} className="text-primary text-[13px] font-semibold">Change</button>}>
-                    {formatPhoneNumberIntl(contact.phone) || contact.phone}
-                  </ReviewRow>
-                </OrderReview>
-              )}
+              <OrderGlance
+                title={meal?.name ?? "Your plan"}
+                baseline={baseline}
+                meta={[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `Starts ${start}` : null].filter(Boolean).join(" · ")}
+                address={deliverTo?.address}
+                total={result?.total}
+                onOpen={() => setSummaryOpen(true)}
+              />
               {startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
 
               {step === 1 ? (
@@ -964,7 +952,7 @@ export function Checkout({
 }
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */
-function OrderGlance({ title, baseline, meta, total, onOpen }: { title: string; baseline?: string | null; meta: string; total?: number; onOpen: () => void }) {
+function OrderGlance({ title, baseline, meta, address, total, onOpen }: { title: string; baseline?: string | null; meta: string; address?: string; total?: number; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -978,41 +966,11 @@ function OrderGlance({ title, baseline, meta, total, onOpen }: { title: string; 
           {baseline ? `${title} · ${baseline}` : title}
         </span>
         {meta && <span className="text-muted-foreground block truncate text-[13px]">{meta}</span>}
+        {address && <span className="text-muted-foreground block truncate text-[13px]">To {address}</span>}
       </span>
       {total != null && <span className="nums text-[17px] font-bold">{money(total)}</span>}
       <ChevronRight aria-hidden className="text-muted-foreground size-4 shrink-0" />
     </button>
-  );
-}
-
-/** Pay step: the order at a glance (plan, tiffins, start, total); the chevron opens delivery and contact. */
-function OrderReview({ title, keyLine, total, children }: { title: string; keyLine: string; total?: number; children: ReactNode }) {
-  return (
-    <Collapsible className="bg-card border-border group/order mb-8 rounded-[20px] border">
-      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-[20px] p-4 text-left transition-colors hover:bg-[var(--muted)]/40">
-        <span className="min-w-0 flex-1">
-          <span className="text-muted-foreground block text-xs font-semibold tracking-[0.02em]">Your order</span>
-          <span className="mt-0.5 block truncate text-[17px] font-semibold tracking-[-0.02em]">{title}</span>
-          {keyLine && <span className="text-muted-foreground block truncate text-[13px]">{keyLine}</span>}
-        </span>
-        {total != null && <span className="nums text-[17px] font-bold">{money(total)}</span>}
-        <ChevronDown aria-hidden className="text-muted-foreground size-4 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[state=open]/order:rotate-180 motion-reduce:transition-none" />
-        <span className="sr-only">Order details</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=open]:duration-200 data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:animate-none">
-        <dl className="divide-y divide-[var(--border)] border-t border-[var(--border)] text-sm">{children}</dl>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function ReviewRow({ term, action, children }: { term: string; action?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 px-4 py-3.5">
-      <dt className="text-muted-foreground w-24 shrink-0 pt-px text-[13px] font-medium">{term}</dt>
-      <dd className="min-w-0 flex-1 font-medium text-pretty">{children}</dd>
-      {action}
-    </div>
   );
 }
 
