@@ -1,11 +1,11 @@
 "use client";
 
 import type { ReactNode, SVGProps } from "react";
-import { ArrowLeftRight, Banknote, CreditCard, Nfc, Wallet } from "lucide-react";
+import { ArrowLeftRight, Banknote, CreditCard, Wallet, type LucideIcon } from "lucide-react";
 import type { SavedCard } from "@foundry/payments/stripe";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Badge } from "@/components/reui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 export type PayMethodOption = { id: string; label: string };
 
@@ -43,87 +43,42 @@ const MastercardMark = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-/* Card art: decorative backgrounds only (aria-hidden), from our tokens. Its small text is illustration, not copy. */
-
-const Chip = () => <span className="bg-primary-foreground/20 ring-primary-foreground/25 block h-5 w-7 rounded-[5px] ring-1" />;
-// Brand marks keep their own white plate in both themes (brand identity, not our palette).
-const MarkTile = ({ children }: { children: ReactNode }) => <span className="grid h-5 w-8 place-items-center rounded-[4px] bg-white">{children}</span>;
-
-function StripeArt() {
-  return (
-    <div className="from-primary via-primary/85 to-primary/55 text-primary-foreground absolute inset-0 bg-linear-to-br p-4">
-      <div className="flex items-center gap-2">
-        <Chip />
-        <Nfc className="size-4 opacity-70" />
-      </div>
-      <span className="absolute top-3 right-12 text-lg font-bold tracking-tight opacity-90">stripe</span>
-      <span className="absolute top-11 right-3 flex items-center gap-1">
-        <MarkTile><VisaMark className="size-5 text-[#1A1F71]" /></MarkTile>
-        <MarkTile><MastercardMark className="size-5" /></MarkTile>
-        <span className="hidden h-5 place-items-center rounded-[4px] bg-black px-1 text-[9px] font-semibold whitespace-nowrap text-white sm:grid">Apple Pay</span>
-        <span className="hidden h-5 place-items-center rounded-[4px] bg-white px-1 text-[9px] font-semibold whitespace-nowrap text-neutral-900 sm:grid">G Pay</span>
-      </span>
-    </div>
-  );
-}
-
-function SavedCardArt({ brand }: { brand: string | null }) {
-  return (
-    <div className="from-foreground via-foreground/85 to-foreground/65 text-background absolute inset-0 bg-linear-to-br p-4">
-      <div className="flex items-center gap-2">
-        <Chip />
-        <Nfc className="size-4 opacity-70" />
-      </div>
-      <span className="absolute top-3 right-12 grid h-6 w-10 place-items-center rounded-[5px] bg-white">
-        {brand === "visa" ? <VisaMark className="size-6 text-[#1A1F71]" />
-          : brand === "mastercard" ? <MastercardMark className="size-6" />
-          : <CreditCard className="size-4 text-neutral-900" />}
-      </span>
-    </div>
-  );
-}
-
-function PlainArt({ icon }: { icon: ReactNode }) {
-  return (
-    <div className="from-muted to-background text-muted-foreground absolute inset-0 bg-linear-to-br">
-      <span className="absolute top-3 right-10 -rotate-6 opacity-60 [&>svg]:size-14">{icon}</span>
-    </div>
-  );
-}
-
-function artFor(m: PayMethodOption) {
-  if (m.id === "stripe") return <StripeArt />;
-  if (m.id === "cash") return <PlainArt icon={<Banknote strokeWidth={1.25} />} />;
-  if (m.id === "etransfer") return <PlainArt icon={<ArrowLeftRight strokeWidth={1.25} />} />;
-  return <PlainArt icon={<Wallet strokeWidth={1.25} />} />;
-}
+// Categorical tile colours (one per payment kind), each with its dark pair.
+const TILE = {
+  stripe: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  visa: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300",
+  mastercard: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  cash: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  etransfer: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  other: "bg-muted text-muted-foreground",
+} as const;
+const ICON: Record<string, LucideIcon> = { stripe: CreditCard, cash: Banknote, etransfer: ArrowLeftRight };
 
 const brandName = (b: string | null) => (b ? b[0]!.toUpperCase() + b.slice(1) : "Card");
 const exp = (c: SavedCard) => `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}`;
 
-/** ReUI c-card-10: the art fills the card (a square tile on phones) and fades top and bottom; the radio and text sit on top. */
-function OptionCard({ value, art, title, badge, children }: { value: string; art: ReactNode; title: string; badge?: ReactNode; children?: ReactNode }) {
+/** ReUI c-radio-group-13 card: icon tile on top, title and details below, radio dot in the corner. */
+function Choice({ value, icon, tile, title, badge, children }: { value: string; icon: LucideIcon; tile: string; title: string; badge?: ReactNode; children?: ReactNode }) {
   const id = `pay-${value.replace(":", "-")}`;
+  const Icon = icon;
   return (
-    <label htmlFor={id} className="group/opt block cursor-pointer">
-      <Card className="has-[[data-state=checked]]:ring-primary p-0 transition-colors has-[[data-state=checked]]:ring-2">
-        <CardContent className="p-0">
-          <div className="relative flex aspect-square w-full flex-col justify-end overflow-hidden sm:aspect-auto sm:h-36">
-            <div aria-hidden className="absolute inset-0 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/opt:scale-105 motion-reduce:transition-none motion-reduce:group-hover/opt:scale-100">{art}</div>
-            <div aria-hidden className="from-card/60 absolute inset-x-0 top-0 h-1/3 bg-linear-to-b to-transparent" />
-            <div aria-hidden className="from-card via-card/90 absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t to-transparent" />
-            <RadioGroupItem value={value} id={id} aria-labelledby={`${id}-title`} aria-describedby={children ? `${id}-desc` : undefined} className="bg-background absolute top-3 right-3" />
-            <div className="relative flex flex-col gap-0.5 p-3">
-              <span className="flex items-center gap-2">
-                <span id={`${id}-title`} className="text-sm font-medium">{title}</span>
-                {badge}
-              </span>
-              {children && <span id={`${id}-desc`} className="text-muted-foreground flex flex-col gap-0.5 text-xs">{children}</span>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </label>
+    <FieldLabel htmlFor={id} className="relative p-0! transition-colors">
+      <Field orientation="horizontal">
+        <RadioGroupItem value={value} id={id} aria-labelledby={`${id}-title`} aria-describedby={children ? `${id}-desc` : undefined} className="absolute top-3 right-3" />
+        <FieldTitle className="flex w-full min-w-0 flex-col items-start gap-2">
+          <span aria-hidden className={`grid size-9 place-items-center rounded-lg ${tile}`}>
+            <Icon className="size-5" />
+          </span>
+          <span className="flex min-w-0 flex-col items-start gap-0.5 pr-5">
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span id={`${id}-title`} className="text-sm font-medium">{title}</span>
+              {badge}
+            </span>
+            {children && <span id={`${id}-desc`} className="text-muted-foreground flex flex-col items-start gap-0.5 text-xs font-normal">{children}</span>}
+          </span>
+        </FieldTitle>
+      </Field>
+    </FieldLabel>
   );
 }
 
@@ -138,27 +93,32 @@ export function PaymentMethodCards({ methods, savedCards = [], value, onChange, 
 }) {
   const cards = methods.some((m) => m.id === "stripe") ? savedCards : [];
   return (
-    <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))]">
+    <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
       {cards.map((c) => (
-        <OptionCard
+        <Choice
           key={c.paymentMethodId}
           value={savedChoice(c.paymentMethodId)}
-          art={<SavedCardArt brand={c.brand} />}
+          icon={CreditCard}
+          tile={c.brand === "visa" ? TILE.visa : c.brand === "mastercard" ? TILE.mastercard : TILE.other}
           title={`${brandName(c.brand)} •••• ${c.last4 ?? "----"}`}
           badge={c.isDefault ? <Badge variant="primary-light">Default</Badge> : undefined}
         >
           <span>Expires {exp(c)}</span>
-        </OptionCard>
+        </Choice>
       ))}
       {methods.map((m) => (
-        <OptionCard key={m.id} value={m.id} art={artFor(m)} title={payMethodTitle(m)}>
+        <Choice key={m.id} value={m.id} icon={ICON[m.id] ?? Wallet} tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other} title={payMethodTitle(m)}>
           {m.id === "stripe" ? (
             <>
-              <span>{cards.length > 0 ? "A new card, Apple Pay, Google Pay" : "Card, Apple Pay, Google Pay"}</span>
+              <span className="flex items-center gap-1">
+                {cards.length > 0 ? "New card or wallet" : "Card or wallet"}
+                <VisaMark aria-hidden className="size-5 text-[#1A1F71] dark:text-foreground" />
+                <MastercardMark aria-hidden className="size-5" />
+              </span>
               {feeNote && <span>{feeNote}</span>}
             </>
           ) : undefined}
-        </OptionCard>
+        </Choice>
       ))}
     </RadioGroup>
   );
