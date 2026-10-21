@@ -110,10 +110,10 @@ export function PaymentMethodCards({ methods, savedCards = [], value, onChange, 
         <Choice key={m.id} value={m.id} icon={ICON[m.id] ?? Wallet} tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other} title={payMethodTitle(m)}>
           {m.id === "stripe" ? (
             <>
-              <span className="flex items-center gap-1">
-                {cards.length > 0 ? "New card or wallet" : "Card or wallet"}
-                <VisaMark aria-hidden className="size-5 text-[#1A1F71] dark:text-foreground" />
-                <MastercardMark aria-hidden className="size-5" />
+              <span>{cards.length > 0 ? "New card or wallet" : "Card or wallet"}</span>
+              <span aria-hidden className="flex items-center gap-1">
+                <VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" />
+                <MastercardMark className="size-5" />
               </span>
               {feeNote && <span>{feeNote}</span>}
             </>
