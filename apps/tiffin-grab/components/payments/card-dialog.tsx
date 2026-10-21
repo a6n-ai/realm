@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ResponsiveDialog } from "@foundry/design-system";
-import { Button, Notice, Reason, Skeleton } from "@/components/customer/kit";
+import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import type { CardSource } from "@/lib/services/payment-stripe";
 import type { PayOutcome } from "./pay-panel";
@@ -11,14 +14,41 @@ import { TrustLine } from "./trust-line";
 
 export const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+export function Spinner({ show }: { show: boolean }) {
+  return show ? <Loader2 aria-hidden className="animate-spin" /> : null;
+}
+
+export function ErrorAlert({ message, busy, onRetry }: { message: string; busy: boolean; onRetry?: () => void }) {
+  return (
+    <Alert variant="destructive">
+      <AlertCircle aria-hidden />
+      <AlertDescription>{message}</AlertDescription>
+      {onRetry && (
+        <AlertAction>
+          <Button variant="outline" size="sm" disabled={busy} onClick={onRetry}>
+            <Spinner show={busy} />
+            Retry
+          </Button>
+        </AlertAction>
+      )}
+    </Alert>
+  );
+}
+
 export function SurchargeConfirm({ surcharge, newTotal, busy, onConfirm, onCancel }: {
   surcharge: string; newTotal: string; busy: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <Notice>Credit cards carry a ${surcharge} card fee. New total ${newTotal}. Debit cards have no fee.</Notice>
-      <Button variant="hero" size="lg" className="w-full" pending={busy} onClick={onConfirm}>Pay ${newTotal}</Button>
-      <Button variant="quiet" className="w-full" onClick={onCancel}>Use a different card</Button>
+      <Alert variant="info">
+        <Info aria-hidden />
+        <AlertDescription>Credit cards carry a ${surcharge} card fee. New total ${newTotal}. Debit cards have no fee.</AlertDescription>
+      </Alert>
+      <Button size="lg" className="w-full" disabled={busy} onClick={onConfirm}>
+        <Spinner show={busy} />
+        Pay ${newTotal}
+      </Button>
+      <Button variant="outline" className="w-full" onClick={onCancel}>Use a different card</Button>
     </div>
   );
 }
@@ -34,12 +64,14 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
   const elements = useElements();
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [fee, setFee] = useState<{ surcharge: string; newTotal: string; tokenId: string } | null>(null);
 
   function close(next: boolean) {
     if (busy) return;
     if (!next) {
+      setReady(false);
       setError(null);
       setFee(null);
     }
@@ -47,7 +79,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
   }
 
   async function run(accept: boolean) {
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -60,6 +93,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
         tokenId = confirmationToken.id;
       }
       const r = await pay({ confirmationTokenId: tokenId }, accept);
+      if (r.kind === "busy") return;
       if (r.kind === "done") return close(false);
       if (r.kind === "confirm_surcharge") return setFee({ surcharge: r.surcharge, newTotal: r.newTotal, tokenId });
       setFee(null);
@@ -67,6 +101,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -80,7 +115,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
       description="Your card is entered securely with Stripe."
       footer={
         fee ? null : (
-          <Button variant="hero" size="lg" pending={busy} disabled={!stripe || !ready} onClick={() => run(false)}>
+          <Button size="lg" disabled={!stripe || !ready || busy} onClick={() => run(false)}>
+            <Spinner show={busy} />
             Pay {dollars(amountCents)}
           </Button>
         )
@@ -97,8 +133,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
               defaultValues: { billingDetails: { email: ctx.prefill.email, name: ctx.prefill.name, phone: ctx.prefill.phone ?? undefined } },
             }}
           />
-          <Reason>This card is saved for faster payments next time.</Reason>
-          {ctx.feeNote && <Reason>{ctx.feeNote}. Debit cards have no fee.</Reason>}
+          <p className="text-xs text-muted-foreground">We&apos;ll save this card for your renewals.</p>
+          {ctx.feeNote && <p className="text-xs text-muted-foreground">{ctx.feeNote}. Debit cards have no fee.</p>}
         </div>
         {fee && (
           <SurchargeConfirm
@@ -109,14 +145,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
             onCancel={() => setFee(null)}
           />
         )}
-        {error && (
-          <Notice tone="error">
-            <span className="flex flex-col gap-2">
-              {error}
-              {!fee && <Button variant="quiet" onClick={() => run(false)}>Retry</Button>}
-            </span>
-          </Notice>
-        )}
+        {error && <ErrorAlert message={error} busy={busy} onRetry={fee ? undefined : () => run(false)} />}
         <TrustLine />
       </div>
     </ResponsiveDialog>
