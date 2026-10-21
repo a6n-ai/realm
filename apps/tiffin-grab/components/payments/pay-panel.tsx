@@ -6,6 +6,7 @@ import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
 import { Button } from "@/components/ui/button";
+import { Button as BarButton } from "@/components/customer/kit";
 import { CardBrandMark, cardBrandName, cardExpiry, defaultSavedCard } from "@/components/checkout/payment-method-cards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -311,7 +312,7 @@ export function CardPay({ dialogOpen, onDialogOpenChange }: {
   if (paid) return <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={<Printer />} stripePromise={stripePromise} appearance={appearance} />;
   return (
     <div className="flex flex-col gap-4">
-      <Button size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</Button>
+      <BarButton variant="primary" size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</BarButton>
       <TrustLine />
       <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={null} stripePromise={stripePromise} appearance={appearance} loadSession={customerSession} />
     </div>

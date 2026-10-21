@@ -943,12 +943,12 @@ export function Checkout({
             className="sm:sticky sm:mt-8 sm:px-0"
           >
             {step === 2 && payWithCard ? (
-              // Phone: wallet, then Back beside the card action. sm+: one row, Back left, wallet and Pay right.
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                <div className="sm:order-2 sm:ml-auto sm:w-64 sm:shrink-0"><ExpressPay height={50} /></div>
-                <div className="flex items-start gap-2 sm:contents">
-                  <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:order-1" onClick={goBack}>{backLabel}</Button>
-                  <div className="min-w-0 flex-1 sm:order-3 sm:w-56 sm:flex-none">{cardPay}</div>
+              // Wallet full width above one row: Back left, Pay right (as Continue on the Delivery step).
+              <div className="flex w-full flex-col gap-2">
+                <ExpressPay height={50} />
+                <div className="flex items-start gap-2">
+                  <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
+                  <div className="min-w-0 flex-1 sm:ml-auto sm:w-60 sm:flex-none">{cardPay}</div>
                 </div>
               </div>
             ) : (
