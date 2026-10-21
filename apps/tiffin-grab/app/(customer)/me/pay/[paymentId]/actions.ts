@@ -5,13 +5,13 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
-import { abandonCardAttempt, payByCard, settleStripePayment, type PayByCardResult } from "@/lib/services/payment-stripe";
+import { abandonCardAttempt, payByCard, settleStripePayment, type CardSource, type PayByCardResult } from "@/lib/services/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
 import { withCustomerPayLock } from "@/lib/services/customer-pay-lock";
 
 export async function submitCardPayment(
   paymentId: string,
-  tokenId: string,
+  source: CardSource,
   acceptSurcharge: boolean,
 ): Promise<ActionResult<PayByCardResult>> {
   return runAction(async () => {
@@ -21,7 +21,7 @@ export async function submitCardPayment(
       payByCard({
         paymentPublicId: paymentId,
         userPublicId: session.user.id,
-        source: { confirmationTokenId: tokenId },
+        source,
         acceptSurcharge,
         returnUrl: `${appBaseUrl()}/me/pay/${paymentId}?return=1`,
       }),

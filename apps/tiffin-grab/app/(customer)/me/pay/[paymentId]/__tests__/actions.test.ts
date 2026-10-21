@@ -51,16 +51,23 @@ describe("pay page actions", () => {
   it("refuses a card submit while a checkout holds the customer lock, and frees the lock after", async () => {
     session.current = { user: { id: "usr_1" } };
     locks.set("pay-lock:usr_1", "checkout");
-    expect(await submitCardPayment("pay_1", "ct", false)).toEqual({ error: "A payment is already in progress." });
+    expect(await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false)).toEqual({ error: "A payment is already in progress." });
     expect(payByCard).not.toHaveBeenCalled();
     locks.clear();
     payByCard.mockResolvedValue({ kind: "succeeded" });
-    expect("ok" in (await submitCardPayment("pay_1", "ct", false))).toBe(true);
+    expect("ok" in (await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false))).toBe(true);
     expect(locks.size).toBe(0);
   });
 
+  it("forwards a saved card source to payByCard", async () => {
+    session.current = { user: { id: "usr_a" } };
+    payByCard.mockResolvedValue({ kind: "processing" });
+    await submitCardPayment("pay_1", { savedPaymentMethodId: "pm_1" }, false);
+    expect(payByCard.mock.calls[0]![0]).toMatchObject({ source: { savedPaymentMethodId: "pm_1" } });
+  });
+
   it("refuse a signed-out caller without touching Stripe", async () => {
-    expect("error" in (await submitCardPayment("pay_1", "ct", true))).toBe(true);
+    expect("error" in (await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, true))).toBe(true);
     expect("error" in (await abandonCard("pay_1"))).toBe(true);
     expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: false });
     expect(payByCard).not.toHaveBeenCalled();
@@ -84,7 +91,7 @@ describe("pay page actions", () => {
   it("passes the session user to payByCard and abandon (ownership enforced in the service)", async () => {
     session.current = { user: { id: "usr_a" } };
     payByCard.mockResolvedValue({ kind: "processing" });
-    await submitCardPayment("pay_1", "ct", false);
+    await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false);
     expect(payByCard.mock.calls[0]![0]).toMatchObject({ userPublicId: "usr_a", paymentPublicId: "pay_1" });
     await abandonCard("pay_1");
     expect(abandon).toHaveBeenCalledWith("pay_1", "usr_a");

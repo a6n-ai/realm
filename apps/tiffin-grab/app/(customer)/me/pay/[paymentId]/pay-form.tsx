@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { Button, Card, Notice, PageHeader } from "@/components/customer/kit";
+import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
+import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-panel";
+import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
 
 type Line = { label: string; amount: number };
@@ -34,7 +34,7 @@ export function PayForm(p: {
   paymentId: string;
   status: string;
   method: string;
-  publishableKey: string | null;
+  ctx: CardCheckoutContext;
   amountCents: number;
   lines: Line[];
   total: number;
@@ -42,8 +42,9 @@ export function PayForm(p: {
   /** Why this payment can no longer be paid (cancelled order, expired or void link), or null. */
   closed?: string | null;
 }) {
-  const stripePromise = useMemo(() => (p.publishableKey ? loadStripe(p.publishableKey) : null), [p.publishableKey]);
-  if (p.status === "paid" || p.status === "simulated_paid") return <Paid />;
+  const [done, setDone] = useState<"paid" | "processing" | null>(null);
+  if (p.status === "paid" || p.status === "simulated_paid" || done === "paid") return <Paid />;
+  if (done === "processing") return <Processing />;
   if (p.method !== "stripe" || (p.status !== "awaiting_payment" && p.status !== "rejected")) {
     return (
       <Shell>
@@ -52,7 +53,7 @@ export function PayForm(p: {
       </Shell>
     );
   }
-  if (!stripePromise) {
+  if (!p.ctx.publishableKey) {
     return (
       <Shell>
         <Notice>Card payments are paused right now. Please contact us.</Notice>
@@ -71,102 +72,27 @@ export function PayForm(p: {
     );
   }
   return (
-    <Elements
-      stripe={stripePromise}
-      options={{ mode: "payment", amount: p.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance: { theme: "stripe" } }}
-    >
-      <Inner paymentId={p.paymentId} lines={p.lines} total={p.total} />
-    </Elements>
-  );
-}
-
-function Inner(p: { paymentId: string; lines: Line[]; total: number }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [surcharge, setSurcharge] = useState<{ surcharge: string; newTotal: string; tokenId: string } | null>(null);
-  const [done, setDone] = useState<"paid" | "processing" | null>(null);
-
-  async function run(accept: boolean, existingToken?: string) {
-    if (!stripe || !elements) return;
-    setBusy(true);
-    setError(null);
-    try {
-      let tokenId = existingToken;
-      if (!tokenId) {
-        const { error: submitError } = await elements.submit();
-        if (submitError) {
-          setError(submitError.message ?? "Check your card details");
-          return;
-        }
-        const { error: tokErr, confirmationToken } = await stripe.createConfirmationToken({ elements });
-        if (tokErr || !confirmationToken) {
-          setError(tokErr?.message ?? "Could not read your card");
-          return;
-        }
-        tokenId = confirmationToken.id;
-      }
-      const r = await submitCardPayment(p.paymentId, tokenId, accept);
-      if ("error" in r) {
-        setSurcharge(null);
-        setError(r.error);
-        return;
-      }
-      if (r.kind === "confirm_surcharge") {
-        setSurcharge({ surcharge: r.surcharge, newTotal: r.newTotal, tokenId });
-      } else if (r.kind === "requires_action") {
-        const { error: actErr } = await stripe.handleNextAction({ clientSecret: r.clientSecret });
-        if (actErr) {
-          await abandonCard(p.paymentId).catch(() => undefined);
-          setError(actErr.message ?? "Authentication failed");
-          return;
-        }
+    <CardPayProvider
+      ctx={p.ctx}
+      amountCents={p.amountCents}
+      onPay={(source, accept) => submitCardPayment(p.paymentId, source, accept)}
+      onPaid={() => setDone("paid")}
+      onProcessing={() => setDone("processing")}
+      abandon={async () => { await abandonCard(p.paymentId); }}
+      afterAction={async () => {
         const c = await confirmReturn(p.paymentId);
-        setDone("error" in c || !c.paid ? "processing" : "paid");
-      } else if (r.kind === "failed") {
-        setSurcharge(null);
-        setError(r.message);
-      } else {
-        setDone(r.kind === "succeeded" ? "paid" : "processing");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (done === "paid") return <Paid />;
-  if (done === "processing") return <Processing />;
-
-  return (
-    <Shell>
-      <div>
-        {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
-        <Row label="Total" amount={p.total} strong />
-      </div>
-      {surcharge ? (
-        <div className="space-y-3">
-          <Notice>
-            Credit cards carry a ${surcharge.surcharge} card fee. New total ${surcharge.newTotal}. Debit cards have no fee.
-          </Notice>
-          {error && <Notice tone="error">{error}</Notice>}
-          <Button variant="hero" size="lg" className="w-full" pending={busy} onClick={() => run(true, surcharge.tokenId)}>
-            Pay ${surcharge.newTotal}
-          </Button>
-          <Button variant="quiet" className="w-full" onClick={() => setSurcharge(null)}>Use a different card</Button>
+        return "error" in c || !c.paid ? "processing" : "paid";
+      }}
+    >
+      <Shell>
+        <ExpressPay />
+        <div>
+          {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
+          <Row label="Total" amount={p.total} strong />
         </div>
-      ) : (
-        <div className="space-y-4">
-          <PaymentElement options={{ layout: "accordion" }} />
-          {error && <Notice tone="error">{error}</Notice>}
-          <Button variant="hero" size="lg" className="w-full" pending={busy} disabled={!stripe} onClick={() => run(false)}>
-            {busy ? "Processing…" : `Pay $${p.total.toFixed(2)}`}
-          </Button>
-        </div>
-      )}
-    </Shell>
+        <CardPay />
+      </Shell>
+    </CardPayProvider>
   );
 }
 
