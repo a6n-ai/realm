@@ -14,6 +14,7 @@ vi.mock("@/components/payments/pay-panel", () => ({
   PaidSwitch: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ExpressPay: () => <div data-testid="express" />,
   CardPay: () => <div data-testid="card-pay" />,
+  LastUsedCard: () => <div data-testid="last-used" />,
 }));
 
 import { PayForm } from "../pay-form";
@@ -23,7 +24,7 @@ afterEach(() => {
   panel.amount = null;
 });
 
-const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } }, feeNote: null };
+const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], customerSessionClientSecret: null, prefill: { email: "", name: "", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } }, feeNote: null };
 const base = { paymentId: "pay_1", deploymentId: "SUB-X1", planTitle: "Veg thali", planSubtitle: "Regular", status: "awaiting_payment", method: "stripe", ctx, amountCents: 1000, lines: [], total: 10, isReturn: false };
 
 describe("PayForm", () => {

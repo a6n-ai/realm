@@ -4,9 +4,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { markPaid } from "@/lib/payments/paid-flag";
-import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "@/components/checkout/payment-method-cards";
+import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
 
@@ -33,22 +33,19 @@ function Shell({ children, after }: { children: ReactNode; after?: ReactNode }) 
   );
 }
 
-/** Saved cards first (the default preselected), then Stripe for a new card; same choices as checkout. */
+/** The last-used card pays in one tap; Stripe opens the card form, which lists saved cards too. */
 function PayChoices({ ctx }: { ctx: CardCheckoutContext }) {
-  const [savedCardId, setSavedCardId] = useState(() => defaultSavedCard(ctx.savedCards));
   const [dialog, setDialog] = useState(false);
-  const choose = (choice: string) => {
-    const card = savedCardOf(choice);
-    setSavedCardId(card);
-    if (!card) setDialog(true);
-  };
   return (
-    <section aria-labelledby="pay-with" className="flex flex-col gap-3">
-      <h2 id="pay-with" className="text-sm font-semibold">Pay with</h2>
-      <PaymentMethodCards methods={[{ id: "stripe", label: "Stripe" }]} savedCards={ctx.savedCards} value={savedCardId ? savedChoice(savedCardId) : "stripe"} onChange={choose} labelledBy="pay-with" feeNote={ctx.feeNote} />
-      <ExpressPay />
-      <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={dialog} onDialogOpenChange={setDialog} />
-    </section>
+    <div className="flex flex-col gap-5">
+      <LastUsedCard />
+      <section aria-labelledby="pay-with" className="flex flex-col gap-3">
+        <h2 id="pay-with" className="text-sm font-semibold">Pay with</h2>
+        <PaymentMethodCards methods={[{ id: "stripe", label: "Stripe" }]} value="stripe" onChange={() => setDialog(true)} labelledBy="pay-with" feeNote={ctx.feeNote} />
+        <ExpressPay />
+        <CardPay dialogOpen={dialog} onDialogOpenChange={setDialog} />
+      </section>
+    </div>
   );
 }
 

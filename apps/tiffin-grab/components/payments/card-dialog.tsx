@@ -94,7 +94,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
         const { error: tokErr, confirmationToken } = await stripe.createConfirmationToken({
           elements,
           // The form hides every billing field (checkout already has them), so Stripe needs them here.
-          params: { payment_method_data: { billing_details: { name, email, phone: phone ?? "", address } } },
+          // "always" lets a card saved here show up again, removable, in the next card form.
+          params: { payment_method_data: { allow_redisplay: "always", billing_details: { name, email, phone: phone ?? "", address } } },
         });
         if (tokErr || !confirmationToken) return setError(tokErr?.message ?? "Could not read your card");
         tokenId = confirmationToken.id;
@@ -125,7 +126,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
       open={open}
       onOpenChange={close}
       direction="bottom"
-      title="Pay with a new card"
+      title="Pay by card"
       description="Your card is entered securely with Stripe."
       footer={
         fee ? null : (

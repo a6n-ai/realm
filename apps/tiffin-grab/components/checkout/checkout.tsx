@@ -17,12 +17,12 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
 import { markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
-import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "./payment-method-cards";
+import { PaymentMethodCards } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
@@ -216,9 +216,6 @@ export function Checkout({
   const reduce = useReducedMotion();
   // Stripe.js loads while the customer is still on the address step, so the wallet button is ready on Pay.
   useWarmStripe(cardContext?.publishableKey);
-  // A returning customer's default card is the preselected choice; null means a new card.
-  const savedCards = cardContext?.publishableKey ? cardContext.savedCards : [];
-  const [savedCardId, setSavedCardId] = useState(() => defaultSavedCard(savedCards));
   const [cardDialog, setCardDialog] = useState(false);
   // Desktop (lg) puts Savings beside the order card; phones (below sm) pay from the bottom bar.
   const wide = useMinWidth(1024);
@@ -471,11 +468,8 @@ export function Checkout({
   };
 
   const choose = (choice: string) => {
-    const card = savedCardOf(choice);
-    setSavedCardId(card);
-    if (!card && choice === "stripe") setCardDialog(true);
-    const method = card ? "stripe" : choice;
-    if (method !== paymentMethodId) void selectMethod(method);
+    if (choice === "stripe") setCardDialog(true);
+    if (choice !== paymentMethodId) void selectMethod(choice);
   };
 
   const selectMethod = async (id: string) => {
@@ -704,7 +698,7 @@ export function Checkout({
     </OrderSummary>
   );
 
-  const cardPay = <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
+  const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
   const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
@@ -779,13 +773,17 @@ export function Checkout({
   const payStepBody = (
     <div className="space-y-10">
       <section aria-labelledby="co-pay">
+        {cardOn && paymentMethods.some((m) => m.id === "stripe") && (
+          <div className="mb-5">
+            <LastUsedCard onSelect={payWithCard ? undefined : () => void selectMethod("stripe")} />
+          </div>
+        )}
         <h2 id="co-pay" className={H}>Pay with</h2>
         {realPayments ? (
           <div className="mt-3 flex flex-col gap-3">
             <PaymentMethodCards
               methods={paymentMethods}
-              savedCards={savedCards}
-              value={paymentMethodId === "stripe" && savedCardId ? savedChoice(savedCardId) : (paymentMethodId ?? "")}
+              value={paymentMethodId ?? ""}
               onChange={choose}
               labelledBy="co-pay"
               feeNote={cardContext?.feeNote}

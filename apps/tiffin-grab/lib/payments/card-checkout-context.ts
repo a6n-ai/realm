@@ -4,7 +4,7 @@ import type { SavedCard } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { billingAddress, e164, type AddressInput, type BillingAddress } from "@/lib/payments/billing-address";
-import { stripeRuntime } from "@/lib/payments/stripe";
+import { customerStore, stripeRuntime } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listSavedCards } from "@/lib/services/payment-stripe";
 
@@ -12,15 +12,43 @@ export type CardCheckoutContext = {
   publishableKey: string | null;
   methodLabel: string;
   savedCards: SavedCard[];
+  /** Lets the card form list, and let the customer remove, their saved cards. Null for a customer Stripe does not know yet. */
+  customerSessionClientSecret: string | null;
   /** Billing details sent with the card; the card form collects none of them. Phone is E.164. */
   prefill: { email: string; name: string; phone: string | null; address: BillingAddress };
   feeNote: string | null;
 };
 
+async function customerSessionSecret(userPublicId: string): Promise<string | null> {
+  const [rt, customer] = await Promise.all([stripeRuntime(), customerStore.get(userPublicId)]);
+  if (!rt || !customer) return null;
+  try {
+    const session = await rt.stripe.customerSessions.create({
+      customer,
+      components: {
+        payment_element: {
+          enabled: true,
+          features: {
+            payment_method_redisplay: "enabled",
+            payment_method_save: "enabled",
+            payment_method_save_usage: "off_session",
+            payment_method_remove: "enabled",
+          },
+        },
+      },
+    });
+    return session.client_secret;
+  } catch {
+    // The saved-card list is a convenience; a stale customer id or Stripe hiccup must not block paying with a new card.
+    return null;
+  }
+}
+
 export async function cardCheckoutContext(userPublicId: string, province: string | null, address: AddressInput | null = null): Promise<CardCheckoutContext> {
-  const [rt, savedCards, [u], { defaultCountry }] = await Promise.all([
+  const [rt, savedCards, customerSessionClientSecret, [u], { defaultCountry }] = await Promise.all([
     stripeRuntime(),
     listSavedCards(userPublicId),
+    customerSessionSecret(userPublicId),
     db.select({ name: users.name, email: users.email, phone: users.phone }).from(users).where(eq(users.publicId, userPublicId)).limit(1),
     getAppSettings(),
   ]);
@@ -31,6 +59,7 @@ export async function cardCheckoutContext(userPublicId: string, province: string
     publishableKey: rt?.cfg.publishableKey ?? null,
     methodLabel: rt?.cfg.methodLabel ?? "Pay with Stripe",
     savedCards,
+    customerSessionClientSecret,
     prefill: {
       email: u?.email ?? "",
       name: u?.name ?? "",

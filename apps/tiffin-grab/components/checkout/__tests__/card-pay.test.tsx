@@ -36,7 +36,7 @@ const lastCtx = vi.hoisted(() => ({ value: null as CardCheckoutContext | null })
 // The real pieces need Stripe.js; these stand-ins call the same props the real ones do.
 vi.mock("@/components/payments/pay-panel", () => {
   type P = {
-    onPay: (s: { savedPaymentMethodId: string }, accept: boolean) => Promise<{ kind: string }>;
+    onPay: (s: { savedPaymentMethodId: string } | { confirmationTokenId: string }, accept: boolean) => Promise<{ kind: string }>;
     onPaid: () => void;
     onProcessing: () => void;
     receipt: (i: { paidWith: string | null; totalCents: number | null; feeCents: number }) => { receipt: Record<string, unknown>; secondary?: unknown };
@@ -50,10 +50,20 @@ vi.mock("@/components/payments/pay-panel", () => {
     CardPayProvider: (p: P) => { current = p; receiptOf.fn = p.receipt; lastCtx.value = (p as unknown as { ctx: CardCheckoutContext }).ctx; return <div data-testid="provider">{p.children}</div>; },
     ExpressPay: () => <div data-testid="express" />,
     useWarmStripe: (key: string | null | undefined) => warm(key),
-    CardPay: (props: { savedCardId: string | null; dialogOpen: boolean }) => (
+    LastUsedCard: ({ onSelect }: { onSelect?: () => void }) => {
+      const first = (current as unknown as { ctx: CardCheckoutContext }).ctx.savedCards[0];
+      return first ? (
+        <button type="button" onClick={async () => {
+          if (onSelect) return onSelect();
+          const r = await current.onPay({ savedPaymentMethodId: first.paymentMethodId }, false);
+          if (r.kind === "succeeded") current.onPaid();
+        }}>{onSelect ? "Use last card" : "Pay last card"}</button>
+      ) : null;
+    },
+    CardPay: (props: { dialogOpen: boolean }) => (
       <>
         <button type="button" disabled={current.disabled} onClick={async () => {
-          const r = await current.onPay({ savedPaymentMethodId: props.savedCardId ?? "pm_new" }, false);
+          const r = await current.onPay({ confirmationTokenId: "ctok_new" } as never, false);
           if (r.kind === "succeeded") current.onPaid();
           if (r.kind === "processing") current.onProcessing();
         }}>Pay now</button>
@@ -82,7 +92,7 @@ const selections: WizardSelections = {
 const cardCtx: CardCheckoutContext = {
   publishableKey: "pk_test_x",
   methodLabel: "Credit or debit card",
-  savedCards: [],
+  savedCards: [], customerSessionClientSecret: null,
   prefill: { email: "jane@example.com", name: "Jane Doe", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: "+2.9% fee on credit cards",
 };
@@ -201,20 +211,39 @@ describe("Checkout Pay step", () => {
     expect(cards.compareDocumentPosition(screen.getByTestId("express")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("a returning customer's saved card is the first choice, preselected, and pays with that card", async () => {
-    const saved = [{ paymentMethodId: "pm_visa", brand: "visa", last4: "4242", funding: "credit" as const, expMonth: 4, expYear: 2030, isDefault: true }];
+  const saved = [{ paymentMethodId: "pm_visa", brand: "visa", last4: "4242", funding: "credit" as const, expMonth: 4, expYear: 2030, isDefault: true }];
+
+  it("a returning customer gets the last-used strip above Pay with, and its tap pays that card without the dialog", async () => {
     await toPayment({ ...cardCtx, savedCards: saved });
-    const radios = within(screen.getByRole("radiogroup", { name: /pay with/i })).getAllByRole("radio");
-    expect(radios[0]!.getAttribute("aria-labelledby")).toBe("pay-card-pm_visa-title");
-    expect(radios[0]!.getAttribute("data-state")).toBe("checked");
+    const strip = screen.getByRole("button", { name: "Pay last card" });
+    const options = screen.getByRole("radiogroup", { name: /pay with/i });
+    expect(strip.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByTestId("card-dialog")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
-    await waitFor(() => expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ source: { savedPaymentMethodId: "pm_visa" } })));
+    fireEvent.click(strip);
+    await waitFor(() => expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "stripe", source: { savedPaymentMethodId: "pm_visa" } })));
   });
 
-  it("choosing Stripe with saved cards means a new card: the dialog opens", async () => {
-    const saved = [{ paymentMethodId: "pm_visa", brand: "visa", last4: "4242", funding: "credit" as const, expMonth: 4, expYear: 2030, isDefault: true }];
+  it("the options never list saved cards, and no strip without one", async () => {
     await toPayment({ ...cardCtx, savedCards: saved });
+    const radios = within(screen.getByRole("radiogroup", { name: /pay with/i })).getAllByRole("radio");
+    expect(radios.map((r) => document.getElementById(r.getAttribute("aria-labelledby")!)?.textContent)).toEqual(["Stripe", "Cash"]);
+    cleanup();
+    await toPayment();
+    expect(screen.queryByRole("button", { name: /last card/i })).toBeNull();
+  });
+
+  it("with cash selected the strip switches to Stripe first, so the charge is the Stripe total", async () => {
+    await toPayment({ ...cardCtx, savedCards: saved });
+    fireEvent.click(screen.getByRole("radio", { name: /cash/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Use last card" }));
+    expect(payCheckout).not.toHaveBeenCalled();
+    await screen.findByRole("button", { name: "Pay last card" });
+    expect(screen.getByRole("radio", { name: "Stripe" }).getAttribute("data-state")).toBe("checked");
+  });
+
+  it("choosing Stripe opens the card form", async () => {
+    await toPayment({ ...cardCtx, savedCards: saved });
+    fireEvent.click(screen.getByRole("radio", { name: /cash/i }));
     fireEvent.click(screen.getByRole("radio", { name: "Stripe" }));
     expect(await screen.findByTestId("card-dialog")).toBeTruthy();
   });
@@ -352,7 +381,7 @@ describe("Checkout Pay step", () => {
     await toPayment();
     const stripe = screen.getByRole("radio", { name: "Stripe" });
     expect(stripe.getAttribute("aria-describedby")).toBeTruthy();
-    expect(document.getElementById(stripe.getAttribute("aria-describedby")!)?.textContent).toContain("+2.9% fee on credit cards");
+    expect(screen.getByText(/\+2\.9% fee on credit cards/)).toBeTruthy();
     expect(screen.queryByText("Stripe (config label)")).toBeNull();
     expect(screen.queryByText("Credit or debit card")).toBeNull();
   });

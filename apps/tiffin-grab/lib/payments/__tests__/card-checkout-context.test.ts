@@ -7,7 +7,12 @@ vi.mock("@/db/client", () => ({
 
 let cfg: Record<string, unknown> = {};
 let cards: unknown[] = [];
-vi.mock("@/lib/payments/stripe", () => ({ stripeRuntime: async () => ({ cfg }) }));
+let customer: string | null = null;
+const createSession = vi.fn();
+vi.mock("@/lib/payments/stripe", () => ({
+  stripeRuntime: async () => ({ cfg, stripe: { customerSessions: { create: (...a: unknown[]) => createSession(...a) } } }),
+  customerStore: { get: async () => customer },
+}));
 vi.mock("@/lib/services/payment-stripe", () => ({ listSavedCards: async () => cards }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
 let phone: string | null = null;
@@ -20,7 +25,7 @@ const on = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("cardCheckoutContext", () => {
-  beforeEach(() => { cfg = on(); cards = []; phone = null; });
+  beforeEach(() => { cfg = on(); cards = []; phone = null; customer = null; createSession.mockReset().mockResolvedValue({ client_secret: "cuss_secret" }); });
 
   it("notes the fee outside excluded provinces", async () => {
     expect((await cardCheckoutContext("u1", "ON")).feeNote).toBe("+2.4% fee on credit cards");
@@ -40,6 +45,25 @@ describe("cardCheckoutContext", () => {
   it("returns prefill, key, label and no cards without a customer", async () => {
     const c = await cardCheckoutContext("u1", "ON");
     expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null, address: { line1: "", line2: "", city: "", state: "", postal_code: "", country: "CA" } } });
+  });
+  it("has no customer session for a customer Stripe does not know", async () => {
+    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBeNull();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+  it("opens a removable saved-card session for a known Stripe customer", async () => {
+    customer = "cus_1";
+    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBe("cuss_secret");
+    expect(createSession).toHaveBeenCalledWith({
+      customer: "cus_1",
+      components: { payment_element: { enabled: true, features: {
+        payment_method_redisplay: "enabled", payment_method_save: "enabled", payment_method_save_usage: "off_session", payment_method_remove: "enabled",
+      } } },
+    });
+  });
+  it("still pays with a new card when the session cannot be created", async () => {
+    customer = "cus_gone";
+    createSession.mockRejectedValue(new Error("No such customer"));
+    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBeNull();
   });
   it("billing details carry the full order address in the market country and an E.164 phone", async () => {
     phone = "(647) 555-0143";

@@ -6,6 +6,7 @@ import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
 import { Button } from "@/components/ui/button";
+import { CardBrandMark, cardBrandName, cardExpiry, defaultSavedCard } from "@/components/checkout/payment-method-cards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
@@ -87,7 +88,12 @@ export function CardPayProvider(props: Props) {
   return (
     <Elements
       stripe={stripePromise}
-      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance: stripeAppearance(resolvedTheme === "dark" ? "dark" : "light") }}
+      options={{
+        mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session",
+        appearance: stripeAppearance(resolvedTheme === "dark" ? "dark" : "light"),
+        // Saved cards, with Remove, inside the card form; absent for a customer Stripe does not know yet.
+        ...(props.ctx.customerSessionClientSecret ? { customerSessionClientSecret: props.ctx.customerSessionClientSecret } : {}),
+      }}
     >
       <Runner {...props} />
     </Elements>
@@ -240,46 +246,72 @@ export function ExpressPay() {
   );
 }
 
+type Held = { surcharge: string; newTotal: string };
+
 /**
- * The pay action for whichever card is chosen in the method cards: a saved card pays in one press,
- * no saved card means the new-card dialog. Key it by savedCardId so a switch clears a fee prompt or error.
+ * The customer's default (else newest) saved card with a one-tap pay, above the payment options.
+ * It charges through the same pay path as everything else (lock, amount guard, surcharge confirmation).
+ * `onSelect` is for a checkout whose chosen method is not Stripe: the total shown belongs to that
+ * method, so the first tap switches to Stripe and the next tap pays the re-quoted amount.
  */
-export function CardPay({ savedCardId, dialogOpen, onDialogOpenChange }: {
-  savedCardId: string | null;
+export function LastUsedCard({ onSelect }: { onSelect?: () => void }) {
+  const { ctx, amountCents, busy, pay, paid } = usePanel();
+  const [error, setError] = useState<string | null>(null);
+  const [fee, setFee] = useState<Held | null>(null);
+  const id = defaultSavedCard(ctx.savedCards);
+  const card = ctx.savedCards.find((c) => c.paymentMethodId === id);
+  if (!card || paid) return null;
+
+  async function payWith(accept: boolean) {
+    setError(null);
+    const r = await pay({ savedPaymentMethodId: card!.paymentMethodId }, accept);
+    if (r.kind === "busy") return;
+    setFee(r.kind === "confirm_surcharge" ? r : null);
+    if (r.kind === "error") setError(r.message);
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="border-border bg-card flex w-full items-center gap-3 rounded-xl border p-3">
+        <span aria-hidden className="bg-muted grid size-9 shrink-0 place-items-center rounded-lg">
+          <CardBrandMark brand={card.brand} className="size-5" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-muted-foreground text-xs">Last used</span>
+          <span className="truncate text-sm font-medium">{cardBrandName(card.brand)} •••• {card.last4 ?? "----"}</span>
+          <span className="text-muted-foreground text-xs">Expires {cardExpiry(card)}</span>
+        </div>
+        <Button
+          className="shrink-0"
+          disabled={busy}
+          onClick={() => (onSelect ? onSelect() : void payWith(false))}
+        >
+          <Spinner show={busy} />
+          {onSelect ? "Use this card" : `Pay ${dollars(amountCents)}`}
+        </Button>
+      </div>
+      {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => payWith(true)} onCancel={() => setFee(null)} />}
+      {error && <ErrorAlert message={error} busy={busy} onRetry={fee ? undefined : () => payWith(false)} />}
+    </div>
+  );
+}
+
+/** The pay action for the Stripe method: opens the card form, where saved cards (removable) and a new card both live. */
+export function CardPay({ dialogOpen, onDialogOpenChange }: {
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
 }) {
-  const { ctx, amountCents, busy, pay, paid, setDialogOpen } = usePanel();
-  const [error, setError] = useState<string | null>(null);
-  const [fee, setFee] = useState<{ surcharge: string; newTotal: string } | null>(null);
+  const { ctx, amountCents, pay, paid, setDialogOpen } = usePanel();
   // The provider needs to know whether a dialog holds the printer, or it would swap the page out from under it.
   useEffect(() => {
     setDialogOpen(dialogOpen);
     return () => setDialogOpen(false);
   }, [dialogOpen, setDialogOpen]);
 
-  async function paySaved(id: string, accept: boolean) {
-    setError(null);
-    const r = await pay({ savedPaymentMethodId: id }, accept);
-    if (r.kind === "busy") return;
-    setFee(r.kind === "confirm_surcharge" ? r : null);
-    if (r.kind === "error") setError(r.message);
-  }
-
   if (paid) return <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={<Printer />} />;
   return (
     <div className="flex flex-col gap-4">
-      {savedCardId && fee ? (
-        <SurchargeConfirm {...fee} busy={busy} onConfirm={() => paySaved(savedCardId, true)} onCancel={() => setFee(null)} />
-      ) : savedCardId ? (
-        <Button size="lg" className="w-full" disabled={busy} onClick={() => paySaved(savedCardId, false)}>
-          <Spinner show={busy} />
-          Pay {dollars(amountCents)}
-        </Button>
-      ) : (
-        <Button size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Add a card and pay</Button>
-      )}
-      {error && <ErrorAlert message={error} busy={busy} onRetry={savedCardId && !fee ? () => paySaved(savedCardId, false) : undefined} />}
+      <Button size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</Button>
       <TrustLine />
       <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={null} />
     </div>

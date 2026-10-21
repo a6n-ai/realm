@@ -425,6 +425,11 @@ export async function chargedReceipt(paymentPublicId: string): Promise<CardRecei
   return pay ? receiptOf(pay) : null;
 }
 
+async function tokenCustomer(stripe: Stripe, tokenId: string): Promise<string | null> {
+  const c = (await stripe.confirmationTokens.retrieve(tokenId)).payment_method_preview?.customer;
+  return typeof c === "string" ? c : c?.id ?? null;
+}
+
 export async function payByCard(i: {
   paymentPublicId: string; userPublicId: string; source: CardSource; acceptSurcharge: boolean; returnUrl: string;
 }): Promise<PayByCardResult> {
@@ -449,7 +454,11 @@ export async function payByCard(i: {
       if (!own) throw new ValidationError("That card is not available. Choose another card.");
       card = { ...own, wallet: null };
     } else {
-      card = await previewConfirmationToken(rt.stripe, (i.source as { confirmationTokenId: string }).confirmationTokenId);
+      const tokenId = (i.source as { confirmationTokenId: string }).confirmationTokenId;
+      const [preview, tokenOwner] = await Promise.all([previewConfirmationToken(rt.stripe, tokenId), tokenCustomer(rt.stripe, tokenId)]);
+      // A token minted from a saved card carries that card's customer; a new card has none yet.
+      if (tokenOwner && tokenOwner !== (await customerStore.get(user.publicId))) throw new ValidationError("That card is not available. Choose another card.");
+      card = preview;
     }
     const baseCents = toCents(pay.amount);
     const fee = card.wallet ? 0 : surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });

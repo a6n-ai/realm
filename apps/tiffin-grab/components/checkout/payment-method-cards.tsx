@@ -4,7 +4,6 @@ import type { ReactNode, SVGProps } from "react";
 import { ArrowLeftRight, Banknote, CreditCard, Wallet, type LucideIcon } from "lucide-react";
 import type { SavedCard } from "@foundry/payments/stripe";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
-import { Badge } from "@/components/reui/badge";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 export type PayMethodOption = { id: string; label: string };
@@ -14,13 +13,6 @@ function payMethodTitle(m: PayMethodOption) {
   return m.id === "stripe" ? "Stripe" : m.label;
 }
 
-/** A saved card is a choice of its own; it still pays through the "stripe" method. */
-export function savedChoice(paymentMethodId: string) {
-  return `card:${paymentMethodId}`;
-}
-export function savedCardOf(choice: string | null) {
-  return choice?.startsWith("card:") ? choice.slice(5) : null;
-}
 /** The card a returning customer pays with unless they pick another. */
 export function defaultSavedCard(cards: SavedCard[]): string | null {
   return (cards.find((c) => c.isDefault) ?? cards[0])?.paymentMethodId ?? null;
@@ -54,27 +46,22 @@ const TILE = {
 } as const;
 const ICON: Record<string, LucideIcon> = { stripe: CreditCard, cash: Banknote, etransfer: ArrowLeftRight };
 
-const brandName = (b: string | null) => (b ? b[0]!.toUpperCase() + b.slice(1) : "Card");
-const exp = (c: SavedCard) => `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}`;
-
 /** ReUI c-radio-group-13 card: icon tile on top, title and details below, radio dot in the corner. */
-function Choice({ value, icon, tile, title, badge, children }: { value: string; icon: LucideIcon; tile: string; title: string; badge?: ReactNode; children?: ReactNode }) {
+function Choice({ value, icon, tile, title, children }: { value: string; icon: LucideIcon; tile: string; title: string; children?: ReactNode }) {
   const id = `pay-${value.replace(":", "-")}`;
   const Icon = icon;
   return (
-    <FieldLabel htmlFor={id} className="relative p-0! transition-colors">
-      <Field orientation="horizontal">
+    <FieldLabel htmlFor={id} className="relative h-full p-0! transition-colors">
+      <Field orientation="horizontal" className="h-full">
         <RadioGroupItem value={value} id={id} aria-labelledby={`${id}-title`} aria-describedby={children ? `${id}-desc` : undefined} className="absolute top-3 right-3" />
-        <FieldTitle className="flex w-full min-w-0 flex-col items-start gap-2">
-          <span aria-hidden className={`grid size-9 place-items-center rounded-lg ${tile}`}>
+        <FieldTitle className="flex w-full min-w-0 flex-col items-start justify-start gap-2">
+          <span aria-hidden className={`grid size-9 shrink-0 place-items-center rounded-lg ${tile}`}>
             <Icon className="size-5" />
           </span>
-          <span className="flex min-w-0 flex-col items-start gap-0.5 pr-5">
-            <span className="flex flex-wrap items-center gap-1.5">
-              <span id={`${id}-title`} className="text-sm font-medium">{title}</span>
-              {badge}
-            </span>
-            {children && <span id={`${id}-desc`} className="text-muted-foreground flex flex-col items-start gap-0.5 text-xs font-normal">{children}</span>}
+          <span className="flex min-w-0 flex-col items-start gap-0.5">
+            <span id={`${id}-title`} className="line-clamp-2 text-sm font-medium">{title}</span>
+            {/* Reserved on every card, so a method with a subtitle does not push the others' titles out of line. */}
+            <span id={`${id}-desc`} className="text-muted-foreground flex min-h-10 flex-col items-start gap-0.5 text-xs font-normal">{children}</span>
           </span>
         </FieldTitle>
       </Field>
@@ -82,44 +69,45 @@ function Choice({ value, icon, tile, title, badge, children }: { value: string; 
   );
 }
 
-export function PaymentMethodCards({ methods, savedCards = [], value, onChange, labelledBy, feeNote }: {
+// Equal tracks and a column per option (up to 3), so every card has the same size at every width.
+const COLUMNS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" };
+
+export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNote }: {
   methods: PayMethodOption[];
-  savedCards?: SavedCard[];
-  /** A method id, or savedChoice(paymentMethodId) for a saved card. */
   value: string;
   onChange: (choice: string) => void;
   labelledBy: string;
   feeNote?: string | null;
 }) {
-  const cards = methods.some((m) => m.id === "stripe") ? savedCards : [];
+  const hasStripe = methods.some((m) => m.id === "stripe");
   return (
-    <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
-      {cards.map((c) => (
-        <Choice
-          key={c.paymentMethodId}
-          value={savedChoice(c.paymentMethodId)}
-          icon={CreditCard}
-          tile={c.brand === "visa" ? TILE.visa : c.brand === "mastercard" ? TILE.mastercard : TILE.other}
-          title={`${brandName(c.brand)} •••• ${c.last4 ?? "----"}`}
-          badge={c.isDefault ? <Badge variant="primary-light">Default</Badge> : undefined}
-        >
-          <span>Expires {exp(c)}</span>
-        </Choice>
-      ))}
-      {methods.map((m) => (
-        <Choice key={m.id} value={m.id} icon={ICON[m.id] ?? Wallet} tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other} title={payMethodTitle(m)}>
-          {m.id === "stripe" ? (
-            <>
-              <span>{cards.length > 0 ? "New card or wallet" : "Card or wallet"}</span>
-              <span aria-hidden className="flex items-center gap-1">
-                <VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" />
-                <MastercardMark className="size-5" />
-              </span>
-              {feeNote && <span>{feeNote}</span>}
-            </>
-          ) : undefined}
-        </Choice>
-      ))}
-    </RadioGroup>
+    <div className="flex flex-col gap-3">
+      <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className={`grid items-stretch gap-3 ${COLUMNS[methods.length] ?? "grid-cols-2 sm:grid-cols-3"}`}>
+        {methods.map((m) => (
+          <Choice key={m.id} value={m.id} icon={ICON[m.id] ?? Wallet} tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other} title={payMethodTitle(m)}>
+            {m.id === "stripe" ? (
+              <>
+                <span>Card or wallet</span>
+                <span aria-hidden className="flex items-center gap-1">
+                  <VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" />
+                  <MastercardMark className="size-5" />
+                </span>
+              </>
+            ) : undefined}
+          </Choice>
+        ))}
+      </RadioGroup>
+      {hasStripe && feeNote && <p className="text-muted-foreground text-xs">{feeNote}. Debit cards have no fee.</p>}
+    </div>
   );
 }
+
+/** Brand mark for a saved card, the generic card icon for any other brand. */
+export function CardBrandMark({ brand, className }: { brand: string | null; className?: string }) {
+  if (brand === "visa") return <VisaMark className={`text-[#1A1F71] dark:text-foreground ${className ?? ""}`} />;
+  if (brand === "mastercard") return <MastercardMark className={className} />;
+  return <CreditCard aria-hidden className={className} />;
+}
+
+export const cardBrandName = (b: string | null) => (b ? b[0]!.toUpperCase() + b.slice(1) : "Card");
+export const cardExpiry = (c: Pick<SavedCard, "expMonth" | "expYear">) => `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}`;

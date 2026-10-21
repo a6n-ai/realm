@@ -20,7 +20,7 @@ vi.mock("@foundry/commons/logger", async (orig) => {
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
-    stripe: { paymentIntents: { cancel: (...a: unknown[]) => cancelIntent(...a), retrieve: (...a: unknown[]) => retrieve(...a) } },
+    stripe: { confirmationTokens: { retrieve: async () => ({ payment_method_preview: { customer: null } }) }, paymentIntents: { cancel: (...a: unknown[]) => cancelIntent(...a), retrieve: (...a: unknown[]) => retrieve(...a) } },
     cfg: {
       surcharge: { enabled: true, ratePct: 2.4, excludeProvinces: ["QC"], networksNotifiedOn: "2026-09-01" },
       tax: { enabled: true, taxCode: "txcd_x", surchargeTaxable: true },
