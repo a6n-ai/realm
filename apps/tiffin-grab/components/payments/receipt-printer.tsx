@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
@@ -99,14 +99,19 @@ export function ReceiptPrinter({
   // Title, subtitle, each line, total, three detail rows and the status line.
   const rows = receipt.lines.length + 7;
 
+  const printed = useRef(false);
   const finish = () => {
-    if (fed) return;
+    if (printed.current) return;
+    printed.current = true;
     setFed(true);
     onPrinted?.();
   };
-  // Reduced motion has no feed to wait for, so "printed" is immediate.
+  // Reduced motion has no feed to wait for, so "printed" is immediate (and `feeding` is already false).
   useEffect(() => {
-    if (stage === "printing" && reduce && !fed) finish();
+    if (stage === "printing" && reduce && !printed.current) {
+      printed.current = true;
+      onPrinted?.();
+    }
   });
 
   return (

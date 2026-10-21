@@ -79,11 +79,10 @@ export function CardDialog(p: CommonProps & {
   useEffect(() => {
     if (!open || printer) return;
     let live = true;
-    setSession(null);
     void (loadSession ? loadSession().catch(() => null) : Promise.resolve(null)).then((secret) => {
       if (live) setSession({ key: ++count.current, secret });
     });
-    return () => { live = false; };
+    return () => { live = false; setSession(null); };
   }, [open, printer, loadSession]);
 
   if (printer) {

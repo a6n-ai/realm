@@ -1,7 +1,7 @@
 "use client";
 
 import { PaymentInstructions } from "@/components/payment-instructions";
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { formatPhoneNumberIntl, type Country } from "react-phone-number-input";
@@ -158,6 +158,7 @@ export function Checkout({
   const [etransfer, setEtransfer] = useState<{ paymentPublicId: string; deploymentId: string; receipt: Receipt } | null>(null);
   const [etransferOpen, setEtransferOpen] = useState(false);
   const proofSent = useRef(false);
+  const markProofSent = useCallback(() => { proofSent.current = true; }, []);
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
   /** The wizard's saved plan, plus the default address's own drop-off unless this order already chose one. */
@@ -1030,7 +1031,7 @@ export function Checkout({
             instructions: selectedMethod?.instructions ?? null,
             requireProof: selectedMethod?.requireProof === true,
           }}
-          renderSubmitted={() => <EtransferSubmitted deploymentId={etransfer.deploymentId} receipt={etransfer.receipt} proofSent={proofSent} />}
+          renderSubmitted={() => <EtransferSubmitted deploymentId={etransfer.deploymentId} receipt={etransfer.receipt} onSent={markProofSent} />}
           onClosedWithoutProof={() => {
             toast("You can upload the screenshot later from Finances");
             router.replace(`/activate/${etransfer.deploymentId}`);
@@ -1063,11 +1064,11 @@ export function Checkout({
 }
 
 /** The dialog's body once the proof is in; flags the order as paid-for so Back cannot return to checkout. */
-function EtransferSubmitted({ deploymentId, receipt, proofSent }: { deploymentId: string; receipt: Receipt; proofSent: { current: boolean } }) {
+function EtransferSubmitted({ deploymentId, receipt, onSent }: { deploymentId: string; receipt: Receipt; onSent: () => void }) {
   useEffect(() => {
-    proofSent.current = true;
+    onSent();
     markPaid(deploymentId);
-  }, [deploymentId, proofSent]);
+  }, [deploymentId, onSent]);
   return (
     <ReceiptPrinter
       stage="complete"
