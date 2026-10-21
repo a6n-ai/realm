@@ -19,6 +19,7 @@ import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/action
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
+import { PaidPage } from "@/components/payments/paid-page";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
 import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
@@ -153,10 +154,11 @@ export function Checkout({
   cardContext?: CardCheckoutContext | null;
 }) {
   const router = useRouter();
-  useBounceAfterPaid();
+  const bouncing = useBounceAfterPaid();
   // Set once confirmSubscription placed an e-Transfer order: the dialog takes over from navigating to /activate.
   const [etransfer, setEtransfer] = useState<{ paymentPublicId: string; deploymentId: string; receipt: Receipt } | null>(null);
   const [etransferOpen, setEtransferOpen] = useState(false);
+  const [etransferDone, setEtransferDone] = useState(false);
   const proofSent = useRef(false);
   const markProofSent = useCallback(() => { proofSent.current = true; }, []);
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
@@ -557,7 +559,7 @@ export function Checkout({
     }
   };
 
-  if (!selections) return null;
+  if (!selections || bouncing) return null;
 
   const payByCard = async (source: CardSource, acceptSurcharge: boolean) => {
     const res = await payCheckout({
@@ -1016,7 +1018,31 @@ export function Checkout({
       </Sheet>
     </div>
   );
-  const withDialog = (
+  // The settled state keeps the checkout shell (header, progress, bottom bar); the receipt already carries the order, so no summary column.
+  const paidLayout = (kind: "paid" | "processing" | "submitted", receipt: ReactNode, ready: boolean, primary: { label: string; href: string }, secondary?: { label: string; href: string }) => (
+    <div className="pb-[calc(var(--bottom-bar-h,11rem)+1rem)] sm:pb-10">
+      <SubscribeChrome brand closeHref="/me/deliveries" onBack={() => router.replace("/me/deliveries")} backLabel="Deliveries" stepTag="Paid" />
+      <div className="mx-auto max-w-xl">
+        <Progress steps={STEPS} current={STEPS.length - 1} />
+        <PaidPage
+          kind={kind}
+          subtitle={kind === "processing" ? "We'll confirm by email." : kind === "submitted" ? "We'll verify your e-Transfer and email you." : start ? `Your first tiffin arrives ${start}.` : "We've emailed your receipt."}
+          receipt={receipt}
+          ready={ready}
+          primary={primary}
+          secondary={secondary}
+          barClassName="sm:sticky sm:mt-8 sm:px-0"
+        />
+      </div>
+    </div>
+  );
+  const withDialog = etransfer && etransferDone ? paidLayout(
+    "submitted",
+    <ReceiptPrinter stage="complete" receipt={etransfer.receipt} status="Submitted · we'll verify your e-Transfer" />,
+    true,
+    { label: "Go to my deliveries", href: "/me/deliveries" },
+    { label: "View order details", href: `/activate/${etransfer.deploymentId}` },
+  ) : (
     <>
       {page}
       {etransfer && (
@@ -1034,7 +1060,7 @@ export function Checkout({
             instructions: selectedMethod?.instructions ?? null,
             requireProof: selectedMethod?.requireProof === true,
           }}
-          renderSubmitted={() => <EtransferSubmitted deploymentId={etransfer.deploymentId} receipt={etransfer.receipt} onSent={markProofSent} />}
+          renderSubmitted={() => <EtransferSubmitted deploymentId={etransfer.deploymentId} onSent={() => { markProofSent(); setEtransferDone(true); }} />}
           onClosedWithoutProof={() => {
             toast("You can upload the screenshot later from Finances");
             router.replace(`/activate/${etransfer.deploymentId}`);
@@ -1061,26 +1087,18 @@ export function Checkout({
         return r && !("error" in r) && r.paid ? { outcome: "paid" as const, receipt: r.receipt } : { outcome: "processing" as const };
       }}
     >
-      <PaidSwitch>{withDialog}</PaidSwitch>
+      <PaidSwitch whenPaid={(v) => paidLayout(v.outcome === "paid" ? "paid" : "processing", v.receipt, v.ready, v.primary, v.secondary)}>{withDialog}</PaidSwitch>
     </CardPayProvider>
   ) : withDialog;
 }
 
-/** The dialog's body once the proof is in; flags the order as paid-for so Back cannot return to checkout. */
-function EtransferSubmitted({ deploymentId, receipt, onSent }: { deploymentId: string; receipt: Receipt; onSent: () => void }) {
+/** Rendered by the dialog once the proof is in: flags the order as paid-for so Back cannot return to checkout, then hands over to the page. */
+function EtransferSubmitted({ deploymentId, onSent }: { deploymentId: string; onSent: () => void }) {
   useEffect(() => {
-    onSent();
     markPaid(deploymentId);
+    onSent();
   }, [deploymentId, onSent]);
-  return (
-    <ReceiptPrinter
-      stage="complete"
-      receipt={receipt}
-      status="Submitted · we'll verify your e-Transfer"
-      action={{ label: "Go to my deliveries", href: "/me/deliveries" }}
-      secondary={{ label: "View order details", href: `/activate/${deploymentId}` }}
-    />
-  );
+  return null;
 }
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */

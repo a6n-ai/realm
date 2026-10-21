@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
 
@@ -9,8 +9,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 import { PAID_KEY, markPaid, useBounceAfterPaid } from "../paid-flag";
 
 function Page() {
-  useBounceAfterPaid();
-  return null;
+  const bouncing = useBounceAfterPaid();
+  return bouncing ? null : <p>step UI</p>;
 }
 
 beforeEach(() => {
@@ -40,13 +40,15 @@ describe("useBounceAfterPaid", () => {
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId: "SUB-1", at: 1 }));
     render(<Page />);
     expect(router.replace).toHaveBeenCalledWith("/me/deliveries");
+    expect(screen.queryByText("step UI")).toBeNull();
   });
 
   it("a bfcache restore or popstate after paying bounces", () => {
     render(<Page />);
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId: "SUB-1", at: 1 }));
-    window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+    act(() => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
     expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("step UI")).toBeNull();
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(router.replace).toHaveBeenCalledTimes(2);
   });
@@ -55,6 +57,7 @@ describe("useBounceAfterPaid", () => {
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId: "SUB-1", at: 1 }));
     render(<Page />);
     expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.getByText("step UI")).toBeTruthy();
     expect(sessionStorage.getItem(PAID_KEY)).toBeNull();
   });
 

@@ -20,7 +20,8 @@ type Props = {
   stage: "processing" | "printing" | "complete";
   receipt: Receipt;
   status?: string;
-  action: { label: string; href: string };
+  /** Omit when the page owns the actions (its bottom bar). */
+  action?: { label: string; href: string };
   secondary?: { label: string; href: string };
   onPrinted?: () => void;
   timeZone?: string;
@@ -146,7 +147,7 @@ export function ReceiptPrinter({
             <p className="mt-3 text-center text-xs text-muted-foreground">We&apos;ll confirm by email.</p>
           )}
         </div>
-        {feeding ? null : (
+        {feeding || !action ? null : (
           <div className="flex w-full max-w-xs flex-col items-center gap-2">
             <Link href={action.href} className={buttonClass({ variant: "primary", size: "lg", className: "w-full" })}>{action.label}</Link>
             {secondary ? (

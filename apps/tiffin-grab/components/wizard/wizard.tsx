@@ -61,7 +61,7 @@ export function Wizard({
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const router = useRouter();
-  useBounceAfterPaid();
+  const bouncing = useBounceAfterPaid();
   // A quote opens on the first step that still needs the customer, normally Start.
   const [step, setStepState] = useState(() => (quote ? (firstBlockedStep(catalog, reconcileSelections(catalog, quote.picks)) ?? 3) : 0));
   const setStep = (n: number | ((s: number) => number)) =>
@@ -173,6 +173,7 @@ export function Wizard({
   const sign = direction === "forward" ? 1 : -1;
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
+  if (bouncing) return null;
   return (
     <div className="pb-44 sm:pb-6">
       <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]}

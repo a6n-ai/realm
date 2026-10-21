@@ -6,6 +6,7 @@ import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { markPaid } from "@/lib/payments/paid-flag";
+import { PaidPage } from "@/components/payments/paid-page";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "./actions";
@@ -107,7 +108,11 @@ export function PayForm(p: {
         return "error" in c || !c.paid ? { outcome: "processing" as const } : { outcome: "paid" as const, receipt: c.receipt };
       }}
     >
-      <PaidSwitch>
+      <PaidSwitch whenPaid={(v) => (
+        <div className="mx-auto max-w-lg">
+          <PaidPage kind={v.outcome === "paid" ? "paid" : "processing"} subtitle={v.outcome === "paid" ? "We've emailed your receipt." : "We'll confirm by email."} receipt={v.receipt} ready={v.ready} primary={v.primary} secondary={v.secondary} />
+        </div>
+      )}>
         <Shell after={<PayChoices ctx={p.ctx} />}>
           <div>
             {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}

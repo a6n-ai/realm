@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
 
 export const PAID_KEY = "tg:paid";
 const SEEN = "tgSeen";
 const AFTER_PAID = "/me/deliveries";
+// Layout effects run before paint, so a bounce hides the page without a visible frame; they warn on the server.
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
  * Called once a payment (or e-Transfer proof) is in: the wizard and checkout must not be reachable by Back.
@@ -31,15 +33,17 @@ export const isPaid = () => {
 /**
  * Mount on checkout and the wizard pages. An entry already visited (stamped in history.state) or a
  * bfcache/popstate/back_forward arrival after paying goes to deliveries; a fresh forward visit clears the flag.
+ * Returns `bouncing`: render nothing while true, so the page never shows before the redirect.
  */
 export function useBounceAfterPaid() {
   const router = useRouter();
+  const [bouncing, setBouncing] = useState(false);
   // The router object can change identity after markPaid rewrites the URL. Re-running this effect then
   // would take the paid flag for a fresh visit, clear it, and let checkout bounce to the wizard.
   const routerRef = useRef(router);
   useEffect(() => { routerRef.current = router; });
-  useEffect(() => {
-    const bounce = () => routerRef.current.replace(AFTER_PAID);
+  useIsoLayoutEffect(() => {
+    const bounce = () => { setBouncing(true); routerRef.current.replace(AFTER_PAID); };
     const revisit = (() => {
       try {
         const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
@@ -62,4 +66,5 @@ export function useBounceAfterPaid() {
       window.removeEventListener("popstate", onPop);
     };
   }, []);
+  return bouncing;
 }

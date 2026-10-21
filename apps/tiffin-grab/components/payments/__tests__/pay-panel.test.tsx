@@ -38,6 +38,7 @@ vi.mock("@foundry/themes", () => ({ useTheme: () => ({ resolvedTheme: "light" })
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
+import { PaidPage } from "../paid-page";
 import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type PaidInfo } from "../pay-panel";
 
 const receipt = (info: PaidInfo) => ({
@@ -70,7 +71,7 @@ function setup(over: Partial<React.ComponentProps<typeof CardPayProvider>> = {},
   const onPay = vi.fn(async () => ({ kind: "succeeded" as const }));
   const customerSession = vi.fn(async () => session);
   const props = { customerSession, ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })), ...over };
-  const ui = (p: typeof props) => <CardPayProvider {...p}><PaidSwitch><Choices /></PaidSwitch></CardPayProvider>;
+  const ui = (p: typeof props) => <CardPayProvider {...p}><PaidSwitch whenPaid={(v) => <PaidPage kind="paid" subtitle="s" receipt={v.receipt} ready={v.ready} primary={v.primary} secondary={v.secondary} />}><Choices /></PaidSwitch></CardPayProvider>;
   const r = render(ui(props));
   return { ...props, rerender: (n: Partial<typeof props>) => r.rerender(ui({ ...props, ...n })) };
 }

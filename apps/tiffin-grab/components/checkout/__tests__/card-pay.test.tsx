@@ -167,9 +167,12 @@ describe("Checkout Pay step", () => {
     expect(confirmSubscription).toHaveBeenCalledTimes(1);
     expect(mockRouter.push).not.toHaveBeenCalled();
     expect(etransferProps.value!.payment).toMatchObject({ paymentPublicId: "pay_2", deploymentId: "dep_2", amount: 50, payeeHandle: "pay@tiffin.ca", requireProof: true });
+    expect(await screen.findByTestId("paid-page")).toBeTruthy();
+    expect(screen.queryByTestId("etransfer-dialog")).toBeNull();
     expect(screen.getByText("Submitted · we'll verify your e-Transfer")).toBeTruthy();
     expect(screen.getByText("Paid with")).toBeTruthy();
-    expect(within(screen.getByTestId("etransfer-dialog")).getByText("e-Transfer")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Go to my deliveries" }).getAttribute("href")).toBe("/me/deliveries");
+    expect(screen.getByRole("link", { name: "View order details" }).getAttribute("href")).toBe("/activate/dep_2");
     expect(sessionStorage.getItem("tg:paid")).toContain("dep_2");
   });
 

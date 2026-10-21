@@ -165,25 +165,28 @@ function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, 
   return <PayCtx.Provider value={{ ctx, amountCents, stripePromise, appearance, customerSession, busy: busy || disabled, disabled, pay, paid, printed, dialogOpen, setDialogOpen }}>{children}</PayCtx.Provider>;
 }
 
-function Printer() {
+function Printer({ bare = false }: { bare?: boolean }) {
   const { paid, printed } = usePanel();
   if (!paid) return null;
   return (
     <ReceiptPrinter
       stage={paid.stage}
       receipt={paid.receipt}
-      action={DELIVERIES}
-      secondary={paid.secondary}
+      action={bare ? undefined : DELIVERIES}
+      secondary={bare ? undefined : paid.secondary}
       onPrinted={printed}
       status={paid.outcome === "paid" ? "Paid" : "Processing"}
     />
   );
 }
 
-/** Once the charge settled and no dialog holds the printer, the whole pay area gives way to the receipt. */
-export function PaidSwitch({ children }: { children: ReactNode }) {
+export type PaidParts = { outcome: "paid" | "processing"; ready: boolean; receipt: ReactNode; primary: Link; secondary?: Link };
+
+/** Once the charge settled and no dialog holds the printer, the pay area gives way to `whenPaid` (the caller's own page shell around the receipt). */
+export function PaidSwitch({ children, whenPaid }: { children: ReactNode; whenPaid: (parts: PaidParts) => ReactNode }) {
   const { paid, dialogOpen } = usePanel();
-  return paid && !dialogOpen ? <div className="mx-auto flex w-full max-w-lg flex-col items-center py-6"><Printer /></div> : children;
+  if (!paid || dialogOpen) return children;
+  return whenPaid({ outcome: paid.outcome, ready: paid.stage === "complete" || paid.outcome === "processing", receipt: <Printer bare />, primary: DELIVERIES, secondary: paid.secondary });
 }
 
 type Fee = { surcharge: string; newTotal: string; source: CardSource };
