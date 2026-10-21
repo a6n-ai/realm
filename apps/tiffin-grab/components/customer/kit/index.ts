@@ -1,5 +1,6 @@
 export { ActionRow } from "./action-row";
-export { Button, buttonClass, type ButtonProps, type ButtonVariant } from "./button";
+export { Button, type ButtonProps } from "./button";
+export { buttonClass, type ButtonVariant } from "./button-class";
 export { Card } from "./card";
 export { Countdown, formatRelative } from "./countdown";
 export { DateCell, DateStrip, MonthGrid, type StripDay } from "./dates";
