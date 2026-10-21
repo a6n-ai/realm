@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings, getCoinEarnPct } from "@/lib/services/app-settings.service";
-import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
+import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { parseFilterState } from "@/components/ds";
@@ -19,6 +19,7 @@ import { MONEY_LEDGER_FACETS } from "@/components/customer/wallet/money-ledger-f
 import { FinancesTabs } from "@/components/customer/wallet/finances-tabs";
 import { parseFinancesTab } from "@/components/customer/wallet/finances-tab";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
+import { CouponHistory, CouponHistorySkeleton, CouponStats, CouponStatsSkeleton } from "@/components/customer/wallet/coupon-history";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -42,14 +43,23 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
       </Suspense>
 
       {tab === "coins" ? (
-        <>
-          <Suspense fallback={<WalletLogSkeleton />}>
-            <CoinsPanel userId={userId} searchParams={searchParams} />
-          </Suspense>
-          <Suspense fallback={<CouponsSectionSkeleton />}>
-            <CouponsSectionData />
-          </Suspense>
-        </>
+        <Suspense fallback={<WalletLogSkeleton />}>
+          <CoinsPanel userId={userId} searchParams={searchParams} />
+        </Suspense>
+      ) : null}
+
+      {tab === "coupons" ? (
+        <Suspense
+          fallback={
+            <div className="space-y-6">
+              <CouponStatsSkeleton />
+              <CouponsSectionSkeleton />
+              <CouponHistorySkeleton />
+            </div>
+          }
+        >
+          <CouponsPanel userId={userId} searchParams={searchParams} />
+        </Suspense>
       ) : null}
 
       {tab === "bills" ? (
@@ -123,11 +133,25 @@ async function TransactionsPanel({ userId, searchParams }: { userId: bigint; sea
   );
 }
 
-// Catalog-wide coupon list — active, non-rep coupons in window. Not user-owned data,
-// so no userId gate (mirrors browse plans on the home page).
-async function CouponsSectionData() {
-  const coupons = await couponsService.listAvailable();
-  return <CouponsSection coupons={coupons} />;
+// Live catalog coupons (not user-owned) plus the customer's own uses and savings.
+async function CouponsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
+  const { currency } = await getAppSettings();
+  const { page } = parseFilterState([], await searchParams);
+  const [available, totals, history] = await Promise.all([
+    couponsService.listAvailable(),
+    myCouponTotals(userId),
+    myCouponsPage(userId, page),
+  ]);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const weekOut = Date.now() + 7 * 86_400_000;
+  const expiringSoon = available.filter((c) => c.expiresAt != null && c.expiresAt <= weekOut).length;
+  return (
+    <div className="space-y-6">
+      <CouponStats totals={{ available: available.length, expiringSoon, ...totals }} currency={currency} />
+      <CouponsSection coupons={available} />
+      <CouponHistory items={history.items} page={history.page} size={history.size} total={history.total} currency={currency} />
+    </div>
+  );
 }
 
 // All-time totals; usage is computed server-side from the ledger, never client input.

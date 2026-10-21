@@ -21,7 +21,7 @@ export default function KindsPage({ searchParams }: { searchParams: SearchParams
   return (
     <Suspense
       fallback={
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <DiscountStatsSkeleton />
           <KindsFormSkeleton />
         </div>
@@ -86,7 +86,7 @@ async function KindsData({ searchParams }: { searchParams: SearchParams }) {
   const { page } = parseFilterState(SPEC, sp);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStats items={stats} />
       <KindsForm policy={policy} rows={rows} spec={SPEC} pagination={page} />
     </div>

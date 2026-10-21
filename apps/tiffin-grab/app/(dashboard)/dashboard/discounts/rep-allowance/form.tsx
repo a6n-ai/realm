@@ -42,7 +42,7 @@ export function RepAllowanceForm({
   repSpec: FacetDef[];
 }) {
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStats items={stats} />
       <GlobalCeilingsSection policy={policy} />
       <PerRepSection reps={reps} policy={policy} pagination={pagination} spec={repSpec} />
@@ -61,9 +61,9 @@ export function RepAllowanceFormSkeleton() {
     </div>
   );
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStatsSkeleton />
-      <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle}>
+      <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle} action={<Skeleton className="h-8 w-28" />}>
         <div className="grid gap-4">
           <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
             <div className="grid gap-0.5">
@@ -72,21 +72,14 @@ export function RepAllowanceFormSkeleton() {
             </div>
             <Skeleton className="h-5 w-9 rounded-full" />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-            {field()}
-            {field()}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="grid gap-1.5">
+                {field()}
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))}
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              {field()}
-              <Skeleton className="h-3 w-full" />
-            </div>
-            <div className="grid gap-1.5">
-              {field()}
-              <Skeleton className="h-3 w-full" />
-            </div>
-          </div>
-          <Skeleton className="h-9 w-28" />
         </div>
       </SectionCard>
       <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
@@ -150,8 +143,23 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
     });
   };
 
+  const field = (hint: string, node: React.ReactNode) => (
+    <div className="grid content-start gap-1.5">
+      {node}
+      <p className="text-muted-foreground text-xs text-pretty">{hint}</p>
+    </div>
+  );
+
   return (
-    <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle}>
+    <SectionCard
+      title={GLOBAL_SECTION.title}
+      subtitle={GLOBAL_SECTION.subtitle}
+      action={
+        <Button size="sm" onClick={save} disabled={pending || !dirty}>
+          Save ceilings
+        </Button>
+      }
+    >
       <div className="grid gap-4">
         <ToggleRow
           id="rep-enabled"
@@ -160,58 +168,20 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
           checked={enabled}
           onChange={setEnabled}
         />
-        <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-          <NumberField
-            id="rep-pct"
-            label="Default cap (%)"
-            suffix="%"
-            min={0}
-            max={100}
-            value={capPct}
-            onChange={setCapPct}
-          />
-          <NumberField
-            id="rep-amt"
-            label="Default cap ($)"
-            prefix="$"
-            min={0}
-            value={capAmount}
-            onChange={setCapAmount}
-          />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {field("Largest share of an order one discount may take.", (
+            <NumberField id="rep-pct" label="Default cap (%)" suffix="%" min={0} max={100} value={capPct} onChange={setCapPct} />
+          ))}
+          {field("Largest dollar amount one discount may take.", (
+            <NumberField id="rep-amt" label="Default cap ($)" prefix="$" min={0} value={capAmount} onChange={setCapAmount} />
+          ))}
+          {field("Per staff member, applied discounts and created codes together.", (
+            <NumberField id="rep-daily-uses" label="Discounts per day" min={1} max={99} step={1} value={dailyUses} onChange={setDailyUses} />
+          ))}
+          {field("Codes from Estimate and Create coupon stop working this many hours after they are made.", (
+            <NumberField id="rep-code-validity" label="Code validity (hours)" min={1} max={720} step={1} value={validity} onChange={setValidity} />
+          ))}
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <NumberField
-              id="rep-daily-uses"
-              label="Discounts per day"
-              min={1}
-              max={99}
-              step={1}
-              value={dailyUses}
-              onChange={setDailyUses}
-            />
-            <p className="text-muted-foreground text-xs text-pretty">
-              How many discounts each staff member can give per day, applied discounts and created codes together.
-            </p>
-          </div>
-          <div className="grid gap-1.5">
-            <NumberField
-              id="rep-code-validity"
-              label="Code validity (hours)"
-              min={1}
-              max={720}
-              step={1}
-              value={validity}
-              onChange={setValidity}
-            />
-            <p className="text-muted-foreground text-xs text-pretty">
-              Codes from Estimate and Create coupon stop working this many hours after they are made.
-            </p>
-          </div>
-        </div>
-        <Button onClick={save} disabled={pending || !dirty} className="w-fit">
-          Save ceilings
-        </Button>
       </div>
     </SectionCard>
   );

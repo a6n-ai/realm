@@ -18,12 +18,17 @@ import type { StaffCodeSortColumn } from "./page";
 
 export type IssuedCode = {
   publicId: string;
+  kind: "rep_code" | "rep_daily";
   code: string;
-  amount: number;
+  amount: number | null;
+  capPct: number | null;
+  capAmount: number | null;
   note: string | null;
   createdAt: number;
   expiresAt: number | null;
   issuer: string;
+  uses: number;
+  maxUses: number;
   status: "unused" | "used" | "expired" | "revoked";
   customer: string | null;
   orderPublicId: string | null;
@@ -32,20 +37,22 @@ export type IssuedCode = {
 
 const SECTION = {
   title: "Staff codes",
-  subtitle: "One-off codes staff made from Estimate or Create coupon, who issued each, and the customer and order that used it.",
+  subtitle: "Staff codes from Estimate or Create coupon, plus each rep's daily coupon: who owns it, how much of it is used, and by which customer and order.",
 } as const;
 
 const STATUS: Record<IssuedCode["status"], { label: string; variant: "success-light" | "info-light" | "warning-light" | "destructive-light" }> = {
   unused: { label: "Open", variant: "info-light" },
-  used: { label: "Used", variant: "success-light" },
+  used: { label: "Used up", variant: "success-light" },
   expired: { label: "Expired", variant: "warning-light" },
   revoked: { label: "Revoked", variant: "destructive-light" },
 };
 
-const COLUMNS: readonly Column<StaffCodeSortColumn | "issuer" | "status" | "customer" | "order" | "actions">[] = [
+const COLUMNS: readonly Column<StaffCodeSortColumn | "type" | "issuer" | "uses" | "status" | "customer" | "order" | "actions">[] = [
   { key: "code", label: "Code", sortable: true },
+  { key: "type", label: "Type" },
   { key: "issuer", label: "Issued by" },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
+  { key: "uses", label: "Uses", align: "right", width: "w-20" },
   { key: "created", label: "Created", sortable: true },
   { key: "expires", label: "Expires", sortable: true },
   { key: "status", label: "Status" },
@@ -53,6 +60,12 @@ const COLUMNS: readonly Column<StaffCodeSortColumn | "issuer" | "status" | "cust
   { key: "order", label: "Order" },
   { key: "actions", label: "", align: "right", width: "w-16" },
 ];
+
+// What the code is worth: a staff code is a fixed amount; a daily coupon is a ceiling.
+function worth(c: IssuedCode): string {
+  if (c.kind === "rep_code") return `$${(c.amount ?? 0).toFixed(2)}`;
+  return `Up to ${c.capPct ?? 0}% · $${(c.capAmount ?? 0).toFixed(2)}`;
+}
 
 function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
   const router = useRouter();
@@ -94,7 +107,7 @@ export function StaffCodes({
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStats items={stats} />
       <SectionCard bleed title={SECTION.title} subtitle={SECTION.subtitle}>
         <div className="grid gap-4">
@@ -114,19 +127,26 @@ export function StaffCodes({
                   <span className="font-mono text-sm font-medium">{c.code}</span>
                   {c.note && <span className="text-muted-foreground block text-xs">{c.note}</span>}
                 </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{c.kind === "rep_code" ? "Staff code" : "Daily coupon"}</Badge>
+                </TableCell>
                 <TableCell>{c.issuer}</TableCell>
                 <TableCell className="text-right tabular-nums">
-                  ${(c.applied ?? c.amount).toFixed(2)}
-                  {c.applied != null && c.applied < c.amount && (
-                    <span className="text-muted-foreground block text-xs">of ${c.amount.toFixed(2)}</span>
+                  {c.applied != null ? `$${c.applied.toFixed(2)}` : worth(c)}
+                  {c.applied != null && (c.kind === "rep_daily" || c.applied < (c.amount ?? 0)) && (
+                    <span className="text-muted-foreground block text-xs">of {worth(c)}</span>
                   )}
                 </TableCell>
+                <TableCell className="text-right tabular-nums">{c.uses} / {c.maxUses}</TableCell>
                 <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{fmt(c.createdAt)}</TableCell>
                 <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{c.expiresAt == null ? "Never" : fmt(c.expiresAt)}</TableCell>
                 <TableCell>
                   <Badge variant={STATUS[c.status].variant}>{STATUS[c.status].label}</Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{c.customer ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {c.customer ?? "—"}
+                  {c.uses > 1 && <span className="block text-xs">+{c.uses - 1} more</span>}
+                </TableCell>
                 <TableCell>
                   {c.orderPublicId ? (
                     <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-muted-foreground hover:underline">
@@ -151,7 +171,7 @@ export function StaffCodes({
 
 export function StaffCodesSkeleton() {
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStatsSkeleton />
       <SectionCard bleed title={SECTION.title} subtitle={SECTION.subtitle}>
         <DataTable.Skeleton columns={COLUMNS} />

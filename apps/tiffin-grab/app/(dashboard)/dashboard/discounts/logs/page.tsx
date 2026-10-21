@@ -35,7 +35,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <Suspense fallback={<DiscountLogsSkeleton />}>
         <DiscountLogsData searchParams={searchParams} />
       </Suspense>

@@ -240,12 +240,12 @@ export function CouponsManager({
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
     <DiscountStats items={stats} />
     <SectionCard
       bleed
       title="Coupons"
-      subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
+      subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
       action={
         <Button size="sm" onClick={() => open(emptyDraft())} className="transition-transform active:scale-[0.96]">
           <PlusIcon className="size-4" />
@@ -521,12 +521,12 @@ export function CouponsManager({
 // so header/columns can never drift from the live table.
 export function CouponsManagerSkeleton() {
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <DiscountStatsSkeleton />
       <SectionCard
         bleed
         title="Coupons"
-        subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
+        subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
         action={<Skeleton className="h-8 w-28" />}
       >
         <DataTable.Skeleton columns={COLUMNS} />
