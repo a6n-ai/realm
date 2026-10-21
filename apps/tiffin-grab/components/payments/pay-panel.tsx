@@ -1,15 +1,16 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { preconnect } from "react-dom";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
 import { CardDialog, ErrorAlert, Spinner, SurchargeConfirm, dollars } from "./card-dialog";
-import { SavedCards } from "./saved-cards";
 import { TrustLine } from "./trust-line";
 
 export type PayOutcome =
@@ -42,10 +43,30 @@ type Props = {
   children: ReactNode;
 };
 
+const loaded = new Map<string, Promise<Stripe | null>>();
+/** One Stripe.js load per key for the life of the page, so a step change never reloads it. */
+function stripeFor(key: string) {
+  let p = loaded.get(key);
+  if (!p) loaded.set(key, (p = loadStripe(key)));
+  return p;
+}
+
+/** Starts Stripe.js early (checkout calls this on step 1) so the wallet button is ready by Pay. */
+export function useWarmStripe(key: string | null | undefined) {
+  if (key) {
+    preconnect("https://js.stripe.com");
+    preconnect("https://api.stripe.com");
+  }
+  useEffect(() => {
+    if (key) void stripeFor(key);
+  }, [key]);
+}
+
 export function CardPayProvider(props: Props) {
   const { resolvedTheme } = useTheme();
   const key = props.ctx.publishableKey;
-  const stripePromise = useMemo(() => (key ? loadStripe(key) : null), [key]);
+  useWarmStripe(key);
+  const stripePromise = useMemo(() => (key ? stripeFor(key) : null), [key]);
   if (!stripePromise) return null;
   return (
     <Elements
@@ -114,7 +135,7 @@ export function ExpressPay() {
   const { busy, disabled, pay } = usePanel();
   const stripe = useStripe();
   const elements = useElements();
-  const [available, setAvailable] = useState(true);
+  const [wallets, setWallets] = useState<"loading" | "ready" | "none">("loading");
   const [error, setError] = useState<string | null>(null);
   const [fee, setFee] = useState<Fee | null>(null);
   const starting = useRef(false);
@@ -143,10 +164,21 @@ export function ExpressPay() {
   }
 
   return (
-    <div className={available ? "flex flex-col gap-3" : "hidden"}>
-      {/* While re-quoting: dimmed and inert, not hidden, so the page doesn't jump on every coupon. */}
-      <div inert={disabled} className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${disabled ? "opacity-50" : ""}`}>
-        <ExpressCheckoutElement onReady={(e) => setAvailable(Boolean(e.availablePaymentMethods))} onConfirm={onConfirm} />
+    <div className={wallets === "none" ? "hidden" : "flex flex-col gap-3"}>
+      {/* The slot holds the button's height while Stripe loads, so nothing jumps when it appears.
+          While re-quoting it dims and goes inert rather than hiding. */}
+      <div className="relative min-h-12">
+        {wallets === "loading" && <Skeleton aria-hidden className="absolute inset-0" />}
+        <div
+          inert={disabled || wallets !== "ready"}
+          className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${wallets !== "ready" ? "opacity-0" : disabled ? "opacity-50" : ""}`}
+        >
+          <ExpressCheckoutElement
+            options={{ buttonHeight: 48 }}
+            onReady={(e) => setWallets(e.availablePaymentMethods ? "ready" : "none")}
+            onConfirm={onConfirm}
+          />
+        </div>
       </div>
       {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => settle(fee.source, true)} onCancel={() => setFee(null)} />}
       {error && <ErrorAlert message={error} busy={busy} />}
@@ -154,17 +186,22 @@ export function ExpressPay() {
   );
 }
 
-export function CardPay() {
+/**
+ * The pay action for whichever card is chosen in the method cards: a saved card pays in one press,
+ * no saved card means the new-card dialog. Key it by savedCardId so a switch clears a fee prompt or error.
+ */
+export function CardPay({ savedCardId, dialogOpen, onDialogOpenChange }: {
+  savedCardId: string | null;
+  dialogOpen: boolean;
+  onDialogOpenChange: (open: boolean) => void;
+}) {
   const { ctx, amountCents, busy, pay } = usePanel();
-  const cards = ctx.savedCards;
-  const [selected, setSelected] = useState((cards.find((c) => c.isDefault) ?? cards[0])?.paymentMethodId ?? "");
-  const [dialog, setDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fee, setFee] = useState<{ surcharge: string; newTotal: string } | null>(null);
 
-  async function paySaved(accept: boolean) {
+  async function paySaved(id: string, accept: boolean) {
     setError(null);
-    const r = await pay({ savedPaymentMethodId: selected }, accept);
+    const r = await pay({ savedPaymentMethodId: id }, accept);
     if (r.kind === "busy") return;
     setFee(r.kind === "confirm_surcharge" ? r : null);
     if (r.kind === "error") setError(r.message);
@@ -172,23 +209,19 @@ export function CardPay() {
 
   return (
     <div className="flex flex-col gap-4">
-      {cards.length > 0 && <SavedCards cards={cards} value={selected} onChange={(id) => { setSelected(id); setFee(null); }} />}
-      {fee ? (
-        <SurchargeConfirm {...fee} busy={busy} onConfirm={() => paySaved(true)} onCancel={() => setFee(null)} />
-      ) : cards.length > 0 ? (
-        <>
-          <Button size="lg" className="w-full" disabled={busy} onClick={() => paySaved(false)}>
-            <Spinner show={busy} />
-            Pay {dollars(amountCents)}
-          </Button>
-          <Button variant="outline" className="w-full" onClick={() => setDialog(true)}>Use another card</Button>
-        </>
+      {savedCardId && fee ? (
+        <SurchargeConfirm {...fee} busy={busy} onConfirm={() => paySaved(savedCardId, true)} onCancel={() => setFee(null)} />
+      ) : savedCardId ? (
+        <Button size="lg" className="w-full" disabled={busy} onClick={() => paySaved(savedCardId, false)}>
+          <Spinner show={busy} />
+          Pay {dollars(amountCents)}
+        </Button>
       ) : (
-        <Button size="lg" className="w-full" onClick={() => setDialog(true)}>Add a card and pay</Button>
+        <Button size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Add a card and pay</Button>
       )}
-      {error && <ErrorAlert message={error} busy={busy} onRetry={fee || cards.length === 0 ? undefined : () => paySaved(false)} />}
+      {error && <ErrorAlert message={error} busy={busy} onRetry={savedCardId && !fee ? () => paySaved(savedCardId, false) : undefined} />}
       <TrustLine />
-      <CardDialog open={dialog} onOpenChange={setDialog} ctx={ctx} amountCents={amountCents} pay={pay} />
+      <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} />
     </div>
   );
 }

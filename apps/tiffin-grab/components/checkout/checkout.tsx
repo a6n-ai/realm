@@ -18,8 +18,8 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-panel";
-import { PaymentMethodCards, payMethodTitle } from "./payment-method-cards";
+import { CardPay, CardPayProvider, ExpressPay, useWarmStripe } from "@/components/payments/pay-panel";
+import { PaymentMethodCards, defaultSavedCard, payMethodTitle, savedCardOf, savedChoice } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
@@ -190,6 +190,12 @@ export function Checkout({
   // WIZARD_STORAGE_KEY, not always the full wizard.
   const [origin, setOrigin] = useState<WizardOrigin>(storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
   const reduce = useReducedMotion();
+  // Stripe.js loads while the customer is still on the address step, so the wallet button is ready on Pay.
+  useWarmStripe(cardContext?.publishableKey);
+  // A returning customer's default card is the preselected choice; null means a new card.
+  const savedCards = cardContext?.publishableKey ? cardContext.savedCards : [];
+  const [savedCardId, setSavedCardId] = useState(() => defaultSavedCard(savedCards));
+  const [cardDialog, setCardDialog] = useState(false);
   const prevStep = useRef(step);
   // The card payment placed for these exact inputs. A retry reuses it; any input change drops it
   // (the server re-checks the match too, this just avoids sending a stale id).
@@ -436,6 +442,14 @@ export function Checkout({
     setCoinsState({ status: "applied", message: "Coins applied" });
   };
 
+  const choose = (choice: string) => {
+    const card = savedCardOf(choice);
+    setSavedCardId(card);
+    if (!card && choice === "stripe") setCardDialog(true);
+    const method = card ? "stripe" : choice;
+    if (method !== paymentMethodId) void selectMethod(method);
+  };
+
   const selectMethod = async (id: string) => {
     if (!selections) return;
     setPaymentMethodId(id);
@@ -627,18 +641,20 @@ export function Checkout({
 
   const payStepBody = (
     <div className="space-y-10">
-      {payWithCard && <ExpressPay />}
       <section aria-labelledby="co-pay">
         <h2 id="co-pay" className={H}>Pay with</h2>
         {realPayments ? (
           <div className="mt-3 flex flex-col gap-3">
             <PaymentMethodCards
               methods={paymentMethods}
-              value={paymentMethodId ?? ""}
-              onChange={(id) => void selectMethod(id)}
+              savedCards={savedCards}
+              value={paymentMethodId === "stripe" && savedCardId ? savedChoice(savedCardId) : (paymentMethodId ?? "")}
+              onChange={choose}
               labelledBy="co-pay"
               feeNote={cardContext?.feeNote}
             />
+            {/* Below the cards: its slot can't push them around while Stripe loads. */}
+            {payWithCard && <ExpressPay />}
             {/* Outside the cards: the copy button can't nest inside a label. */}
             <AnimatePresence initial={false}>
               {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
@@ -764,7 +780,7 @@ export function Checkout({
           )}
         </dl>
       </section>
-      {payWithCard && <CardPay />}
+      {payWithCard && <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />}
     </div>
   );
   const payStep = cardOn ? (

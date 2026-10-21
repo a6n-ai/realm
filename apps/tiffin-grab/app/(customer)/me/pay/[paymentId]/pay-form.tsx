@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-panel";
+import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
 
@@ -21,12 +22,32 @@ function Row({ label, amount, strong }: { label: string; amount: number; strong?
   );
 }
 
-function Shell({ children }: { children: ReactNode }) {
+function Shell({ children, after }: { children: ReactNode; after?: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
       <PageHeader eyebrow="Payment" title="Pay by" accent="card" />
       <Card className="flex flex-col gap-4 p-5">{children}</Card>
+      {after}
     </div>
+  );
+}
+
+/** Saved cards first (the default preselected), then Stripe for a new card; same choices as checkout. */
+function PayChoices({ ctx }: { ctx: CardCheckoutContext }) {
+  const [savedCardId, setSavedCardId] = useState(() => defaultSavedCard(ctx.savedCards));
+  const [dialog, setDialog] = useState(false);
+  const choose = (choice: string) => {
+    const card = savedCardOf(choice);
+    setSavedCardId(card);
+    if (!card) setDialog(true);
+  };
+  return (
+    <section aria-labelledby="pay-with" className="flex flex-col gap-3">
+      <h2 id="pay-with" className="text-sm font-semibold">Pay with</h2>
+      <PaymentMethodCards methods={[{ id: "stripe", label: "Stripe" }]} savedCards={ctx.savedCards} value={savedCardId ? savedChoice(savedCardId) : "stripe"} onChange={choose} labelledBy="pay-with" feeNote={ctx.feeNote} />
+      <ExpressPay />
+      <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={dialog} onDialogOpenChange={setDialog} />
+    </section>
   );
 }
 
@@ -84,13 +105,11 @@ export function PayForm(p: {
         return "error" in c || !c.paid ? "processing" : "paid";
       }}
     >
-      <Shell>
+      <Shell after={<PayChoices ctx={p.ctx} />}>
         <div>
           {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
           <Row label="Total" amount={p.total} strong />
         </div>
-        <ExpressPay />
-        <CardPay />
       </Shell>
     </CardPayProvider>
   );

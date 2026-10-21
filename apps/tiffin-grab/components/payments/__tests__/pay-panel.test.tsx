@@ -2,6 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, useState } from "react";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 
 const h = vi.hoisted(() => ({
@@ -10,6 +11,7 @@ const h = vi.hoisted(() => ({
   createToken: vi.fn(),
   handleNextAction: vi.fn(),
   paymentElement: vi.fn(),
+  expressReady: true,
 }));
 
 vi.mock("@stripe/stripe-js", () => ({ loadStripe: vi.fn(async () => ({})) }));
@@ -22,11 +24,17 @@ vi.mock("@stripe/react-stripe-js", () => ({
     p.onReady?.();
     return <div data-testid="payment-element" />;
   },
-  ExpressCheckoutElement: () => <div data-testid="express" />,
+  ExpressCheckoutElement: (p: { onReady?: (e: { availablePaymentMethods: object }) => void }) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { if (h.expressReady) p.onReady?.({ availablePaymentMethods: { link: true } }); }, []);
+    return <div data-testid="express" />;
+  },
 }));
 vi.mock("@foundry/themes", () => ({ useTheme: () => ({ resolvedTheme: "light" }) }));
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
+import type { SavedCard } from "@foundry/payments/stripe";
+import { PaymentMethodCards, defaultSavedCard, savedCardOf, savedChoice } from "@/components/checkout/payment-method-cards";
 import { CardPay, CardPayProvider, ExpressPay } from "../pay-panel";
 
 const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutContext => ({
@@ -36,12 +44,30 @@ const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutCo
   prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: null,
 });
-const card = (id: string, isDefault: boolean) => ({ paymentMethodId: id, brand: "visa", last4: "4242", funding: "debit" as const, expMonth: 4, expYear: 2030, isDefault });
+const card = (id: string, isDefault: boolean, last4 = isDefault ? "4242" : "1111") => ({ paymentMethodId: id, brand: "visa", last4, funding: "debit" as const, expMonth: 4, expYear: 2030, isDefault });
+
+/** The same wiring the checkout and pay page use: saved cards and Stripe as choices, CardPay for the chosen one. */
+function Choices({ saved }: { saved: SavedCard[] }) {
+  const [id, setId] = useState(() => defaultSavedCard(saved));
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <PaymentMethodCards
+        methods={[{ id: "stripe", label: "Stripe" }]}
+        savedCards={saved}
+        value={id ? savedChoice(id) : "stripe"}
+        onChange={(c) => { const k = savedCardOf(c); setId(k); if (!k) setOpen(true); }}
+        labelledBy="pay-with"
+      />
+      <CardPay key={id ?? "new"} savedCardId={id} dialogOpen={open} onDialogOpenChange={setOpen} />
+    </>
+  );
+}
 
 function setup(over: Partial<React.ComponentProps<typeof CardPayProvider>> = {}, saved = [card("pm_other", false), card("pm_default", true)]) {
   const onPay = vi.fn(async () => ({ kind: "succeeded" as const }));
   const props = { ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const), ...over };
-  const ui = (p: typeof props) => <CardPayProvider {...p}><CardPay /></CardPayProvider>;
+  const ui = (p: typeof props) => <CardPayProvider {...p}><Choices saved={p.ctx.savedCards} /></CardPayProvider>;
   const r = render(ui(props));
   return { ...props, rerender: (n: Partial<typeof props>) => r.rerender(ui({ ...props, ...n })) };
 }
@@ -62,17 +88,22 @@ describe("PayPanel", () => {
     expect(h.update).toHaveBeenLastCalledWith({ amount: 6500 });
   });
 
-  it("default saved card is preselected and pays without the dialog", async () => {
+  it("saved cards come first, the default is preselected, and it pays in one press without the dialog", async () => {
     const s = setup();
+    const radios = screen.getAllByRole("radio");
+    expect(radios.map((r) => r.getAttribute("aria-labelledby") && document.getElementById(r.getAttribute("aria-labelledby")!)?.textContent))
+      .toEqual(["Visa •••• 1111", "Visa •••• 4242", "Stripe"]);
+    expect(screen.getByRole("radio", { name: "Visa •••• 4242" })).toHaveAttribute("data-state", "checked");
+    expect(screen.getByText("Default")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await waitFor(() => expect(s.onPay).toHaveBeenCalledWith({ savedPaymentMethodId: "pm_default" }, false));
     expect(screen.queryByTestId("payment-element")).toBeNull();
     expect(s.onPaid).toHaveBeenCalled();
   });
 
-  it("new card opens the dialog with prefilled billing details", () => {
+  it("choosing Stripe means a new card and opens the dialog with prefilled billing details", () => {
     setup();
-    fireEvent.click(screen.getByRole("button", { name: "Use another card" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Stripe" }));
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
     expect(h.paymentElement).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -95,7 +126,7 @@ describe("PayPanel", () => {
 
   it("closing the dialog calls nothing", async () => {
     const s = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Use another card" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Stripe" }));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(s.onPay).not.toHaveBeenCalled();
@@ -124,7 +155,7 @@ describe("PayPanel", () => {
 
   it("shows the renewal copy in the card dialog", () => {
     setup();
-    fireEvent.click(screen.getByRole("button", { name: "Use another card" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Stripe" }));
     expect(screen.getByText("We'll save this card for your renewals.")).toBeInTheDocument();
   });
 
@@ -173,6 +204,15 @@ describe("PayPanel", () => {
     expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
     r.rerender(ui(false));
     expect(screen.getByTestId("express").parentElement).not.toHaveAttribute("inert");
+  });
+
+  it("the wallet slot shows a skeleton until Stripe reports ready", () => {
+    h.expressReady = false;
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    render(<CardPayProvider {...props}><ExpressPay /></CardPayProvider>);
+    expect(document.querySelector("[data-slot=skeleton]")).toBeInTheDocument();
+    expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
+    h.expressReady = true;
   });
 
   it("trust line shows Secured by Stripe", () => {

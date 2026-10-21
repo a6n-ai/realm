@@ -22,6 +22,7 @@ vi.mock("@/app/(customer)/me/pay/[paymentId]/actions", () => ({
   abandonCard: vi.fn(),
 }));
 
+const warm = vi.hoisted(() => vi.fn());
 const lastCtx = vi.hoisted(() => ({ value: null as CardCheckoutContext | null }));
 // The real pieces need Stripe.js; these stand-ins call the same props the real ones do.
 vi.mock("@/components/payments/pay-panel", () => {
@@ -36,12 +37,16 @@ vi.mock("@/components/payments/pay-panel", () => {
   return {
     CardPayProvider: (p: P) => { current = p; lastCtx.value = (p as unknown as { ctx: CardCheckoutContext }).ctx; return <div data-testid="provider">{p.children}</div>; },
     ExpressPay: () => <div data-testid="express" />,
-    CardPay: () => (
-      <button type="button" disabled={current.disabled} onClick={async () => {
-        const r = await current.onPay({ savedPaymentMethodId: "pm_1" }, false);
-        if (r.kind === "succeeded") current.onPaid();
-        if (r.kind === "processing") current.onProcessing();
-      }}>Pay now</button>
+    useWarmStripe: (key: string | null | undefined) => warm(key),
+    CardPay: (props: { savedCardId: string | null; dialogOpen: boolean }) => (
+      <>
+        <button type="button" disabled={current.disabled} onClick={async () => {
+          const r = await current.onPay({ savedPaymentMethodId: props.savedCardId ?? "pm_new" }, false);
+          if (r.kind === "succeeded") current.onPaid();
+          if (r.kind === "processing") current.onProcessing();
+        }}>Pay now</button>
+        {props.dialogOpen && <div data-testid="card-dialog" />}
+      </>
     ),
   };
 });
@@ -117,6 +122,37 @@ describe("Checkout Pay step", () => {
       phone: "+14165551234",
       address: { line1: "10 King St W", postal_code: "M5H 1A1", state: "ON", country: "CA" },
     });
+  });
+
+  it("Stripe.js starts loading on the address step, before Pay", async () => {
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
+    await screen.findByLabelText(/phone/i);
+    expect(warm).toHaveBeenCalledWith("pk_test_x");
+    expect(screen.queryByTestId("express")).toBeNull();
+  });
+
+  it("wallets sit below the payment method cards", async () => {
+    await toPayment();
+    const cards = screen.getByRole("radiogroup", { name: /pay with/i });
+    expect(cards.compareDocumentPosition(screen.getByTestId("express")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("a returning customer's saved card is the first choice, preselected, and pays with that card", async () => {
+    const saved = [{ paymentMethodId: "pm_visa", brand: "visa", last4: "4242", funding: "credit" as const, expMonth: 4, expYear: 2030, isDefault: true }];
+    await toPayment({ ...cardCtx, savedCards: saved });
+    const radios = within(screen.getByRole("radiogroup", { name: /pay with/i })).getAllByRole("radio");
+    expect(radios[0]!.getAttribute("aria-labelledby")).toBe("pay-card-pm_visa-title");
+    expect(radios[0]!.getAttribute("data-state")).toBe("checked");
+    expect(screen.queryByTestId("card-dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
+    await waitFor(() => expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ source: { savedPaymentMethodId: "pm_visa" } })));
+  });
+
+  it("choosing Stripe with saved cards means a new card: the dialog opens", async () => {
+    const saved = [{ paymentMethodId: "pm_visa", brand: "visa", last4: "4242", funding: "credit" as const, expMonth: 4, expYear: 2030, isDefault: true }];
+    await toPayment({ ...cardCtx, savedCards: saved });
+    fireEvent.click(screen.getByRole("radio", { name: "Stripe" }));
+    expect(await screen.findByTestId("card-dialog")).toBeTruthy();
   });
 
   it("express is only offered while Stripe is selected", async () => {
