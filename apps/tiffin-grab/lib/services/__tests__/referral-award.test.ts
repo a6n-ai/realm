@@ -31,12 +31,12 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
 const svc = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
-const { attachReferral, getOrCreateReferralCode } = await import("../referrals.service");
+const { attachReferral, getOrCreateReferralCode, getReferralSummary } = await import("../referrals.service");
 
 const RATE = 0.1;
 vi.spyOn(walletService, "activeRate").mockResolvedValue(RATE);
 
-const PHONES = Array.from({ length: 31 }, (_, i) => `+164755500${50 + i}`);
+const PHONES = Array.from({ length: 33 }, (_, i) => `+164755500${50 + i}`);
 const phone = (n: number) => `+164755500${n}`;
 
 afterEach(() => {
@@ -262,5 +262,17 @@ describe("referral award", () => {
     await placeFor(80);
     expect(await creditsFor(friend)).toHaveLength(0);
     expect(await rowFor(friend)).toMatchObject({ status: "ordered", skipReason: "off" });
+  });
+});
+
+describe("getReferralSummary", () => {
+  it("lists the referrer's friends with first name + initial, status, and total coins", async () => {
+    const { referrer } = await refer(81, 82);
+    await placeFor(82);
+    const s = await getReferralSummary(referrer);
+    expect(s.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+    expect(s.totalCoins).toBe(20);
+    expect(s.friends).toEqual([expect.objectContaining({ name: "Name82 T.", status: "rewarded" })]);
+    expect(s.settings).toEqual(settings.referral);
   });
 });

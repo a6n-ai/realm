@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
@@ -7,7 +7,7 @@ import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
 import { coinsUnderCap } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
-import { getAppSettings, getMaxWalletBalance, getReferralSettings } from "./app-settings.service";
+import { getAppSettings, getMaxWalletBalance, getReferralSettings, type ReferralSettings } from "./app-settings.service";
 import { balanceInTx, reverseCoinAward, walletService, type AwardableOrder } from "./wallet.service";
 import { normalizeReferralCode } from "@/lib/referrals/cookie";
 
@@ -187,4 +187,39 @@ export async function reverseReferral(tx: Tx, order: { id: bigint }): Promise<vo
   await reverseCoinAward(tx, { userId: ref.referredUserId, eventType: "referral_friend", source });
   await reverseCoinAward(tx, { userId: ref.referrerUserId, eventType: "referral_referrer", source });
   await tx.update(referrals).set({ status: "reversed" }).where(eq(referrals.id, ref.id));
+}
+
+/** "Priya Sharma" → "Priya S." — friends list shows no full names. */
+function shortName(name: string | null): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "A friend";
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0];
+}
+
+export type ReferralFriendStatus = "joined" | "ordered" | "rewarded" | "reversed";
+export type ReferralSummary = {
+  code: string;
+  settings: ReferralSettings;
+  totalCoins: number;
+  friends: { name: string; status: ReferralFriendStatus; joinedAt: number }[];
+};
+
+/** Everything the customer Refer tab shows. */
+export async function getReferralSummary(userId: bigint): Promise<ReferralSummary> {
+  const [code, settings, rows] = await Promise.all([
+    getOrCreateReferralCode(userId),
+    getReferralSettings(),
+    db
+      .select({ name: users.name, status: referrals.status, referrerCoins: referrals.referrerCoins, joinedAt: referrals.createdAt })
+      .from(referrals)
+      .innerJoin(users, eq(users.id, referrals.referredUserId))
+      .where(eq(referrals.referrerUserId, userId))
+      .orderBy(desc(referrals.createdAt)),
+  ]);
+  return {
+    code,
+    settings,
+    totalCoins: rows.filter((r) => r.status !== "reversed").reduce((n, r) => n + r.referrerCoins, 0),
+    friends: rows.map((r) => ({ name: shortName(r.name), status: r.status, joinedAt: Number(r.joinedAt) })),
+  };
 }

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { CalendarDays, Clock, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, Clock, Gift, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
@@ -17,12 +17,14 @@ import { PageTransition } from "@/components/motion/page-transition";
 const ACCOUNT_PATHS = ["/me/account"];
 const MENU_PATHS = ["/me/menu", "/me/renew"];
 const SUPPORT_PATHS = ["/me/support"];
+const REFER_PATHS = ["/me/refer"];
 const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
 
-type Tab = "deliveries" | "menu" | "support" | "account";
+type Tab = "deliveries" | "menu" | "refer" | "support" | "account";
 
 function activeTab(p: string): Tab | null {
   if (MENU_PATHS.some((b) => under(p, b))) return "menu";
+  if (REFER_PATHS.some((b) => under(p, b))) return "refer";
   if (SUPPORT_PATHS.some((b) => under(p, b))) return "support";
   if (ACCOUNT_PATHS.some((b) => under(p, b))) return "account";
   if (p === "/me" || under(p, "/me")) return "deliveries";
@@ -67,7 +69,7 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   );
 }
 
-export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffReplies = {}, children }: { coinBalance: number; cutoffHour: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
+export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
@@ -107,6 +109,7 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={menuPill}>Menu</MenuButton>
+            <NavPill href="/me/refer" active={tab === "refer"}>Refer</NavPill>
             <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
             <NavPill href="/me/account" active={tab === "account"}>Account</NavPill>
           </nav>
@@ -120,7 +123,7 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
               <Clock aria-hidden className="size-4 text-[var(--primary)]" />
               <span><span className="hidden sm:inline">Cutoff </span>{cutoffTime(cutoffHour)}</span>
             </span>
-            <CoinChip href="/me/wallet" balance={coinBalance} active={under(pathname, "/me/wallet")} />
+            <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />
           </div>
         </div>
       </header>
@@ -139,6 +142,9 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(tab === "menu")}>
             <MenuIcon aria-hidden className="size-6" />Menu
           </MenuButton>
+          <Link href="/me/refer" aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "refer"))}>
+            <Gift aria-hidden className="size-6" />Refer
+          </Link>
           <Link href="/me/support" aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "support"))}>
             <span className="relative">
               <LifeBuoy aria-hidden className="size-6" />

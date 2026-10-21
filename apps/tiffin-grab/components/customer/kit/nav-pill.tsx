@@ -23,12 +23,13 @@ export function NavPill({ href, active, children, className }: { href: string; a
 }
 
 /** Wallet chip: the only entry point to Finances (/me/wallet). Active while on it. */
-export function CoinChip({ href, balance, active }: { href: string; balance: number | string; active?: boolean }) {
+export function CoinChip({ href, balance, value, active }: { href: string; balance: number | string; /** Money value of the coins; null/absent = no coin rate, coins only. */ value?: number | null; active?: boolean }) {
+  const money = value == null ? null : `$${value.toFixed(2)}`;
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      aria-label={`Finances, ${balance} coins`}
+      aria-label={`Finances, ${balance} coins${money ? `, worth ${money}` : ""}`}
       className={cn(
         FONT,
         FOCUS,
@@ -36,8 +37,9 @@ export function CoinChip({ href, balance, active }: { href: string; balance: num
         active ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "border-[var(--border)] bg-[var(--card)]",
       )}
     >
-      <Wallet aria-hidden className="size-4 text-[var(--primary)]" />
+      <Wallet aria-hidden className="size-5 text-[var(--primary)]" />
       {balance}
+      {money ? <span className="text-[13px] font-medium text-[var(--muted-foreground)]">{money}</span> : null}
     </Link>
   );
 }
