@@ -26,6 +26,9 @@ describe("cardCheckoutContext", () => {
   it("omits the note in an excluded province", async () => {
     expect((await cardCheckoutContext("u1", "QC")).feeNote).toBeNull();
   });
+  it("omits the note for an unknown province", async () => {
+    expect((await cardCheckoutContext("u1", null)).feeNote).toBeNull();
+  });
   it("omits the note when disabled or rate is 0", async () => {
     cfg = on({ enabled: false });
     expect((await cardCheckoutContext("u1", "ON")).feeNote).toBeNull();
