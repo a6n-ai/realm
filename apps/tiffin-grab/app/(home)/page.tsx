@@ -20,6 +20,7 @@ import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
 import { PlanOptions, isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { pageMeta } from "@/lib/landing/meta";
+import { FIGURE_RASTER, FIGURE_SIZES, FIGURE_SRCSET } from "@/lib/landing/figure";
 
 export const metadata: Metadata = pageMeta("Tiffin Grab: home-style tiffins, packed the way you eat", "Home-style tiffin meals delivered across the Greater Toronto Area. You choose the diet, the size, the sides, the days and how many weeks.", "/");
 
@@ -27,11 +28,6 @@ export const metadata: Metadata = pageMeta("Tiffin Grab: home-style tiffins, pac
 // with the catalog/menu reads cached the render is ~50ms on the box.
 export const dynamic = "force-dynamic";
 
-// First-paint figure, rasterized from the static SVG by scripts/tiffin-figure/raster.mjs.
-const FIGURE_RASTER = [480, 720, 960, 1440].map((w) => `/landing/tiffin-figure-${w}.webp`);
-const FIGURE_SRCSET = [480, 720, 960, 1440].map((w, i) => `${FIGURE_RASTER[i]} ${w}w`).join(", ");
-// Phones cap the figure at 27svh tall, about 260px wide; desktop draws it at most 680px.
-const FIGURE_SIZES = "(max-width: 900px) 260px, 680px";
 
 const hourLabel = (h: number) =>
   new Intl.DateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();

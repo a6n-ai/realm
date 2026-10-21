@@ -92,6 +92,34 @@ export function warmCaptcha(solve = true): void {
   ready = { token, at: Date.now() };
 }
 
+/**
+ * warmCaptcha for a form screen: site key and script load now, the challenge
+ * starts on the visitor's first focus or keypress in an email field. A checkbox
+ * that appears right after their own input does not count as a layout shift, and
+ * the token is still ready before Send. Returns a cleanup for useEffect.
+ */
+export function warmCaptchaOnInput(solve = true): () => void {
+  warmCaptcha(false);
+  if (!solve) return () => {};
+  const start = (e: Event) => {
+    if (!(e.target instanceof HTMLInputElement) || e.target.type !== "email") return;
+    stop();
+    warmCaptcha(true);
+  };
+  const stop = () => {
+    document.removeEventListener("focusin", start);
+    document.removeEventListener("keydown", start);
+  };
+  document.addEventListener("focusin", start);
+  document.addEventListener("keydown", start);
+  // An email field that is already focused (autofocus) has had its focusin.
+  if (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "email") {
+    stop();
+    warmCaptcha(true);
+  }
+  return stop;
+}
+
 /** A single-use Turnstile token, or null when captcha is off. */
 export async function getCaptchaToken(): Promise<string | null> {
   const pre = ready;
@@ -116,6 +144,12 @@ async function solveToken(): Promise<string | null> {
         appearance: "interaction-only",
         size: host.dataset.inline ? "flexible" : "normal",
         callback: resolve,
+        // The checkbox is showing: give its slot a box so keyboard focus inside it is visible.
+        "before-interactive-callback": () => {
+          if (!host.dataset.inline) return;
+          host.style.display = "block";
+          host.classList.add("captcha-host");
+        },
         "error-callback": () => reject(new Error("Security check failed. Please try again.")),
         "expired-callback": () => reject(new Error("Security check expired. Please try again.")),
       });

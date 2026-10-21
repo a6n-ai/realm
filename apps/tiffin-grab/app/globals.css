@@ -544,3 +544,8 @@ body:has(.customer-app) {
 .dark body:has(.customer-app) {
   --primary-text: var(--primary);
 }
+
+/* Turnstile's checkbox slot, once Cloudflare shows it: keyboard focus inside the
+   widget's iframe shows as a ring around the slot (lib/auth/captcha-client.ts). */
+.captcha-host { border-radius: 8px; }
+.captcha-host:focus-within { outline: 2px solid var(--primary); outline-offset: 3px; }

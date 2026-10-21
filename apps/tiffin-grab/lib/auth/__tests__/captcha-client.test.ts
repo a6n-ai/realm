@@ -48,4 +48,20 @@ describe("captcha warm-up", () => {
     expect(await getCaptchaToken()).toBe("t2");
     vi.useRealTimers();
   });
+
+  it("starts the challenge only once the email field is focused", async () => {
+    const { warmCaptchaOnInput, getCaptchaToken } = await import("../captcha-client");
+    document.body.innerHTML = '<form><input type="text" id="name"><input type="email" id="email"></form>';
+    const stop = warmCaptchaOnInput();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(renders).toBe(0);
+    document.getElementById("name")!.focus();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(renders).toBe(0);
+    document.getElementById("email")!.focus();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(renders).toBe(1);
+    expect(await getCaptchaToken()).toBe("t1");
+    stop();
+  });
 });

@@ -41,7 +41,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const { error } = params;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
+    <main className="customer-app mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
       <SubscribeChrome closeHref="/" stepTag="Your account" brand />
       <header className="space-y-1 pb-2">
         <h1 className="c-title-page">
