@@ -16,6 +16,7 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
+import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 
 export type ConfirmInput = CreateOrderInput & {
   /** Set by checkout when the customer came from /me/renew. */
@@ -117,7 +118,7 @@ export async function payCheckout(
       }
       // The wallet/card sheet was priced client-side; never charge a different number than it showed.
       if (Math.round(Number(await paymentAmount(paymentPublicId)) * 100) !== expectedAmountCents) {
-        throw new ValidationError("Your total changed. Check it and pay again.");
+        throw new ValidationError(TOTAL_CHANGED);
       }
       const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/services/payment-stripe"), import("@/lib/payments/stripe")]);
       const result = await payByCard({

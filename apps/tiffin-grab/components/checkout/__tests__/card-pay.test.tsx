@@ -123,6 +123,19 @@ describe("Checkout Pay step", () => {
     expect(payCheckout.mock.calls[0]![0].expectedAmountCents).toBe(5000);
   });
 
+  it("a changed total re-prices so the next Pay sends the new one", async () => {
+    payCheckout.mockResolvedValueOnce({ error: "Your total changed. Check it and pay again." });
+    await toPayment();
+    const before = reprice.mock.calls.length;
+    reprice.mockImplementation(async () => ({ pricing: { ...pricing, total: 55 }, paymentMethods: methods, coinBalance: null, appliedCoupons: [] }));
+    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
+    await waitFor(() => expect(reprice.mock.calls.length).toBeGreaterThan(before));
+    await waitFor(() => expect((screen.getByRole("button", { name: /pay now/i }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
+    await waitFor(() => expect(payCheckout).toHaveBeenCalledTimes(2));
+    expect(payCheckout.mock.calls[1]![0].expectedAmountCents).toBe(5500);
+  });
+
   it("pay is disabled while a reprice is in flight", async () => {
     await toPayment();
     let release!: () => void;

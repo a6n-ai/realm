@@ -22,6 +22,7 @@ import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
+import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
@@ -515,7 +516,11 @@ export function Checkout({
       source,
       acceptSurcharge,
     });
-    if ("error" in res) return { error: res.error };
+    if ("error" in res) {
+      // The server priced differently: show its total so the next Pay sends that one.
+      if (res.error === TOTAL_CHANGED) void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
+      return { error: res.error };
+    }
     placed.current = { paymentPublicId: res.paymentPublicId, deploymentId: res.deploymentId };
     return res.result;
   };
