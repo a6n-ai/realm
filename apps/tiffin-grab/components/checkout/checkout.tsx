@@ -2,7 +2,6 @@
 
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { formatPhoneNumberIntl, type Country } from "react-phone-number-input";
@@ -36,7 +35,7 @@ import { BottomBar, Button, Label, Pill, PillToggle, Sheet } from "@/components/
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
-import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
+import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
 import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
@@ -106,6 +105,21 @@ const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
 /** reprice answered with a reason (stale cart), as opposed to failing outright. */
 class UnpriceableCart extends Error {}
+
+/** True at or above `px`; false on the server and where matchMedia is missing (tests), i.e. the phone layout. */
+function useMinWidth(px: number) {
+  const q = `(min-width: ${px}px)`;
+  return useSyncExternalStore(
+    (cb) => {
+      if (typeof window.matchMedia !== "function") return () => {};
+      const m = window.matchMedia(q);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => typeof window.matchMedia === "function" && window.matchMedia(q).matches,
+    () => false,
+  );
+}
 
 export function Checkout({
   defaultCountry,
@@ -196,6 +210,9 @@ export function Checkout({
   const savedCards = cardContext?.publishableKey ? cardContext.savedCards : [];
   const [savedCardId, setSavedCardId] = useState(() => defaultSavedCard(savedCards));
   const [cardDialog, setCardDialog] = useState(false);
+  // Desktop (lg) puts Savings beside the order card; phones (below sm) pay from the bottom bar.
+  const wide = useMinWidth(1024);
+  const phone = !useMinWidth(640);
   const prevStep = useRef(step);
   // The card payment placed for these exact inputs. A retry reuses it; any input change drops it
   // (the server re-checks the match too, this just avoids sending a stale id).
@@ -618,7 +635,6 @@ export function Checkout({
       <DropOffPicker catalog={dropOff} value={{ tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] }} onChange={handleDropOffChange} />
     </div>
   );
-  const dropOffText = dropOffSummary(dropOff, { tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] });
   // A trial stores its picked days in eatingDays too; that isn't a weekly rate.
   const perWeek = selections.trialDays == null ? (selections.eatingDays?.length ?? 0) : 0;
   const start = startLabel(selections.startDate);
@@ -648,56 +664,8 @@ export function Checkout({
     </OrderSummary>
   );
 
-  const payStepBody = (
-    <div className="space-y-10">
-      <section aria-labelledby="co-pay">
-        <h2 id="co-pay" className={H}>Pay with</h2>
-        {realPayments ? (
-          <div className="mt-3 flex flex-col gap-3">
-            <PaymentMethodCards
-              methods={paymentMethods}
-              savedCards={savedCards}
-              value={paymentMethodId === "stripe" && savedCardId ? savedChoice(savedCardId) : (paymentMethodId ?? "")}
-              onChange={choose}
-              labelledBy="co-pay"
-              feeNote={cardContext?.feeNote}
-            />
-            {/* Below the cards: its slot can't push them around while Stripe loads. */}
-            {payWithCard && <ExpressPay />}
-            {/* Outside the cards: the copy button can't nest inside a label. */}
-            <AnimatePresence initial={false}>
-              {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
-                <motion.div key={selectedMethod.id} {...reveal} className="px-4">
-                  <PaymentInstructions payeeHandle={selectedMethod.payeeHandle} instructions={selectedMethod.instructions} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        ) : (
-          simulated ? (
-            <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
-          ) : priceError ? (
-            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-destructive text-sm text-pretty">{priceError}</p>
-              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
-            </div>
-          ) : priceFailed ? (
-            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>
-              <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={retryPrice}>Retry</Button>
-            </div>
-          ) : (
-            <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
-          )
-        )}
-        {selectedMethod && !payWithCard && (
-          <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
-            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-            Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
-          </p>
-        )}
-      </section>
-
+  const cardPay = <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
+  const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
         <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
@@ -766,31 +734,66 @@ export function Checkout({
           )}
         </div>
       </section>
+  );
 
-      {payWithCard && <CardPay key={savedCardId ?? "new"} savedCardId={savedCardId} dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />}
+  const payStepBody = (
+    <div className="space-y-10">
+      <section aria-labelledby="co-pay">
+        <h2 id="co-pay" className={H}>Pay with</h2>
+        {realPayments ? (
+          <div className="mt-3 flex flex-col gap-3">
+            <PaymentMethodCards
+              methods={paymentMethods}
+              savedCards={savedCards}
+              value={paymentMethodId === "stripe" && savedCardId ? savedChoice(savedCardId) : (paymentMethodId ?? "")}
+              onChange={choose}
+              labelledBy="co-pay"
+              feeNote={cardContext?.feeNote}
+            />
+            {/* Below the cards: its slot can't push them around while Stripe loads. */}
+            {payWithCard && !phone && <ExpressPay />}
+            {/* Outside the cards: the copy button can't nest inside a label. */}
+            <AnimatePresence initial={false}>
+              {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
+                <motion.div key={selectedMethod.id} {...reveal} className="px-4">
+                  <PaymentInstructions payeeHandle={selectedMethod.payeeHandle} instructions={selectedMethod.instructions} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          simulated ? (
+            <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
+          ) : priceError ? (
+            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-destructive text-sm text-pretty">{priceError}</p>
+              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
+            </div>
+          ) : priceFailed ? (
+            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>
+              <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={retryPrice}>Retry</Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
+          )
+        )}
+        {selectedMethod && !payWithCard && (
+          <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+            Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
+          </p>
+        )}
+      </section>
+
+      {!wide && savingsSection}
+
+      {payWithCard && !phone && cardPay}
     </div>
   );
-  const payStep = cardOn ? (
-    <CardPayProvider
-      // Step 1's phone and address are this order's, so they are the card's billing details too.
-      ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: e164(contact.phone, cardContext!.prefill.address.country) ?? cardContext!.prefill.phone, address: billingAddress(contact, cardContext!.prefill.address.country) } }}
-      amountCents={Math.round(result.total * 100)}
-      disabled={repricing > 0}
-      onPay={payByCard}
-      onPaid={leaveAfterCard((p) => `/activate/${p.deploymentId}`)}
-      onProcessing={leaveAfterCard((p) => `/me/pay/${p.paymentPublicId}?return=1`)}
-      abandon={async () => { if (placed.current) await abandonCard(placed.current.paymentPublicId); }}
-      afterAction={async () => {
-        const r = placed.current ? await confirmReturn(placed.current.paymentPublicId) : null;
-        return r && !("error" in r) && r.paid ? "paid" : "processing";
-      }}
-    >
-      {payStepBody}
-    </CardPayProvider>
-  ) : payStepBody;
 
-  return (
-    <div className="pb-44 sm:pb-10">
+  const page = (
+    <div className={`${step === 2 && payWithCard ? "pb-80" : "pb-44"} sm:pb-10`}>
       <SubscribeChrome
         brand
         closeHref={closeHref}
@@ -887,13 +890,28 @@ export function Checkout({
                     </div>
                   </section>
                 </div>
-              ) : payStep}
+              ) : payStepBody}
             </motion.div>
           </AnimatePresence>
 
           {/* Card pays from its own button in the step, so on desktop (Back is in the header) the bar would be empty. */}
-          <BottomBar alignEnd note={actionReason ?? undefined} className={`sm:sticky sm:mt-8 sm:px-0 ${step === 2 && payWithCard ? "sm:hidden" : ""}`}>
-            <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
+          <BottomBar
+            alignEnd
+            note={step === 2 && payWithCard && phone && result ? `Total ${money(result.total)}` : (actionReason ?? undefined)}
+            className={`sm:sticky sm:mt-8 sm:px-0 ${step === 2 && payWithCard ? "sm:hidden" : ""}`}
+          >
+            {step === 2 && payWithCard && phone ? (
+              // Phones pay from here: wallets, then Back beside the card action.
+              <div className="flex w-full flex-col gap-2">
+                <ExpressPay />
+                <div className="flex items-start gap-2">
+                  <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
+                  <div className="min-w-0 flex-1">{cardPay}</div>
+                </div>
+              </div>
+            ) : (
+              <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
+            )}
             {step === 1 ? (
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
                 setStep(2);
@@ -917,7 +935,10 @@ export function Checkout({
           </BottomBar>
         </div>
 
-        <aside aria-label="Order summary" className="hidden md:sticky md:top-24 md:block">{summary()}</aside>
+        <aside aria-label="Order summary" className="hidden md:sticky md:top-24 md:flex md:flex-col md:gap-6">
+          {summary()}
+          {step === 2 && wide && savingsSection}
+        </aside>
       </div>
 
       <Sheet
@@ -949,6 +970,25 @@ export function Checkout({
       </Sheet>
     </div>
   );
+  // Mounted for the whole checkout (Stripe needs it for the phone pay bar too); the key never changes, so no remounts.
+  return cardContext?.publishableKey ? (
+    <CardPayProvider
+      // Step 1's phone and address are this order's, so they are the card's billing details too.
+      ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: e164(contact.phone, cardContext!.prefill.address.country) ?? cardContext!.prefill.phone, address: billingAddress(contact, cardContext!.prefill.address.country) } }}
+      amountCents={result ? Math.round(result.total * 100) : 50}
+      disabled={repricing > 0 || result == null}
+      onPay={payByCard}
+      onPaid={leaveAfterCard((p) => `/activate/${p.deploymentId}`)}
+      onProcessing={leaveAfterCard((p) => `/me/pay/${p.paymentPublicId}?return=1`)}
+      abandon={async () => { if (placed.current) await abandonCard(placed.current.paymentPublicId); }}
+      afterAction={async () => {
+        const r = placed.current ? await confirmReturn(placed.current.paymentPublicId) : null;
+        return r && !("error" in r) && r.paid ? "paid" : "processing";
+      }}
+    >
+      {page}
+    </CardPayProvider>
+  ) : page;
 }
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */

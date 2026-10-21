@@ -100,14 +100,14 @@ function artFor(m: PayMethodOption) {
 const brandName = (b: string | null) => (b ? b[0]!.toUpperCase() + b.slice(1) : "Card");
 const exp = (c: SavedCard) => `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}`;
 
-/** ReUI c-card-10: the art fills the card and fades top and bottom; the radio and text sit on top of it. */
+/** ReUI c-card-10: the art fills the card (a square tile on phones) and fades top and bottom; the radio and text sit on top. */
 function OptionCard({ value, art, title, badge, children }: { value: string; art: ReactNode; title: string; badge?: ReactNode; children?: ReactNode }) {
   const id = `pay-${value.replace(":", "-")}`;
   return (
     <label htmlFor={id} className="group/opt block cursor-pointer">
       <Card className="has-[[data-state=checked]]:ring-primary p-0 transition-colors has-[[data-state=checked]]:ring-2">
         <CardContent className="p-0">
-          <div className="relative flex h-36 w-full flex-col justify-end overflow-hidden">
+          <div className="relative flex aspect-square w-full flex-col justify-end overflow-hidden sm:aspect-auto sm:h-36">
             <div aria-hidden className="absolute inset-0 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/opt:scale-105 motion-reduce:transition-none motion-reduce:group-hover/opt:scale-100">{art}</div>
             <div aria-hidden className="from-card/60 absolute inset-x-0 top-0 h-1/3 bg-linear-to-b to-transparent" />
             <div aria-hidden className="from-card via-card/90 absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t to-transparent" />
@@ -137,7 +137,7 @@ export function PaymentMethodCards({ methods, savedCards = [], value, onChange, 
 }) {
   const cards = methods.some((m) => m.id === "stripe") ? savedCards : [];
   return (
-    <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))]">
+    <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))]">
       {cards.map((c) => (
         <OptionCard
           key={c.paymentMethodId}

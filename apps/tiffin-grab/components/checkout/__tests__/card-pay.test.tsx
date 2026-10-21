@@ -171,6 +171,34 @@ describe("Checkout Pay step", () => {
     expect(within(screen.getByRole("complementary", { name: "Order summary" })).queryByRole("button", { name: "Change" })).toBeNull();
   });
 
+  it("desktop: Savings sits in the side column and a coupon there updates its total", async () => {
+    const mm = vi.fn((q: string) => ({ matches: /min-width: (1024|640)px/.test(q), addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal("matchMedia", mm);
+    try {
+      reprice.mockImplementation(async (...a: unknown[]) => {
+        const codes = (a[1] as string[] | undefined) ?? [];
+        return { pricing: { ...pricing, total: codes.length ? 45 : 50 }, paymentMethods: methods, coinBalance: null, appliedCoupons: codes.map((code) => ({ code, name: code, amount: 5, auto: false })) };
+      });
+      await toPayment();
+      const side = screen.getByRole("complementary", { name: "Order summary" });
+      expect(within(side).getByRole("heading", { name: "Savings" })).toBeTruthy();
+      expect(screen.getAllByRole("heading", { name: "Savings" })).toHaveLength(1);
+      fireEvent.click(within(side).getByRole("button", { name: /add a coupon code/i }));
+      fireEvent.change(await within(side).findByLabelText(/coupon code/i), { target: { value: "SAVE5" } });
+      fireEvent.click(within(side).getByRole("button", { name: /apply coupon/i }));
+      await waitFor(() => expect(side.textContent).toContain("$45.00"));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("phones pay from the bottom bar, with the total in it", async () => {
+    await toPayment();
+    const pay = screen.getByRole("button", { name: /pay now/i });
+    expect(pay.closest(".c-glass")).toBeTruthy();
+    expect(screen.getByText("Total $50.00")).toBeTruthy();
+  });
+
   it("express is only offered while Stripe is selected", async () => {
     await toPayment();
     expect(screen.getByTestId("express")).toBeTruthy();
