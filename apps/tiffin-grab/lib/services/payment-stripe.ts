@@ -10,6 +10,7 @@ import {
 import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { clearStripeCustomer, customerStore, stripeRuntime, toCents, fromCents } from "@/lib/payments/stripe";
+import { cardPayClosed } from "@/lib/orders/display-status";
 import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -235,7 +236,8 @@ async function loadOwned(paymentPublicId: string, userPublicId: string | null) {
   if (!row || (userPublicId && row.user.publicId !== userPublicId)) throw new NotFoundError("Payment not found");
   if (row.order.status === "cancelled") throw new ValidationError("This order was cancelled");
   if (row.pay.status !== "awaiting_payment" && row.pay.status !== "rejected") throw new ValidationError("This payment is already settled");
-  if (row.pay.expiresAt != null && Number(row.pay.expiresAt) <= Date.now()) throw new ValidationError("This payment link has expired. Ask us for a new one.");
+  const closed = cardPayClosed(row.order.status, row.pay.expiresAt);
+  if (closed) throw new ValidationError(closed);
   return row;
 }
 

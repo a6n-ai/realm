@@ -63,17 +63,15 @@ function isClaimable(p: CustomerBill["payments"][number]): boolean {
   return p.status === "awaiting_payment" || p.status === "rejected" || p.status === "pending_verification";
 }
 
-function cardPayable(p: CustomerBill["payments"][number]): boolean {
-  return p.method === "stripe" && (p.status === "awaiting_payment" || p.status === "rejected");
-}
-
 function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number]): string | null {
   if (p.method !== "stripe") return null;
   const fee = Number(p.surchargeAmount);
   const parts = [
     p.cardLast4 ? `${p.cardBrand ?? "Card"} ••${p.cardLast4}` : null,
     fee > 0 ? `Credit card fee $${fee.toFixed(2)}` : null,
-    ...bill.taxLines.map((t) => `${t.name} ${t.ratePct}% $${t.amount.toFixed(2)}`),
+    ...(p.addonLines
+      ? p.addonLines.map((l) => `${l.label} $${l.amount.toFixed(2)}`)
+      : bill.taxLines.map((t) => `${t.name} ${t.ratePct}% $${t.amount.toFixed(2)}`)),
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -91,7 +89,7 @@ function BillRow({
 }) {
   const tz = useTimezone();
   const claimable = bill.payments.find(isClaimable);
-  const payable = cardAvailable ? bill.payments.find(cardPayable) : undefined;
+  const payable = cardAvailable ? bill.payments.find((p) => p.cardPayable) : undefined;
   const details = bill.payments.map((p) => cardDetail(bill, p)).filter(Boolean);
 
   return (
@@ -110,7 +108,7 @@ function BillRow({
               {paymentLabel(p.status)}
             </Badge>
           ))}
-          {!cardAvailable && bill.payments.some(cardPayable) && (
+          {!cardAvailable && bill.payments.some((p) => p.cardPayable) && (
             <span className="text-muted-foreground text-xs">Card payments are paused right now. Please contact us.</span>
           )}
           {payable && (

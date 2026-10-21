@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NotFoundError, ValidationError, formatMoney } from "@foundry/commons";
 import { findMethod } from "@foundry/payments";
 import { db } from "@/db/client";
+import { cardPayClosed } from "@/lib/orders/display-status";
 import { orderActivities, orders, payments, users } from "@/db/schema";
 import { sendPaymentReminderLink } from "@/lib/auth/invite-links";
 import { paymentTemplateVars } from "./orders.service";
@@ -48,7 +49,7 @@ export async function sendPaymentReminder(
   actorId: bigint | null,
 ): Promise<void> {
   const [row] = await db
-    .select({ pay: payments, orderId: orders.id, orderRef: orders.deploymentId, email: users.email, name: users.name })
+    .select({ pay: payments, orderId: orders.id, orderStatus: orders.status, orderRef: orders.deploymentId, email: users.email, name: users.name })
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
     .innerJoin(users, eq(users.id, orders.userId))
@@ -60,6 +61,9 @@ export async function sendPaymentReminder(
   }
   if (row.pay.addonRequest && (row.pay.expiresAt == null || row.pay.expiresAt <= Date.now())) {
     throw new ValidationError("This add-on link is expired or cancelled. Regenerate it first.");
+  }
+  if (row.pay.method === "stripe" && cardPayClosed(row.orderStatus, row.pay.expiresAt)) {
+    throw new ValidationError("This card payment can no longer be paid, so there is nothing to remind.");
   }
   if (!row.email) throw new ValidationError("Customer has no email address");
 

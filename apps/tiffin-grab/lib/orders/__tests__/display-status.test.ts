@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canTakeAddonPayment, complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
+import { canTakeAddonPayment, cardPayClosed, complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
 
 describe("orderDisplayStatus", () => {
   it("overlays Active with Payment review while money is unpaid or claimed", () => {
@@ -105,5 +105,18 @@ describe("canTakeAddonPayment", () => {
     expect(canTakeAddonPayment(own, [{ status: "paid" }, link(2_000)], 1_000)).toBe("Regenerate or cancel the existing link first");
     expect(canTakeAddonPayment(own, [{ status: "paid" }, link(1_000)], 1_000)).toBeNull();
     expect(canTakeAddonPayment(own, [{ status: "paid" }, link(0)], 1_000)).toBeNull();
+  });
+});
+
+describe("cardPayClosed", () => {
+  const now = 1_000_000;
+  it("is open for a live link on a running or pending order", () => {
+    expect(cardPayClosed("pending", now + 1, now)).toBeNull();
+    expect(cardPayClosed("active", null, now)).toBeNull();
+  });
+  it("closes on a cancelled order, an expired link and a void link (expiresAt 0)", () => {
+    expect(cardPayClosed("cancelled", null, now)).toMatch(/cancelled/);
+    expect(cardPayClosed("pending", now, now)).toMatch(/expired/);
+    expect(cardPayClosed("active", 0, now)).toMatch(/expired/);
   });
 });

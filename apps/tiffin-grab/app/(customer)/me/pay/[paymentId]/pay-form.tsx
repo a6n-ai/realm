@@ -39,6 +39,8 @@ export function PayForm(p: {
   lines: Line[];
   total: number;
   isReturn: boolean;
+  /** Why this payment can no longer be paid (cancelled order, expired or void link), or null. */
+  closed?: string | null;
 }) {
   const stripePromise = useMemo(() => (p.publishableKey ? loadStripe(p.publishableKey) : null), [p.publishableKey]);
   if (p.status === "paid" || p.status === "simulated_paid") return <Paid />;
@@ -58,7 +60,16 @@ export function PayForm(p: {
       </Shell>
     );
   }
+  // A return from 3DS still confirms: the card may have been charged just before the link closed.
   if (p.isReturn) return <ReturnState paymentId={p.paymentId} />;
+  if (p.closed) {
+    return (
+      <Shell>
+        <Notice>{p.closed}</Notice>
+        <Link href="/me/wallet?tab=bills" className="text-sm font-semibold underline">Open Bills</Link>
+      </Shell>
+    );
+  }
   return (
     <Elements
       stripe={stripePromise}

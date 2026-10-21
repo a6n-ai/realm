@@ -3,6 +3,8 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
+import { cardPayClosed } from "@/lib/orders/display-status";
+import { payPageLines } from "@/app/(customer)/me/pay/[paymentId]/lines";
 import { ledgerEntries, orders, payments, plans } from "@/db/schema";
 
 export type BillPaymentSummary = {
@@ -16,6 +18,10 @@ export type BillPaymentSummary = {
   cardBrand: string | null;
   cardLast4: string | null;
   surchargeAmount: string;
+  /** A card payment the customer can still pay now (not settled, order not cancelled, link not expired or void). */
+  cardPayable: boolean;
+  /** An add-on link's own price lines; the order's tax lines do not describe it. */
+  addonLines: { label: string; amount: number }[] | null;
 };
 
 export type CustomerBill = {
@@ -84,12 +90,17 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       cardBrand: payments.cardBrand,
       cardLast4: payments.cardLast4,
       surchargeAmount: payments.surchargeAmount,
+      expiresAt: payments.expiresAt,
+      addonRequest: payments.addonRequest,
     })
     .from(payments)
     .where(inArray(payments.orderId, orderIds));
 
+  const orderStatus = new Map(rows.map((r) => [r.id, r.status]));
+  const now = Date.now();
   const paysByOrder = new Map<bigint, BillPaymentSummary[]>();
   for (const p of payRows) {
+    const addon = p.addonRequest ? payPageLines(p, { pricingSnapshot: null }) : null;
     const list = paysByOrder.get(p.orderId) ?? [];
     list.push({
       publicId: p.publicId,
@@ -102,6 +113,11 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       cardBrand: p.cardBrand,
       cardLast4: p.cardLast4,
       surchargeAmount: p.surchargeAmount,
+      cardPayable:
+        p.method === "stripe" &&
+        (p.status === "awaiting_payment" || p.status === "rejected") &&
+        !cardPayClosed(orderStatus.get(p.orderId) ?? "", p.expiresAt, now),
+      addonLines: addon ? [...addon.lines, ...addon.taxLines] : null,
     });
     paysByOrder.set(p.orderId, list);
   }

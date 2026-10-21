@@ -27,9 +27,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
             <Pill tone="vac">{s.pay ? (s.pay.expired ? "Expired" : "Waiting for payment") : s.status === "pending" ? "Pending" : "Waitlisted"}</Pill>
           </div>
           {s.pay && !s.pay.expired && (cardAvailable ? (
-            <Link href={`/me/pay/${s.pay.publicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
-              Pay by card
-            </Link>
+            <Link href={`/me/pay/${s.pay.publicId}`}><Button variant="primary" size="lg">Pay by card</Button></Link>
           ) : (
             <Notice>Card payments are paused right now. Please contact us.</Notice>
           ))}

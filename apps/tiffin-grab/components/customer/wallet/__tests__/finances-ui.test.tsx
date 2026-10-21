@@ -90,7 +90,7 @@ describe("BillsList empty state", () => {
         total: "120.00",
         createdAt: Date.UTC(2026, 6, 10),
         taxLines: [],
-        payments: [{ publicId: "pay_1", status: "simulated_paid", method: "simulated", amount: "120.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00" }],
+        payments: [{ publicId: "pay_1", status: "simulated_paid", method: "simulated", amount: "120.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00", cardPayable: false, addonLines: null }],
       },
       {
         publicId: "ord_2",
@@ -100,7 +100,7 @@ describe("BillsList empty state", () => {
         total: "200.00",
         createdAt: Date.UTC(2026, 5, 5),
         taxLines: [],
-        payments: [{ publicId: "pay_2", status: "pending", method: "cash", amount: "200.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00" }],
+        payments: [{ publicId: "pay_2", status: "pending", method: "cash", amount: "200.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00", cardPayable: false, addonLines: null }],
       },
     ];
     render(<BillsList items={items} page={0} size={25} total={2} currency="CAD" />);
@@ -108,6 +108,31 @@ describe("BillsList empty state", () => {
     expect(screen.getByText("Monthly")).toBeInTheDocument();
     expect(screen.getByText(/July 2026/i)).toBeInTheDocument();
     expect(screen.getByText(/June 2026/i)).toBeInTheDocument();
+  });
+});
+
+describe("BillsList card payments", () => {
+  const bill = (pays: CustomerBill["payments"]): CustomerBill => ({
+    publicId: "ord_1", deploymentId: "SUB-1", planName: "Weekly Veg", status: "active", total: "120.00",
+    createdAt: Date.UTC(2026, 6, 10), taxLines: [{ name: "HST", ratePct: 13, amount: 15.6 }], payments: pays,
+  });
+  const card = (o: Partial<CustomerBill["payments"][number]>): CustomerBill["payments"][number] => ({
+    publicId: "pay_c", status: "awaiting_payment", method: "stripe", amount: "11.30", note: null, providerRef: null, providerCheckedAt: null,
+    cardBrand: null, cardLast4: null, surchargeAmount: "0.00", cardPayable: true, addonLines: null, ...o,
+  });
+
+  it("offers Pay by card only for a payment that can still be paid", () => {
+    render(<BillsList items={[bill([card({ cardPayable: false })])]} page={0} size={25} total={1} currency="CAD" cardAvailable />);
+    expect(screen.queryByRole("link", { name: "Pay by card" })).not.toBeInTheDocument();
+    cleanup();
+    render(<BillsList items={[bill([card({})])]} page={0} size={25} total={1} currency="CAD" cardAvailable />);
+    expect(screen.getByRole("link", { name: "Pay by card" })).toHaveAttribute("href", "/me/pay/pay_c");
+  });
+
+  it("shows an add-on link's own lines, not the order's tax lines", () => {
+    render(<BillsList items={[bill([card({ addonLines: [{ label: "Raita", amount: 10 }, { label: "HST 13%", amount: 1.3 }] })])]} page={0} size={25} total={1} currency="CAD" cardAvailable />);
+    expect(screen.getByText(/Raita \$10\.00 · HST 13% \$1\.30/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$15\.60/)).not.toBeInTheDocument();
   });
 });
 

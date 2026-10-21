@@ -44,14 +44,14 @@ const COLUMNS: readonly Column<Key>[] = [
   { key: "actions", label: "Actions", align: "right", width: "w-24" },
 ];
 
-function ExpiryBadge({ r, now, tz }: { r: PaymentRow; now: number; tz: string }) {
-  if (r.isAddon && r.expiresAt === 0) {
+export function ExpiryBadge({ r, now, tz }: { r: Pick<PaymentRow, "isAddon" | "expiresAt" | "status">; now: number; tz: string }) {
+  // expiresAt 0 is a void link (voidLink writes status rejected).
+  if (r.expiresAt === 0) {
     // A void link a late webhook still charged: the money is in, the add-ons are not applied.
-    if (r.status === "paid") return <Badge variant="destructive-light">Refund needed</Badge>;
-    return r.status === "awaiting_payment" ? <Badge variant="outline">Void</Badge> : null;
+    if (r.isAddon && r.status === "paid") return <Badge variant="destructive-light">Refund needed</Badge>;
+    return r.status === "rejected" ? <Badge variant="outline">Void</Badge> : null;
   }
   if (r.status !== "awaiting_payment" || r.expiresAt == null) return null;
-  if (r.expiresAt === 0) return <Badge variant="outline">Void</Badge>;
   if (r.expiresAt <= now) return <Badge variant="warning-light">Expired</Badge>;
   return <Badge variant="info-light">Expires {formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}</Badge>;
 }

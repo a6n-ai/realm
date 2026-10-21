@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { cardPayClosed } from "@/lib/orders/display-status";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { PayForm } from "./pay-form";
 import { payPageLines } from "./lines";
@@ -41,6 +42,7 @@ export default async function PayPage({
       lines={[...pl.lines, ...pl.taxLines]}
       total={pl.total}
       isReturn={isReturn}
+      closed={cardPayClosed(row.order.status, row.pay.expiresAt)}
     />
   );
 }
