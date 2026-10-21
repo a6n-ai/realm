@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useState } from "react";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   handleNextAction: vi.fn(),
   paymentElement: vi.fn(),
   elements: vi.fn(),
+  pe: null as null | { onChange?: (e: unknown) => void; onLoadError?: () => void },
   expressReady: true,
 }));
 
@@ -20,8 +21,9 @@ vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children, options }: { children: React.ReactNode; options: unknown }) => { h.elements(options); return <>{children}</>; },
   useStripe: () => ({ createConfirmationToken: h.createToken, handleNextAction: h.handleNextAction }),
   useElements: () => ({ update: h.update, submit: h.submit }),
-  PaymentElement: (p: { options: unknown; onReady?: () => void }) => {
+  PaymentElement: (p: { options: unknown; onReady?: () => void; onChange?: (e: unknown) => void; onLoadError?: () => void }) => {
     h.paymentElement(p.options);
+    h.pe = p;
     p.onReady?.();
     return <div data-testid="payment-element" />;
   },
@@ -43,11 +45,10 @@ const receipt = (info: PaidInfo) => ({
   secondary: { label: "View order details", href: "/activate/SUB-REF1" },
 });
 
-const ctx = (savedCards: CardCheckoutContext["savedCards"] = [], customerSessionClientSecret: string | null = null): CardCheckoutContext => ({
+const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutContext => ({
   publishableKey: "pk_test_x",
   methodLabel: "Pay with Stripe",
   savedCards,
-  customerSessionClientSecret,
   prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: null,
 });
@@ -67,13 +68,20 @@ function Choices() {
 
 function setup(over: Partial<React.ComponentProps<typeof CardPayProvider>> = {}, saved = [card("pm_other", false), card("pm_default", true)], session: string | null = null) {
   const onPay = vi.fn(async () => ({ kind: "succeeded" as const }));
-  const props = { ctx: ctx(saved, session), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })), ...over };
+  const customerSession = vi.fn(async () => session);
+  const props = { customerSession, ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })), ...over };
   const ui = (p: typeof props) => <CardPayProvider {...p}><PaidSwitch><Choices /></PaidSwitch></CardPayProvider>;
   const r = render(ui(props));
   return { ...props, rerender: (n: Partial<typeof props>) => r.rerender(ui({ ...props, ...n })) };
 }
 
+const openCard = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+  await screen.findByTestId("payment-element");
+};
+
 beforeEach(() => {
+  h.pe = null;
   h.submit.mockResolvedValue({});
   h.createToken.mockResolvedValue({ confirmationToken: { id: "ctoken_1" } });
 });
@@ -127,20 +135,70 @@ describe("PayPanel", () => {
     await waitFor(() => expect(onPay).toHaveBeenLastCalledWith({ savedPaymentMethodId: "pm_default" }, true));
   });
 
-  it("Elements gets the customer session so the form lists saved cards with Remove", () => {
+  it("opening the card form asks for a fresh customer session, and only the form's Elements gets it", async () => {
+    const s = setup({}, [], "cuss_secret_1");
+    expect(s.customerSession).not.toHaveBeenCalled();
+    expect(h.elements.mock.calls.every((c) => !("customerSessionClientSecret" in (c[0] as object)))).toBe(true);
+    await openCard();
+    expect(s.customerSession).toHaveBeenCalledTimes(1);
+    expect(h.elements).toHaveBeenLastCalledWith(expect.objectContaining({ customerSessionClientSecret: "cuss_secret_1" }));
+  });
+
+  it("each open mints a new session", async () => {
+    const s = setup({}, [], "cuss_secret_1");
+    await openCard();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await openCard();
+    expect(s.customerSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("no session for a customer Stripe does not know: the form still opens", async () => {
+    setup({}, [], null);
+    await openCard();
+    expect(h.elements.mock.calls.at(-1)![0]).not.toHaveProperty("customerSessionClientSecret");
+  });
+
+  it("a form that fails to load with the session remounts once without it", async () => {
+    setup({}, [], "cuss_expired");
+    await openCard();
+    expect(h.elements.mock.calls.at(-1)![0]).toHaveProperty("customerSessionClientSecret", "cuss_expired");
+    const before = h.paymentElement.mock.calls.length;
+    act(() => h.pe!.onLoadError!());
+    await waitFor(() => expect(h.paymentElement.mock.calls.length).toBeGreaterThan(before));
+    expect(h.elements.mock.calls.at(-1)![0]).not.toHaveProperty("customerSessionClientSecret");
+    const after = h.paymentElement.mock.calls.length;
+    act(() => h.pe!.onLoadError!());
+    expect(h.paymentElement.mock.calls.length).toBe(after);
+  });
+
+  it("a saved card chosen in the form sends no billing details or redisplay flag", async () => {
     setup({}, [], "cuss_secret_1");
-    expect(h.elements).toHaveBeenCalledWith(expect.objectContaining({ customerSessionClientSecret: "cuss_secret_1" }));
+    await openCard();
+    act(() => h.pe!.onChange!({ value: { type: "card", payment_method: { id: "pm_saved" } } }));
+    fireEvent.click(screen.getByRole("button", { name: /pay \$50\.00/i }));
+    await waitFor(() => expect(h.createToken).toHaveBeenCalled());
+    expect(h.createToken.mock.calls[0]![0]).toEqual({ elements: expect.anything() });
   });
 
-  it("Elements has no customer session for a customer Stripe does not know", () => {
-    setup({}, []);
-    expect(h.elements.mock.calls[0]![0]).not.toHaveProperty("customerSessionClientSecret");
+  it("choosing a new card after a saved one sends them again", async () => {
+    setup({}, [], "cuss_secret_1");
+    await openCard();
+    act(() => h.pe!.onChange!({ value: { type: "card", payment_method: { id: "pm_saved" } } }));
+    act(() => h.pe!.onChange!({ value: { type: "card" } }));
+    fireEvent.click(screen.getByRole("button", { name: /pay \$50\.00/i }));
+    await waitFor(() => expect(h.createToken).toHaveBeenCalled());
+    expect(h.createToken.mock.calls[0]![0].params.payment_method_data).toMatchObject({ allow_redisplay: "always" });
   });
 
-  it("Pay by card opens the dialog with prefilled billing details", () => {
+  it("the last-used strip stays disabled while the amount is being re-quoted", () => {
+    setup({ disabled: true });
+    expect(screen.getByRole("button", { name: "Pay $50.00" })).toBeDisabled();
+  });
+
+  it("Pay by card opens the dialog with prefilled billing details", async () => {
     setup();
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
-    expect(screen.getByTestId("payment-element")).toBeInTheDocument();
+    await openCard();
     expect(h.paymentElement).toHaveBeenCalledWith(
       expect.objectContaining({
         fields: { billingDetails: { name: "never", email: "never", phone: "never", address: "never" } },
@@ -152,7 +210,7 @@ describe("PayPanel", () => {
 
   it("the card token carries the full billing details the form hides", async () => {
     setup({}, []);
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: /pay \$50\.00/i }));
     await waitFor(() => expect(h.createToken).toHaveBeenCalled());
     expect(h.createToken.mock.calls[0]![0].params).toEqual({
@@ -162,7 +220,7 @@ describe("PayPanel", () => {
 
   it("closing the dialog calls nothing", async () => {
     const s = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+    await openCard();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(s.onPay).not.toHaveBeenCalled();
@@ -173,7 +231,7 @@ describe("PayPanel", () => {
       .mockResolvedValueOnce({ kind: "confirm_surcharge", surcharge: "1.50", newTotal: "51.50", brand: "visa", last4: "4242" })
       .mockResolvedValueOnce({ kind: "succeeded" });
     const s = setup({ onPay }, []);
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByText(/\$1\.50 card fee/)).toBeInTheDocument();
     expect(screen.getByText(/New total \$51\.50/)).toBeInTheDocument();
@@ -189,9 +247,9 @@ describe("PayPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("A payment is already in progress.");
   });
 
-  it("shows the renewal copy in the card dialog", () => {
+  it("shows the renewal copy in the card dialog", async () => {
     setup();
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+    await openCard();
     expect(screen.getByText("We'll save this card for your renewals.")).toBeInTheDocument();
   });
 
@@ -281,7 +339,7 @@ describe("PayPanel", () => {
 
   it("a new-card success shrinks the open dialog to the printer", async () => {
     setup({}, []);
-    fireEvent.click(screen.getByRole("button", { name: "Pay by card" }));
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
     expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();

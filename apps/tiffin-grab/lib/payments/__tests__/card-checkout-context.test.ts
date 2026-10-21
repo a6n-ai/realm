@@ -17,7 +17,7 @@ vi.mock("@/lib/services/payment-stripe", () => ({ listSavedCards: async () => ca
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
 let phone: string | null = null;
 
-const { cardCheckoutContext } = await import("../card-checkout-context");
+const { cardCheckoutContext, customerSessionSecret } = await import("../card-checkout-context");
 const on = (over: Record<string, unknown> = {}) => ({
   publishableKey: "pk_test_x",
   methodLabel: "Card",
@@ -46,13 +46,18 @@ describe("cardCheckoutContext", () => {
     const c = await cardCheckoutContext("u1", "ON");
     expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null, address: { line1: "", line2: "", city: "", state: "", postal_code: "", country: "CA" } } });
   });
+  it("never mints a session at page render", async () => {
+    customer = "cus_1";
+    expect(await cardCheckoutContext("u1", "ON")).not.toHaveProperty("customerSessionClientSecret");
+    expect(createSession).not.toHaveBeenCalled();
+  });
   it("has no customer session for a customer Stripe does not know", async () => {
-    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBeNull();
+    expect(await customerSessionSecret("u1")).toBeNull();
     expect(createSession).not.toHaveBeenCalled();
   });
   it("opens a removable saved-card session for a known Stripe customer", async () => {
     customer = "cus_1";
-    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBe("cuss_secret");
+    expect(await customerSessionSecret("u1")).toBe("cuss_secret");
     expect(createSession).toHaveBeenCalledWith({
       customer: "cus_1",
       components: { payment_element: { enabled: true, features: {
@@ -63,7 +68,7 @@ describe("cardCheckoutContext", () => {
   it("still pays with a new card when the session cannot be created", async () => {
     customer = "cus_gone";
     createSession.mockRejectedValue(new Error("No such customer"));
-    expect((await cardCheckoutContext("u1", "ON")).customerSessionClientSecret).toBeNull();
+    expect(await customerSessionSecret("u1")).toBeNull();
   });
   it("billing details carry the full order address in the market country and an E.164 phone", async () => {
     phone = "(647) 555-0143";

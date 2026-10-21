@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { preconnect } from "react-dom";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,8 @@ type Paid = ReceiptView & { outcome: "paid" | "processing"; stage: "processing" 
 const DELIVERIES: Link = { label: "Go to my deliveries", href: "/me/deliveries" };
 
 type PanelCtx = {
-  ctx: CardCheckoutContext; amountCents: number; busy: boolean; disabled: boolean; pay: Pay;
+  ctx: CardCheckoutContext; amountCents: number; stripePromise: Promise<Stripe | null>; appearance: Appearance;
+  customerSession?: () => Promise<string | null>; busy: boolean; disabled: boolean; pay: Pay;
   paid: Paid | null; printed: () => void; dialogOpen: boolean; setDialogOpen: (open: boolean) => void;
 };
 
@@ -57,6 +58,8 @@ type Props = {
   afterAction: () => Promise<{ outcome: "paid" | "processing"; receipt?: PaidInfo }>;
   /** The amount is being re-quoted: no pay path may run until it settles. */
   disabled?: boolean;
+  /** A fresh saved-cards session secret, asked for each time the card form opens (a secret minted at page load would expire). */
+  customerSession?: () => Promise<string | null>;
   children: ReactNode;
 };
 
@@ -85,22 +88,18 @@ export function CardPayProvider(props: Props) {
   useWarmStripe(key);
   const stripePromise = useMemo(() => (key ? stripeFor(key) : null), [key]);
   if (!stripePromise) return null;
+  const appearance = stripeAppearance(resolvedTheme === "dark" ? "dark" : "light");
   return (
     <Elements
       stripe={stripePromise}
-      options={{
-        mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session",
-        appearance: stripeAppearance(resolvedTheme === "dark" ? "dark" : "light"),
-        // Saved cards, with Remove, inside the card form; absent for a customer Stripe does not know yet.
-        ...(props.ctx.customerSessionClientSecret ? { customerSessionClientSecret: props.ctx.customerSessionClientSecret } : {}),
-      }}
+      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance }}
     >
-      <Runner {...props} />
+      <Runner {...props} stripePromise={stripePromise} appearance={appearance} />
     </Elements>
   );
 }
 
-function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, receipt, abandon, afterAction, disabled = false, children }: Props) {
+function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, onPay, onPaid, onProcessing, receipt, abandon, afterAction, disabled = false, children }: Props & { stripePromise: Promise<Stripe | null>; appearance: Appearance }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
@@ -163,7 +162,7 @@ function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, receipt, abando
     }
   };
 
-  return <PayCtx.Provider value={{ ctx, amountCents, busy: busy || disabled, disabled, pay, paid, printed, dialogOpen, setDialogOpen }}>{children}</PayCtx.Provider>;
+  return <PayCtx.Provider value={{ ctx, amountCents, stripePromise, appearance, customerSession, busy: busy || disabled, disabled, pay, paid, printed, dialogOpen, setDialogOpen }}>{children}</PayCtx.Provider>;
 }
 
 function Printer() {
@@ -301,19 +300,19 @@ export function CardPay({ dialogOpen, onDialogOpenChange }: {
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
 }) {
-  const { ctx, amountCents, pay, paid, setDialogOpen } = usePanel();
+  const { ctx, amountCents, pay, paid, setDialogOpen, stripePromise, appearance, customerSession } = usePanel();
   // The provider needs to know whether a dialog holds the printer, or it would swap the page out from under it.
   useEffect(() => {
     setDialogOpen(dialogOpen);
     return () => setDialogOpen(false);
   }, [dialogOpen, setDialogOpen]);
 
-  if (paid) return <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={<Printer />} />;
+  if (paid) return <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={<Printer />} stripePromise={stripePromise} appearance={appearance} />;
   return (
     <div className="flex flex-col gap-4">
       <Button size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</Button>
       <TrustLine />
-      <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={null} />
+      <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={null} stripePromise={stripePromise} appearance={appearance} loadSession={customerSession} />
     </div>
   );
 }

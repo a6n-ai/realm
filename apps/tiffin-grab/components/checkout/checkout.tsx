@@ -16,7 +16,7 @@ import {
   type RepriceResult,
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
-import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
+import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
@@ -1049,6 +1049,7 @@ export function Checkout({
       amountCents={result ? Math.round(result.total * 100) : 50}
       disabled={repricing > 0 || result == null}
       onPay={payByCard}
+      customerSession={newCustomerSession}
       onPaid={settledCard}
       onProcessing={settledCard}
       receipt={cardReceipt}

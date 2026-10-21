@@ -425,9 +425,13 @@ export async function chargedReceipt(paymentPublicId: string): Promise<CardRecei
   return pay ? receiptOf(pay) : null;
 }
 
-async function tokenCustomer(stripe: Stripe, tokenId: string): Promise<string | null> {
-  const c = (await stripe.confirmationTokens.retrieve(tokenId)).payment_method_preview?.customer;
-  return typeof c === "string" ? c : c?.id ?? null;
+/** One retrieve of the token for both the card preview and its customer (set only for a saved card). */
+async function readToken(stripe: Stripe, tokenId: string): Promise<{ card: CardPreview; customer: string | null }> {
+  const token = await stripe.confirmationTokens.retrieve(tokenId);
+  const c = token.payment_method_preview?.customer;
+  // previewConfirmationToken retrieves by id; hand it the token we already have rather than fetch twice.
+  const card = await previewConfirmationToken({ confirmationTokens: { retrieve: async () => token } } as unknown as Stripe, tokenId);
+  return { card, customer: typeof c === "string" ? c : c?.id ?? null };
 }
 
 export async function payByCard(i: {
@@ -455,10 +459,10 @@ export async function payByCard(i: {
       card = { ...own, wallet: null };
     } else {
       const tokenId = (i.source as { confirmationTokenId: string }).confirmationTokenId;
-      const [preview, tokenOwner] = await Promise.all([previewConfirmationToken(rt.stripe, tokenId), tokenCustomer(rt.stripe, tokenId)]);
+      const token = await readToken(rt.stripe, tokenId);
       // A token minted from a saved card carries that card's customer; a new card has none yet.
-      if (tokenOwner && tokenOwner !== (await customerStore.get(user.publicId))) throw new ValidationError("That card is not available. Choose another card.");
-      card = preview;
+      if (token.customer && token.customer !== (await customerStore.get(user.publicId))) throw new ValidationError("That card is not available. Choose another card.");
+      card = token.card;
     }
     const baseCents = toCents(pay.amount);
     const fee = card.wallet ? 0 : surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });

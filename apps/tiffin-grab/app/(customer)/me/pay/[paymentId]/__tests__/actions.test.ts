@@ -6,6 +6,7 @@ const payByCard = vi.fn();
 const settle = vi.fn();
 const abandon = vi.fn();
 const chargedReceipt = vi.fn();
+const sessionSecret = vi.fn();
 
 const locks = vi.hoisted(() => new Map<string, string>());
 vi.mock("@/lib/redis", async (orig) => {
@@ -25,6 +26,7 @@ vi.mock("@/lib/redis", async (orig) => {
 });
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/payments/stripe", () => ({ appBaseUrl: () => "https://app.test" }));
+vi.mock("@/lib/payments/card-checkout-context", () => ({ customerSessionSecret: (...a: unknown[]) => sessionSecret(...a) }));
 vi.mock("@/lib/services/payment-stripe", () => ({
   payByCard: (...a: unknown[]) => payByCard(...a),
   settleStripePayment: (...a: unknown[]) => settle(...a),
@@ -38,7 +40,23 @@ vi.mock("@/db/client", () => {
   return { db: chain };
 });
 
-const { submitCardPayment, confirmReturn, abandonCard } = await import("../actions");
+const { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } = await import("../actions");
+
+describe("newCustomerSession", () => {
+  beforeEach(() => { session.current = null; sessionSecret.mockReset(); });
+
+  it("is null for a signed-out visitor and never touches Stripe", async () => {
+    expect(await newCustomerSession()).toBeNull();
+    expect(sessionSecret).not.toHaveBeenCalled();
+  });
+
+  it("mints a session for the signed-in user only", async () => {
+    session.current = { user: { id: "usr_1" } };
+    sessionSecret.mockResolvedValue("cuss_fresh");
+    expect(await newCustomerSession()).toBe("cuss_fresh");
+    expect(sessionSecret).toHaveBeenCalledWith("usr_1");
+  });
+});
 
 describe("pay page actions", () => {
   beforeEach(() => {

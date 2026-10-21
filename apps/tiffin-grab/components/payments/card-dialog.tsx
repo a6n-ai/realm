@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
-import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import type { Appearance, Stripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 import { Button } from "@/components/ui/button";
@@ -53,15 +54,66 @@ export function SurchargeConfirm({ surcharge, newTotal, busy, onConfirm, onCance
   );
 }
 
-export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer }: {
+type Session = { key: number; secret: string | null };
+type CommonProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ctx: CardCheckoutContext;
   amountCents: number;
   pay: (source: CardSource, acceptSurcharge: boolean) => Promise<PayOutcome>;
+  stripePromise: Promise<Stripe | null>;
+  appearance: Appearance;
+};
+
+/**
+ * The card form. Its own Elements holds a saved-cards session minted when the form opens (one
+ * minted at page load would be expired by the time a customer pays), so the dialog shows after the
+ * secret arrives. If Stripe cannot load the form with that session, it remounts once without it.
+ */
+export function CardDialog(p: CommonProps & {
   /** The receipt printer once the charge settled: the dialog shrinks to it instead of closing. */
   printer: ReactNode;
+  loadSession?: () => Promise<string | null>;
 }) {
+  const { open, printer, loadSession, stripePromise, appearance, amountCents } = p;
+  const [session, setSession] = useState<Session | null>(null);
+  const count = useRef(0);
+  useEffect(() => {
+    if (!open || printer) return;
+    let live = true;
+    setSession(null);
+    void (loadSession ? loadSession().catch(() => null) : Promise.resolve(null)).then((secret) => {
+      if (live) setSession({ key: ++count.current, secret });
+    });
+    return () => { live = false; };
+  }, [open, printer, loadSession]);
+
+  if (printer) {
+    return (
+      <ResponsiveDialog open={open} onOpenChange={p.onOpenChange} direction="bottom" title="Payment received" description="Your receipt is printing.">
+        <div className="flex flex-col items-center pt-1 pb-2">{printer}</div>
+      </ResponsiveDialog>
+    );
+  }
+  if (!session) return null;
+  return (
+    <Elements
+      key={session.key}
+      stripe={stripePromise}
+      options={{
+        mode: "payment", amount: amountCents, currency: "cad", setupFutureUsage: "off_session", appearance,
+        ...(session.secret ? { customerSessionClientSecret: session.secret } : {}),
+      }}
+    >
+      <CardForm
+        {...p}
+        onLoadError={() => setSession((s) => (s?.secret ? { key: ++count.current, secret: null } : s))}
+      />
+    </Elements>
+  );
+}
+
+function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: CommonProps & { onLoadError: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [ready, setReady] = useState(false);
@@ -69,6 +121,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
   const inFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [fee, setFee] = useState<{ surcharge: string; newTotal: string; tokenId: string } | null>(null);
+  // A saved card chosen inside the form: its billing details and redisplay flag belong to the card, not to this token.
+  const [savedPicked, setSavedPicked] = useState(false);
 
   function close(next: boolean) {
     if (busy) return;
@@ -95,7 +149,7 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
           elements,
           // The form hides every billing field (checkout already has them), so Stripe needs them here.
           // "always" lets a card saved here show up again, removable, in the next card form.
-          params: { payment_method_data: { allow_redisplay: "always", billing_details: { name, email, phone: phone ?? "", address } } },
+          ...(savedPicked ? {} : { params: { payment_method_data: { allow_redisplay: "always" as const, billing_details: { name, email, phone: phone ?? "", address } } } }),
         });
         if (tokErr || !confirmationToken) return setError(tokErr?.message ?? "Could not read your card");
         tokenId = confirmationToken.id;
@@ -114,13 +168,6 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
     }
   }
 
-  if (printer) {
-    return (
-      <ResponsiveDialog open={open} onOpenChange={close} direction="bottom" title="Payment received" description="Your receipt is printing.">
-        <div className="flex flex-col items-center pt-1 pb-2">{printer}</div>
-      </ResponsiveDialog>
-    );
-  }
   return (
     <ResponsiveDialog
       open={open}
@@ -142,6 +189,8 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay, printer 
           {!ready && <Skeleton className="h-40 w-full" />}
           <PaymentElement
             onReady={() => setReady(true)}
+            onLoadError={onLoadError}
+            onChange={(e) => setSavedPicked(!!e.value.payment_method)}
             options={{
               layout: "tabs",
               wallets: { applePay: "never", googlePay: "never" },

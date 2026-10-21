@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { abandonCardAttempt, chargedReceipt, payByCard, settleStripePayment, type CardReceipt, type CardSource, type PayByCardResult } from "@/lib/services/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
+import { customerSessionSecret } from "@/lib/payments/card-checkout-context";
 import { withCustomerPayLock } from "@/lib/services/customer-pay-lock";
 
 export async function submitCardPayment(
@@ -53,4 +54,10 @@ export async function abandonCard(paymentId: string): Promise<ActionResult> {
     if (!session?.user) throw new Error("Not signed in");
     await abandonCardAttempt(paymentId, session.user.id);
   });
+}
+
+/** A fresh saved-cards session for the signed-in customer, or null: the card form then simply has no saved list. */
+export async function newCustomerSession(): Promise<string | null> {
+  const session = await getSession();
+  return session?.user ? customerSessionSecret(session.user.id) : null;
 }

@@ -21,6 +21,7 @@ vi.mock("@/app/(public)/checkout/actions", () => ({
 vi.mock("@/app/(customer)/me/pay/[paymentId]/actions", () => ({
   confirmReturn: vi.fn(),
   abandonCard: vi.fn(),
+  newCustomerSession: vi.fn(),
 }));
 
 const warm = vi.hoisted(() => vi.fn());
@@ -92,7 +93,7 @@ const selections: WizardSelections = {
 const cardCtx: CardCheckoutContext = {
   publishableKey: "pk_test_x",
   methodLabel: "Credit or debit card",
-  savedCards: [], customerSessionClientSecret: null,
+  savedCards: [],
   prefill: { email: "jane@example.com", name: "Jane Doe", phone: null, address: { line1: "100 Queen St W", line2: "", city: "Toronto", state: "ON", postal_code: "M5H 2N2", country: "CA" } },
   feeNote: "+2.9% fee on credit cards",
 };

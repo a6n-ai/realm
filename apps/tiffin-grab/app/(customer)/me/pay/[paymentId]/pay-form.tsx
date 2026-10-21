@@ -8,7 +8,7 @@ import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type Pa
 import { markPaid } from "@/lib/payments/paid-flag";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
+import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "./actions";
 
 type Line = { label: string; amount: number };
 
@@ -97,6 +97,7 @@ export function PayForm(p: {
       ctx={p.ctx}
       amountCents={p.amountCents}
       onPay={(source, accept) => submitCardPayment(p.paymentId, source, accept)}
+      customerSession={newCustomerSession}
       onPaid={() => markPaid(p.deploymentId)}
       onProcessing={() => markPaid(p.deploymentId)}
       receipt={(info) => receiptFor(p, info)}
