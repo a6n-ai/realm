@@ -53,7 +53,7 @@ type Props = {
   receipt: (info: PaidInfo) => ReceiptView;
   abandon: () => Promise<void>;
   /** Runs after a successful 3DS challenge so the caller can read the settled state. */
-  afterAction: () => Promise<"paid" | "processing">;
+  afterAction: () => Promise<{ outcome: "paid" | "processing"; receipt?: PaidInfo }>;
   /** The amount is being re-quoted: no pay path may run until it settles. */
   disabled?: boolean;
   children: ReactNode;
@@ -144,8 +144,8 @@ function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, receipt, abando
             await abandon().catch(() => undefined);
             return { kind: "error", message: error.message ?? "Authentication failed" };
           }
-          const settled = await afterAction().catch(() => "processing" as const);
-          settle(settled, { paidWith: null, totalCents: null, feeCents: 0 });
+          const settled = await afterAction().catch((): Awaited<ReturnType<typeof afterAction>> => ({ outcome: "processing" }));
+          settle(settled.outcome, settled.receipt ?? { paidWith: null, totalCents: null, feeCents: 0 });
           return { kind: "done" };
         }
       }

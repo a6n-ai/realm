@@ -110,7 +110,7 @@ export async function payCheckout(
       if (reusable) {
         ({ paymentPublicId, deploymentId } = reusable);
       } else {
-        if (await olderChargeInFlight(userPublicId)) throw new ValidationError(PAY_IN_PROGRESS);
+        if (await replaceUnpaidCheckouts(userPublicId)) throw new ValidationError(PAY_IN_PROGRESS);
         const placed = await placeSubscription(order);
         if (placed.waitlisted) throw new ValidationError("We do not deliver to that address yet. We have added you to our waitlist.");
         ({ paymentPublicId, deploymentId } = placed);
@@ -139,16 +139,22 @@ async function paymentAmount(paymentPublicId: string): Promise<string> {
   return p?.amount ?? "NaN";
 }
 
-/** The replace step skips an order that is mid-charge, so placing another one now could charge both. */
-async function olderChargeInFlight(userPublicId: string): Promise<boolean> {
-  const [{ eq }, { db }, { users }, { hasChargeInFlight }] = await Promise.all([
+/**
+ * True when an older card order is mid-charge (the replace step skips it, so a new order could charge both).
+ * Otherwise cancels the customer's unpaid card orders, which releases the coins they hold for the new order.
+ */
+async function replaceUnpaidCheckouts(userPublicId: string): Promise<boolean> {
+  const [{ eq }, { db }, { users }, { hasChargeInFlight, cancelUnpaidCheckouts }] = await Promise.all([
     import("drizzle-orm"),
     import("@/db/client"),
     import("@/db/schema"),
     import("@/lib/services/stripe-expiry"),
   ]);
   const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
-  return u ? hasChargeInFlight(u.id) : false;
+  if (!u) return false;
+  if (await hasChargeInFlight(u.id)) return true;
+  await cancelUnpaidCheckouts(u.id);
+  return false;
 }
 
 function stable(v: unknown): unknown {

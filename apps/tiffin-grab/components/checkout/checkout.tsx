@@ -1057,7 +1057,7 @@ export function Checkout({
       abandon={async () => { if (placed.current) await abandonCard(placed.current.paymentPublicId); }}
       afterAction={async () => {
         const r = placed.current ? await confirmReturn(placed.current.paymentPublicId) : null;
-        return r && !("error" in r) && r.paid ? "paid" : "processing";
+        return r && !("error" in r) && r.paid ? { outcome: "paid" as const, receipt: r.receipt } : { outcome: "processing" as const };
       }}
     >
       <PaidSwitch>{withDialog}</PaidSwitch>

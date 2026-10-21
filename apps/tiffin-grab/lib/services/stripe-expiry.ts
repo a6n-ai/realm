@@ -114,6 +114,11 @@ export function replaceOlderUnpaidCheckouts(userId: bigint, orderId: bigint): Pr
   return cancelUnpaidStripeOrders(and(eq(orders.userId, userId), lt(orders.id, orderId)), "Replaced by a new card checkout");
 }
 
+/** Before a fresh card order is placed: the older ones hold the customer's coins, so they must go first or the new redemption fails. */
+export function cancelUnpaidCheckouts(userId: bigint): Promise<number> {
+  return cancelUnpaidStripeOrders(eq(orders.userId, userId), "Replaced by a new card checkout");
+}
+
 export function expireUnpaidStripeOrders(scope: { userId?: bigint; orderId?: bigint }, now = Date.now()): Promise<number> {
   return cancelUnpaidStripeOrders(and(
     lte(payments.expiresAt, now),

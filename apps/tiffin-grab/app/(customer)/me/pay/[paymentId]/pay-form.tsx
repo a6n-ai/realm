@@ -106,7 +106,7 @@ export function PayForm(p: {
       abandon={async () => { await abandonCard(p.paymentId); }}
       afterAction={async () => {
         const c = await confirmReturn(p.paymentId);
-        return "error" in c || !c.paid ? "processing" : "paid";
+        return "error" in c || !c.paid ? { outcome: "processing" as const } : { outcome: "paid" as const, receipt: c.receipt };
       }}
     >
       <PaidSwitch>

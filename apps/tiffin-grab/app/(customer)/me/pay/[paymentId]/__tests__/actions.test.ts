@@ -5,6 +5,7 @@ const owned = vi.hoisted(() => ({ rows: [] as unknown[] }));
 const payByCard = vi.fn();
 const settle = vi.fn();
 const abandon = vi.fn();
+const chargedReceipt = vi.fn();
 
 const locks = vi.hoisted(() => new Map<string, string>());
 vi.mock("@/lib/redis", async (orig) => {
@@ -28,6 +29,7 @@ vi.mock("@/lib/services/payment-stripe", () => ({
   payByCard: (...a: unknown[]) => payByCard(...a),
   settleStripePayment: (...a: unknown[]) => settle(...a),
   abandonCardAttempt: (...a: unknown[]) => abandon(...a),
+  chargedReceipt: (...a: unknown[]) => chargedReceipt(...a),
 }));
 vi.mock("@/db/client", () => {
   const chain: Record<string, unknown> = {};
@@ -85,7 +87,8 @@ describe("pay page actions", () => {
     session.current = { user: { id: "usr_a" } };
     owned.rows = [{ id: 1n }];
     settle.mockResolvedValue("paid");
-    expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: true });
+    chargedReceipt.mockResolvedValue({ paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 });
+    expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: true, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } });
   });
 
   it("passes the session user to payByCard and abandon (ownership enforced in the service)", async () => {

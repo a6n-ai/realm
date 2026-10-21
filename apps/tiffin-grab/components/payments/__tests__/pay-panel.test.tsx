@@ -72,7 +72,7 @@ function Choices({ saved }: { saved: SavedCard[] }) {
 
 function setup(over: Partial<React.ComponentProps<typeof CardPayProvider>> = {}, saved = [card("pm_other", false), card("pm_default", true)]) {
   const onPay = vi.fn(async () => ({ kind: "succeeded" as const }));
-  const props = { ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const), ...over };
+  const props = { ctx: ctx(saved), amountCents: 5000, onPay, onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })), ...over };
   const ui = (p: typeof props) => <CardPayProvider {...p}><PaidSwitch><Choices saved={p.ctx.savedCards} /></PaidSwitch></CardPayProvider>;
   const r = render(ui(props));
   return { ...props, rerender: (n: Partial<typeof props>) => r.rerender(ui({ ...props, ...n })) };
@@ -168,7 +168,7 @@ describe("PayPanel", () => {
   it("after 3DS succeeds, afterAction decides paid vs processing", async () => {
     h.handleNextAction.mockResolvedValue({});
     const onPay = vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" }));
-    const s = setup({ onPay, afterAction: vi.fn(async () => "processing" as const) });
+    const s = setup({ onPay, afterAction: vi.fn(async () => ({ outcome: "processing" as const })) });
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await waitFor(() => expect(s.onProcessing).toHaveBeenCalled());
     expect(h.handleNextAction).toHaveBeenCalledWith({ clientSecret: "cs" });
@@ -180,6 +180,16 @@ describe("PayPanel", () => {
     const s = setup({ onPay: vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" })) });
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await waitFor(() => expect(s.onPaid).toHaveBeenCalled());
+  });
+
+  it("after 3DS the receipt shows the total the server charged, fee included", async () => {
+    h.handleNextAction.mockResolvedValue({});
+    const afterAction = vi.fn(async () => ({ outcome: "paid" as const, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } }));
+    setup({ onPay: vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" })), afterAction });
+    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
+    await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
+    expect(screen.getAllByText("$51.50")).toHaveLength(2);
+    expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
   });
 
   it("3DS failure abandons and shows the error", async () => {
@@ -204,7 +214,7 @@ describe("PayPanel", () => {
   });
 
   it("express wallets stay in place but inert while the total is re-quoted", () => {
-    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })) };
     const ui = (disabled: boolean) => <CardPayProvider {...props} disabled={disabled}><ExpressPay /></CardPayProvider>;
     const r = render(ui(true));
     expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
@@ -214,7 +224,7 @@ describe("PayPanel", () => {
 
   it("the wallet slot shows a skeleton until Stripe reports ready", () => {
     h.expressReady = false;
-    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), receipt, abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => ({ outcome: "paid" as const })) };
     render(<CardPayProvider {...props}><ExpressPay /></CardPayProvider>);
     expect(document.querySelector("[data-slot=skeleton]")).toBeInTheDocument();
     expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");

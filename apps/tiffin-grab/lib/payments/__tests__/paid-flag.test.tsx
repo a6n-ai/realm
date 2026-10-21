@@ -34,6 +34,14 @@ describe("markPaid", () => {
   });
 });
 
+describe("markPaid history state", () => {
+  it("drops Next's history.state so the router syncs the new URL instead of reverting to /checkout", () => {
+    window.history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: [] }, "", "/checkout");
+    markPaid("SUB-1");
+    expect(window.history.state).toBeNull();
+  });
+});
+
 describe("useBounceAfterPaid", () => {
   it("a revisited entry (back) after paying replaces to /me/deliveries", () => {
     window.history.replaceState({ tgSeen: true }, "");

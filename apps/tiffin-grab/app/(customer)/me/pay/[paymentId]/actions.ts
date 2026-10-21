@@ -5,7 +5,7 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
-import { abandonCardAttempt, payByCard, settleStripePayment, type CardSource, type PayByCardResult } from "@/lib/services/payment-stripe";
+import { abandonCardAttempt, chargedReceipt, payByCard, settleStripePayment, type CardReceipt, type CardSource, type PayByCardResult } from "@/lib/services/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
 import { withCustomerPayLock } from "@/lib/services/customer-pay-lock";
 
@@ -29,7 +29,7 @@ export async function submitCardPayment(
   });
 }
 
-export async function confirmReturn(paymentId: string): Promise<ActionResult<{ paid: boolean }>> {
+export async function confirmReturn(paymentId: string): Promise<ActionResult<{ paid: boolean; receipt?: CardReceipt }>> {
   return runAction(async () => {
     const session = await getSession();
     if (!session?.user) return { paid: false };
@@ -42,7 +42,8 @@ export async function confirmReturn(paymentId: string): Promise<ActionResult<{ p
       .limit(1);
     if (!owned) return { paid: false };
     const outcome = await settleStripePayment({ paymentRef: paymentId }, "return");
-    return { paid: outcome === "paid" || outcome === "already_paid" };
+    const paid = outcome === "paid" || outcome === "already_paid";
+    return paid ? { paid, receipt: (await chargedReceipt(paymentId)) ?? undefined } : { paid };
   });
 }
 

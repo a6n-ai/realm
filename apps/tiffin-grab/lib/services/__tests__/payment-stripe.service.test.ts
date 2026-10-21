@@ -227,7 +227,7 @@ describe("payByCard", () => {
     preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242" });
     create.mockResolvedValue({ status: "succeeded", piId: "pi_new", clientSecret: "cs" });
     status.mockResolvedValue({ piId: "pi_new", status: "succeeded", amountReceivedCents: 20480, currency: "cad", paymentRef: pay.publicId, created: 1 });
-    expect(await go(pay, { accept: true })).toEqual({ kind: "succeeded" });
+    expect(await go(pay, { accept: true })).toMatchObject({ kind: "succeeded", receipt: { feeCents: 480, totalCents: 20480 } });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20480, paymentRef: pay.publicId });
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row).toMatchObject({ surchargeAmount: "4.80", providerRef: "pi_new", cardBrand: "visa", cardLast4: "4242" });
@@ -394,7 +394,7 @@ describe("payByCard prior-PI and surcharge-tax guards", () => {
     status.mockResolvedValueOnce(st(pay, "pi_old", "requires_action"))
       .mockResolvedValue(st(pay, "pi_old", "succeeded", 1000));
     cancel.mockRejectedValue(new Error("already succeeded"));
-    expect(await go(pay)).toEqual({ kind: "succeeded" });
+    expect(await go(pay)).toMatchObject({ kind: "succeeded", receipt: { feeCents: 0, totalCents: 1000 } });
     expect(create).not.toHaveBeenCalled();
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.status).toBe("paid");
@@ -683,7 +683,7 @@ describe("payByCard sources", () => {
     preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242", wallet: "apple_pay" });
     create.mockResolvedValue({ status: "succeeded", piId: "pi_w", clientSecret: "cs" });
     status.mockResolvedValue({ piId: "pi_w", status: "succeeded", amountReceivedCents: 20000, currency: "cad", paymentRef: pay.publicId, created: 1 });
-    expect(await go(pay, { confirmationTokenId: "ct_w" })).toEqual({ kind: "succeeded" });
+    expect(await go(pay, { confirmationTokenId: "ct_w" })).toMatchObject({ kind: "succeeded", receipt: { feeCents: 0, totalCents: 20000 } });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.surchargeAmount).toBe("0.00");

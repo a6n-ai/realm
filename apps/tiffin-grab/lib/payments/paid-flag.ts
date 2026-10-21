@@ -19,7 +19,7 @@ export function markPaid(deploymentId: string) {
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId, at: Date.now() }));
   } catch { /* storage unavailable: the cleared wizard still redirects to /subscribe */ }
   try {
-    window.history.replaceState(window.history.state, "", AFTER_PAID);
+    window.history.replaceState(null, "", AFTER_PAID);
   } catch { /* no history API */ }
 }
 

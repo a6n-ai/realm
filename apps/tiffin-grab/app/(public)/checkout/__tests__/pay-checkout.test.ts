@@ -39,7 +39,8 @@ const payByCard = vi.fn(async (..._a: unknown[]) => ({ kind: "succeeded" as cons
 vi.mock("@/lib/services/payment-stripe", async (orig) => ({ ...(await orig<object>()), payByCard: (...a: unknown[]) => payByCard(...a) }));
 
 const { db } = await import("@/db/client");
-const { orders, payments, users, orderActivities, coupons } = await import("@/db/schema");
+const { orders, payments, users, orderActivities, coupons, coinRate, walletLedger } = await import("@/db/schema");
+const { walletService } = await import("@/lib/services/wallet.service");
 const { payCheckout } = await import("../actions");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
@@ -52,14 +53,16 @@ async function signInAs(email: string) {
   sessionUserId = u!.id;
 }
 
-async function pay(over: { expected?: number; paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string; mutate?: (base: Awaited<ReturnType<typeof baseInput>>) => void } = {}) {
+async function pay(over: { expected?: number; paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string; coins?: number; mutate?: (base: Awaited<ReturnType<typeof baseInput>>) => void } = {}) {
   const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone, couponCode: over.couponCode });
+  const coins = over.coins;
   over.mutate?.(base as Awaited<ReturnType<typeof baseInput>>);
   const c = base.contact;
-  const quote = await reprice(base.selections, base.couponCode ? [base.couponCode] : [], base.planKey, "stripe", undefined, c.postalCode, c.addressLine, c.city);
+  const quote = await reprice(base.selections, base.couponCode ? [base.couponCode] : [], base.planKey, "stripe", coins, c.postalCode, c.addressLine, c.city);
   if ("error" in quote) throw new Error(quote.error);
   return payCheckout({
     ...base,
+    coins,
     expectedAmountCents: over.expected ?? Math.round(quote.pricing.total * 100),
     paymentMethodId: paymentMethodId!,
     paymentPublicId: over.paymentPublicId ?? null,
@@ -159,6 +162,30 @@ describe("payCheckout", () => {
     expect(b.status).toBe("pending");
     expect(Number(b.amount)).toBeLessThan(Number(a.amount));
     expect(payByCard.mock.calls[1]![0]).toMatchObject({ paymentPublicId: second.paymentPublicId });
+  });
+
+  it("with coins applied, a retry after a decline cancels the older order and does not double-hold the coins", async () => {
+    const [rate] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" }).returning();
+    try {
+      await db.insert(walletLedger).values({ userId: sessionUserId!, direction: "credit", eventType: "signup", sourceType: "signup", sourceId: "pay-coins", coins: 400, memo: null });
+      await db.insert(coupons).values({ code: "PAYTEST5", kind: "fixed", name: "Pay test", valueAmount: "5" });
+      // The customer's screen quoted the coupon version before any order held coins.
+      const b = await baseInput();
+      const q = await reprice(b.selections, ["PAYTEST5"], b.planKey, "stripe", 300, b.contact.postalCode, b.contact.addressLine, b.contact.city);
+      if ("error" in q) throw new Error(q.error);
+      payByCard.mockResolvedValueOnce({ kind: "failed" as const, message: "Your card was declined." } as never);
+      const first = await pay({ coins: 300 });
+      if (!("ok" in first)) throw new Error(first.error);
+      expect(await walletService.balance(sessionUserId!)).toBe(100);
+
+      const second = await pay({ coins: 300, couponCode: "PAYTEST5", expected: Math.round(q.pricing.total * 100), paymentPublicId: first.paymentPublicId });
+      if (!("ok" in second)) throw new Error(second.error);
+      expect(second.paymentPublicId).not.toBe(first.paymentPublicId);
+      expect((await allOrders()).map((o) => o.status).sort()).toEqual(["cancelled", "pending"]);
+      expect(await walletService.balance(sessionUserId!)).toBe(100);
+    } finally {
+      await db.delete(coinRate).where(eq(coinRate.id, rate!.id));
+    }
   });
 
   it("an expired payment is not reused", async () => {

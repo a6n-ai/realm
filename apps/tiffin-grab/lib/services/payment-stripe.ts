@@ -414,6 +414,17 @@ export async function listSavedCards(userPublicId: string): Promise<SavedCard[]>
   }
 }
 
+type PaymentRow = typeof payments.$inferSelect;
+function receiptOf(pay: Pick<PaymentRow, "cardBrand" | "cardLast4" | "surchargeAmount" | "amount">): CardReceipt {
+  return { paidWith: paidWithLabel({ brand: pay.cardBrand, last4: pay.cardLast4 }), feeCents: toCents(pay.surchargeAmount), totalCents: toCents(pay.amount) + toCents(pay.surchargeAmount) };
+}
+
+/** What was actually charged, read from the payment row (a 3DS return has no in-memory card). */
+export async function chargedReceipt(paymentPublicId: string): Promise<CardReceipt | null> {
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  return pay ? receiptOf(pay) : null;
+}
+
 export async function payByCard(i: {
   paymentPublicId: string; userPublicId: string; source: CardSource; acceptSurcharge: boolean; returnUrl: string;
 }): Promise<PayByCardResult> {
@@ -425,8 +436,7 @@ export async function payByCard(i: {
 
     const prior = await clearPrior(rt.stripe, pay);
     if (prior === "succeeded") {
-      const receipt = { paidWith: paidWithLabel({ brand: pay.cardBrand, last4: pay.cardLast4 }), feeCents: toCents(pay.surchargeAmount), totalCents: toCents(pay.amount) + toCents(pay.surchargeAmount) };
-      return (await settled({ paymentRef: pay.publicId }, "return")) ? { kind: "succeeded", receipt } : { kind: "processing" };
+      return (await settled({ paymentRef: pay.publicId }, "return")) ? { kind: "succeeded", receipt: receiptOf(pay) } : { kind: "processing" };
     }
     if (prior === "processing") return { kind: "processing" };
     if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open. Please try again in a moment." };
