@@ -100,7 +100,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const loadRepCoupon = async (): Promise<RepCouponToday | null> => {
     if (!hasRepAllowance) return null;
     // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-    const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
+    const istDate = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
     return couponsService.getTodayRepCoupon(session.user.id, istDate);
   };
 

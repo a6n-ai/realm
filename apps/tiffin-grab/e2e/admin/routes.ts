@@ -95,6 +95,7 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
   { id: "discount-logs", path: "/dashboard/discounts/logs", heading: /Discounts/i },
   { id: "discount-coupons", path: "/dashboard/discounts/coupons", heading: /Discounts/i },
   { id: "discount-kinds", path: "/dashboard/discounts/kinds", heading: /Discounts/i },
+  { id: "discount-staff-codes", path: "/dashboard/discounts/staff-codes", heading: /Discounts/i },
   {
     id: "discount-rep-allowance",
     path: "/dashboard/discounts/rep-allowance",

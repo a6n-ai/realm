@@ -15,6 +15,7 @@ import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.ser
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { repAllowanceZone } from "@/lib/services/rep-allowance";
 import { findMethod } from "@foundry/payments";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
@@ -31,7 +32,6 @@ import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/p
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 
-const IST = "Asia/Kolkata";
 
 // Resolve the acting staff member's public_id to its internal bigint — the
 // rep coupon's owner is matched against this, never a client-sent id.
@@ -57,7 +57,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
   const actorId = await actingStaffId();
   if (actorId == null) return { available: false, reason: "none-today" };
 
-  const istDate = zonedDateIso(Date.now(), IST);
+  const istDate = zonedDateIso(Date.now(), await repAllowanceZone());
   const [c] = await db
     .select({
       code: coupons.code,
@@ -96,7 +96,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
 }
 
 // Live price preview. When the rep applies their daily coupon with a requested
-// amount, validate it server-side (owner == actor, IST-day valid, unused) and
+// amount, validate it server-side (owner == actor, allowance-day valid, unused) and
 // clamp to the dual ceiling before folding it into adjustments. A coupon that no
 // longer validates falls back to the un-discounted preview — the authoritative
 // gate is createOrder.

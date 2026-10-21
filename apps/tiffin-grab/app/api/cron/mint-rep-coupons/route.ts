@@ -1,8 +1,8 @@
 import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
 
 // Scheduler-agnostic protected route (see spec §8.1, locked decision 7). Not
-// deployed yet — a real scheduler (Vercel Cron / system crontab `30 18 * * *`
-// UTC = 00:00 IST) is wired when a host is chosen. The route is the contract.
+// deployed yet — a real scheduler runs it just after 00:00 in the app-settings
+// timezone (America/Toronto: `5 4 * * *` UTC in EDT, `5 5 * * *` in EST) when a host is chosen. The route is the contract.
 //
 // Reading the Authorization header makes this request-time only; never cache.
 export const dynamic = "force-dynamic";

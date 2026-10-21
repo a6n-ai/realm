@@ -26,6 +26,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   discounts: "Discounts",
   coupons: "Coupons",
   "rep-allowance": "Rep allowance",
+  "staff-codes": "Staff codes",
   kinds: "Enabled kinds",
   profile: "Profile",
   contact: "Contact",
