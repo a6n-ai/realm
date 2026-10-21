@@ -390,7 +390,7 @@ describe("Stripe add-ons (integration)", () => {
     const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, order.userId!));
     preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
     create.mockResolvedValue({ status: "requires_action", piId: "pi_t", clientSecret: "cs" });
-    await payByCard({ paymentPublicId: pay.publicId, userPublicId: owner!.publicId, confirmationTokenId: "ct_1", acceptSurcharge: true, returnUrl: "u" });
+    await payByCard({ paymentPublicId: pay.publicId, userPublicId: owner!.publicId, source: { confirmationTokenId: "ct_1" }, acceptSurcharge: true, returnUrl: "u" });
 
     expect(stripeTax.mock.calls[0]![0]).toMatchObject({ taxableCents: toCents(quote.addonSubtotal) });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: toCents(quote.amountDue) });

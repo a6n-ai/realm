@@ -179,7 +179,7 @@ describe("unpaid Stripe orders expire", () => {
     const r = await load(publicId);
     await expire(r.pay.id);
     const [{ ref }] = await db.execute(sql`select public_id as ref from users where id = ${r.order.userId}`) as unknown as { ref: string }[];
-    await expect(payByCard({ paymentPublicId: r.pay.publicId, userPublicId: ref, confirmationTokenId: "ct", acceptSurcharge: false, returnUrl: "u" }))
+    await expect(payByCard({ paymentPublicId: r.pay.publicId, userPublicId: ref, source: { confirmationTokenId: "ct" }, acceptSurcharge: false, returnUrl: "u" }))
       .rejects.toThrow("This payment link has expired");
   });
   it("staff cancel cancels the order's open intent", async () => {

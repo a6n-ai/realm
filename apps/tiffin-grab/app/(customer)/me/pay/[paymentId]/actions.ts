@@ -19,7 +19,7 @@ export async function submitCardPayment(
     return payByCard({
       paymentPublicId: paymentId,
       userPublicId: session.user.id,
-      confirmationTokenId: tokenId,
+      source: { confirmationTokenId: tokenId },
       acceptSurcharge,
       returnUrl: `${appBaseUrl()}/me/pay/${paymentId}?return=1`,
     });

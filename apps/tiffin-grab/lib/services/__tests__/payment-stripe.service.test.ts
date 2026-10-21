@@ -12,7 +12,8 @@ const cancel = vi.fn();
 const list = vi.fn();
 const refund = vi.fn();
 const retrieve = vi.fn();
-const flags = { taxable: false };
+const flags = { taxable: false, noCustomer: false };
+const cards = vi.fn();
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
@@ -22,7 +23,7 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
       tax: { enabled: true, taxCode: "txcd_x", surchargeTaxable: flags.taxable },
     },
   }),
-  customerStore: { get: async () => "cus_test", set: async () => {} },
+  customerStore: { get: async () => (flags.noCustomer ? null : "cus_test"), set: async () => {} },
 }));
 vi.mock("@foundry/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
@@ -33,6 +34,7 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({
   defaultCard: (...a: unknown[]) => card(...a),
   ensureCustomer: async () => "cus_test",
   listIntents: (...a: unknown[]) => list(...a),
+  listCards: (...a: unknown[]) => cards(...a),
   refundIntent: (...a: unknown[]) => refund(...a),
 }));
 vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
@@ -211,7 +213,7 @@ describe("payByCard", () => {
   beforeEach(async () => { await reset(); vi.resetAllMocks(); flags.taxable = false; status.mockResolvedValue(undefined); });
   afterAll(cleanup);
   const go = (pay: { publicId: string }, o: { accept?: boolean; user?: string; ct?: string } = {}) =>
-    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: o.user ?? fx.OWNER, confirmationTokenId: o.ct ?? "ct_1", acceptSurcharge: o.accept ?? false, returnUrl: "u" });
+    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: o.user ?? fx.OWNER, source: { confirmationTokenId: o.ct ?? "ct_1" }, acceptSurcharge: o.accept ?? false, returnUrl: "u" });
 
   it("asks to confirm a credit surcharge before charging", async () => {
     const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
@@ -358,7 +360,7 @@ describe("payByCard prior-PI and surcharge-tax guards", () => {
   beforeEach(async () => { await reset(); vi.resetAllMocks(); flags.taxable = false; status.mockResolvedValue(undefined); });
   afterAll(cleanup);
   const go = (pay: { publicId: string }, accept = false) =>
-    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, confirmationTokenId: "ct_n", acceptSurcharge: accept, returnUrl: "u" });
+    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, source: { confirmationTokenId: "ct_n" }, acceptSurcharge: accept, returnUrl: "u" });
   const st = (pay: { publicId: string }, piId: string, status: string, amt = 0) =>
     ({ piId, status, amountReceivedCents: amt, currency: "cad", paymentRef: pay.publicId, created: 1 });
 
@@ -460,7 +462,7 @@ describe("abandonCardAttempt and acceptSurcharge", () => {
     const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
     preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
     create.mockResolvedValue({ status: "requires_action", piId: "pi_d", clientSecret: "cs" });
-    await svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, confirmationTokenId: "ct", acceptSurcharge: true, returnUrl: "u" });
+    await svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, source: { confirmationTokenId: "ct" }, acceptSurcharge: true, returnUrl: "u" });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
   });
 });
@@ -643,5 +645,64 @@ describe("settleStaleOnView", () => {
     const pay = await makeStripePayment({ amount: "10.00", piId: "pi_boom" });
     status.mockRejectedValue(new Error("stripe down"));
     await expect(svc.settleStaleOnView([view(pay, null)])).resolves.toBeUndefined();
+  });
+});
+
+describe("payByCard sources", () => {
+  beforeEach(async () => { await reset(); vi.resetAllMocks(); flags.taxable = false; flags.noCustomer = false; status.mockResolvedValue(undefined); });
+  afterAll(cleanup);
+  const saved = (funding: "credit" | "debit" = "credit") => ({ paymentMethodId: "pm_saved", brand: "visa", last4: "4242", funding, expMonth: 1, expYear: 2030, isDefault: true });
+  const go = (pay: { publicId: string }, source: Parameters<typeof svc.payByCard>[0]["source"], accept = false) =>
+    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, source, acceptSurcharge: accept, returnUrl: "u" });
+
+  it("wallet card skips surcharge", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242", wallet: "apple_pay" });
+    create.mockResolvedValue({ status: "succeeded", piId: "pi_w", clientSecret: "cs" });
+    status.mockResolvedValue({ piId: "pi_w", status: "succeeded", amountReceivedCents: 20000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await go(pay, { confirmationTokenId: "ct_w" })).toEqual({ kind: "succeeded" });
+    expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.surchargeAmount).toBe("0.00");
+  });
+
+  it("saved card is charged on-session", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    cards.mockResolvedValue([saved("debit")]);
+    create.mockResolvedValue({ status: "requires_action", piId: "pi_s", clientSecret: "cs" });
+    expect((await go(pay, { savedPaymentMethodId: "pm_saved" })).kind).toBe("requires_action");
+    expect(create.mock.calls[0]![1]).toMatchObject({ paymentMethodId: "pm_saved", attempt: "0" });
+    expect(create.mock.calls[0]![1]).not.toHaveProperty("confirmationTokenId");
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ cardBrand: "visa", cardLast4: "4242" });
+  });
+
+  it("saved card fee asks first", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    cards.mockResolvedValue([saved("credit")]);
+    expect((await go(pay, { savedPaymentMethodId: "pm_saved" })).kind).toBe("confirm_surcharge");
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("a declined saved card bumps the attempt so a retry reaches the card", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    cards.mockResolvedValue([saved("debit")]);
+    create.mockResolvedValue({ status: "failed", piId: "pi_f", clientSecret: null, reason: "declined" });
+    expect((await go(pay, { savedPaymentMethodId: "pm_saved" })).kind).toBe("failed");
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.chargeAttempt).toBe(1);
+  });
+
+  it("foreign saved card rejected", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    cards.mockResolvedValue([saved("debit")]);
+    await expect(go(pay, { savedPaymentMethodId: "pm_other" })).rejects.toThrow(/not available/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("listSavedCards returns [] with no Stripe customer", async () => {
+    flags.noCustomer = true;
+    expect(await svc.listSavedCards(fx.OWNER)).toEqual([]);
+    expect(cards).not.toHaveBeenCalled();
   });
 });

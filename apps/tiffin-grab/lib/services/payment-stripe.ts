@@ -5,7 +5,7 @@ import type Stripe from "stripe";
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import {
   chargeSavedCard, createAndConfirmIntent, defaultCard, ensureCustomer, fetchIntentStatus,
-  listIntents, previewConfirmationToken, refundIntent, surchargeCents,
+  listCards, listIntents, previewConfirmationToken, refundIntent, surchargeCents, type CardPreview, type SavedCard,
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -376,8 +376,25 @@ export async function abandonCardAttempt(paymentPublicId: string, userPublicId: 
   });
 }
 
+export type CardSource = { confirmationTokenId: string } | { savedPaymentMethodId: string };
+
+/** The user's saved cards, default first. Empty when Stripe is off or they have no Stripe customer. */
+export async function listSavedCards(userPublicId: string): Promise<SavedCard[]> {
+  const rt = await stripeRuntime();
+  if (!rt) return [];
+  const customerId = await customerStore.get(userPublicId);
+  if (!customerId) return [];
+  try {
+    return await listCards(rt.stripe, customerId);
+  } catch (e) {
+    if (!isMissingCustomer(e)) throw e;
+    await clearStripeCustomer(userPublicId);
+    return [];
+  }
+}
+
 export async function payByCard(i: {
-  paymentPublicId: string; userPublicId: string; confirmationTokenId: string; acceptSurcharge: boolean; returnUrl: string;
+  paymentPublicId: string; userPublicId: string; source: CardSource; acceptSurcharge: boolean; returnUrl: string;
 }): Promise<PayByCardResult> {
   await loadOwned(i.paymentPublicId, i.userPublicId);
   return withChargeLock<PayByCardResult>(i.paymentPublicId, { kind: "processing" }, async () => {
@@ -390,9 +407,18 @@ export async function payByCard(i: {
     if (prior === "processing") return { kind: "processing" };
     if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open. Please try again in a moment." };
 
-    const card = await previewConfirmationToken(rt.stripe, i.confirmationTokenId);
+    const saved = "savedPaymentMethodId" in i.source ? i.source.savedPaymentMethodId : null;
+    let card: Pick<CardPreview, "funding" | "brand" | "last4" | "wallet">;
+    if (saved) {
+      // A tampered id must fail as a validation error before any intent exists.
+      const own = (await listSavedCards(user.publicId)).find((c) => c.paymentMethodId === saved);
+      if (!own) throw new ValidationError("That card is not available. Choose another card.");
+      card = { ...own, wallet: null };
+    } else {
+      card = await previewConfirmationToken(rt.stripe, (i.source as { confirmationTokenId: string }).confirmationTokenId);
+    }
     const baseCents = toCents(pay.amount);
-    const fee = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
+    const fee = card.wallet ? 0 : surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
     const { calcId, extraCents } = await priceCharge(pay, order, fee, rt.cfg.tax.surchargeTaxable);
     if (extraCents > 0 && !i.acceptSurcharge) {
       return { kind: "confirm_surcharge", surcharge: fromCents(extraCents), newTotal: fromCents(baseCents + extraCents), brand: card.brand, last4: card.last4 };
@@ -402,7 +428,8 @@ export async function payByCard(i: {
 
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
     const createIntent = (cid: string) => createAndConfirmIntent(rt.stripe, {
-      amountCents: baseCents + extraCents, customerId: cid, confirmationTokenId: i.confirmationTokenId, paymentRef: pay.publicId,
+      amountCents: baseCents + extraCents, customerId: cid, paymentRef: pay.publicId,
+      ...(saved ? { paymentMethodId: saved, attempt: String(pay.chargeAttempt) } : { confirmationTokenId: (i.source as { confirmationTokenId: string }).confirmationTokenId }),
       orgRef: order.organizationId, taxCalculationId: calcId, returnUrl: i.returnUrl, description: `Order ${order.publicId}`,
     });
     let r;
@@ -419,6 +446,8 @@ export async function payByCard(i: {
     if (r.status === "succeeded") return (await settled({ paymentRef: pay.publicId, piId: r.piId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
     if (r.status === "processing") return { kind: "processing" };
     if (r.status === "requires_action" && r.clientSecret) return { kind: "requires_action", clientSecret: r.clientSecret };
+    // Saved-card keys are per attempt; only a definitive decline may open a new one (tokens are unique per submit).
+    if (saved && r.status === "failed") await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));
     await clearCard(pay.id);
     return { kind: "failed", message: r.reason ?? "Your card was declined." };
   });
