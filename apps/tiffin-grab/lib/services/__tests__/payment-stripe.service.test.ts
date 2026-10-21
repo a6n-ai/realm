@@ -341,6 +341,20 @@ describe("chargeSavedCardForPayment", () => {
     expect(row!.chargeAttempt).toBe(2);
   });
 
+  it("is refused while the customer is mid-checkout (customer pay lock held)", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    const { getRedis } = await import("@/lib/redis");
+    const key = `pay-lock:${fx.OWNER}`;
+    await getRedis().set(key, "checkout", "PX", 30_000, "NX");
+    try {
+      const r = await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER);
+      expect(r).toEqual({ kind: "processing", message: "The customer is paying right now." });
+      expect(charge).not.toHaveBeenCalled();
+    } finally {
+      await getRedis().del(key);
+    }
+  });
+
   it("treats a stale customer id as no_card", async () => {
     const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
     card.mockRejectedValue(Object.assign(new Error("No such customer: 'cus_test'"), { type: "StripeInvalidRequestError", code: "resource_missing", param: "customer" }));

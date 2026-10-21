@@ -191,6 +191,21 @@ describe("payCheckout", () => {
     expect(payByCard).not.toHaveBeenCalled();
   });
 
+  it("changed inputs are refused while an older payment is mid-charge, and no order is placed", async () => {
+    const first = await pay();
+    if (!("ok" in first)) throw new Error(first.error);
+    const { tryChargeLock } = await import("@/lib/services/payment-stripe");
+    let r: Awaited<ReturnType<typeof pay>> | undefined;
+    await db.transaction(async (tx) => {
+      expect(await tryChargeLock(tx, first.paymentPublicId)).toBe(true);
+      r = await pay({ couponCode: "NOPE" });
+    });
+    expect(r).toEqual({ error: "A payment is already in progress." });
+    const os = await allOrders();
+    expect(os).toHaveLength(1);
+    expect(os[0]!.status).toBe("pending");
+  });
+
   it("rejects non-card method", async () => {
     const r = await pay({ paymentMethodId: "etransfer" });
     expect("error" in r).toBe(true);

@@ -97,7 +97,7 @@ export async function payCheckout(
     const session = await getSession();
     if (!session?.user) throw new ValidationError("Sign in to place your order.");
     const userPublicId = session.user.id;
-    const { withCustomerPayLock } = await import("@/lib/services/customer-pay-lock");
+    const { withCustomerPayLock, PAY_IN_PROGRESS } = await import("@/lib/services/customer-pay-lock");
 
     return withCustomerPayLock(userPublicId, async () => {
       let paymentPublicId: string;
@@ -106,6 +106,7 @@ export async function payCheckout(
       if (reusable) {
         ({ paymentPublicId, deploymentId } = reusable);
       } else {
+        if (await olderChargeInFlight(userPublicId)) throw new ValidationError(PAY_IN_PROGRESS);
         const placed = await placeSubscription(order);
         if (placed.waitlisted) throw new ValidationError("We do not deliver to that address yet. We have added you to our waitlist.");
         ({ paymentPublicId, deploymentId } = placed);
@@ -122,6 +123,18 @@ export async function payCheckout(
       return { paymentPublicId, deploymentId, result };
     });
   });
+}
+
+/** The replace step skips an order that is mid-charge, so placing another one now could charge both. */
+async function olderChargeInFlight(userPublicId: string): Promise<boolean> {
+  const [{ eq }, { db }, { users }, { hasChargeInFlight }] = await Promise.all([
+    import("drizzle-orm"),
+    import("@/db/client"),
+    import("@/db/schema"),
+    import("@/lib/services/stripe-expiry"),
+  ]);
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
+  return u ? hasChargeInFlight(u.id) : false;
 }
 
 function stable(v: unknown): unknown {

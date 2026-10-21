@@ -18,6 +18,7 @@ import {
   NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT,
 } from "./stripe-notes";
 import { ledgerService } from "./ledger.service";
+import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { settleAddonPayment } from "./order-addons.service";
 import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
@@ -467,7 +468,18 @@ export type SavedCardResult = { kind: "succeeded" | "processing" | "requires_act
 
 const UNSETTLED = "Charged in Stripe but not yet settled in the system; check the order before retrying.";
 
+/** Staff charge shares the customer's lock: a customer checking out at the same time must not end up charged twice. */
 export async function chargeSavedCardForPayment(paymentPublicId: string, actorPublicId: string): Promise<SavedCardResult> {
+  const { user } = await loadOwned(paymentPublicId, null);
+  try {
+    return await withCustomerPayLock(user.publicId, () => chargeSavedCardLocked(paymentPublicId, actorPublicId));
+  } catch (e) {
+    if (e instanceof ValidationError && e.message === PAY_IN_PROGRESS) return { kind: "processing", message: "The customer is paying right now." };
+    throw e;
+  }
+}
+
+async function chargeSavedCardLocked(paymentPublicId: string, actorPublicId: string): Promise<SavedCardResult> {
   await loadOwned(paymentPublicId, null);
   return withChargeLock<SavedCardResult>(paymentPublicId, { kind: "processing", message: "A charge for this payment is already in progress." }, async () => {
     const { pay, order, user } = await loadOwned(paymentPublicId, null);

@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { getRedis } from "@/lib/redis";
 
-const LOCK_MS = 90_000;
+// Longer than payByCard's worst case (about six Stripe calls at up to 30s each).
+const LOCK_MS = 180_000;
+export const PAY_IN_PROGRESS = "A payment is already in progress.";
 const RELEASE = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 
 /**
@@ -21,7 +23,7 @@ export async function withCustomerPayLock<T>(userPublicId: string, fn: () => Pro
   } catch {
     throw new ValidationError("Card payments are busy, please try again.");
   }
-  if (got !== "OK") throw new ValidationError("A payment is already in progress.");
+  if (got !== "OK") throw new ValidationError(PAY_IN_PROGRESS);
   try {
     return await fn();
   } finally {
