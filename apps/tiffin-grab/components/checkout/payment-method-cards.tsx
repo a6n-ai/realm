@@ -46,7 +46,8 @@ const MastercardMark = (props: SVGProps<SVGSVGElement>) => (
 /* Card art: decorative backgrounds only (aria-hidden), from our tokens. Its small text is illustration, not copy. */
 
 const Chip = () => <span className="bg-primary-foreground/20 ring-primary-foreground/25 block h-5 w-7 rounded-[5px] ring-1" />;
-const MarkTile = ({ children }: { children: ReactNode }) => <span className="bg-background/90 grid h-5 w-8 place-items-center rounded-[4px]">{children}</span>;
+// Brand marks keep their own white plate in both themes (brand identity, not our palette).
+const MarkTile = ({ children }: { children: ReactNode }) => <span className="grid h-5 w-8 place-items-center rounded-[4px] bg-white">{children}</span>;
 
 function StripeArt() {
   return (
@@ -59,8 +60,8 @@ function StripeArt() {
       <span className="absolute top-11 right-3 flex items-center gap-1">
         <MarkTile><VisaMark className="size-5 text-[#1A1F71]" /></MarkTile>
         <MarkTile><MastercardMark className="size-5" /></MarkTile>
-        <span className="bg-foreground text-background grid h-5 place-items-center rounded-[4px] px-1 text-[9px] font-semibold">Apple Pay</span>
-        <span className="bg-background/90 text-foreground grid h-5 place-items-center rounded-[4px] px-1 text-[9px] font-semibold">G Pay</span>
+        <span className="hidden h-5 place-items-center rounded-[4px] bg-black px-1 text-[9px] font-semibold whitespace-nowrap text-white sm:grid">Apple Pay</span>
+        <span className="hidden h-5 place-items-center rounded-[4px] bg-white px-1 text-[9px] font-semibold whitespace-nowrap text-neutral-900 sm:grid">G Pay</span>
       </span>
     </div>
   );
@@ -73,10 +74,10 @@ function SavedCardArt({ brand }: { brand: string | null }) {
         <Chip />
         <Nfc className="size-4 opacity-70" />
       </div>
-      <span className="bg-background/90 absolute top-3 right-12 grid h-6 w-10 place-items-center rounded-[5px]">
+      <span className="absolute top-3 right-12 grid h-6 w-10 place-items-center rounded-[5px] bg-white">
         {brand === "visa" ? <VisaMark className="size-6 text-[#1A1F71]" />
           : brand === "mastercard" ? <MastercardMark className="size-6" />
-          : <CreditCard className="text-foreground size-4" />}
+          : <CreditCard className="size-4 text-neutral-900" />}
       </span>
     </div>
   );

@@ -905,7 +905,7 @@ export function Checkout({
               <div className="flex w-full flex-col gap-2">
                 <ExpressPay />
                 <div className="flex items-start gap-2">
-                  <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
+                  <Button variant="quiet" size="md" className="w-24 shrink-0" onClick={goBack}>{backLabel}</Button>
                   <div className="min-w-0 flex-1">{cardPay}</div>
                 </div>
               </div>
@@ -1002,7 +1002,7 @@ function OrderGlance({ title, baseline, meta, address, total, onOpen }: { title:
     >
       <span className="min-w-0 flex-1">
         <span className="text-muted-foreground block text-xs font-semibold tracking-[0.02em]">Your order</span>
-        <span className="mt-0.5 block truncate text-[17px] font-semibold tracking-[-0.02em]">
+        <span className="mt-0.5 line-clamp-2 block text-[17px] leading-snug font-semibold tracking-[-0.02em] text-balance">
           {baseline ? `${title} · ${baseline}` : title}
         </span>
         {meta && <span className="text-muted-foreground block truncate text-[13px]">{meta}</span>}
