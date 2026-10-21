@@ -9,6 +9,7 @@ import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
 import { dateRangeWhere } from "../payment-queries";
+import { PaymentKpis } from "../payment-kpis";
 import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS } from "../payment-facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
@@ -16,11 +17,14 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function ProviderLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Provider logs">
-      <Suspense fallback={<LogsTableSkeleton />}>
-        <LogsData searchParams={searchParams} />
-      </Suspense>
-    </SectionCard>
+    <>
+      <PaymentKpis searchParams={searchParams} />
+      <SectionCard title="Provider logs">
+        <Suspense fallback={<LogsTableSkeleton />}>
+          <LogsData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </>
   );
 }
 

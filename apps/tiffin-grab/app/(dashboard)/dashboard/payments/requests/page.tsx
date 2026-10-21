@@ -5,18 +5,22 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { payments } from "@/db/schema";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { listPayments } from "../payment-queries";
+import { PaymentKpis } from "../payment-kpis";
 import { RequestsTable, RequestsTableSkeleton } from "./requests-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="E-transfers">
-      <Suspense fallback={<RequestsTableSkeleton />}>
-        <MarkSectionRead section="payments" />
-        <RequestsData searchParams={searchParams} />
-      </Suspense>
-    </SectionCard>
+    <>
+      <PaymentKpis searchParams={searchParams} />
+      <SectionCard title="E-transfers">
+        <Suspense fallback={<RequestsTableSkeleton />}>
+          <MarkSectionRead section="payments" />
+          <RequestsData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </>
   );
 }
 

@@ -17,7 +17,7 @@ export default async function PaymentsLayout({ children }: { children: ReactNode
       />
       <PaymentsTabs />
       <SectionDateRange />
-      <div className="min-w-0">{children}</div>
+      <div className="flex min-w-0 flex-col gap-6">{children}</div>
     </PageShell>
   );
 }

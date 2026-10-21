@@ -8,6 +8,7 @@ import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
 import { dateRangeWhere } from "../payment-queries";
+import { PaymentKpis } from "../payment-kpis";
 import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "../payment-facets";
 import { MoneyLedgerTable, MoneyLedgerTableSkeleton } from "./money-ledger-table";
 
@@ -23,11 +24,14 @@ const SORT_COL = {
 
 export default function MoneyLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Ledger">
-      <Suspense fallback={<MoneyLedgerTableSkeleton />}>
-        <MoneyLedgerData searchParams={searchParams} />
-      </Suspense>
-    </SectionCard>
+    <>
+      <PaymentKpis searchParams={searchParams} />
+      <SectionCard title="Ledger">
+        <Suspense fallback={<MoneyLedgerTableSkeleton />}>
+          <MoneyLedgerData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </>
   );
 }
 
