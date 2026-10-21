@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, lte, ne, not, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
@@ -76,10 +76,57 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
   return cancelled;
 }
 
+/** A new card checkout replaces the customer's older unpaid ones. Only older: two near-simultaneous checkouts must not cancel each other. */
+export function replaceOlderUnpaidCheckouts(userId: bigint, orderId: bigint): Promise<number> {
+  return cancelUnpaidStripeOrders(and(eq(orders.userId, userId), lt(orders.id, orderId)), "Replaced by a new card checkout");
+}
+
 export function expireUnpaidStripeOrders(scope: { userId?: bigint; orderId?: bigint }, now = Date.now()): Promise<number> {
   return cancelUnpaidStripeOrders(and(
     lte(payments.expiresAt, now),
     scope.userId != null ? eq(orders.userId, scope.userId) : undefined,
     scope.orderId != null ? eq(orders.id, scope.orderId) : undefined,
   ));
+}
+
+/**
+ * Staff cancel: the order, then every card payment on it that could still be paid. Open intents are cancelled and
+ * add-on links voided (expiresAt 0, as order-addons voidLink). An intent that may be moving money is left alone and
+ * noted: if it lands, settle records it on the cancelled order and flags it for a refund.
+ */
+export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigint | null): Promise<void> {
+  await cancelOrder(publicId);
+  const open = await db
+    .select({ publicId: payments.publicId, orderId: payments.orderId, organizationId: payments.organizationId })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(and(
+      eq(orders.publicId, publicId),
+      eq(payments.method, "stripe"),
+      inArray(payments.status, [...UNPAID]),
+      or(isNull(payments.expiresAt), ne(payments.expiresAt, 0)),
+    ));
+  for (const p of open) {
+    try {
+      const closed = await db.transaction(async (tx) => {
+        if (!(await tryChargeLock(tx, p.publicId))) return false;
+        const [pay] = await tx.select().from(payments).where(eq(payments.publicId, p.publicId)).for("update").limit(1);
+        if (!pay || !(UNPAID as readonly string[]).includes(pay.status)) return true;
+        if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") return false;
+        if (pay.addonRequest) await tx.update(payments).set({ status: "rejected", expiresAt: 0, note: "Order cancelled" }).where(eq(payments.id, pay.id));
+        return true;
+      });
+      if (!closed) {
+        await db.insert(orderActivities).values({
+          orderId: p.orderId,
+          type: "note",
+          note: "A card payment on this order may still be going through. Check Stripe and refund it if it lands.",
+          createdBy: actorId,
+          organizationId: p.organizationId,
+        });
+      }
+    } catch (e) {
+      log.error({ orderId: publicId, paymentId: p.publicId, err: e }, "could not close card payment on cancelled order");
+    }
+  }
 }

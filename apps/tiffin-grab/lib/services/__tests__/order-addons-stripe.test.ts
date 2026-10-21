@@ -42,6 +42,12 @@ vi.mock("@/lib/services/orders.service", async (orig) => {
   verify.mockImplementation(real.verifyPayment);
   return { ...real, verifyPayment: (...a: Parameters<typeof real.verifyPayment>) => verify(...a) };
 });
+const staffNotify = vi.fn();
+vi.mock("@/lib/notifications/enqueue", async (orig) => {
+  const real = await orig<typeof import("@/lib/notifications/enqueue")>();
+  staffNotify.mockImplementation(real.enqueueStaffNotification);
+  return { ...real, enqueueStaffNotification: (...a: Parameters<typeof real.enqueueStaffNotification>) => staffNotify(...a) };
+});
 
 const { db } = await import("@/db/client");
 const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments, users } = await import("@/db/schema");
@@ -50,6 +56,7 @@ const { mealSizeAddons } = await import("@/lib/catalog/types");
 const { getAppSettings, setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { cancelOrder, createOrder } = await import("../orders.service");
+const { cancelOrderAndOpenPayments } = await import("../stripe-expiry");
 const { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment } = await import("../order-addons.service");
 const { sendPaymentReminder } = await import("../payment-reminder");
 const { findUnpaidPayment } = await import("../payment-settle");
@@ -257,6 +264,62 @@ describe("Stripe add-ons (integration)", () => {
     expect(acts.some((a) => a.note?.includes("refund needed"))).toBe(true);
     expect(logError).toHaveBeenCalledWith(expect.objectContaining({ why: "order cancelled" }), "stripe add-on paid but not applied");
     expect(refund).not.toHaveBeenCalled();
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ body: expect.stringContaining("refund needed"), dedupeKey: `addon_not_applied:${pay.publicId}` }));
+  });
+
+  it("tells staff when the automatic refund fails", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.orderId, order.id));
+    succeeded(pay);
+    refund.mockRejectedValue(new Error("stripe down"));
+
+    expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");
+
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(acts.some((a) => a.note?.startsWith("Automatic refund of"))).toBe(true);
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dedupeKey: `addon_refund_failed:${pay.publicId}` }));
+  });
+
+  it("voids an expired link and cancels its intent before making a new one", async () => {
+    const order = await runningOrder();
+    const { pay: old } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1, providerRef: "pi_old" }).where(eq(payments.id, old.id));
+    retrieve.mockResolvedValue({ status: "requires_action" });
+
+    const { pay: fresh } = await createLink(order);
+
+    const [o] = await db.select().from(payments).where(eq(payments.id, old.id));
+    expect(o).toMatchObject({ status: "rejected", expiresAt: 0 });
+    expect(cancelIntent).toHaveBeenCalledWith("pi_old");
+    expect(fresh.status).toBe("awaiting_payment");
+  });
+
+  it("refuses a new link while an expired link's intent is in flight", async () => {
+    const order = await runningOrder();
+    const { pay: old } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1, providerRef: "pi_old" }).where(eq(payments.id, old.id));
+    retrieve.mockResolvedValue({ status: "processing" });
+
+    await expect(createLink(order)).rejects.toThrow(/expired add-on link may still be going through/);
+    const [o] = await db.select().from(payments).where(eq(payments.id, old.id));
+    expect(o).toMatchObject({ status: "awaiting_payment", expiresAt: 1 });
+    expect(await db.select().from(payments).where(eq(payments.orderId, order.id))).toHaveLength(2);
+  });
+
+  it("staff cancelling the order voids its live add-on link and cancels the intent", async () => {
+    const order = await runningOrder();
+    const { pay } = await createLink(order);
+    await db.update(payments).set({ providerRef: "pi_live" }).where(eq(payments.id, pay.id));
+    retrieve.mockResolvedValue({ status: "requires_payment_method" });
+
+    await cancelOrderAndOpenPayments(order.publicId, null);
+
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o!.status).toBe("cancelled");
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ status: "rejected", expiresAt: 0 });
+    expect(cancelIntent).toHaveBeenCalledWith("pi_live");
   });
 
   it("refunds it all when no tiffins are left", async () => {
@@ -399,6 +462,7 @@ describe("Stripe add-ons (integration)", () => {
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
     expect(acts.some((a) => a.note === "Add-ons paid on a cancelled link — refund needed")).toBe(true);
     expect(refund).not.toHaveBeenCalled();
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dedupeKey: `addon_not_applied:${pay.publicId}` }));
   });
 
   it("plan-payment readers ignore add-on links, live or void", async () => {

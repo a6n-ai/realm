@@ -10,7 +10,6 @@ import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
   activateOrder,
-  cancelOrder,
   startMigratedOrder,
   changeOrderStartDate,
   changeOrderEatingDays,
@@ -26,6 +25,7 @@ import {
 import { currentUserId } from "@/lib/services/session-service";
 import { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
+import { cancelOrderAndOpenPayments } from "@/lib/services/stripe-expiry";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
@@ -76,7 +76,7 @@ export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[])
 export async function cancel(orderId: string) {
   await requireStaff();
   await assertOrderVisible(orderId, await visibleOrgs());
-  await cancelOrder(orderId);
+  await cancelOrderAndOpenPayments(orderId, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 

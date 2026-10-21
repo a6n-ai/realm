@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { findMethod } from "@foundry/payments";
@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, users, type AddonRequest, type PaymentProof } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
+import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { canTakeAddonPayment } from "@/lib/orders/display-status";
 import { nextCutoffMs } from "@/lib/orders/paid-start";
 import { fromCents, toCents } from "@/lib/payments/stripe";
@@ -241,6 +242,7 @@ export async function addOrderAddons(
 ): Promise<AddonQuote & { paymentPublicId?: string }> {
   // Stripe Tax is asked before the order row is locked, never while holding it.
   const { tax: presetTax } = await priceAddons(db, orderPublicId, input.selections, input.methodId, { freshTax: true });
+  if (input.methodId === "stripe") await voidExpiredLinks(orderPublicId, actorId);
   const { quote, userPublicId } = await db.transaction(async (tx): Promise<{ quote: AddonQuote & { paymentPublicId?: string }; userPublicId: string | null }> => {
     const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, { lock: true, presetTax });
     const { order, pricing } = p;
@@ -327,6 +329,49 @@ async function lockOpenLink(tx: Tx, paymentPublicId: string) {
 const voidLink = (tx: Tx, id: bigint, note: string) =>
   tx.update(payments).set({ status: "rejected", expiresAt: VOID, note }).where(eq(payments.id, id));
 
+/**
+ * An expired link stops blocking a new one, but its intent can still complete (3DS left open at the cutoff),
+ * and settle would apply both. Void each one, cancelling its intent, before a new link exists.
+ */
+async function voidExpiredLinks(orderPublicId: string, actorId: bigint | null): Promise<void> {
+  const stale = await db
+    .select({ publicId: payments.publicId })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(and(
+      eq(orders.publicId, orderPublicId),
+      isNotNull(payments.addonRequest),
+      eq(payments.status, "awaiting_payment"),
+      gt(payments.expiresAt, VOID),
+      lte(payments.expiresAt, Date.now()),
+    ));
+  for (const { publicId } of stale) {
+    await db.transaction(async (tx) => {
+      let pay;
+      try {
+        pay = await lockOpenLink(tx, publicId);
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          throw new ValidationError("A card payment on the expired add-on link may still be going through. Check Stripe before making a new link.");
+        }
+        throw e;
+      }
+      await voidLink(tx, pay.id, "Replaced");
+      await tx.insert(orderActivities).values({ orderId: pay.orderId, type: "note", note: "Expired add-on payment link voided", createdBy: actorId, organizationId: pay.organizationId });
+    });
+  }
+}
+
+// Add-on money that is in but not applied: an activity note alone is easy to miss.
+async function notifyStaff(tx: Tx, order: { publicId: string; deploymentId: string }, text: string, key: string) {
+  await enqueueStaffNotification(tx, {
+    title: "Add-on payment needs attention",
+    body: `${text} · order ${order.deploymentId}`,
+    href: `/dashboard/orders/${order.publicId}`,
+    dedupeKey: key,
+  });
+}
+
 /** Staff cancel an open add-on link. Callers MUST requireStaff first. */
 export async function cancelAddonPayment(paymentPublicId: string, actorId: bigint | null): Promise<void> {
   await db.transaction(async (tx) => {
@@ -379,7 +424,8 @@ export async function settleAddonPayment(
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay?.addonRequest) throw new NotFoundError(`Add-on payment not found: ${paymentPublicId}`);
     if (!SETTLEABLE.includes(pay.status)) return { outcome: "already_paid" as const };
-    // Same order as other order mutations: payment row, then the order's advisory lock, then the order row.
+    // Same order as verifyPayment and cancel(): payment row, customer row, the order's advisory lock, then the order row.
+    await tx.execute(sql`select 1 from ${users} where ${users.id} = (select ${orders.userId} from ${orders} where ${orders.id} = ${pay.orderId}) for key share`);
     await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
     const req = pay.addonRequest;
     const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).for("update").limit(1);
@@ -402,15 +448,19 @@ export async function settleAddonPayment(
     });
     await tx.insert(orderActivities).values({ orderId: order.id, type: "payment_verified", note: `stripe · ${pay.amount}`, organizationId: order.organizationId });
 
+    const done = { orderId: order.id, organizationId: order.organizationId, userId: order.userId, publicId: order.publicId, deploymentId: order.deploymentId };
     const note = (text: string) => tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: text, organizationId: order.organizationId });
+    const flag = async (text: string) => {
+      await note(text);
+      await notifyStaff(tx, order, text, `addon_not_applied:${pay.publicId}`);
+    };
     if (pay.expiresAt === VOID) {
-      await note("Add-ons paid on a cancelled link — refund needed");
+      await flag("Add-ons paid on a cancelled link — refund needed");
       log.error({ paymentId: pay.publicId }, "stripe add-on paid on a void link");
-      return { outcome: "not_applied" as const, orderId: order.id, organizationId: order.organizationId, userId: order.userId, refundCents: 0 };
+      return { outcome: "not_applied" as const, ...done, refundCents: 0 };
     }
-    const done = { orderId: order.id, organizationId: order.organizationId, userId: order.userId };
     const notApplied = async (why: string) => {
-      await note(`Add-ons paid but not applied (${why}) — refund needed`);
+      await flag(`Add-ons paid but not applied (${why}) — refund needed`);
       log.error({ paymentId: pay.publicId, why }, "stripe add-on paid but not applied");
       return { outcome: "not_applied" as const, ...done, refundCents: 0 };
     };
@@ -467,11 +517,10 @@ export async function settleAddonPayment(
       await refundStripePayment(paymentPublicId, fromCents(res.refundCents), "Add-ons could not all be applied", null);
     } catch (e) {
       log.error({ paymentId: paymentPublicId, err: e }, "automatic add-on refund failed");
-      await db.insert(orderActivities).values({
-        orderId: res.orderId,
-        type: "note",
-        note: `Automatic refund of ${fromCents(res.refundCents)} failed — refund it in Stripe`,
-        organizationId: res.organizationId,
+      const text = `Automatic refund of ${fromCents(res.refundCents)} failed — refund it in Stripe`;
+      await db.transaction(async (tx) => {
+        await tx.insert(orderActivities).values({ orderId: res.orderId, type: "note", note: text, organizationId: res.organizationId });
+        await notifyStaff(tx, res, text, `addon_refund_failed:${paymentPublicId}`);
       }).catch((err) => log.error({ err }, "could not record failed refund"));
     }
   }

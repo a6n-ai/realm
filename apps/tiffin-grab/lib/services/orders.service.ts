@@ -7,7 +7,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { cancelUnpaidStripeOrders } from "./stripe-expiry";
+import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
@@ -777,7 +777,7 @@ export async function createOrder(
   // (staff-made orders are left alone).
   if (paymentMethodId === "stripe" && !staffCreated) {
     try {
-      await cancelUnpaidStripeOrders(and(eq(orders.userId, txResult.ownerId), ne(orders.id, txResult.orderId)), "Replaced by a new card checkout");
+      await replaceOlderUnpaidCheckouts(txResult.ownerId, txResult.orderId);
     } catch (e) {
       log.error({ err: e }, "replacing older unpaid stripe order failed");
     }
@@ -832,12 +832,27 @@ export function paymentTemplateVars(
   };
 }
 
+async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
+  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
+  await enqueueStaffNotification(tx, {
+    title: "Card payment needs attention",
+    body: `${note} · order ${order.deploymentId}`,
+    href: `/dashboard/orders/${order.publicId}`,
+    dedupeKey: `paid_not_started:${order.publicId}`,
+  });
+}
+
 // A pending Stripe order starts when its payment settles. Pending orders reserve no days, so
 // the overlap guard runs here with the final dates. A start that can't happen leaves the
 // order pending with a note: the money is already in, staff resolve it.
 async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
   await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
   const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
+  // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
+  if (current?.status === "cancelled" || current?.status === "completed") {
+    await flagPaidNotStarted(tx, order, `Paid on a ${current.status} order — refund needed`, actorId);
+    return { started: false, reason: `order is ${current.status}` };
+  }
   if (current?.status !== "pending") return { started: false, reason: `order is ${current?.status ?? "missing"}` };
 
   const { timezone, cutoffHour } = await getAppSettings();
@@ -855,7 +870,7 @@ async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, a
     await assertNoPlanOverlap(tx, { userId: order.userId!, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
   } catch (e) {
     if (!(e instanceof ValidationError)) throw e;
-    await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: `Paid, but could not start: ${e.message}`, createdBy: actorId });
+    await flagPaidNotStarted(tx, order, `Paid, but could not start: ${e.message}`, actorId);
     return { started: false, reason: e.message };
   }
   const [row] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId }).where(eq(orders.id, order.id)).returning();
@@ -985,7 +1000,8 @@ export async function verifyPayment(
     }
 
     // After coupons/coins settle so they apply even when the start fails. WordPress-migrated pending orders are started by staff.
-    if (order.status === "pending" && pay.method === "stripe" && !order.deploymentId.startsWith("wc-")) {
+    // A cancelled order is only seen here when staff cancelled it after settle's own check; startPaidStripeOrder flags it.
+    if ((order.status === "pending" || order.status === "cancelled") && pay.method === "stripe" && !order.deploymentId.startsWith("wc-")) {
       const { started } = await startPaidStripeOrder(tx, order, actorInternalId);
       if (started) [order] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
     }

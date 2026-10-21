@@ -13,6 +13,7 @@ const svc = vi.hoisted(() => ({
   adminSetDeliveryStatus: vi.fn(), grantComplimentaryTiffin: vi.fn(), redeliverTrip: vi.fn(),
   pushOneDelivery: vi.fn(), removeOneDelivery: vi.fn(),
   quoteOrderAddons: vi.fn(), addOrderAddons: vi.fn(),
+  cancelOrderAndOpenPayments: vi.fn(),
 }));
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => {}, requireAdmin: async () => {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
@@ -27,6 +28,7 @@ vi.mock("@/lib/services/deliveries.service", () => ({
   redeliverTrip: svc.redeliverTrip, isAdminDeliveryStatus: () => true,
 }));
 vi.mock("@/lib/services/order-addons.service", () => ({ quoteOrderAddons: svc.quoteOrderAddons, addOrderAddons: svc.addOrderAddons }));
+vi.mock("@/lib/services/stripe-expiry", () => ({ cancelOrderAndOpenPayments: svc.cancelOrderAndOpenPayments }));
 vi.mock("@/lib/services/payment-proof", () => ({ uploadPaymentProof: vi.fn(async () => null) }));
 vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: svc.pushOneDelivery, removeOneDelivery: svc.removeOneDelivery }));
 
@@ -57,7 +59,7 @@ describe("order actions outside the caller's organizations", () => {
     ["startMigrated", () => actions.startMigrated(ORDER, "2030-01-07"), svc.startMigratedOrder],
     ["changeStartDateAction", () => actions.changeStartDateAction(ORDER, "2030-01-07"), svc.changeOrderStartDate],
     ["changeEatingDaysAction", () => actions.changeEatingDaysAction(ORDER, ["mon"]), svc.changeOrderEatingDays],
-    ["cancel", () => actions.cancel(ORDER), svc.cancelOrder],
+    ["cancel", () => actions.cancel(ORDER), svc.cancelOrderAndOpenPayments],
     ["updatePaymentReferenceAction", () => actions.updatePaymentReferenceAction(ORDER, PAYMENT, "ref"), svc.updatePaymentReference],
     ["sendPaymentReminderAction", () => actions.sendPaymentReminderAction(ORDER, PAYMENT), svc.sendPaymentReminder],
     ["grantComplimentaryAction", () => actions.grantComplimentaryAction(ORDER, { date: "2030-01-07", note: "x", notify: false }), svc.grantComplimentaryTiffin],

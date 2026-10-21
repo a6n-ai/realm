@@ -16,9 +16,12 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>())
 
 const { db } = await import("@/db/client");
 const { deliveries, orders, payments } = await import("@/db/schema");
-const { createOrder, listOrdersPage } = await import("../orders.service");
+const { cancelOrder, createOrder, listOrdersPage, verifyPayment } = await import("../orders.service");
+const { sendPaymentReminder } = await import("../payment-reminder");
+const { myBillsPage } = await import("../customer-finances.service");
+const { orderActivities } = await import("@/db/schema");
 const { settleStripePayment, payByCard } = await import("../payment-stripe");
-const { expireUnpaidStripeOrders, cancelOpenIntent } = await import("../stripe-expiry");
+const { expireUnpaidStripeOrders, cancelOpenIntent, cancelOrderAndOpenPayments, replaceOlderUnpaidCheckouts } = await import("../stripe-expiry");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("./stripe-fixture");
@@ -29,6 +32,7 @@ async function load(publicId: string) {
   return { order: order!, pay: pay! };
 }
 const expire = (id: bigint) => db.update(payments).set({ expiresAt: Date.now() - 1 }).where(eq(payments.id, id));
+const notes = async (orderId: bigint) => (await db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId))).map((a) => a.note);
 const intent = (st: string) => retrieve.mockResolvedValue({ status: st, latest_charge: null });
 
 describe("unpaid Stripe orders expire", () => {
@@ -170,5 +174,60 @@ describe("unpaid Stripe orders expire", () => {
     const [{ ref }] = await db.execute(sql`select public_id as ref from users where id = ${r.order.userId}`) as unknown as { ref: string }[];
     await expect(payByCard({ paymentPublicId: r.pay.publicId, userPublicId: ref, confirmationTokenId: "ct", acceptSurcharge: false, returnUrl: "u" }))
       .rejects.toThrow("This payment link has expired");
+  });
+  it("staff cancel cancels the order's open intent", async () => {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
+    const r = await load(publicId);
+    await db.update(payments).set({ providerRef: "pi_open" }).where(eq(payments.id, r.pay.id));
+    intent("requires_action");
+    await cancelOrderAndOpenPayments(publicId, null);
+    expect((await load(publicId)).order.status).toBe("cancelled");
+    expect(cancel).toHaveBeenCalledWith("pi_open");
+    expect((await notes(r.order.id)).some((n) => n?.includes("may still be going through"))).toBe(false);
+  });
+
+  it("staff cancel still cancels the order when its intent is in flight, and notes it", async () => {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
+    const r = await load(publicId);
+    await db.update(payments).set({ providerRef: "pi_moving" }).where(eq(payments.id, r.pay.id));
+    intent("processing");
+    await cancelOrderAndOpenPayments(publicId, null);
+    expect((await load(publicId)).order.status).toBe("cancelled");
+    expect(cancel).not.toHaveBeenCalled();
+    expect((await notes(r.order.id)).some((n) => n?.includes("may still be going through"))).toBe(true);
+  });
+
+  it("flags a payment that lands on an order cancelled after settle's own check", async () => {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
+    const r = await load(publicId);
+    await cancelOrder(publicId);
+    await verifyPayment(r.pay.publicId, { actorId: null, fromProvider: true });
+    const after = await load(publicId);
+    expect(after.pay.status).toBe("paid");
+    expect(after.order.status).toBe("cancelled");
+    expect(await notes(r.order.id)).toContain("Paid on a cancelled order — refund needed");
+  });
+
+  it("a checkout's replace step never cancels a newer unpaid order (double submit)", async () => {
+    const input = await baseInput({ paymentMethodId: "stripe" });
+    const older = await createOrder(input, { staffCreated: true, allowSameDayStart: true });
+    const newer = await createOrder(input, { staffCreated: true, allowSameDayStart: true });
+    const o = await load(older.publicId);
+    // The older checkout's replace step runs after the newer one committed.
+    expect(await replaceOlderUnpaidCheckouts(o.order.userId!, o.order.id)).toBe(0);
+    expect((await load(newer.publicId)).order.status).toBe("pending");
+  });
+
+  it("won't remind or offer Pay by card for an expired or cancelled order link", async () => {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
+    const r = await load(publicId);
+    const payable = async () => (await myBillsPage(r.order.userId!, { page: 0, size: 10 })).items[0]!.payments[0]!.cardPayable;
+    expect(await payable()).toBe(true);
+    await expire(r.pay.id);
+    expect(await payable()).toBe(false);
+    await expect(sendPaymentReminder(publicId, r.pay.publicId, null)).rejects.toThrow(/can no longer be paid/);
+    await db.update(payments).set({ expiresAt: Date.now() + 60_000 }).where(eq(payments.id, r.pay.id));
+    await cancelOrder(publicId);
+    expect(await payable()).toBe(false);
   });
 });
