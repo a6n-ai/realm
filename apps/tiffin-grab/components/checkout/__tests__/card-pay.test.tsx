@@ -196,6 +196,7 @@ describe("Checkout Pay step", () => {
     await screen.findByText("Cash");
     fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
     await waitFor(() => expect(sessionStorage.getItem("tg:paid")).toContain("dep_1"));
+    expect(window.location.pathname).not.toBe("/me/deliveries");
     routerNow = { ...mockRouter };
     view.rerender(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
     routerNow = mockRouter;

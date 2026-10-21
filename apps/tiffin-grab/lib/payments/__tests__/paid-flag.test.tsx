@@ -23,22 +23,14 @@ afterEach(() => {
 });
 
 describe("markPaid", () => {
-  it("clears the wizard, stamps tg:paid and rewrites the current entry without pushing", () => {
+  it("clears the wizard, stamps tg:paid and leaves the URL alone", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, "{}");
     const push = vi.spyOn(window.history, "pushState");
     markPaid("SUB-1");
     expect(sessionStorage.getItem(WIZARD_STORAGE_KEY)).toBeNull();
     expect(JSON.parse(sessionStorage.getItem(PAID_KEY)!)).toMatchObject({ deploymentId: "SUB-1" });
-    expect(window.location.pathname).toBe("/me/deliveries");
+    expect(window.location.pathname).not.toBe("/me/deliveries");
     expect(push).not.toHaveBeenCalled();
-  });
-});
-
-describe("markPaid history state", () => {
-  it("drops Next's history.state so the router syncs the new URL instead of reverting to /checkout", () => {
-    window.history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: [] }, "", "/checkout");
-    markPaid("SUB-1");
-    expect(window.history.state).toBeNull();
   });
 });
 

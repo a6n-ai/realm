@@ -10,17 +10,15 @@ const AFTER_PAID = "/me/deliveries";
 
 /**
  * Called once a payment (or e-Transfer proof) is in: the wizard and checkout must not be reachable by Back.
- * The current entry is rewritten in place (no navigation, the receipt stays on screen) and a flag lets
- * every older checkout/wizard entry bounce to the deliveries page.
+ * The URL is left alone: rewriting it makes Next remount the page, and the remount would read the flag as a
+ * fresh visit. The flag lets every stamped checkout/wizard entry (older ones, and a reload of this one)
+ * bounce to the deliveries page.
  */
 export function markPaid(deploymentId: string) {
   try {
     for (const k of [WIZARD_STORAGE_KEY, WIZARD_STEP_KEY, WIZARD_ORIGIN_KEY, QUOTE_CODES_KEY]) sessionStorage.removeItem(k);
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId, at: Date.now() }));
   } catch { /* storage unavailable: the cleared wizard still redirects to /subscribe */ }
-  try {
-    window.history.replaceState(null, "", AFTER_PAID);
-  } catch { /* no history API */ }
 }
 
 // performance navigation timing describes the document load only, so it counts for the first mount alone.
