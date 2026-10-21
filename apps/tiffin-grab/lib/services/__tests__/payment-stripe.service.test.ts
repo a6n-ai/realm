@@ -37,6 +37,13 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({
 }));
 vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
 
+const staffNotify = vi.fn();
+vi.mock("@/lib/notifications/enqueue", async (orig) => {
+  const real = await orig<typeof import("@/lib/notifications/enqueue")>();
+  staffNotify.mockImplementation(real.enqueueStaffNotification);
+  return { ...real, enqueueStaffNotification: (...a: Parameters<typeof real.enqueueStaffNotification>) => staffNotify(...a) };
+});
+
 const { db } = await import("@/db/client");
 const { ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const svc = await import("../payment-stripe");
@@ -150,6 +157,7 @@ describe("settleStripePayment guards", () => {
     expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
     expect(acts.filter((a) => a.type === "payment_failed")).toHaveLength(1);
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dedupeKey: expect.stringMatching(/^paid_not_started:/) }));
   });
 });
 

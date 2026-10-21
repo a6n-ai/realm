@@ -295,6 +295,20 @@ describe("Stripe add-ons (integration)", () => {
     expect(fresh.status).toBe("awaiting_payment");
   });
 
+  it("a cash or e-Transfer add-on voids an expired card link first", async () => {
+    const order = await runningOrder();
+    const { addon, pay: old } = await createLink(order);
+    await db.update(payments).set({ expiresAt: 1, providerRef: "pi_old" }).where(eq(payments.id, old.id));
+    retrieve.mockResolvedValue({ status: "requires_action" });
+    const selections = [{ key: addon.key, qty: 1 }];
+    const shown = await quoteOrderAddons(order.publicId, selections, "etransfer");
+    await addOrderAddons(order.publicId, { selections, methodId: "etransfer", expectedAmountDue: shown.amountDue }, null);
+
+    const [o] = await db.select().from(payments).where(eq(payments.id, old.id));
+    expect(o).toMatchObject({ status: "rejected", expiresAt: 0 });
+    expect(cancelIntent).toHaveBeenCalledWith("pi_old");
+  });
+
   it("refuses a new link while an expired link's intent is in flight", async () => {
     const order = await runningOrder();
     const { pay: old } = await createLink(order);
@@ -343,11 +357,13 @@ describe("Stripe add-ons (integration)", () => {
     const link = await createLink(order);
     const { addon } = link;
     const pay = await withSurcharge(link.pay);
-    // The link expired, staff then added the most the plan can take by e-Transfer; the old link is paid late.
+    // Defence in depth: staff add the most the plan can take by e-Transfer (voiding the expired link),
+    // then the link is paid anyway, as if it escaped the void in a race.
     await db.update(payments).set({ expiresAt: 1 }).where(eq(payments.id, pay.id));
     const selections = [{ key: addon.key, qty: addon.maxQty }];
     const shown = await quoteOrderAddons(order.publicId, selections, "etransfer");
     await addOrderAddons(order.publicId, { selections, methodId: "etransfer", expectedAmountDue: shown.amountDue }, null);
+    await db.update(payments).set({ status: "awaiting_payment", expiresAt: 1, note: null }).where(eq(payments.id, pay.id));
     succeeded(pay);
 
     expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");

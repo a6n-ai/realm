@@ -14,6 +14,13 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
 }));
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), fetchIntentStatus: (...a: unknown[]) => status(...a) }));
 
+const staffNotify = vi.fn();
+vi.mock("@/lib/notifications/enqueue", async (orig) => {
+  const real = await orig<typeof import("@/lib/notifications/enqueue")>();
+  staffNotify.mockImplementation(real.enqueueStaffNotification);
+  return { ...real, enqueueStaffNotification: (...a: Parameters<typeof real.enqueueStaffNotification>) => staffNotify(...a) };
+});
+
 const { db } = await import("@/db/client");
 const { deliveries, orders, payments } = await import("@/db/schema");
 const { cancelOrder, createOrder, listOrdersPage, verifyPayment } = await import("../orders.service");
@@ -206,6 +213,7 @@ describe("unpaid Stripe orders expire", () => {
     expect(after.pay.status).toBe("paid");
     expect(after.order.status).toBe("cancelled");
     expect(await notes(r.order.id)).toContain("Paid on a cancelled order — refund needed");
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dedupeKey: `paid_not_started:${publicId}` }));
   });
 
   it("a checkout's replace step never cancels a newer unpaid order (double submit)", async () => {

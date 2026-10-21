@@ -18,6 +18,7 @@ import {
   NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT,
 } from "./stripe-notes";
 import { ledgerService } from "./ledger.service";
+import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { settleAddonPayment } from "./order-addons.service";
 import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
 
@@ -110,9 +111,15 @@ export async function settleStripePayment(
   }
 
   // An add-on payment on a cancelled plan is still recorded (and flagged for refund) by settleAddonPayment.
-  const [order] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+  const [order] = await db.select({ status: orders.status, publicId: orders.publicId, deploymentId: orders.deploymentId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (order?.status === "cancelled" && !pay.addonRequest) {
     await activityOnce(pay.orderId, "payment_failed", NOTE_CANCELLED_ORDER, piId, "- refund it in Stripe");
+    await db.transaction((tx) => enqueueStaffNotification(tx, {
+      title: "Card payment needs attention",
+      body: `Paid on a cancelled order — refund needed · order ${order.deploymentId}`,
+      href: `/dashboard/orders/${order.publicId}`,
+      dedupeKey: `paid_not_started:${order.publicId}`,
+    }));
     log.error({ paymentId: pay.publicId, piId, source }, "stripe payment on cancelled order");
     return "order_cancelled";
   }

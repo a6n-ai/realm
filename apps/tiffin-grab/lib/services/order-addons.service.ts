@@ -242,7 +242,8 @@ export async function addOrderAddons(
 ): Promise<AddonQuote & { paymentPublicId?: string }> {
   // Stripe Tax is asked before the order row is locked, never while holding it.
   const { tax: presetTax } = await priceAddons(db, orderPublicId, input.selections, input.methodId, { freshTax: true });
-  if (input.methodId === "stripe") await voidExpiredLinks(orderPublicId, actorId);
+  // Every method: an expired link's intent can still complete, and its settle would apply on top of these.
+  await voidExpiredLinks(orderPublicId, actorId);
   const { quote, userPublicId } = await db.transaction(async (tx): Promise<{ quote: AddonQuote & { paymentPublicId?: string }; userPublicId: string | null }> => {
     const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, { lock: true, presetTax });
     const { order, pricing } = p;
