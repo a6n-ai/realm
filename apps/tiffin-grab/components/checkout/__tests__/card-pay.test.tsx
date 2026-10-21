@@ -28,6 +28,7 @@ vi.mock("@/components/payments/pay-panel", () => {
     onPay: (s: { savedPaymentMethodId: string }, accept: boolean) => Promise<{ kind: string }>;
     onPaid: () => void;
     onProcessing: () => void;
+    disabled?: boolean;
     children: ReactNode;
   };
   let current: P;
@@ -35,7 +36,7 @@ vi.mock("@/components/payments/pay-panel", () => {
     CardPayProvider: (p: P) => { current = p; return <div data-testid="provider">{p.children}</div>; },
     ExpressPay: () => <div data-testid="express" />,
     CardPay: () => (
-      <button type="button" onClick={async () => {
+      <button type="button" disabled={current.disabled} onClick={async () => {
         const r = await current.onPay({ savedPaymentMethodId: "pm_1" }, false);
         if (r.kind === "succeeded") current.onPaid();
         if (r.kind === "processing") current.onProcessing();
@@ -106,6 +107,32 @@ describe("Checkout Pay step", () => {
     expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "stripe", paymentPublicId: null }));
     expect(mockRouter.push.mock.calls.some(([u]) => String(u).startsWith("/me/pay/"))).toBe(false);
     expect(confirmSubscription).not.toHaveBeenCalled();
+  });
+
+  it("express is only offered while Stripe is selected", async () => {
+    await toPayment();
+    expect(screen.getByTestId("express")).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: /cash/i }));
+    await waitFor(() => expect(screen.queryByTestId("express")).toBeNull());
+  });
+
+  it("sends the total it showed so the server can refuse a different charge", async () => {
+    await toPayment();
+    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
+    await waitFor(() => expect(payCheckout).toHaveBeenCalled());
+    expect(payCheckout.mock.calls[0]![0].expectedAmountCents).toBe(5000);
+  });
+
+  it("pay is disabled while a reprice is in flight", async () => {
+    await toPayment();
+    let release!: () => void;
+    reprice.mockImplementationOnce(() => new Promise((res) => { release = () => res({ pricing, paymentMethods: methods, coinBalance: null, appliedCoupons: [] }); }));
+    fireEvent.click(screen.getByRole("button", { name: /add a coupon code/i }));
+    fireEvent.change(await screen.findByLabelText(/coupon code/i), { target: { value: "SAVE5" } });
+    fireEvent.click(screen.getByRole("button", { name: /apply coupon/i }));
+    await waitFor(() => expect((screen.getByRole("button", { name: /pay now/i }) as HTMLButtonElement).disabled).toBe(true));
+    release();
+    await waitFor(() => expect((screen.getByRole("button", { name: /pay now/i }) as HTMLButtonElement).disabled).toBe(false));
   });
 
   it("a processing card goes to the pay page to watch it settle", async () => {

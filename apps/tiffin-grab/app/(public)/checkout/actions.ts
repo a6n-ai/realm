@@ -77,7 +77,10 @@ export async function confirmSubscription(rawInput: ConfirmInput): Promise<Actio
   return runAction(() => placeSubscription(rawInput));
 }
 
-export type PayCheckoutInput = ConfirmInput & { paymentPublicId: string | null; source: CardSource; acceptSurcharge: boolean };
+export type PayCheckoutInput = ConfirmInput & { paymentPublicId: string | null; source: CardSource; acceptSurcharge: boolean;
+  /** The base total (cents, before any card fee) the customer saw; a different charge is refused. */
+  expectedAmountCents: number;
+};
 
 /**
  * The card order is created only when the customer presses Pay. A retry (declined card, 3DS
@@ -92,7 +95,7 @@ export async function payCheckout(
   input: PayCheckoutInput,
 ): Promise<ActionResult<{ paymentPublicId: string; deploymentId: string; result: PayByCardResult }>> {
   return runAction(async () => {
-    const { paymentPublicId: reuseId, source, acceptSurcharge, ...order } = input;
+    const { paymentPublicId: reuseId, source, acceptSurcharge, expectedAmountCents, ...order } = input;
     if (order.paymentMethodId !== "stripe") throw new ValidationError("Choose card to pay now.");
     const session = await getSession();
     if (!session?.user) throw new ValidationError("Sign in to place your order.");
@@ -112,6 +115,10 @@ export async function payCheckout(
         ({ paymentPublicId, deploymentId } = placed);
         await stampInputsFingerprint(paymentPublicId, order);
       }
+      // The wallet/card sheet was priced client-side; never charge a different number than it showed.
+      if (Math.round(Number(await paymentAmount(paymentPublicId)) * 100) !== expectedAmountCents) {
+        throw new ValidationError("Your total changed. Check it and pay again.");
+      }
       const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/services/payment-stripe"), import("@/lib/payments/stripe")]);
       const result = await payByCard({
         paymentPublicId,
@@ -123,6 +130,12 @@ export async function payCheckout(
       return { paymentPublicId, deploymentId, result };
     });
   });
+}
+
+async function paymentAmount(paymentPublicId: string): Promise<string> {
+  const [{ eq }, { db }, { payments }] = await Promise.all([import("drizzle-orm"), import("@/db/client"), import("@/db/schema")]);
+  const [p] = await db.select({ amount: payments.amount }).from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  return p?.amount ?? "NaN";
 }
 
 /** The replace step skips an order that is mid-charge, so placing another one now could charge both. */

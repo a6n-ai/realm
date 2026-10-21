@@ -202,7 +202,7 @@ export function Checkout({
     prevStep.current = step;
   }, [step]);
 
-  const refreshPrice = async (
+  const refreshPriceInner = async (
     s: WizardSelections,
     codes: string[] | undefined,
     methodId: string | null,
@@ -225,10 +225,22 @@ export function Checkout({
     setCoinCap(r.coinCap);
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
-      setPaymentMethodId(r.paymentMethods[0]!.id);
-      return refreshPrice(s, codes, r.paymentMethods[0]!.id, coins, postalCode, addr);
+      // Card is the default when it can be paid in place.
+      const first = r.paymentMethods.find((m) => m.id === "stripe" && cardContext?.publishableKey) ?? r.paymentMethods[0]!;
+      setPaymentMethodId(first.id);
+      return refreshPriceInner(s, codes, first.id, coins, postalCode, addr);
     }
     return r;
+  };
+
+  const [repricing, setRepricing] = useState(0);
+  const refreshPrice = async (...args: Parameters<typeof refreshPriceInner>) => {
+    setRepricing((n) => n + 1);
+    try {
+      return await refreshPriceInner(...args);
+    } finally {
+      setRepricing((n) => n - 1);
+    }
   };
 
   // The page redirects signed-out visitors; this covers a bfcache restore after signing out
@@ -498,6 +510,7 @@ export function Checkout({
       couponCodes: appliedCodes,
       coins: appliedCoins || undefined,
       paymentMethodId: "stripe",
+      expectedAmountCents: Math.round(result!.total * 100),
       paymentPublicId: placed.current?.paymentPublicId ?? null,
       source,
       acceptSurcharge,
@@ -610,159 +623,160 @@ export function Checkout({
   );
 
   const payStepBody = (
-                <div className="space-y-10">
-                  {cardOn && <ExpressPay />}
-                  <section aria-labelledby="co-pay">
-                    <h2 id="co-pay" className={H}>Pay with</h2>
-                    {realPayments ? (
-                      <RadioGroup value={paymentMethodId ?? ""} onValueChange={(id) => void selectMethod(id)} aria-labelledby="co-pay" className="mt-3 flex flex-col gap-3">
-                        {paymentMethods.map((m) => {
-                          const on = m.id === paymentMethodId;
-                          return (
-                            <div key={m.id} className="grid gap-2">
-                              <FieldLabel htmlFor={`pay-${m.id}`} className="relative p-0!">
-                                <Field orientation="horizontal">
-                                  <RadioGroupItem value={m.id} id={`pay-${m.id}`} className="absolute top-3 right-3" />
-                                  <FieldTitle className="flex flex-col items-start gap-0.5">
-                                    <span className="text-sm font-medium">{methodName(m)}</span>
-                                    {m.id === "stripe" && cardContext?.feeNote && <span className="text-xs text-muted-foreground">{cardContext.feeNote}</span>}
-                                  </FieldTitle>
-                                </Field>
-                              </FieldLabel>
-                              {/* Outside the label: the copy button can't nest inside it. */}
-                              <AnimatePresence initial={false}>
-                                {on && (m.payeeHandle || m.instructions) && (
-                                  <motion.div key="details" {...reveal} className="px-4">
-                                    <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} />
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })}
-                      </RadioGroup>
-                    ) : (
-                      simulated ? (
-                        <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
-                      ) : priceError ? (
-                        <div role="alert" className="mt-3 flex items-center justify-between gap-3">
-                          <p className="text-destructive text-sm text-pretty">{priceError}</p>
-                          <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
-                        </div>
-                      ) : priceFailed ? (
-                        <div role="alert" className="mt-3 flex items-center justify-between gap-3">
-                          <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>
-                          <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={retryPrice}>Retry</Button>
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
-                      )
+    <div className="space-y-10">
+      {payWithCard && <ExpressPay />}
+      <section aria-labelledby="co-pay">
+        <h2 id="co-pay" className={H}>Pay with</h2>
+        {realPayments ? (
+          <RadioGroup value={paymentMethodId ?? ""} onValueChange={(id) => void selectMethod(id)} aria-labelledby="co-pay" className="mt-3 flex flex-col gap-3">
+            {paymentMethods.map((m) => {
+              const on = m.id === paymentMethodId;
+              return (
+                <div key={m.id} className="grid gap-2">
+                  <FieldLabel htmlFor={`pay-${m.id}`} className="relative">
+                    <Field orientation="horizontal">
+                      <RadioGroupItem value={m.id} id={`pay-${m.id}`} className="absolute top-3 right-3" />
+                      <FieldTitle className="flex flex-col items-start gap-0.5">
+                        <span className="text-sm font-medium">{methodName(m)}</span>
+                        {m.id === "stripe" && cardContext?.feeNote && <span className="text-xs text-muted-foreground">{cardContext.feeNote}</span>}
+                      </FieldTitle>
+                    </Field>
+                  </FieldLabel>
+                  {/* Outside the label: the copy button can't nest inside it. */}
+                  <AnimatePresence initial={false}>
+                    {on && (m.payeeHandle || m.instructions) && (
+                      <motion.div key="details" {...reveal} className="px-4">
+                        <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} />
+                      </motion.div>
                     )}
-                    {selectedMethod && !payWithCard && (
-                      <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
-                        <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-                        Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
-                      </p>
-                    )}
-                  </section>
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </RadioGroup>
+        ) : (
+          simulated ? (
+            <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
+          ) : priceError ? (
+            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-destructive text-sm text-pretty">{priceError}</p>
+              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
+            </div>
+          ) : priceFailed ? (
+            <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>
+              <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={retryPrice}>Retry</Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
+          )
+        )}
+        {selectedMethod && !payWithCard && (
+          <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+            Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
+          </p>
+        )}
+      </section>
 
-                  <section aria-labelledby="co-savings">
-                    <h2 id="co-savings" className={H}>Savings</h2>
-                    <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
-                      <AnimatePresence initial={false}>
-                        {applied.map((c) => (
-                          <motion.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
-                            <RowIcon tone="save"><Tag aria-hidden className="size-[18px]" /></RowIcon>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[15px] font-semibold tracking-[0.04em] uppercase">{c.code}</p>
-                              <p className="text-muted-foreground truncate text-[13px]">{c.auto ? "Applied automatically" : c.name}</p>
-                            </div>
-                            <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
-                            {!c.auto && (
-                              <button type="button" onClick={() => void removeCoupon(c.code)} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
-                                <X aria-hidden className="size-[18px]" />
-                              </button>
-                            )}
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                      <CouponEntry
-                        value={couponCode}
-                        onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
-                        onApply={() => applyCoupon()}
-                        state={couponState}
-                        reveal={reveal}
-                        suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
-                        onPick={(code) => void applyCoupon(code)}
-                        onApplyAll={(codes) => void applyAllCoupons(codes)}
-                      />
-                      {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
-                      {coinBalance == null || coinBalance === 0 ? null : (
-                        <div className="px-4 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <RowIcon tone="wash"><Coins aria-hidden className="size-[18px]" /></RowIcon>
-                            <div className="min-w-0 flex-1">
-                              <Label htmlFor="coins" className="text-[15px] !font-semibold">Use coins</Label>
-                              <p className="text-muted-foreground mt-1 text-[13px] text-pretty">
-                                <span className="nums">{`${coinBalance} available`}</span>
-                                {coinCap && coinBalance > 0 && (coinCap.maxCoins > 0 ? <> · up to <span className="nums">{coinCap.maxCoins}</span> on this order</> : " · can't be used on this order")}
-                              </p>
-                            </div>
-                          </div>
-                          {coinCap?.message && coinBalance > 0 && <p className="text-muted-foreground mt-2 pl-12 text-xs text-pretty">{coinCap.message}</p>}
-                          {coinBalance > 0 && <ApplyField
-                            id="coins"
-                            className="mt-3"
-                            value={coinsInput}
-                            placeholder="0"
-                            inputMode="numeric"
-                            applyLabel="Apply coins"
-                            onChange={(v) => { setCoinsInput(v); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
-                            onApply={applyCoins}
-                            state={coinsState}
-                            extra={coinCap && Math.min(coinBalance, coinCap.maxCoins) > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => { setCoinsInput(String(Math.min(coinBalance, coinCap.maxCoins))); setCoinsState({ status: "idle" }); }}
-                                className="text-primary h-9 shrink-0 rounded-[10px] px-2.5 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
-                              >
-                                Max
-                              </button>
-                            ) : null}
-                          />}
-                        </div>
-                      )}
-                    </div>
-                  </section>
+      <section aria-labelledby="co-savings">
+        <h2 id="co-savings" className={H}>Savings</h2>
+        <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
+          <AnimatePresence initial={false}>
+            {applied.map((c) => (
+              <motion.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                <RowIcon tone="save"><Tag aria-hidden className="size-[18px]" /></RowIcon>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold tracking-[0.04em] uppercase">{c.code}</p>
+                  <p className="text-muted-foreground truncate text-[13px]">{c.auto ? "Applied automatically" : c.name}</p>
+                </div>
+                <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
+                {!c.auto && (
+                  <button type="button" onClick={() => void removeCoupon(c.code)} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                    <X aria-hidden className="size-[18px]" />
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <CouponEntry
+            value={couponCode}
+            onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
+            onApply={() => applyCoupon()}
+            state={couponState}
+            reveal={reveal}
+            suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
+            onPick={(code) => void applyCoupon(code)}
+            onApplyAll={(codes) => void applyAllCoupons(codes)}
+          />
+          {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
+          {coinBalance == null || coinBalance === 0 ? null : (
+            <div className="px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <RowIcon tone="wash"><Coins aria-hidden className="size-[18px]" /></RowIcon>
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor="coins" className="text-[15px] !font-semibold">Use coins</Label>
+                  <p className="text-muted-foreground mt-1 text-[13px] text-pretty">
+                    <span className="nums">{`${coinBalance} available`}</span>
+                    {coinCap && coinBalance > 0 && (coinCap.maxCoins > 0 ? <> · up to <span className="nums">{coinCap.maxCoins}</span> on this order</> : " · can't be used on this order")}
+                  </p>
+                </div>
+              </div>
+              {coinCap?.message && coinBalance > 0 && <p className="text-muted-foreground mt-2 pl-12 text-xs text-pretty">{coinCap.message}</p>}
+              {coinBalance > 0 && <ApplyField
+                id="coins"
+                className="mt-3"
+                value={coinsInput}
+                placeholder="0"
+                inputMode="numeric"
+                applyLabel="Apply coins"
+                onChange={(v) => { setCoinsInput(v); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
+                onApply={applyCoins}
+                state={coinsState}
+                extra={coinCap && Math.min(coinBalance, coinCap.maxCoins) > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => { setCoinsInput(String(Math.min(coinBalance, coinCap.maxCoins))); setCoinsState({ status: "idle" }); }}
+                    className="text-primary h-9 shrink-0 rounded-[10px] px-2.5 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
+                  >
+                    Max
+                  </button>
+                ) : null}
+              />}
+            </div>
+          )}
+        </div>
+      </section>
 
-                  <section aria-labelledby="co-review">
-                    <h2 id="co-review" className={H}>Review</h2>
-                    <dl className="bg-card border-border mt-3 divide-y divide-[var(--border)] rounded-[20px] border text-sm">
-                      <ReviewRow term="Order" action={<Link href={editHref} transitionTypes={["nav-back"]} className="text-primary text-[13px] font-semibold">Edit</Link>}>
-                        {[meal?.name, baseline].filter(Boolean).join(" · ")}
-                        <span className="text-muted-foreground block text-[13px]">{[result ? `${result.tiffinCount} tiffins` : null, start ? `starts ${start}` : null].filter(Boolean).join(", ")}</span>
-                      </ReviewRow>
-                      <ReviewRow term="Deliver to" action={<button type="button" onClick={() => setStep(1)} className="text-primary text-[13px] font-semibold">Change</button>}>
-                        {addressLine}
-                        {dropOffText && <span className="text-muted-foreground block text-[13px]">{dropOffText}</span>}
-                        {zone?.slotWindow && <span className="text-muted-foreground block text-[13px]">Arrives {zone.slotWindow}</span>}
-                      </ReviewRow>
-                      <ReviewRow term="Contact">{formatPhoneNumberIntl(contact.phone) || contact.phone}</ReviewRow>
-                      {selectedMethod && <ReviewRow term="Pay with">{methodName(selectedMethod)}</ReviewRow>}
-                      {result && (
-                        <div className="flex items-baseline justify-between gap-3 px-4 py-4">
-                          <dt className="text-[15px] font-semibold">Total</dt>
-                          <dd className="nums text-primary text-[28px] leading-none font-bold tracking-[-0.03em]">{money(result.total)}</dd>
-                        </div>
-                      )}
-                    </dl>
-                  </section>
-                  {payWithCard && <CardPay />}
-                </div>  );
+      <section aria-labelledby="co-review">
+        <h2 id="co-review" className={H}>Review</h2>
+        <dl className="bg-card border-border mt-3 divide-y divide-[var(--border)] rounded-[20px] border text-sm">
+          <ReviewRow term="Order" action={<Link href={editHref} transitionTypes={["nav-back"]} className="text-primary text-[13px] font-semibold">Edit</Link>}>
+            {[meal?.name, baseline].filter(Boolean).join(" · ")}
+            <span className="text-muted-foreground block text-[13px]">{[result ? `${result.tiffinCount} tiffins` : null, start ? `starts ${start}` : null].filter(Boolean).join(", ")}</span>
+          </ReviewRow>
+          <ReviewRow term="Deliver to" action={<button type="button" onClick={() => setStep(1)} className="text-primary text-[13px] font-semibold">Change</button>}>
+            {addressLine}
+            {dropOffText && <span className="text-muted-foreground block text-[13px]">{dropOffText}</span>}
+            {zone?.slotWindow && <span className="text-muted-foreground block text-[13px]">Arrives {zone.slotWindow}</span>}
+          </ReviewRow>
+          <ReviewRow term="Contact">{formatPhoneNumberIntl(contact.phone) || contact.phone}</ReviewRow>
+          {selectedMethod && <ReviewRow term="Pay with">{methodName(selectedMethod)}</ReviewRow>}
+          {result && (
+            <div className="flex items-baseline justify-between gap-3 px-4 py-4">
+              <dt className="text-[15px] font-semibold">Total</dt>
+              <dd className="nums text-primary text-[28px] leading-none font-bold tracking-[-0.03em]">{money(result.total)}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
+      {payWithCard && <CardPay />}
+    </div>  );
   const payStep = cardOn ? (
     <CardPayProvider
       ctx={cardContext!}
       amountCents={Math.round(result.total * 100)}
+      disabled={repricing > 0}
       onPay={payByCard}
       onPaid={leaveAfterCard((p) => `/activate/${p.deploymentId}`)}
       onProcessing={leaveAfterCard((p) => `/me/pay/${p.paymentPublicId}?return=1`)}

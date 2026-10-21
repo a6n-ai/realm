@@ -19,7 +19,7 @@ export type PayOutcome =
   | { kind: "error"; message: string };
 
 type Pay = (source: CardSource, acceptSurcharge: boolean) => Promise<PayOutcome>;
-type PanelCtx = { ctx: CardCheckoutContext; amountCents: number; busy: boolean; pay: Pay };
+type PanelCtx = { ctx: CardCheckoutContext; amountCents: number; busy: boolean; disabled: boolean; pay: Pay };
 
 const PayCtx = createContext<PanelCtx | null>(null);
 const usePanel = () => {
@@ -37,6 +37,8 @@ type Props = {
   abandon: () => Promise<void>;
   /** Runs after a successful 3DS challenge so the caller can read the settled state. */
   afterAction: () => Promise<"paid" | "processing">;
+  /** The amount is being re-quoted: no pay path may run until it settles. */
+  disabled?: boolean;
   children: ReactNode;
 };
 
@@ -55,7 +57,7 @@ export function CardPayProvider(props: Props) {
   );
 }
 
-function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, abandon, afterAction, children }: Props) {
+function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, abandon, afterAction, disabled = false, children }: Props) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
@@ -66,7 +68,7 @@ function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, abandon, afterA
   }, [elements, amountCents]);
 
   const pay: Pay = async (source, accept) => {
-    if (inFlight.current) return { kind: "busy" };
+    if (inFlight.current || disabled) return { kind: "busy" };
     if (!stripe) return { kind: "error", message: "Payments are still loading. Please try again." };
     inFlight.current = true;
     setBusy(true);
@@ -103,13 +105,13 @@ function Runner({ ctx, amountCents, onPay, onPaid, onProcessing, abandon, afterA
     }
   };
 
-  return <PayCtx.Provider value={{ ctx, amountCents, busy, pay }}>{children}</PayCtx.Provider>;
+  return <PayCtx.Provider value={{ ctx, amountCents, busy: busy || disabled, disabled, pay }}>{children}</PayCtx.Provider>;
 }
 
 type Fee = { surcharge: string; newTotal: string; source: CardSource };
 
 export function ExpressPay() {
-  const { busy, pay } = usePanel();
+  const { busy, disabled, pay } = usePanel();
   const stripe = useStripe();
   const elements = useElements();
   const [available, setAvailable] = useState(true);
@@ -141,7 +143,7 @@ export function ExpressPay() {
   }
 
   return (
-    <div className={available ? "flex flex-col gap-3" : "hidden"}>
+    <div className={available && !disabled ? "flex flex-col gap-3" : "hidden"}>
       <ExpressCheckoutElement onReady={(e) => setAvailable(Boolean(e.availablePaymentMethods))} onConfirm={onConfirm} />
       {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => settle(fee.source, true)} onCancel={() => setFee(null)} />}
       {error && <ErrorAlert message={error} busy={busy} />}

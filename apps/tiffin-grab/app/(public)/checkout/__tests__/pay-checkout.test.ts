@@ -41,6 +41,7 @@ vi.mock("@/lib/services/payment-stripe", async (orig) => ({ ...(await orig<objec
 const { db } = await import("@/db/client");
 const { orders, payments, users, orderActivities, coupons } = await import("@/db/schema");
 const { payCheckout } = await import("../actions");
+const { reprice } = await import("@/app/(public)/subscribe/actions");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("@/lib/services/__tests__/stripe-fixture");
@@ -51,11 +52,15 @@ async function signInAs(email: string) {
   sessionUserId = u!.id;
 }
 
-async function pay(over: { paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string; mutate?: (base: Awaited<ReturnType<typeof baseInput>>) => void } = {}) {
+async function pay(over: { expected?: number; paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string; mutate?: (base: Awaited<ReturnType<typeof baseInput>>) => void } = {}) {
   const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone, couponCode: over.couponCode });
   over.mutate?.(base as Awaited<ReturnType<typeof baseInput>>);
+  const c = base.contact;
+  const quote = await reprice(base.selections, [...(base.couponCodes ?? []), ...(base.couponCode ? [base.couponCode] : [])], base.planKey, "stripe", base.coins, c.postalCode, c.addressLine, c.city);
+  if ("error" in quote) throw new Error(quote.error);
   return payCheckout({
     ...base,
+    expectedAmountCents: over.expected ?? Math.round(quote.pricing.total * 100),
     paymentMethodId: paymentMethodId!,
     paymentPublicId: over.paymentPublicId ?? null,
     source: { confirmationTokenId: "ctoken_1" },
@@ -94,6 +99,12 @@ describe("payCheckout", () => {
     expect(p!.status).toBe("awaiting_payment");
     expect(payByCard).toHaveBeenCalledTimes(1);
     expect(payByCard.mock.calls[0]![0]).toMatchObject({ paymentPublicId: p!.publicId, userPublicId: session!.user.id });
+  });
+
+  it("refuses to charge when the total the customer saw differs", async () => {
+    const r = await pay({ expected: 1 });
+    expect(r).toEqual({ error: "Your total changed. Check it and pay again." });
+    expect(payByCard).not.toHaveBeenCalled();
   });
 
   it("reuses the order on retry", async () => {
