@@ -15,10 +15,16 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 export const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-[17px] tracking-[-0.011em]";
 
 const VARIANT = { primary: "default", outline: "outline", quiet: "ghost", danger: "destructive" } as const;
+// The shadcn primary fades to 80% on hover, which reads as disabled; darken it and lift
+// 1px instead, the same answer the customer kit's primary gives.
+const HOVER: Partial<Record<keyof typeof VARIANT, string>> = {
+  primary: "transition-[background-color,translate] hover:!bg-[color-mix(in_oklch,var(--primary)_86%,black)] [@media(hover:hover)]:hover:-translate-y-px",
+  outline: "transition-[background-color,border-color] hover:!border-[var(--primary)]",
+};
 
 function KitButton({ variant = "primary", pending, pendingLabel, disabled, type = "button", className, onClick, children }: AuthButtonProps) {
   return (
-    <Button type={type} variant={VARIANT[variant]} disabled={disabled || pending} onClick={onClick} className={`${IOS_BUTTON} gap-2 ${className ?? ""}`}>
+    <Button type={type} variant={VARIANT[variant]} disabled={disabled || pending} onClick={onClick} className={`${IOS_BUTTON} gap-2 ${HOVER[variant] ?? ""} ${className ?? ""}`}>
       {pending ? (
         <>
           <Loader2 className="size-4 animate-spin" aria-hidden />

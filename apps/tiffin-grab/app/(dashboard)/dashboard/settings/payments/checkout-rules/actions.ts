@@ -3,21 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
-import { setMaxCoinPctOfSubtotal, setProvinceTaxes } from "@/lib/services/app-settings.service";
+import { setProvinceTaxes } from "@/lib/services/app-settings.service";
 import { PROVINCES } from "@/lib/tax/canada";
 
 const PATH = "/dashboard/settings/payments/checkout-rules";
-
-const coinCapSchema = z.object({
-  maxCoinPct: z.number().int().min(0).max(100).nullable(),
-});
-
-export async function setCoinCapAction(input: unknown): Promise<void> {
-  await requireAdmin();
-  const { maxCoinPct } = coinCapSchema.parse(input);
-  await setMaxCoinPctOfSubtotal(maxCoinPct);
-  revalidatePath(PATH);
-}
 
 const taxLineSchema = z.object({
   name: z.string().trim().min(1).max(20),
@@ -31,17 +20,5 @@ export async function setProvinceTaxesAction(input: unknown): Promise<void> {
   await requireAdmin();
   const taxes = provinceTaxesSchema.parse(input);
   await setProvinceTaxes(taxes);
-  revalidatePath(PATH);
-}
-
-const walletRedeemCapSchema = z.object({
-  maxCoinRedeemPctOfBalance: z.number().int().min(0).max(100).nullable(),
-});
-
-export async function setWalletRedeemCapAction(input: unknown): Promise<void> {
-  const { setMaxCoinRedeemPctOfBalance } = await import("@/lib/services/app-settings.service");
-  await requireAdmin();
-  const { maxCoinRedeemPctOfBalance } = walletRedeemCapSchema.parse(input);
-  await setMaxCoinRedeemPctOfBalance(maxCoinRedeemPctOfBalance);
   revalidatePath(PATH);
 }

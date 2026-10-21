@@ -6,7 +6,8 @@ import { cn } from "@foundry/ui/cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 
 const BTN = cn(
-  "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground",
+  // In a table cell the 32px hit area overhangs the row instead of making it taller than text-only rows.
+  "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground in-[td]:-my-1.5",
   "transition-[transform,color,background-color] hover:bg-accent hover:text-foreground active:scale-[0.96]",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );

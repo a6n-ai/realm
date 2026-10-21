@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, XIcon } from "lucide-react";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
-import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
+import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CouponSortColumn } from "./page";
@@ -22,7 +24,6 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@foundry/ui/dialog";
 import {
-  BUSINESS_TZ_LABEL,
   CREATABLE_KINDS,
   KIND_LABELS,
   Multiselect,
@@ -35,6 +36,7 @@ import {
   numOrNull,
   pct,
   toLocalInput,
+  tzLabel,
 } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
 import { DateTimeInput } from "@/components/dashboard/date-fields";
@@ -105,7 +107,7 @@ function emptyDraft(): Draft {
   };
 }
 
-function toDraft(c: CouponRow): Draft {
+function toDraft(c: CouponRow, tz: string): Draft {
   return {
     publicId: c.publicId,
     code: c.code,
@@ -119,8 +121,8 @@ function toDraft(c: CouponRow): Draft {
     maxRedemptions: c.maxRedemptions == null ? "" : String(c.maxRedemptions),
     maxPerUser: c.maxPerUser == null ? "" : String(c.maxPerUser),
     planTypes: c.planTypes,
-    startsAt: toLocalInput(c.startsAt),
-    expiresAt: toLocalInput(c.expiresAt),
+    startsAt: toLocalInput(c.startsAt, tz),
+    expiresAt: toLocalInput(c.expiresAt, tz),
     stackable: c.stackable,
     autoApply: c.autoApply,
     visible: c.visible,
@@ -170,16 +172,19 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
 
 export function CouponsManager({
   coupons,
+  stats,
   sort,
   pagination,
   spec,
 }: {
   coupons: CouponRow[];
+  stats: StatItem[];
   sort: SortState<CouponSortColumn>;
   pagination: { page: number; size: number };
   spec: FacetDef[];
 }) {
   const router = useRouter();
+  const tz = useTimezone();
   const [pending, start] = React.useTransition();
   const [draft, setDraft] = React.useState<Draft | null>(null);
 
@@ -206,8 +211,8 @@ export function CouponsManager({
       autoApply: draft.autoApply,
       visible: draft.visible,
       planTypes: draft.planTypes,
-      startsAt: fromLocalInput(draft.startsAt),
-      expiresAt: fromLocalInput(draft.expiresAt),
+      startsAt: fromLocalInput(draft.startsAt, tz),
+      expiresAt: fromLocalInput(draft.expiresAt, tz),
       active: draft.active,
     };
     start(async () => {
@@ -235,10 +240,12 @@ export function CouponsManager({
   };
 
   return (
+    <div className="grid grid-cols-1 gap-6">
+    <DiscountStats items={stats} />
     <SectionCard
       bleed
       title="Coupons"
-      subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
+      subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
       action={
         <Button size="sm" onClick={() => open(emptyDraft())} className="transition-transform active:scale-[0.96]">
           <PlusIcon className="size-4" />
@@ -282,7 +289,7 @@ export function CouponsManager({
               <YesNo value={c.visible} />
             </TableCell>
             <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
-              {formatWindow(c.startsAt, c.expiresAt)}
+              {formatWindow(c.startsAt, c.expiresAt, tz)}
             </TableCell>
             <TableCell>
               <YesNo value={c.stackable} />
@@ -296,7 +303,7 @@ export function CouponsManager({
             </TableCell>
             <TableCell>
               <div className="flex justify-end gap-1">
-                <RowActionTooltipButton icon={PencilIcon} label={`Edit ${c.code}`} hint="Edit" onClick={() => open(toDraft(c))} />
+                <RowActionTooltipButton icon={PencilIcon} label={`Edit ${c.code}`} hint="Edit" onClick={() => open(toDraft(c, tz))} />
                 <RowActionTooltipButton
                   icon={c.active ? XIcon : RotateCcwIcon}
                   label={`${c.active ? "Disable" : "Enable"} ${c.code}`}
@@ -445,7 +452,7 @@ export function CouponsManager({
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cpn-start">Starts at ({BUSINESS_TZ_LABEL})</Label>
+                    <Label htmlFor="cpn-start">Starts at ({tzLabel(tz)})</Label>
                     <DateTimeInput
                       clearable
                       id="cpn-start"
@@ -454,7 +461,7 @@ export function CouponsManager({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cpn-end">Expires at ({BUSINESS_TZ_LABEL})</Label>
+                    <Label htmlFor="cpn-end">Expires at ({tzLabel(tz)})</Label>
                     <DateTimeInput
                       clearable
                       id="cpn-end"
@@ -506,6 +513,7 @@ export function CouponsManager({
         </DialogContent>
       </Dialog>
     </SectionCard>
+    </div>
   );
 }
 
@@ -513,13 +521,16 @@ export function CouponsManager({
 // so header/columns can never drift from the live table.
 export function CouponsManagerSkeleton() {
   return (
-    <SectionCard
-      bleed
-      title="Coupons"
-      subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
-      action={<Skeleton className="h-8 w-28" />}
-    >
-      <DataTable.Skeleton columns={COLUMNS} />
-    </SectionCard>
+    <div className="grid grid-cols-1 gap-6">
+      <DiscountStatsSkeleton />
+      <SectionCard
+        bleed
+        title="Coupons"
+        subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
+        action={<Skeleton className="h-8 w-28" />}
+      >
+        <DataTable.Skeleton columns={COLUMNS} />
+      </SectionCard>
+    </div>
   );
 }

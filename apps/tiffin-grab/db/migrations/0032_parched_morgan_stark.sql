@@ -1,0 +1,1 @@
+ALTER TABLE "app" ADD COLUMN "coin_earn_pct" integer DEFAULT 0 NOT NULL;

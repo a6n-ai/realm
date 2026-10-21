@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
-import { walletLedgerStats } from "@/app/(dashboard)/dashboard/wallet/ledger/page";
+import { walletLedgerRows, walletLedgerStats } from "@/app/(dashboard)/dashboard/wallet/ledger/page";
 import { walletService } from "../wallet.service";
 
 vi.mock("../app-settings.service", async (importOriginal) => ({
@@ -72,14 +72,35 @@ describe("admin wallet ledger stat cards", () => {
 
     await hold(Date.now() + 60_000);
     const live = (await walletLedgerStats()).agg;
-    expect(live.redeemed - before.redeemed).toBe(40);
+    expect(live.spent - before.spent).toBe(40);
     expect(live.entries - before.entries).toBe(1);
 
     await db.update(walletLedger)
       .set({ reservedUntil: Date.now() - 60_000 })
       .where(and(eq(walletLedger.userId, userId), eq(walletLedger.sourceType, "redemption")));
     const expired = (await walletLedgerStats()).agg;
-    expect(expired.redeemed - before.redeemed).toBe(0);
+    expect(expired.spent - before.spent).toBe(0);
     expect(expired.entries - before.entries).toBe(0);
+  });
+
+  it("nets out a spend that was given back", async () => {
+    const before = (await walletLedgerStats()).agg;
+    await hold(Date.now() + 60_000);
+    await db.update(walletLedger).set({ reservedUntil: null })
+      .where(and(eq(walletLedger.userId, userId), eq(walletLedger.sourceType, "redemption")));
+    await db.insert(walletLedger).values({
+      userId, direction: "credit", sourceType: "redemption_reversal", sourceId: `agg-${userId}`, coins: 40,
+    });
+    const after = (await walletLedgerStats()).agg;
+    expect(after.spent - before.spent).toBe(0);
+    expect(after.earned - before.earned).toBe(0);
+  });
+});
+
+describe("admin wallet ledger rows", () => {
+  it("hides a lapsed hold, so it never reads as a second debit", async () => {
+    await hold(Date.now() - 60_000);
+    const { rows } = await walletLedgerRows({ q: EMAIL, sort: { column: "time", dir: "desc" }, page: { page: 0, size: 25 } });
+    expect(rows.map((r) => r.sourceType)).toEqual(["seed"]);
   });
 });

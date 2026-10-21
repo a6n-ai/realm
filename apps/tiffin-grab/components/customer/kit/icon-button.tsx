@@ -24,7 +24,7 @@ function Tip({ text }: { text: string }) {
 
 /** 44px round icon control on a muted fill (close, back). With `href` it renders a link. */
 export function IconButton({ href, className, children, type = "button", tip, ...rest }: Props) {
-  const cls = cn(FONT, FOCUS, "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-[var(--muted)] text-[var(--foreground)] [touch-action:manipulation]", tip && "group relative", className);
+  const cls = cn(FONT, FOCUS, "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-[var(--muted)] text-[var(--foreground)] [touch-action:manipulation] transition-[background-color,transform] duration-150 hover:bg-[color-mix(in_oklch,var(--muted)_82%,var(--foreground))] active:scale-[.96] motion-reduce:transition-none", tip && "group relative", className);
   if (href) {
     return (
       <Link href={href} aria-label={rest["aria-label"]} className={cls}>

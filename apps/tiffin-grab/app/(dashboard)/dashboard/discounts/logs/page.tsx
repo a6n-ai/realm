@@ -6,9 +6,11 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { parseFilterState } from "@/components/ds";
+import { parseFilterState, type FacetDef } from "@/components/ds";
+import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
+import { usd } from "../discount-stats";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -24,11 +26,16 @@ const SORT_COL = {
 
 type DiscountLogSortColumn = keyof typeof SORT_COL;
 
+const SPEC: FacetDef[] = [
+  { kind: "select", field: "kind", label: "Kind", options: ALL_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] })) },
+  { kind: "search", fields: ["coupon", "user", "redeemedBy", "order"] },
+];
+
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 gap-6">
       <Suspense fallback={<DiscountLogsSkeleton />}>
         <DiscountLogsData searchParams={searchParams} />
       </Suspense>
@@ -46,10 +53,12 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
     { column: "time", dir: "desc" },
   );
 
-  const { page } = parseFilterState([], sp);
+  const { page } = parseFilterState(SPEC, sp);
+  const kind = ALL_KINDS.find((k) => k === sp.kind);
   const q = sp.q?.trim();
   const where = and(
     epochBoundsWhere(couponRedemptions.createdAt, sp),
+    kind ? eq(coupons.kind, kind) : undefined,
     q
       ? or(
           ilike(coupons.code, `%${q}%`),
@@ -68,7 +77,12 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
         coupons: sql<number>`cast(count(distinct ${couponRedemptions.couponId}) as int)`,
         customers: sql<number>`cast(count(distinct ${couponRedemptions.userId}) as int)`,
       })
-      .from(couponRedemptions),
+      .from(couponRedemptions)
+      .leftJoin(coupons, eq(coupons.id, couponRedemptions.couponId))
+      .leftJoin(customer, eq(customer.id, couponRedemptions.userId))
+      .leftJoin(redeemer, eq(redeemer.id, couponRedemptions.redeemedBy))
+      .leftJoin(orders, eq(orders.id, couponRedemptions.orderId))
+      .where(where),
     db
       .select({
         publicId: couponRedemptions.publicId,
@@ -98,14 +112,17 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
       .where(where),
   ]);
 
+  // Cards follow the same date range and search as the table.
+  const discounted = Number(agg.discounted);
   const stats = [
     { label: "Redemptions", value: agg.redemptions.toLocaleString() },
-    { label: "Total discounted", value: `$${Number(agg.discounted).toFixed(2)}` },
+    { label: "Total discounted", value: usd(discounted) },
+    { label: "Avg discount", value: usd(agg.redemptions ? discounted / agg.redemptions : 0) },
     { label: "Coupons used", value: agg.coupons.toLocaleString() },
     { label: "Customers", value: agg.customers.toLocaleString() },
   ];
 
-  return <DiscountLogs stats={stats} rows={rows} sort={sort} total={total} page={page.page} size={page.size} />;
+  return <DiscountLogs stats={stats} rows={rows} spec={SPEC} sort={sort} total={total} page={page.page} size={page.size} />;
 }
 
 export type { DiscountLogSortColumn };

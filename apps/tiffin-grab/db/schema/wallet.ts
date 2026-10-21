@@ -52,6 +52,8 @@ export const { walletLedger, eventPayout, coinRate } = makeWalletTables({
   ledgerDirection,
 });
 
+// Unused since 2026-10 (percent earn, app.coin_earn_pct). Kept until an
+// owner-approved drop.
 // Coin payout rules keyed by (meal size, duration package). NULL on both is
 // the default/catch-all rule (exactly one, seeded, never deletable) — every
 // other row is a specific override with both dimensions set. Resolution

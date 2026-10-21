@@ -1,8 +1,6 @@
-// Backs the Wallet → Payouts "Customer Payouts" panel: a filter-driven,
-// one-off bulk coin broadcast. Distinct from wallet.service.ts's
-// awardMealPayoutRule — that's a standing rule with idempotency; this is a
-// manual, admin-picks-people-right-now action with no persistence and no
-// re-run guard (running the same filters and hitting Save again is meant to
+// Backs the Wallet → Give coins panel: a filter-driven, one-off bulk coin
+// broadcast. A manual, admin-picks-people-right-now action with no
+// persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
 import { and, eq, exists, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -116,8 +114,7 @@ export async function awardCustomerBroadcast(
       direction: "credit" as const,
       sourceType: "manual_broadcast",
       // Unique per row for audit traceability. No exclusion/idempotency
-      // check here — deliberately unlike awardMealPayoutRule: this is a
-      // one-off broadcast, re-running the same filters is meant to pay
+      // check here: this is a one-off broadcast, re-running the same filters is meant to pay
       // again, not be blocked.
       sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
       coins,

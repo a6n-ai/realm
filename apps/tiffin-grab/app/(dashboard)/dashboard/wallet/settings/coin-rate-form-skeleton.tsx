@@ -2,8 +2,7 @@ import { SectionCard } from "@/components/ds";
 import { Label } from "@foundry/ui/label";
 import { Skeleton } from "@foundry/ui/skeleton";
 
-// Loading twin for CoinRateForm (colocated because the form lives one dir up and
-// is shared out of this route). Mirrors the same SectionCard + field layout with
+// Loading twin for CoinRateForm (the form itself ships from @foundry/crm). Mirrors the same SectionCard + field layout with
 // real labels and grey blocks where the currency value / input / button go.
 export function CoinRateFormSkeleton() {
   return (

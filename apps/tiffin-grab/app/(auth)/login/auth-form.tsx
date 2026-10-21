@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
-import { warmCaptcha } from "@/lib/auth/captcha-client";
+import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
 import {
@@ -78,8 +78,9 @@ export function AuthForm({
     canUsePin ? "pin" : initialLastUser && !callbackUrl && !oauthError ? "welcome" : "email-otp",
   );
   const [codeStep, setCodeStep] = useState(false);
-  // Email and password forms both hit captcha'd routes; solve ahead of Send.
-  useEffect(() => warmCaptcha(mode === "email-otp" || mode === "password"), [mode]);
+  // Email and password forms both hit captcha'd routes; solve ahead of Send, starting
+  // when the visitor first reaches the email field.
+  useEffect(() => warmCaptchaOnInput(mode === "email-otp" || mode === "password"), [mode]);
   // A Google address with no account: sign-up lives on /subscribe, so continue there.
   useEffect(() => {
     if (oauthError === "signup_disabled") router.replace("/subscribe?error=signup_disabled");

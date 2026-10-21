@@ -31,6 +31,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/settings/lead-sources", label: "settings-lead-sources" },
   { path: "/dashboard/settings/meal-types", label: "settings-meal-types" },
   { path: "/dashboard/discounts/rep-allowance", label: "rep-allowance" },
+  { path: "/dashboard/discounts/staff-codes", label: "staff-codes" },
   { path: "/dashboard/wallet/coin-rate", label: "coin-rate" },
   { path: "/me/support/new", label: "support-new" },
   // dashboard — account section

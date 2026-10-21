@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { publicFaqs } from "@/db/schema";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { SessionUpdatableService } from "@/lib/services/session-service";
+import { evictPublicPages, publicPagesCache } from "@/lib/landing/public-cache";
 
 export type Faq = { publicId: string; question: string; answer: string; sortOrder: number; active: boolean };
 
@@ -27,6 +28,10 @@ const faqService = new FaqService(new UpdatableRepository(db, publicFaqs, public
  */
 export async function listPublicFaqs(): Promise<Faq[]> {
   const orgId = await resolveRequestOrg();
+  return publicPagesCache.getOrSet(`faqs:${orgId ?? "brand"}`, () => loadPublicFaqs(orgId));
+}
+
+async function loadPublicFaqs(orgId: string | null): Promise<Faq[]> {
   if (orgId) {
     const ownRows = await db
       .select()
@@ -61,10 +66,12 @@ export async function listAllFaqs(visible: "all" | string[]): Promise<Faq[]> {
 
 export async function saveFaq(publicId: string | null, values: Record<string, unknown>): Promise<Faq> {
   const row = publicId ? await faqService.update(publicId, values) : await faqService.create(values);
+  await evictPublicPages();
   return rowToFaq(row as unknown as FaqRow);
 }
 
 export async function retireFaq(publicId: string): Promise<Faq> {
   const row = await faqService.update(publicId, { active: false });
+  await evictPublicPages();
   return rowToFaq(row as unknown as FaqRow);
 }

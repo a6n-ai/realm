@@ -12,7 +12,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
@@ -57,6 +58,9 @@ export interface RepriceResult {
   // Signed-out checkout has no wallet to spend from — null tells the UI to hide
   // the coins control entirely rather than show a 0 balance.
   coinBalance: number | null;
+  // Coins this order would earn once paid, from the same earnCoins the award
+  // uses. null when signed out; 0 hides the line.
+  coinsToEarn: number | null;
   // Set when the requested coin count exceeds the balance, mirroring
   // couponError — the UI surfaces this instead of silently dropping the request
   // (which createOrder would otherwise reject, failing the whole order).
@@ -174,12 +178,15 @@ async function quote(
   let coinBalance: number | null = null;
   let coinsError: string | undefined;
   let coinCap: RepriceResult["coinCap"] = null;
+  let rate: number | null = null;
+  let coinsSpent = 0;
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
     const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
     const { currency } = await getAppSettings();
-    const [rate, maxPct, maxRedeemPctOfBalance] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
+    const [activeRate, maxPct, maxRedeemPctOfBalance] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
+    rate = activeRate;
     // Same cap createOrder enforces (admin % of the pre-tax subtotal, bounded by
     // what is left after coupons), so the limit shown is the limit applied.
     const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: coinBalance, rate, maxPct, maxRedeemPctOfBalance });
@@ -194,8 +201,11 @@ async function quote(
         coinsError = `Coins can cover up to ${maxPct}% of your subtotal — you can use up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
         const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
-        const { coinsSpent, currencyValue } = capRedemption(coins, rate, Math.min(remaining, pctCap));
-        if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
+        const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
+        if (redemption.currencyValue > 0) {
+          coinsSpent = redemption.coinsSpent;
+          lines.push({ label: `Coins (${coinsSpent})`, amount: redemption.currencyValue });
+        }
       }
     }
   }
@@ -211,6 +221,13 @@ async function quote(
     reference: "preview",
     cache: true,
   });
+  // Hidden (0) when the wallet cap would skip the award, as awardOrderCoins does;
+  // the coins spent here are already gone from the balance by then.
+  const coinsToEarn = userId == null || coinBalance == null ? null : coinsUnderCap({
+    coins: earnCoins({ total: pricing.total, taxTotal: pricing.taxTotal, pct: await getCoinEarnPct(), valuePerCoin: rate }),
+    balance: coinBalance - coinsSpent,
+    cap: await getMaxWalletBalance(),
+  });
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,
     name: r.coupon.name,
@@ -225,6 +242,7 @@ async function quote(
     couponsNotApplied: best.notApplied,
     paymentMethods,
     coinBalance,
+    coinsToEarn,
     coinsError,
     coinCap,
   };

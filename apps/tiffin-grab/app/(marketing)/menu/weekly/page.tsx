@@ -27,7 +27,7 @@ export default async function WeeklyMenuPage() {
         <>
           <WeekBoard days={days} rows={rows} weekend={weekend} />
           <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/subscribe" className="tg-cta">Build my tiffin</Link>
+            <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
             <a href="/menu/weekly/pdf" className="tg-btn">Download PDF</a>
             <Link href="/menu" className="tg-btn">Meal sizes and rates</Link>
           </div>

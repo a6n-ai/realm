@@ -1,6 +1,7 @@
 import { awsPlaceProvider } from "@foundry/places";
 import { DeliveryCheck } from "@/components/landing/delivery-check";
 import { sharedCache } from "@/lib/cache";
+import { publicPagesCache } from "@/lib/landing/public-cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "@/lib/services/delivery.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -22,7 +23,7 @@ async function areaPoint(name: string) {
 // and the postal check floats over it.
 export async function DeliverySection({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const orgId = await resolveRequestOrg();
-  const [{ zones }, origin] = await Promise.all([loadCatalogSnapshot(orgId), deliveryService.getStoreOrigin(orgId).catch(() => null)]);
+  const [{ zones }, origin] = await Promise.all([loadCatalogSnapshot(orgId), publicPagesCache.getOrSet(`origin:${orgId ?? "brand"}`, () => deliveryService.getStoreOrigin(orgId)).catch(() => null)]);
   const active = zones.filter((z) => z.active).sort((a, b) => a.name.localeCompare(b.name));
   const points = await Promise.all(active.map((z) => areaPoint(z.name)));
   const areas = active.map((z, i) => ({ name: z.name, slotWindow: z.slotWindow, point: points[i] ?? null }));

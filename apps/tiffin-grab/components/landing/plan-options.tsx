@@ -22,7 +22,7 @@ export function PlanOptions({ plans }: { plans: Plan[] }) {
             <span className="tg-soon">Coming soon</span>
           </div>
         ) : (
-          <Link key={p.key} href={`/subscribe?plan=${p.key}`} className="tg-option">
+          <Link prefetch={false} key={p.key} href={`/subscribe?plan=${p.key}`} className="tg-option">
             <span className="tg-option__body"><strong>{p.name}</strong><span>{p.description}</span></span>
             <span className="tg-option__go" aria-hidden><ArrowRight className="size-4" strokeWidth={2} /></span>
           </Link>

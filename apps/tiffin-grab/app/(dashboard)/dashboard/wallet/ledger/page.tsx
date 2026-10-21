@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { unexpired } from "@foundry/wallet";
+import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -9,6 +9,7 @@ import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
 import { pageOrder } from "@foundry/database";
 import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
 import { eventLabel } from "@relay/engine/ui";
+import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
@@ -46,9 +47,6 @@ export default function WalletLedgerPage({ searchParams }: { searchParams: Searc
  * to lose and impossible to notice from the rendered card.
  */
 export async function walletLedgerStats() {
-  const coinsIf = (dir: "credit" | "debit") =>
-    sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = ${dir} then ${walletLedger.coins} else 0 end), 0) as int)`;
-
   // Per-user current balance (credits − debits), so the highest-balance stat
   // below can rank accounts by what they hold right now, not by lifetime
   // coins earned — a customer who redeemed everything shouldn't top this.
@@ -65,13 +63,13 @@ export async function walletLedgerStats() {
   const [[agg], [topWallet]] = await Promise.all([
     db
       .select({
-        credited: coinsIf("credit"),
-        redeemed: coinsIf("debit"),
+        earned: earnedCoinsSql(walletLedger),
+        spent: spentCoinsSql(walletLedger),
         entries: sql<number>`cast(count(*) as int)`,
         wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
       })
-      // Lapsed holds never spent anything, so they are not credited, not
-      // redeemed, and not entries — same rule walletService.balance() applies.
+      // Lapsed holds never spent anything, so they are not earned, not
+      // spent, and not entries — same rule walletService.balance() applies.
       .from(walletLedger)
       .where(unexpired(walletLedger, Date.now())),
     db
@@ -90,9 +88,9 @@ async function WalletStatsData() {
   const { agg, topWallet } = await walletLedgerStats();
 
   const stats = [
-    { label: "Coins credited", value: agg.credited.toLocaleString() },
-    { label: "Coins redeemed", value: agg.redeemed.toLocaleString() },
-    { label: "Net outstanding", value: (agg.credited - agg.redeemed).toLocaleString() },
+    { label: "Coins earned", value: agg.earned.toLocaleString() },
+    { label: "Coins spent", value: agg.spent.toLocaleString() },
+    { label: "Net outstanding", value: (agg.earned - agg.spent).toLocaleString() },
     { label: "Active wallets", value: agg.wallets.toLocaleString() },
     { label: "Entries", value: agg.entries.toLocaleString() },
     {
@@ -105,19 +103,17 @@ async function WalletStatsData() {
   return <StatGrid cols={6} items={stats} />;
 }
 
-async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
-  const sp = await searchParams;
-
-  const sort: SortState<WalletSortColumn> = parseSort(
-    sp,
-    ["time", "user", "event", "source", "coins", "order", "memo"],
-    { column: "time", dir: "desc" },
-  );
-
-  const q = sp.q?.trim();
-  const where: SQL | undefined = q
+/**
+ * Exported for its test, same reason as walletLedgerStats: a lapsed hold must
+ * not show as a debit here while the balance ignores it (it reads as a second
+ * debit next to the re-collect row).
+ */
+export async function walletLedgerRows({ q, sort, page }: {
+  q?: string;
+  sort: SortState<WalletSortColumn>;
+  page: { page: number; size: number };
+}) {
+  const search: SQL | undefined = q
     ? or(
         ilike(walletLedger.memo, `%${q}%`),
         ilike(users.email, `%${q}%`),
@@ -126,10 +122,10 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
         ilike(orders.publicId, `%${q}%`),
       )
     : undefined;
+  const live = unexpired(walletLedger, Date.now());
+  const where = search ? and(live, search) : live;
 
-  const { page } = parseFilterState([], sp);
-
-  const [rows, [{ total }], { timezone }] = await Promise.all([
+  const [rows, [{ total }]] = await Promise.all([
     db
       .select({
         publicId: walletLedger.publicId,
@@ -155,6 +151,24 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
       .where(where),
+  ]);
+  return { rows, total };
+}
+
+async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+
+  const sp = await searchParams;
+
+  const sort: SortState<WalletSortColumn> = parseSort(
+    sp,
+    ["time", "user", "event", "source", "coins", "order", "memo"],
+    { column: "time", dir: "desc" },
+  );
+  const { page } = parseFilterState([], sp);
+
+  const [{ rows, total }, { timezone }] = await Promise.all([
+    walletLedgerRows({ q: sp.q?.trim(), sort, page }),
     getAppSettings(),
   ]);
 
@@ -165,7 +179,7 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
         when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
         direction: r.direction,
         eventLabel: r.eventType ? eventLabel(r.eventType) : null,
-        sourceType: r.sourceType,
+        sourceType: walletEntryLabel(r.sourceType),
         coins: r.coins,
         memo: r.memo,
         who: r.email,

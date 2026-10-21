@@ -89,7 +89,7 @@ export const coupons = pgTable("coupons", {
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("coupons_kind_active_idx").on(t.kind, t.active),
-  // One rep_daily coupon per rep per IST day.
+  // One rep_daily coupon per rep per allowance day (app-settings timezone; column keeps its ist_date name).
   uniqueIndex("coupons_rep_daily_unique")
     .on(t.ownerUserId, t.istDate)
     .where(sql`${t.kind} = 'rep_daily'`),

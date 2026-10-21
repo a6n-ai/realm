@@ -373,6 +373,23 @@ export async function setMaxCoinPctOfSubtotal(pct: number | null): Promise<void>
   else await appSettingsEntity.create({ ...DEFAULTS, maxCoinPctOfSubtotal: pct });
 }
 
+/** Whole percent of a paid order's pre-tax amount earned back as coins. 0 = off. */
+export async function getCoinEarnPct(): Promise<number> {
+  return settingsCache.getOrSet("coinEarnPct", async () => {
+    const [row] = await db.select({ v: app.coinEarnPct }).from(app).limit(1);
+    return row?.v ?? 0;
+  });
+}
+
+export async function setCoinEarnPct(pct: number): Promise<void> {
+  if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
+    throw new ValidationError("Earn rate must be a whole percent between 0 and 100");
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { coinEarnPct: pct });
+  else await appSettingsEntity.create({ ...DEFAULTS, coinEarnPct: pct });
+}
+
 /** Admin overrides for provincial sales tax rates; provinces absent here fall
  *  back to DEFAULT_PROVINCE_TAXES. */
 export async function getProvinceTaxes(): Promise<Record<string, { name: string; ratePct: number }[]>> {

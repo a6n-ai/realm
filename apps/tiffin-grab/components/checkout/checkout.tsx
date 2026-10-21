@@ -183,6 +183,7 @@ export function Checkout({
   const [coinsInput, setCoinsInput] = useState("");
   const [appliedCoins, setAppliedCoins] = useState(0);
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  const [coinsToEarn, setCoinsToEarn] = useState<number | null>(null);
   const [coinCap, setCoinCap] = useState<RepriceResult["coinCap"]>(null);
   const [coinsState, setCoinsState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [waitlisted, setWaitlisted] = useState(false);
@@ -246,6 +247,7 @@ export function Checkout({
     setApplied(r.appliedCoupons);
     setPaymentMethods(r.paymentMethods);
     setCoinBalance(r.coinBalance);
+    setCoinsToEarn(r.coinsToEarn);
     setCoinCap(r.coinCap);
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
@@ -785,6 +787,12 @@ export function Checkout({
           </p>
         )}
       </section>
+
+      {coinsToEarn ? (
+        <p className="text-muted-foreground -mt-6 px-1 text-[13px]">
+          You&apos;ll earn ~<span className="nums">{coinsToEarn}</span> coins when this order is paid
+        </p>
+      ) : null}
 
       {!wide && savingsSection}
 

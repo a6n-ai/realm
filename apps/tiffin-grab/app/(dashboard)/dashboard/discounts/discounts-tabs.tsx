@@ -1,12 +1,13 @@
 "use client";
 
-import { HistoryIcon, PercentIcon, SlidersHorizontalIcon, TicketPercentIcon } from "lucide-react";
+import { HistoryIcon, PercentIcon, SlidersHorizontalIcon, TicketIcon, TicketPercentIcon } from "lucide-react";
 import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 const SUBTABS = [
   { label: "Logs", href: "/dashboard/discounts/logs", icon: HistoryIcon },
   { label: "Coupons", href: "/dashboard/discounts/coupons", icon: TicketPercentIcon },
   { label: "Rep allowance", href: "/dashboard/discounts/rep-allowance", icon: PercentIcon },
+  { label: "Staff codes", href: "/dashboard/discounts/staff-codes", icon: TicketIcon },
   { label: "Enabled kinds", href: "/dashboard/discounts/kinds", icon: SlidersHorizontalIcon },
 ] as const;
 

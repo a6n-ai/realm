@@ -10,7 +10,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { REP_ALLOWANCE_TZ, repAllowanceFor } from "@/lib/services/rep-allowance";
+import { repAllowanceFor, repAllowanceZone } from "@/lib/services/rep-allowance";
 
 export type RepCodeAllowance = { capAmount: number; capPct: number; left: number; total: number; validityHours: number };
 
@@ -24,7 +24,7 @@ async function ownAllowance() {
     : [];
   const allowance = publicId ? repAllowanceFor(await getDiscountPolicy(), publicId) : null;
   if (!staff || !allowance) throw new ValidationError("Staff discounts are not enabled for your account");
-  const istDate = zonedDateIso(Date.now(), REP_ALLOWANCE_TZ);
+  const istDate = zonedDateIso(Date.now(), await repAllowanceZone());
   return { staffId: staff.id, allowance, istDate };
 }
 

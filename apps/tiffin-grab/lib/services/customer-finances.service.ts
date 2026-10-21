@@ -5,7 +5,7 @@ import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
 import { cardPayClosed } from "@/lib/orders/display-status";
 import { payPageLines } from "@/app/(customer)/me/pay/[paymentId]/lines";
-import { ledgerEntries, orders, payments, plans } from "@/db/schema";
+import { couponRedemptions, coupons, ledgerEntries, orders, payments, plans } from "@/db/schema";
 
 export type BillPaymentSummary = {
   publicId: string;
@@ -179,4 +179,57 @@ export async function myMoneyLedgerPage(
     size: page.size,
     total: count,
   };
+}
+
+export type CustomerCouponUse = {
+  publicId: string;
+  /** Null for a staff discount: the rep's own coupon code is not the customer's to see. */
+  code: string | null;
+  name: string;
+  saved: string;
+  orderDeploymentId: string;
+  createdAt: number;
+};
+
+// The signed-in customer's own coupon uses, newest first.
+export async function myCouponsPage(userId: bigint, page: PageRequest): Promise<Page<CustomerCouponUse>> {
+  const where = eq(couponRedemptions.userId, userId);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        publicId: couponRedemptions.publicId,
+        code: coupons.code,
+        kind: coupons.kind,
+        name: coupons.name,
+        saved: couponRedemptions.amountApplied,
+        orderDeploymentId: orders.deploymentId,
+        createdAt: couponRedemptions.createdAt,
+      })
+      .from(couponRedemptions)
+      .innerJoin(coupons, eq(coupons.id, couponRedemptions.couponId))
+      .innerJoin(orders, eq(orders.id, couponRedemptions.orderId))
+      .where(where)
+      .orderBy(desc(couponRedemptions.createdAt), desc(couponRedemptions.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(couponRedemptions).where(where),
+  ]);
+  return {
+    items: rows.map(({ kind, ...r }) => (kind === "rep_daily" ? { ...r, code: null, name: "Staff discount" } : r)),
+    page: page.page,
+    size: page.size,
+    total: count,
+  };
+}
+
+export async function myCouponTotals(userId: bigint): Promise<{ uses: number; saved: string; lastUsedAt: number | null }> {
+  const [row] = await db
+    .select({
+      uses: sql<number>`cast(count(*) as int)`,
+      saved: sql<string>`coalesce(sum(${couponRedemptions.amountApplied}), 0)`,
+      lastUsedAt: sql<number | null>`max(${couponRedemptions.createdAt})`,
+    })
+    .from(couponRedemptions)
+    .where(eq(couponRedemptions.userId, userId));
+  return { uses: row.uses, saved: row.saved, lastUsedAt: row.lastUsedAt == null ? null : Number(row.lastUsedAt) };
 }

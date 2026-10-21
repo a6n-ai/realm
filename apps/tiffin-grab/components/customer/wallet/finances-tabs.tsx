@@ -6,6 +6,7 @@ import type { FinancesTab } from "./finances-tab";
 
 const TABS: { id: FinancesTab; label: string }[] = [
   { id: "coins", label: "Coins" },
+  { id: "coupons", label: "Coupons" },
   { id: "bills", label: "Bills" },
   { id: "transactions", label: "Transactions" },
 ];

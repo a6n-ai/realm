@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
-import { NumberField } from "../../../discounts/controls";
+import { NumberField } from "../../discounts/controls";
 import { setWalletRedeemCapAction } from "./actions";
 
 export function WalletRedeemCapForm({ current }: { current: number | null }) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { afterFirstInput } from "@/lib/landing/wake";
 import { TIFFIN_EY, TIFFIN_EZ, TIFFIN_CAL_HINGE, TIFFIN_LID_GAP, TIFFIN_SPREAD, TIFFIN_SRC, TIFFIN_TIERS } from "./tiffin-art.generated";
 
 // The story the figure tells, one state per chapter (data-step on each chapter):
@@ -50,6 +51,10 @@ export function LandingMotion() {
       const readout = document.querySelector<HTMLElement>("[data-tiffin-readout]");
       const stepLabel = document.querySelector<HTMLElement>("[data-tiffin-step]");
       if (!stage) return;
+      // The first frame is already on screen as a WebP; the live drawing (about 2,700
+      // nodes) waits for the first scroll or an idle moment so it never slows the load.
+      await afterFirstInput();
+      if (disposed) return;
       const markup = await fetch(TIFFIN_SRC).then((r) => (r.ok ? r.text() : "")).catch(() => "");
       if (disposed || !markup) return;
       // Our own build output, served from /public: trusted markup, not user content.

@@ -92,7 +92,18 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
 
   // Hand-made coupons are a small set: filtered in the query, paged client-side.
   const { page } = parseFilterState(SPEC, sp);
-  return <CouponsManager coupons={couponRows} sort={sort} pagination={page} spec={SPEC} />;
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const now = Date.now();
+  const weekOut = now + 7 * 86_400_000;
+  const live = couponRows.filter((c) => c.active && (c.expiresAt == null || c.expiresAt > now));
+  const stats = [
+    { label: "Coupons", value: couponRows.length.toLocaleString() },
+    { label: "Live", value: live.length.toLocaleString(), hint: "Active and not expired" },
+    { label: "Auto-apply", value: live.filter((c) => c.autoApply).length.toLocaleString() },
+    { label: "Expiring in 7 days", value: live.filter((c) => c.expiresAt != null && c.expiresAt <= weekOut).length.toLocaleString() },
+    { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
+  ];
+  return <CouponsManager coupons={couponRows} stats={stats} sort={sort} pagination={page} spec={SPEC} />;
 }
 
 export type { CouponSortColumn };

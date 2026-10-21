@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
-import { NavPending } from "@/components/landing/nav-pending";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import "@/components/landing/landing.css";
@@ -16,7 +15,6 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />
       <LocationPicker />
-      <NavPending />
     </div>
   );
 }
@@ -28,7 +26,7 @@ async function PublicFooter() {
     <footer className="tg-close">
       <div className="tg-wrap">
         <h2 className="tg-h2 max-w-[14ch]">Your first tiffin, your <span className="c-accent">way.</span></h2>
-        <div className="mt-8"><Link href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
+        <div className="mt-8"><Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
         {zones.length > 0 ? <p className="mt-8 max-w-[70ch] text-sm opacity-75">Delivering to {zones.join(", ")}.</p> : null}
         <div className="tg-foot">
           <nav aria-label="Site">

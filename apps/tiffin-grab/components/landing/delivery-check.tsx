@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { afterFirstInput } from "@/lib/landing/wake";
 import { checkDelivery, type DeliveryCheck as Result } from "@/lib/landing/check-delivery";
 
 type Point = { lat: number; lng: number };
@@ -81,6 +82,9 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
     const io = new IntersectionObserver(async ([entry]) => {
       if (!entry?.isIntersecting) return;
       io.disconnect();
+      // The map library is heavy to start; wait for a first input or an idle moment.
+      await afterFirstInput();
+      if (cancelled) return;
       const ml = await import("maplibre-gl");
       if (cancelled) return;
       lib.current = ml;
@@ -190,7 +194,7 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
             <div className="tg-verdict" data-tone={verdict.tone}>
               <strong>{verdict.title}</strong>
               <span>{verdict.body}</span>
-              {verdict.tone === "yes" ? <Link href="/subscribe" className="tg-link tg-link--tap">Build my tiffin</Link> : null}
+              {verdict.tone === "yes" ? <Link prefetch={false} href="/subscribe" className="tg-link tg-link--tap">Build my tiffin</Link> : null}
               {verdict.tone === "no" ? <Link href="/contact" className="tg-link tg-link--tap">Ask us about your area</Link> : null}
             </div>
           ) : null}

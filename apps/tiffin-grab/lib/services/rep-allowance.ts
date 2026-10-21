@@ -1,7 +1,11 @@
 import type { DiscountPolicy } from "@/db/schema/coupons";
+import { getAppSettings } from "./app-settings.service";
 
-// Staff operate in IST; the daily rep allowance is anchored to the IST calendar day.
-export const REP_ALLOWANCE_TZ = "Asia/Kolkata";
+// The daily rep allowance is anchored to the app-settings timezone's calendar day, like the
+// rest of the app. The `ist_date` column keeps its name; it now holds that zone's date.
+export async function repAllowanceZone(): Promise<string> {
+  return (await getAppSettings()).timezone;
+}
 
 export interface RepAllowance {
   capPct: number;

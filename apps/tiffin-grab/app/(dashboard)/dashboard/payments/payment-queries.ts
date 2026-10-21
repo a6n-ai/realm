@@ -70,6 +70,63 @@ const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
     .split(",")
     .filter((x) => allowed.some((a) => a.value === x));
 
+export const OVERDUE_DAYS = 3;
+const DAY_MS = 86_400_000;
+
+export type PaymentKpis = {
+  range: { from: number; to: number };
+  collected: number;
+  collectedCount: number;
+  ordersPaid: number;
+  previousCollected: number;
+  toVerify: { count: number; oldestAt: number | null };
+  awaiting: { count: number; amount: number };
+  overdue: { count: number; amount: number };
+};
+
+/**
+ * Headline numbers above every payments tab. Collected/orders paid/change follow the
+ * date range (by `created_at`, same as the table); the three queues are live and
+ * ignore it, since last week's backlog still needs doing today.
+ */
+export async function getPaymentKpis(sp: { from?: string; to?: string }, now = Date.now()): Promise<PaymentKpis> {
+  const dated = await withListDates(sp);
+  const from = Number(dated.from);
+  const to = Number(dated.to);
+  // The equal-length window just before this one.
+  const prevTo = from - 1;
+  const prevFrom = prevTo - (to - from);
+  const overdueBefore = now - OVERDUE_DAYS * DAY_MS;
+  const inRange = (a: number, b: number) => sql`${payments.createdAt} between ${a} and ${b}`;
+  const num = (v: unknown) => Number(v ?? 0);
+
+  const [r] = await db
+    .select({
+      collected: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}), 0)`,
+      collectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
+      ordersPaid: sql<number>`cast(count(distinct ${payments.orderId}) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
+      previousCollected: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'paid' and ${inRange(prevFrom, prevTo)}), 0)`,
+      verifyCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification') as int)`,
+      verifyOldestAt: sql<string | null>`min(coalesce(${payments.claimedAt}, ${payments.createdAt})) filter (where ${payments.status} = 'pending_verification')`,
+      awaitingCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment') as int)`,
+      awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment'), 0)`,
+      overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}) as int)`,
+      overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}), 0)`,
+    })
+    .from(payments);
+
+  return {
+    range: { from, to },
+    collected: num(r.collected),
+    collectedCount: r.collectedCount,
+    ordersPaid: r.ordersPaid,
+    previousCollected: num(r.previousCollected),
+    toVerify: { count: r.verifyCount, oldestAt: r.verifyOldestAt == null ? null : Number(r.verifyOldestAt) },
+    awaiting: { count: r.awaitingCount, amount: num(r.awaitingAmount) },
+    overdue: { count: r.overdueCount, amount: num(r.overdueAmount) },
+  };
+}
+
 /** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */
 export async function listPayments(
   sp: Sp,

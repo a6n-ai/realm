@@ -5,6 +5,7 @@ import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";
 import { eventLabel } from "@relay/engine/ui";
+import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
@@ -16,7 +17,7 @@ function WalletLogRow({ tx }: { tx: WalletTx }) {
   return (
     <Reveal className="flex items-center justify-between gap-3 py-2.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{eventLabel(tx.eventType ?? tx.sourceType)}</p>
+        <p className="truncate text-sm font-medium">{walletEntryLabel(tx.sourceType, tx.eventType ? eventLabel(tx.eventType) : null)}</p>
         <p className="text-muted-foreground text-xs tabular-nums">
           {formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
         </p>
