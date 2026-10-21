@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
-import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
+import { UploadIcon, XIcon } from "lucide-react";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";

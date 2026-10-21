@@ -193,7 +193,7 @@ describe("PayPanel", () => {
 
   it("the last-used strip stays disabled while the amount is being re-quoted", () => {
     setup({ disabled: true });
-    expect(screen.getByRole("button", { name: "Pay $50.00" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pay $50.00" }).getAttribute("aria-disabled")).toBe("true");
   });
 
   it("Pay by card opens the dialog with prefilled billing details", async () => {

@@ -5,14 +5,13 @@ import { preconnect } from "react-dom";
 import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
-import { Button } from "@/components/ui/button";
 import { Button as BarButton } from "@/components/customer/kit";
 import { CardBrandMark, cardBrandName, cardExpiry, defaultSavedCard } from "@/components/checkout/payment-method-cards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
-import { CardDialog, ErrorAlert, Spinner, SurchargeConfirm, dollars } from "./card-dialog";
+import { CardDialog, ErrorAlert, SurchargeConfirm, dollars } from "./card-dialog";
 import { TrustLine } from "./trust-line";
 import { ReceiptPrinter, type Receipt } from "./receipt-printer";
 
@@ -282,14 +281,16 @@ export function LastUsedCard({ onSelect }: { onSelect?: () => void }) {
           <span className="truncate text-sm font-medium">{cardBrandName(card.brand)} •••• {card.last4 ?? "----"}</span>
           <span className="text-muted-foreground text-xs">Expires {cardExpiry(card)}</span>
         </div>
-        <Button
+        <BarButton
+          variant="primary"
+          size="lg"
           className="shrink-0"
+          pending={busy}
           disabled={busy}
           onClick={() => (onSelect ? onSelect() : void payWith(false))}
         >
-          <Spinner show={busy} />
           {onSelect ? "Use this card" : `Pay ${dollars(amountCents)}`}
-        </Button>
+        </BarButton>
       </div>
       {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => payWith(true)} onCancel={() => setFee(null)} />}
       {error && <ErrorAlert message={error} busy={busy} onRetry={fee ? undefined : () => payWith(false)} />}
