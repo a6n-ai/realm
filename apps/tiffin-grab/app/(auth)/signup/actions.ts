@@ -9,7 +9,7 @@ import { account, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
-import { REFERRAL_COOKIE, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
 
 const log = createLogger("signup");
@@ -84,8 +84,7 @@ export async function signUpCustomer(input: {
 
       const [inserted] = await tx
         .insert(users)
-        // Held, not attached: it attaches at the first verified sign-in (session hook).
-        .values({ phone, email, name: name ?? null, role: "user", pendingReferralCode: referralCode || null })
+        .values({ phone, email, name: name ?? null, role: "user" })
         .returning({ id: users.id });
 
       await tx.insert(account).values({
@@ -105,6 +104,8 @@ export async function signUpCustomer(input: {
     // slow SES call must not hold the connection, and a delivery failure must
     // not roll back a created account (the user can re-trigger by attempting to
     // sign in, which re-sends via sendOnSignIn).
+    // Remembered in this browser; attaches at the first verified sign-in here.
+    if (createdId != null && referralCode) (await cookies()).set(REFERRAL_COOKIE, referralCode, REFERRAL_COOKIE_OPTIONS);
     if (createdId != null) {
       try {
         const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");

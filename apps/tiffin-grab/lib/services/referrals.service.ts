@@ -55,14 +55,12 @@ export async function findReferrerByCode(raw: string): Promise<{ id: bigint; pub
 export type AttachResult = "attached" | "unknown_code" | "self" | "not_eligible" | "already";
 
 /**
- * Sign-in hook body: the share-link cookie, else the code typed at signup (held on
- * the row because the verify link often opens where the cookie isn't). The pending
- * code is spent on the first verified sign-in whatever the outcome.
+ * Sign-in hook body. Only the browser's own cookie (share link or signup form)
+ * counts: nothing stored on the account, so a code planted on a pre-registered
+ * email can't ride along when the real owner later verifies.
  */
 export async function attachOnSignIn(userId: bigint, headers: Headers | null | undefined): Promise<AttachResult | null> {
-  const [row] = await db.select({ pending: users.pendingReferralCode }).from(users).where(eq(users.id, userId)).limit(1);
-  if (row?.pending) await db.update(users).set({ pendingReferralCode: null }).where(eq(users.id, userId));
-  const code = readReferralCookie(headers) ?? row?.pending ?? null;
+  const code = readReferralCookie(headers);
   return code ? attachReferral(userId, code) : null;
 }
 

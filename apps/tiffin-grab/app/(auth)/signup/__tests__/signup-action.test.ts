@@ -77,12 +77,12 @@ describe("signUpCustomer referral code", () => {
     expect(await db.select().from(users).where(eq(users.phone, "+16475550121"))).toHaveLength(0);
   });
 
-  it("holds a valid code on the new account until its first verified sign-in", async () => {
+  it("remembers a valid code in this browser for the first verified sign-in, without referring yet", async () => {
     await db.insert(users).values({ phone: "+16475550122", email: "r2@example.invalid", role: "user", referralCode: "ABCD2345" });
     const r = await signUpCustomer({ phone: "+16475550123", email: "r3@example.invalid", password: PASSWORD, referralCode: "abcd 2345" });
     expect(r.ok).toBe(true);
+    expect(cookieSet).toHaveBeenCalledWith("tg_ref", "ABCD2345", expect.objectContaining({ httpOnly: true, maxAge: 2592000 }));
     const [u] = await db.select().from(users).where(eq(users.phone, "+16475550123"));
-    expect(u.pendingReferralCode).toBe("ABCD2345");
     expect(u.referredByUserId).toBeNull();
   });
 

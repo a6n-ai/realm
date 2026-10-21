@@ -183,15 +183,6 @@ describe("verified sign-in only", () => {
     expect(u.by).toBe(referrer);
   });
 
-  it("attachOnSignIn falls back to the code typed at signup, then forgets it", async () => {
-    const referrer = await makeUser("+16475550022");
-    const friend = await makeUser("+16475550023");
-    await db.update(users).set({ pendingReferralCode: await getOrCreateReferralCode(referrer) }).where(eq(users.id, friend));
-    await attachOnSignIn(friend, new Headers());
-    const [u] = await db.select({ by: users.referredByUserId, pending: users.pendingReferralCode }).from(users).where(eq(users.id, friend));
-    expect(u).toEqual({ by: referrer, pending: null });
-  });
-
   it("attachOnSignIn does nothing without a code", async () => {
     const friend = await makeUser("+16475550024");
     await attachOnSignIn(friend, null);

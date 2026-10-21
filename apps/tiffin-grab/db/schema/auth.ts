@@ -44,9 +44,6 @@ export const users = pgTable(
     // Set once at sign-in, never changed.
     referralCode: text("referral_code").unique(),
     referredByUserId: bigint("referred_by_user_id", { mode: "bigint" }).references((): AnyPgColumn => users.id),
-    // Code typed at signup, held until the first verified sign-in attaches it
-    // (the verify link often opens where the share cookie isn't).
-    pendingReferralCode: text("pending_referral_code"),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
     // false = account still on an issued default/temp password and must set its

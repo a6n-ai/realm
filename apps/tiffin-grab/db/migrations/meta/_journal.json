@@ -239,13 +239,6 @@
       "when": 1792602989578,
       "tag": "0033_chilly_mandroid",
       "breakpoints": true
-    },
-    {
-      "idx": 34,
-      "version": "7",
-      "when": 1792608996674,
-      "tag": "0034_acoustic_shinko_yamashiro",
-      "breakpoints": true
     }
   ]
 }
