@@ -21,6 +21,7 @@ export * from "./trial-settings";
 export * from "./cron-runs";
 export * from "./audit";
 export * from "./wallet";
+export * from "./referrals";
 export * from "./shortlinks";
 export * from "./notifications";
 export * from "./files";

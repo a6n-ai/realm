@@ -1,6 +1,6 @@
 import { makePublicId, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { deliveryStrategies, addressTags } from "./delivery";
 
 // better-auth (generateId:false) reads these ids as opaque strings and never
@@ -40,6 +40,10 @@ export const users = pgTable(
     // work for people with zero organization membership rows.
     platformRole: text("platform_role"),
     status: userStatus("status").notNull().default("active"),
+    // Referral: own share code (made on first need) and who referred this account.
+    // Set once at sign-in, never changed.
+    referralCode: text("referral_code").unique(),
+    referredByUserId: bigint("referred_by_user_id", { mode: "bigint" }).references((): AnyPgColumn => users.id),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
     // false = account still on an issued default/temp password and must set its
