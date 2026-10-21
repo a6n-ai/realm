@@ -18,7 +18,7 @@ import { OrderForm, type EstimateState } from "../inquiries/[id]/order/order-for
 import { OrderPricingBreakdown } from "../orders/[id]/order-pricing-breakdown";
 import { CustomerSearch } from "../_leads/customer-search";
 import type { CustomerHit } from "../_leads/match-actions";
-import { estimateFormData } from "./estimate-actions";
+import { createQuoteLink, estimateFormData } from "./estimate-actions";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "./rep-code-actions";
 
 type FormData = Awaited<ReturnType<typeof estimateFormData>>;
@@ -59,8 +59,14 @@ export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const copy = async () => {
     if (!estimate?.copyText) return;
+    let text = estimate.copyText;
+    // Swap the long link for a short /q/ one; if that fails the long link still works.
+    if (estimate.link) {
+      const r = await createQuoteLink(new URL(estimate.link).search).catch(() => ({ error: "" }));
+      if ("code" in r) text = text.replace(estimate.link, `${window.location.origin}/q/${r.code}`);
+    }
     try {
-      await navigator.clipboard.writeText(estimate.copyText);
+      await navigator.clipboard.writeText(text);
       toast.success("Message copied. Paste it in WhatsApp");
     } catch {
       toast.error("Couldn't copy the estimate");
