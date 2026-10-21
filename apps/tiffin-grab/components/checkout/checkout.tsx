@@ -789,7 +789,6 @@ export function Checkout({
               feeNote={cardContext?.feeNote}
             />
             {/* Below the cards: its slot can't push them around while Stripe loads. */}
-            {payWithCard && !phone && <ExpressPay />}
             {/* Outside the cards: the copy button can't nest inside a label. */}
             <AnimatePresence initial={false}>
               {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
@@ -832,12 +831,11 @@ export function Checkout({
 
       {!wide && savingsSection}
 
-      {payWithCard && !phone && cardPay}
     </div>
   );
 
   const page = (
-    <div className={`${step === 2 && payWithCard ? "pb-80" : "pb-44"} sm:pb-10`}>
+    <div className="pb-[calc(var(--bottom-bar-h,11rem)+1rem)] sm:pb-10">
       <SubscribeChrome
         brand
         closeHref={closeHref}
@@ -938,19 +936,19 @@ export function Checkout({
             </motion.div>
           </AnimatePresence>
 
-          {/* Card pays from its own button in the step, so on desktop (Back is in the header) the bar would be empty. */}
+          {/* Card step: wallet and card action live here at every width, like Continue on the Delivery step. */}
           <BottomBar
             alignEnd
             note={step === 2 && payWithCard && phone && result ? `Total ${money(result.total)}` : (actionReason ?? undefined)}
-            className={`sm:sticky sm:mt-8 sm:px-0 ${step === 2 && payWithCard ? "sm:hidden" : ""}`}
+            className="sm:sticky sm:mt-8 sm:px-0"
           >
-            {step === 2 && payWithCard && phone ? (
-              // Phones pay from here: wallets, then Back beside the card action.
-              <div className="flex w-full flex-col gap-2">
-                <ExpressPay />
-                <div className="flex items-start gap-2">
-                  <Button variant="quiet" size="md" className="w-24 shrink-0" onClick={goBack}>{backLabel}</Button>
-                  <div className="min-w-0 flex-1">{cardPay}</div>
+            {step === 2 && payWithCard ? (
+              // Phone: wallet, then Back beside the card action. sm+: one row, Back left, wallet and Pay right.
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+                <div className="sm:order-2 sm:ml-auto sm:w-64 sm:shrink-0"><ExpressPay height={50} /></div>
+                <div className="flex items-start gap-2 sm:contents">
+                  <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:order-1" onClick={goBack}>{backLabel}</Button>
+                  <div className="min-w-0 flex-1 sm:order-3 sm:w-56 sm:flex-none">{cardPay}</div>
                 </div>
               </div>
             ) : (

@@ -1,11 +1,24 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn, FONT, FOCUS } from "./cn";
 
 /** Sticky glass CTA bar: hairline top, safe-area padding, one primary action. */
 export function BottomBar({ children, note, className, alignEnd }: { children: ReactNode; note?: string; className?: string; /** From sm up, right-align the note and the actions (wizard bar). */ alignEnd?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Pages reserve exactly the bar's height (var(--bottom-bar-h)) so content ends just above it.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const root = document.documentElement;
+    const ro = new ResizeObserver(() => root.style.setProperty("--bottom-bar-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty("--bottom-bar-h"); };
+  }, []);
   return (
-    <div className={cn(FONT, "c-glass fixed inset-x-0 bottom-0 z-[45] border-t border-[var(--border)] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+    <div ref={ref} className={cn(FONT, "c-glass fixed inset-x-0 bottom-0 z-[45] border-t border-[var(--border)] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
       {note && <p role="status" className={cn("c-caption mx-auto mb-2 max-w-3xl text-center", alignEnd && "sm:text-right")}>{note}</p>}
       <div className={cn("mx-auto flex max-w-3xl gap-2", alignEnd && "sm:justify-end")}>{children}</div>
     </div>

@@ -188,7 +188,8 @@ export function PaidSwitch({ children }: { children: ReactNode }) {
 
 type Fee = { surcharge: string; newTotal: string; source: CardSource };
 
-export function ExpressPay() {
+/** `height` (40-55) matches the wallet button to the Pay button beside it. */
+export function ExpressPay({ height = 48 }: { height?: number } = {}) {
   const { busy, disabled, pay } = usePanel();
   const stripe = useStripe();
   const elements = useElements();
@@ -226,14 +227,14 @@ export function ExpressPay() {
     <div className={wallets === "none" ? "hidden" : "flex flex-col gap-3"}>
       {/* The slot holds the button's height while Stripe loads, so nothing jumps when it appears.
           While re-quoting it dims and goes inert rather than hiding. */}
-      <div className="relative min-h-12">
+      <div className="relative" style={{ minHeight: height }}>
         {wallets === "loading" && <Skeleton aria-hidden className="absolute inset-0" />}
         <div
           inert={disabled || wallets !== "ready"}
           className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${wallets !== "ready" ? "opacity-0" : disabled ? "opacity-50" : ""}`}
         >
           <ExpressCheckoutElement
-            options={{ buttonHeight: 48 }}
+            options={{ buttonHeight: height }}
             onReady={(e) => setWallets(e.availablePaymentMethods ? "ready" : "none")}
             onConfirm={onConfirm}
           />

@@ -4,6 +4,7 @@ import type { ReactNode, SVGProps } from "react";
 import { ArrowLeftRight, Banknote, CreditCard, Wallet, type LucideIcon } from "lucide-react";
 import type { SavedCard } from "@foundry/payments/stripe";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
+import { Badge } from "@/components/reui/badge";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 export type PayMethodOption = { id: string; label: string };
@@ -46,22 +47,26 @@ const TILE = {
 } as const;
 const ICON: Record<string, LucideIcon> = { stripe: CreditCard, cash: Banknote, etransfer: ArrowLeftRight };
 
-/** ReUI c-radio-group-13 card: icon tile on top, title and details below, radio dot in the corner. */
-function Choice({ value, icon, tile, title, children }: { value: string; icon: LucideIcon; tile: string; title: string; children?: ReactNode }) {
+const SUBTITLE: Record<string, string> = { stripe: "Card or wallet", cash: "Pay on delivery", etransfer: "Interac" };
+
+/** One structure for every card (so all are the same height): icon tile and side marks on top, title over subtitle below. */
+function Choice({ value, icon, tile, title, subtitle, aside }: { value: string; icon: LucideIcon; tile: string; title: string; subtitle?: string; aside?: ReactNode }) {
   const id = `pay-${value.replace(":", "-")}`;
   const Icon = icon;
   return (
     <FieldLabel htmlFor={id} className="relative h-full p-0! transition-colors">
       <Field orientation="horizontal" className="h-full">
-        <RadioGroupItem value={value} id={id} aria-labelledby={`${id}-title`} aria-describedby={children ? `${id}-desc` : undefined} className="absolute top-3 right-3" />
+        <RadioGroupItem value={value} id={id} aria-labelledby={`${id}-title`} aria-describedby={subtitle ? `${id}-desc` : undefined} className="absolute top-3 right-3" />
         <FieldTitle className="flex w-full min-w-0 flex-col items-start justify-start gap-2">
-          <span aria-hidden className={`grid size-9 shrink-0 place-items-center rounded-lg ${tile}`}>
-            <Icon className="size-5" />
+          <span className="flex h-9 w-full items-center justify-between gap-2 pr-7">
+            <span aria-hidden className={`grid size-9 shrink-0 place-items-center rounded-lg ${tile}`}>
+              <Icon className="size-5" />
+            </span>
+            {aside && <span aria-hidden className="flex items-center gap-1">{aside}</span>}
           </span>
           <span className="flex min-w-0 flex-col items-start gap-0.5">
             <span id={`${id}-title`} className="line-clamp-2 text-sm font-medium">{title}</span>
-            {/* Reserved on every card, so a method with a subtitle does not push the others' titles out of line. */}
-            <span id={`${id}-desc`} className="text-muted-foreground flex min-h-10 flex-col items-start gap-0.5 text-xs font-normal">{children}</span>
+            <span id={`${id}-desc`} className="text-muted-foreground min-h-4 text-xs font-normal">{subtitle}</span>
           </span>
         </FieldTitle>
       </Field>
@@ -84,17 +89,15 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
     <div className="flex flex-col gap-3">
       <RadioGroup value={value} onValueChange={onChange} aria-labelledby={labelledBy} className={`grid items-stretch gap-3 ${COLUMNS[methods.length] ?? "grid-cols-2 sm:grid-cols-3"}`}>
         {methods.map((m) => (
-          <Choice key={m.id} value={m.id} icon={ICON[m.id] ?? Wallet} tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other} title={payMethodTitle(m)}>
-            {m.id === "stripe" ? (
-              <>
-                <span>Card or wallet</span>
-                <span aria-hidden className="flex items-center gap-1">
-                  <VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" />
-                  <MastercardMark className="size-5" />
-                </span>
-              </>
-            ) : undefined}
-          </Choice>
+          <Choice
+            key={m.id}
+            value={m.id}
+            icon={ICON[m.id] ?? Wallet}
+            tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other}
+            title={payMethodTitle(m)}
+            subtitle={SUBTITLE[m.id]}
+            aside={m.id === "stripe" ? <><VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" /><MastercardMark className="size-5" /></> : m.id === "etransfer" ? <Badge variant="outline" size="sm" className="min-w-0"><span className="truncate">Interac e-Transfer</span></Badge> : undefined}
+          />
         ))}
       </RadioGroup>
       {hasStripe && feeNote && <p className="text-muted-foreground text-xs">{feeNote}. Debit cards have no fee.</p>}

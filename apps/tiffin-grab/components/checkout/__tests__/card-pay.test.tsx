@@ -127,6 +127,16 @@ describe("Checkout Pay step", () => {
     vi.clearAllMocks();
   });
 
+  it("on a phone the wallet slot sits above the full-size Back and Pay row in the bar", async () => {
+    await toPayment();
+    const express = screen.getByTestId("express");
+    const back = screen.getAllByRole("button", { name: /^back$/i }).at(-1)!;
+    const pay = screen.getByRole("button", { name: "Pay now" });
+    expect(express.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(express.compareDocumentPosition(pay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(back.className).toContain("min-h-[50px]");
+  });
+
   it("stripe pays in place: no navigation, wizard cleared, Back blocked, receipt built from the server result in cents", async () => {
     await toPayment();
     expect(screen.getByTestId("express")).toBeTruthy();
