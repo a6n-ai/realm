@@ -26,6 +26,26 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   disabledReason?: string;
 }
 
+/** The button look as a class string, for links that must render as a Button (a button cannot nest in an anchor). */
+export function buttonClass({ variant = "outline", size = "md", pill, blocked, className }: { variant?: ButtonVariant; size?: "md" | "lg"; pill?: boolean; blocked?: boolean; className?: string }) {
+  return cn(
+    FONT,
+          FOCUS,
+          "inline-flex select-none items-center justify-center gap-2 border-[1.5px] font-semibold [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] transition-[transform,background-color,opacity] duration-150 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100",
+          SPRING,
+          variant === "hero" || pill ? "rounded-full" : "rounded-[14px]",
+          variant === "hero" && "px-[22px] text-[15px]",
+          size === "lg"
+            ? cn("min-h-[50px] px-4 text-[17px] tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-[15px] tracking-normal")
+            : cn("min-h-[44px] px-4 text-[15px]", variant === "hero" && "px-[22px]"),
+          VARIANT[variant],
+          // Primary actions answer the pointer with a 1px lift as well as the darker fill.
+          !blocked && (variant === "primary" || variant === "hero") && "[@media(hover:hover)]:hover:-translate-y-px",
+          blocked && "opacity-45 shadow-none",
+    className,
+  );
+}
+
 export function Button({
   variant = "outline",
   size = "md",
@@ -58,22 +78,7 @@ export function Button({
           }
           onClick?.(e);
         }}
-        className={cn(
-          FONT,
-          FOCUS,
-          "inline-flex select-none items-center justify-center gap-2 border-[1.5px] font-semibold [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] transition-[transform,background-color,opacity] duration-150 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100",
-          SPRING,
-          variant === "hero" || pill ? "rounded-full" : "rounded-[14px]",
-          variant === "hero" && "px-[22px] text-[15px]",
-          size === "lg"
-            ? cn("min-h-[50px] px-4 text-[17px] tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-[15px] tracking-normal")
-            : cn("min-h-[44px] px-4 text-[15px]", variant === "hero" && "px-[22px]"),
-          VARIANT[variant],
-          // Primary actions answer the pointer with a 1px lift as well as the darker fill.
-          !blocked && (variant === "primary" || variant === "hero") && "[@media(hover:hover)]:hover:-translate-y-px",
-          blocked && "opacity-45 shadow-none",
-          className,
-        )}
+        className={buttonClass({ variant, size, pill, blocked, className })}
       >
         {pending && <Loader2 aria-hidden className="size-4 animate-spin" />}
         {children}

@@ -5,7 +5,7 @@ import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/customer/kit";
 import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import { sanitizeClientError } from "@/lib/format/client-error";
@@ -91,8 +91,8 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
       title={`Send ${amount} by e-Transfer`}
       description="Send the e-Transfer from your bank, then upload a screenshot so we can verify it."
       footer={
-        <Button onClick={submit} disabled={pending} className="w-full sm:w-auto">
-          {pending ? <><Loader2Icon className="animate-spin" aria-hidden /> Submitting…</> : "I've sent the payment"}
+        <Button variant="primary" size="lg" onClick={submit} pending={pending} disabled={pending} className="w-full sm:w-auto">
+          {pending ? "Submitting…" : "I've sent the payment"}
         </Button>
       }
     >
@@ -128,8 +128,8 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
               <span className="truncate text-sm">{file.name}</span>
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
+                variant="quiet"
+                size="lg"
                 disabled={pending}
                 onClick={() => {
                   pickFile(null);

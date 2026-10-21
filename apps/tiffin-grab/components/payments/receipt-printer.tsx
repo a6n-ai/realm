@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
-import { Button } from "@foundry/ui/button";
+import { buttonClass } from "@/components/customer/kit";
 
 export type Receipt = {
   title: string;
@@ -143,9 +143,7 @@ export function ReceiptPrinter({
         </div>
         {feeding ? null : (
           <div className="flex w-full max-w-xs flex-col items-center gap-2">
-            <Button asChild size="lg" className="w-full">
-              <Link href={action.href}>{action.label}</Link>
-            </Button>
+            <Link href={action.href} className={buttonClass({ variant: "primary", size: "lg", className: "w-full" })}>{action.label}</Link>
             {secondary ? (
               <Link href={secondary.href} className="text-sm text-muted-foreground underline-offset-4 hover:underline">
                 {secondary.label}

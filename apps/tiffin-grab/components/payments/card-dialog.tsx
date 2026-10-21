@@ -6,7 +6,7 @@ import type { Appearance, Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/customer/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import type { CardSource } from "@/lib/services/payment-stripe";
@@ -26,8 +26,7 @@ export function ErrorAlert({ message, busy, onRetry }: { message: string; busy: 
       <AlertDescription>{message}</AlertDescription>
       {onRetry && (
         <AlertAction>
-          <Button variant="outline" size="sm" disabled={busy} onClick={onRetry}>
-            <Spinner show={busy} />
+          <Button variant="quiet" size="lg" pending={busy} disabled={busy} onClick={onRetry}>
             Retry
           </Button>
         </AlertAction>
@@ -45,11 +44,10 @@ export function SurchargeConfirm({ surcharge, newTotal, busy, onConfirm, onCance
         <Info aria-hidden />
         <AlertDescription>Credit cards carry a ${surcharge} card fee. New total ${newTotal}. Debit cards have no fee.</AlertDescription>
       </Alert>
-      <Button size="lg" className="w-full" disabled={busy} onClick={onConfirm}>
-        <Spinner show={busy} />
+      <Button variant="primary" size="lg" className="w-full" pending={busy} disabled={busy} onClick={onConfirm}>
         Pay ${newTotal}
       </Button>
-      <Button variant="outline" className="w-full" onClick={onCancel}>Use a different card</Button>
+      <Button variant="quiet" size="lg" className="w-full" onClick={onCancel}>Use a different card</Button>
     </div>
   );
 }
@@ -177,8 +175,7 @@ function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: Co
       description="Your card is entered securely with Stripe."
       footer={
         fee ? null : (
-          <Button size="lg" disabled={!stripe || !ready || busy} onClick={() => run(false)}>
-            <Spinner show={busy} />
+          <Button variant="primary" size="lg" pending={busy} disabled={!stripe || !ready || busy} onClick={() => run(false)}>
             Pay {dollars(amountCents)}
           </Button>
         )
