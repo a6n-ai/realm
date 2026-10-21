@@ -60,15 +60,27 @@ describe("adminSetDeliveryStatus", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("puts a past delivery on hold, and never releases it", async () => {
+  it("marks a past delivery Not delivered, which can still be corrected", async () => {
     const order = await makeOrder();
     const row = await seedDelivery(order.id, { optimoCompletionStatus: "success", optimoCompletedAt: 5 });
 
     await adminSetDeliveryStatus(row.publicId, "not_delivered", 1n);
-    const [skipped] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
-    expect([skipped.status, skipped.optimoCompletionStatus]).toEqual(["skipped", null]);
+    const [missed] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect([missed.status, missed.optimoCompletionStatus]).toEqual(["skipped", "failed"]);
 
-    await expect(adminSetDeliveryStatus(row.publicId, "delivered", 1n)).rejects.toThrow("can't go back to this day");
+    await adminSetDeliveryStatus(row.publicId, "delivered", 1n);
+    const [back] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect([back.status, back.optimoCompletionStatus]).toEqual(["scheduled", "success"]);
+  });
+
+  it("puts a delivery whose day hasn't come on hold, and never releases it", async () => {
+    const order = await makeOrder();
+    const row = await seedDelivery(order.id, { deliveryDate: "2099-01-07" });
+
+    await adminSetDeliveryStatus(row.publicId, "not_delivered", 1n);
+    const [held] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect([held.status, held.optimoCompletionStatus]).toEqual(["skipped", null]);
+
     await expect(adminSetDeliveryStatus(row.publicId, "upcoming", 1n)).rejects.toThrow("can't go back to this day");
   });
 

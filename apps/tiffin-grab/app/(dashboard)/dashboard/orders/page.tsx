@@ -1,4 +1,3 @@
-import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -12,7 +11,7 @@ import { addDays } from "@/lib/deliveries-view/week";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
+import { orderFormCatalog } from "./order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -284,16 +283,7 @@ async function NewOrderAction() {
         .map((sub) => ({ key: sub.key, label: sub.label })),
     }));
 
-  const orderCatalog = {
-    plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog) })),
-    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
-    minTiffinsPerWeek: catalog.minTiffinsPerWeek,
-    timezone: catalog.timezone,
-    cutoffHour: catalog.cutoffHour,
-    maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
-    durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
-  };
+  const orderCatalog = orderFormCatalog(catalog);
 
   return (
     <NewOrderSheet

@@ -51,6 +51,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The base image comes from our GHCR copy (as deploy-tiffin-grab does): anonymous
+      # pulls from Docker Hub and ECR Public both 429 on shared runner IPs. Refresh the
+      # copy from whichever source answers; when both are throttled, the copy already
+      # there builds.
+      - name: Refresh node base image copy
+        continue-on-error: true
+        run: |
+          for src in docker.io/library/node:26-alpine public.ecr.aws/docker/library/node:26-alpine; do
+            docker buildx imagetools create -t ghcr.io/a6n-ai/node:26-alpine "$src" && exit 0
+          done
+          exit 1
+
       # web first: the runner target also builds the shared `build` stage, warming
       # the cache the tools image reuses. APP=xplorers on both web and tools.
       - name: Build + push xplorers-web (runner)
@@ -64,6 +76,7 @@ jobs:
             NEXT_DEPLOYMENT_ID=${{ github.sha }}
             NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
             NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
+            NODE_IMAGE=ghcr.io/a6n-ai/node:26-alpine
           push: true
           tags: |
             ghcr.io/a6n-ai/xplorers-web:${{ github.sha }}
@@ -82,6 +95,7 @@ jobs:
             NEXT_DEPLOYMENT_ID=${{ github.sha }}
             NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
             NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
+            NODE_IMAGE=ghcr.io/a6n-ai/node:26-alpine
           push: true
           tags: |
             ghcr.io/a6n-ai/xplorers-tools:${{ github.sha }}

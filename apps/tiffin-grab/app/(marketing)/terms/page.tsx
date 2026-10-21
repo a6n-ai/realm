@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "Terms & conditions — Tiffin Grab",
-  description: "The terms that govern ordering from and subscribing to TiffinGrab in Ontario, Canada.",
-};
+export const metadata: Metadata = pageMeta("Terms and conditions | Tiffin Grab", "The terms that govern ordering from and subscribing to TiffinGrab in Ontario, Canada.", "/terms");
 
 const ALLERGENS = [
   ["Gluten / wheat", "HIGH", "Roti, naan, thepla, flour-based items"],

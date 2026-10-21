@@ -39,6 +39,7 @@ import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
 import { discountLine } from "@/components/customer/home/coupons-section";
+import { quoteLinkQuery } from "@/components/wizard/selections";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -132,6 +133,20 @@ function dayBeforeIso(iso: string): string {
 
 const multiDayTrialPicks = (picked: readonly string[], weekdays: readonly string[], max: number) => (max > 1 && picked.length ? picked : weekdays);
 
+/** What an estimate's side panel shows and drives: the live price and the customer coupon lane. */
+export type EstimateState = {
+  preview: PricingResult | null;
+  error: string | null;
+  copyText: string | null;
+  /** The long subscribe link inside copyText, so the panel can swap in a short /q/ link. */
+  link: string | null;
+  coupons: StaffCouponPreview | null;
+  codes: string[];
+  apply: (code: string) => void;
+  remove: (code: string) => void;
+  applyAll: (codes: string[]) => void;
+};
+
 export function OrderForm({
   inquiryId,
   contact,
@@ -146,7 +161,17 @@ export function OrderForm({
   onContinue,
   summary,
   priceSummary,
+  estimateOnly = false,
+  onEstimate,
 }: {
+  /** Price only, nothing is saved: the full order + coupon fields, no address required, no Create. */
+  estimateOnly?: boolean;
+  /**
+   * Estimate only: the live price for a panel beside the form, the quote as text to copy, and a way to
+   * apply a code issued there. The rep discount is hidden here: it is staff-applied, so a customer who
+   * orders on the website can't get it; the panel issues them a code instead.
+   */
+  onEstimate?: (e: EstimateState) => void;
   /** Split into two steps: "order" = meal + schedule, "payment" = delivery + payment + review. Unset = one page. */
   page?: "order" | "payment";
   /** "order" page's Continue, after its fields validate. */
@@ -333,6 +358,12 @@ export function OrderForm({
     return () => { live = false; clearTimeout(t); };
   }, [email, contact.phone]);
 
+  // An estimate switches customer without remounting, so the plan picked so far survives.
+  useEffect(() => {
+    if (estimateOnly) form.setValue("email", contact.email);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimateOnly, contact.email]);
+
   // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
   useEffect(() => {
     if (!renewalStart) return;
@@ -448,7 +479,7 @@ export function OrderForm({
   useEffect(() => {
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
-    const repCode = repInfo?.available ? repInfo.code : undefined;
+    const repCode = repInfo?.available && !estimateOnly ? repInfo.code : undefined;
     previewPrice(
       buildInput({
         planKey,
@@ -494,7 +525,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -540,12 +571,60 @@ export function OrderForm({
     }
   }
 
+  useEffect(() => {
+    if (!estimateOnly || !onEstimate) return;
+    const plan = catalog.plans.find((p) => p.key === planKey)?.name;
+    const meal = catalog.mealSizes.find((m) => m.id === mealSizeId)?.name;
+    const freq = catalog.frequencies.find((f) => f.key === frequencyKey)?.name;
+    // A WhatsApp-ready quote (*bold* renders there): what to pick on the website, the codes to
+    // type at checkout, and the exact total they will see.
+    const money = (n: number) => `$${n.toFixed(2)}`;
+    const days = eatingDays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
+    const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
+    const firstName = contact.fullName.trim().split(/\s+/)[0];
+    // Opens the customer's subscribe stepper on these picks, codes ready at checkout (see selectionsFromQuote).
+    const link = `${window.location.origin}/subscribe?${quoteLinkQuery({ planKey, mealSizeId, frequencyKey, eatingDays, durationWeeks: Number(durationWeeks), addonSelections, codes: toType })}`;
+    const copyText = shownPreview
+      ? [
+          `Hi${firstName ? ` ${firstName}` : ""}! Here is your Tiffin Grab estimate:`,
+          "",
+          `*Meal:* ${[plan, meal].filter(Boolean).join(" · ")}`,
+          `*Delivery:* ${freq ?? ""}${days ? ` (eating ${days})` : ""}`,
+          `*Duration:* ${durationWeeks} ${Number(durationWeeks) === 1 ? "week" : "weeks"} · ${shownPreview.tiffinCount} ${shownPreview.tiffinCount === 1 ? "tiffin" : "tiffins"}`,
+          "",
+          ...shownPreview.lineItems.map((li) => `${li.label}: ${money(li.amount)}`),
+          ...shownPreview.adjustments.map((d) => `${d.label}: -${money(d.amount)}`),
+          ...(shownPreview.taxLines ?? []).map((t) => `${t.name} (${t.ratePct}%): ${money(t.amount)}`),
+          `*Total: ${money(shownPreview.total)}*`,
+          ...(toType.length
+            // One code per line in monospace, so it can be long-pressed and copied on its own.
+            ? ["", `*Coupon code${toType.length > 1 ? "s" : ""} to enter at checkout:*`, ...toType.map((c) => "```" + c + "```")]
+            : []),
+          "",
+          `Order here: ${link}`,
+        ].join("\n")
+      : null;
+    onEstimate({
+      preview: shownPreview,
+      error: shownPreview ? null : previewError,
+      copyText,
+      link: shownPreview ? link : null,
+      coupons,
+      codes: couponCodes,
+      apply: applyCoupon,
+      remove: removeCoupon,
+      applyAll: applyAllCoupons,
+    });
+    // Every input to the text also reprices, so the preview alone is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownPreview, previewError, coupons, couponCodes.join()]);
+
   const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
   async function continueToPayment() {
     setError(null);
-    if (!(await form.trigger(orderFields))) return;
+    if (!(await form.trigger(estimateOnly ? orderFields.filter((f) => f !== "startDate") : orderFields))) return;
     if (isTrial && !trialOpen) return setError("Trials aren't available right now");
-    if (isTrial && !trialStartOk) return setError("Pick a start date on a trial day");
+    if (isTrial && !trialStartOk && !estimateOnly) return setError("Pick a start date on a trial day");
     if (!isTrial) {
       const err = eatingDaysError(deliveryDays, eatingDays, bounds);
       if (err) return setError(err);
@@ -604,8 +683,8 @@ export function OrderForm({
 
   const orderMissing = [
     !mealSizeId && "meal size",
-    !startDate && "start date",
-    isTrial && !!startDate && !trialStartOk && "a start date on a trial day",
+    !estimateOnly && !startDate && "start date",
+    !estimateOnly && isTrial && !!startDate && !trialStartOk && "a start date on a trial day",
   ];
   const paymentMissing = [
     !addressLine && "address",
@@ -613,7 +692,7 @@ export function OrderForm({
     !postalCode && "postal code",
     realPayments && !paymentMethodId && "payment method",
   ];
-  const missing = (page === "order" ? orderMissing : [...orderMissing, ...paymentMissing]).filter(Boolean) as string[];
+  const missing = (page === "order" || estimateOnly ? orderMissing : [...orderMissing, ...paymentMissing]).filter(Boolean) as string[];
   const liveDraft = page === "payment" && summary
     ? {
         order: buildInput({ ...(form.getValues() as OrderFormValues), persons: Number(persons), durationWeeks: Number(durationWeeks) }),
@@ -678,8 +757,8 @@ export function OrderForm({
             </fieldset>
           </FormSection>
 
-          <FormSection hidden={page === "payment"} title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
-            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-1" : "sm:grid-cols-2")} disabled={submitting}>
+          <FormSection hidden={page === "payment"} title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : estimateOnly ? "How long it runs, and which days they eat." : "When it starts, how long it runs, and which days they eat."}>
+            <fieldset className={cn("grid gap-4", isTrial || estimateOnly ? "sm:grid-cols-1" : "sm:grid-cols-2")} disabled={submitting}>
               {!isTrial && (
               <FormField
                 control={form.control}
@@ -687,15 +766,27 @@ export function OrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration (weeks) <span className="text-destructive">*</span></FormLabel>
+                    {estimateOnly ? (
+                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Duration (weeks)">
+                        {catalog.durations.map((d) => (
+                          <AdminPill key={d.weeks} type="button" role="radio" aria-checked={field.value === d.weeks} on={field.value === d.weeks} onClick={() => field.onChange(d.weeks)}>
+                            {d.weeks} {d.weeks === 1 ? "week" : "weeks"}
+                          </AdminPill>
+                        ))}
+                      </div>
+                    ) : (
                     <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
                       <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
                     </Select>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
               )}
+              {/* An estimate prices without a start date; only a real order needs one. */}
+              {!estimateOnly && (
               <FormField
                 control={form.control}
                 name="startDate"
@@ -715,6 +806,7 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
+              )}
             </fieldset>
 
           {customerCtx.conflict && (
@@ -825,9 +917,9 @@ export function OrderForm({
           {schedule && <ScheduleCard trips={schedule.trips} shifted={schedule.shifted} />}
           </FormSection>
 
-          <FormSection hidden={page === "order"} title="Delivery" hint="Where it goes, notes for the driver, and how it's dropped off.">
+          <FormSection hidden={page === "order"} title="Delivery" hint={estimateOnly ? "Only what changes the price: the postal code sets the tax; address type and drop-off can add fees." : "Where it goes, notes for the driver, and how it's dropped off."}>
           <fieldset className="space-y-4" disabled={submitting}>
-            {customerCtx.addresses.length > 0 && (
+            {!estimateOnly && customerCtx.addresses.length > 0 && (
               <div className="grid gap-2" role="radiogroup" aria-label="Saved addresses">
                 <p className="text-sm font-medium">Saved addresses</p>
                 {customerCtx.addresses.map((a) => {
@@ -866,7 +958,7 @@ export function OrderForm({
             <fieldset className="grid gap-2" disabled={addressPublicId != null}>
               <AddressFields
                 idPrefix="order"
-                fields={["addressLine", "city", "postalCode"]}
+                fields={estimateOnly ? ["postalCode"] : ["addressLine", "city", "postalCode"]}
                 values={{ addressLine, city, postalCode }}
                 onChange={(patch) => {
                   for (const key of ["addressLine", "city", "postalCode"] as const) {
@@ -882,7 +974,7 @@ export function OrderForm({
               />
               <DeliveryAreaNote area={deliveryArea} />
             </fieldset>
-            <div className="grid gap-2">
+            {!estimateOnly && <div className="grid gap-2">
               <Label htmlFor="order-delivery-notes">Delivery notes</Label>
               <Textarea
                 id="order-delivery-notes"
@@ -896,7 +988,7 @@ export function OrderForm({
               {addressPublicId != null && (
                 <p className="text-muted-foreground text-xs">From the saved address. Change it on the customer&apos;s address book, or pick A new address.</p>
               )}
-            </div>
+            </div>}
             {deliveryOptions?.deliveryCharges && deliveryOptions.deliveryCharges.addressTags.length > 0 && (
               <div className="grid gap-2">
                 <p className="text-sm font-medium">Address type</p>
@@ -916,7 +1008,7 @@ export function OrderForm({
 
           {liveDraft && priceSummary && <section className="grid gap-5">{priceSummary(liveDraft)}</section>}
 
-          <FormSection hidden={page === "order"} title="Payment" hint={realPayments ? "How the customer pays. Attach proof if they already paid; otherwise share the payment link after create." : undefined}>
+          <FormSection hidden={page === "order"} title="Payment" hint={estimateOnly ? "The method can add its own taxes and unlock method-only coupons." : realPayments ? "How the customer pays. Attach proof if they already paid; otherwise share the payment link after create." : undefined}>
           <fieldset className="space-y-3" disabled={submitting}>
             {realPayments ? (
               <>
@@ -961,6 +1053,8 @@ export function OrderForm({
             )}
           </fieldset>
 
+          {/* An estimate lists coupons in its side panel (onEstimate). */}
+          {!estimateOnly && (
           <fieldset className="space-y-2" disabled={submitting}>
             <Label htmlFor="couponCode">Coupon</Label>
             {coupons?.applied.map((c) => (
@@ -1016,8 +1110,9 @@ export function OrderForm({
               </div>
             )}
           </fieldset>
+          )}
 
-          {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
+          {!estimateOnly && repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
             <fieldset className="space-y-3" disabled={submitting}>
               {!discountOpen && discount === 0 ? (
                 <button
@@ -1084,10 +1179,10 @@ export function OrderForm({
               {!shownPreview && previewError && missing.length === 0 && (
                 <p role="alert" className="text-destructive max-w-80 text-right text-xs">{previewError}</p>
               )}
-              {page === "order" ? (
+              {estimateOnly && page !== "order" ? null : page === "order" ? (
                 // Distinct keys: reusing one <button> lets the async click land on the new type="submit" and create the order.
                 <Button key="continue" type="button" disabled={missing.length > 0} onClick={() => void continueToPayment()}>
-                  Continue to payment
+                  {estimateOnly ? "Continue" : "Continue to payment"}
                 </Button>
               ) : (
               <Button key="submit" type="submit" disabled={submitting || missing.length > 0 || (onReview != null && !shownPreview)}>

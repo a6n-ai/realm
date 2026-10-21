@@ -1,5 +1,5 @@
 {
-  "id": "16b54bf2-cfac-415d-9b6e-ee6d06a22956",
+  "id": "f2d4f20e-b8c8-4b1a-a84a-6dd02454f0da",
   "prevId": "5519980a-2fe8-4273-898b-6c489fd187d7",
   "version": "7",
   "dialect": "postgresql",
@@ -9373,13 +9373,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "coin_earn_pct": {
-          "name": "coin_earn_pct",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "province_taxes": {
           "name": "province_taxes",
           "type": "jsonb",
@@ -10288,6 +10281,78 @@
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.short_links": {
+      "name": "short_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target": {
+          "name": "target",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "short_links_public_id_unique": {
+          "name": "short_links_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        },
+        "short_links_code_unique": {
+          "name": "short_links_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
           ]
         }
       },

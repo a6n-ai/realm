@@ -6,10 +6,10 @@ import { MealSizePrice } from "@/components/wizard/meal-size-price";
 // (e.g. healthy) get no badge.
 const PLAN_BADGE: Record<string, string> = { veg: "Veg", "non-veg": "Non-Veg" };
 
-export function MealCard({ meal }: { meal: MealSizeView }) {
+export function MealCard({ meal, className = "rounded-lg border p-6" }: { meal: MealSizeView; className?: string }) {
   const badge = PLAN_BADGE[meal.planKey];
   return (
-    <div className="flex flex-col rounded-lg border p-6">
+    <div className={`flex flex-col ${className}`}>
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium">{meal.name}</h3>
         {badge ? <Badge variant="secondary">{badge}</Badge> : null}

@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
+import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = {
-  title: "Delivery policy — Tiffin Grab",
-  description: "TiffinGrab's service areas, delivery schedule and windows, failed deliveries, packaging, and food handling.",
-};
+export const metadata: Metadata = pageMeta("Delivery policy | Tiffin Grab", "TiffinGrab's service areas, delivery schedule and windows, failed deliveries, packaging, and food handling.", "/delivery-policy");
 
 
 const SECTIONS = [

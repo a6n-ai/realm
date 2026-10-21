@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useListNav } from "@/components/ds";
 import type { FacetDef, Option } from "@/components/ds";
 import { DateRangePicker } from "@foundry/ui/date-range-picker";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import {
   Filters,
   type Filter,
@@ -33,7 +34,7 @@ function mapOptions(options: Option[]) {
 
 // reui renders our DateRangePicker for dateRange facets. reui carries the value
 // as values:[fromMs, toMs]; DateRangePicker speaks {from,to}. This maps between.
-function DateFacetRenderer(label: string) {
+function DateFacetRenderer(label: string, timeZone: string) {
   return function render({ values, onChange }: CustomRendererProps<Val>) {
     const from = typeof values[0] === "number" ? (values[0] as number) : undefined;
     const to = typeof values[1] === "number" ? (values[1] as number) : undefined;
@@ -42,6 +43,7 @@ function DateFacetRenderer(label: string) {
         label={label}
         from={from}
         to={to}
+        timeZone={timeZone}
         onChange={(r) =>
           onChange(
             [r.from, r.to].filter((v): v is number => v != null) as Val[],
@@ -56,6 +58,7 @@ export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[];
   const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
+  const timezone = useTimezone();
   // When the page owns the date picker, this menu must not also write `from`/`to`
   // — a facet change would otherwise clear the range.
   const view = useMemo(
@@ -76,7 +79,7 @@ export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[];
             type: "custom",
             operators: [{ value: DATE_OP, label: "between" }],
             defaultOperator: DATE_OP,
-            customRenderer: DateFacetRenderer(f.label),
+            customRenderer: DateFacetRenderer(f.label, timezone),
           },
         ];
       }
@@ -112,7 +115,7 @@ export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[];
         },
       ];
     });
-  }, [view, params]);
+  }, [view, params, timezone]);
 
   // URL is the source of truth: derive the controlled Filter[] from params each
   // render, one Filter per active facet.
