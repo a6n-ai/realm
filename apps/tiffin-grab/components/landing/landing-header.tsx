@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/customer/kit/theme-toggle";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
@@ -47,6 +48,7 @@ export function LandingHeader() {
           <nav className="tg-nav" aria-label="Main">
             {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill">{l.label}</Link>)}
             <Link prefetch={false} href={account.href} className="tg-navpill">{account.label}</Link>
+            <ThemeToggle className="tg-theme" />
             <Link prefetch={false} href="/subscribe" className="tg-cta ml-1">Build my tiffin</Link>
             <button ref={menuRef} type="button" className="tg-menu-btn" aria-label="Open menu" aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen(true)}>
               <Menu className="size-5" strokeWidth={1.75} />
@@ -65,6 +67,10 @@ export function LandingHeader() {
             {[...LINKS, account].map((l) => (
               <Link key={l.href} href={l.href} className="tg-sheet__link" onClick={() => setOpen(false)}>{l.label}</Link>
             ))}
+            <div className="tg-sheet__row">
+              <span>Theme</span>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       ) : null}
