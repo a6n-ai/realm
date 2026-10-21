@@ -16,7 +16,7 @@ vi.mock("@/lib/redis", async (orig) => {
     getRedis: () =>
       new Proxy(real.getRedis(), {
         get: (t, prop) => {
-          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as Function)(k, ...rest));
+          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as (...a: unknown[]) => unknown)(k, ...rest));
           if (prop === "eval") return async (_s: string, _n: number, k: string, owner: string) => (locks.get(k) === owner ? (locks.delete(k), 1) : 0);
           const v = (t as unknown as Record<string | symbol, unknown>)[prop];
           return typeof v === "function" ? v.bind(t) : v;
