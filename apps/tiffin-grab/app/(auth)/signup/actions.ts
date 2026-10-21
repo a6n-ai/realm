@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
 import { REFERRAL_COOKIE, normalizeReferralCode } from "@/lib/referrals/cookie";
-import { attachReferral, findReferrerByCode } from "@/lib/services/referrals.service";
+import { findReferrerByCode } from "@/lib/services/referrals.service";
 
 const log = createLogger("signup");
 
@@ -84,7 +84,8 @@ export async function signUpCustomer(input: {
 
       const [inserted] = await tx
         .insert(users)
-        .values({ phone, email, name: name ?? null, role: "user" })
+        // Held, not attached: it attaches at the first verified sign-in (session hook).
+        .values({ phone, email, name: name ?? null, role: "user", pendingReferralCode: referralCode || null })
         .returning({ id: users.id });
 
       await tx.insert(account).values({
@@ -104,16 +105,6 @@ export async function signUpCustomer(input: {
     // slow SES call must not hold the connection, and a delivery failure must
     // not roll back a created account (the user can re-trigger by attempting to
     // sign in, which re-sends via sendOnSignIn).
-    // Attached now, not at first sign-in: the verify link often opens in another
-    // browser (a mail app's webview) where the share cookie isn't. This is the
-    // person's own signup, so it isn't the provisioning path the hook excludes.
-    if (createdId != null && referralCode) {
-      try {
-        await attachReferral(createdId, referralCode);
-      } catch (err) {
-        log.error({ err }, "signup referral attach failed");
-      }
-    }
     if (createdId != null) {
       try {
         const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");

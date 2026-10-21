@@ -23,7 +23,6 @@ import {
   sendVerification,
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
-import { readReferralCookie } from "@/lib/referrals/cookie";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
 
@@ -284,12 +283,10 @@ export const auth = betterAuth({
         // never at provisioning, so accounts that never sign in can't be referred.
         // attachReferral re-checks eligibility; a failure must not block sign-in.
         after: async (sess, ctx) => {
-          const code = readReferralCookie(ctx?.headers ?? ctx?.request?.headers);
-          if (!code) return;
           try {
             // Lazy: referrals.service -> app-settings -> session-service -> this module.
-            const { attachReferral } = await import("@/lib/services/referrals.service");
-            await attachReferral(BigInt(sess.userId as string), code);
+            const { attachOnSignIn } = await import("@/lib/services/referrals.service");
+            await attachOnSignIn(BigInt(sess.userId as string), ctx?.headers ?? ctx?.request?.headers);
           } catch (err) {
             log.error({ err }, "referral attach failed");
           }

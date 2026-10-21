@@ -68,7 +68,7 @@ afterAll(cleanup);
 async function makeUser(n: number) {
   const [u] = await db
     .insert(users)
-    .values({ phone: phone(n), email: `rf${n}@test.invalid`, name: `Name${n} Tester`, role: "user" })
+    .values({ phone: phone(n), email: `rf${n}@test.invalid`, name: `Name${n} Tester`, role: "user", emailVerified: true })
     .returning({ id: users.id });
   return u.id;
 }

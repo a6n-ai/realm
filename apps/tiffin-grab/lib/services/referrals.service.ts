@@ -10,7 +10,7 @@ import { coinsUnderCap } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { getAppSettings, getMaxWalletBalance, getReferralSettings, type ReferralSettings } from "./app-settings.service";
 import { balanceInTx, reverseCoinAward, walletService, type AwardableOrder } from "./wallet.service";
-import { normalizeReferralCode } from "@/lib/referrals/cookie";
+import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cookie";
 
 // No 0/O, 1/I/L: codes get read out loud and typed from screenshots.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -54,15 +54,29 @@ export async function findReferrerByCode(raw: string): Promise<{ id: bigint; pub
 
 export type AttachResult = "attached" | "unknown_code" | "self" | "not_eligible" | "already";
 
+/**
+ * Sign-in hook body: the share-link cookie, else the code typed at signup (held on
+ * the row because the verify link often opens where the cookie isn't). The pending
+ * code is spent on the first verified sign-in whatever the outcome.
+ */
+export async function attachOnSignIn(userId: bigint, headers: Headers | null | undefined): Promise<AttachResult | null> {
+  const [row] = await db.select({ pending: users.pendingReferralCode }).from(users).where(eq(users.id, userId)).limit(1);
+  if (row?.pending) await db.update(users).set({ pendingReferralCode: null }).where(eq(users.id, userId));
+  const code = readReferralCookie(headers) ?? row?.pending ?? null;
+  return code ? attachReferral(userId, code) : null;
+}
+
 /** Links a signing-in customer to the referrer behind `rawCode`. Set once, never moved. */
 export async function attachReferral(userId: bigint, rawCode: string): Promise<AttachResult> {
   const referrer = await findReferrerByCode(rawCode);
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
-    const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId }).from(users).where(eq(users.id, userId)).limit(1);
+    const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId, verified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
     if (!me) return "not_eligible";
     if (me.referredBy != null) return "already";
-    if (me.role !== "user") return "not_eligible";
+    // Only an account its owner has signed in to: a pre-registered, never-verified
+    // email can't be claimed for someone's code before the real person shows up.
+    if (me.role !== "user" || !me.verified) return "not_eligible";
     if (!referrer) return "unknown_code";
     if (referrer.id === userId) return "self";
 

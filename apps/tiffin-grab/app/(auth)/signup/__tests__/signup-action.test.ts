@@ -77,12 +77,13 @@ describe("signUpCustomer referral code", () => {
     expect(await db.select().from(users).where(eq(users.phone, "+16475550121"))).toHaveLength(0);
   });
 
-  it("refers the new account straight away when the code is valid", async () => {
-    const [referrer] = await db.insert(users).values({ phone: "+16475550122", email: "r2@example.invalid", role: "user", referralCode: "ABCD2345" }).returning();
+  it("holds a valid code on the new account until its first verified sign-in", async () => {
+    await db.insert(users).values({ phone: "+16475550122", email: "r2@example.invalid", role: "user", referralCode: "ABCD2345" });
     const r = await signUpCustomer({ phone: "+16475550123", email: "r3@example.invalid", password: PASSWORD, referralCode: "abcd 2345" });
     expect(r.ok).toBe(true);
     const [u] = await db.select().from(users).where(eq(users.phone, "+16475550123"));
-    expect(u.referredByUserId).toBe(referrer.id);
+    expect(u.pendingReferralCode).toBe("ABCD2345");
+    expect(u.referredByUserId).toBeNull();
   });
 
   it("drops a dead code that only came from the share-link cookie, and signs up anyway", async () => {

@@ -11,14 +11,14 @@ const { orders, orderActivities, payments, ledgerEntries, walletLedger, users, r
   await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const ordersSvc = await import("../orders.service");
-const { attachReferral, getOrCreateReferralCode, normalizeReferralCode } = await import("../referrals.service");
+const { attachOnSignIn, attachReferral, getOrCreateReferralCode, normalizeReferralCode } = await import("../referrals.service");
 
-const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031"];
+const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031", "+16475550026", "+16475550027", "+16475550028", "+16475550029", "+16475550022", "+16475550023", "+16475550024"];
 
 async function makeUser(phone: string, role: "user" | "admin" = "user") {
   const [u] = await db
     .insert(users)
-    .values({ phone, email: `ref${phone.slice(-4)}@test.invalid`, name: `Ref ${phone.slice(-2)} Tester`, role })
+    .values({ phone, email: `ref${phone.slice(-4)}@test.invalid`, name: `Ref ${phone.slice(-2)} Tester`, role, emailVerified: true })
     .returning({ id: users.id });
   return u.id;
 }
@@ -41,6 +41,8 @@ async function makePaidCustomer(phone: string) {
     contact: { email: `ref${phone.slice(-4)}@test.invalid`, fullName: "Ref Paid", phone, addressLine: "9 Etobicoke Ave", city: "Etobicoke", postalCode: "M9V 1A1" },
   });
   const [o] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, publicId));
+  // Verified, so these tests isolate the order-history rule from the verified-email rule.
+  await db.update(users).set({ emailVerified: true }).where(eq(users.id, o.userId!));
   return o.userId!;
 }
 
@@ -161,5 +163,38 @@ describe("attachReferral: not a new customer", () => {
     const b = await makeUser("+16475550031");
     expect(await attachReferral(b, await getOrCreateReferralCode(a))).toBe("attached");
     expect(await attachReferral(a, await getOrCreateReferralCode(b))).toBe("not_eligible");
+  });
+});
+
+describe("verified sign-in only", () => {
+  it("refuses an account whose email isn't verified yet", async () => {
+    const referrer = await makeUser("+16475550026");
+    const friend = await makeUser("+16475550027");
+    await db.update(users).set({ emailVerified: false }).where(eq(users.id, friend));
+    expect(await attachReferral(friend, await getOrCreateReferralCode(referrer))).toBe("not_eligible");
+  });
+
+  it("attachOnSignIn uses the share-link cookie first", async () => {
+    const referrer = await makeUser("+16475550028");
+    const friend = await makeUser("+16475550029");
+    const code = await getOrCreateReferralCode(referrer);
+    await attachOnSignIn(friend, new Headers({ cookie: `other=1; tg_ref=${code}` }));
+    const [u] = await db.select({ by: users.referredByUserId }).from(users).where(eq(users.id, friend));
+    expect(u.by).toBe(referrer);
+  });
+
+  it("attachOnSignIn falls back to the code typed at signup, then forgets it", async () => {
+    const referrer = await makeUser("+16475550022");
+    const friend = await makeUser("+16475550023");
+    await db.update(users).set({ pendingReferralCode: await getOrCreateReferralCode(referrer) }).where(eq(users.id, friend));
+    await attachOnSignIn(friend, new Headers());
+    const [u] = await db.select({ by: users.referredByUserId, pending: users.pendingReferralCode }).from(users).where(eq(users.id, friend));
+    expect(u).toEqual({ by: referrer, pending: null });
+  });
+
+  it("attachOnSignIn does nothing without a code", async () => {
+    const friend = await makeUser("+16475550024");
+    await attachOnSignIn(friend, null);
+    expect(await rowFor(friend)).toBeUndefined();
   });
 });
