@@ -56,7 +56,7 @@ export default async function PlansPage() {
               {p.soon ? (
                 <span className="tg-soon">Coming soon</span>
               ) : (
-                <Link href={`/subscribe?plan=${p.key}`} className="tg-cta">Start with this plan<ArrowRight className="size-4" strokeWidth={2} /></Link>
+                <Link prefetch={false} href={`/subscribe?plan=${p.key}`} className="tg-cta">Start with this plan<ArrowRight className="size-4" strokeWidth={2} /></Link>
               )}
             </div>
           </article>

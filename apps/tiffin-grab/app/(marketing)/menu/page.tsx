@@ -42,7 +42,7 @@ export default async function MenuPage() {
         );
       })}
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/subscribe" className="tg-cta">Build my tiffin</Link>
+        <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
         <Link href="/menu/weekly" className="tg-btn">This week&apos;s menu</Link>
       </div>
     </div>

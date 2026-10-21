@@ -46,8 +46,8 @@ export function LandingHeader() {
           </Link>
           <nav className="tg-nav" aria-label="Main">
             {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill">{l.label}</Link>)}
-            <Link href={account.href} className="tg-navpill">{account.label}</Link>
-            <Link href="/subscribe" className="tg-cta ml-1">Build my tiffin</Link>
+            <Link prefetch={false} href={account.href} className="tg-navpill">{account.label}</Link>
+            <Link prefetch={false} href="/subscribe" className="tg-cta ml-1">Build my tiffin</Link>
             <button ref={menuRef} type="button" className="tg-menu-btn" aria-label="Open menu" aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen(true)}>
               <Menu className="size-5" strokeWidth={1.75} />
             </button>

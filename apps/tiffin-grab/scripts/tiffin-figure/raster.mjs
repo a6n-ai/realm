@@ -11,7 +11,7 @@ const svg = readFileSync(pub + "tiffin-figure-static.svg", "utf8");
 const browser = await chromium.launch({ channel: "chrome" });
 const page = await browser.newPage();
 await page.setContent("<!doctype html><body></body>");
-for (const width of [720, 1440]) {
+for (const width of [480, 720, 960, 1440]) {
   const b64 = await page.evaluate(async ({ svg, width }) => {
     const img = new Image();
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);

@@ -83,7 +83,7 @@ export default async function PricingPage() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/subscribe" className="tg-cta">See my price</Link>
+        <Link prefetch={false} href="/subscribe" className="tg-cta">See my price</Link>
         <Link href="/plans" className="tg-btn">Compare the plans</Link>
       </div>
     </div>

@@ -28,7 +28,7 @@ async function PublicFooter() {
     <footer className="tg-close">
       <div className="tg-wrap">
         <h2 className="tg-h2 max-w-[14ch]">Your first tiffin, your <span className="c-accent">way.</span></h2>
-        <div className="mt-8"><Link href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
+        <div className="mt-8"><Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
         {zones.length > 0 ? <p className="mt-8 max-w-[70ch] text-sm opacity-75">Delivering to {zones.join(", ")}.</p> : null}
         <div className="tg-foot">
           <nav aria-label="Site">

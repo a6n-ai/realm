@@ -28,9 +28,10 @@ export const metadata: Metadata = pageMeta("Tiffin Grab: home-style tiffins, pac
 export const dynamic = "force-dynamic";
 
 // First-paint figure, rasterized from the static SVG by scripts/tiffin-figure/raster.mjs.
-const FIGURE_RASTER = ["/landing/tiffin-figure-720.webp", "/landing/tiffin-figure-1440.webp"] as const;
-const FIGURE_SRCSET = `${FIGURE_RASTER[0]} 720w, ${FIGURE_RASTER[1]} 1440w`;
-const FIGURE_SIZES = "(max-width: 900px) 70vw, 680px";
+const FIGURE_RASTER = [480, 720, 960, 1440].map((w) => `/landing/tiffin-figure-${w}.webp`);
+const FIGURE_SRCSET = [480, 720, 960, 1440].map((w, i) => `${FIGURE_RASTER[i]} ${w}w`).join(", ");
+// Phones cap the figure at 27svh tall, about 260px wide; desktop draws it at most 680px.
+const FIGURE_SIZES = "(max-width: 900px) 260px, 680px";
 
 const hourLabel = (h: number) =>
   new Intl.DateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();
@@ -71,7 +72,7 @@ function Rows({ rows }: { rows: { key: string; title: string; note: string | nul
 
 export default async function LandingPage() {
   // The figure is the LCP element: a light WebP, fetched alongside the CSS, not after it.
-  preload(FIGURE_RASTER[0], { as: "image", fetchPriority: "high", imageSrcSet: FIGURE_SRCSET, imageSizes: FIGURE_SIZES });
+  preload(FIGURE_RASTER[1], { as: "image", fetchPriority: "high", imageSrcSet: FIGURE_SRCSET, imageSizes: FIGURE_SIZES });
   const [pub, catalog, { timezone }] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings()]);
 
   const plans = publicPlans(catalog.plans);
@@ -105,7 +106,7 @@ export default async function LandingPage() {
               {/* The packed pose as a plain image, so the figure shows before (and without) the script; LandingMotion swaps in the live SVG. */}
               <div className="tf-figure" data-tiffin-stage role="img" aria-label={TIFFIN_LABEL}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- an SVG the script replaces with inline markup */}
-                <img src={FIGURE_RASTER[0]} srcSet={FIGURE_SRCSET} sizes={FIGURE_SIZES} alt="" width={720} height={640} fetchPriority="high" />
+                <img src={FIGURE_RASTER[1]} srcSet={FIGURE_SRCSET} sizes={FIGURE_SIZES} alt="" width={720} height={640} fetchPriority="high" />
               </div>
               <span className="tg-plate__corner" data-c="bl" data-tiffin-step>Step 1 of 7</span>
               <span className="tg-plate__corner" data-c="br" data-tiffin-readout aria-live="polite">Packed</span>
@@ -119,7 +120,7 @@ export default async function LandingPage() {
                 <h1 className="tg-display">Home‑style food, packed the way you <span className="c-accent">eat.</span></h1>
                 <p className="tg-lede">A steel tiffin of home-style Indian food, brought to your door. You choose the diet, the size, the sides, the days and how many weeks.</p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <Link href="/subscribe" className="tg-cta">Build my tiffin</Link>
+                  <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
                   {pub ? <a href="#menu" className="tg-btn">This week&apos;s menu</a> : null}
                 </div>
               </div>
@@ -165,7 +166,7 @@ export default async function LandingPage() {
                 {durationOff > 0 ? ` Longer plans take up to ${durationOff}% off every tiffin.` : ""}
               </p>
               {lengths.length > 0 ? <WeeksPicker lengths={lengths} initial={firstWeeks} /> : null}
-              <div><Link href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
+              <div><Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
             </Chapter>
           </div>
         </section>
@@ -212,7 +213,7 @@ export default async function LandingPage() {
             </p>
             <p className="tg-lede">The rate drops as your plan grows{durationOff > 0 ? `, and longer plans take up to ${durationOff}% off` : ""}. You see the total before you pay.</p>
             <div className="flex flex-wrap items-center gap-3">
-              <Link href="/subscribe" className="tg-cta">See my price</Link>
+              <Link prefetch={false} href="/subscribe" className="tg-cta">See my price</Link>
               <Link href="/pricing" className="tg-btn">The pricing table</Link>
             </div>
           </div>
