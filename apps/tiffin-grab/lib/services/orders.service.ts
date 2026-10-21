@@ -71,6 +71,7 @@ import {
   reverseCoinAward,
   awardOrderCoins,
 } from "./wallet.service";
+import { awardReferral, reverseReferral } from "./referrals.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { mealSizeServesWeekends } from "./weekend-dish";
@@ -734,7 +735,10 @@ export async function createOrder(
     });
 
     // Real methods earn coins in verifyPayment; waitlisted orders in activate.
-    if (!deferSettlement && status === "active") await awardOrderCoins(tx, order, "simulated_paid");
+    if (!deferSettlement && status === "active") {
+      await awardReferral(tx, order, "simulated_paid");
+      await awardOrderCoins(tx, order, "simulated_paid");
+    }
 
     return { deploymentId, publicId: order.publicId };
   });
@@ -901,7 +905,10 @@ export async function verifyPayment(
     });
 
     // Waitlisted orders earn in activate instead, once they go active.
-    if (order.status === "active") await awardOrderCoins(tx, order, "paid");
+    if (order.status === "active") {
+      await awardReferral(tx, order, "paid");
+      await awardOrderCoins(tx, order, "paid");
+    }
 
     return user?.publicId ?? null;
   });
@@ -954,6 +961,7 @@ export async function refundOrder(
         eventType: "order_activated",
         source: { type: "order", id: order.publicId },
       });
+      await reverseReferral(tx, order);
       // Money back means coins back: a refunded order's spent coins return too.
       await reverseCoinRedemption(tx, { userId: order.userId, orderId: order.id });
     }
@@ -1708,6 +1716,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .from(payments)
         .where(eq(payments.orderId, row.id))
         .limit(1);
+      await awardReferral(tx, row, pay?.status ?? null);
       await awardOrderCoins(tx, row, pay?.status ?? null);
     });
 
@@ -2073,6 +2082,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           eventType: "order_activated",
           source: { type: "order", id: order.publicId },
         });
+        await reverseReferral(tx, order);
         const [pay] = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id)).limit(1);
         const paid = pay?.status === "paid" || pay?.status === "simulated_paid";
         if (!paid) await reverseCoinRedemption(tx, { userId: order.userId, orderId: order.id });

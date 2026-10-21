@@ -23,7 +23,6 @@ import {
   sendVerification,
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
-import { attachReferral } from "@/lib/services/referrals.service";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
@@ -288,6 +287,8 @@ export const auth = betterAuth({
           const code = readReferralCookie(ctx?.headers ?? ctx?.request?.headers);
           if (!code) return;
           try {
+            // Lazy: referrals.service -> app-settings -> session-service -> this module.
+            const { attachReferral } = await import("@/lib/services/referrals.service");
             await attachReferral(BigInt(sess.userId as string), code);
           } catch (err) {
             log.error({ err }, "referral attach failed");

@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   adjustment: "Staff adjustment",
   manual_broadcast: "Staff grant",
   referral: "Referral reward",
+  referral_reversal: "Referral reward taken back",
   meal_payout: "Meal payout (legacy)",
 };
 
