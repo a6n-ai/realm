@@ -5,6 +5,7 @@ import { listFranchiseLocations } from "@/lib/services/organizations.service";
 import { DeliverySection } from "@/components/landing/delivery-section";
 import { LocationCard } from "./location-card";
 import { pageMeta } from "@/lib/landing/meta";
+import { publicPagesCache } from "@/lib/landing/public-cache";
 
 export const metadata: Metadata = pageMeta("Delivery areas | Tiffin Grab", "Check your postal code on the map, and see every GTA area Tiffin Grab delivers to with its delivery window.", "/locations");
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function LocationsPage() {
   // Delivery zones are what customers need here ("do you deliver to me?"); franchise
   // kitchens stay below for the picker proxy.ts sends visitors to when no org resolves.
-  const [{ zones }, locations] = await Promise.all([loadCatalogSnapshot(), listFranchiseLocations()]);
+  const [{ zones }, locations] = await Promise.all([loadCatalogSnapshot(), publicPagesCache.getOrSet("locations", listFranchiseLocations)]);
   const areas = zones.filter((z) => z.active).sort((a, b) => a.name.localeCompare(b.name));
 
   return (

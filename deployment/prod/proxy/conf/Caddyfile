@@ -7,6 +7,13 @@
 {$TG_DOMAIN} {
 	encode zstd gzip
 
+	# Public marketing pages may enter the browser's back/forward cache. Next marks
+	# every dynamic render no-store; these carry no private data (the header reads the
+	# session client-side), so ask for revalidation instead. /_next assets keep their
+	# own immutable caching. ">" defers the header so it replaces the upstream one.
+	@publicPages path / /pricing /plans /menu /menu/weekly /locations /faq /contact /legal /terms /privacy /refund-policy /delivery-policy
+	header @publicPages >Cache-Control "private, no-cache"
+
 	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
 	# client cannot choose it. better-auth trusts only this header for rate
 	# limiting and session IPs — see advanced.ipAddress in lib/auth/index.ts.
@@ -31,6 +38,13 @@
 # Literal hosts, not env vars: an unset var here would break the whole proxy config.
 tiffingrab.ca, www.tiffingrab.ca {
 	encode zstd gzip
+
+	# Public marketing pages may enter the browser's back/forward cache. Next marks
+	# every dynamic render no-store; these carry no private data (the header reads the
+	# session client-side), so ask for revalidation instead. /_next assets keep their
+	# own immutable caching. ">" defers the header so it replaces the upstream one.
+	@publicPages path / /pricing /plans /menu /menu/weekly /locations /faq /contact /legal /terms /privacy /refund-policy /delivery-policy
+	header @publicPages >Cache-Control "private, no-cache"
 
 	# handle blocks are exclusive and tried in order; a bare redir would run before any
 	# reverse_proxy (Caddy's directive order) and swallow every request.

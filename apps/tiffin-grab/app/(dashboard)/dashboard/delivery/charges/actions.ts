@@ -11,6 +11,7 @@ import {
 } from "@/lib/services/delivery.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
+import { evictPublicPages } from "@/lib/landing/public-cache";
 
 export async function updateBaseChargeAction(amount: number): Promise<number> {
   await requireAdmin();
@@ -151,6 +152,7 @@ export async function saveStoreOriginAction(lat: number, lng: number): Promise<{
   const orgId = await adminOrg();
   try {
     await deliveryService.saveStoreOrigin(lat, lng, orgId);
+    await evictPublicPages();
     await refreshDelivery();
     return {};
   } catch (err) {
@@ -170,6 +172,7 @@ export async function saveStoreOriginFromAddressAction(input: {
   const hit = await resolveAndPersist({ placeId: input.placeId, address }).catch(() => null);
   if (!hit) return { error: "Couldn't find that address — try adding city and postal code." };
   await deliveryService.saveStoreOrigin(hit.lat, hit.lng, orgId);
+  await evictPublicPages();
   await refreshDelivery();
   return { lat: hit.lat, lng: hit.lng, formattedAddress: hit.formattedAddress };
 }
