@@ -24,3 +24,8 @@ export function readReferralCookie(headers: Headers | null | undefined): string 
 export function normalizeReferralCode(raw: string): string {
   return raw.replace(/\s+/g, "").toUpperCase();
 }
+
+/** Our codes: 8 of A–Z/2–9 minus look-alikes. Anything else on ?ref= is a marketing tag. */
+export function isReferralCodeShape(code: string): boolean {
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(code);
+}

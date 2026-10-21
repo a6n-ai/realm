@@ -6,13 +6,22 @@ import { eq, ne } from "drizzle-orm";
 const sendVerificationEmail = vi.fn(async () => ({}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail } } }));
 const cookieSet = vi.fn();
-vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
+const cookieDelete = vi.fn();
+const cookieJar = { value: undefined as string | undefined };
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ set: cookieSet, delete: cookieDelete, get: () => (cookieJar.value ? { value: cookieJar.value } : undefined) }),
+}));
 
 const { db } = await import("@/db/client");
-const { account, users } = await import("@/db/schema");
+const { account, referrals, users } = await import("@/db/schema");
 const { signUpCustomer } = await import("../actions");
 
-async function reset() { await db.delete(account); await db.delete(users).where(ne(users.isSystem, true)); }
+async function reset() {
+  await db.delete(account);
+  await db.delete(referrals);
+  await db.update(users).set({ referredByUserId: null });
+  await db.delete(users).where(ne(users.isSystem, true));
+}
 
 const PASSWORD = "hunter2hunter2";
 
@@ -59,7 +68,7 @@ describe("signUpCustomer", () => {
 });
 
 describe("signUpCustomer referral code", () => {
-  beforeEach(async () => { await reset(); cookieSet.mockClear(); });
+  beforeEach(async () => { await reset(); cookieSet.mockClear(); cookieDelete.mockClear(); cookieJar.value = undefined; });
   afterAll(reset);
 
   it("refuses a code nobody has, and creates no account", async () => {
@@ -68,11 +77,18 @@ describe("signUpCustomer referral code", () => {
     expect(await db.select().from(users).where(eq(users.phone, "+16475550121"))).toHaveLength(0);
   });
 
-  it("remembers a valid code for the first sign-in", async () => {
+  it("refers the new account straight away when the code is valid", async () => {
     const [referrer] = await db.insert(users).values({ phone: "+16475550122", email: "r2@example.invalid", role: "user", referralCode: "ABCD2345" }).returning();
     const r = await signUpCustomer({ phone: "+16475550123", email: "r3@example.invalid", password: PASSWORD, referralCode: "abcd 2345" });
     expect(r.ok).toBe(true);
-    expect(cookieSet).toHaveBeenCalledWith("tg_ref", "ABCD2345", expect.objectContaining({ httpOnly: true, maxAge: 2592000 }));
-    expect(referrer.id).toBeDefined();
+    const [u] = await db.select().from(users).where(eq(users.phone, "+16475550123"));
+    expect(u.referredByUserId).toBe(referrer.id);
+  });
+
+  it("drops a dead code that only came from the share-link cookie, and signs up anyway", async () => {
+    cookieJar.value = "ZZZZ2345";
+    const r = await signUpCustomer({ phone: "+16475550124", email: "r4@example.invalid", password: PASSWORD, referralCode: "ZZZZ2345" });
+    expect(r.ok).toBe(true);
+    expect(cookieDelete).toHaveBeenCalledWith("tg_ref");
   });
 });

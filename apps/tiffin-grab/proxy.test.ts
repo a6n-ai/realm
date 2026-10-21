@@ -107,11 +107,16 @@ describe("proxy URL-based org resolution", () => {
   }
 
   it("remembers a ?ref= share code in a 30-day cookie", async () => {
-    const res = await proxy(new NextRequest("http://localhost/?ref=ab12"));
+    const res = await proxy(new NextRequest("http://localhost/?ref=abcd 2345"));
     const set = res?.headers.get("set-cookie") ?? "";
-    expect(set).toMatch(/tg_ref=AB12/);
+    expect(set).toMatch(/tg_ref=ABCD2345/);
     expect(set).toMatch(/Max-Age=2592000/);
     expect(set).toMatch(/HttpOnly/i);
+  });
+
+  it("ignores a ?ref= that isn't shaped like a code (marketing tags)", async () => {
+    const res = await proxy(new NextRequest("http://localhost/?ref=instagram"));
+    expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);
   });
 
   it("sets no referral cookie without ?ref=", async () => {

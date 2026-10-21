@@ -13,7 +13,7 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const ordersSvc = await import("../orders.service");
 const { attachReferral, getOrCreateReferralCode, normalizeReferralCode } = await import("../referrals.service");
 
-const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038"];
+const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031"];
 
 async function makeUser(phone: string, role: "user" | "admin" = "user") {
   const [u] = await db
@@ -54,7 +54,9 @@ async function cleanup() {
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
   const os = await db.select({ id: orders.id }).from(orders).where(inArray(orders.userId, ids));
   for (const o of os) {
+    const pays = await db.select({ id: payments.id }).from(payments).where(eq(payments.orderId, o.id));
     await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, o.id));
+    if (pays.length) await db.delete(ledgerEntries).where(inArray(ledgerEntries.paymentId, pays.map((p) => p.id)));
     await db.delete(orderActivities).where(eq(orderActivities.orderId, o.id));
     await db.delete(payments).where(eq(payments.orderId, o.id));
     await db.delete(orders).where(eq(orders.id, o.id));
@@ -132,5 +134,32 @@ describe("attachReferral", () => {
     expect(results.sort()).toEqual(["already", "attached"]);
     const rows = await db.select().from(referrals).where(eq(referrals.referredUserId, friend));
     expect(rows).toHaveLength(1);
+  });
+});
+
+describe("attachReferral: not a new customer", () => {
+  it("refuses a migrated (wc-) customer whose imported order has no settled payment", async () => {
+    const referrer = await makeUser("+16475550033");
+    const migrated = await makePaidCustomer("+16475550034");
+    const [o] = await db.select({ id: orders.id }).from(orders).where(eq(orders.userId, migrated));
+    // Imported WP orders carry no settled payment; an unpaid one stands in for that here.
+    await db.update(payments).set({ status: "awaiting_payment" }).where(eq(payments.orderId, o.id));
+    await db.update(orders).set({ deploymentId: `wc-${Date.now()}` }).where(eq(orders.id, o.id));
+    expect(await attachReferral(migrated, await getOrCreateReferralCode(referrer))).toBe("not_eligible");
+  });
+
+  it("refuses a customer whose only order was refunded", async () => {
+    const referrer = await makeUser("+16475550035");
+    const refunded = await makePaidCustomer("+16475550032");
+    const [o] = await db.select({ id: orders.id }).from(orders).where(eq(orders.userId, refunded));
+    await db.update(payments).set({ status: "refunded" }).where(eq(payments.orderId, o.id));
+    expect(await attachReferral(refunded, await getOrCreateReferralCode(referrer))).toBe("not_eligible");
+  });
+
+  it("refuses to refer back the person who referred you", async () => {
+    const a = await makeUser("+16475550030");
+    const b = await makeUser("+16475550031");
+    expect(await attachReferral(b, await getOrCreateReferralCode(a))).toBe("attached");
+    expect(await attachReferral(a, await getOrCreateReferralCode(b))).toBe("not_eligible");
   });
 });

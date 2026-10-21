@@ -66,13 +66,21 @@ export async function attachReferral(userId: bigint, rawCode: string): Promise<A
     if (!referrer) return "unknown_code";
     if (referrer.id === userId) return "self";
 
-    const [paid] = await tx
+    // Not new: ever paid (a refund doesn't make them new again), or a migrated
+    // WordPress customer — their imported wc- orders carry no payment row.
+    const [history] = await tx
       .select({ id: orders.id })
       .from(orders)
-      .innerJoin(payments, eq(payments.orderId, orders.id))
-      .where(and(eq(orders.userId, userId), inArray(payments.status, [...PAID])))
+      .leftJoin(payments, eq(payments.orderId, orders.id))
+      .where(and(
+        eq(orders.userId, userId),
+        or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%")),
+      ))
       .limit(1);
-    if (paid) return "not_eligible";
+    if (history) return "not_eligible";
+    // No referring back the person who referred you: a 2-cycle pays both twice.
+    const [back] = await tx.select({ by: users.referredByUserId }).from(users).where(eq(users.id, referrer.id)).limit(1);
+    if (back?.by === userId) return "not_eligible";
 
     await tx.update(users).set({ referredByUserId: referrer.id }).where(eq(users.id, userId));
     await tx.insert(referrals).values({ referrerUserId: referrer.id, referredUserId: userId }).onConflictDoNothing({ target: referrals.referredUserId });
