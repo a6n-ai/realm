@@ -22,7 +22,7 @@ afterEach(() => {
   panel.amount = null;
 });
 
-const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null }, feeNote: null };
+const ctx: CardCheckoutContext = { publishableKey: "pk_test", methodLabel: "Card", savedCards: [], prefill: { email: "", name: "", phone: null, country: "CA", postalCode: null }, feeNote: null };
 const base = { paymentId: "pay_1", status: "awaiting_payment", method: "stripe", ctx, amountCents: 1000, lines: [], total: 10, isReturn: false };
 
 describe("PayForm", () => {

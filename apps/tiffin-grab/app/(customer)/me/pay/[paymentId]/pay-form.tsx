@@ -23,9 +23,9 @@ function Row({ label, amount, strong }: { label: string; amount: number; strong?
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-lg space-y-5">
+    <div className="mx-auto flex max-w-lg flex-col gap-5">
       <PageHeader eyebrow="Payment" title="Pay by" accent="card" />
-      <Card className="space-y-4 p-5">{children}</Card>
+      <Card className="flex flex-col gap-4 p-5">{children}</Card>
     </div>
   );
 }
@@ -85,11 +85,11 @@ export function PayForm(p: {
       }}
     >
       <Shell>
-        <ExpressPay />
         <div>
           {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}
           <Row label="Total" amount={p.total} strong />
         </div>
+        <ExpressPay />
         <CardPay />
       </Shell>
     </CardPayProvider>

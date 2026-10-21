@@ -42,8 +42,9 @@ export default async function CheckoutPage() {
   const suggestedCoupons = (await couponsService.listAvailable()).filter((c) => !c.autoApply);
   const { lastTiffin } = await myRenewalWindow(userId);
   // Province only drives the fee note; an address changed in step 1 keeps the first guess (the server charges by the real one).
-  const province = resolveProvince({ postalCode: (savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0])?.postalCode ?? prefill?.postalCode });
-  const cardContext = await cardCheckoutContext(session!.user.id, province);
+  const postalCode = (savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0])?.postalCode ?? prefill?.postalCode ?? null;
+  const province = resolveProvince({ postalCode });
+  const cardContext = await cardCheckoutContext(session!.user.id, province, postalCode);
 
   // Simulated payment is local-only; prod with no rail enabled can't take an order.
   if (process.env.NODE_ENV === "production" && (await listCheckoutPaymentMethods()).length === 0) {

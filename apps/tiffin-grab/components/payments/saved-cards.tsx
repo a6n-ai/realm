@@ -12,12 +12,12 @@ export function SavedCards({ cards, value, onChange }: { cards: SavedCard[]; val
   return (
     <RadioGroup value={value} onValueChange={onChange} aria-label="Saved cards" className="flex flex-col gap-3">
       {cards.map((c) => (
-        <FieldLabel key={c.paymentMethodId} htmlFor={`card-${c.paymentMethodId}`} className="relative p-0!">
+        <FieldLabel key={c.paymentMethodId} htmlFor={`card-${c.paymentMethodId}`} className="relative p-0! transition-colors">
           <Field orientation="horizontal">
-            <RadioGroupItem value={c.paymentMethodId} id={`card-${c.paymentMethodId}`} className="absolute top-3 right-3" />
+            <RadioGroupItem value={c.paymentMethodId} id={`card-${c.paymentMethodId}`} aria-labelledby={`card-${c.paymentMethodId}-title`} className="absolute top-3 right-3 data-[state=checked]:border-primary data-[state=checked]:bg-primary" />
             <FieldTitle className="flex flex-col items-start gap-0.5">
               <span className="flex items-center gap-2 text-sm font-medium">
-                {brandName(c.brand)} ending in {c.last4 ?? "----"}
+                <span id={`card-${c.paymentMethodId}-title`}>{brandName(c.brand)} ending in {c.last4 ?? "----"}</span>
                 {c.isDefault && <Badge variant="primary-light">Default</Badge>}
               </span>
               <span className="text-xs text-muted-foreground">Expires {exp(c)}</span>

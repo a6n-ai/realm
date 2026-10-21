@@ -130,7 +130,14 @@ export function CardDialog({ open, onOpenChange, ctx, amountCents, pay }: {
             options={{
               layout: "tabs",
               wallets: { applePay: "never", googlePay: "never" },
-              defaultValues: { billingDetails: { email: ctx.prefill.email, name: ctx.prefill.name, phone: ctx.prefill.phone ?? undefined } },
+              defaultValues: {
+                billingDetails: {
+                  email: ctx.prefill.email,
+                  name: ctx.prefill.name,
+                  phone: ctx.prefill.phone ?? undefined,
+                  address: { country: ctx.prefill.country, postal_code: ctx.prefill.postalCode ?? undefined },
+                },
+              },
             }}
           />
           <p className="text-xs text-muted-foreground">We&apos;ll save this card for your renewals.</p>

@@ -143,8 +143,11 @@ export function ExpressPay() {
   }
 
   return (
-    <div className={available && !disabled ? "flex flex-col gap-3" : "hidden"}>
-      <ExpressCheckoutElement onReady={(e) => setAvailable(Boolean(e.availablePaymentMethods))} onConfirm={onConfirm} />
+    <div className={available ? "flex flex-col gap-3" : "hidden"}>
+      {/* While re-quoting: dimmed and inert, not hidden, so the page doesn't jump on every coupon. */}
+      <div inert={disabled} className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${disabled ? "opacity-50" : ""}`}>
+        <ExpressCheckoutElement onReady={(e) => setAvailable(Boolean(e.availablePaymentMethods))} onConfirm={onConfirm} />
+      </div>
       {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => settle(fee.source, true)} onCancel={() => setFee(null)} />}
       {error && <ErrorAlert message={error} busy={busy} />}
     </div>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
@@ -22,6 +22,7 @@ vi.mock("@/app/(customer)/me/pay/[paymentId]/actions", () => ({
   abandonCard: vi.fn(),
 }));
 
+const lastCtx = vi.hoisted(() => ({ value: null as CardCheckoutContext | null }));
 // The real pieces need Stripe.js; these stand-ins call the same props the real ones do.
 vi.mock("@/components/payments/pay-panel", () => {
   type P = {
@@ -33,7 +34,7 @@ vi.mock("@/components/payments/pay-panel", () => {
   };
   let current: P;
   return {
-    CardPayProvider: (p: P) => { current = p; return <div data-testid="provider">{p.children}</div>; },
+    CardPayProvider: (p: P) => { current = p; lastCtx.value = (p as unknown as { ctx: CardCheckoutContext }).ctx; return <div data-testid="provider">{p.children}</div>; },
     ExpressPay: () => <div data-testid="express" />,
     CardPay: () => (
       <button type="button" disabled={current.disabled} onClick={async () => {
@@ -65,7 +66,7 @@ const cardCtx: CardCheckoutContext = {
   publishableKey: "pk_test_x",
   methodLabel: "Credit or debit card",
   savedCards: [],
-  prefill: { email: "jane@example.com", name: "Jane Doe", phone: null },
+  prefill: { email: "jane@example.com", name: "Jane Doe", phone: null, country: "CA", postalCode: null },
   feeNote: "+2.9% fee on credit cards",
 };
 
@@ -107,6 +108,11 @@ describe("Checkout Pay step", () => {
     expect(payCheckout).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "stripe", paymentPublicId: null }));
     expect(mockRouter.push.mock.calls.some(([u]) => String(u).startsWith("/me/pay/"))).toBe(false);
     expect(confirmSubscription).not.toHaveBeenCalled();
+  });
+
+  it("the card form is prefilled with this order's phone and postal code, in Canada", async () => {
+    await toPayment();
+    expect(lastCtx.value?.prefill).toMatchObject({ phone: "+14165551234", postalCode: "M5H 1A1", country: "CA", email: "jane@example.com" });
   });
 
   it("express is only offered while Stripe is selected", async () => {
@@ -193,11 +199,20 @@ describe("Checkout Pay step", () => {
     expect(payCheckout).not.toHaveBeenCalled();
   });
 
-  it("fee note shows on the Stripe option, under the Stripe settings label", async () => {
+  it("the Stripe option is titled Stripe whatever the stored labels say, with its fee note", async () => {
     await toPayment();
-    expect(screen.getAllByText("Credit or debit card").length).toBeGreaterThan(0);
-    expect(screen.getByText("+2.9% fee on credit cards")).toBeTruthy();
+    const stripe = screen.getByRole("radio", { name: "Stripe" });
+    expect(stripe.getAttribute("aria-describedby")).toBeTruthy();
+    expect(document.getElementById(stripe.getAttribute("aria-describedby")!)?.textContent).toContain("+2.9% fee on credit cards");
     expect(screen.queryByText("Stripe (config label)")).toBeNull();
+    expect(screen.queryByText("Credit or debit card")).toBeNull();
+  });
+
+  it("every payment option radio has an accessible name", async () => {
+    await toPayment();
+    const radios = within(screen.getByRole("radiogroup", { name: /pay with/i })).getAllByRole("radio");
+    expect(radios.map((r) => r.getAttribute("aria-labelledby") && document.getElementById(r.getAttribute("aria-labelledby")!)?.textContent)).toEqual(["Stripe", "Cash"]);
+    expect(screen.getByRole("radio", { name: "Cash" })).toBeTruthy();
   });
 
   it("without a Stripe publishable key the Stripe option falls back to the pay page", async () => {

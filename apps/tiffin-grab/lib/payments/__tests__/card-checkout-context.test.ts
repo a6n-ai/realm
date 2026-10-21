@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db/client", () => ({
-  db: { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ name: "Asha Rao", email: "a@x.ca", phone: null }] }) }) }) },
+  db: { select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ name: "Asha Rao", email: "a@x.ca", phone }] }) }) }) },
 }));
 
 let cfg: Record<string, unknown> = {};
 let cards: unknown[] = [];
 vi.mock("@/lib/payments/stripe", () => ({ stripeRuntime: async () => ({ cfg }) }));
 vi.mock("@/lib/services/payment-stripe", () => ({ listSavedCards: async () => cards }));
+vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
+let phone: string | null = null;
 
 const { cardCheckoutContext } = await import("../card-checkout-context");
 const on = (over: Record<string, unknown> = {}) => ({
@@ -18,7 +20,7 @@ const on = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("cardCheckoutContext", () => {
-  beforeEach(() => { cfg = on(); cards = []; });
+  beforeEach(() => { cfg = on(); cards = []; phone = null; });
 
   it("notes the fee outside excluded provinces", async () => {
     expect((await cardCheckoutContext("u1", "ON")).feeNote).toBe("+2.4% fee on credit cards");
@@ -37,6 +39,11 @@ describe("cardCheckoutContext", () => {
   });
   it("returns prefill, key, label and no cards without a customer", async () => {
     const c = await cardCheckoutContext("u1", "ON");
-    expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null } });
+    expect(c).toMatchObject({ publishableKey: "pk_test_x", methodLabel: "Card", savedCards: [], prefill: { email: "a@x.ca", name: "Asha Rao", phone: null, country: "CA", postalCode: null } });
+  });
+  it("billing defaults to the market country, the order postal code and an E.164 phone", async () => {
+    phone = "(647) 555-0143";
+    const c = await cardCheckoutContext("u1", "ON", "M5H 2N2");
+    expect(c.prefill).toMatchObject({ phone: "+16475550143", country: "CA", postalCode: "M5H 2N2" });
   });
 });

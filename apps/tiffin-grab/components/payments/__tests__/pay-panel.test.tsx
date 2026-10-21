@@ -27,13 +27,13 @@ vi.mock("@stripe/react-stripe-js", () => ({
 vi.mock("@foundry/themes", () => ({ useTheme: () => ({ resolvedTheme: "light" }) }));
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
-import { CardPay, CardPayProvider } from "../pay-panel";
+import { CardPay, CardPayProvider, ExpressPay } from "../pay-panel";
 
 const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutContext => ({
   publishableKey: "pk_test_x",
   methodLabel: "Pay with Stripe",
   savedCards,
-  prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100" },
+  prefill: { email: "a@b.co", name: "Ada", phone: "+14165550100", country: "CA", postalCode: "M5H 2N2" },
   feeNote: null,
 });
 const card = (id: string, isDefault: boolean) => ({ paymentMethodId: id, brand: "visa", last4: "4242", funding: "debit" as const, expMonth: 4, expYear: 2030, isDefault });
@@ -75,7 +75,7 @@ describe("PayPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use another card" }));
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
     expect(h.paymentElement).toHaveBeenCalledWith(
-      expect.objectContaining({ defaultValues: { billingDetails: { email: "a@b.co", name: "Ada", phone: "+14165550100" } } }),
+      expect.objectContaining({ defaultValues: { billingDetails: { email: "a@b.co", name: "Ada", phone: "+14165550100", address: { country: "CA", postal_code: "M5H 2N2" } } } }),
     );
   });
 
@@ -150,6 +150,15 @@ describe("PayPanel", () => {
     release();
     await waitFor(() => expect(s.onPaid).toHaveBeenCalledTimes(1));
     expect(onPay).toHaveBeenCalledTimes(1);
+  });
+
+  it("express wallets stay in place but inert while the total is re-quoted", () => {
+    const props = { ctx: ctx(), amountCents: 5000, onPay: vi.fn(), onPaid: vi.fn(), onProcessing: vi.fn(), abandon: vi.fn(async () => {}), afterAction: vi.fn(async () => "paid" as const) };
+    const ui = (disabled: boolean) => <CardPayProvider {...props} disabled={disabled}><ExpressPay /></CardPayProvider>;
+    const r = render(ui(true));
+    expect(screen.getByTestId("express").parentElement).toHaveAttribute("inert");
+    r.rerender(ui(false));
+    expect(screen.getByTestId("express").parentElement).not.toHaveAttribute("inert");
   });
 
   it("trust line shows Secured by Stripe", () => {

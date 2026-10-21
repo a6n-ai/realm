@@ -19,8 +19,7 @@ import {
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { CardPay, CardPayProvider, ExpressPay } from "@/components/payments/pay-panel";
-import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
-import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
+import { PaymentMethodCards, payMethodTitle } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import type { CardSource } from "@/lib/services/payment-stripe";
@@ -556,8 +555,6 @@ export function Checkout({
     : zone != null && !zone.served ? "We don't deliver to this postal code yet. Join the waitlist above."
     : !phoneValid ? "Add your phone number to continue."
     : null;
-  // Stripe's customer-facing name comes from its own settings, not the payment-config label.
-  const methodName = (m: CheckoutPaymentMethod) => (m.id === "stripe" && cardContext ? cardContext.methodLabel : m.label);
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const cardOn = cardContext?.publishableKey != null && result != null;
   const payWithCard = cardOn && paymentMethodId === "stripe";
@@ -633,32 +630,23 @@ export function Checkout({
       <section aria-labelledby="co-pay">
         <h2 id="co-pay" className={H}>Pay with</h2>
         {realPayments ? (
-          <RadioGroup value={paymentMethodId ?? ""} onValueChange={(id) => void selectMethod(id)} aria-labelledby="co-pay" className="mt-3 flex flex-col gap-3">
-            {paymentMethods.map((m) => {
-              const on = m.id === paymentMethodId;
-              return (
-                <div key={m.id} className="grid gap-2">
-                  <FieldLabel htmlFor={`pay-${m.id}`} className="relative">
-                    <Field orientation="horizontal">
-                      <RadioGroupItem value={m.id} id={`pay-${m.id}`} className="absolute top-3 right-3" />
-                      <FieldTitle className="flex flex-col items-start gap-0.5">
-                        <span className="text-sm font-medium">{methodName(m)}</span>
-                        {m.id === "stripe" && cardContext?.feeNote && <span className="text-xs text-muted-foreground">{cardContext.feeNote}</span>}
-                      </FieldTitle>
-                    </Field>
-                  </FieldLabel>
-                  {/* Outside the label: the copy button can't nest inside it. */}
-                  <AnimatePresence initial={false}>
-                    {on && (m.payeeHandle || m.instructions) && (
-                      <motion.div key="details" {...reveal} className="px-4">
-                        <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </RadioGroup>
+          <div className="mt-3 flex flex-col gap-3">
+            <PaymentMethodCards
+              methods={paymentMethods}
+              value={paymentMethodId ?? ""}
+              onChange={(id) => void selectMethod(id)}
+              labelledBy="co-pay"
+              feeNote={cardContext?.feeNote}
+            />
+            {/* Outside the cards: the copy button can't nest inside a label. */}
+            <AnimatePresence initial={false}>
+              {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
+                <motion.div key={selectedMethod.id} {...reveal} className="px-4">
+                  <PaymentInstructions payeeHandle={selectedMethod.payeeHandle} instructions={selectedMethod.instructions} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         ) : (
           simulated ? (
             <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
@@ -766,7 +754,7 @@ export function Checkout({
             {zone?.slotWindow && <span className="text-muted-foreground block text-[13px]">Arrives {zone.slotWindow}</span>}
           </ReviewRow>
           <ReviewRow term="Contact">{formatPhoneNumberIntl(contact.phone) || contact.phone}</ReviewRow>
-          {selectedMethod && <ReviewRow term="Pay with">{methodName(selectedMethod)}</ReviewRow>}
+          {selectedMethod && <ReviewRow term="Pay with">{payMethodTitle(selectedMethod)}</ReviewRow>}
           {result && (
             <div className="flex items-baseline justify-between gap-3 px-4 py-4">
               <dt className="text-[15px] font-semibold">Total</dt>
@@ -776,10 +764,12 @@ export function Checkout({
         </dl>
       </section>
       {payWithCard && <CardPay />}
-    </div>  );
+    </div>
+  );
   const payStep = cardOn ? (
     <CardPayProvider
-      ctx={cardContext!}
+      // Step 1's phone and address are this order's; they beat the account's for the card form too.
+      ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: contact.phone.trim() || cardContext!.prefill.phone, postalCode: contact.postalCode || cardContext!.prefill.postalCode } }}
       amountCents={Math.round(result.total * 100)}
       disabled={repricing > 0}
       onPay={payByCard}
@@ -896,7 +886,8 @@ export function Checkout({
             </motion.div>
           </AnimatePresence>
 
-          <BottomBar alignEnd note={actionReason ?? undefined} className="sm:sticky sm:mt-8 sm:px-0">
+          {/* Card pays from its own button in the step, so on desktop (Back is in the header) the bar would be empty. */}
+          <BottomBar alignEnd note={actionReason ?? undefined} className={`sm:sticky sm:mt-8 sm:px-0 ${step === 2 && payWithCard ? "sm:hidden" : ""}`}>
             <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
             {step === 1 ? (
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
@@ -1089,7 +1080,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
   const checking = state.status === "checking";
   return (
     <div className={className}>
-      <div className={`flex min-h-12 items-center gap-1 rounded-2xl border bg-[var(--background)] py-1 pr-1 pl-3.5 transition-colors focus-within:border-[var(--primary)] ${state.status === "error" ? "border-[#be123c]" : "border-[var(--border)]"}`}>
+      <div className={`flex min-h-12 items-center gap-1 rounded-2xl border bg-[var(--background)] py-1 pr-1 pl-3.5 transition-colors focus-within:border-[var(--primary)] ${state.status === "error" ? "border-destructive" : "border-[var(--border)]"}`}>
         <input
           id={id}
           value={value}
@@ -1117,7 +1108,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
         </button>
       </div>
       {state.status === "applied" && <p id={`${id}-msg`} role="status" className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400"><Check aria-hidden className="size-4" />{state.message}</p>}
-      {state.status === "error" && <p id={`${id}-msg`} role="alert" className="mt-2 text-[13px] font-medium text-[#be123c] dark:text-rose-400">{state.message}</p>}
+      {state.status === "error" && <p id={`${id}-msg`} role="alert" className="text-destructive mt-2 text-[13px] font-medium">{state.message}</p>}
     </div>
   );
 }
