@@ -23,7 +23,7 @@ const payByCard = vi.fn(async (..._a: unknown[]) => ({ kind: "succeeded" as cons
 vi.mock("@/lib/services/payment-stripe", async (orig) => ({ ...(await orig<object>()), payByCard: (...a: unknown[]) => payByCard(...a) }));
 
 const { db } = await import("@/db/client");
-const { orders, payments, users, orderActivities } = await import("@/db/schema");
+const { orders, payments, users, orderActivities, coupons } = await import("@/db/schema");
 const { payCheckout } = await import("../actions");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
@@ -35,8 +35,8 @@ async function signInAs(email: string) {
   sessionUserId = u!.id;
 }
 
-async function pay(over: { paymentPublicId?: string | null; paymentMethodId?: string; phone?: string } = {}) {
-  const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone });
+async function pay(over: { paymentPublicId?: string | null; paymentMethodId?: string; phone?: string; couponCode?: string } = {}) {
+  const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone, couponCode: over.couponCode });
   return payCheckout({
     ...base,
     paymentMethodId: paymentMethodId!,
@@ -50,6 +50,7 @@ const allOrders = () => db.select().from(orders);
 describe("payCheckout", () => {
   beforeEach(async () => {
     await reset();
+    await db.delete(coupons).where(eq(coupons.code, "PAYTEST5"));
     await setPaymentConfig({
       methods: [
         { id: "etransfer", kind: "manual", enabled: true, label: "e-Transfer", payeeHandle: "p@x.ca", taxes: [] },
@@ -60,7 +61,10 @@ describe("payCheckout", () => {
     payByCard.mockClear();
     await signInAs("a@test.invalid");
   });
-  afterAll(cleanup);
+  afterAll(async () => {
+    await db.delete(coupons).where(eq(coupons.code, "PAYTEST5"));
+    await cleanup();
+  });
 
   it("creates the order on first pay", async () => {
     const r = await pay();
@@ -108,6 +112,45 @@ describe("payCheckout", () => {
     expect(os).toHaveLength(2);
     expect(os.every((o) => o.status === "pending")).toBe(true);
     expect(payByCard.mock.calls[1]![0]).toMatchObject({ paymentPublicId: mine.paymentPublicId });
+  });
+
+  it("a stale payment id with a changed coupon places a new order at the new quote", async () => {
+    await db.insert(coupons).values({ code: "PAYTEST5", kind: "fixed", name: "Pay test", valueAmount: "5" });
+    const first = await pay();
+    if (!("ok" in first)) throw new Error(first.error);
+    const second = await pay({ paymentPublicId: first.paymentPublicId, couponCode: "PAYTEST5" });
+    if (!("ok" in second)) throw new Error(second.error);
+    expect(second.paymentPublicId).not.toBe(first.paymentPublicId);
+    const byPay = async (id: string) => {
+      const [row] = await db.select({ amount: payments.amount, status: orders.status }).from(payments).innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, id));
+      return row!;
+    };
+    const [a, b] = [await byPay(first.paymentPublicId), await byPay(second.paymentPublicId)];
+    expect(a.status).toBe("cancelled");
+    expect(b.status).toBe("pending");
+    expect(Number(b.amount)).toBeLessThan(Number(a.amount));
+    expect(payByCard.mock.calls[1]![0]).toMatchObject({ paymentPublicId: second.paymentPublicId });
+  });
+
+  it("an expired payment is not reused", async () => {
+    const first = await pay();
+    if (!("ok" in first)) throw new Error(first.error);
+    await db.update(payments).set({ expiresAt: Date.now() - 1 }).where(eq(payments.publicId, first.paymentPublicId));
+    const second = await pay({ paymentPublicId: first.paymentPublicId });
+    if (!("ok" in second)) throw new Error(second.error);
+    expect(second.paymentPublicId).not.toBe(first.paymentPublicId);
+  });
+
+  it("two concurrent first presses create one order and one charge", async () => {
+    payByCard.mockImplementationOnce(async () => {
+      await new Promise((r) => setTimeout(r, 150));
+      return { kind: "succeeded" as const };
+    });
+    const results = await Promise.all([pay(), pay()]);
+    expect(results.filter((r) => "ok" in r)).toHaveLength(1);
+    expect(results.filter((r) => "error" in r)).toEqual([{ error: "A payment is already in progress." }]);
+    expect(await allOrders()).toHaveLength(1);
+    expect(payByCard).toHaveBeenCalledTimes(1);
   });
 
   it("rejects non-card method", async () => {
