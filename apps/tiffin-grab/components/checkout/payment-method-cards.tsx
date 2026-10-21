@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export type PayMethodOption = { id: string; label: string };
 
 // Customers see "Stripe" whatever the config label says, so every place that names the method agrees.
-export function payMethodTitle(m: PayMethodOption) {
+function payMethodTitle(m: PayMethodOption) {
   return m.id === "stripe" ? "Stripe" : m.label;
 }
 

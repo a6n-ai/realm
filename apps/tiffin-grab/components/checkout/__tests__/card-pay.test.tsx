@@ -155,6 +155,20 @@ describe("Checkout Pay step", () => {
     expect(await screen.findByTestId("card-dialog")).toBeTruthy();
   });
 
+  it("the order card replaces Review: total up front, address, start and contact on expand, Edit and Change still work", async () => {
+    await toPayment();
+    expect(screen.queryByRole("heading", { name: "Review" })).toBeNull();
+    const card = screen.getByRole("button", { name: /order details/i });
+    expect(card.textContent).toContain("$50.00");
+    expect(card.textContent).toMatch(/starts /);
+    fireEvent.click(card);
+    expect(await screen.findByText(/10 King St W/)).toBeTruthy();
+    expect(screen.getByText(/\+1 416 555 1234/)).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: "Edit" }).map((a) => a.getAttribute("href"))).toEqual(expect.arrayContaining(["/subscribe"]));
+    fireEvent.click(screen.getAllByRole("button", { name: "Change" })[0]!);
+    expect(await screen.findByRole("button", { name: /continue to payment/i })).toBeTruthy();
+  });
+
   it("express is only offered while Stripe is selected", async () => {
     await toPayment();
     expect(screen.getByTestId("express")).toBeTruthy();
