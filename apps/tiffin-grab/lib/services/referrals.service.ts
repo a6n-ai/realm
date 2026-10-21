@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
@@ -222,4 +223,89 @@ export async function getReferralSummary(userId: bigint): Promise<ReferralSummar
     totalCoins: rows.filter((r) => r.status !== "reversed").reduce((n, r) => n + r.referrerCoins, 0),
     friends: rows.map((r) => ({ name: shortName(r.name), status: r.status, joinedAt: Number(r.joinedAt) })),
   };
+}
+
+export type ReferralListRow = {
+  publicId: string;
+  referrer: { publicId: string; name: string | null; email: string };
+  friend: { publicId: string; name: string | null; email: string };
+  status: ReferralFriendStatus;
+  referrerCoins: number;
+  friendCoins: number;
+  skipReason: string | null;
+  orderPublicId: string | null;
+  createdAt: number;
+};
+
+const referrerUser = alias(users, "referrer");
+const friendUser = alias(users, "friend");
+
+/** Admin Wallet → Referrals. Newest first. */
+export async function listReferrals(opts: { status?: ReferralFriendStatus; search?: string; page: number; pageSize: number }): Promise<{ rows: ReferralListRow[]; total: number }> {
+  const q = opts.search?.trim();
+  const like = `%${q}%`;
+  const where = and(
+    opts.status ? eq(referrals.status, opts.status) : undefined,
+    q
+      ? or(
+          ilike(referrerUser.name, like), ilike(referrerUser.email, like), ilike(referrerUser.phone, like),
+          ilike(friendUser.name, like), ilike(friendUser.email, like), ilike(friendUser.phone, like),
+        )
+      : undefined,
+  );
+  const base = () =>
+    db
+      .select({
+        publicId: referrals.publicId,
+        rPublicId: referrerUser.publicId, rName: referrerUser.name, rEmail: referrerUser.email,
+        fPublicId: friendUser.publicId, fName: friendUser.name, fEmail: friendUser.email,
+        status: referrals.status,
+        referrerCoins: referrals.referrerCoins,
+        friendCoins: referrals.friendCoins,
+        skipReason: referrals.skipReason,
+        orderPublicId: orders.publicId,
+        createdAt: referrals.createdAt,
+      })
+      .from(referrals)
+      .innerJoin(referrerUser, eq(referrerUser.id, referrals.referrerUserId))
+      .innerJoin(friendUser, eq(friendUser.id, referrals.referredUserId))
+      .leftJoin(orders, eq(orders.id, referrals.qualifyingOrderId))
+      .where(where);
+  const [rows, [{ total }]] = await Promise.all([
+    base().orderBy(desc(referrals.createdAt), desc(referrals.id)).limit(opts.pageSize).offset(opts.page * opts.pageSize),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(referrals)
+      .innerJoin(referrerUser, eq(referrerUser.id, referrals.referrerUserId))
+      .innerJoin(friendUser, eq(friendUser.id, referrals.referredUserId))
+      .where(where),
+  ]);
+  return {
+    total,
+    rows: rows.map((r) => ({
+      publicId: r.publicId,
+      referrer: { publicId: r.rPublicId, name: r.rName, email: r.rEmail },
+      friend: { publicId: r.fPublicId, name: r.fName, email: r.fEmail },
+      status: r.status,
+      referrerCoins: r.referrerCoins,
+      friendCoins: r.friendCoins,
+      skipReason: r.skipReason,
+      orderPublicId: r.orderPublicId,
+      createdAt: Number(r.createdAt),
+    })),
+  };
+}
+
+/** Customer detail: who referred them, and how many they referred. */
+export async function getReferralInfo(userId: bigint): Promise<{ referredBy: { publicId: string; name: string | null } | null; referredCount: number }> {
+  const [[by], [{ n }]] = await Promise.all([
+    db
+      .select({ publicId: referrerUser.publicId, name: referrerUser.name })
+      .from(users)
+      .innerJoin(referrerUser, eq(referrerUser.id, users.referredByUserId))
+      .where(eq(users.id, userId))
+      .limit(1),
+    db.select({ n: sql<number>`count(*)::int` }).from(referrals).where(eq(referrals.referrerUserId, userId)),
+  ]);
+  return { referredBy: by ?? null, referredCount: n };
 }
