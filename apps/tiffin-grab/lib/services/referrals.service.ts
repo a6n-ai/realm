@@ -339,3 +339,18 @@ export async function getReferralInfo(userId: bigint): Promise<{ referredBy: { p
   ]);
   return { referredBy: by ?? null, referredCount: n };
 }
+
+/** Discounts → Referrals stat cards. Taken-back referrals count, but their coins don't. */
+export async function referralStats(): Promise<{ total: number; rewarded: number; waiting: number; referrerCoins: number; friendCoins: number }> {
+  const live = sql`${referrals.status} <> 'reversed'`;
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      rewarded: sql<number>`(count(*) filter (where ${referrals.status} = 'rewarded'))::int`,
+      waiting: sql<number>`(count(*) filter (where ${referrals.status} = 'joined'))::int`,
+      referrerCoins: sql<number>`coalesce(sum(${referrals.referrerCoins}) filter (where ${live}), 0)::int`,
+      friendCoins: sql<number>`coalesce(sum(${referrals.friendCoins}) filter (where ${live}), 0)::int`,
+    })
+    .from(referrals);
+  return row;
+}

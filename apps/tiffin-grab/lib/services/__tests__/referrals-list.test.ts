@@ -4,7 +4,7 @@ import { eq, inArray, or } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { users, referrals } = await import("@/db/schema");
-const { listReferrals, getReferralInfo } = await import("../referrals.service");
+const { listReferrals, getReferralInfo, referralStats } = await import("../referrals.service");
 
 const PHONES = ["+16475550090", "+16475550091", "+16475550092", "+16475550093"];
 let ids: bigint[] = [];
@@ -70,5 +70,25 @@ describe("getReferralInfo", () => {
     expect(await getReferralInfo(r)).toMatchObject({ referredBy: null, referredCount: 3 });
     const [row] = await db.select({ id: users.id }).from(users).where(eq(users.phone, PHONES[0]));
     expect(row.id).toBe(r);
+  });
+});
+
+describe("referralStats", () => {
+  it("counts referrals by stage and sums coins paid, leaving out taken-back ones", async () => {
+    const before = await referralStats();
+    const [r] = ids;
+    const [extra] = await db
+      .insert(users)
+      .values({ phone: "+16475550094", email: "zq-f4@test.invalid", name: "Dev Four", role: "user" })
+      .returning({ id: users.id });
+    PHONES.push("+16475550094");
+    const t = Date.now();
+    await db.insert(referrals).values({ referrerUserId: r, referredUserId: extra.id, status: "rewarded", referrerCoins: 30, friendCoins: 15, createdAt: t, updatedAt: t });
+    const after = await referralStats();
+    expect(after.total - before.total).toBe(1);
+    expect(after.rewarded - before.rewarded).toBe(1);
+    expect(after.waiting - before.waiting).toBe(0);
+    expect(after.referrerCoins - before.referrerCoins).toBe(30);
+    expect(after.friendCoins - before.friendCoins).toBe(15);
   });
 });
