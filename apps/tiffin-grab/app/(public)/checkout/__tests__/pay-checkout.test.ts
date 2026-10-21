@@ -56,7 +56,7 @@ async function pay(over: { expected?: number; paymentPublicId?: string | null; p
   const { paymentMethodId, ...base } = await baseInput({ paymentMethodId: over.paymentMethodId ?? "stripe", phone: over.phone, couponCode: over.couponCode });
   over.mutate?.(base as Awaited<ReturnType<typeof baseInput>>);
   const c = base.contact;
-  const quote = await reprice(base.selections, [...(base.couponCodes ?? []), ...(base.couponCode ? [base.couponCode] : [])], base.planKey, "stripe", base.coins, c.postalCode, c.addressLine, c.city);
+  const quote = await reprice(base.selections, base.couponCode ? [base.couponCode] : [], base.planKey, "stripe", undefined, c.postalCode, c.addressLine, c.city);
   if ("error" in quote) throw new Error(quote.error);
   return payCheckout({
     ...base,
