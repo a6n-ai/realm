@@ -549,3 +549,15 @@ body:has(.customer-app) {
    widget's iframe shows as a ring around the slot (lib/auth/captcha-client.ts). */
 .captcha-host { border-radius: 8px; }
 .captcha-host:focus-within { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+/* Navigation answers on press in every area: a thin primary bar across the top while the
+   next page renders (NavPending sets data-nav). */
+html[data-nav="pending"] body::before {
+  content: ""; position: fixed; inset: 0 0 auto; z-index: 1000; height: 2px; pointer-events: none;
+  background: var(--primary); transform-origin: left;
+  animation: app-navbar 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes app-navbar { from { transform: scaleX(0.08); } to { transform: scaleX(0.85); } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav="pending"] body::before { animation: none; transform: scaleX(0.6); }
+}

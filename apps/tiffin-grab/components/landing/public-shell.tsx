@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
-import { NavPending } from "@/components/landing/nav-pending";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import "@/components/landing/landing.css";
@@ -16,7 +15,6 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />
       <LocationPicker />
-      <NavPending />
     </div>
   );
 }

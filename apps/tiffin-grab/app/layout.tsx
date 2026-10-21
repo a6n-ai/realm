@@ -7,6 +7,7 @@ import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@foundry/ui/sonner";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
+import { NavPending } from "@/components/landing/nav-pending";
 import "./globals.css";
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
@@ -52,6 +53,7 @@ export default function RootLayout({
           <TooltipProvider><AreaTransition>{children}</AreaTransition></TooltipProvider>
           <Toaster />
           <StaleDeployReloader />
+          <NavPending />
         </ThemeProvider>
       </body>
     </html>

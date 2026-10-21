@@ -333,15 +333,11 @@ a.tg-option:hover .tg-option__go { background: var(--primary); color: var(--prim
   ::view-transition-old(*), ::view-transition-new(*), ::view-transition-group(*) { animation-duration: 0s !important; animation-delay: 0s !important; }
 }
 
-/* Navigation answers on press: the page steps back and a bar runs under the header. */
+/* Navigation answers on press: the page steps back while the top bar (globals.css) runs. */
 .tg-land main { transition: opacity 220ms ease, transform 300ms var(--c-ease-soft); }
 html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6px); }
-.tg-header::after { content: ""; position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; background: var(--primary); transform-origin: left; transform: scaleX(0); opacity: 0; pointer-events: none; }
-html[data-nav="pending"] .tg-header::after { opacity: 1; animation: tg-navbar 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-@keyframes tg-navbar { from { transform: scaleX(0.08); } to { transform: scaleX(0.85); } }
 @media (prefers-reduced-motion: reduce) {
   html[data-nav="pending"] .tg-land main { transform: none; }
-  html[data-nav="pending"] .tg-header::after { animation: none; transform: scaleX(0.6); }
 }
 
 /* Plan length: a row of square cards, the number large. */
