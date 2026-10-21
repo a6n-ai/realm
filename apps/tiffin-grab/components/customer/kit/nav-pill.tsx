@@ -39,7 +39,7 @@ export function CoinChip({ href, balance, value, active }: { href: string; balan
     >
       <Wallet aria-hidden className="size-5 text-[var(--primary)]" />
       {balance}
-      {money ? <span className="text-[13px] font-medium text-[var(--muted-foreground)]">{money}</span> : null}
+      {money ? <span className="hidden text-[13px] font-medium text-[var(--muted-foreground)] min-[380px]:inline">{money}</span> : null}
     </Link>
   );
 }

@@ -3,6 +3,7 @@ import { Card, EmptyState, ListGroup, ListRow, Pill, StatTile, type Tone } from 
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
 import { ShareCard } from "./share-card";
+import { EnterCodeCard } from "./enter-code-card";
 
 const STATUS: Record<ReferralFriendStatus, { label: string; tone: Tone }> = {
   joined: { label: "Joined", tone: "up" },
@@ -22,9 +23,10 @@ function howItWorks(s: ReferralSettings): string {
 const dateFmt = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
 export function ReferView({ summary, wallet }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null } }) {
-  const { code, settings, totalCoins, friends } = summary;
+  const { code, settings, totalCoins, friends, canEnterCode } = summary;
   return (
     <div className="space-y-6">
+      {canEnterCode ? <EnterCodeCard /> : null}
       <ShareCard code={code} />
 
       <Card className="flex gap-3 p-5">

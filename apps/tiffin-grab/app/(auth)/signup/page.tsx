@@ -1,7 +1,5 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { REFERRAL_COOKIE } from "@/lib/referrals/cookie";
 import { SignupForm } from "./signup-form";
 
 // Reads runtime app-settings (defaultCountry) from the DB — must not be
@@ -9,10 +7,10 @@ import { SignupForm } from "./signup-form";
 export const dynamic = "force-dynamic";
 
 export default async function SignupPage() {
-  const [{ defaultCountry }, jar] = await Promise.all([getAppSettings(), cookies()]);
+  const { defaultCountry } = await getAppSettings();
   return (
     <Suspense>
-      <SignupForm defaultCountry={defaultCountry} defaultReferralCode={jar.get(REFERRAL_COOKIE)?.value ?? ""} />
+      <SignupForm defaultCountry={defaultCountry} />
     </Suspense>
   );
 }

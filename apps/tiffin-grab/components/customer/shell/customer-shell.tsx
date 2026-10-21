@@ -118,9 +118,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
               data-testid="cutoff-chip"
               title={cutoffNote(cutoffHour)}
               aria-label={cutoffNote(cutoffHour)}
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-[13px] font-semibold tabular-nums"
+              className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-[13px] font-semibold tabular-nums"
             >
-              <Clock aria-hidden className="size-4 text-[var(--primary)]" />
+              <Clock aria-hidden className="hidden size-4 text-[var(--primary)] min-[400px]:block" />
               <span><span className="hidden sm:inline">Cutoff </span>{cutoffTime(cutoffHour)}</span>
             </span>
             <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />

@@ -25,7 +25,7 @@ vi.mock("@/lib/services/app-settings.service", async (importOriginal) => ({
 }));
 
 const { db } = await import("@/db/client");
-const { orders, orderActivities, payments, ledgerEntries, walletLedger, users, referrals, notificationOutbox } =
+const { account, orders, orderActivities, payments, ledgerEntries, walletLedger, users, referrals, notificationOutbox } =
   await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
@@ -36,7 +36,7 @@ const { attachReferral, getOrCreateReferralCode, getReferralSummary } = await im
 const RATE = 0.1;
 vi.spyOn(walletService, "activeRate").mockResolvedValue(RATE);
 
-const PHONES = Array.from({ length: 33 }, (_, i) => `+164755500${50 + i}`);
+const PHONES = Array.from({ length: 36 }, (_, i) => `+164755500${50 + i}`);
 const phone = (n: number) => `+164755500${n}`;
 
 afterEach(() => {
@@ -51,6 +51,7 @@ async function cleanup() {
   if (ids.length === 0) return;
   await db.delete(referrals).where(or(inArray(referrals.referrerUserId, ids), inArray(referrals.referredUserId, ids)));
   await db.update(users).set({ referredByUserId: null }).where(inArray(users.id, ids));
+  await db.delete(account).where(inArray(account.userId, ids));
   await db.delete(walletLedger).where(inArray(walletLedger.userId, ids));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
   const os = await db.select({ id: orders.id }).from(orders).where(inArray(orders.userId, ids));
@@ -274,5 +275,22 @@ describe("getReferralSummary", () => {
     expect(s.totalCoins).toBe(20);
     expect(s.friends).toEqual([expect.objectContaining({ name: "Name82 T.", status: "rewarded" })]);
     expect(s.settings).toEqual(settings.referral);
+  });
+});
+
+describe("getReferralSummary: entering a code later", () => {
+  // Email sign-ups type the code in the subscribe step; the box is for Google sign-ups.
+  it("offers the code box only to a new Google sign-up, until they are referred or have paid", async () => {
+    const fresh = await makeUser(83);
+    expect((await getReferralSummary(fresh)).canEnterCode).toBe(false);
+    await db.insert(account).values({ accountId: `g-${fresh}`, providerId: "google", userId: fresh });
+    expect((await getReferralSummary(fresh)).canEnterCode).toBe(true);
+
+    const { friend } = await refer(84, 85);
+    await db.insert(account).values({ accountId: `g-${friend}`, providerId: "google", userId: friend });
+    expect((await getReferralSummary(friend)).canEnterCode).toBe(false);
+
+    await placeFor(83);
+    expect((await getReferralSummary(fresh)).canEnterCode).toBe(false);
   });
 });

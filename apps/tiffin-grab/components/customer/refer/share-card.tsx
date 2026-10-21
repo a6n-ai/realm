@@ -5,13 +5,13 @@ import { Check, Copy, Share2 } from "lucide-react";
 import { Button, Card } from "@/components/customer/kit";
 
 export function ShareCard({ code }: { code: string }) {
-  const [link, setLink] = useState(`/?ref=${code}`);
+  const [link, setLink] = useState(`/subscribe?ref=${code}`);
   const [canShare, setCanShare] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Origin and Web Share exist only in the browser; render the relative link until then.
   useEffect(() => {
-    setLink(`${window.location.origin}/?ref=${code}`);
+    setLink(`${window.location.origin}/subscribe?ref=${code}`);
     setCanShare(typeof navigator.share === "function");
   }, [code]);
 

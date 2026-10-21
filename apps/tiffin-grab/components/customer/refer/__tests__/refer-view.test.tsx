@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/app/(customer)/me/refer/actions", () => ({ enterReferralCode: vi.fn() }));
+
 import { ReferView } from "../refer-view";
 
 const flat = { mode: "flat" as const, referrerValue: 20, friendValue: 10, maxPerReferrer: null };
@@ -15,6 +18,7 @@ describe("ReferView", () => {
       />,
     );
     expect(screen.getByText("ABCD2345")).toBeDefined();
+    expect(screen.getByText(/\/subscribe\?ref=ABCD2345$/)).toBeDefined();
     expect(screen.getByText(/You get 20 coins/)).toBeDefined();
     expect(screen.getByText(/40 coins earned/)).toBeDefined();
     expect(screen.getByText("Priya S.")).toBeDefined();
@@ -29,5 +33,17 @@ describe("ReferView", () => {
   it("points at sharing when no friend has joined yet", () => {
     render(<ReferView summary={{ code: "ABCD2345", settings: flat, totalCoins: 0, friends: [] }} />);
     expect(screen.getByText(/No friends yet/)).toBeDefined();
+  });
+});
+
+describe("ReferView code box", () => {
+  it("asks a new customer for a friend's code", () => {
+    render(<ReferView summary={{ code: "ABCD2345", settings: flat, totalCoins: 0, friends: [], canEnterCode: true }} />);
+    expect(screen.getByText(/Got a code from a friend\?/)).toBeDefined();
+  });
+
+  it("hides the box once it can't apply", () => {
+    render(<ReferView summary={{ code: "ABCD2345", settings: flat, totalCoins: 0, friends: [], canEnterCode: false }} />);
+    expect(screen.queryByText(/Got a code from a friend\?/)).toBeNull();
   });
 });

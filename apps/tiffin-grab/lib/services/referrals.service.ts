@@ -3,7 +3,7 @@ import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
+import { account, orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
 import { coinsUnderCap } from "@/lib/wallet/earn-coins";
@@ -52,6 +52,21 @@ export async function findReferrerByCode(raw: string): Promise<{ id: bigint; pub
   return row ?? null;
 }
 
+/** Not new: ever paid (a refund doesn't make them new again), or a migrated
+ * WordPress customer — their imported wc- orders carry no payment row. */
+async function hasOrderHistory(q: Tx | typeof db, userId: bigint): Promise<boolean> {
+  const [row] = await q
+    .select({ id: orders.id })
+    .from(orders)
+    .leftJoin(payments, eq(payments.orderId, orders.id))
+    .where(and(
+      eq(orders.userId, userId),
+      or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%")),
+    ))
+    .limit(1);
+  return row != null;
+}
+
 export type AttachResult = "attached" | "unknown_code" | "self" | "not_eligible" | "already";
 
 /**
@@ -78,18 +93,7 @@ export async function attachReferral(userId: bigint, rawCode: string): Promise<A
     if (!referrer) return "unknown_code";
     if (referrer.id === userId) return "self";
 
-    // Not new: ever paid (a refund doesn't make them new again), or a migrated
-    // WordPress customer — their imported wc- orders carry no payment row.
-    const [history] = await tx
-      .select({ id: orders.id })
-      .from(orders)
-      .leftJoin(payments, eq(payments.orderId, orders.id))
-      .where(and(
-        eq(orders.userId, userId),
-        or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%")),
-      ))
-      .limit(1);
-    if (history) return "not_eligible";
+    if (await hasOrderHistory(tx, userId)) return "not_eligible";
     // No referring back the person who referred you: a 2-cycle pays both twice.
     const [back] = await tx.select({ by: users.referredByUserId }).from(users).where(eq(users.id, referrer.id)).limit(1);
     if (back?.by === userId) return "not_eligible";
@@ -223,11 +227,13 @@ export type ReferralSummary = {
   settings: ReferralSettings;
   totalCoins: number;
   friends: { name: string; status: ReferralFriendStatus; joinedAt: number }[];
+  /** Google sign-ups never saw the subscribe-step code field: offer it on the Refer tab. */
+  canEnterCode?: boolean;
 };
 
 /** Everything the customer Refer tab shows. */
 export async function getReferralSummary(userId: bigint): Promise<ReferralSummary> {
-  const [code, settings, rows] = await Promise.all([
+  const [code, settings, rows, [me], [google], history] = await Promise.all([
     getOrCreateReferralCode(userId),
     getReferralSettings(),
     db
@@ -236,12 +242,16 @@ export async function getReferralSummary(userId: bigint): Promise<ReferralSummar
       .innerJoin(users, eq(users.id, referrals.referredUserId))
       .where(eq(referrals.referrerUserId, userId))
       .orderBy(desc(referrals.createdAt)),
+    db.select({ by: users.referredByUserId }).from(users).where(eq(users.id, userId)).limit(1),
+    db.select({ id: account.id }).from(account).where(and(eq(account.userId, userId), eq(account.providerId, "google"))).limit(1),
+    hasOrderHistory(db, userId),
   ]);
   return {
     code,
     settings,
     totalCoins: rows.filter((r) => r.status !== "reversed").reduce((n, r) => n + r.referrerCoins, 0),
     friends: rows.map((r) => ({ name: shortName(r.name), status: r.status, joinedAt: Number(r.joinedAt) })),
+    canEnterCode: google != null && me?.by == null && !history,
   };
 }
 

@@ -12,7 +12,7 @@ import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { Button } from "@foundry/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { AuthLegal, AuthLogo, IOS_INPUT } from "@/components/auth/auth-kit";
+import { AuthLegal, AuthLogo, IOS_INPUT, IOS_PHONE } from "@/components/auth/auth-kit";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
@@ -21,7 +21,7 @@ import { signUpCustomer } from "./actions";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
-  { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
+  { ssr: false, loading: () => <Input className={IOS_INPUT} disabled placeholder="Phone" /> },
 );
 
 const schema = z.object({
@@ -30,19 +30,18 @@ const schema = z.object({
   name: z.string().trim().optional(),
   // Shared schema so the form and the server agree on the 12-char minimum.
   password: passwordSchema,
-  referralCode: z.string().trim().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export function SignupForm({ defaultCountry, defaultReferralCode = "" }: { defaultCountry: Country; defaultReferralCode?: string }) {
+export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
   const [error, setError] = useState<string | null>(null);
   // Set once the account exists and the verification mail has gone out.
   const [sent, setSent] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { phone: "", email: "", name: "", password: "", referralCode: defaultReferralCode },
+    defaultValues: { phone: "", email: "", name: "", password: "" },
   });
 
   async function onSubmit(values: FormValues) {
@@ -52,7 +51,6 @@ export function SignupForm({ defaultCountry, defaultReferralCode = "" }: { defau
       email: values.email,
       name: values.name || undefined,
       password: values.password,
-      referralCode: values.referralCode || undefined,
     });
     if (!result.ok) {
       setError(result.error);
@@ -103,7 +101,9 @@ export function SignupForm({ defaultCountry, defaultReferralCode = "" }: { defau
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <PhoneInput {...field} defaultCountry={defaultCountry} />
+                        <div className={IOS_PHONE}>
+                          <PhoneInput {...field} defaultCountry={defaultCountry} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -160,19 +160,6 @@ export function SignupForm({ defaultCountry, defaultReferralCode = "" }: { defau
                             {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                           </button>
                         </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="referralCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Referral code <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
-                      <FormControl>
-                        <Input className={IOS_INPUT} autoComplete="off" autoCapitalize="characters" placeholder="From a friend" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
