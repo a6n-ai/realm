@@ -713,6 +713,25 @@ export async function createOrder(
       ...(paymentMethodId === "stripe" ? { expiresAt: Date.now() + (staffCreated ? STRIPE_STAFF_ORDER_TTL_MS : STRIPE_ORDER_TTL_MS) } : {}),
     });
 
+    // Cash is collected on delivery, so the customer gets an order confirmation that says payment is still due.
+    if (paymentMethodId === "cash" && userId != null) {
+      await enqueueNotification(tx, {
+        event: "order_created",
+        recipientId: userId,
+        title: "Order received",
+        body: `We've got order ${deploymentId}. Payment of ${formatMoney(pricing.total)} is due in cash on delivery.`,
+        href: "/me/deliveries",
+        data: {
+          order: {
+            code: deploymentId,
+            customerName: input.contact.fullName || "there",
+            paymentNote: `Payment of ${formatMoney(pricing.total)} is due in cash on delivery.`,
+          },
+        },
+        dedupeKey: `order_created:${order.publicId}`,
+      });
+    }
+
     // Simulated path redeems immediately. Real-method path defers until verify
     // so an abandoned/unpaid order burns no coupon budget.
     if (!deferSettlement) {
@@ -1010,7 +1029,7 @@ export async function verifyPayment(
       event: "payment_approved",
       recipientId: orderUserId,
       title: "Payment confirmed",
-      body: `Your payment of ${formatMoney(Number(pay.amount))} for order ${order.deploymentId} is confirmed.`,
+      body: `Your payment of ${formatMoney(Number(pay.amount) + (pay.method === "stripe" ? Number(pay.surchargeAmount) : 0))} for order ${order.deploymentId} is confirmed.`,
       href: "/me/wallet?tab=bills",
       data: {
         payment: {

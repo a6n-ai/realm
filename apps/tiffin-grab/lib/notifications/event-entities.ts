@@ -22,6 +22,7 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
     fields: [
       { name: "code", label: "Order code" },
       { name: "customerName", label: "Customer name" },
+      { name: "paymentNote", label: "Payment note (cash on delivery only)" },
     ],
   },
   order_activated: {

@@ -58,6 +58,10 @@ export function OrderCreatedEmail() {
               </Text>
             </Section>
 
+            <Section style={{ padding: "16px 40px 0" }}>
+              <Text style={{ margin: 0, fontSize: "15px", lineHeight: 1.6, color: MUTED }}>{"{{order.paymentNote}}"}</Text>
+            </Section>
+
             <Section style={{ padding: "24px 40px 4px" }}>
               <Section
                 style={{
