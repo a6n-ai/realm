@@ -54,9 +54,11 @@ tiffingrab.ca, www.tiffingrab.ca {
 	}
 
 	# Public pages and what they load: Next assets, dish photos (/api/files), lottie,
-	# uploads, the weekly menu PDF. Legal pages keep the old WordPress slugs (with and
-	# without the trailing slash) on the apex so existing links keep working.
-	@public path / /pricing /plans /menu /menu/* /locations /faq /contact /legal /terms /privacy /refund-policy /delivery-policy /terms-and-conditions /terms-and-conditions/ /privacy-policy /privacy-policy/ /refund-policy/ /delivery-policy/ /legal/ /_next/* /api/files/* /lottie/* /uploads/* /favicon.ico /*.svg
+	# uploads, the landing figure (/landing/*: fetched by script, so a redirect to app.
+	# fails CORS), the share images, robots and sitemap, the weekly menu PDF. Legal
+	# pages keep the old WordPress slugs (with and without the trailing slash) on the
+	# apex so existing links keep working.
+	@public path / /pricing /plans /menu /menu/* /locations /faq /contact /legal /terms /privacy /refund-policy /delivery-policy /terms-and-conditions /terms-and-conditions/ /privacy-policy /privacy-policy/ /refund-policy/ /delivery-policy/ /legal/ /_next/* /api/files/* /lottie/* /uploads/* /landing/* /favicon.ico /*.svg /opengraph-image.png /twitter-image.png /robots.txt /sitemap.xml
 	handle @public {
 		reverse_proxy tiffin-grab-web:3000 {
 			header_up X-Real-IP {remote_host}
