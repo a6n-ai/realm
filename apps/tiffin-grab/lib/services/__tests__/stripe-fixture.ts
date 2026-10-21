@@ -55,12 +55,14 @@ export async function reset() {
 
 /** An order with one stripe payment row; amount overrides make cents math explicit. */
 export let OWNER = "";
+// One customer per phone: a random suffix collided often enough (51 orders) to trip the plan-overlap guard.
+let phoneSeq = 1000;
 
 export async function makeStripePayment(o: {
   amount: string; surcharge?: string; piId: string | null; paid?: boolean;
   postalCode?: string; taxCalc?: { id: string; expiresAt: number };
 }) {
-  const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer", phone: `+1647555${String(Math.floor(Math.random() * 9000) + 1000)}` }));
+  const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer", phone: `+1647555${String(phoneSeq++ % 9000 + 1000)}` }));
   const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, order!.userId!));
   OWNER = owner!.publicId;
