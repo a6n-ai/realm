@@ -4,60 +4,48 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { DiscountPolicy } from "@/db/schema/coupons";
-import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
+import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Switch } from "@foundry/ui/switch";
-import { BanIcon, Loader2Icon, SaveIcon, UsersIcon } from "lucide-react";
+import { Loader2Icon, SaveIcon, UsersIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
-import Link from "next/link";
-import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { TableCell } from "@foundry/ui/table";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
-import { saveDiscountPolicy, setCouponActive, setRepCeiling } from "../actions";
+import { saveDiscountPolicy, setRepCeiling } from "../actions";
 
 type RepOption = { publicId: string; name: string | null; email: string | null; role: string };
-
-export type IssuedCode = {
-  publicId: string;
-  code: string;
-  amount: number;
-  note: string | null;
-  createdAt: number;
-  expiresAt: number | null;
-  issuer: string;
-  status: "unused" | "used" | "expired" | "revoked";
-  customer: string | null;
-  orderPublicId: string | null;
-  applied: number | null;
-};
 
 // Single source of truth for the two section headers, consumed by both the real
 // sections and the .Skeleton twin so the loading state can't drift from them.
 const GLOBAL_SECTION = {
   title: "Staff discount allowance",
   subtitle:
-    "What each staff member may give per day, either applied on an order they create or as a one-off code from the Create coupon button. The lower of the two ceilings applies to any single discount.",
+    "What each staff member may give per day, either applied on an order they create or as a one-off code from Estimate or Create coupon. The lower of the two ceilings applies to any single discount.",
 } as const;
 const PER_REP_SECTION = {
   title: "Per-rep overrides",
   subtitle:
     "Override the default ceilings for an individual staff member, or disable their allowance. Blank fields fall back to the global default.",
 } as const;
-const CODES_SECTION = {
-  title: "Issued codes",
-  subtitle: "One-off codes staff generated, who issued each, and the customer and order that used it.",
-} as const;
 
-export function RepAllowanceForm({ reps, policy, codes, pagination, repSpec }: { reps: RepOption[]; policy: DiscountPolicy; codes: IssuedCode[]; pagination: { page: number; size: number }; repSpec: FacetDef[] }) {
+export function RepAllowanceForm({
+  reps, policy, stats, pagination, repSpec,
+}: {
+  reps: RepOption[];
+  policy: DiscountPolicy;
+  stats: StatItem[];
+  pagination: { page: number; size: number };
+  repSpec: FacetDef[];
+}) {
   return (
     <div className="grid gap-6">
+      <DiscountStats items={stats} />
       <GlobalCeilingsSection policy={policy} />
       <PerRepSection reps={reps} policy={policy} pagination={pagination} spec={repSpec} />
-      <IssuedCodesSection codes={codes} />
     </div>
   );
 }
@@ -74,6 +62,7 @@ export function RepAllowanceFormSkeleton() {
   );
   return (
     <div className="grid gap-6">
+      <DiscountStatsSkeleton />
       <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle}>
         <div className="grid gap-4">
           <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
@@ -103,100 +92,9 @@ export function RepAllowanceFormSkeleton() {
       <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
         <DataTable.Skeleton columns={PER_REP_COLUMNS} serial={false} />
       </SectionCard>
-      <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
-        <div className="grid gap-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full" />
-          ))}
-        </div>
-      </SectionCard>
     </div>
   );
 };
-
-const STATUS_LABEL: Record<IssuedCode["status"], string> = { unused: "Unused", used: "Used", expired: "Expired", revoked: "Revoked" };
-
-function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
-  const router = useRouter();
-  const [busy, setBusy] = React.useState(false);
-  return (
-    <RowActionTooltipButton
-      icon={BanIcon}
-      label={`Revoke ${code}`}
-      hint="Revoke: the code stops working"
-      tone="text-destructive"
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await setCouponActive(publicId, false);
-          toast.success(`${code} revoked`);
-          router.refresh();
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Couldn't revoke the code");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    />
-  );
-}
-
-function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
-  const tz = useTimezone();
-  return (
-    <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
-      {codes.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No codes issued yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Issued by</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Used by</TableHead>
-              <TableHead>Order</TableHead>
-              <TableHead className="sr-only">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {codes.map((c) => (
-              <TableRow key={c.code}>
-                <TableCell>
-                  <span className="nums font-medium">{c.code}</span>
-                  {c.note && <span className="text-muted-foreground block text-xs">{c.note}</span>}
-                </TableCell>
-                <TableCell>{c.issuer}</TableCell>
-                <TableCell className="nums text-right">
-                  ${(c.applied ?? c.amount).toFixed(2)}
-                  {c.applied != null && c.applied < c.amount && (
-                    <span className="text-muted-foreground block text-xs">of ${c.amount.toFixed(2)}</span>
-                  )}
-                </TableCell>
-                <TableCell>{formatEpoch(c.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
-                <TableCell>
-                  <Badge variant={c.status === "used" ? "default" : "secondary"}>{STATUS_LABEL[c.status]}</Badge>
-                </TableCell>
-                <TableCell>{c.customer ?? "—"}</TableCell>
-                <TableCell>
-                  {c.orderPublicId ? (
-                    <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-primary hover:underline">View order</Link>
-                  ) : "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {c.status === "unused" && <RevokeButton publicId={c.publicId} code={c.code} />}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </SectionCard>
-  );
-}
 
 function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const router = useRouter();
@@ -307,7 +205,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
               onChange={setValidity}
             />
             <p className="text-muted-foreground text-xs text-pretty">
-              How long a created code can be used before it expires.
+              Codes from Estimate and Create coupon stop working this many hours after they are made.
             </p>
           </div>
         </div>

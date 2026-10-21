@@ -36,38 +36,37 @@ export const numOrNull = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Coupon windows are entered/displayed in a fixed business zone (staff are IST) so the
-// stored absolute instant is unambiguous regardless of the admin's browser zone (TD-4).
-export const BUSINESS_TZ = "Asia/Kolkata";
-export const BUSINESS_TZ_LABEL = "IST";
+// Coupon windows are entered/displayed in the app-settings timezone (pass useTimezone()), so
+// the stored absolute instant is unambiguous regardless of the admin's browser zone (TD-4).
 
-// epoch-ms <-> <input type="datetime-local"> value, anchored to BUSINESS_TZ (not the viewer's).
-export function toLocalInput(ms: number | null): string {
+// Short zone name for field labels, e.g. "EDT".
+export function tzLabel(tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, timeZoneName: "short" })
+    .formatToParts(Date.now())
+    .find((p) => p.type === "timeZoneName")?.value ?? tz;
+}
+
+// epoch-ms <-> <input type="datetime-local"> value, anchored to `tz` (not the viewer's).
+export function toLocalInput(ms: number | null, tz: string): string {
   if (ms == null) return "";
-  const wall = ms + tzOffsetMinutes(BUSINESS_TZ, ms) * 60000;
+  const wall = ms + tzOffsetMinutes(tz, ms) * 60000;
   return new Date(wall).toISOString().slice(0, 16);
 }
-export function fromLocalInput(s: string): number | null {
+export function fromLocalInput(s: string, tz: string): number | null {
   if (!s) return null;
-  // Treat the entered wall-clock as BUSINESS_TZ, then convert to the absolute instant.
+  // Treat the entered wall-clock as `tz`, then convert to the absolute instant.
   const asUtc = new Date(`${s}:00Z`).getTime();
   if (!Number.isFinite(asUtc)) return null;
-  return asUtc - tzOffsetMinutes(BUSINESS_TZ, asUtc) * 60000;
+  return asUtc - tzOffsetMinutes(tz, asUtc) * 60000;
 }
 
-// Short IST date for the coupons-list Window column. Anchored to BUSINESS_TZ so the
-// label matches the values the editor's datetime-local pickers round-trip.
-const windowFmt = new Intl.DateTimeFormat("en-CA", {
-  timeZone: BUSINESS_TZ,
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-export function formatWindow(startsAt: number | null, expiresAt: number | null): string {
+// Short date for the coupons-list Window column, in the same zone the editor round-trips.
+export function formatWindow(startsAt: number | null, expiresAt: number | null, tz: string): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, day: "numeric", month: "short", year: "numeric" });
   if (startsAt == null && expiresAt == null) return "Always";
-  if (startsAt != null && expiresAt == null) return `From ${windowFmt.format(startsAt)}`;
-  if (startsAt == null && expiresAt != null) return `Until ${windowFmt.format(expiresAt)}`;
-  return `${windowFmt.format(startsAt as number)} – ${windowFmt.format(expiresAt as number)}`;
+  if (startsAt != null && expiresAt == null) return `From ${fmt.format(startsAt)}`;
+  if (startsAt == null && expiresAt != null) return `Until ${fmt.format(expiresAt)}`;
+  return `${fmt.format(startsAt as number)} – ${fmt.format(expiresAt as number)}`;
 }
 
 export function NumberField({

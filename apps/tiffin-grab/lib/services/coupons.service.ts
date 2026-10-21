@@ -393,7 +393,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     });
   }
 
-  // Cron mint: idempotent via the partial unique index (one per rep per IST day).
+  // Cron mint: idempotent via the partial unique index (one per rep per allowance day).
   // Returns true when a row was actually inserted, false when the rep already had
   // today's coupon (the conflict path) — lets the caller report minted vs skipped.
   async mintRepDaily(tx: Tx, input: MintRepDailyInput): Promise<boolean> {
@@ -424,7 +424,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     return inserted.length > 0;
   }
 
-  // Discounts a rep has given on an IST day: uses of their daily coupon plus codes they
+  // Discounts a rep has given on an allowance day: uses of their daily coupon plus codes they
   // issued. One count, so the two lanes share the daily budget.
   async repUsesToday(conn: Tx | typeof db, ownerUserId: bigint, istDate: string): Promise<number> {
     const [row] = await conn
@@ -475,7 +475,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     return this.loadByCode(code);
   }
 
-  // Sidebar accessor: the rep's OWN coupon for the given IST day, projected to a
+  // Sidebar accessor: the rep's OWN coupon for the given allowance day, projected to a
   // serializable shape (used/total budget + ceilings). Accepts the owner's public
   // id (resolved to the internal bigint here) or the bigint directly. Returns null
   // when the rep has no coupon today (allowance off / not minted yet / not a rep).

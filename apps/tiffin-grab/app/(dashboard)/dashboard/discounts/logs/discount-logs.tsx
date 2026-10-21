@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { HistoryIcon } from "lucide-react";
-import { DataTable, ListPagination, SkeletonStatCards, StatGrid, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -36,6 +38,7 @@ type DiscountLogRow = {
 export function DiscountLogs({
   stats,
   rows,
+  spec,
   sort,
   total,
   page,
@@ -43,6 +46,7 @@ export function DiscountLogs({
 }: {
   stats: Stat[];
   rows: DiscountLogRow[];
+  spec: FacetDef[];
   sort: SortState<DiscountLogSortColumn>;
   total: number;
   page: number;
@@ -52,7 +56,7 @@ export function DiscountLogs({
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
     <>
-      <StatGrid cols={4} items={stats} />
+      <DiscountStats items={stats} />
 
       <DataTable
         serialOffset={page * size}
@@ -60,14 +64,10 @@ export function DiscountLogs({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
-        search={{
-          placeholder: "Search discount logs…",
-          shortPlaceholder: "Search…",
-          debounceMs: 300,
-        }}
+        filters={<ListSearchFilters spec={spec} placeholder="Search coupon, customer, staff or order…" shortPlaceholder="Search…" />}
         emptyIcon={HistoryIcon}
         emptyMessage="No discounts redeemed yet. Coupon redemptions will appear here."
-        emptySearchMessage="No redemptions match your search."
+        emptySearchMessage="No redemptions match your search or filters."
         renderRow={(r) => (
           <>
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
@@ -97,7 +97,7 @@ export function DiscountLogs({
 export function DiscountLogsSkeleton() {
   return (
     <>
-      <SkeletonStatCards count={4} />
+      <DiscountStatsSkeleton />
       <DataTable.Skeleton columns={COLUMNS} />
     </>
   );
