@@ -10,7 +10,8 @@ import { enterAddress } from "./address-helper";
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
+let routerNow: typeof mockRouter = mockRouter;
+vi.mock("next/navigation", () => ({ useRouter: () => routerNow }));
 
 const payCheckout = vi.fn();
 const confirmSubscription = vi.fn();
@@ -183,6 +184,28 @@ describe("Checkout Pay step", () => {
     expect(mockRouter.replace).toHaveBeenCalledWith("/activate/dep_2");
     expect(mockRouter.push).not.toHaveBeenCalled();
     expect(confirmSubscription).toHaveBeenCalledTimes(1);
+  });
+
+  it("after paying, a router identity change keeps the receipt instead of bouncing to /subscribe", async () => {
+    const view = render(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
+    fireEvent.change(await screen.findByLabelText(/phone/i), { target: { value: "4165551234" } });
+    await enterAddress("M5H 1A1");
+    const next = screen.getByRole("button", { name: /continue to payment/i });
+    await waitFor(() => expect(next.getAttribute("aria-disabled")).toBeNull());
+    fireEvent.click(next);
+    await screen.findByText("Cash");
+    fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
+    await waitFor(() => expect(sessionStorage.getItem("tg:paid")).toContain("dep_1"));
+    routerNow = { ...mockRouter };
+    view.rerender(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
+    routerNow = mockRouter;
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it("a fresh mount with no selections and no paid state goes to /subscribe", async () => {
+    sessionStorage.clear();
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} cardContext={cardCtx} />);
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/subscribe"));
   });
 
   it("Back into checkout after paying goes to /me/deliveries", async () => {

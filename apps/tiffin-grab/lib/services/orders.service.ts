@@ -786,19 +786,25 @@ const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
   stripe: "Card (Stripe)",
 };
 
-/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included) and the card used. */
-function receiptVars(
-  pay: Pick<typeof payments.$inferSelect, "method" | "cardBrand" | "cardLast4" | "surchargeAmount">,
+/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
+export function receiptVars(
+  pay: Pick<typeof payments.$inferSelect, "method" | "amount" | "cardBrand" | "cardLast4" | "surchargeAmount">,
   taxLines: { name: string; ratePct: number; amount: number }[],
 ) {
-  const fee = Number(pay.surchargeAmount);
+  const isCard = pay.method === "stripe";
+  const fee = isCard ? Number(pay.surchargeAmount) : 0;
+  const total = isCard ? formatMoney(Number(pay.amount) + fee) : "";
+  const brand = pay.cardBrand ? pay.cardBrand.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Card";
   const parts = [
     ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
-    fee > 0 ? `Credit card fee: ${formatMoney(fee)}` : null,
+    fee > 0 ? `Card fee ${formatMoney(fee)}` : null,
+    isCard ? `Total charged ${total}` : null,
   ].filter(Boolean);
   return {
     receiptLines: parts.join(" · "),
-    paidWith: pay.method === "stripe" && pay.cardLast4 ? `${pay.cardBrand ?? "Card"} ••${pay.cardLast4}` : METHOD_LABEL[pay.method],
+    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : METHOD_LABEL[pay.method],
+    cardFee: fee > 0 ? formatMoney(fee) : "",
+    totalCharged: total,
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
 
@@ -26,7 +26,7 @@ export function markPaid(deploymentId: string) {
 // performance navigation timing describes the document load only, so it counts for the first mount alone.
 let firstMount = true;
 
-const isPaid = () => {
+export const isPaid = () => {
   try { return sessionStorage.getItem(PAID_KEY) != null; } catch { return false; }
 };
 
@@ -36,8 +36,12 @@ const isPaid = () => {
  */
 export function useBounceAfterPaid() {
   const router = useRouter();
+  // The router object can change identity after markPaid rewrites the URL. Re-running this effect then
+  // would take the paid flag for a fresh visit, clear it, and let checkout bounce to the wizard.
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; });
   useEffect(() => {
-    const bounce = () => router.replace(AFTER_PAID);
+    const bounce = () => routerRef.current.replace(AFTER_PAID);
     const revisit = (() => {
       try {
         const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
@@ -59,5 +63,5 @@ export function useBounceAfterPaid() {
       window.removeEventListener("pageshow", onShow);
       window.removeEventListener("popstate", onPop);
     };
-  }, [router]);
+  }, []);
 }

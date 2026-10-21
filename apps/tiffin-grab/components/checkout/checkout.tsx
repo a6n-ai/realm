@@ -20,7 +20,7 @@ import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)
 import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
-import { markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
+import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards } from "./payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -288,6 +288,9 @@ export function Checkout({
   }, [router, prefill]);
 
   useEffect(() => {
+    // markPaid clears the wizard storage; once paid, the receipt stays on screen and a re-run of this
+    // effect (router identity change) must not read the empty storage as "no selections".
+    if (isPaid()) return;
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
     if (!raw) { router.replace("/subscribe"); return; }
     if (prefill == null) { router.replace("/subscribe"); return; }
