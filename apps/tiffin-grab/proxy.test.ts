@@ -114,6 +114,13 @@ describe("proxy URL-based org resolution", () => {
     expect(set).toMatch(/HttpOnly/i);
   });
 
+  it("remembers a 6-character code, and the older 8-character ones", async () => {
+    for (const code of ["YV5A4D", "YV5A4D5J"]) {
+      const res = await proxy(new NextRequest(`http://localhost/subscribe?ref=${code.toLowerCase()}`));
+      expect(res?.headers.get("set-cookie") ?? "").toMatch(new RegExp(`tg_ref=${code}`));
+    }
+  });
+
   it("ignores a ?ref= that isn't shaped like a code (marketing tags)", async () => {
     const res = await proxy(new NextRequest("http://localhost/?ref=instagram"));
     expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);

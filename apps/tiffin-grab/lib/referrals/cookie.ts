@@ -25,7 +25,8 @@ export function normalizeReferralCode(raw: string): string {
   return raw.replace(/\s+/g, "").toUpperCase();
 }
 
-/** Our codes: 8 of A–Z/2–9 minus look-alikes. Anything else on ?ref= is a marketing tag. */
+/** Our codes: 6 of A–Z/2–9 minus look-alikes (8 for codes made before 2026-10-22).
+ *  Anything else on ?ref= is a marketing tag. */
 export function isReferralCodeShape(code: string): boolean {
-  return /^[A-HJ-NP-Z2-9]{8}$/.test(code);
+  return /^[A-HJ-NP-Z2-9]{6}(?:[A-HJ-NP-Z2-9]{2})?$/.test(code);
 }

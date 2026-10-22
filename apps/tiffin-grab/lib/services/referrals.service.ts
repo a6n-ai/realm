@@ -14,7 +14,8 @@ import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cooki
 
 // No 0/O, 1/I/L: codes get read out loud and typed from screenshots.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-const CODE_LENGTH = 8;
+// 31^6 ≈ 887M codes; the unique index + retry below catch the rare clash.
+const CODE_LENGTH = 6;
 const PAID = ["paid", "simulated_paid"] as const;
 
 export { normalizeReferralCode };

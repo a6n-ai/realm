@@ -2,9 +2,16 @@
  * Integration: referral codes and attaching a friend to a referrer.
  * Live test DB; cleans up its own rows.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray, or } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
+
+// Scripted dice for the code generator: queued indexes first, real randomness after.
+const dice = vi.hoisted(() => ({ queue: [] as number[] }));
+vi.mock("node:crypto", async (orig) => {
+  const real = await orig<typeof import("node:crypto")>();
+  return { ...real, randomInt: ((max: number) => (dice.queue.length ? dice.queue.shift()! : real.randomInt(max))) as typeof real.randomInt };
+});
 
 const { db } = await import("@/db/client");
 const { orders, orderActivities, payments, ledgerEntries, walletLedger, users, referrals, notificationOutbox } =
@@ -13,7 +20,7 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const ordersSvc = await import("../orders.service");
 const { attachOnSignIn, attachReferral, getOrCreateReferralCode, normalizeReferralCode } = await import("../referrals.service");
 
-const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031", "+16475550026", "+16475550027", "+16475550028", "+16475550029", "+16475550022", "+16475550023", "+16475550024"];
+const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031", "+16475550026", "+16475550027", "+16475550028", "+16475550029", "+16475550022", "+16475550023", "+16475550024", "+16475550020", "+16475550021"];
 
 async function makeUser(phone: string, role: "user" | "admin" = "user") {
   const [u] = await db
@@ -78,7 +85,7 @@ describe("referral codes", () => {
   it("makes one stable, readable code per customer", async () => {
     const id = await makeUser(PHONES[0]);
     const a = await getOrCreateReferralCode(id);
-    expect(a).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+    expect(a).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
     expect(await getOrCreateReferralCode(id)).toBe(a);
   });
 
@@ -187,5 +194,20 @@ describe("verified sign-in only", () => {
     const friend = await makeUser("+16475550024");
     await attachOnSignIn(friend, null);
     expect(await rowFor(friend)).toBeUndefined();
+  });
+});
+
+describe("referral codes never repeat", () => {
+  it("rolls again when the new code is already someone's", async () => {
+    const taken = await makeUser("+16475550020");
+    const next = await makeUser("+16475550021");
+    // Index 0 of the alphabet is "A": six zeros spell AAAAAA.
+    await db.update(users).set({ referralCode: "AAAAAA" }).where(eq(users.id, taken));
+    dice.queue.push(...Array(6).fill(0));
+    const code = await getOrCreateReferralCode(next);
+    expect(code).not.toBe("AAAAAA");
+    expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+    const owners = await db.select({ id: users.id }).from(users).where(eq(users.referralCode, code));
+    expect(owners).toHaveLength(1);
   });
 });

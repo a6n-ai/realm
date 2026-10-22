@@ -271,7 +271,7 @@ describe("getReferralSummary", () => {
     const { referrer } = await refer(81, 82);
     await placeFor(82);
     const s = await getReferralSummary(referrer);
-    expect(s.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+    expect(s.code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
     expect(s.totalCoins).toBe(20);
     expect(s.friends).toEqual([expect.objectContaining({ name: "Name82 T.", status: "rewarded" })]);
     expect(s.settings).toEqual(settings.referral);
