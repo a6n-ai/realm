@@ -246,6 +246,13 @@
       "when": 1792642371880,
       "tag": "0034_same_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792688691253,
+      "tag": "0035_tranquil_zodiak",
+      "breakpoints": true
     }
   ]
 }

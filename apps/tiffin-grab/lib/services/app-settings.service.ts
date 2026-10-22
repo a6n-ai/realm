@@ -337,7 +337,7 @@ export async function setMaxCoinPctOfSubtotal(pct: number | null): Promise<void>
   else await appSettingsEntity.create({ ...DEFAULTS, maxCoinPctOfSubtotal: pct });
 }
 
-/** Whole percent of a paid order's pre-tax amount earned back as coins. 0 = off. */
+/** Percent (up to 2 decimals) of a paid order's pre-tax amount earned back as coins. 0 = off. */
 export async function getCoinEarnPct(): Promise<number> {
   return settingsCache.getOrSet("coinEarnPct", async () => {
     const [row] = await db.select({ v: app.coinEarnPct }).from(app).limit(1);
@@ -346,8 +346,8 @@ export async function getCoinEarnPct(): Promise<number> {
 }
 
 export async function setCoinEarnPct(pct: number): Promise<void> {
-  if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
-    throw new ValidationError("Earn rate must be a whole percent between 0 and 100");
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100 || Math.abs(pct * 100 - Math.round(pct * 100)) > 1e-6) {
+    throw new ValidationError("Earn rate must be a percent between 0 and 100 with at most 2 decimals");
   }
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { coinEarnPct: pct });

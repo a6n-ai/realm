@@ -1,5 +1,5 @@
 import { updatableColumns } from "@foundry/database";
-import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, numeric, pgTable, text } from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@foundry/clover";
 import type { PaymentConfig } from "@foundry/payments";
 import type { DiscountPolicy } from "./coupons";
@@ -43,9 +43,9 @@ export const app = pgTable("app", {
   // Ceiling on the percentage of the customer's total wallet balance they may
   // redeem on a single order. NULL = unlimited.
   maxCoinRedeemPctOfBalance: integer("max_coin_redeem_pct_of_balance"),
-  // Share of a paid order's pre-tax amount returned as coins, whole percent.
-  // 0 = earning off.
-  coinEarnPct: integer("coin_earn_pct").notNull().default(0),
+  // Share of a paid order's pre-tax amount returned as coins, percent with up to
+  // 2 decimals (2.5 = $200 earns $5). 0 = earning off.
+  coinEarnPct: numeric("coin_earn_pct", { precision: 5, scale: 2, mode: "number" }).notNull().default(0),
   // Referral rewards. Mode "flat" = coins; "pct" = whole percent of the friend's
   // first paid order (pre-tax, like coin_earn_pct). Both values 0 = referrals off.
   referralMode: text("referral_mode").$type<"flat" | "pct">().notNull().default("flat"),
