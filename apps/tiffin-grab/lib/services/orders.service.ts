@@ -1125,6 +1125,9 @@ export async function refundPaymentInTx(
 ): Promise<void> {
   await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
   await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
+  // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
+  const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
+  if (paid?.addon) return;
   if (i.userId) {
     await reverseCoinAward(tx, { userId: i.userId, eventType: "order_activated", source: { type: "order", id: i.orderPublicId } });
     // Money back means coins back: a refunded order's spent coins return too.
@@ -1869,7 +1872,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           const { started, reason } = await startPaidStripeOrder(tx, order, actorId);
           if (!started) throw new ValidationError(reason ?? "Could not start this order");
           const [fresh] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
-          if (fresh) await awardOrderCoins(tx, fresh, "paid");
+          if (fresh) {
+            await awardReferral(tx, fresh, "paid");
+            await awardOrderCoins(tx, fresh, "paid");
+          }
         });
         publishAnalyticsLive();
         return;
