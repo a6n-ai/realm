@@ -54,6 +54,12 @@ describe("nav", () => {
     expect(l).toHaveAttribute("href", "/me/wallet");
     expect(l).toHaveAttribute("aria-current", "page");
   });
+
+  it("CoinChip shows what the coins are worth when a value is known", () => {
+    render(<CoinChip href="/me/wallet" balance={120} value={12} />);
+    const l = screen.getByRole("link", { name: "Finances, 120 coins, worth $12.00" });
+    expect(l).toHaveTextContent("$12.00");
+  });
   it("TabBar is a labelled nav", () => {
     render(<TabBar items={[{ href: "/a", label: "A", icon: null, active: true }, { href: "/b", label: "B", icon: null }]} />);
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();

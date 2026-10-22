@@ -106,6 +106,31 @@ describe("proxy URL-based org resolution", () => {
     }
   }
 
+  it("remembers a ?ref= share code in a 30-day cookie", async () => {
+    const res = await proxy(new NextRequest("http://localhost/?ref=abcd 2345"));
+    const set = res?.headers.get("set-cookie") ?? "";
+    expect(set).toMatch(/tg_ref=ABCD2345/);
+    expect(set).toMatch(/Max-Age=2592000/);
+    expect(set).toMatch(/HttpOnly/i);
+  });
+
+  it("remembers a 6-character code, and the older 8-character ones", async () => {
+    for (const code of ["YV5A4D", "YV5A4D5J"]) {
+      const res = await proxy(new NextRequest(`http://localhost/subscribe?ref=${code.toLowerCase()}`));
+      expect(res?.headers.get("set-cookie") ?? "").toMatch(new RegExp(`tg_ref=${code}`));
+    }
+  });
+
+  it("ignores a ?ref= that isn't shaped like a code (marketing tags)", async () => {
+    const res = await proxy(new NextRequest("http://localhost/?ref=instagram"));
+    expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);
+  });
+
+  it("sets no referral cookie without ?ref=", async () => {
+    const res = await proxy(new NextRequest("http://localhost/menu"));
+    expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);
+  });
+
   it("redirects to /locations when nothing matches and no default exists", async () => {
     await withNoDefaultOrg(async () => {
       const req = new NextRequest("http://localhost/nosuchcode/menu");

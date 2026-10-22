@@ -13,6 +13,8 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized
 // controls (50px targets, 14px corners, 17px type) the customer app uses.
 export const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-[17px] tracking-[-0.011em]";
+// @foundry/ui PhoneInput is a country button + input at h-8; same lift as IOS_INPUT, on a wrapper.
+export const IOS_PHONE = "[&_input]:!h-[50px] [&_input]:!text-[17px] [&_input]:!rounded-e-[14px] [&_button]:!h-[50px] [&_button]:!rounded-s-[14px]";
 
 const VARIANT = { primary: "default", outline: "outline", quiet: "ghost", danger: "destructive" } as const;
 // The shadcn primary fades to 80% on hover, which reads as disabled; darken it and lift

@@ -43,6 +43,9 @@ export const appEvent = pgEnum("app_event", [
   // A holiday closed one of the customer's delivery days / a declared holiday was removed.
   "holiday_declared",
   "holiday_removed",
+  // Referral rewards: the friend and the referrer, both on the friend's first paid order.
+  "referral_referrer",
+  "referral_friend",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

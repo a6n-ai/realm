@@ -12,6 +12,7 @@ import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { AdjustCoins } from "./adjust-coins";
+import { getReferralInfo } from "@/lib/services/referrals.service";
 import { DataTableSkeleton, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
@@ -69,7 +70,7 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [{ timezone }, coinBalance] = await Promise.all([settingsP, walletService.balance(data.profile.id)]);
+  const [{ timezone }, coinBalance, referral] = await Promise.all([settingsP, walletService.balance(data.profile.id), getReferralInfo(data.profile.id)]);
   const [addressChanges, savedAddresses] = await Promise.all([
     upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone)),
     addressService.list(await addressScopeFor(id)),
@@ -215,6 +216,20 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">Locale</dt>
               <dd className="font-medium uppercase">{data.profile.locale}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Referred by</dt>
+              <dd className="font-medium">
+                {referral.referredBy ? (
+                  <Link href={`/dashboard/customers/${referral.referredBy.publicId}`} className="underline-offset-2 hover:underline">
+                    {referral.referredBy.name || "Customer"}
+                  </Link>
+                ) : "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Customers referred</dt>
+              <dd className="tabular-nums font-medium">{referral.referredCount}</dd>
             </div>
           </dl>
         </SectionCard>

@@ -40,6 +40,7 @@ const { sharedCache } = await import("@/lib/cache");
 const { createOrder } = await import("../orders.service");
 const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseElapsedPausesSafe, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
 const { isOrderFullyPaused } = await import("../pause-state");
+const { setAutoMovePaused } = await import("../pause-auto-move");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { rescheduleDelivery, adminSetDeliveryStatus } = await import("../deliveries.service");
 const { loadDayDeliveries } = await import("../daily-labels.service");
@@ -122,6 +123,42 @@ describe("pauseDays / releasePausedDays", () => {
     expect(rows.every((r) => r.status === "scheduled")).toBe(true);
     expect((await getPauseUsage(o.id)).daysUsed).toBe(0);
     expect((await getPauseUsage(o.id)).count).toBe(1);
+  });
+
+  it("switch off: a paused day past cutoff stays a hold for the customer to move", async () => {
+    const o = await activatedOrder();
+    await setAutoMovePaused(o.publicId, false, null);
+    await pauseDays(o.publicId, ["2030-01-09"], null);
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.deliveryDate, "2030-01-09"));
+    await lapseElapsedPauses(o.id);
+    const rows = await rowsFor(o.id);
+    expect(rows.map((r) => [r.deliveryDate, r.status])).toContainEqual(["2030-01-09", "skipped"]);
+    expect(rows.some((r) => r.deliveryDate > "2030-01-11")).toBe(false);
+  });
+
+  it("switch on: a paused day past cutoff moves to the first plan day after the last delivery", async () => {
+    const o = await activatedOrder();
+    await setAutoMovePaused(o.publicId, true, null);
+    await pauseDays(o.publicId, ["2030-01-09"], null);
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.deliveryDate, "2030-01-09"));
+    await lapseElapsedPauses(o.id);
+    const rows = await rowsFor(o.id);
+    const moved = rows.find((r) => r.deliveryDate === "2030-01-14");
+    expect(moved?.status).toBe("scheduled");
+    expect(moved?.makeupForDeliveryId).toBe(rows.find((r) => r.deliveryDate === "2030-01-09")!.id);
+    expect(rows.filter((r) => r.status === "scheduled")).toHaveLength(5);
+    // Running again finds nothing left to move.
+    await lapseElapsedPauses(o.id);
+    expect(await rowsFor(o.id)).toHaveLength(rows.length);
+  });
+
+  it("turning the switch on moves a paused day already past its cutoff", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, ["2030-01-07"], null);
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.deliveryDate, "2030-01-07"));
+    await lapseElapsedPauses(o.id);
+    await expect(setAutoMovePaused(o.publicId, true, null)).resolves.toEqual({ on: true, moved: 1 });
+    expect((await rowsFor(o.id)).find((r) => r.deliveryDate === "2030-01-14")?.status).toBe("scheduled");
   });
 
   it("refuses a day whose cutoff has passed", async () => {

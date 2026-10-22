@@ -586,9 +586,11 @@ export const menuService = {
           dishName: dishes.name,
           image: dishes.image,
           dishPublicId: dishes.publicId,
+          planName: plans.name,
         })
         .from(menuItems)
         .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+        .innerJoin(plans, eq(plans.id, dishes.planId))
         .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
         .where(eq(menuItems.menuWeekId, weekId)).orderBy(asc(menuItems.position));
       // One consolidated menu: every enabled category, and the tiffin poster theme —
@@ -602,6 +604,7 @@ export const menuService = {
         position: r.position,
         image: r.image ?? null,
         dishPublicId: r.dishPublicId,
+        planName: r.planName,
       }));
       return { theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: resolvedWeekStart!, slots: categories, items };
     });

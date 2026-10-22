@@ -2,8 +2,8 @@
 
 import { Loader2 } from "lucide-react";
 import { useId, useState, type ButtonHTMLAttributes } from "react";
-import { cn, FONT } from "./cn";
 import { buttonClass, type ButtonVariant } from "./button-class";
+import { cn, FONT } from "./cn";
 
 export type { ButtonVariant };
 

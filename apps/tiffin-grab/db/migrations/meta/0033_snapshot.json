@@ -1,5 +1,5 @@
 {
-  "id": "7abc127f-5702-48fb-a83a-36a83359d697",
+  "id": "f0313ebf-2530-4a4e-81a9-08849952ac8d",
   "prevId": "7df3c9c4-d086-49b8-a423-7de427d147e9",
   "version": "7",
   "dialect": "postgresql",
@@ -520,12 +520,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "stripe_customer_id": {
-          "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "role": {
           "name": "role",
           "type": "user_role",
@@ -547,6 +541,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'active'"
+        },
+        "referral_code": {
+          "name": "referral_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referred_by_user_id": {
+          "name": "referred_by_user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "pin_hash": {
           "name": "pin_hash",
@@ -789,6 +795,19 @@
         }
       },
       "foreignKeys": {
+        "users_referred_by_user_id_users_id_fk": {
+          "name": "users_referred_by_user_id_users_id_fk",
+          "tableFrom": "users",
+          "tableTo": "users",
+          "columnsFrom": [
+            "referred_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "users_delivery_strategy_id_delivery_strategies_id_fk": {
           "name": "users_delivery_strategy_id_delivery_strategies_id_fk",
           "tableFrom": "users",
@@ -825,11 +844,11 @@
             "public_id"
           ]
         },
-        "users_stripe_customer_id_unique": {
-          "name": "users_stripe_customer_id_unique",
+        "users_referral_code_unique": {
+          "name": "users_referral_code_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "stripe_customer_id"
+            "referral_code"
           ]
         },
         "users_username_unique": {
@@ -3354,74 +3373,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_ref": {
-          "name": "provider_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider_event_id": {
-          "name": "provider_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider_checked_at": {
-          "name": "provider_checked_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_brand": {
-          "name": "card_brand",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_last4": {
-          "name": "card_last4",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "surcharge_amount": {
-          "name": "surcharge_amount",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "tax_calculation_id": {
-          "name": "tax_calculation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_source": {
-          "name": "tax_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "charge_attempt": {
-          "name": "charge_attempt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "addon_request": {
-          "name": "addon_request",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -3430,36 +3381,6 @@
         }
       },
       "indexes": {
-        "payments_provider_ref_idx": {
-          "name": "payments_provider_ref_idx",
-          "columns": [
-            {
-              "expression": "provider_ref",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_provider_event_idx": {
-          "name": "payments_provider_event_idx",
-          "columns": [
-            {
-              "expression": "provider_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payments_order_idx": {
           "name": "payments_order_idx",
           "columns": [
@@ -4929,12 +4850,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_event_id": {
-          "name": "provider_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -4943,21 +4858,6 @@
         }
       },
       "indexes": {
-        "ledger_provider_event_idx": {
-          "name": "ledger_provider_event_idx",
-          "columns": [
-            {
-              "expression": "provider_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "ledger_entries_user_created_idx": {
           "name": "ledger_entries_user_created_idx",
           "columns": [
@@ -9512,6 +9412,33 @@
           "notNull": true,
           "default": 0
         },
+        "referral_mode": {
+          "name": "referral_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'flat'"
+        },
+        "referral_referrer_value": {
+          "name": "referral_referrer_value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "referral_friend_value": {
+          "name": "referral_friend_value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "referral_max_per_referrer": {
+          "name": "referral_max_per_referrer",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "province_taxes": {
           "name": "province_taxes",
           "type": "jsonb",
@@ -10420,6 +10347,180 @@
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.referrals": {
+      "name": "referrals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referrer_user_id": {
+          "name": "referrer_user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referred_user_id": {
+          "name": "referred_user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "referral_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'joined'"
+        },
+        "qualifying_order_id": {
+          "name": "qualifying_order_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referrer_coins": {
+          "name": "referrer_coins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "friend_coins": {
+          "name": "friend_coins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "skip_reason": {
+          "name": "skip_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "referrals_referrer_idx": {
+          "name": "referrals_referrer_idx",
+          "columns": [
+            {
+              "expression": "referrer_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "referrals_referrer_user_id_users_id_fk": {
+          "name": "referrals_referrer_user_id_users_id_fk",
+          "tableFrom": "referrals",
+          "tableTo": "users",
+          "columnsFrom": [
+            "referrer_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "referrals_referred_user_id_users_id_fk": {
+          "name": "referrals_referred_user_id_users_id_fk",
+          "tableFrom": "referrals",
+          "tableTo": "users",
+          "columnsFrom": [
+            "referred_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "referrals_qualifying_order_id_orders_id_fk": {
+          "name": "referrals_qualifying_order_id_orders_id_fk",
+          "tableFrom": "referrals",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "qualifying_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "referrals_public_id_unique": {
+          "name": "referrals_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        },
+        "referrals_referred_user_id_unique": {
+          "name": "referrals_referred_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "referred_user_id"
           ]
         }
       },
@@ -14799,106 +14900,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.stripe_events": {
-      "name": "stripe_events",
-      "schema": "",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payment_id": {
-          "name": "payment_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "processed_at": {
-          "name": "processed_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "stripe_events_received_idx": {
-          "name": "stripe_events_received_idx",
-          "columns": [
-            {
-              "expression": "received_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "stripe_events_payment_idx": {
-          "name": "stripe_events_payment_idx",
-          "columns": [
-            {
-              "expression": "payment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "stripe_events_payment_id_payments_id_fk": {
-          "name": "stripe_events_payment_id_payments_id_fk",
-          "tableFrom": "stripe_events",
-          "tableTo": "payments",
-          "columnsFrom": [
-            "payment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -14978,10 +14979,7 @@
         "route_completed",
         "category_swap_applied",
         "category_swap_removed",
-        "complimentary_granted",
-        "payment_failed",
-        "payment_refunded",
-        "payment_disputed"
+        "complimentary_granted"
       ]
     },
     "public.order_status": {
@@ -15003,8 +15001,7 @@
         "simulated",
         "cash",
         "etransfer",
-        "manual",
-        "stripe"
+        "manual"
       ]
     },
     "public.payment_status": {
@@ -15286,7 +15283,19 @@
         "payment_approved",
         "order_complimentary",
         "holiday_declared",
-        "holiday_removed"
+        "holiday_removed",
+        "referral_referrer",
+        "referral_friend"
+      ]
+    },
+    "public.referral_status": {
+      "name": "referral_status",
+      "schema": "public",
+      "values": [
+        "joined",
+        "ordered",
+        "rewarded",
+        "reversed"
       ]
     },
     "public.campaign_status": {

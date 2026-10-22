@@ -2,17 +2,17 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Button, Card, Notice, Sheet, Toast } from "@/components/customer/kit";
+import { Button, Card, Notice, Toast } from "@/components/customer/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
-import { addDays, mondayOf, pausedAhead, pausedPast, type Agenda } from "@/lib/deliveries-view/week";
+import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
-import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "./action-model";
+import { actionModel, PAUSE_OR_RESUME_LABEL, RESUME_DAY_LABEL } from "./action-model";
 import { pausedLine, resumeLine } from "./pause-copy";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
@@ -73,7 +73,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const active = locked ? null : requested;
   const [info, setInfo] = useState<EatingRow | null>(null);
   const [pauseOpen, setPauseOpen] = useState(false);
-  const [resumeAsk, setResumeAsk] = useState(false);
   const [releasing, startRelease] = useTransition();
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, sub, today } = plan;
@@ -100,7 +99,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
-  const ahead = pausedAhead(agenda, now);
   const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true }) : null;
 
   const qs = (over: Record<string, string | null>) => {
@@ -148,21 +146,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     else setToast("Nothing was resumed.");
   });
 
-  // Resume all can't bring back a paused day past its cutoff: say so first, so that tiffin isn't forgotten.
-  const missed = pausedPast(agenda, now);
-  const canResumeAll = ahead > 0 || missed.length > 0;
-  const resumeAll = () => (missed.length > 0 ? setResumeAsk(true) : resume("all"));
-  const resumeThenMove = (date: string) => startRelease(async () => {
-    setResumeAsk(false);
-    const res = await releaseMyDays(plan.orderId, "all");
-    if ("error" in res) setToast(res.error);
-    else setToast(resumeLine(res.dates, res.reclosed));
-    // The resume refreshes the page data, which can remount this view: the day and Move ride in the
-    // URL so they survive it, and in state for when the view stays mounted.
-    setSel(date);
-    setActive("move");
-    goWeek(mondayOf(date), { trip: date, action: "move" });
-  });
   const pauseDay = (date: string) => startRelease(async () => {
     const res = await pauseMyDays(plan.orderId, [date]);
     if ("error" in res) return setToast(res.error);
@@ -186,11 +169,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
         actions={!locked && !plan.sub.trial ? (
           <>
-            <Button className="min-h-11 whitespace-nowrap" onClick={() => setPauseOpen(true)}>Pause multiple days</Button>
-            {/* Always here; greyed while nothing is paused, and it still answers a tap. */}
-            <span className="flex flex-col gap-1">
-              <Button className="min-h-11 w-full whitespace-nowrap" disabledReason={canResumeAll ? undefined : "No paused days to resume."} pending={releasing} onClick={resumeAll}>{RESUME_ALL_LABEL}</Button>
-            </span>
+            <Button className="min-h-11 whitespace-nowrap" onClick={() => setPauseOpen(true)}>{PAUSE_OR_RESUME_LABEL}</Button>
           </>
         ) : undefined}
       />
@@ -297,27 +276,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       {active && trip && !navigating && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} agenda={agenda} open onDone={done} onChanged={changed} />}
       {pauseOpen && <PauseSheet plan={plan} open onMove={moveDay} onDone={(message) => { setPauseOpen(false); if (message) changed(message); }} />}
-      {resumeAsk && missed[0] && (
-        <Sheet
-          open
-          onClose={() => setResumeAsk(false)}
-          title={missed.length === 1 ? "One paused day can't be resumed" : `${missed.length} paused days can't be resumed`}
-          footer={
-            ahead > 0 ? (
-              <div className="space-y-2">
-                <Button variant="primary" size="lg" className="w-full" onClick={() => resumeThenMove(missed[0]!)}>Resume the rest, then move {humanDate(missed[0])}</Button>
-                <Button size="lg" className="w-full" onClick={() => (setResumeAsk(false), resume("all"))}>Only resume the rest</Button>
-              </div>
-            ) : (
-              <Button variant="primary" size="lg" className="w-full" onClick={() => (setResumeAsk(false), moveDay(missed[0]!))}>Move {humanDate(missed[0])}</Button>
-            )
-          }
-        >
-          <p className="text-[15px] leading-relaxed">
-            {missed.map(humanDate).join(", ")} {missed.length === 1 ? "is" : "are"} past cutoff, so {missed.length === 1 ? "it" : "they"} can&apos;t go out on {missed.length === 1 ? "that date" : "those dates"}. Move {missed.length === 1 ? "it" : "each one"} to another day so you don&apos;t miss {missed.length === 1 ? "that tiffin" : "those tiffins"}.{ahead > 0 ? " Your other paused days will be resumed." : ""}
-          </p>
-        </Sheet>
-      )}
       {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>

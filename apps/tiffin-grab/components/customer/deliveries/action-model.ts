@@ -2,6 +2,8 @@ import { actionAvailability, type Availability, type PlanContext, type Trip, typ
 
 export const RESUME_DAY_LABEL = "Resume this day";
 export const RESUME_ALL_LABEL = "Resume all";
+/** The page button that opens the pause drawer, where days are paused and resumed. */
+export const PAUSE_OR_RESUME_LABEL = "Pause or resume days";
 export const MOVE_DAY_LABEL = "Move";
 export const PAUSE_DAY_LABEL = "Pause this day";
 

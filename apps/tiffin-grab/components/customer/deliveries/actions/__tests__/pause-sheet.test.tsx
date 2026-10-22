@@ -5,14 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanView } from "../../adapter";
 import { PauseSheet } from "../pause-sheet";
 
-const a = vi.hoisted(() => ({ load: vi.fn(), pause: vi.fn(), release: vi.fn() }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ loadMyPauseDays: a.load, pauseMyDays: a.pause, releaseMyDays: a.release }));
+const a = vi.hoisted(() => ({ load: vi.fn(), pause: vi.fn(), release: vi.fn(), auto: vi.fn() }));
+vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ loadMyPauseDays: a.load, pauseMyDays: a.pause, releaseMyDays: a.release, setMyAutoMovePaused: a.auto }));
 
 const WED = "2026-09-23";
 const THU = "2026-09-24";
 const FRI = "2026-09-25";
 const MON = "2026-09-28";
-const days = (...d: [string, boolean][]) => ({ ok: true, days: d.map(([date, paused]) => ({ date, paused })) });
+const days = (...d: [string, boolean][]) => ({ ok: true, autoMove: false, days: d.map(([date, paused]) => ({ date, paused })) });
 
 const plan = (limits: Record<string, number | null> = {}, usage: Record<string, number> = { count: 0, daysUsed: 0 }) =>
   ({ orderId: "o", pause: { limits, usage } }) as unknown as PlanView;
@@ -71,7 +71,8 @@ describe("PauseSheet", () => {
     a.load.mockResolvedValue(days([WED, true], [THU, true]));
     a.release.mockResolvedValueOnce({ ok: true, dates: [] });
     const onDone = await open();
-    fireEvent.click((await screen.findAllByRole("button", { name: "Resume this day" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: /, paused$/ }))[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Resume this delivery" }));
     expect(await screen.findByText("Nothing was resumed.")).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
     a.release.mockResolvedValueOnce({ ok: true, dates: [THU] });
@@ -83,7 +84,8 @@ describe("PauseSheet", () => {
     a.load.mockResolvedValue(days([WED, true], [THU, true]));
     a.release.mockResolvedValueOnce({ ok: true, dates: [], reclosed: [{ date: WED, holidayName: "Diwali", placed: true }] });
     const onDone = await open();
-    fireEvent.click((await screen.findAllByRole("button", { name: "Resume this day" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: /, paused$/ }))[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Resume this delivery" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Kitchen is closed on Wed, Sep 23 (Diwali). Your tiffin was added to the end of your plan."));
     expect(screen.queryByText("Nothing was resumed.")).toBeNull();
   });
@@ -101,7 +103,7 @@ describe("PauseSheet", () => {
     await screen.findByRole("button", { name: /Wed, Sep 23/ });
     expect(confirm()).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(confirm());
-    expect((await screen.findAllByText("Choose a delivery day.")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Tap a day to pause or resume it.")).length).toBeGreaterThan(0);
     expect(a.pause).not.toHaveBeenCalled();
   });
 
@@ -116,10 +118,13 @@ describe("PauseSheet", () => {
     expect(screen.getByText("Up to 4 days at a time")).toBeInTheDocument();
   });
 
-  it("limit reached: says so, lists nothing to pick, and the confirm button stays off", async () => {
+  it("limit reached: says so, days cannot be picked, and the confirm button stays off", async () => {
     await open(plan({ maxPauses: 2 }, { count: 2, daysUsed: 3 }));
     expect(await screen.findByText("You've used all your pauses.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Wed, Sep 23/ })).toBeNull();
+    const wed = screen.getByRole("button", { name: /Wed, Sep 23/ });
+    expect(wed).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(wed);
+    expect(wed).toHaveAttribute("aria-pressed", "false");
     expect(confirm()).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(confirm());
     expect(a.pause).not.toHaveBeenCalled();
@@ -139,36 +144,112 @@ describe("PauseSheet", () => {
     expect(a.pause).not.toHaveBeenCalled();
   });
 
-  it("Resume this day releases that date only", async () => {
+  it("tapping a paused day resumes that date only", async () => {
     a.load.mockResolvedValue(days([WED, true], [THU, false]));
     a.release.mockResolvedValue({ ok: true, dates: [WED] });
     const onDone = await open();
-    fireEvent.click(await screen.findByRole("button", { name: "Resume this day" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Wed, Sep 23, paused" }));
+    fireEvent.click(screen.getByRole("button", { name: "Resume this delivery" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Wed is back on."));
     expect(a.release).toHaveBeenCalledWith("o", [WED]);
     expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
+  });
+
+  it("tapping a paused day only marks it; nothing changes until the button is pressed", async () => {
+    a.load.mockResolvedValue(days([WED, true], [THU, false]));
+    a.release.mockResolvedValue({ ok: true, dates: [WED] });
+    const onDone = await open();
+    const wed = await screen.findByRole("button", { name: "Wed, Sep 23, paused" });
+    fireEvent.click(wed);
+    expect(wed).toHaveAttribute("aria-pressed", "true");
+    expect(a.release).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.click(wed);
+    expect(wed).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Pause this delivery" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("one save pauses the picked days and resumes the picked paused ones, and says both", async () => {
+    a.load.mockResolvedValue(days([WED, true], [THU, false], [FRI, false]));
+    a.pause.mockResolvedValue({ ok: true, paused: [THU], skipped: [] });
+    a.release.mockResolvedValue({ ok: true, dates: [WED] });
+    const onDone = await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Wed, Sep 23, paused" }));
+    fireEvent.click(screen.getByRole("button", { name: /Thu, Sep 24/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Pause 1, resume 1" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Paused Thu. Wed is back on."));
+    expect(a.pause).toHaveBeenCalledWith("o", [THU]);
+    expect(a.release).toHaveBeenCalledWith("o", [WED]);
+  });
+
+  it("Pause all pauses every open day in one tap", async () => {
+    a.pause.mockResolvedValue({ ok: true, paused: [WED, THU, FRI], skipped: [] });
+    const onDone = await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Pause all" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Paused Wed, Thu and Fri."));
+    expect(a.pause).toHaveBeenCalledWith("o", [WED, THU, FRI]);
+  });
+
+  it("Pause all is not offered when the stretch limit is smaller than the open days", async () => {
+    await open(plan({ maxPauseStretchDays: 2 }));
+    await screen.findByRole("button", { name: /Wed, Sep 23/ });
+    expect(screen.queryByRole("button", { name: "Pause all" })).toBeNull();
   });
 
   it("Resume all appears with two or more paused days and releases them all", async () => {
     a.load.mockResolvedValue(days([WED, true], [THU, true], [MON, true]));
     a.release.mockResolvedValue({ ok: true, dates: [WED, THU, MON] });
     const onDone = await open();
-    expect(await screen.findAllByRole("button", { name: "Resume this day" })).toHaveLength(3);
+    expect(await screen.findAllByRole("button", { name: /, paused$/ })).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Wed, Thu and Mon are back on."));
     expect(a.release).toHaveBeenCalledWith("o", "all");
   });
 
   it("a paused day past its cutoff offers Move but never Resume", async () => {
-    a.load.mockResolvedValue({ ok: true, days: [{ date: WED, paused: true, lapsed: true }, { date: THU, paused: true }] });
+    a.load.mockResolvedValue({ ok: true, autoMove: false, days: [{ date: WED, paused: true, lapsed: true }, { date: THU, paused: true }] });
     const onMove = vi.fn();
     render(<PauseSheet plan={plan()} open onDone={vi.fn()} onMove={onMove} />);
-    expect(await screen.findAllByRole("button", { name: "Resume this day" })).toHaveLength(1);
+    expect(await screen.findAllByRole("button", { name: /, paused$/ })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
-    const move = screen.getAllByRole("button", { name: "Move" });
-    expect(move).toHaveLength(2);
-    fireEvent.click(move[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Wed, Sep 23, paused past cutoff. Move" }));
     expect(onMove).toHaveBeenCalledWith(WED);
+    expect(a.release).not.toHaveBeenCalled();
+  });
+
+  it("days off the plan are not buttons; the calendar spans every month the days fall in", async () => {
+    a.load.mockResolvedValue(days([WED, false], ["2026-10-02", false]));
+    await open();
+    expect(await screen.findByRole("group", { name: "September 2026" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "October 2026" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(2);
+  });
+
+  it("the end-of-plan switch shows the saved state and saves a flip", async () => {
+    a.load.mockResolvedValue({ ...days([WED, false]), autoMove: false });
+    a.auto.mockResolvedValue({ ok: true, on: true, moved: 0 });
+    await open();
+    const sw = await screen.findByRole("switch", { name: "Add paused days to the end of my plan" });
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(sw);
+    await waitFor(() => expect(a.auto).toHaveBeenCalledWith("o", true));
+    expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("turning the switch on says how many past-cutoff days it moved", async () => {
+    a.load.mockResolvedValue({ ok: true, autoMove: false, days: [{ date: WED, paused: true, lapsed: true }] });
+    a.auto.mockResolvedValue({ ok: true, on: true, moved: 1 });
+    const onDone = await open();
+    fireEvent.click(await screen.findByRole("switch", { name: "Add paused days to the end of my plan" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved 1 paused day to the end of your plan."));
+  });
+
+  it("a refused flip puts the switch back and shows why", async () => {
+    a.auto.mockResolvedValue({ error: "This plan is locked." });
+    await open();
+    fireEvent.click(await screen.findByRole("switch", { name: "Add paused days to the end of my plan" }));
+    expect(await screen.findByText("This plan is locked.")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "false");
   });
 
   it("a refused pause shows the server's words and the sheet stays open", async () => {
@@ -185,7 +266,8 @@ describe("PauseSheet", () => {
     a.load.mockResolvedValue(days([WED, true]));
     a.release.mockResolvedValue({ error: "That day's cutoff has passed." });
     const onDone = await open();
-    fireEvent.click(await screen.findByRole("button", { name: "Resume this day" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Wed, Sep 23, paused" }));
+    fireEvent.click(screen.getByRole("button", { name: "Resume this delivery" }));
     expect(await screen.findByText("That day's cutoff has passed.")).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
   });

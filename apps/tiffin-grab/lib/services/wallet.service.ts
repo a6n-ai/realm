@@ -154,7 +154,7 @@ export function reverseCoinRedemption(tx: Tx, args: { userId: bigint; orderId: b
 }
 
 /** Spendable balance read through the caller's tx (lapsed holds don't count). Take the user row lock first. */
-async function balanceInTx(tx: Tx, userId: bigint): Promise<number> {
+export async function balanceInTx(tx: Tx, userId: bigint): Promise<number> {
   const [row] = await tx
     .select({
       bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
@@ -164,7 +164,7 @@ async function balanceInTx(tx: Tx, userId: bigint): Promise<number> {
   return row?.bal ?? 0;
 }
 
-type AwardableOrder = Pick<typeof orders.$inferSelect, "id" | "publicId" | "deploymentId" | "userId" | "total" | "pricingSnapshot">;
+export type AwardableOrder = Pick<typeof orders.$inferSelect, "id" | "publicId" | "deploymentId" | "userId" | "total" | "pricingSnapshot">;
 
 /**
  * Credits a paid order's earn-back coins inside the caller's transaction, so

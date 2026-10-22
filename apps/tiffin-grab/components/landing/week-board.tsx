@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import "./week-board.css";
 
 export type BoardDay = { key: string; label: string; short: string; date: string; today: boolean; dishes: Record<string, string[]> };
 type Weekend = { date: string; today: boolean; dishes: string[] };

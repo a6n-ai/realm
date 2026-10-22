@@ -18,6 +18,9 @@ import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
+import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth/session";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { db } from "@/db/client";
@@ -297,4 +300,23 @@ export async function createCheckoutAccount(
   // Lost a race with another signup, or the gate was bypassed — re-check the role.
   const { status } = await checkExistingAccount(parsed.data);
   return { status: status === "staff" ? "staff" : "matched" };
+}
+
+// Subscribe first step, new customers: an optional referral code. Only checked and
+// kept in this browser; it attaches at the email-code sign-in that follows (session
+// hook), never on the account row, so nobody can plant a code on someone else's email.
+// A dead code the field only inherited from a share link is dropped quietly.
+export async function rememberReferralCode(raw: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const code = normalizeReferralCode(raw ?? "");
+  if (!code) return { ok: true };
+  const jar = await cookies();
+  if (await findReferrerByCode(code)) {
+    jar.set(REFERRAL_COOKIE, code, REFERRAL_COOKIE_OPTIONS);
+    return { ok: true };
+  }
+  if (jar.get(REFERRAL_COOKIE)?.value === code) {
+    jar.delete(REFERRAL_COOKIE);
+    return { ok: true };
+  }
+  return { ok: false, error: "That referral code isn't valid" };
 }

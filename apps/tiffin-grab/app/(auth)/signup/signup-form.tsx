@@ -12,7 +12,7 @@ import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { Button } from "@foundry/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { AuthLegal, AuthLogo, IOS_INPUT } from "@/components/auth/auth-kit";
+import { AuthLegal, AuthLogo, IOS_INPUT, IOS_PHONE } from "@/components/auth/auth-kit";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
@@ -21,7 +21,7 @@ import { signUpCustomer } from "./actions";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
-  { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
+  { ssr: false, loading: () => <Input className={IOS_INPUT} disabled placeholder="Phone" /> },
 );
 
 const schema = z.object({
@@ -101,7 +101,9 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <PhoneInput {...field} defaultCountry={defaultCountry} />
+                        <div className={IOS_PHONE}>
+                          <PhoneInput {...field} defaultCountry={defaultCountry} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

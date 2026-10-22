@@ -7,10 +7,16 @@ const sendVerificationEmail = vi.fn(async () => ({}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail } } }));
 
 const { db } = await import("@/db/client");
-const { account, users } = await import("@/db/schema");
+const { account, referrals, users } = await import("@/db/schema");
 const { signUpCustomer } = await import("../actions");
 
-async function reset() { await db.delete(account); await db.delete(users).where(ne(users.isSystem, true)); }
+// referrals rows (other suites) point at users; clear them so the wipe can't FK-fail.
+async function reset() {
+  await db.delete(account);
+  await db.delete(referrals);
+  await db.update(users).set({ referredByUserId: null });
+  await db.delete(users).where(ne(users.isSystem, true));
+}
 
 const PASSWORD = "hunter2hunter2";
 

@@ -189,7 +189,7 @@ export default async function LandingPage() {
             <div>
               <h2 id="tg-bend" className="tg-h2">A week that bends, not <span className="c-accent">breaks.</span></h2>
               <p className="tg-lede">
-                Away on Wednesday? Hold it{cutoff ? ` before ${cutoff} the day before` : " before the cutoff the day before"}. A held day is not lost: it is added after your last delivery, on your usual weekdays.
+                Away on Wednesday? Pause it{cutoff ? ` before ${cutoff} the day before` : " before the cutoff the day before"}. A paused day is not lost: move it to any day you like, or switch on "Add paused days to the end of my plan" and it goes after your last delivery, on your usual weekdays.
               </p>
             </div>
             <div className="tg-card tg-bend__card"><WeekBend /></div>

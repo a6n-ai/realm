@@ -6,9 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const checkExistingAccount = vi.fn();
 const createCheckoutAccount = vi.fn();
+const rememberReferralCode = vi.fn(async (..._args: unknown[]) => ({ ok: true }) as { ok: boolean; error?: string });
 vi.mock("@/app/(public)/subscribe/actions", () => ({
   checkExistingAccount: (...args: unknown[]) => checkExistingAccount(...args),
   createCheckoutAccount: (...args: unknown[]) => createCheckoutAccount(...args),
+  rememberReferralCode: (...args: unknown[]) => rememberReferralCode(...args),
 }));
 
 const push = vi.fn();
@@ -143,5 +145,52 @@ describe("IdentityGate", () => {
     await user.click(screen.getByRole("button", { name: /use a different email/i }));
     expect(screen.getByLabelText(/^email$/i)).not.toHaveAttribute("readonly");
     await waitFor(() => expect(screen.queryByLabelText(/code sent to/i)).not.toBeInTheDocument());
+  });
+});
+
+describe("IdentityGate referral code", () => {
+  async function toNamePhase(props: { defaultReferralCode?: string } = {}) {
+    checkExistingAccount.mockResolvedValue({ status: "new" });
+    const user = userEvent.setup();
+    render(<IdentityGate {...props} />);
+    await user.type(screen.getByLabelText(/^email$/i), "new@x.com");
+    await user.click(screen.getByRole("button", { name: /^continue$/i }));
+    await screen.findByLabelText(/full name/i);
+    return user;
+  }
+
+  it("offers an optional code to a new customer, prefilled from the share link", async () => {
+    await toNamePhase({ defaultReferralCode: "QRST2345" });
+    expect(screen.getByLabelText(/referral code/i)).toHaveValue("QRST2345");
+  });
+
+  it("remembers the code before creating the account and sending the code", async () => {
+    rememberReferralCode.mockResolvedValue({ ok: true });
+    createCheckoutAccount.mockResolvedValue({ status: "created" });
+    sendVerificationOtp.mockResolvedValue({});
+    const user = await toNamePhase();
+    await user.type(screen.getByLabelText(/full name/i), "Priya Sharma");
+    await user.type(screen.getByLabelText(/referral code/i), "qrst2345");
+    await user.click(screen.getByRole("button", { name: /send my code/i }));
+    await waitFor(() => expect(sendVerificationOtp).toHaveBeenCalled());
+    expect(rememberReferralCode).toHaveBeenCalledWith("qrst2345");
+  });
+
+  it("keeps a bad code on screen and creates no account", async () => {
+    rememberReferralCode.mockResolvedValue({ ok: false, error: "That referral code isn't valid" });
+    const user = await toNamePhase();
+    await user.type(screen.getByLabelText(/full name/i), "Priya Sharma");
+    await user.type(screen.getByLabelText(/referral code/i), "NOPE2345");
+    await user.click(screen.getByRole("button", { name: /send my code/i }));
+    expect(await screen.findByText("That referral code isn't valid")).toBeInTheDocument();
+    expect(createCheckoutAccount).not.toHaveBeenCalled();
+  });
+
+  it("does not show the field to a returning customer", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockResolvedValue({});
+    await enterEmail("old@x.com");
+    await waitFor(() => expect(sendVerificationOtp).toHaveBeenCalled());
+    expect(screen.queryByLabelText(/referral code/i)).toBeNull();
   });
 });

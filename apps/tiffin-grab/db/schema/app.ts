@@ -46,6 +46,13 @@ export const app = pgTable("app", {
   // Share of a paid order's pre-tax amount returned as coins, whole percent.
   // 0 = earning off.
   coinEarnPct: integer("coin_earn_pct").notNull().default(0),
+  // Referral rewards. Mode "flat" = coins; "pct" = whole percent of the friend's
+  // first paid order (pre-tax, like coin_earn_pct). Both values 0 = referrals off.
+  referralMode: text("referral_mode").$type<"flat" | "pct">().notNull().default("flat"),
+  referralReferrerValue: integer("referral_referrer_value").notNull().default(0),
+  referralFriendValue: integer("referral_friend_value").notNull().default(0),
+  // Max rewarded referrals per referrer. NULL = no limit.
+  referralMaxPerReferrer: integer("referral_max_per_referrer"),
   // Per-province sales tax overrides, shaped { ON: [{name, ratePct}], ... }.
   // NULL/absent province falls back to DEFAULT_PROVINCE_TAXES in lib/tax/canada.
   provinceTaxes: jsonb("province_taxes").$type<Record<string, { name: string; ratePct: number }[]>>(),

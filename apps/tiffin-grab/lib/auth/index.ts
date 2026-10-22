@@ -279,6 +279,18 @@ export const auth = betterAuth({
             });
           }
         },
+        // Referral: a share-link or signup code attaches at the friend's sign-in,
+        // never at provisioning, so accounts that never sign in can't be referred.
+        // attachReferral re-checks eligibility; a failure must not block sign-in.
+        after: async (sess, ctx) => {
+          try {
+            // Lazy: referrals.service -> app-settings -> session-service -> this module.
+            const { attachOnSignIn } = await import("@/lib/services/referrals.service");
+            await attachOnSignIn(BigInt(sess.userId as string), ctx?.headers ?? ctx?.request?.headers);
+          } catch (err) {
+            log.error({ err }, "referral attach failed");
+          }
+        },
       },
       delete: {
         after: async (sess) => {

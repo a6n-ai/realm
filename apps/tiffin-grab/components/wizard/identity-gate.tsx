@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
-import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
+import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { tiffinAuthUi } from "@/components/auth/auth-kit";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
@@ -39,9 +39,12 @@ const COPY: Record<Phase, { title: string; body: string }> = {
 export function IdentityGate({
   googleClientId = null,
   oauthError: initialOauthError = null,
+  defaultReferralCode = "",
 }: {
   googleClientId?: string | null;
   oauthError?: string | null;
+  /** From a share link's cookie; new customers only see the field. */
+  defaultReferralCode?: string;
 }) {
   const [oauthError, setOauthError] = useState(initialOauthError);
   const router = useRouter();
@@ -49,10 +52,11 @@ export function IdentityGate({
   const [phase, setPhase] = useState<Phase>("email");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [referralCode, setReferralCode] = useState(defaultReferralCode);
   const [code, setCode] = useState("");
   const [isNew, setIsNew] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<{ field: "email" | "name" | "code" | "form"; message: string } | null>(null);
+  const [error, setError] = useState<{ field: "email" | "name" | "referral" | "code" | "form"; message: string } | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   useEffect(() => warmCaptchaOnInput(), []);
 
@@ -97,6 +101,9 @@ export function IdentityGate({
 
   async function submitName() {
     if (!fullName.trim()) return setError({ field: "name", message: "Enter your name as it should appear on deliveries." });
+    // Checked first so a typo is fixed here, before the account exists.
+    const ref = await rememberReferralCode(referralCode);
+    if (!ref.ok) return setError({ field: "referral", message: ref.error });
     const { status } = await createCheckoutAccount(email, fullName);
     if (status === "staff") return setPhase("staff");
     if (status === "invalid") return setError({ field: "form", message: "Check your name and email, then try again." });
@@ -235,6 +242,20 @@ export function IdentityGate({
                 error={error?.field === "name" ? error.message : undefined}
                 className={phase !== "name" ? "bg-[var(--muted)] text-[var(--muted-foreground)]" : undefined}
               />
+              {phase === "name" ? (
+                <div className="mt-5">
+                  <Field
+                    label="Referral code (optional)"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    placeholder="From a friend"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    error={error?.field === "referral" ? error.message : undefined}
+                  />
+                </div>
+              ) : null}
             </Reveal>
           ) : null}
 

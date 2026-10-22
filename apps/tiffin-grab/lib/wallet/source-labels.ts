@@ -8,6 +8,8 @@ const LABELS: Record<string, string> = {
   redemption_reversal: "Returned",
   adjustment: "Staff adjustment",
   manual_broadcast: "Staff grant",
+  referral: "Referral reward",
+  referral_reversal: "Referral reward taken back",
   meal_payout: "Meal payout (legacy)",
 };
 

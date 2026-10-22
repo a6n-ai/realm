@@ -57,7 +57,7 @@ export function Tabs({ label, items, value, onChange, idPrefix = "kit", variant 
                 ? "bg-[var(--foreground)] text-[var(--background)]"
                 : variant === "tabs"
                   ? "border-[1.5px] border-[var(--border)] bg-[var(--card)]"
-                  : "text-[var(--muted-foreground,#6E6558)]",
+                  : "text-[var(--muted-foreground,#6E6558)] hover:bg-[var(--card)] hover:text-[var(--foreground)]",
             )}
           >
             {it.label}

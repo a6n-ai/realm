@@ -1,4 +1,5 @@
 import { UpdatableRepository } from "@foundry/database";
+import { z } from "zod";
 import { ValidationError, cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
 import { parseAssumptions, type ProfitabilityAssumptions } from "@/lib/analytics/profitability";
 import {
@@ -388,6 +389,45 @@ export async function setCoinEarnPct(pct: number): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { coinEarnPct: pct });
   else await appSettingsEntity.create({ ...DEFAULTS, coinEarnPct: pct });
+}
+
+export type ReferralSettings = { mode: "flat" | "pct"; referrerValue: number; friendValue: number; maxPerReferrer: number | null };
+
+/** Referral rewards. Both values 0 = referrals off. Read on every paid order. */
+export async function getReferralSettings(): Promise<ReferralSettings> {
+  return settingsCache.getOrSet("referral", async () => {
+    const [row] = await db.select({
+      mode: app.referralMode,
+      referrerValue: app.referralReferrerValue,
+      friendValue: app.referralFriendValue,
+      maxPerReferrer: app.referralMaxPerReferrer,
+    }).from(app).limit(1);
+    return row ?? { mode: "flat", referrerValue: 0, friendValue: 0, maxPerReferrer: null };
+  });
+}
+
+const referralSettingsSchema = z.object({
+  mode: z.enum(["flat", "pct"]),
+  referrerValue: z.number().int().min(0),
+  friendValue: z.number().int().min(0),
+  maxPerReferrer: z.number().int().min(1).nullable(),
+}).refine((s) => s.mode === "flat" || (s.referrerValue <= 100 && s.friendValue <= 100), {
+  message: "A percent reward must be between 0 and 100",
+});
+
+export async function setReferralSettings(input: unknown): Promise<void> {
+  const parsed = referralSettingsSchema.safeParse(input);
+  if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid referral settings");
+  const s = parsed.data;
+  const values = {
+    referralMode: s.mode,
+    referralReferrerValue: s.referrerValue,
+    referralFriendValue: s.friendValue,
+    referralMaxPerReferrer: s.maxPerReferrer,
+  };
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, values);
+  else await appSettingsEntity.create({ ...DEFAULTS, ...values });
 }
 
 /** Admin overrides for provincial sales tax rates; provinces absent here fall
