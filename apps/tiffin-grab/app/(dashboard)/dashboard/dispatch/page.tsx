@@ -65,7 +65,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   let ledger;
   try {
-    ledger = await buildDayLedger(date);
+    ledger = await buildDayLedger(date, today);
   } catch (e) {
     return (
       <>
@@ -86,10 +86,11 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   // so the three terms that sum to Labels are counted from on-label rows only.
   const onLabels = ledger.rows.filter((r) => r.onLabels);
   const n = (g: string) => onLabels.filter((r) => r.group === g).length;
-  // Scheduled rows merged into another trip are on the labels but grouped not_today.
-  const merged = n("not_today");
+  // Scheduled rows merged into another trip are on the labels but grouped not_today (or cleanup
+  // while their stop is still on OptimoRoute).
+  const merged = n("not_today") + n("cleanup");
   // Stops, not tiffins: a Friday trip carrying Sat/Sun is one stop with several labels.
-  const tiffins = onLabels.filter((r) => r.group !== "not_today").reduce((t, r) => t + (r.tiffinUnits ?? 0), 0);
+  const tiffins = onLabels.filter((r) => r.group !== "not_today" && r.group !== "cleanup").reduce((t, r) => t + (r.tiffinUnits ?? 0), 0);
   const c = ledger.counts;
 
   return (
@@ -102,7 +103,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <span className="font-semibold">Labels {ledger.labelsCount}</span>
         <span className="text-muted-foreground"> ({tiffins} tiffins)</span>
         {" = "}On route {n("on_route")} · Done {n("done")} · Needs action {n("needs_action")}{merged > 0 ? ` · Merged elsewhere ${merged}` : ""}
-        <span className="text-muted-foreground"> — Not going today {c.not_today - merged} · Not ours on OptimoRoute {c.not_ours}</span>
+        <span className="text-muted-foreground"> — Not going today {c.not_today - n("not_today")} · Clean up OptimoRoute {c.cleanup} · Not ours on OptimoRoute {c.not_ours}</span>
       </p>
 
       <SectionCard title="Send to OptimoRoute" variant="flat">

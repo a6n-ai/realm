@@ -76,7 +76,7 @@ describe("assembleLedger", () => {
       knownStale: [{ orderNo: "gone-1", customerName: "Gone Customer" }],
     });
     expect(l.rows.find((r) => r.optimoOrderNo === "gone-1")).toMatchObject({
-      group: "needs_action", action: "remove", deliveryPublicId: "gone-1", customerName: "Gone Customer",
+      group: "cleanup", action: "remove", deliveryPublicId: "gone-1", customerName: "Gone Customer",
       reason: "Stale — on OptimoRoute but not scheduled here", onLabels: false,
     });
     // not phone-matched onto d1, and not also listed as Not ours
@@ -102,6 +102,21 @@ describe("assembleLedger", () => {
     expect(l.rows[0]).toMatchObject({ deliveryPublicId: "d7", group: "needs_action", reason: "Not sent — payment needs verification", onLabels: false });
   });
 
+  it("past day: Needs action counts exactly the missed rows", () => {
+    const l = assembleLedger({
+      date: "2026-10-21",
+      ours: [
+        our("tstash", null, { missed: true }),
+        our("done", null, { missed: false, optimoCompletionStatus: "success" }),
+        our("owedless", null, { missed: false }),
+        our("dup", "4165550001", { missed: false }),
+      ],
+      paymentHeld: [],
+      optimo: [opt("o1", "tstash", ""), opt("o2", "done", ""), opt("o3", "Legacy 1", "4165550001"), opt("o4", "Legacy 2", "4165550001")],
+    });
+    expect(l.rows.filter((r) => r.group === "needs_action").map((r) => r.deliveryPublicId)).toEqual(["tstash"]);
+  });
+
   it("labels total equals the scheduled rows, and every group is counted", () => {
     const l = assembleLedger({
       date: "x",
@@ -111,6 +126,6 @@ describe("assembleLedger", () => {
     });
     expect(l.labelsCount).toBe(2);
     expect(l.rows.filter((r) => r.onLabels)).toHaveLength(2);
-    expect(l.counts).toEqual({ on_route: 1, done: 0, needs_action: 1, not_today: 1, not_ours: 0 });
+    expect(l.counts).toEqual({ on_route: 1, done: 0, needs_action: 1, cleanup: 0, not_today: 1, not_ours: 0 });
   });
 });

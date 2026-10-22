@@ -4,6 +4,7 @@ import { deliveries, orderActivities, orders } from "@/db/schema";
 import { labelDeliveryStatus, loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
+import { missedPublicIdsOn } from "@/lib/services/missed-where";
 import { getCompletionDetails, searchOrdersForDate } from "./client";
 import { movedSourceIds, tiffinsMoved } from "./completions";
 import { listPaymentHeld, type PaymentHeldRow } from "./drivers";
@@ -106,6 +107,11 @@ export function assembleLedger(input: {
         claimed.add(stop.id);
       } else if (candidates.length > 0) {
         for (const c of candidates) claimed.add(c.id);
+        // Past day: only an owed row needs a dispatcher; the rest read as if no stop matched.
+        if (o.side.missed === false) {
+          rows.push(row(o, null, reconcileReason(o.side, null)));
+          continue;
+        }
         rows.push(row(o, null, { group: "needs_action", text: "Several OptimoRoute stops share this phone", action: "review" }));
         continue;
       }
@@ -149,7 +155,7 @@ export function assembleLedger(input: {
       optimoStatus: stop?.status ?? null,
       driver: stop?.driver ?? null,
       stopNumber: stop?.stopNumber ?? null,
-      group: "needs_action",
+      group: "cleanup",
       reason: "Stale — on OptimoRoute but not scheduled here",
       action: "remove",
       onLabels: false,
@@ -176,7 +182,7 @@ export function assembleLedger(input: {
     });
   }
 
-  const counts: Record<ReasonGroup, number> = { on_route: 0, done: 0, needs_action: 0, not_today: 0, not_ours: 0 };
+  const counts: Record<ReasonGroup, number> = { on_route: 0, done: 0, needs_action: 0, cleanup: 0, not_today: 0, not_ours: 0 };
   for (const r of rows) counts[r.group] += 1;
   return { date: input.date, rows, labelsCount: rows.filter((r) => r.onLabels).length, counts };
 
@@ -203,12 +209,12 @@ export function assembleLedger(input: {
 }
 
 /** Loads both sides for a date and assembles the ledger. Three OptimoRoute calls at most (search pages + completions). */
-export async function buildDayLedger(date: string): Promise<DayLedger> {
+export async function buildDayLedger(date: string, today: string): Promise<DayLedger> {
   const dayRows = await loadDayDeliveries(date, STATUS_DAY_STATUSES);
   const ids = dayRows.map((r) => r.delivery.id);
   const mergedIds = dayRows.map((r) => r.delivery.mergedIntoDeliveryId).filter((v): v is bigint => v != null);
 
-  const [movedIds, merged, pushed, paymentHeld, optimoOrders, extrasById] = await Promise.all([
+  const [movedIds, merged, pushed, paymentHeld, optimoOrders, extrasById, missedIds] = await Promise.all([
     movedSourceIds(ids),
     mergedIds.length
       ? db.select({ id: deliveries.id, date: deliveries.deliveryDate }).from(deliveries).where(inArray(deliveries.id, mergedIds))
@@ -222,6 +228,7 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
     listPaymentHeld(date),
     searchOrdersForDate(date),
     loadExtraDates(db, ids),
+    date < today ? missedPublicIdsOn(date, today) : Promise.resolve(null),
   ]);
 
   const completions = await getCompletionDetails(optimoOrders.map((o) => o.id));
@@ -243,6 +250,7 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
       mergedIntoDate: r.delivery.mergedIntoDeliveryId != null ? (mergedDate.get(r.delivery.mergedIntoDeliveryId) ?? null) : null,
       moved: tiffinsMoved(r, movedIds) && r.delivery.mergedIntoDeliveryId == null,
       everPushed: pushedIds.has(r.delivery.id),
+      missed: missedIds ? missedIds.has(r.delivery.publicId) : null,
     },
     coverage: tripDetail(r, extrasById.get(r.delivery.id)).coverage,
   }));
