@@ -6,12 +6,11 @@ import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
 import { Button as BarButton } from "@/components/customer/kit";
-import { CardBrandMark, cardBrandName, cardExpiry, defaultSavedCard } from "@/components/checkout/payment-method-cards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
-import { CardDialog, ErrorAlert, SurchargeConfirm, dollars } from "./card-dialog";
+import { CardDialog, ErrorAlert, SurchargeConfirm } from "./card-dialog";
 import { TrustLine } from "./trust-line";
 import { ReceiptPrinter, type Receipt } from "./receipt-printer";
 
@@ -165,15 +164,13 @@ function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, 
   return <PayCtx.Provider value={{ ctx, amountCents, stripePromise, appearance, customerSession, busy: busy || disabled, disabled, pay, paid, printed, dialogOpen, setDialogOpen }}>{children}</PayCtx.Provider>;
 }
 
-function Printer({ bare = false }: { bare?: boolean }) {
+function Printer() {
   const { paid, printed } = usePanel();
   if (!paid) return null;
   return (
     <ReceiptPrinter
       stage={paid.stage}
       receipt={paid.receipt}
-      action={bare ? undefined : DASHBOARD}
-      secondary={bare ? undefined : paid.secondary}
       onPrinted={printed}
       status={paid.outcome === "paid" ? "Paid" : "Processing"}
     />
@@ -186,7 +183,7 @@ export type PaidParts = { outcome: "paid" | "processing"; ready: boolean; receip
 export function PaidSwitch({ children, whenPaid }: { children: ReactNode; whenPaid: (parts: PaidParts) => ReactNode }) {
   const { paid, dialogOpen } = usePanel();
   if (!paid || dialogOpen) return children;
-  return whenPaid({ outcome: paid.outcome, ready: paid.stage === "complete" || paid.outcome === "processing", receipt: <Printer bare />, primary: DASHBOARD, secondary: paid.secondary });
+  return whenPaid({ outcome: paid.outcome, ready: paid.stage === "complete" || paid.outcome === "processing", receipt: <Printer />, primary: DASHBOARD, secondary: paid.secondary });
 }
 
 type Fee = { surcharge: string; newTotal: string; source: CardSource };
@@ -249,76 +246,23 @@ export function ExpressPay({ height = 48 }: { height?: number } = {}) {
   );
 }
 
-type Held = { surcharge: string; newTotal: string };
-
-/**
- * The customer's default (else newest) saved card with a one-tap pay, above the payment options.
- * It charges through the same pay path as everything else (lock, amount guard, surcharge confirmation).
- * `onSelect` is for a checkout whose chosen method is not Stripe: the total shown belongs to that
- * method, so the first tap switches to Stripe and the next tap pays the re-quoted amount.
- */
-export function LastUsedCard({ onSelect }: { onSelect?: () => void }) {
-  const { ctx, amountCents, busy, pay, paid } = usePanel();
-  const [error, setError] = useState<string | null>(null);
-  const [fee, setFee] = useState<Held | null>(null);
-  const id = defaultSavedCard(ctx.savedCards);
-  const card = ctx.savedCards.find((c) => c.paymentMethodId === id);
-  if (!card || paid) return null;
-
-  async function payWith(accept: boolean) {
-    setError(null);
-    const r = await pay({ savedPaymentMethodId: card!.paymentMethodId }, accept);
-    if (r.kind === "busy") return;
-    setFee(r.kind === "confirm_surcharge" ? r : null);
-    if (r.kind === "error") setError(r.message);
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="border-border bg-card flex w-full items-center gap-3 rounded-xl border p-3">
-        <span aria-hidden className="bg-muted grid size-9 shrink-0 place-items-center rounded-lg">
-          <CardBrandMark brand={card.brand} className="size-5" />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-muted-foreground text-xs">Last used</span>
-          <span className="truncate text-sm font-medium">{cardBrandName(card.brand)} •••• {card.last4 ?? "----"}</span>
-          <span className="text-muted-foreground text-xs">Expires {cardExpiry(card)}</span>
-        </div>
-        <BarButton
-          variant="primary"
-          size="lg"
-          className="shrink-0"
-          pending={busy}
-          disabled={busy}
-          onClick={() => (onSelect ? onSelect() : void payWith(false))}
-        >
-          {onSelect ? "Use this card" : `Pay ${dollars(amountCents)}`}
-        </BarButton>
-      </div>
-      {fee && <SurchargeConfirm {...fee} busy={busy} onConfirm={() => payWith(true)} onCancel={() => setFee(null)} />}
-      {error && <ErrorAlert message={error} busy={busy} onRetry={fee ? undefined : () => payWith(false)} />}
-    </div>
-  );
-}
-
 /** The pay action for the Stripe method: opens the card form, where saved cards (removable) and a new card both live. */
 export function CardPay({ dialogOpen, onDialogOpenChange }: {
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
 }) {
-  const { ctx, amountCents, pay, paid, setDialogOpen, stripePromise, appearance, customerSession } = usePanel();
-  // The provider needs to know whether a dialog holds the printer, or it would swap the page out from under it.
+  const { ctx, amountCents, pay, setDialogOpen, stripePromise, appearance, customerSession } = usePanel();
+  // The provider needs to know the dialog is open, or it would swap the page out from under it.
   useEffect(() => {
     setDialogOpen(dialogOpen);
     return () => setDialogOpen(false);
   }, [dialogOpen, setDialogOpen]);
 
-  if (paid) return <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={<Printer />} stripePromise={stripePromise} appearance={appearance} />;
   return (
     <div className="flex flex-col gap-4">
       <BarButton variant="primary" size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</BarButton>
       <TrustLine />
-      <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} printer={null} stripePromise={stripePromise} appearance={appearance} loadSession={customerSession} />
+      <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} stripePromise={stripePromise} appearance={appearance} loadSession={customerSession} />
     </div>
   );
 }

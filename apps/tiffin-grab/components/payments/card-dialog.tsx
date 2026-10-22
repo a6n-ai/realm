@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import type { Appearance, Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
@@ -69,29 +69,20 @@ type CommonProps = {
  * secret arrives. If Stripe cannot load the form with that session, it remounts once without it.
  */
 export function CardDialog(p: CommonProps & {
-  /** The receipt printer once the charge settled: the dialog shrinks to it instead of closing. */
-  printer: ReactNode;
   loadSession?: () => Promise<string | null>;
 }) {
-  const { open, printer, loadSession, stripePromise, appearance, amountCents } = p;
+  const { open, loadSession, stripePromise, appearance, amountCents } = p;
   const [session, setSession] = useState<Session | null>(null);
   const count = useRef(0);
   useEffect(() => {
-    if (!open || printer) return;
+    if (!open) return;
     let live = true;
     void (loadSession ? loadSession().catch(() => null) : Promise.resolve(null)).then((secret) => {
       if (live) setSession({ key: ++count.current, secret });
     });
     return () => { live = false; setSession(null); };
-  }, [open, printer, loadSession]);
+  }, [open, loadSession]);
 
-  if (printer) {
-    return (
-      <ResponsiveDialog open={open} onOpenChange={p.onOpenChange} direction="bottom" title="Payment received" description="Your receipt is printing.">
-        <div className="flex flex-col items-center pt-1 pb-2">{printer}</div>
-      </ResponsiveDialog>
-    );
-  }
   if (!session) return null;
   return (
     <Elements
@@ -153,7 +144,8 @@ function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: Co
       }
       const r = await pay({ confirmationTokenId: tokenId }, accept);
       if (r.kind === "busy") return;
-      if (r.kind === "done") return;
+      // The charge settled: close so the page shows the receipt (close() would refuse while busy).
+      if (r.kind === "done") return onOpenChange(false);
       if (r.kind === "confirm_surcharge") return setFee({ surcharge: r.surcharge, newTotal: r.newTotal, tokenId });
       setFee(null);
       setError(r.message);

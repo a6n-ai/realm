@@ -17,7 +17,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
@@ -778,11 +778,6 @@ export function Checkout({
   const payStepBody = (
     <div className="space-y-10">
       <section aria-labelledby="co-pay">
-        {cardOn && paymentMethods.some((m) => m.id === "stripe") && (
-          <div className="mb-5">
-            <LastUsedCard onSelect={payWithCard ? undefined : () => void selectMethod("stripe")} />
-          </div>
-        )}
         <h2 id="co-pay" className={H}>Pay with</h2>
         {realPayments ? (
           <div className="mt-3 flex flex-col gap-3">

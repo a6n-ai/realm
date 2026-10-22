@@ -14,7 +14,6 @@ vi.mock("@/components/payments/pay-panel", () => ({
   PaidSwitch: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ExpressPay: () => <div data-testid="express" />,
   CardPay: () => <div data-testid="card-pay" />,
-  LastUsedCard: () => <div data-testid="last-used" />,
 }));
 
 import { PayForm } from "../pay-form";

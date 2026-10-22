@@ -2,7 +2,6 @@
 
 import type { ReactNode, SVGProps } from "react";
 import { ArrowLeftRight, Banknote, CreditCard, Wallet, type LucideIcon } from "lucide-react";
-import type { SavedCard } from "@foundry/payments/stripe";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Badge } from "@/components/reui/badge";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
@@ -12,11 +11,6 @@ export type PayMethodOption = { id: string; label: string };
 // Customers see "Stripe" whatever the config label says, so every place that names the method agrees.
 function payMethodTitle(m: PayMethodOption) {
   return m.id === "stripe" ? "Stripe" : m.label;
-}
-
-/** The card a returning customer pays with unless they pick another. */
-export function defaultSavedCard(cards: SavedCard[]): string | null {
-  return (cards.find((c) => c.isDefault) ?? cards[0])?.paymentMethodId ?? null;
 }
 
 // Simplified marks from the ReUI payment-method radio cards (c-radio-group-13).
@@ -104,13 +98,3 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
     </div>
   );
 }
-
-/** Brand mark for a saved card, the generic card icon for any other brand. */
-export function CardBrandMark({ brand, className }: { brand: string | null; className?: string }) {
-  if (brand === "visa") return <VisaMark className={`text-[#1A1F71] dark:text-foreground ${className ?? ""}`} />;
-  if (brand === "mastercard") return <MastercardMark className={className} />;
-  return <CreditCard aria-hidden className={className} />;
-}
-
-export const cardBrandName = (b: string | null) => (b ? b[0]!.toUpperCase() + b.slice(1) : "Card");
-export const cardExpiry = (c: Pick<SavedCard, "expMonth" | "expYear">) => `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}`;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useState } from "react";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
@@ -39,7 +39,7 @@ vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import { PaidPage } from "../paid-page";
-import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type PaidInfo } from "../pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo } from "../pay-panel";
 
 const receipt = (info: PaidInfo) => ({
   receipt: { title: "Veg thali", subtitle: "Regular", lines: [{ label: "Subtotal", amount: info.totalCents ?? 5000 }], total: info.totalCents ?? 5000, orderRef: "SUB-REF1", paidWith: info.paidWith, paidAt: Date.UTC(2026, 9, 21, 15, 0) },
@@ -54,12 +54,11 @@ const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutCo
 });
 const card = (id: string, isDefault: boolean, last4 = isDefault ? "4242" : "1111") => ({ paymentMethodId: id, brand: "visa", last4, funding: "debit" as const, expMonth: 4, expYear: 2030, isDefault });
 
-/** The same wiring the checkout and pay page use: the last-used card above the options, Stripe opening the card form. */
+/** The same wiring the checkout and pay page use: the options, Stripe opening the card form. */
 function Choices() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <LastUsedCard />
       <PaymentMethodCards methods={[{ id: "stripe", label: "Stripe" }]} value="stripe" onChange={() => {}} labelledBy="pay-with" />
       <CardPay dialogOpen={open} onDialogOpenChange={setOpen} />
     </>
@@ -97,42 +96,10 @@ describe("PayPanel", () => {
     expect(h.update).toHaveBeenLastCalledWith({ amount: 6500 });
   });
 
-  it("the last-used strip shows the default card and pays with it in one tap, without the dialog", async () => {
-    const s = setup();
-    expect(screen.getByText("Last used")).toBeInTheDocument();
-    expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
-    expect(screen.getByText("Expires 04/30")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
-    await waitFor(() => expect(s.onPay).toHaveBeenCalledWith({ savedPaymentMethodId: "pm_default" }, false));
-    expect(screen.queryByTestId("payment-element")).toBeNull();
-    expect(s.onPaid).toHaveBeenCalled();
-  });
-
-  it("with no default the strip shows the first (newest) saved card", () => {
-    setup({}, [card("pm_new", false, "9999"), card("pm_old", false, "1111")]);
-    expect(screen.getByText("Visa •••• 9999")).toBeInTheDocument();
-  });
-
-  it("the strip is absent without a saved card", () => {
-    setup({}, []);
-    expect(screen.queryByText("Last used")).toBeNull();
-  });
-
   it("the options hold only the payment methods, never a saved-card tile", () => {
     setup();
     const radios = screen.getAllByRole("radio");
     expect(radios.map((r) => document.getElementById(r.getAttribute("aria-labelledby")!)?.textContent)).toEqual(["Stripe"]);
-  });
-
-  it("the strip's fee prompt confirms before charging the saved card again", async () => {
-    const onPay = vi.fn()
-      .mockResolvedValueOnce({ kind: "confirm_surcharge", surcharge: "1.50", newTotal: "51.50", brand: "visa", last4: "4242" })
-      .mockResolvedValueOnce({ kind: "succeeded" });
-    setup({ onPay });
-    fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
-    expect(await screen.findByText(/\$1\.50 card fee/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Pay $51.50" }));
-    await waitFor(() => expect(onPay).toHaveBeenLastCalledWith({ savedPaymentMethodId: "pm_default" }, true));
   });
 
   it("opening the card form asks for a fresh customer session, and only the form's Elements gets it", async () => {
@@ -191,11 +158,6 @@ describe("PayPanel", () => {
     expect(h.createToken.mock.calls[0]![0].params.payment_method_data).toMatchObject({ allow_redisplay: "always" });
   });
 
-  it("the last-used strip stays disabled while the amount is being re-quoted", () => {
-    setup({ disabled: true });
-    expect(screen.getByRole("button", { name: "Pay $50.00" }).getAttribute("aria-disabled")).toBe("true");
-  });
-
   it("Pay by card opens the dialog with prefilled billing details", async () => {
     setup();
     await openCard();
@@ -243,6 +205,7 @@ describe("PayPanel", () => {
 
   it("shows a server error such as the busy lock", async () => {
     setup({ onPay: vi.fn(async () => ({ error: "A payment is already in progress." })) });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("A payment is already in progress.");
   });
@@ -257,6 +220,7 @@ describe("PayPanel", () => {
     h.handleNextAction.mockResolvedValue({});
     const onPay = vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" }));
     const s = setup({ onPay, afterAction: vi.fn(async () => ({ outcome: "processing" as const })) });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await waitFor(() => expect(s.onProcessing).toHaveBeenCalled());
     expect(h.handleNextAction).toHaveBeenCalledWith({ clientSecret: "cs" });
@@ -266,6 +230,7 @@ describe("PayPanel", () => {
   it("after 3DS succeeds with paid, calls onPaid", async () => {
     h.handleNextAction.mockResolvedValue({});
     const s = setup({ onPay: vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" })) });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await waitFor(() => expect(s.onPaid).toHaveBeenCalled());
   });
@@ -274,6 +239,7 @@ describe("PayPanel", () => {
     h.handleNextAction.mockResolvedValue({});
     const afterAction = vi.fn(async () => ({ outcome: "paid" as const, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } }));
     setup({ onPay: vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" })), afterAction });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
     expect(screen.getAllByText("$51.50")).toHaveLength(2);
@@ -283,6 +249,7 @@ describe("PayPanel", () => {
   it("3DS failure abandons and shows the error", async () => {
     h.handleNextAction.mockResolvedValue({ error: { message: "Authentication failed" } });
     const s = setup({ onPay: vi.fn(async () => ({ kind: "requires_action" as const, clientSecret: "cs" })) });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Authentication failed");
     expect(s.abandon).toHaveBeenCalled();
@@ -293,9 +260,11 @@ describe("PayPanel", () => {
     let release!: () => void;
     const onPay = vi.fn(() => new Promise<{ kind: "succeeded" }>((r) => { release = () => r({ kind: "succeeded" }); }));
     const s = setup({ onPay });
+    await openCard();
     const btn = screen.getByRole("button", { name: "Pay $50.00" });
     fireEvent.click(btn);
     fireEvent.click(btn);
+    await waitFor(() => expect(onPay).toHaveBeenCalled());
     release();
     await waitFor(() => expect(s.onPaid).toHaveBeenCalledTimes(1));
     expect(onPay).toHaveBeenCalledTimes(1);
@@ -324,9 +293,10 @@ describe("PayPanel", () => {
     expect(screen.getByText("Secured by Stripe")).toBeInTheDocument();
   });
 
-  it("a saved-card success prints the receipt in place of the pay area, with no navigation", async () => {
+  it("a card success prints the receipt in place of the pay area, with no navigation", async () => {
     const onPay = vi.fn(async () => ({ kind: "succeeded" as const, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } }));
     const s = setup({ onPay });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
     expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
@@ -337,18 +307,21 @@ describe("PayPanel", () => {
     expect(s.onPaid).toHaveBeenCalledTimes(1);
   });
 
-  it("a new-card success shrinks the open dialog to the printer", async () => {
+  it("a new-card success closes the dialog and the page prints the receipt", async () => {
     setup({}, []);
     await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
-    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByTestId("paid-page")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
     expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(screen.queryByTestId("payment-element")).toBeNull();
   });
 
   it("a processing charge prints the waiting state with the same action", async () => {
     const s = setup({ onPay: vi.fn(async () => ({ kind: "processing" as const })) });
+    await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByText("We'll confirm by email.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");

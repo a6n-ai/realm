@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
 import { markPaid } from "@/lib/payments/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
@@ -34,12 +34,11 @@ function Shell({ children, after }: { children: ReactNode; after?: ReactNode }) 
   );
 }
 
-/** The last-used card pays in one tap; Stripe opens the card form, which lists saved cards too. */
+/** Stripe opens the card form, which lists saved cards. */
 function PayChoices({ ctx }: { ctx: CardCheckoutContext }) {
   const [dialog, setDialog] = useState(false);
   return (
     <div className="flex flex-col gap-5">
-      <LastUsedCard />
       <section aria-labelledby="pay-with" className="flex flex-col gap-3">
         <h2 id="pay-with" className="text-sm font-semibold">Pay with</h2>
         <PaymentMethodCards methods={[{ id: "stripe", label: "Stripe" }]} value="stripe" onChange={() => setDialog(true)} labelledBy="pay-with" feeNote={ctx.feeNote} />
