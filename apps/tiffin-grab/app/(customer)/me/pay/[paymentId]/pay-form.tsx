@@ -138,7 +138,6 @@ function receiptFor(p: { deploymentId: string; planTitle: string; planSubtitle: 
       paidWith: info.paidWith,
       paidAt: Date.now(),
     },
-    secondary: { label: "View order details", href: `/activate/${p.deploymentId}` },
   };
 }
 

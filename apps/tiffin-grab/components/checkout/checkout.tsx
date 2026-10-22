@@ -597,7 +597,6 @@ export function Checkout({
         paidWith: info.paidWith,
         paidAt: Date.now(),
       },
-      secondary: id ? { label: "View order details", href: `/activate/${id}` } : undefined,
     };
   };
   const settledCard = () => { if (placed.current) markPaid(placed.current.deploymentId); };
@@ -1040,8 +1039,7 @@ export function Checkout({
     "submitted",
     <ReceiptPrinter stage="complete" receipt={etransfer.receipt} status="Submitted · we'll verify your e-Transfer" />,
     true,
-    { label: "Go to my deliveries", href: "/me/deliveries" },
-    { label: "View order details", href: `/activate/${etransfer.deploymentId}` },
+    { label: "Go to my dashboard", href: "/me" },
   ) : (
     <>
       {page}

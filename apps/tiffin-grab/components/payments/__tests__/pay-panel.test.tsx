@@ -43,7 +43,6 @@ import { CardPay, CardPayProvider, ExpressPay, LastUsedCard, PaidSwitch, type Pa
 
 const receipt = (info: PaidInfo) => ({
   receipt: { title: "Veg thali", subtitle: "Regular", lines: [{ label: "Subtotal", amount: info.totalCents ?? 5000 }], total: info.totalCents ?? 5000, orderRef: "SUB-REF1", paidWith: info.paidWith, paidAt: Date.UTC(2026, 9, 21, 15, 0) },
-  secondary: { label: "View order details", href: "/activate/SUB-REF1" },
 });
 
 const ctx = (savedCards: CardCheckoutContext["savedCards"] = []): CardCheckoutContext => ({
@@ -330,10 +329,10 @@ describe("PayPanel", () => {
     const s = setup({ onPay });
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
-    expect(screen.getByRole("link", { name: "Go to my deliveries" })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
     expect(screen.getAllByText("$51.50")).toHaveLength(2);
     expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View order details" })).toHaveAttribute("href", "/activate/SUB-REF1");
+    expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Pay \$/ })).toBeNull();
     expect(s.onPaid).toHaveBeenCalledTimes(1);
   });
@@ -343,7 +342,8 @@ describe("PayPanel", () => {
     await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
-    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(screen.queryByTestId("payment-element")).toBeNull();
   });
 
@@ -351,7 +351,8 @@ describe("PayPanel", () => {
     const s = setup({ onPay: vi.fn(async () => ({ kind: "processing" as const })) });
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByText("We'll confirm by email.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(s.onProcessing).toHaveBeenCalled();
   });
 });

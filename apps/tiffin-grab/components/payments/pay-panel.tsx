@@ -29,7 +29,7 @@ type Link = { label: string; href: string };
 export type ReceiptView = { receipt: Receipt; secondary?: Link };
 type Paid = ReceiptView & { outcome: "paid" | "processing"; stage: "processing" | "printing" | "complete" };
 
-const DELIVERIES: Link = { label: "Go to my deliveries", href: "/me/deliveries" };
+const DASHBOARD: Link = { label: "Go to my dashboard", href: "/me" };
 
 type PanelCtx = {
   ctx: CardCheckoutContext; amountCents: number; stripePromise: Promise<Stripe | null>; appearance: Appearance;
@@ -172,7 +172,7 @@ function Printer({ bare = false }: { bare?: boolean }) {
     <ReceiptPrinter
       stage={paid.stage}
       receipt={paid.receipt}
-      action={bare ? undefined : DELIVERIES}
+      action={bare ? undefined : DASHBOARD}
       secondary={bare ? undefined : paid.secondary}
       onPrinted={printed}
       status={paid.outcome === "paid" ? "Paid" : "Processing"}
@@ -186,7 +186,7 @@ export type PaidParts = { outcome: "paid" | "processing"; ready: boolean; receip
 export function PaidSwitch({ children, whenPaid }: { children: ReactNode; whenPaid: (parts: PaidParts) => ReactNode }) {
   const { paid, dialogOpen } = usePanel();
   if (!paid || dialogOpen) return children;
-  return whenPaid({ outcome: paid.outcome, ready: paid.stage === "complete" || paid.outcome === "processing", receipt: <Printer bare />, primary: DELIVERIES, secondary: paid.secondary });
+  return whenPaid({ outcome: paid.outcome, ready: paid.stage === "complete" || paid.outcome === "processing", receipt: <Printer bare />, primary: DASHBOARD, secondary: paid.secondary });
 }
 
 type Fee = { surcharge: string; newTotal: string; source: CardSource };

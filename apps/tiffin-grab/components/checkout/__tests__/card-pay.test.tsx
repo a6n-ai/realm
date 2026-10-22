@@ -154,7 +154,7 @@ describe("Checkout Pay step", () => {
       title: "Your plan", total: 5150, orderRef: "dep_1", paidWith: "Visa •••• 4242",
       lines: [{ label: "Subtotal", amount: 5000 }, { label: "Card fee", amount: 150 }],
     });
-    expect(secondary).toEqual({ label: "View order details", href: "/activate/dep_1" });
+    expect(secondary).toBeUndefined();
   });
 
   it("e-Transfer confirm creates the order then opens the dialog instead of navigating", async () => {
@@ -171,8 +171,8 @@ describe("Checkout Pay step", () => {
     expect(screen.queryByTestId("etransfer-dialog")).toBeNull();
     expect(screen.getByText("Submitted · we'll verify your e-Transfer")).toBeTruthy();
     expect(screen.getByText("Paid with")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Go to my deliveries" }).getAttribute("href")).toBe("/me/deliveries");
-    expect(screen.getByRole("link", { name: "View order details" }).getAttribute("href")).toBe("/activate/dep_2");
+    expect(screen.getByRole("link", { name: "Go to my dashboard" }).getAttribute("href")).toBe("/me");
+    expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(sessionStorage.getItem("tg:paid")).toContain("dep_2");
   });
 
