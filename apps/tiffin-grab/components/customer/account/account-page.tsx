@@ -6,6 +6,7 @@ import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
 import { AddressBook } from "./address-book";
+import { SavedCards, type SavedCardView } from "./saved-cards";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { ContactForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
 import { accountSectionHref, sectionsForRole, type AccountSection, type AccountSectionKey } from "./sections.config";
@@ -30,7 +31,7 @@ export type AccountUser = {
   hasPin: boolean;
 };
 
-function SectionBody({ k, user, role, addresses, dropOff, dropOffs, google }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, DropOffValue>; google: { connected: boolean } | null }) {
+function SectionBody({ k, user, role, addresses, cards, dropOff, dropOffs, google }: { k: AccountSectionKey; cards: SavedCardView[]; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, DropOffValue>; google: { connected: boolean } | null }) {
   switch (k) {
     case "profile":
       return <ProfileForm image={user.image} name={user.name ?? ""} username={user.username ?? ""} />;
@@ -38,6 +39,8 @@ function SectionBody({ k, user, role, addresses, dropOff, dropOffs, google }: { 
       return <ContactForm phone={user.phone ?? ""} email={user.email} emailVerified={user.emailVerified} phoneVerified={user.phoneVerified} />;
     case "address":
       return <AddressBook initial={addresses} dropOff={dropOff} initialDropOffs={dropOffs} />;
+    case "payment-methods":
+      return <SavedCards cards={cards} />;
     case "dietary":
       return <DietaryForm allergens={user.allergens} dietaryNotes={user.dietaryNotes} />;
     case "notifications":
@@ -52,6 +55,8 @@ export function AccountPage({
   role,
   active,
   addresses = [],
+  cardsOn = false,
+  cards = [],
   dropOff,
   dropOffs = {},
   google = null,
@@ -61,6 +66,9 @@ export function AccountPage({
   active: AccountSection | null;
   /** Saved delivery addresses (customers only). */
   addresses?: SavedAddress[];
+  /** Stripe is connected: the Payment methods section exists. */
+  cardsOn?: boolean;
+  cards?: SavedCardView[];
   /** Admin delivery strategies offered as each address's drop-off. */
   dropOff?: DropOffCatalog;
   /** Address public id → its drop-off's strategy public id. */
@@ -68,7 +76,7 @@ export function AccountPage({
   /** Google sign-in link state; null when Google is off or another section is open. */
   google?: { connected: boolean } | null;
 }) {
-  const sections = sectionsForRole(role);
+  const sections = sectionsForRole(role, { cards: cardsOn });
   const shown = active ?? sections[0];
   const who = [user.name?.trim(), user.email].filter(Boolean).join(" · ");
   return (
@@ -127,7 +135,7 @@ export function AccountPage({
               Account
             </Link>
           )}
-          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} dropOff={dropOff} dropOffs={dropOffs} google={google} />
+          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} cards={cards} dropOff={dropOff} dropOffs={dropOffs} google={google} />
         </section>
       </div>
     </div>

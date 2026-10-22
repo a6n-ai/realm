@@ -43,6 +43,7 @@ const USER_NAV: NavGroup[] = [
     heading: "Delivery",
     items: [
       { key: "address", label: "Delivery address", href: seg("address") },
+      { key: "payment-methods", label: "Payment methods", href: seg("payment-methods") },
       // "dietary" is hidden: the kitchen cannot act on allergens per order yet, and the
       // section promised it would. Re-add { key: "dietary", ... } here to bring it back.
       { key: "notifications", label: "Notifications", href: seg("notifications") },

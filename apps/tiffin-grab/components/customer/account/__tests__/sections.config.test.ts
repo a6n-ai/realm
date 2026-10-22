@@ -5,8 +5,10 @@ import { ACCOUNT_SECTIONS, accountSectionHref, sectionFromSlug, sectionsForRole 
 const keys = (role: Parameters<typeof sectionsForRole>[0]) => sectionsForRole(role).map((s) => s.key);
 
 describe("account sections", () => {
-  it("customers get every section except the hidden dietary one", () => {
-    expect(keys(Role.USER).sort()).toEqual(ACCOUNT_SECTIONS.map((s) => s.key).filter((k) => k !== "dietary").sort());
+  it("customers get every section except the hidden dietary one and cards without Stripe", () => {
+    expect(keys(Role.USER).sort()).toEqual(ACCOUNT_SECTIONS.map((s) => s.key).filter((k) => k !== "dietary" && k !== "payment-methods").sort());
+    expect(sectionsForRole(Role.USER, { cards: true }).map((s) => s.key)).toContain("payment-methods");
+    expect(sectionsForRole(Role.USER, { cards: true }).map((s) => s.key).indexOf("payment-methods")).toBe(sectionsForRole(Role.USER, { cards: true }).map((s) => s.key).indexOf("address") + 1);
     expect(sectionFromSlug("dietary", sectionsForRole(Role.USER))).toBeNull();
   });
 
@@ -15,6 +17,7 @@ describe("account sections", () => {
       expect(keys(role)).toEqual(expect.arrayContaining(["profile", "security"]));
       expect(keys(role)).not.toEqual(expect.arrayContaining(["address"]));
       expect(keys(role)).not.toEqual(expect.arrayContaining(["dietary"]));
+      expect(sectionsForRole(role, { cards: true }).map((s) => s.key)).not.toContain("payment-methods");
       expect(keys(role)).not.toEqual(expect.arrayContaining(["notifications"]));
     }
   });

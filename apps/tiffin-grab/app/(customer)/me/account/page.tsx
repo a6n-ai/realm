@@ -8,16 +8,20 @@ import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { googleSignInEnabled } from "@foundry/auth";
+import { stripeRuntime } from "@/lib/payments/stripe";
+import { listSavedCards } from "@/lib/services/payment-stripe";
 import { hasGoogleLinked } from "@/lib/auth/google-link";
 
 export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const [{ user, role }, sp] = await Promise.all([requireAccountUser(), searchParams]);
-  const active = sectionFromSlug(sp.section, sectionsForRole(role));
+  const cardsOn = (await stripeRuntime()) != null;
+  const active = sectionFromSlug(sp.section, sectionsForRole(role, { cards: cardsOn }));
   const onAddresses = active?.key === "address";
   const addresses = onAddresses ? await addressService.list(await addressScopeFor(user.publicId)) : [];
   const [dropOffs, catalog] = onAddresses
     ? await Promise.all([dropOffsFor(addresses.map((a) => a.publicId)), loadCatalogSnapshot(await resolveRequestOrg())])
     : [{}, null];
+  const cards = active?.key === "payment-methods" ? await listSavedCards(user.publicId) : [];
   const google = active?.key === "security" && googleSignInEnabled() ? { connected: await hasGoogleLinked(user.publicId) } : null;
   const dropOff = catalog ? dropOffCatalog(toClientCatalog(catalog).deliveryCharges, catalog.waivers) : undefined;
   return (
@@ -25,6 +29,8 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
       role={role}
       active={active}
       addresses={addresses}
+      cardsOn={cardsOn}
+      cards={cards}
       dropOff={dropOff}
       dropOffs={dropOffs}
       user={{

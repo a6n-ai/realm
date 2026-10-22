@@ -690,3 +690,11 @@ export async function settleStaleOnView(
     );
   }
 }
+
+/** Detaches one of the user's own saved cards. A foreign or stale id is refused before Stripe is touched. */
+export async function removeSavedCard(userPublicId: string, paymentMethodId: string): Promise<void> {
+  const rt = await stripeRuntime();
+  if (!rt) throw new ValidationError("Cards are unavailable right now.");
+  if (!(await listSavedCards(userPublicId)).some((c) => c.paymentMethodId === paymentMethodId)) throw new ValidationError("That card is not available.");
+  await rt.stripe.paymentMethods.detach(paymentMethodId);
+}
