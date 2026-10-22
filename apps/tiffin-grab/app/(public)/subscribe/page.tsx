@@ -18,13 +18,10 @@ export const metadata: Metadata = pageMeta("Build your tiffin plan | Tiffin Grab
 
 export const dynamic = "force-dynamic";
 
-// Paint under the notch (the sticky header and bottom bar pad back with env()) and match the browser chrome to the page.
+// Paint under the notch (the sticky header and bottom bar pad back with env()). The browser
+// bars follow the in-app theme through <BrowserChrome> in the root layout.
 export const viewport: Viewport = {
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FBF4E7" },
-    { media: "(prefers-color-scheme: dark)", color: "#14201A" },
-  ],
 };
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string; ref?: string } & QuoteParams> }) {
