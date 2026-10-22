@@ -1,7 +1,7 @@
 "use client";
 
 import type { ButtonHTMLAttributes, ComponentProps, ComponentType, ReactNode } from "react";
-import { Button, Field, Notice, OptionCard, PillToggle, Reason, Segmented, Sheet, Skeleton } from "@/components/customer/kit";
+import { Button, Field, Notice, OptionCard, PillToggle, Reason, Segmented, Sheet, Skeleton, Toggle } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { CategorySection, ChoiceRow } from "./choice-row";
 
@@ -27,6 +27,8 @@ export type SheetUi = {
   PillToggle: ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }>;
   Field: ComponentType<{ label: string; placeholder?: string; maxLength?: number; value: string; error?: string; onChange: (e: { target: { value: string } }) => void }>;
   AddressFields: ComponentType<ComponentProps<typeof AddressFields>>;
+  /** An on/off setting (Pause: paused days go to the end of the plan). */
+  Switch: ComponentType<{ label: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }>;
 };
 
 export const KIT_UI: SheetUi = {
@@ -58,6 +60,7 @@ export const KIT_UI: SheetUi = {
   PillToggle,
   Field,
   AddressFields,
+  Switch: Toggle,
 };
 
 export const useSheetUi = (ui?: Partial<SheetUi>): SheetUi => (ui ? { ...KIT_UI, ...ui } : KIT_UI);

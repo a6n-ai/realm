@@ -8,6 +8,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
 import { listPauseDays, pauseDays, releasePausedDaysDetailed, type PauseDay, type ReclosedDay } from "@/lib/services/pause-days.service";
+import { autoMovePausedOn, setAutoMovePaused } from "@/lib/services/pause-auto-move";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -77,12 +78,24 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<
 
 export type PauseDayChoice = PauseDay;
 
-export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResult<{ days: PauseDayChoice[] }>> {
+export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResult<{ days: PauseDayChoice[]; autoMove: boolean }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     const [order] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
     if (!order) throw new NotFoundError("Subscription not found");
-    return { days: await listPauseDays(order.id) };
+    const [days, autoMove] = await Promise.all([listPauseDays(order.id), autoMovePausedOn(db, order.id)]);
+    return { days, autoMove };
+  });
+}
+
+/** The pause drawer's switch: paused days past their cutoff go to the end of the plan. */
+export async function setMyAutoMovePaused(orderPublicId: string, on: boolean): Promise<ActionResult<{ on: boolean; moved: number }>> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
+    const result = await setAutoMovePaused(orderPublicId, on, await currentUserId());
+    if (result.moved > 0) await revalidateDeliverySurfaces(orderPublicId);
+    return result;
   });
 }
 

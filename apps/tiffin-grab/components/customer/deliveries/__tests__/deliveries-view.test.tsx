@@ -130,7 +130,7 @@ describe("DeliveriesView (one plan)", () => {
     const pdot = (date: string): readonly [string, Agenda[string][number]] => [date, { orderId: "o", status: "paused", cutoffAt: cut, deliveryDate: date, truck: true, units: 1, covers: [date] }];
     it("a plan offers Pause; a trial does not", () => {
       view();
-      expect(screen.getByRole("button", { name: "Pause multiple days" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Pause or resume days" })).toBeInTheDocument();
       cleanup();
       view("2026-09-23", trips, { ...plan, sub: { ...plan.sub, trial: true } } as PlanView);
       expect(screen.queryByRole("button", { name: /^Pause/ })).toBeNull();
@@ -147,45 +147,8 @@ describe("DeliveriesView (one plan)", () => {
       expect(screen.getAllByText("Paused").length).toBeGreaterThan(0);
       expect(screen.getAllByRole("button", { name: "Resume this day" }).length).toBeGreaterThan(0);
       expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
-      // One paused day is enough for Resume all.
-      expect(screen.getByRole("button", { name: "Resume all" })).not.toHaveAttribute("aria-disabled");
-    });
-    it("Resume all is always there: greyed with nothing paused, and it says so on a tap", () => {
-      view();
-      const all = screen.getByRole("button", { name: "Resume all" });
-      expect(all).toHaveAttribute("aria-disabled", "true");
-      fireEvent.click(all);
-      expect(screen.getAllByText("No paused days to resume.").length).toBeGreaterThan(0);
-      expect(rel).not.toHaveBeenCalled();
-    });
-    it("only a past-cutoff paused day left: Resume all points to Move instead of resuming", async () => {
-      rel.mockReset();
-      const past: readonly [string, Agenda[string][number]] = ["2026-09-21", { orderId: "o", status: "skipped", lapsedPause: true, cutoffAt: 1, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"] }];
-      view("2026-09-23", trips, plan, { agenda: agendaOf([past]) });
-      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-      expect(await screen.findByRole("button", { name: "Move Mon, Sep 21" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /resume the rest/i })).toBeNull();
-      expect(rel).not.toHaveBeenCalled();
-    });
-    it("with two paused days ahead, Resume all is offered and releases every one", async () => {
-      rel.mockReset();
-      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
-      view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
-      // One Resume all, beside Pause; the day's card and bottom bar keep only this day's Resume.
-      expect(screen.getAllByRole("button", { name: "Resume all" })).toHaveLength(1);
-      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
-    });
-    it("Resume all first warns about a paused day past its cutoff, which only Move can save", async () => {
-      rel.mockReset();
-      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
-      const past: readonly [string, Agenda[string][number]] = ["2026-09-21", { orderId: "o", status: "skipped", lapsedPause: true, cutoffAt: 1, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"] }];
-      view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([past], [pdot("2026-09-23")], [pdot("2026-09-25")]) });
-      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-      expect(await screen.findByText(/Mon, Sep 21 is past cutoff/)).toBeInTheDocument();
-      expect(rel).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole("button", { name: "Only resume the rest" }));
-      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
+      // Resume all lives in the pause drawer now, not on the page.
+      expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
     });
     it("Resume this day releases only the selected date", async () => {
       rel.mockReset();

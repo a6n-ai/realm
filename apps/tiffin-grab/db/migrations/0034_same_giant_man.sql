@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "auto_move_paused" boolean DEFAULT false NOT NULL;

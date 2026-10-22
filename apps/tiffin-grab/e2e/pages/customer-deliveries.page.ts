@@ -27,7 +27,7 @@ export class CustomerDeliveriesPage {
   }
 
   pauseButton() {
-    return this.page.getByRole("button", { name: "Pause", exact: true }).filter({ visible: true }).first();
+    return this.page.getByRole("button", { name: "Pause or resume days", exact: true }).filter({ visible: true }).first();
   }
 
   action(name: string | RegExp) {
@@ -62,12 +62,20 @@ export class CustomerDeliveriesPage {
     return reached;
   }
 
+  /** Delivery days on the drawer's month grid that can still be picked to pause. */
   upcomingRows(sheet: Locator) {
-    return sheet.getByRole("region", { name: "Upcoming deliveries" }).getByRole("button");
+    return sheet.getByRole("group").getByRole("button", { name: /^\w{3}, \w{3} \d+$/ });
   }
 
+  /** Paused days still before cutoff; a tap marks one to resume, the footer button saves. */
   pausedRows(sheet: Locator) {
-    return sheet.getByRole("region", { name: "Paused deliveries" }).getByRole("button", { name: "Resume this day" });
+    return sheet.getByRole("group").getByRole("button", { name: /, paused$/ });
+  }
+
+  /** Marks paused day `i` and saves; the drawer closes. */
+  async resumeOne(sheet: Locator, i = 0) {
+    await this.pausedRows(sheet).nth(i).click();
+    await sheet.getByRole("button", { name: "Resume this delivery" }).click();
   }
 
   /** Picks the first `n` upcoming days in the open drawer and confirms. Returns their labels. */
@@ -76,7 +84,7 @@ export class CustomerDeliveriesPage {
     const rows = this.upcomingRows(sheet);
     const labels: string[] = [];
     for (let i = 0; i < n; i++) {
-      labels.push(((await rows.nth(i).innerText()).split("\n")[0] ?? "").trim());
+      labels.push((await rows.nth(i).getAttribute("aria-label")) ?? "");
       await rows.nth(i).click();
     }
     await sheet.getByRole("button", { name: n > 1 ? `Pause ${n} deliveries` : "Pause this delivery" }).click();
@@ -89,7 +97,7 @@ export class CustomerDeliveriesPage {
     const sheet = await this.openPause();
     const all = sheet.getByRole("button", { name: "Resume all" });
     if (await all.isVisible()) await all.click();
-    else if ((await this.pausedRows(sheet).count()) > 0) await this.pausedRows(sheet).first().click();
+    else if ((await this.pausedRows(sheet).count()) > 0) await this.resumeOne(sheet);
     else return this.page.keyboard.press("Escape");
     await expect(sheet).toBeHidden({ timeout: 20_000 });
   }

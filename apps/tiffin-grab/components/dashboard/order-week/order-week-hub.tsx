@@ -10,11 +10,11 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
+import { addDays, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -25,7 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui
 import { RouteControls, type OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
-import { actionModel, PAUSE_DAY_LABEL, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
+import { actionModel, PAUSE_DAY_LABEL, PAUSE_OR_RESUME_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
 import { pausedLine, resumeLine } from "@/components/customer/deliveries/pause-copy";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
@@ -45,8 +45,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
   // ?trip and ?action=move survive the data refresh after a resume, which can remount this view.
   const [sel, setSel] = useState<string | null>(() => params.get("trip"));
   const [dlg, setDlg] = useState<Dlg>(() => (params.get("action") === "move" ? "reschedule" : null));
-  const [resumeAsk, setResumeAsk] = useState(false);
-  const [resumingAll, startResumeAll] = useTransition();
   const [pauseOpen, setPauseOpen] = useState(false);
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
@@ -101,29 +99,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
     .sort();
   // The banner walks the list: the first waiting day other than the one already open.
   const nextWaiting = waiting.find((d) => d !== selectedDay) ?? null;
-  const ahead = pausedAhead(agenda, now);
-  const missed = pausedPast(agenda, now);
-  const canResumeAll = ahead > 0 || missed.length > 0;
-  const releaseAll = async () => {
-    const res = await releaseMyDays(plan.orderId, "all");
-    const line = "error" in res ? null : resumeLine(res.dates, res.reclosed);
-    if ("error" in res) toast.error(res.error);
-    else if (line) toast.success(line);
-    else toast.error("Nothing was resumed.");
-  };
-  const resumeAll = () => (missed.length > 0 ? setResumeAsk(true) : startResumeAll(async () => { await releaseAll(); router.refresh(); }));
-  const resumeRest = () => startResumeAll(async () => { setResumeAsk(false); await releaseAll(); router.refresh(); });
-  const resumeThenMove = (date: string) => startResumeAll(async () => {
-    setResumeAsk(false);
-    await releaseAll();
-    setSel(date);
-    setDlg("reschedule");
-    const sp = new URLSearchParams(params.toString());
-    sp.set("week", mondayOf(date));
-    sp.set("trip", date);
-    sp.set("action", "move");
-    startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
-  });
 
   return (
     <div className={cn("flex flex-col gap-4", nav && "opacity-60 transition-opacity")}>
@@ -136,8 +111,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
         </span>
         {!plan.sub.trial && !readOnly && (
           <div className="ml-auto flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause multiple days</Button>
-            <Button type="button" variant="outline" disabled={!canResumeAll || resumingAll} title={canResumeAll ? undefined : "No paused days to resume."} onClick={resumeAll}>{RESUME_ALL_LABEL}</Button>
+            <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>{PAUSE_OR_RESUME_LABEL}</Button>
           </div>
         )}
       </div>
@@ -183,28 +157,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
         </div>
       </div>
 
-      {resumeAsk && missed[0] && (
-      <Dialog open onOpenChange={(o) => !o && setResumeAsk(false)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{missed.length === 1 ? "One paused day can't be resumed" : `${missed.length} paused days can't be resumed`}</DialogTitle>
-            <DialogDescription>
-              {missed.map(humanDate).join(", ")} {missed.length === 1 ? "is" : "are"} past cutoff, so {missed.length === 1 ? "it" : "they"} can&apos;t go out on {missed.length === 1 ? "that date" : "those dates"}. Move {missed.length === 1 ? "it" : "each one"} to another day so the customer doesn&apos;t miss {missed.length === 1 ? "that tiffin" : "those tiffins"}.{ahead > 0 ? " The other paused days will be resumed." : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            {ahead > 0 ? (
-              <>
-                <Button variant="outline" onClick={resumeRest}>Only resume the rest</Button>
-                <Button onClick={() => resumeThenMove(missed[0]!)}>Resume the rest, then move {humanDate(missed[0])}</Button>
-              </>
-            ) : (
-              <Button onClick={() => (setResumeAsk(false), moveDay(missed[0]!))}>Move {humanDate(missed[0])}</Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      )}
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} onClose={() => setDlg(null)} />}
       {pauseOpen && <PauseSheet plan={plan} open ui={ADMIN_SHEET_UI} onMove={moveDay} onDone={(message) => { setPauseOpen(false); done(message); }} />}
       {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}

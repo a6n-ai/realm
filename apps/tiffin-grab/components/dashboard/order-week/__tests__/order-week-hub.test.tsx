@@ -133,7 +133,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
   it("a finished plan still lists its days but offers no action", () => {
     render(<OrderWeekHub data={data} canEditDeliveryStatus readOnly />);
     expect(screen.getByText(/tiffins left/)).toBeInTheDocument();
-    for (const name of ["Edit meal", "Change address", "Move to another day", "Pause multiple days"]) {
+    for (const name of ["Edit meal", "Change address", "Move to another day", "Pause or resume days"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
     expect(screen.queryAllByRole("combobox")).toEqual([]);
@@ -218,7 +218,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     };
     const heldData = { ...data, trips: [held] } as unknown as OrderWeek;
     render(<OrderWeekHub data={heldData} />);
-    expect(screen.getByRole("button", { name: "Pause multiple days" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pause or resume days" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Release hold|On hold/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
     cleanup();
@@ -239,12 +239,8 @@ describe("OrderWeekHub (admin, shadcn)", () => {
       render(<OrderWeekHub data={withPaused(1)} />);
       expect(screen.getByRole("button", { name: "Resume this day" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Move to another day" })).toBeInTheDocument();
-      // Plan-wide, beside Pause multiple days; one paused day is enough.
-      expect(screen.getByRole("button", { name: "Resume all" })).toBeEnabled();
-    });
-    it("Resume all is always there, disabled while nothing is paused", () => {
-      render(<OrderWeekHub data={data} />);
-      expect(screen.getByRole("button", { name: "Resume all" })).toBeDisabled();
+      // Resume all lives in the pause drawer now, not on the page.
+      expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
     });
     it("an upcoming day offers Pause this day, which pauses only that date", async () => {
       pse.mockReset();
@@ -252,25 +248,6 @@ describe("OrderWeekHub (admin, shadcn)", () => {
       render(<OrderWeekHub data={data} />);
       fireEvent.click(screen.getByRole("button", { name: "Pause this day" }));
       await vi.waitFor(() => expect(pse).toHaveBeenCalledWith("o", ["2026-09-21"]));
-    });
-    it("Resume all first warns about a paused day past its cutoff, then resumes the rest on request", async () => {
-      rel.mockReset();
-      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21", "2026-09-23"] });
-      const past = { orderId: "o", status: "skipped", lapsedPause: true, cutoffAt: 1, deliveryDate: "2026-09-18", truck: true, units: 1, covers: ["2026-09-18"], deliveryId: "x-past" };
-      const d = withPaused(2);
-      render(<OrderWeekHub data={{ ...d, agenda: { ...d.agenda, "2026-09-18": [past] } } as unknown as OrderWeek} />);
-      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-      expect(await screen.findByText(/Fri, Sep 18 is past cutoff/)).toBeInTheDocument();
-      expect(rel).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole("button", { name: "Only resume the rest" }));
-      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
-    });
-    it("paused days ahead: Resume all releases them all", async () => {
-      rel.mockReset();
-      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21", "2026-09-23"] });
-      render(<OrderWeekHub data={withPaused(2)} />);
-      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
     });
     it("Resume this day releases the selected date", async () => {
       rel.mockReset();

@@ -24,7 +24,7 @@ export default async function ContactPage() {
         />
         <div className="tg-card tg-rows hidden lg:block">
           <Link href="/locations" className="tg-split__row"><strong>Delivery areas</strong><span>Check your postal code on the map</span></Link>
-          <Link href="/faq" className="tg-split__row"><strong>Questions we get</strong><span>Pausing, holds, payment</span></Link>
+          <Link href="/faq" className="tg-split__row"><strong>Questions we get</strong><span>Pausing, moving days, payment</span></Link>
           <Link href="/menu/weekly" className="tg-split__row"><strong>This week&apos;s menu</strong><span>Every dish, day by day</span></Link>
         </div>
       </div>
