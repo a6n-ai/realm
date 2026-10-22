@@ -2,12 +2,12 @@ import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
+import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd } from "./pause-auto-move";
-import { CARRIES_MOVED_IN, CUSTOMER_PAUSED, MOVED_AWAY, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { CUSTOMER_PAUSED, MOVED_AWAY, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,7 +61,6 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     const rows = await tx.select().from(deliveries).where(and(
       eq(deliveries.orderId, order.id),
       inArray(deliveries.deliveryDate, wanted),
-      isNull(deliveries.makeupForDeliveryId),
     ));
     const byDate = new Map(rows.map((r) => [r.deliveryDate, r]));
     const missing = wanted.filter((d) => !byDate.has(d));
@@ -73,13 +72,6 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       return [row];
     });
     if (eligible.length === 0) throw new ValidationError("Cutoff has passed for those days");
-    // A tiffin moved onto a day cannot move again. If this day lapsed into a hold, that paid tiffin would be stuck.
-    const movedIn = await tx.select({ id: deliveryMoves.toDeliveryId }).from(deliveryMoves)
-      .where(inArray(deliveryMoves.toDeliveryId, eligible.map((r) => r.id)));
-    if (movedIn.length > 0) {
-      const dates = eligible.filter((r) => movedIn.some((m) => m.id === r.id)).map((r) => r.deliveryDate);
-      throw new ValidationError(`${dates.join(", ")} carries a tiffin moved from another day, so it can't be paused.`);
-    }
     await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate), tx);
 
     const updated = await pauseRows(tx, eligible.map((r) => r.id), now);
@@ -200,24 +192,26 @@ export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed
       log.error({ err, orderId: String(o.id) }, "lapse elapsed pauses failed");
     }
   }
+  // Holds that lapsed before the switch went on, or that found no free day last time, get another go.
+  const switchedOn = await db.select({ id: orders.id }).from(orders).where(and(eq(orders.autoMovePaused, true), eq(orders.status, "active")));
+  for (const o of switchedOn) await moveLapsedPausesToEnd(o.id);
   return { checked: stranded.length, lapsed, failed };
 }
 
 export type PauseDay = { date: string; paused: boolean; /** Paused and past its cutoff: Move only, never Resume. */ lapsed?: true };
 
 /**
- * What the pause drawer can offer: upcoming original days that are still pausable or still
- * resumable, plus paused days past their cutoff whose tiffin has not been moved yet.
+ * What the pause drawer can offer: upcoming days (make-ups and days carrying a moved tiffin
+ * included) that are still pausable or still resumable, plus paused days past their cutoff whose tiffin has not been moved yet.
  */
 export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
   const now = Date.now();
   const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status, cutoffAt: deliveries.cutoffAt, routeSyncedAt: deliveries.routeSyncedAt })
     .from(deliveries).where(and(
       eq(deliveries.orderId, orderId),
-      isNull(deliveries.makeupForDeliveryId),
       not(MOVED_AWAY),
       or(
-        and(or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED), gt(deliveries.cutoffAt, now), not(CARRIES_MOVED_IN)),
+        and(or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED), gt(deliveries.cutoffAt, now)),
         and(CUSTOMER_PAUSED, lte(deliveries.cutoffAt, now)),
         and(eq(deliveries.status, "skipped"), isNull(deliveries.holidayId)),
       ),

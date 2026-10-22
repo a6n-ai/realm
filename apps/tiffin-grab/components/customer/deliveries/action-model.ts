@@ -43,8 +43,8 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
   const canResume = trip.status === "paused" && !closed && !opts.locked && !movedAway;
   const primary: TripAction | null = opts.locked || closed || movedAway || canResume ? null
     : moveOnly ? (opts.trial ? null : "move") : trip.status === "upcoming" ? "pick" : null;
-  // Same rules the server applies to one day: still open, an original delivery, nothing moved onto it.
-  const canPause = trip.status === "upcoming" && !opts.locked && !movedAway && !opts.trial && !trip.isMakeup && (trip.movesIn?.length ?? 0) === 0;
+  // Same rules the server applies to one day: still open and still carrying its tiffins. Make-ups and moved-in tiffins pause too.
+  const canPause = trip.status === "upcoming" && !opts.locked && !movedAway && !opts.trial;
   // A paused day (still before cutoff) goes back on the same date; Move stays its own action.
   // A hold, a lapsed pause and a failed drop only move.
   return {

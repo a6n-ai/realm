@@ -91,12 +91,14 @@ describe("actionModel", () => {
       expect(pause(trip({ status: "failed" }))).toBe(false);
       expect(pause(trip({ status: "delivered" }))).toBe(false);
     });
-    it("not a trial, a payment-locked plan, a make-up, a moved-away day, or a day carrying a moved-in tiffin", () => {
+    it("not a trial, a payment-locked plan, or a moved-away day", () => {
       expect(pause(trip(), { trial: true })).toBe(false);
       expect(pause(trip(), { locked: true })).toBe(false);
-      expect(pause(trip({ isMakeup: true }))).toBe(false);
       expect(pause(trip(), { movedTo: "2026-09-25" })).toBe(false);
-      expect(pause(trip({ movesIn: [{}] as Trip["movesIn"] }))).toBe(false);
+    });
+    it("a make-up or a day carrying a moved-in tiffin can be paused", () => {
+      expect(pause(trip({ isMakeup: true }))).toBe(true);
+      expect(pause(trip({ movesIn: [{}] as Trip["movesIn"] }))).toBe(true);
     });
   });
 });
