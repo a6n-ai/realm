@@ -15,8 +15,8 @@ export function EarnPctForm({ current }: { current: number }) {
 
   const save = () => {
     const n = Number(pct.trim());
-    if (pct.trim() === "" || !Number.isInteger(n) || n < 0 || n > 100) {
-      toast.error("Enter a whole percent from 0 to 100");
+    if (pct.trim() === "" || !/^\d+(\.\d{1,2})?$/.test(pct.trim()) || n > 100) {
+      toast.error("Enter a percent from 0 to 100, up to 2 decimals");
       return;
     }
     start(async () => {
@@ -33,7 +33,7 @@ export function EarnPctForm({ current }: { current: number }) {
   return (
     <SectionCard
       title="Earn back"
-      subtitle="Share of each paid order (before tax) returned to the customer as coins, at the coin value above. At 10% and $0.10 a coin, a $200 order earns 200 coins. 0 turns earning off."
+      subtitle="Share of each paid order (before tax) returned to the customer as coins, at the coin value above. At 2.5% and $0.25 a coin, a $200 order earns 20 coins. 0 turns earning off."
     >
       <div className="grid max-w-sm gap-4">
         <NumberField
@@ -42,7 +42,7 @@ export function EarnPctForm({ current }: { current: number }) {
           suffix="%"
           min={0}
           max={100}
-          step={1}
+          step={0.01}
           value={pct}
           onChange={setPct}
           placeholder="0"

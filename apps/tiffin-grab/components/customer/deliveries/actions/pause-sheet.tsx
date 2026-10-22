@@ -44,6 +44,7 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
   const paused = (days ?? []).filter((d) => d.paused);
   // Resume only while the day's cutoff is ahead; a paused day past it can still be moved.
   const resumable = paused.filter((d) => !d.lapsed);
+  const pastCutoff = paused.length - resumable.length;
   const budget = [
     daysLeft != null && `${usage?.daysUsed ?? 0} of ${limits?.maxPauseDaysTotal} pause days used`,
     left != null && `${left} pause${left === 1 ? "" : "s"} left`,
@@ -140,6 +141,9 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
             </div>
             <Switch label={AUTO_MOVE_LABEL} checked={autoMove} disabled={pending} onChange={flip} />
           </div>
+        )}
+        {autoMove === false && pastCutoff > 0 && (
+          <Notice>{`Turning this on also moves the ${pastCutoff === 1 ? "paused day" : `${pastCutoff} paused days`} already past cutoff to the end of your plan.`}</Notice>
         )}
         {budget.length > 0 && (
           <ul className="space-y-1">

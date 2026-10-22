@@ -23,7 +23,7 @@ export async function setWalletCapAction(input: unknown): Promise<void> {
   revalidatePath(PATH, "layout");
 }
 
-const earnPctSchema = z.object({ pct: z.number().int().min(0).max(100) });
+const earnPctSchema = z.object({ pct: z.number().min(0).max(100) });
 
 export async function setCoinEarnPctAction(input: unknown): Promise<void> {
   await requireAdmin();

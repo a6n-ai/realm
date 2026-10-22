@@ -8,6 +8,7 @@ import { Toaster } from "@foundry/ui/sonner";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
+import { BrowserChrome } from "@/components/browser-chrome";
 import "./globals.css";
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
@@ -54,6 +55,7 @@ export default function RootLayout({
           <Toaster />
           <StaleDeployReloader />
           <NavPending />
+          <BrowserChrome />
         </ThemeProvider>
       </body>
     </html>

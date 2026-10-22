@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { DateRangePicker } from "@foundry/ui/date-range-picker";
+import { RangeCalendarPicker } from "@/components/filters/range-calendar-picker";
 import { useListNav } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-params";
@@ -47,7 +47,7 @@ export function DefaultDateRange() {
   };
 
   return (
-    <DateRangePicker
+    <RangeCalendarPicker
       label="Date"
       from={hasUrlRange ? from : defaults.from}
       to={hasUrlRange ? to : defaults.to}

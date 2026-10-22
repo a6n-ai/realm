@@ -944,9 +944,9 @@ export async function rescheduleDelivery(
     if (row.status === "paused" && row.holidayId != null) {
       throw new ValidationError("The kitchen is closed that day. This tiffin goes on another day.");
     }
-    // A make-up that is still going out can move again. A held one moves ITSELF to the new day (below,
-    // `relocate`): it never spawns a make-up of its own, which is what assertOriginal guards against.
-    const heldMakeup = row.status === "skipped" && row.makeupForDeliveryId != null;
+    // A make-up that is still going out can move again. A held or paused one moves ITSELF to the new day
+    // (below, `relocate`): it never spawns a make-up of its own, which is what assertOriginal guards against.
+    const heldMakeup = (row.status === "skipped" || row.status === "paused") && row.makeupForDeliveryId != null;
     if (row.status !== "scheduled" && !heldMakeup) assertOriginal(row);
     if (heldMakeup && row.pooledAt != null) throw new ValidationError("This tiffin is already back in the plan's pool.");
 

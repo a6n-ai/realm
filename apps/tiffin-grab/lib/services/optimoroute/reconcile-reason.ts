@@ -1,7 +1,7 @@
 // Why a delivery is (or is not) on today's OptimoRoute route, in the words a dispatcher
 // uses. Pure: the Day ledger, its counts and its filters all come from this one answer.
 
-export type ReasonGroup = "on_route" | "done" | "needs_action" | "not_today" | "not_ours";
+export type ReasonGroup = "on_route" | "done" | "needs_action" | "cleanup" | "not_today" | "not_ours";
 export type LedgerAction = "send" | "remove" | "review";
 export type Reason = { group: ReasonGroup; text: string; action?: LedgerAction };
 
@@ -15,6 +15,8 @@ export type OurSide = {
   moved: boolean;
   /** A route_pushed activity exists for this delivery. */
   everPushed: boolean;
+  /** Once the day is over: whether the Missed deliveries tab counts this row. Null while the day is open. */
+  missed?: boolean | null;
 };
 
 export type OptimoSide = {
@@ -28,6 +30,7 @@ export const GROUP_LABEL: Record<ReasonGroup, string> = {
   on_route: "On route",
   done: "Done",
   needs_action: "Needs action",
+  cleanup: "Clean up OptimoRoute",
   not_today: "Not going today",
   not_ours: "Not ours",
 };
@@ -39,11 +42,27 @@ const HERE: Record<Exclude<OurSide["status"], "scheduled">, string> = {
 };
 
 export function reconcileReason(ours: OurSide, optimo: OptimoSide): Reason {
+  const reason = openDayReason(ours, optimo);
+  // A past day's Needs action is exactly the Missed deliveries tab: a stop a driver never closed
+  // (T-Stash never marks delivered) is owed, not on route; an unpulled success is not recorded yet.
+  if (ours.status !== "scheduled" || ours.missed == null || reason.group === "cleanup") return reason;
+  if (ours.missed) {
+    if (reason.group === "needs_action") return reason;
+    return {
+      group: "needs_action",
+      text: reason.group === "on_route" ? `Not marked delivered — ${reason.text}` : reason.text,
+      action: "review",
+    };
+  }
+  return reason.group === "needs_action" ? { group: "done", text: "Nothing owed — made up or no tiffins" } : reason;
+}
+
+function openDayReason(ours: OurSide, optimo: OptimoSide): Reason {
   const closed = optimo?.status === "success" || optimo?.status === "failed";
 
   if (ours.status !== "scheduled") {
     if (optimo && !closed) {
-      return { group: "needs_action", text: `Stale — on OptimoRoute but ${HERE[ours.status]} here`, action: "remove" };
+      return { group: "cleanup", text: `Stale — on OptimoRoute but ${HERE[ours.status]} here`, action: "remove" };
     }
     if (ours.mergedIntoDate) return { group: "not_today", text: `Merged into the ${ours.mergedIntoDate} trip` };
     if (ours.moved) return { group: "not_today", text: "Moved to a make-up day" };
@@ -55,7 +74,7 @@ export function reconcileReason(ours: OurSide, optimo: OptimoSide): Reason {
 
   if (ours.mergedIntoDate) {
     if (optimo && !closed) {
-      return { group: "needs_action", text: `Merged into the ${ours.mergedIntoDate} trip but still on OptimoRoute`, action: "review" };
+      return { group: "cleanup", text: `Merged into the ${ours.mergedIntoDate} trip but still on OptimoRoute`, action: "review" };
     }
     return { group: "not_today", text: `Merged into the ${ours.mergedIntoDate} trip` };
   }

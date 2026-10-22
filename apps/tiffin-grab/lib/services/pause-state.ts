@@ -48,9 +48,6 @@ export async function pauseRows(tx: Tx, ids: bigint[], now: number, holidayId: b
   )).returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt, deliveryDate: deliveries.deliveryDate });
 }
 
-/** A tiffin was moved onto this row (or relabelled on it); it cannot move again, so the row must not lapse. */
-export const CARRIES_MOVED_IN = sql`exists (select 1 from delivery_moves dm where dm.to_delivery_id = ${deliveries.id})`;
-
 /**
  * orders.status = 'paused' means nothing since pausing became day-level (the range pause that set it
  * is unreachable), yet fulfilment needs `active`. Any order found in it goes back to active,

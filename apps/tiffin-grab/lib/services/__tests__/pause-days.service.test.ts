@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -81,6 +81,8 @@ async function activatedOrder() {
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "A B", phone: `+1647555${Math.floor(1000 + Math.random() * 9000)}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  // `o` keeps the created value; the rows start with the switch off so a hold stays put unless a test turns it on.
+  await db.update(orders).set({ autoMovePaused: false }).where(eq(orders.id, o.id));
   await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
   const dates = ["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-01-11"];
   await db.insert(deliveries).values(dates.map((deliveryDate) => ({
@@ -152,8 +154,14 @@ describe("pauseDays / releasePausedDays", () => {
     expect(await rowsFor(o.id)).toHaveLength(rows.length);
   });
 
+  it("a new plan starts with the switch on", async () => {
+    const o = await activatedOrder();
+    expect(o.autoMovePaused).toBe(true);
+  });
+
   it("turning the switch on moves a paused day already past its cutoff", async () => {
     const o = await activatedOrder();
+    await setAutoMovePaused(o.publicId, false, null);
     await pauseDays(o.publicId, ["2030-01-07"], null);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.deliveryDate, "2030-01-07"));
     await lapseElapsedPauses(o.id);
@@ -441,17 +449,23 @@ describe("D4: when a lapsed pause or a hold can be moved", () => {
   });
 });
 
-describe("I6: a day carrying a moved-in tiffin cannot be paused", () => {
+describe("I6: a day carrying a moved-in tiffin pauses like any other", () => {
   beforeEach(reset);
 
-  it("is refused, so the paid tiffin can never lapse into a hold it cannot leave", async () => {
+  it("lapses into a hold whose tiffins, the moved-in one included, can still move", async () => {
     const o = await activatedOrder();
     await rescheduleDelivery((await rowOn(o.id, D[0])).publicId, D[2], null);
     expect((await db.select().from(deliveryMoves).where(eq(deliveryMoves.orderId, o.id)))).toHaveLength(1);
-    await expect(pauseDays(o.publicId, [D[2]], null)).rejects.toThrow(/moved/i);
-    expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
-    expect(await listPauseDays(o.id)).not.toContainEqual({ date: D[2], paused: false });
-    await expect(pauseDays(o.publicId, [D[3]], null)).resolves.toMatchObject({ paused: [D[3]] });
+    expect(await listPauseDays(o.id)).toContainEqual({ date: D[2], paused: false });
+    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toMatchObject({ paused: [D[2]] });
+    await expire(o.id, D[2]);
+    await lapseElapsedPauses(o.id);
+    const held = await rowOn(o.id, D[2]);
+    expect(held.status).toBe("skipped");
+    await rescheduleDelivery(held.publicId, "2030-01-14", null, D[2]);
+    await rescheduleDelivery(held.publicId, "2030-01-15", null, D[2]);
+    const out = (await rowsFor(o.id)).filter((r) => r.status === "scheduled" && r.deliveryDate > D[4]).map((r) => r.deliveryDate);
+    expect(out).toEqual(["2030-01-14", "2030-01-15"]);
   });
 });
 
@@ -526,12 +540,27 @@ describe("pauseDays and releasePausedDays rules", () => {
     expect((await rowOn(o.id, D[0])).status).toBe("scheduled");
   });
 
-  it("refuses a make-up row", async () => {
+  it("pauses a make-up row, and the drawer lists it", async () => {
     const o = await activatedOrder();
     const [src] = await rowsFor(o.id);
-    await db.insert(deliveries).values({ orderId: o.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, makeupForDeliveryId: src!.id });
-    await expect(pauseDays(o.publicId, ["2030-01-14"], null)).rejects.toBeInstanceOf(ValidationError);
-    expect((await rowOn(o.id, "2030-01-14")).status).toBe("scheduled");
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, src!.id));
+    await db.insert(deliveries).values({ orderId: o.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, makeupForDeliveryId: src!.id, coversDates: ["2030-01-14"], tiffinUnits: 1 });
+    expect((await listPauseDays(o.id)).map((d) => d.date)).toContain("2030-01-14");
+    await expect(pauseDays(o.publicId, ["2030-01-14"], null)).resolves.toEqual({ paused: ["2030-01-14"], skipped: [] });
+    expect((await rowOn(o.id, "2030-01-14")).status).toBe("paused");
+  });
+
+  it("pauses a day carrying a moved tiffin; with the switch on its two tiffins go to two eating days", async () => {
+    const o = await activatedOrder();
+    await db.update(deliveries).set({ coversDates: sql`array[${deliveries.deliveryDate}]::date[]`, tiffinUnits: 1 }).where(eq(deliveries.orderId, o.id));
+    await rescheduleDelivery((await rowOn(o.id, D[0])).publicId, D[1], null);
+    expect((await listPauseDays(o.id)).map((d) => d.date)).toContain(D[1]);
+    await setAutoMovePaused(o.publicId, true, null);
+    await pauseDays(o.publicId, [D[1]], null);
+    await expire(o.id, D[1]);
+    await lapseElapsedPauses(o.id);
+    const live = (await rowsFor(o.id)).filter((r) => r.status === "scheduled" && r.deliveryDate > D[4]);
+    expect(live.map((r) => [r.deliveryDate, r.coversDates])).toEqual([["2030-01-14", ["2030-01-14"]], ["2030-01-15", ["2030-01-15"]]]);
   });
 
   it("skips past-cutoff days instead of rejecting the whole selection", async () => {

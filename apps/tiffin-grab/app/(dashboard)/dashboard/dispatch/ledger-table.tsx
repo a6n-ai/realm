@@ -26,10 +26,11 @@ const COLUMNS: readonly Column<Key>[] = [
 ];
 
 // Order of the filter chips = the order a dispatcher works through the day.
-const GROUPS: ReasonGroup[] = ["needs_action", "on_route", "done", "not_today", "not_ours"];
+const GROUPS: ReasonGroup[] = ["needs_action", "cleanup", "on_route", "done", "not_today", "not_ours"];
 // One colour per group so a scan of the column separates them.
 const GROUP_TONE: Record<ReasonGroup, Tone> = {
   needs_action: "bad",
+  cleanup: "warn",
   on_route: "brand",
   done: "ok",
   not_today: "neutral",

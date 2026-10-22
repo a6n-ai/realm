@@ -29,3 +29,13 @@ export function missedWhere(today: string, visible: "all" | string[]): SQL {
 export function hasMissedDeliveries(today: string): SQL {
   return exists(db.select({ _: sql`1` }).from(deliveries).where(and(eq(deliveries.orderId, orders.id), missedWhere(today, "all"))));
 }
+
+/** Public ids of one date's missed deliveries — the Dispatch Day ledger's Needs action for a past day. */
+export async function missedPublicIdsOn(date: string, today: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ publicId: deliveries.publicId })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(and(eq(deliveries.deliveryDate, date), missedWhere(today, "all")));
+  return new Set(rows.map((r) => r.publicId));
+}

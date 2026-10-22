@@ -244,6 +244,12 @@ describe("PauseSheet", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved 1 paused day to the end of your plan."));
   });
 
+  it("warns, before the switch goes on, that paused days already past cutoff will move too", async () => {
+    a.load.mockResolvedValue({ ok: true, autoMove: false, days: [{ date: WED, paused: true, lapsed: true }, { date: THU, paused: true, lapsed: true }] });
+    await open();
+    expect(await screen.findByText("Turning this on also moves the 2 paused days already past cutoff to the end of your plan.")).toBeInTheDocument();
+  });
+
   it("a refused flip puts the switch back and shows why", async () => {
     a.auto.mockResolvedValue({ error: "This plan is locked." });
     await open();

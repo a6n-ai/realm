@@ -1,5 +1,5 @@
 {
-  "id": "e1d94faa-b858-479a-8a48-a1b8997db5f4",
+  "id": "5c3cda47-026d-407a-9f6b-f1fda388ae18",
   "prevId": "568667e2-d0c0-4fac-91b7-a01bd88a7eef",
   "version": "7",
   "dialect": "postgresql",
@@ -520,12 +520,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "stripe_customer_id": {
-          "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "role": {
           "name": "role",
           "type": "user_role",
@@ -848,13 +842,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
-          ]
-        },
-        "users_stripe_customer_id_unique": {
-          "name": "users_stripe_customer_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "stripe_customer_id"
           ]
         },
         "users_referral_code_unique": {
@@ -3393,74 +3380,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_ref": {
-          "name": "provider_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider_event_id": {
-          "name": "provider_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider_checked_at": {
-          "name": "provider_checked_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_brand": {
-          "name": "card_brand",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_last4": {
-          "name": "card_last4",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "surcharge_amount": {
-          "name": "surcharge_amount",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "tax_calculation_id": {
-          "name": "tax_calculation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_source": {
-          "name": "tax_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "charge_attempt": {
-          "name": "charge_attempt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "addon_request": {
-          "name": "addon_request",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -3469,36 +3388,6 @@
         }
       },
       "indexes": {
-        "payments_provider_ref_idx": {
-          "name": "payments_provider_ref_idx",
-          "columns": [
-            {
-              "expression": "provider_ref",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_provider_event_idx": {
-          "name": "payments_provider_event_idx",
-          "columns": [
-            {
-              "expression": "provider_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payments_order_idx": {
           "name": "payments_order_idx",
           "columns": [
@@ -4968,12 +4857,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_event_id": {
-          "name": "provider_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -4982,21 +4865,6 @@
         }
       },
       "indexes": {
-        "ledger_provider_event_idx": {
-          "name": "ledger_provider_event_idx",
-          "columns": [
-            {
-              "expression": "provider_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "ledger_entries_user_created_idx": {
           "name": "ledger_entries_user_created_idx",
           "columns": [
@@ -9546,7 +9414,7 @@
         },
         "coin_earn_pct": {
           "name": "coin_earn_pct",
-          "type": "integer",
+          "type": "numeric(5, 2)",
           "primaryKey": false,
           "notNull": true,
           "default": 0
@@ -15039,106 +14907,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.stripe_events": {
-      "name": "stripe_events",
-      "schema": "",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payment_id": {
-          "name": "payment_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "processed_at": {
-          "name": "processed_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "stripe_events_received_idx": {
-          "name": "stripe_events_received_idx",
-          "columns": [
-            {
-              "expression": "received_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "stripe_events_payment_idx": {
-          "name": "stripe_events_payment_idx",
-          "columns": [
-            {
-              "expression": "payment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "stripe_events_payment_id_payments_id_fk": {
-          "name": "stripe_events_payment_id_payments_id_fk",
-          "tableFrom": "stripe_events",
-          "tableTo": "payments",
-          "columnsFrom": [
-            "payment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -15218,10 +14986,7 @@
         "route_completed",
         "category_swap_applied",
         "category_swap_removed",
-        "complimentary_granted",
-        "payment_failed",
-        "payment_refunded",
-        "payment_disputed"
+        "complimentary_granted"
       ]
     },
     "public.order_status": {
@@ -15243,8 +15008,7 @@
         "simulated",
         "cash",
         "etransfer",
-        "manual",
-        "stripe"
+        "manual"
       ]
     },
     "public.payment_status": {

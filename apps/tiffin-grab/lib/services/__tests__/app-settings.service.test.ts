@@ -130,19 +130,21 @@ describe("app-settings service (integration)", () => {
 describe("coin earn percent", () => {
   afterAll(restoreAppSingleton);
 
-  it("defaults to 0 (earning off) and stores a whole percent", async () => {
+  it("defaults to 0 (earning off) and stores a percent with decimals", async () => {
     const { getCoinEarnPct, setCoinEarnPct } = await import("../app-settings.service");
     await resetAppToDefaults();
     expect(await getCoinEarnPct()).toBe(0);
     await setCoinEarnPct(10);
     expect(await getCoinEarnPct()).toBe(10);
+    await setCoinEarnPct(2.5);
+    expect(await getCoinEarnPct()).toBe(2.5);
   });
 
-  it("refuses values outside 0-100 or fractional", async () => {
+  it("refuses values outside 0-100 or with more than 2 decimals", async () => {
     const { setCoinEarnPct } = await import("../app-settings.service");
-    await expect(setCoinEarnPct(101)).rejects.toThrow(/whole percent/);
-    await expect(setCoinEarnPct(-1)).rejects.toThrow(/whole percent/);
-    await expect(setCoinEarnPct(2.5)).rejects.toThrow(/whole percent/);
+    await expect(setCoinEarnPct(101)).rejects.toThrow(/at most 2 decimals/);
+    await expect(setCoinEarnPct(-1)).rejects.toThrow(/at most 2 decimals/);
+    await expect(setCoinEarnPct(2.555)).rejects.toThrow(/at most 2 decimals/);
   });
 });
 

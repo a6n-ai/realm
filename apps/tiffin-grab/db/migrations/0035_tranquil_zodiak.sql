@@ -1,0 +1,1 @@
+ALTER TABLE "app" ALTER COLUMN "coin_earn_pct" SET DATA TYPE numeric(5, 2);
