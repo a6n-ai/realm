@@ -48,7 +48,9 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
         "relative flex flex-none flex-col items-center justify-center rounded-[14px] border-[1.5px] text-xs leading-tight [touch-action:manipulation] transition-[transform,background-color] duration-150 active:scale-[.97] motion-reduce:transition-none",
         SPRING,
         compact ? "size-11" : delivery !== undefined ? "h-[62px] min-w-11" : "h-[52px] min-w-11",
-        selected ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "border-[var(--border)] bg-[var(--card)]",
+        selected
+          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]"
+          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--primary)] [@media(hover:hover)]:hover:-translate-y-0.5 motion-reduce:transform-none",
         disabledReason && "opacity-35",
         className,
       )}
@@ -59,7 +61,7 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
       </StatusRing>
       {((status && status !== "delivered") || delivery) && (
         <span aria-hidden className="absolute bottom-1 flex items-center gap-0.5">
-          {delivery && <Truck className="size-3 text-[var(--muted-foreground,#6E6558)]" />}
+          {delivery && <Truck className={cn("size-3", selected ? "text-current" : "text-[var(--primary)]")} />}
           {status && status !== "delivered" && <StatusDot decorative status={status} />}
         </span>
       )}

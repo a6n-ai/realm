@@ -453,11 +453,13 @@ body:has(.crm-app) .font-pixel-circle {
 ::view-transition-new(.nav-forward) { --vt-offset: 24px; }
 ::view-transition-old(.nav-back) { --vt-offset: 24px; }
 ::view-transition-new(.nav-back) { --vt-offset: -24px; }
+/* Peer switches (tab bar, nav pills): the old page leaves at once, like an iOS tab switch.
+   Cross-fading it kept the old page and its fixed action bar on top of the new one on phones. */
 ::view-transition-old(.page-fade) {
-  animation: 160ms ease-in both vt-fade-out;
+  display: none;
 }
 ::view-transition-new(.page-fade) {
-  animation: 280ms var(--ease-soft) 50ms both vt-fade-in, 280ms var(--ease-soft) 50ms both vt-rise;
+  animation: 200ms var(--ease-soft) both vt-fade-in, 200ms var(--ease-soft) both vt-rise;
 }
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }

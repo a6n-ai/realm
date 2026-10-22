@@ -11,6 +11,8 @@ export type PosterItem = {
   position: number;
   image?: FileDetail | null;
   dishPublicId?: string;
+  /** The plan this dish row belongs to (each dish is stored once per plan). */
+  planName?: string;
 };
 export type RenderedGroup = { slotLabel: string | null; dishes: { name: string }[] };
 export type RenderedColumn = { label: string; groups: RenderedGroup[] };
