@@ -7,6 +7,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Switch } from "@foundry/ui/switch";
 import { cn } from "@foundry/ui/cn";
 import { ResponsiveDialog, Tabs, TabsList, TabsTrigger } from "@/components/ds";
 import type { SheetUi } from "@/components/customer/deliveries/actions/sheet-ui";
@@ -196,4 +197,5 @@ export const ADMIN_SHEET_UI: SheetUi = {
       </div>
     );
   },
+  Switch: ({ label, checked, disabled, onChange }) => <Switch aria-label={label} checked={checked} disabled={disabled} onCheckedChange={onChange} />,
 };

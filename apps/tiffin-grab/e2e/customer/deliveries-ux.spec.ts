@@ -124,13 +124,13 @@ test.describe("customer deliveries (trip timeline)", () => {
 
         let sheet = await d.openPause();
         await expect(d.pausedRows(sheet)).toHaveCount(3);
-        await d.pausedRows(sheet).nth(1).click();
+        await d.resumeOne(sheet, 1);
         await expect(sheet).toBeHidden({ timeout: 20_000 });
         await expect(page.getByText(/\w{3} is back on\./)).toBeVisible({ timeout: 15_000 });
 
         sheet = await d.openPause();
         await expect(d.pausedRows(sheet)).toHaveCount(2);
-        await expect(d.upcomingRows(sheet).filter({ hasText: labels[1]! })).toHaveCount(1);
+        await expect(sheet.getByRole("button", { name: labels[1]!, exact: true })).toHaveCount(1);
         await sheet.getByRole("button", { name: "Resume all" }).click();
         await expect(sheet).toBeHidden({ timeout: 20_000 });
         await expect(d.pausedDays()).toHaveCount(0, { timeout: 15_000 });
