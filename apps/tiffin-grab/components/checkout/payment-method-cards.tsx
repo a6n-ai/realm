@@ -3,7 +3,6 @@
 import type { ReactNode, SVGProps } from "react";
 import { ArrowLeftRight, Banknote, CreditCard, Wallet, type LucideIcon } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
-import { Badge } from "@/components/reui/badge";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 export type PayMethodOption = { id: string; label: string };
@@ -90,7 +89,7 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
             tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other}
             title={payMethodTitle(m)}
             subtitle={SUBTITLE[m.id]}
-            aside={m.id === "stripe" ? <><VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" /><MastercardMark className="size-5" /></> : m.id === "etransfer" ? <Badge variant="outline" size="sm" className="min-w-0"><span className="truncate">Interac e-Transfer</span></Badge> : undefined}
+            aside={m.id === "stripe" ? <><VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" /><MastercardMark className="size-5" /></> : undefined}
           />
         ))}
       </RadioGroup>
