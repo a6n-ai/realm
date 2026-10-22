@@ -635,6 +635,8 @@ export async function createOrder(
         durationWeeks: input.selections.durationWeeks,
         trialLength: trial?.length ?? null,
         trialWeekdays: trial?.weekdays ?? null,
+        // Paused days go to the end of the plan unless the customer turns it off.
+        autoMovePaused: true,
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),

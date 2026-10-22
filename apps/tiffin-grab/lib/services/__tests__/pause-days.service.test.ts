@@ -75,6 +75,8 @@ async function activatedOrder() {
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "A B", phone: `+1647555${Math.floor(1000 + Math.random() * 9000)}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  // `o` keeps the created value; the rows start with the switch off so a hold stays put unless a test turns it on.
+  await db.update(orders).set({ autoMovePaused: false }).where(eq(orders.id, o.id));
   await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
   const dates = ["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-01-11"];
   await db.insert(deliveries).values(dates.map((deliveryDate) => ({
@@ -146,8 +148,14 @@ describe("pauseDays / releasePausedDays", () => {
     expect(await rowsFor(o.id)).toHaveLength(rows.length);
   });
 
+  it("a new plan starts with the switch on", async () => {
+    const o = await activatedOrder();
+    expect(o.autoMovePaused).toBe(true);
+  });
+
   it("turning the switch on moves a paused day already past its cutoff", async () => {
     const o = await activatedOrder();
+    await setAutoMovePaused(o.publicId, false, null);
     await pauseDays(o.publicId, ["2030-01-07"], null);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.deliveryDate, "2030-01-07"));
     await lapseElapsedPauses(o.id);
