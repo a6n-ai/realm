@@ -1,44 +1,27 @@
-"use client";
-
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
-import { SectionCard } from "@/components/ds";
+import { buttonClass } from "@/components/customer/kit/button-class";
+import { Skeleton } from "@/components/customer/kit/skeleton";
 
-/** Slim subscribe strip — replaces oversized Browse plans + Meal sizes cards on Menu. */
+/** The public /menu/weekly action row under the board: build a tiffin, a trial if one is open, the PDF. */
 export function PlansCtaSection({ trial }: { trial?: { href: string; maxDays: number } | null }) {
   return (
-    <SectionCard
-      title="Want a subscription?"
-      subtitle="Pick a plan and meal size on Subscribe. This page is for browsing what's cooking."
-    >
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {trial && (
-          <Button asChild size="sm" variant="outline" className="gap-1.5 active:scale-[0.96]">
-            <Link href={trial.href}>
-              Try a meal · up to {trial.maxDays} {trial.maxDays === 1 ? "day" : "days"}
-              <ArrowRightIcon className="size-3.5" aria-hidden />
-            </Link>
-          </Button>
-        )}
-        <Button asChild size="sm" className="gap-1.5 active:scale-[0.96]">
-          <Link href="/subscribe">
-            Browse plans
-            <ArrowRightIcon className="size-3.5" aria-hidden />
-          </Link>
-        </Button>
-      </div>
-    </SectionCard>
+    <div className="flex flex-wrap items-center gap-3">
+      <Link prefetch={false} href="/subscribe" className={buttonClass({ variant: "hero", size: "lg" })}>Build my tiffin</Link>
+      {trial && (
+        <Link href={trial.href} className={buttonClass({ size: "lg" })}>
+          Try a meal for up to {trial.maxDays} {trial.maxDays === 1 ? "day" : "days"}
+        </Link>
+      )}
+      <a href="/menu/weekly/pdf" className={buttonClass({ size: "lg" })}>Download PDF</a>
+    </div>
   );
 }
 
 export function PlansCtaSectionSkeleton() {
   return (
-    <SectionCard
-      title="Want a subscription?"
-      subtitle="Pick a plan and meal size on Subscribe. This page is for browsing what's cooking."
-    >
-      <div className="bg-muted h-10 w-full animate-pulse rounded-md" />
-    </SectionCard>
+    <div className="flex flex-wrap gap-3">
+      <Skeleton className="h-[52px] w-40 rounded-full" />
+      <Skeleton className="h-[50px] w-36" />
+    </div>
   );
 }

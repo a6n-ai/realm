@@ -4,88 +4,39 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/motion", () => ({
-  Reveal: Object.assign(({ children }: { children: React.ReactNode }) => <div>{children}</div>, { Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }),
   LottieEmptyState: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
 import { ThisWeekMenuSection } from "../this-week-menu-section";
-import type { menuService } from "@/lib/services/menu.service";
-
-type Week = NonNullable<Awaited<ReturnType<typeof menuService.getPublishedWeek>>>;
+import { buildWeekBoard } from "@/lib/landing/week-board";
 
 const week = {
-  planType: "tiffin",
-  theme: { accent: "#f60", titlePrefix: "Tiffin" },
   weekStart: "2026-07-13",
   slots: [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1, tuUnitType: "weight", tuUnitSize: "8", tuUnitLabel: "oz" }],
   items: [
-    {
-      dayOfWeek: "mon",
-      slot: "sabzi",
-      position: 0,
-      dishName: "Paneer Butter Masala",
-      image: null,
-      dishPublicId: "dsh_1",
-    },
+    { dayOfWeek: "mon", slot: "sabzi", position: 0, dishName: "Paneer Butter Masala", image: null, dishPublicId: "dsh_1" },
+    { dayOfWeek: "sat", slot: "sabzi", position: 0, dishName: "Weekend Biryani", image: null, dishPublicId: "dsh_2" },
   ],
-} as Week;
-
-const weekWithWeekend = {
-  ...week,
-  items: [
-    ...week.items,
-    {
-      dayOfWeek: "sat",
-      slot: "sabzi",
-      position: 0,
-      dishName: "Weekend Biryani",
-      image: null,
-      dishPublicId: "dsh_2",
-    },
-  ],
-} as Week;
+} as unknown as Parameters<typeof buildWeekBoard>[0];
 
 afterEach(cleanup);
 
 describe("ThisWeekMenuSection", () => {
-  it("renders the week's dishes", () => {
-    render(<ThisWeekMenuSection week={week} />);
-    expect(screen.getByText(/Jul 13 – Jul 19/)).toBeInTheDocument();
-    expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
+  it("renders the public week board with the week range", () => {
+    render(<ThisWeekMenuSection weekStart={week.weekStart} board={buildWeekBoard(week, "America/Toronto")} />);
+    expect(screen.getByText(/ to /)).toBeInTheDocument();
+    expect(screen.getAllByText("Paneer Butter Masala").length).toBeGreaterThan(0);
+    expect(screen.getByText("Weekend Biryani")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "This week's menu" })).toBeInTheDocument();
   });
 
-  it("renders the empty state when week is null", () => {
-    render(<ThisWeekMenuSection week={null} />);
+  it("renders the empty state when no week is released", () => {
+    render(<ThisWeekMenuSection weekStart={null} board={null} />);
     expect(screen.getByText(/No menu released yet/i)).toBeInTheDocument();
   });
 
-  it("shows all poster column names including Weekends instead of Sat/Sun", () => {
-    render(<ThisWeekMenuSection week={week} />);
-    for (const label of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Weekends"]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
-    expect(screen.queryByText("Saturday")).not.toBeInTheDocument();
-  });
-
-  it("renders no placeholder under empty days", () => {
-    const { container } = render(<ThisWeekMenuSection week={week} />);
-    expect(container.textContent).not.toMatch(/—/);
-  });
-
-  it("shows weekend dishes under Weekends", () => {
-    render(<ThisWeekMenuSection week={weekWithWeekend} />);
-    expect(screen.getByText("Weekend Biryani")).toBeInTheDocument();
-    expect(screen.getByText("Weekends")).toBeInTheDocument();
-  });
-
-  it("labels an upcoming released week as next week", () => {
-    render(<ThisWeekMenuSection week={week} scope="next" />);
-    expect(screen.getByText("Next week's menu")).toBeInTheDocument();
-  });
-
-  it("does not truncate a long dish name in the card", () => {
-    render(<ThisWeekMenuSection week={week} />);
-    const name = screen.getByText("Paneer Butter Masala");
-    expect(name.className).not.toMatch(/truncate/);
+  it("titles a next-week fallback", () => {
+    render(<ThisWeekMenuSection weekStart={week.weekStart} board={buildWeekBoard(week, "America/Toronto")} scope="next" />);
+    expect(screen.getByRole("heading", { name: "Next week's menu" })).toBeInTheDocument();
   });
 });

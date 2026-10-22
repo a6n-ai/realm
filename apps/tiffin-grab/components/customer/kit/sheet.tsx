@@ -51,14 +51,14 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
       };
       if (!el?.animate || reduced()) return done();
       scrim.current?.animate({ opacity: [1, 0] }, { duration: 250, fill: "forwards" });
-      el.animate({ transform: [getComputedStyle(el).transform || "none", off()] }, { duration: 400, easing: EASE, fill: "forwards" }).onfinish = done;
+      el.animate({ transform: [getComputedStyle(el).transform || "none", off()] }, { duration: 300, easing: EASE, fill: "forwards" }).onfinish = done;
       return;
     }
     restore.current = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
     el?.focus();
     if (el?.animate && !reduced()) {
-      el.animate({ transform: [off(), "none"] }, { duration: 400, easing: EASE });
+      el.animate({ transform: [off(), "none"] }, { duration: 300, easing: EASE });
       scrim.current?.animate({ opacity: [0, 1] }, { duration: 250, easing: EASE });
     }
     return () => {

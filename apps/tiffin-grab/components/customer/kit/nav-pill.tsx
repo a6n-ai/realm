@@ -12,8 +12,11 @@ export function NavPill({ href, active, children, className }: { href: string; a
       className={cn(
         FONT,
         FOCUS,
-        "inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors duration-150 [touch-action:manipulation] active:scale-[.97] motion-reduce:transition-none",
-        active ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]",
+        "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 [touch-action:manipulation] active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transition-none motion-reduce:transform-none",
+        // The bar under the current item is a cue that doesn't rely on colour alone.
+        active
+          ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] after:absolute after:bottom-1.5 after:left-1/2 after:h-0.5 after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-current dark:text-[#FFB877]"
+          : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
         className,
       )}
     >
@@ -33,13 +36,13 @@ export function CoinChip({ href, balance, value, active }: { href: string; balan
       className={cn(
         FONT,
         FOCUS,
-        "inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100",
-        active ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "border-[var(--border)] bg-[var(--card)]",
+        "inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-[var(--primary)] active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transform-none",
+        active ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
       )}
     >
       <Wallet aria-hidden className="size-5 text-[var(--primary)]" />
       {balance}
-      {money ? <span className="hidden text-[13px] font-medium text-[var(--muted-foreground)] min-[380px]:inline">{money}</span> : null}
+      {money ? <span className="hidden text-[13px] font-medium text-[var(--muted-foreground)] sm:inline">{money}</span> : null}
     </Link>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { ORDER_STATUS_LABEL } from "@/components/ds/order-status-badge";
+import Link from "next/link";
 import { cn } from "@/components/customer/kit/cn";
+import { buttonClass } from "@/components/customer/kit/button-class";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -12,6 +14,9 @@ export function windowLabel(w: SubscriptionWindow | undefined, today: string): s
   if (w.next == null) return "Finished";
   return w.first > today ? `Starts ${shortDate(w.first)}` : `Running · to ${shortDate(w.last)}`;
 }
+
+/** Renew surfaces on the plan itself this close to the last tiffin; earlier it stays in the More drawer. */
+const RENEW_SOON_DAYS = 7;
 
 const MUTED = "text-[var(--muted-foreground,#6E6558)]";
 const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "var(--s-vac,#d98a00)", bad: "var(--s-hold,#f43f5e)" };
@@ -60,7 +65,12 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>
-        {renew != null && <p className={cn("mt-0.5 text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>}
+        {renew != null && (
+          <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2">
+            <p className={cn("text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>
+            {renew <= RENEW_SOON_DAYS && <Link href="/me/renew" className={buttonClass({ variant: "primary", pill: true, className: "text-sm" })}>Renew plan</Link>}
+          </div>
+        )}
         {actions && <div className="mt-3 flex gap-2 border-t border-[var(--border)] pt-3 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">{actions}</div>}
       </div>
     </header>
