@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useListNav } from "@/components/ds";
 import type { FacetDef, Option } from "@/components/ds";
-import { DateRangePicker } from "@foundry/ui/date-range-picker";
+import { RangeCalendarPicker } from "@/components/filters/range-calendar-picker";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import {
   Filters,
@@ -32,14 +32,14 @@ function mapOptions(options: Option[]) {
   return options.map((o) => ({ value: String(o.value), label: o.label }));
 }
 
-// reui renders our DateRangePicker for dateRange facets. reui carries the value
-// as values:[fromMs, toMs]; DateRangePicker speaks {from,to}. This maps between.
+// reui renders our RangeCalendarPicker for dateRange facets. reui carries the value
+// as values:[fromMs, toMs]; RangeCalendarPicker speaks {from,to}. This maps between.
 function DateFacetRenderer(label: string, timeZone: string) {
   return function render({ values, onChange }: CustomRendererProps<Val>) {
     const from = typeof values[0] === "number" ? (values[0] as number) : undefined;
     const to = typeof values[1] === "number" ? (values[1] as number) : undefined;
     return (
-      <DateRangePicker
+      <RangeCalendarPicker
         label={label}
         from={from}
         to={to}
