@@ -8,5 +8,5 @@ import { setReferralSettings } from "@/lib/services/app-settings.service";
 export async function setReferralSettingsAction(input: unknown): Promise<void> {
   await requireAdmin();
   await setReferralSettings(input);
-  revalidatePath("/dashboard/discounts/referrals");
+  revalidatePath("/dashboard/wallet/referrals");
 }

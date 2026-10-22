@@ -9,7 +9,7 @@ import { Label } from "@foundry/ui/label";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
-import { NumberField } from "../controls";
+import { NumberField } from "../../discounts/controls";
 import { setReferralSettingsAction } from "./actions";
 
 const TITLE = "Referral rewards";

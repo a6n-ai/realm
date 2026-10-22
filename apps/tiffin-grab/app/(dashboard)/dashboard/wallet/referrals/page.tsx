@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
+import { parseFilterState, SectionCard, SkeletonStatCards, StatGrid, type FacetDef } from "@/components/ds";
 import { getReferralSettings } from "@/lib/services/app-settings.service";
 import { listReferrals, referralStats, type ReferralFriendStatus } from "@/lib/services/referrals.service";
-import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { REFERRAL_STATUS } from "./referral-status";
 import { ReferralForm, ReferralFormSkeleton } from "./referral-form";
 import { ReferralsTable, ReferralsTableSkeleton } from "./referrals-table";
@@ -20,14 +19,14 @@ const LIST_SUBTITLE = "Who referred whom, and what each side was paid.";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// Same shape as the other Discounts tabs: stat cards, settings, then the list.
+// Stat cards, the rewards settings, then the list.
 export default function DiscountReferralsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="grid grid-cols-1 gap-6">
       <Suspense
         fallback={
           <>
-            <DiscountStatsSkeleton />
+            <SkeletonStatCards count={5} className="md:grid-cols-2 lg:grid-cols-5" />
             <ReferralFormSkeleton />
           </>
         }
@@ -57,7 +56,7 @@ async function SummaryData() {
   ];
   return (
     <>
-      <DiscountStats items={stats} />
+      <StatGrid cols={5} items={stats} />
       <ReferralForm current={settings} />
     </>
   );
