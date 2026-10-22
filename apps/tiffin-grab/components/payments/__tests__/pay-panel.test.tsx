@@ -39,7 +39,7 @@ vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import { PaidPage } from "../paid-page";
-import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo } from "../pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo } from "../card-pay";
 
 const receipt = (info: PaidInfo) => ({
   receipt: { title: "Veg thali", subtitle: "Regular", lines: [{ label: "Subtotal", amount: info.totalCents ?? 5000 }], total: info.totalCents ?? 5000, orderRef: "SUB-REF1", paidWith: info.paidWith, paidAt: Date.UTC(2026, 9, 21, 15, 0) },
@@ -94,6 +94,12 @@ describe("PayPanel", () => {
     const s = setup();
     s.rerender({ amountCents: 6500 });
     expect(h.update).toHaveBeenLastCalledWith({ amount: 6500 });
+  });
+
+  it("Elements only ever offers card and Link, whatever the Stripe account has enabled", async () => {
+    setup();
+    await openCard();
+    for (const [opts] of h.elements.mock.calls) expect((opts as { allowedPaymentMethodTypes?: string[] }).allowedPaymentMethodTypes).toEqual(["card", "link"]);
   });
 
   it("the options hold only the payment methods, never a saved-card tile", () => {

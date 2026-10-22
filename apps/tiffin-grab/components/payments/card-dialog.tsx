@@ -9,8 +9,9 @@ import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 import { Button } from "@/components/customer/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
+import { CARD_PAYMENT_METHOD_TYPES } from "@/lib/payments/stripe-appearance";
 import type { CardSource } from "@/lib/services/payment-stripe";
-import type { PayOutcome } from "./pay-panel";
+import type { PayOutcome } from "./card-pay";
 import { TrustLine } from "./trust-line";
 
 export const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -89,7 +90,7 @@ export function CardDialog(p: CommonProps & {
       key={session.key}
       stripe={stripePromise}
       options={{
-        mode: "payment", amount: amountCents, currency: "cad", setupFutureUsage: "off_session", appearance,
+        mode: "payment", amount: amountCents, currency: "cad", setupFutureUsage: "off_session", allowedPaymentMethodTypes: CARD_PAYMENT_METHOD_TYPES, appearance,
         ...(session.secret ? { customerSessionClientSecret: session.secret } : {}),
       }}
     >

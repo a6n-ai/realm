@@ -36,7 +36,7 @@ vi.mock("@/components/payments/etransfer-dialog", () => ({
 }));
 const lastCtx = vi.hoisted(() => ({ value: null as CardCheckoutContext | null }));
 // The real pieces need Stripe.js; these stand-ins call the same props the real ones do.
-vi.mock("@/components/payments/pay-panel", () => {
+vi.mock("@/components/payments/card-pay", () => {
   type P = {
     onPay: (s: { savedPaymentMethodId: string } | { confirmationTokenId: string }, accept: boolean) => Promise<{ kind: string }>;
     onPaid: () => void;

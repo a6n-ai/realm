@@ -17,7 +17,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/pay-panel";
+import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";

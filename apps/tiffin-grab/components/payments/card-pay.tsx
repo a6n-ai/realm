@@ -8,7 +8,7 @@ import { useTheme } from "@foundry/themes";
 import { Button as BarButton } from "@/components/customer/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import { stripeAppearance } from "@/lib/payments/stripe-appearance";
+import { CARD_PAYMENT_METHOD_TYPES, stripeAppearance } from "@/lib/payments/stripe-appearance";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
 import { CardDialog, ErrorAlert, SurchargeConfirm } from "./card-dialog";
 import { TrustLine } from "./trust-line";
@@ -91,7 +91,7 @@ export function CardPayProvider(props: Props) {
   return (
     <Elements
       stripe={stripePromise}
-      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance }}
+      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", allowedPaymentMethodTypes: CARD_PAYMENT_METHOD_TYPES, appearance }}
     >
       <Runner {...props} stripePromise={stripePromise} appearance={appearance} />
     </Elements>

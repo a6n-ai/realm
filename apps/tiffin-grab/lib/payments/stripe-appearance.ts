@@ -31,3 +31,6 @@ export function stripeAppearance(scheme: "light" | "dark"): Appearance {
     },
   };
 }
+
+/** Card-only checkout: Apple Pay / Google Pay ride on card, Link on link. Anything else enabled on the Stripe account (Klarna, Affirm, iDEAL…) never shows, because only cards are handled. */
+export const CARD_PAYMENT_METHOD_TYPES = ["card", "link"];
