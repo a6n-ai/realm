@@ -17,7 +17,7 @@
     "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/auth-ui": "github:a6n-ai/foundry#path:packages/auth-ui",
     "@foundry/clover": "github:a6n-ai/foundry#path:packages/clover",
-    "@foundry/commons": "github:a6n-ai/foundry#6985fab&path:packages/commons",
+    "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons",
     "@foundry/coupons": "github:a6n-ai/foundry#path:packages/coupons",
     "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm",
     "@foundry/database": "github:a6n-ai/foundry#path:packages/database",
@@ -27,7 +27,7 @@
     "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config",
     "@foundry/google-reviews": "github:a6n-ai/foundry#path:packages/google-reviews",
     "@foundry/order-tracking": "github:a6n-ai/foundry#path:packages/order-tracking",
-    "@foundry/payments": "github:a6n-ai/foundry#6985fab&path:packages/payments",
+    "@foundry/payments": "github:a6n-ai/foundry#path:packages/payments",
     "@foundry/places": "github:a6n-ai/foundry#path:packages/places",
     "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime",
     "@foundry/routes": "github:a6n-ai/foundry#path:packages/routes",
@@ -45,11 +45,11 @@
   },
   "devDependencies": {
     "@foundry/realtime-worker": "github:a6n-ai/foundry#path:services/realtime",
-    "jose": "^6.2.3",
+    "jose": "^6.2.13",
     "konsistent": "1.0.0-beta.4",
-    "turbo": "^2.9.18",
-    "typescript": "^5",
-    "vitest": "^4.1.9",
-    "wrangler": "^4"
+    "turbo": "^2.11.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.3"
   }
 }

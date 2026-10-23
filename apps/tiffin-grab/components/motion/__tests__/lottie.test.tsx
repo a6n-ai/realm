@@ -17,7 +17,7 @@ globalThis.IntersectionObserver ??=
 // Capture the props the underlying player receives.
 const lottieProps: Record<string, unknown>[] = [];
 vi.mock("lottie-react", () => ({
-  default: (props: Record<string, unknown>) => {
+  LottieSvg: (props: Record<string, unknown>) => {
     lottieProps.push(props);
     return <div data-testid="lottie-player" />;
   },
@@ -25,9 +25,9 @@ vi.mock("lottie-react", () => ({
 
 // next/dynamic(ssr:false) — render the imported module synchronously in tests.
 vi.mock("next/dynamic", () => ({
-  default: (loader: () => Promise<{ default: unknown }>) => {
+  default: (loader: () => Promise<unknown>) => {
     let Comp: unknown;
-    loader().then((m) => (Comp = m.default));
+    loader().then((m) => (Comp = (m as { default?: unknown }).default ?? m));
     return (props: Record<string, unknown>) => {
       const C = Comp as (p: Record<string, unknown>) => React.JSX.Element;
       return C ? <C {...props} /> : null;

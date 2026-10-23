@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useReducedMotion } from "motion/react";
-import type { LottieRefCurrentProps } from "lottie-react";
+import type { LottieHandle } from "lottie-react";
 
 // lottie-react pulls in lottie-web (~250kb). Load it only on the client, only
 // when a <Lottie> actually mounts, so it never touches SSR or the initial JS.
-const LottiePlayer = dynamic(() => import("lottie-react"), { ssr: false });
+const LottiePlayer = dynamic(() => import("lottie-react").then((m) => m.LottieSvg), { ssr: false });
 
 export type LottieMode = "loop" | "once" | "hover" | "inView";
 
@@ -21,9 +21,9 @@ interface LottieProps {
 
 export function Lottie({ src, mode = "inView", className, speed = 1, label }: LottieProps) {
   const reduce = useReducedMotion();
-  const ref = useRef<LottieRefCurrentProps>(null);
+  const ref = useRef<LottieHandle>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<unknown>(null);
+  const [data, setData] = useState<object | null>(null);
   const [inView, setInView] = useState(mode !== "inView");
 
   useEffect(() => {
@@ -40,8 +40,6 @@ export function Lottie({ src, mode = "inView", className, speed = 1, label }: Lo
     return () => io.disconnect();
   }, [mode]);
 
-  useEffect(() => { ref.current?.setSpeed(speed); }, [speed, data]);
-
   const loop = mode === "loop";
   // Reduced motion, or not-yet-in-view: mount stopped at frame 0.
   const autoplay = !reduce && inView && mode !== "hover";
@@ -57,11 +55,14 @@ export function Lottie({ src, mode = "inView", className, speed = 1, label }: Lo
       onMouseLeave={mode === "hover" ? () => ref.current?.stop() : undefined}
     >
       {data ? (
+        // autoplay is load-time in lottie-react 3; remount when it flips on scroll-in.
         <LottiePlayer
+          key={String(autoplay)}
           lottieRef={ref}
-          animationData={data}
+          src={data}
           autoplay={autoplay}
           loop={loop}
+          speed={speed}
         />
       ) : null}
     </div>

@@ -16,9 +16,8 @@ on:
       - "foundry/**"
       - "relay/**"
       - "deployment/prod/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "package.json"
+      # No root lockfile/workspace triggers: puchkaman is sunset (2026-10-13) and
+      # is not kept building against shared dependency upgrades.
       - ".github/workflows/deploy-puchkaman.yml"
   workflow_dispatch: {}
 

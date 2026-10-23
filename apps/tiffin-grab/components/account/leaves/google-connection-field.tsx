@@ -23,7 +23,12 @@ export function GoogleConnectionField({
       // Linking only accepts a Google account with this account's email (Better Auth default).
       onConnect={() => authClient.linkSocial({ provider: "google", callbackURL })}
       onDisconnect={async () => {
-        const res = await authClient.unlinkAccount({ providerId: "google" });
+        // Better Auth 1.7 unlinks by account row id, not provider.
+        const list = await authClient.listAccounts();
+        if (list.error) return list;
+        const google = list.data.find((a) => a.providerId === "google");
+        if (!google) return { error: { message: "No Google account is linked." } };
+        const res = await authClient.unlinkAccount({ accountId: google.id });
         if (!res.error) router.refresh();
         return res;
       }}

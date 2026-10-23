@@ -8,7 +8,7 @@ packages:
 blockExoticSubdeps: false
 
 overrides:
-  "@foundry/commons": "github:a6n-ai/foundry#6985fab&path:packages/commons"
+  "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
   "@foundry/database": "github:a6n-ai/foundry#path:packages/database"
@@ -32,8 +32,8 @@ overrides:
   # (relay's) toasts into a store the app's <Toaster> never reads.
   "sonner": "2.0.8"
   "esbuild@<0.25.0": ">=0.25.0"
-  "@types/react": "19.2.18"
-  "@types/react-dom": "19.2.5"
+  "@types/react": "19.3.0"
+  "@types/react-dom": "19.3.0"
   "brace-expansion": "^1.1.18"
   "fast-uri": "^3.1.5"
   "ip-address": "^10.3.1"
@@ -42,13 +42,28 @@ overrides:
   "undici": "^7.29.0"
   "hono": "^4.12.34"
   "@hono/node-server": "^1.19.15"
-  "zod": "^4.6.5"
-
-patchedDependencies:
-  "@react-email/editor@1.5.10": "patches/@react-email__editor@1.5.10.patch"
+  "zod": "^4.6.7"
+  # One copy only: two drizzle-orm copies make @foundry/database types incompatible.
+  "drizzle-orm": "0.45.4"
+  "stripe": "23.0.1"
 
 allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
   workerd: true
+
+minimumReleaseAgeExclude:
+  - '@next/env@16.4.3'
+  - '@next/swc-darwin-arm64@16.4.3'
+  - '@next/swc-darwin-x64@16.4.3'
+  - '@next/swc-linux-arm64-gnu@16.4.3'
+  - '@next/swc-linux-arm64-musl@16.4.3'
+  - '@next/swc-linux-x64-gnu@16.4.3'
+  - '@next/swc-linux-x64-musl@16.4.3'
+  - '@next/swc-win32-arm64-msvc@16.4.3'
+  - '@next/swc-win32-x64-msvc@16.4.3'
+  - next@16.4.3
+  - '@next/eslint-plugin-next@16.4.3'
+  - eslint-config-next@16.4.3
+  - stripe@23.0.1
