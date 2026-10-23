@@ -34,6 +34,8 @@ const sourceColumns = {
   addressPublicId: sql<string | null>`(select ${customerAddresses.publicId} from ${customerAddresses} where ${customerAddresses.id} = ${orders.addressId})`,
   organizationId: orders.organizationId,
   planKey: plans.key,
+  tagColor: plans.tagColor,
+  tagLabel: plans.tagLabel,
   mealSizePublicId: mealSizes.publicId,
   frequencyKey: deliveryFrequencies.key,
   eatingDays: orders.eatingDays,
@@ -87,6 +89,7 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
   return {
     catalog: client, initial, sourceOrderPublicId: src.publicId, minStartDate, lastTiffin,
     holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId,
+    tagColor: src.tagColor, tagLabel: src.tagLabel,
   };
 }
 

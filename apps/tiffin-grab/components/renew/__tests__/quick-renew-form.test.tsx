@@ -23,7 +23,7 @@ const initial: WizardSelections = { ...initialSelections, planKey: "veg", mealSi
 const addr = (publicId: string, label: string) => ({ publicId, label, addressLine: `${label} St`, addressUnit: null, city: "Toronto", province: null, postalCode: "M5V 2T6", deliveryInstructions: null, isDefault: false, fullName: null, lat: null, lng: null });
 const data: QuickRenewData = {
   catalog, initial, sourceOrderPublicId: "ord_1", minStartDate: null, lastTiffin: "2030-02-01",
-  holidayDates: ["2030-02-06"], savedAddresses: [addr("adr_1", "Home"), addr("adr_2", "Work")], addressDropOffs: {}, defaultAddressPublicId: "adr_1",
+  holidayDates: ["2030-02-06"], savedAddresses: [addr("adr_1", "Home"), addr("adr_2", "Work")], addressDropOffs: {}, defaultAddressPublicId: "adr_1", tagColor: "#10b981", tagLabel: "Veg",
 };
 
 beforeEach(() => {
@@ -35,7 +35,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); cleanup(); });
 
 const form = (p: Partial<Parameters<typeof QuickRenewForm>[0]> = {}) =>
-  <QuickRenewForm {...data} variant="customer" submitLabel="Pay now" onSubmit={vi.fn().mockResolvedValue(null)} changePlanHref="/subscribe?full=1" {...p} />;
+  <QuickRenewForm {...data} variant="customer" submitLabel="Pay now" onSubmit={vi.fn().mockResolvedValue(null)} changePlanHref="/me/renew?full=1" {...p} />;
 
 describe("QuickRenewForm", () => {
   it("renders prefilled picks on one screen, no stepper", async () => {
@@ -84,5 +84,38 @@ describe("QuickRenewForm", () => {
     unmount();
     render(form({ variant: "admin" }));
     expect(screen.queryByText("Change meal or days")).toBeNull();
+  });
+
+  it("stays locked after a successful submit so a second tap cannot double-order", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(null);
+    render(form({ onSubmit }));
+    const pay = await screen.findByRole("button", { name: "Pay now" });
+    await waitFor(() => expect((pay as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(pay);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    fireEvent.click(pay);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole("button", { name: "Pay now" }) as HTMLButtonElement).disabled || screen.getByRole("button", { name: "Pay now" }).getAttribute("aria-disabled") === "true").toBe(true);
+  });
+
+  it("hands the current picks to onUseNewAddress, customer only", () => {
+    const onUseNewAddress = vi.fn();
+    const { unmount } = render(form({ onUseNewAddress }));
+    fireEvent.click(screen.getByRole("button", { name: "Use a different address" }));
+    expect(onUseNewAddress).toHaveBeenCalledWith(expect.objectContaining({ durationWeeks: 4 }));
+    unmount();
+    render(form({ variant: "admin", onUseNewAddress }));
+    expect(screen.queryByRole("button", { name: "Use a different address" })).toBeNull();
+  });
+
+  it("admin shell prices, picks weeks and submits", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(null);
+    render(form({ variant: "admin", onSubmit }));
+    await screen.findByText("$123.45");
+    fireEvent.click(screen.getByRole("radio", { name: "1 weeks" }));
+    await waitFor(() => expect(repriceMock.mock.calls.at(-1)![0]).toMatchObject({ durationWeeks: 1 }));
+    await screen.findByText("$123.45");
+    fireEvent.click(screen.getByRole("button", { name: "Pay now" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ durationWeeks: 1 }), "adr_1"));
   });
 });

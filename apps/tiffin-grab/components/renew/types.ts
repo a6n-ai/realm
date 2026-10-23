@@ -13,4 +13,7 @@ export type QuickRenewData = {
   savedAddresses: SavedAddress[];
   addressDropOffs: Record<string, DropOffValue>;
   defaultAddressPublicId: string | null;
+  /** The source plan's admin tag, same source as the deliveries plan header. */
+  tagColor: string | null;
+  tagLabel: string | null;
 };
