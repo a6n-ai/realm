@@ -92,7 +92,7 @@ describe("IdentityGate", () => {
     expect(sendVerificationOtp).toHaveBeenCalledWith({ email: "back@person.com", type: "sign-in" });
 
     await user.type(screen.getByLabelText(/code sent to/i), "123456");
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/me/renew", { transitionTypes: ["nav-forward"] }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/me/renew?full=1", { transitionTypes: ["nav-forward"] }));
     expect(push).not.toHaveBeenCalledWith("/me/renew");
     expect(signInEmailOtp).toHaveBeenCalledWith({ email: "back@person.com", otp: "123456" });
   });

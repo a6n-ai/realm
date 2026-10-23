@@ -10,7 +10,7 @@ import { isStaffRole } from "@/lib/auth/landing";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
-import { quoteQuery, type QuoteParams } from "@/components/wizard/selections";
+import { newOrderHref, type QuoteParams } from "@/components/wizard/selections";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 
@@ -34,7 +34,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   // sends them there — so every order has an owner who can pay and upload proof.
   const userId = await currentUserId();
   // A staff estimate link carries the quoted plan; it rides along to the stepper.
-  if (userId != null) redirect(`/me/renew${quoteQuery(params)}`);
+  if (userId != null) redirect(newOrderHref(params));
 
   const [coupons, jar] = await Promise.all([couponsService.listAvailable(), cookies()]);
   const { error } = params;

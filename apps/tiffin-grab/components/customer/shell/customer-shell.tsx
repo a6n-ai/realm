@@ -232,9 +232,12 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
       <Sheet open={open} onClose={() => setOpen(false)} title="More">
         {/* Ordered by how often people reach for them: this week's food first, ordering last. */}
         <MenuSection title="Meals">
-          <ListRow href="/me/menu" icon={<UtensilsCrossed className="size-[18px]" />} label="Weekly menu" sublabel="What is being served" />
-          <ListRow href="/me/renew" icon={<RefreshCw className="size-[18px]" />} label="Renew plan" sublabel="Keep your meals coming" />
-          <ListRow href="/subscribe" icon={<Plus className="size-[18px]" />} label="New order" sublabel="Start another plan" />
+          {/* Renew sits in the middle and is the one lit up: it is what most customers open this for. */}
+          <div className="grid grid-cols-3 gap-2">
+            <MenuTile href="/me/menu" icon={<UtensilsCrossed className="size-5" />} label="Weekly menu" sublabel="This week" />
+            <MenuTile href="/me/renew" icon={<RefreshCw className="size-5" />} label="Renew" sublabel="Same plan" primary />
+            <MenuTile href="/subscribe" icon={<Plus className="size-5" />} label="New order" sublabel="Another plan" />
+          </div>
         </MenuSection>
         <MenuSection title="Money">
           <ListRow href="/me/wallet" icon={<Wallet className="size-[18px]" />} label="Finances" sublabel="Coins, coupons, bills" />
@@ -244,5 +247,24 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         </MenuSection>
       </Sheet>
     </div>
+  );
+}
+
+function MenuTile({ href, icon, label, sublabel, primary = false }: { href: string; icon: ReactNode; label: string; sublabel: string; primary?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        FONT, FOCUS,
+        "flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
+        primary
+          ? "border-[color-mix(in_oklch,var(--primary)_45%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_8%,var(--card))]"
+          : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
+      )}
+    >
+      <span aria-hidden className={cn("grid size-10 place-items-center rounded-xl", primary ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)]")}>{icon}</span>
+      <span className="text-[15px] leading-tight font-semibold">{label}</span>
+      <span className="text-[13px] leading-tight text-[var(--muted-foreground)]">{sublabel}</span>
+    </Link>
   );
 }

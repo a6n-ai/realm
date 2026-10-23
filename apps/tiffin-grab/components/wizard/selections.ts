@@ -281,6 +281,12 @@ export function quoteCodes(q: QuoteParams): string[] {
 }
 
 /** The quote params alone, for forwarding through sign-in; "" when the URL carries none. */
+/** Signed-in "new order": the full stepper (`?full=1`), never Quick Renew, carrying any estimate-link picks. */
+export function newOrderHref(params: QuoteParams | URLSearchParams): string {
+  const q = quoteQuery(params);
+  return `/me/renew?full=1${q ? `&${q.slice(1)}` : ""}`;
+}
+
 export function quoteQuery(params: QuoteParams | URLSearchParams): string {
   const get = (k: string) => (params instanceof URLSearchParams ? params.get(k) : params[k as keyof QuoteParams]);
   const out = new URLSearchParams();

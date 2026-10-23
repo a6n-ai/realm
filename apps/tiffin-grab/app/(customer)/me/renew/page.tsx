@@ -126,7 +126,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           catalog={client}
           closeHref="/me"
           exitHref="/me"
-          origin="renew"
+          origin={full ? "subscribe" : "renew"}
           initial={initial}
           quote={quoted ? { picks: initial, codes: quoteCodes(params) } : null}
           currentPlan={current}
