@@ -72,6 +72,8 @@ export interface RepriceResult {
   // why — the admin percentage limit or the order already being fully covered.
   // null for a signed-out checkout (no wallet).
   coinCap: { maxCoins: number; maxPct: number | null; message: string | null } | null;
+  // The coins actually taken off this quote (may be fewer than asked when the order needs less).
+  coinsApplied?: { coins: number; amount: number };
 }
 
 // Card is offered only while Stripe is actually usable, so a half-configured account never strands a customer.
@@ -183,6 +185,7 @@ async function quote(
   let coinCap: RepriceResult["coinCap"] = null;
   let rate: number | null = null;
   let coinsSpent = 0;
+  let coinsValue = 0;
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
@@ -207,6 +210,7 @@ async function quote(
         const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
         if (redemption.currencyValue > 0) {
           coinsSpent = redemption.coinsSpent;
+          coinsValue = redemption.currencyValue;
           lines.push({ label: `Coins (${coinsSpent})`, amount: redemption.currencyValue });
         }
       }
@@ -248,6 +252,7 @@ async function quote(
     coinsToEarn,
     coinsError,
     coinCap,
+    coinsApplied: coinsSpent > 0 ? { coins: coinsSpent, amount: coinsValue } : undefined,
   };
 }
 

@@ -53,7 +53,6 @@ export function OrderSummary({
   const weeks = selections.durationWeeks;
   const perWeek = days.length;
   const start = startLabel(selections.startDate);
-  const saved = result ? result.adjustments.reduce((s, a) => s + a.amount, 0) : 0;
   const qty = result
     ? perWeek > 0 && weeks > 0
       ? `${perWeek} tiffins a week × ${weeks} ${weeks === 1 ? "week" : "weeks"} = ${result.tiffinCount} tiffins`
@@ -135,7 +134,6 @@ export function OrderSummary({
             <span className="text-[15px] font-semibold">Total</span>
             <span className="nums text-primary text-[28px] leading-none font-bold tracking-[-0.03em]">{money(result.total)}</span>
           </div>
-          {saved > 0 && <p className="nums mt-1.5 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">You save {money(saved)}</p>}
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">Working out your price…</p>

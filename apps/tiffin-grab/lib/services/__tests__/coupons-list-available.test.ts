@@ -106,4 +106,15 @@ describe("couponsService.listAvailable (customer browse list)", () => {
     expect((await couponsService.listAvailable()).map((c) => c.code)).toEqual(["WELCOME10"]);
     spy.mockRestore();
   });
+
+  it("hides a coupon already parked on the customer's order awaiting payment verification", async () => {
+    const [u] = await db.insert(users).values({ email: "held@test.com", role: "user", name: "Held" }).returning({ id: users.id });
+    await db.insert(coupons).values({ code: "WELCOME10", kind: "percentage", name: "Welcome", valuePct: "10", maxPerUser: 1, active: true, visible: true });
+    const spy = vi.spyOn(couponsService as unknown as { heldByUnpaidOrders: () => Promise<number> }, "heldByUnpaidOrders").mockResolvedValue(1);
+
+    expect((await couponsService.listAvailable(u.id)).map((c) => c.code)).toEqual([]);
+    spy.mockResolvedValue(0);
+    expect((await couponsService.listAvailable(u.id)).map((c) => c.code)).toEqual(["WELCOME10"]);
+    spy.mockRestore();
+  });
 });
