@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { reprice } from "@/app/(public)/subscribe/actions";
+import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 import { offeredAddons, type WizardSelections } from "@/components/wizard/selections";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { appToday, firstStartOnOrAfter } from "@/lib/services/start-date";
@@ -14,7 +15,7 @@ export type QuickRenewProps = QuickRenewData & {
 };
 
 /** State and rules shared by the customer and admin shells. */
-export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holidayDates, savedAddresses, defaultAddressPublicId, onSubmit }: QuickRenewProps) {
+export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId, onSubmit }: QuickRenewProps) {
   const [sel, setSel] = useState<WizardSelections>(initial);
   const set = (patch: Partial<WizardSelections>) => setSel((s) => ({ ...s, ...patch }));
   const [addressId, setAddressId] = useState<string | null>(defaultAddressPublicId);
@@ -39,11 +40,13 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
   useEffect(() => {
     let active = true;
     setPrice((p) => ({ ...p, loading: true, error: null }));
-    reprice(sel, undefined, sel.planKey ?? undefined, undefined, undefined, address?.postalCode, address?.addressLine, address?.city)
+    // The saved address's drop-off fee is part of what checkout charges, so the quote must carry it or the total jumps on the pay step.
+    const drop = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), address ? addressDropOffs[address.publicId] : null);
+    reprice({ ...sel, deliveryTagId: drop.tagId, deliveryStrategyIds: drop.strategyIds }, undefined, sel.planKey ?? undefined, undefined, undefined, address?.postalCode, address?.addressLine, address?.city)
       .then((r) => { if (active) setPrice({ result: "error" in r ? null : r.pricing, error: "error" in r ? r.error : null, loading: false }); })
       .catch(() => { if (active) setPrice({ result: null, error: "Couldn't load the price.", loading: false }); });
     return () => { active = false; };
-  }, [sel, address, retry]);
+  }, [sel, address, retry, catalog, addressDropOffs]);
 
   const dayDisabledReason = (iso: string): string | undefined =>
     iso < minDate ? "Before the earliest available date"
