@@ -90,7 +90,7 @@ function CustomerShell({ changePlanHref, onUseNewAddress, ...data }: QuickRenewD
 
       <div className="flex flex-col gap-3">
         <p className="c-label">Weeks</p>
-        <ChoiceGroup label="Weeks" className="grid grid-cols-2 gap-3 sm:grid-cols-4" value={String(sel.durationWeeks)} onChange={(v) => set({ durationWeeks: Number(v) })}>
+        <ChoiceGroup label="Weeks" className="grid grid-cols-3 gap-3 sm:grid-cols-5" value={String(sel.durationWeeks)} onChange={(v) => set({ durationWeeks: Number(v) })}>
           {[...catalog.durations].sort((a, b) => b.weeks - a.weeks).map((d) => (
             <Choice key={d.weeks} value={String(d.weeks)} className="min-h-14 p-3 text-sm font-semibold">
               <span className="c-h2">{d.weeks}wk</span>
