@@ -46,6 +46,8 @@ export const appEvent = pgEnum("app_event", [
   // Referral rewards: the friend and the referrer, both on the friend's first paid order.
   "referral_referrer",
   "referral_friend",
+  // Daily job: the plan's last tiffin is 5 days or 1 day away.
+  "order_renewal_reminder",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

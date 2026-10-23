@@ -73,6 +73,16 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "outcome", label: "What changed for the customer" },
     ],
   },
+  order_renewal_reminder: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "mealSize", label: "Meal size" },
+      { name: "lastTiffin", label: "Last tiffin date" },
+      { name: "lastTiffinWhen", label: "When it ends (\"tomorrow\" or \"on Friday, Oct 30\")" },
+    ],
+  },
   payment_received: {
     entity: "payment",
     fields: [

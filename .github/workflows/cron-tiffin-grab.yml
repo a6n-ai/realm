@@ -18,12 +18,15 @@ on:
     # Nightly OptimoRoute completion pull, after drivers close their stops:
     # 02:00 UTC = 22:00 Toronto (EDT) / 21:00 (EST). The route pulls the app-timezone today.
     - cron: "0 2 * * *"
+    # Morning renewal reminders, so the email lands in the day:
+    # 13:00 UTC = 09:00 Toronto (EDT) / 08:00 (EST).
+    - cron: "0 13 * * *"
   workflow_dispatch:
     inputs:
       job:
         description: "Which pass to run by hand"
         type: choice
-        options: [pull-completions, complete-plans]
+        options: [pull-completions, complete-plans, renewal-reminders]
         default: pull-completions
 
 concurrency:
@@ -34,7 +37,7 @@ jobs:
   # OptimoRoute's success/failed per stop is what marks a delivery delivered or not delivered;
   # an open or unmatched stop is left awaiting confirmation for staff.
   pull-completions:
-    if: github.event_name == 'schedule' || inputs.job == 'pull-completions'
+    if: github.event.schedule == '0 2 * * *' || inputs.job == 'pull-completions'
     runs-on: ubuntu-latest
     steps:
       - name: Pull today's OptimoRoute completions
@@ -57,7 +60,7 @@ jobs:
   # Closes plans that are over, after the completion pull has recorded today's deliveries.
   complete-plans:
     needs: pull-completions
-    if: always() && (github.event_name == 'schedule' || inputs.job == 'complete-plans')
+    if: always() && (github.event.schedule == '0 2 * * *' || inputs.job == 'complete-plans')
     runs-on: ubuntu-latest
     steps:
       - name: Close finished plans
@@ -73,5 +76,26 @@ jobs:
           echo
           if [ "${code}" != "200" ]; then
             echo "::error::complete-plans returned HTTP ${code}"
+            exit 1
+          fi
+
+  renewal-reminders:
+    if: github.event.schedule == '0 13 * * *' || inputs.job == 'renewal-reminders'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send renewal reminder emails
+        env:
+          CRON_SECRET: ${{ secrets.TIFFIN_GRAB_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://app.tiffingrab.ca/api/cron/renewal-reminders)
+          echo "HTTP ${code}"
+          # Counts only (plans reminded per day-offset), no customer names.
+          cat /tmp/response.json
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::renewal-reminders returned HTTP ${code}"
             exit 1
           fi
