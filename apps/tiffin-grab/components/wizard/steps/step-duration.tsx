@@ -160,6 +160,7 @@ export function StepDuration({
           today={minDate}
           minDate={minDate}
           allowedDays={allowed}
+          closedDates={holidayDates}
         />
         <p className="mt-1 text-xs text-muted-foreground">
           {trial ? "Sent on" : "Deliveries start on a weekday"} ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {formatDateOnly(earliest, { mode: "short" })}.

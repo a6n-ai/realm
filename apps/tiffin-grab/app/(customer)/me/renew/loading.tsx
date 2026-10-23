@@ -1,18 +1,19 @@
 import { Skeleton } from "@/components/customer/kit";
 
-// Header copy depends on whether a plan is running, so it stays a skeleton; the wizard body is a card stack.
+// Same shape as the quick renew screen (top bar, heading, plan card, start date, week cards), so nothing jumps when it lands.
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Loading" role="status" className="mx-auto w-full max-w-3xl space-y-4">
-      <div className="space-y-2 pb-2">
-        <Skeleton className="h-7 w-56 sm:h-9" />
-        <Skeleton className="h-4 w-full max-w-md" />
+    <div aria-busy="true" aria-label="Loading" role="status" className="mx-auto w-full max-w-3xl space-y-6">
+      <div className="flex items-center justify-between border-b py-2">
+        <Skeleton className="h-8 w-20 rounded-full" />
+        <Skeleton className="h-11 w-32 rounded-full" />
       </div>
-      <Skeleton className="h-3 w-full rounded-full" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-28 rounded-2xl" />
+      <Skeleton className="h-12 rounded-2xl" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-[72px] rounded-2xl" />)}
       </div>
-      <Skeleton className="h-12 rounded-full" />
     </div>
   );
 }

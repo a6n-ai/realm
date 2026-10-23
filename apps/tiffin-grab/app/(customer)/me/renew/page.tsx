@@ -35,10 +35,6 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
     return (
       <PageShell>
         <div className="mx-auto w-full max-w-3xl">
-          <header className="space-y-1 pb-2">
-            <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">Renew your plan</h1>
-            <p className="text-muted-foreground text-sm text-pretty">Same plan, new dates. Change anything below, then pay.</p>
-          </header>
           <QuickRenewClient {...data} />
         </div>
       </PageShell>

@@ -7,6 +7,7 @@ import type { QuickRenewData } from "../types";
 
 const { repriceMock } = vi.hoisted(() => ({ repriceMock: vi.fn() }));
 vi.mock("@/app/(public)/subscribe/actions", () => ({ reprice: repriceMock }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: vi.fn() }) }));
 
 import { QuickRenewForm } from "../quick-renew-form";
 
@@ -22,7 +23,7 @@ const catalog = {
 const initial: WizardSelections = { ...initialSelections, planKey: "veg", mealSizeId: "msz_1", frequencyKey: "5day", eatingDays: ["mon", "tue"], durationWeeks: 4, startDate: "2030-02-04" };
 const addr = (publicId: string, label: string) => ({ publicId, label, addressLine: `${label} St`, addressUnit: null, city: "Toronto", province: null, postalCode: "M5V 2T6", deliveryInstructions: null, isDefault: false, fullName: null, lat: null, lng: null });
 const data: QuickRenewData = {
-  catalog, initial, sourceOrderPublicId: "ord_1", organizationId: "org_9", defaultPaymentMethodId: "stripe", minStartDate: null, lastTiffin: "2030-02-01",
+  catalog, initial, sourceOrderPublicId: "ord_1", organizationId: "org_9", defaultPaymentMethodId: "stripe", minStartDate: "2030-02-04", lastTiffin: "2030-02-01",
   holidayDates: ["2030-02-06"], savedAddresses: [addr("adr_1", "Home"), addr("adr_2", "Work")], addressDropOffs: {}, defaultAddressPublicId: "adr_1", tagColor: "#10b981", tagLabel: "Veg",
 };
 
@@ -30,7 +31,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2030-02-01T17:00:00Z"));
   repriceMock.mockReset();
-  repriceMock.mockResolvedValue({ pricing: { total: 123.45 } });
+  repriceMock.mockResolvedValue({ pricing: { total: 123.45, tiffinCount: 8 } });
 });
 afterEach(() => { vi.useRealTimers(); cleanup(); });
 
@@ -45,7 +46,8 @@ describe("QuickRenewForm", () => {
     expect((screen.getByRole("radio", { name: /4wk/ }) as HTMLInputElement | HTMLElement).getAttribute("aria-checked")).toBe("true");
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect(screen.queryByRole("button", { name: /next/i })).toBeNull();
-    expect(screen.getByText("Starts right after your current plan ends")).toBeTruthy();
+    expect(screen.getByText(/Current plan ends/)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Back/ }).length).toBeGreaterThan(0);
     await screen.findByText("$123.45");
   });
 

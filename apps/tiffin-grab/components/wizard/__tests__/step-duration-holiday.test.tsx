@@ -47,10 +47,13 @@ describe("StepDuration with holidays", () => {
     expect(screen.getByTestId("start").textContent).toBe("2030-02-05");
   });
 
-  it("clears the date and shows the error when a holiday is picked", () => {
+  it("greys out a holiday in the picker, so it can't become the start date", () => {
     render(<Harness holidayDates={["2030-02-06"]} />);
     fireEvent.click(screen.getByRole("button", { name: /start date/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Wednesday, February 6" }));
-    expect(screen.getByText("We are closed that day. Pick another start date")).toBeDefined();
+    const holiday = screen.getByRole("button", { name: /Wednesday, February 6/ });
+    expect(holiday.getAttribute("aria-disabled")).toBe("true");
+    expect(holiday.getAttribute("aria-label")).toContain("We are closed that day");
+    fireEvent.click(holiday);
+    expect(screen.getByTestId("start").textContent).toBe("2030-02-04");
   });
 });

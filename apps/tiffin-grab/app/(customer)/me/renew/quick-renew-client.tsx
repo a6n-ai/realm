@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { QuickRenewForm } from "@/components/renew/quick-renew-form";
+import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import type { QuickRenewData } from "@/components/renew/types";
 import {
   RENEW_ADDRESS_KEY,
@@ -15,6 +16,8 @@ import {
 
 export function QuickRenewClient(data: QuickRenewData) {
   const router = useRouter();
+  // Back from a paid checkout must not reopen renewal (the new plan would now send it to the full wizard).
+  const bouncing = useBounceAfterPaid();
 
   const stash = (s: WizardSelections) => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
@@ -25,6 +28,7 @@ export function QuickRenewClient(data: QuickRenewData) {
     sessionStorage.removeItem(RENEW_ADDRESS_KEY);
   };
 
+  if (bouncing) return null;
   return (
     <QuickRenewForm
       {...data}
