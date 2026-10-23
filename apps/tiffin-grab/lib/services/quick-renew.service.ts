@@ -1,12 +1,15 @@
 import "server-only";
-import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
-import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, plans, users } from "@/db/schema";
+import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { renewSelections } from "@/components/renew/renew-selections";
 import type { QuickRenewData } from "@/components/renew/types";
+import { stripeMethodAvailable } from "@/lib/payments/stripe";
+import { getPaymentConfig } from "./app-settings.service";
 import { addressService } from "./addresses.service";
 import { dropOffsFor } from "./address-drop-off.service";
 import { checkoutHolidayDates } from "./holidays.service";
@@ -33,6 +36,7 @@ const sourceColumns = {
   endDate: lastDelivery,
   addressPublicId: sql<string | null>`(select ${customerAddresses.publicId} from ${customerAddresses} where ${customerAddresses.id} = ${orders.addressId})`,
   organizationId: orders.organizationId,
+  sourceMethodId: sql<string | null>`${orders.pricingSnapshot}->>'paymentMethodId'`,
   planKey: plans.key,
   tagColor: plans.tagColor,
   tagLabel: plans.tagLabel,
@@ -52,6 +56,17 @@ function sourceQuery() {
 }
 
 type Source = Awaited<ReturnType<typeof sourceQuery>>[number];
+
+/**
+ * The rail a renewal is quoted and charged on: card when Stripe is live (the pay link needs it), else the source
+ * order's own method if still enabled, else the first enabled. One rule for the preview and renewOrderAction.
+ */
+export async function defaultPaymentMethodId(sourceMethodId: string | null): Promise<string | null> {
+  const enabled = enabledMethods(await getPaymentConfig()).map((m) => m.id);
+  return (await stripeMethodAvailable()) ? "stripe"
+    : sourceMethodId && enabled.includes(sourceMethodId) ? sourceMethodId
+    : (enabled[0] ?? null);
+}
 
 async function build(userId: bigint, orgId: string | null, src: Source | null, staff: boolean): Promise<QuickRenewData | null> {
   if (!src) return null;
@@ -87,6 +102,8 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
     ? (savedAddresses.find((a) => a.publicId === src.addressPublicId)?.publicId ?? null)
     : (savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0])?.publicId ?? null;
   return {
+    organizationId: orgId,
+    defaultPaymentMethodId: await defaultPaymentMethodId(staff ? src.sourceMethodId : null),
     catalog: client, initial, sourceOrderPublicId: src.publicId, minStartDate, lastTiffin,
     holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId,
     tagColor: src.tagColor, tagLabel: src.tagLabel,
@@ -108,15 +125,26 @@ export async function loadQuickRenewForOrder(orderPublicId: string): Promise<Qui
 }
 
 /**
- * A later order of the same customer that is not a running plan yet (unpaid or waitlisted). Renewing again would
- * stack a duplicate on it, so both the order page and renewOrderAction refuse while one exists.
+ * A later order of the same customer, in the same organization, that is not a running plan yet (unpaid or waitlisted).
+ * Renewing again would stack a duplicate on it, so the order page, renewOrderAction and /me/renew all refuse while one exists.
+ * Staff pass the source order (publicId, startDate: only a later one counts); the customer path passes just owner and org.
  */
-export async function findUnpaidRenewal(order: { publicId: string; userId: bigint | null; startDate: string }): Promise<{ publicId: string; deploymentId: string } | null> {
+export async function findUnpaidRenewal(order: { userId: bigint | null; organizationId: string | null; publicId?: string; startDate?: string }): Promise<{ publicId: string; deploymentId: string; payPublicId: string | null } | null> {
   if (order.userId == null) return null;
   const [row] = await db
-    .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
+    .select({
+      publicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      payPublicId: sql<string | null>`(select ${payments.publicId} from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.method} = 'stripe' and ${payments.status} = 'awaiting_payment' and ${payments.addonRequest} is null order by ${payments.id} desc limit 1)`,
+    })
     .from(orders)
-    .where(and(eq(orders.userId, order.userId), ne(orders.publicId, order.publicId), inArray(orders.status, ["pending", "waitlisted"]), gt(orders.startDate, order.startDate)))
+    .where(and(
+      eq(orders.userId, order.userId),
+      order.organizationId == null ? isNull(orders.organizationId) : eq(orders.organizationId, order.organizationId),
+      inArray(orders.status, ["pending", "waitlisted"]),
+      order.publicId ? ne(orders.publicId, order.publicId) : undefined,
+      order.startDate ? gt(orders.startDate, order.startDate) : undefined,
+    ))
     .limit(1);
   return row ?? null;
 }

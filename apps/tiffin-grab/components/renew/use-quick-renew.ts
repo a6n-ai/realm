@@ -15,7 +15,7 @@ export type QuickRenewProps = QuickRenewData & {
 };
 
 /** State and rules shared by the customer and admin shells. */
-export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId, onSubmit }: QuickRenewProps) {
+export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId, organizationId, defaultPaymentMethodId, onSubmit }: QuickRenewProps) {
   const [sel, setSel] = useState<WizardSelections>(initial);
   const set = (patch: Partial<WizardSelections>) => setSel((s) => ({ ...s, ...patch }));
   const [addressId, setAddressId] = useState<string | null>(defaultAddressPublicId);
@@ -42,11 +42,11 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
     setPrice((p) => ({ ...p, loading: true, error: null }));
     // The saved address's drop-off fee is part of what checkout charges, so the quote must carry it or the total jumps on the pay step.
     const drop = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), address ? addressDropOffs[address.publicId] : null);
-    reprice({ ...sel, deliveryTagId: drop.tagId, deliveryStrategyIds: drop.strategyIds }, undefined, sel.planKey ?? undefined, undefined, undefined, address?.postalCode, address?.addressLine, address?.city)
+    reprice({ ...sel, deliveryTagId: drop.tagId, deliveryStrategyIds: drop.strategyIds }, undefined, sel.planKey ?? undefined, defaultPaymentMethodId, undefined, address?.postalCode, address?.addressLine, address?.city, organizationId)
       .then((r) => { if (active) setPrice({ result: "error" in r ? null : r.pricing, error: "error" in r ? r.error : null, loading: false }); })
       .catch(() => { if (active) setPrice({ result: null, error: "Couldn't load the price.", loading: false }); });
     return () => { active = false; };
-  }, [sel, address, retry, catalog, addressDropOffs]);
+  }, [sel, address, retry, catalog, addressDropOffs, organizationId, defaultPaymentMethodId]);
 
   const dayDisabledReason = (iso: string): string | undefined =>
     iso < minDate ? "Before the earliest available date"

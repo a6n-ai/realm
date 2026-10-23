@@ -7,6 +7,10 @@ export type QuickRenewData = {
   catalog: ClientCatalogSnapshot;
   initial: WizardSelections;
   sourceOrderPublicId: string;
+  /** The source order's org: the preview prices from its catalog, same as createOrder. */
+  organizationId: string | null;
+  /** The rail checkout and the staff action charge on, so the quote carries its per-method taxes. */
+  defaultPaymentMethodId: string | null;
   minStartDate: string | null;
   lastTiffin: string | null;
   holidayDates: string[];

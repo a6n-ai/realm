@@ -22,7 +22,7 @@ const catalog = {
 const initial: WizardSelections = { ...initialSelections, planKey: "veg", mealSizeId: "msz_1", frequencyKey: "5day", eatingDays: ["mon", "tue"], durationWeeks: 4, startDate: "2030-02-04" };
 const addr = (publicId: string, label: string) => ({ publicId, label, addressLine: `${label} St`, addressUnit: null, city: "Toronto", province: null, postalCode: "M5V 2T6", deliveryInstructions: null, isDefault: false, fullName: null, lat: null, lng: null });
 const data: QuickRenewData = {
-  catalog, initial, sourceOrderPublicId: "ord_1", minStartDate: null, lastTiffin: "2030-02-01",
+  catalog, initial, sourceOrderPublicId: "ord_1", organizationId: "org_9", defaultPaymentMethodId: "stripe", minStartDate: null, lastTiffin: "2030-02-01",
   holidayDates: ["2030-02-06"], savedAddresses: [addr("adr_1", "Home"), addr("adr_2", "Work")], addressDropOffs: {}, defaultAddressPublicId: "adr_1", tagColor: "#10b981", tagLabel: "Veg",
 };
 
@@ -47,6 +47,14 @@ describe("QuickRenewForm", () => {
     expect(screen.queryByRole("button", { name: /next/i })).toBeNull();
     expect(screen.getByText("Starts right after your current plan ends")).toBeTruthy();
     await screen.findByText("$123.45");
+  });
+
+  it("prices with the server-default payment method and the source order's org", async () => {
+    render(form());
+    await waitFor(() => expect(repriceMock).toHaveBeenCalled());
+    const a = repriceMock.mock.calls.at(-1)!;
+    expect(a[3]).toBe("stripe");
+    expect(a[8]).toBe("org_9");
   });
 
   it("reprices with the new weeks", async () => {

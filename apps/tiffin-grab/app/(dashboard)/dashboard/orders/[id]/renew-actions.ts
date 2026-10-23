@@ -4,15 +4,15 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { enabledMethods } from "@foundry/payments";
-import { stripeMethodAvailable, stripePayLink } from "@/lib/payments/stripe";
-import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { stripePayLink } from "@/lib/payments/stripe";
 import { assertOnePerson, assertOrderVisible, createOrder, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { findUnpaidRenewal, loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
+import { defaultPaymentMethodId, findUnpaidRenewal, loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
 import type { QuickRenewData } from "@/components/renew/types";
 import type { WizardSelections } from "@/components/wizard/selections";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import type { AdminOrderCreated } from "../admin-order-created-dialog";
+
+const RENEWABLE = new Set(["active", "paused", "completed"]);
 
 async function guard(orderPublicId: string) {
   await requirePermission({ order: ["write"] });
@@ -39,6 +39,7 @@ export async function renewOrderAction(input: {
     const src = await loadRenewContext(input.orderPublicId);
     if (!src) throw new ValidationError("Order not found");
     if (await findUnpaidRenewal(src)) throw new ValidationError("This customer already has a renewal waiting for payment. Open it to resend the pay link or cancel it.");
+    if (!RENEWABLE.has(src.status)) throw new ValidationError("Only an active, paused or completed plan can be renewed.");
     if (src.trialLength != null) throw new ValidationError("A trial can't be quick-renewed. Use New order.");
     const addressPublicId = input.addressPublicId ?? src.addressPublicId;
     if (!addressPublicId) throw new ValidationError("Pick a delivery address");
@@ -57,11 +58,7 @@ export async function renewOrderAction(input: {
       addressTagId: c.addressTagId,
     };
     assertOnePerson({ selections });
-    // Server picks the rail: card when Stripe is live (the pay link needs it), else the order's own, else the first enabled.
-    const enabled = enabledMethods(await getPaymentConfig()).map((m) => m.id);
-    const paymentMethodId = (await stripeMethodAvailable()) ? "stripe"
-      : src.sourceMethodId && enabled.includes(src.sourceMethodId) ? src.sourceMethodId
-      : (enabled[0] ?? null);
+    const paymentMethodId = await defaultPaymentMethodId(src.sourceMethodId);
     const result = await createOrder(
       {
         addressPublicId,

@@ -68,4 +68,17 @@ describe("Checkout opened by Quick Renew", () => {
     await waitFor(() => expect(validatePostal).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy());
   });
+
+  it("drops the pay intent when the zone check fails, so a later address change stays on step 1", async () => {
+    vi.mocked(validatePostal).mockResolvedValue({ served: false } as never);
+    render(<Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={[{ ...BOOK[0]!, postalCode: "M4C 1A1" }, BOOK[1]!]} />);
+    await waitFor(() => expect(validatePostal).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy());
+    vi.mocked(validatePostal).mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } } as never);
+    const before = vi.mocked(validatePostal).mock.calls.length;
+    fireEvent.click((await screen.findAllByRole("radio", { name: /Home/ }))[0]!);
+    await waitFor(() => expect(vi.mocked(validatePostal).mock.calls.length).toBeGreaterThan(before));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy();
+  });
 });

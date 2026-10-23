@@ -9,12 +9,10 @@ const m = vi.hoisted(() => ({
   loadQuickRenewForOrder: vi.fn(),
   assertOrderVisible: vi.fn(),
   loadRenewSourceSelections: vi.fn(),
-  stripeAvailable: vi.fn(),
   methods: vi.fn(),
+  defaultMethod: vi.fn(),
 }));
-vi.mock("@/lib/payments/stripe", () => ({ stripeMethodAvailable: m.stripeAvailable, stripePayLink: async (id: string) => `https://pay/${id}` }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getPaymentConfig: async () => ({}) }));
-vi.mock("@foundry/payments", () => ({ enabledMethods: () => m.methods() }));
+vi.mock("@/lib/payments/stripe", () => ({ stripePayLink: async (id: string) => `https://pay/${id}` }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: m.requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -25,6 +23,7 @@ vi.mock("@/lib/services/orders.service", () => ({
   resolveSessionVisibleOrgIds: async () => "all",
 }));
 vi.mock("@/lib/services/quick-renew.service", () => ({
+  defaultPaymentMethodId: m.defaultMethod,
   loadRenewContext: m.loadRenewContext,
   findUnpaidRenewal: m.findUnpaidRenewal,
   loadQuickRenewForOrder: m.loadQuickRenewForOrder,
@@ -34,7 +33,7 @@ vi.mock("@/lib/services/quick-renew.service", () => ({
 const { renewOrderAction } = await import("../renew-actions");
 
 const SRC = {
-  planKey: "veg", organizationId: "org_1", trialLength: null, sourceMethodId: "etransfer", ownerPublicId: "usr_owner", ownerName: "Asha",
+  planKey: "veg", status: "active", organizationId: "org_1", trialLength: null, sourceMethodId: "etransfer", ownerPublicId: "usr_owner", ownerName: "Asha",
   email: "a@x.ca", phone: "+14165550101", fullName: "Asha", addressLine: "1 Main", city: "Toronto", postalCode: "M5V1A1", addressPublicId: "adr_1",
 };
 const input = { orderPublicId: "ord_1", selections: { planKey: "hacked" } as never, addressPublicId: "adr_2" };
@@ -46,8 +45,7 @@ beforeEach(() => {
   m.loadRenewContext.mockResolvedValue(SRC);
   m.findUnpaidRenewal.mockResolvedValue(null);
   m.loadRenewSourceSelections.mockResolvedValue({ planKey: "veg", mealSizeId: "ms_src", frequencyKey: "daily", eatingDays: ["mon"], persons: 1, mealSlots: [], includeSaturday: false, includeSunday: false, durationWeeks: 4, startDate: "2026-11-01", addonSelections: [] });
-  m.stripeAvailable.mockResolvedValue(true);
-  m.methods.mockReturnValue([{ id: "stripe" }, { id: "etransfer" }]);
+  m.defaultMethod.mockResolvedValue("stripe");
   m.createOrder.mockResolvedValue({ publicId: "ord_2", deploymentId: "SUB-1", paymentPublicId: "pay_1" });
 });
 
@@ -85,15 +83,17 @@ describe("renewOrderAction", () => {
     expect(m.createOrder).not.toHaveBeenCalled();
   });
 
-  it("passes stripe when available, else the source method, else the first enabled", async () => {
+  it("passes the shared default rail, seeded with the source order's method", async () => {
+    m.defaultMethod.mockResolvedValue("etransfer");
     await renewOrderAction(input);
-    expect(m.createOrder.mock.calls[0][0].paymentMethodId).toBe("stripe");
-    m.stripeAvailable.mockResolvedValue(false);
-    await renewOrderAction(input);
-    expect(m.createOrder.mock.calls[1][0].paymentMethodId).toBe("etransfer");
-    m.methods.mockReturnValue([{ id: "cash" }]);
-    await renewOrderAction(input);
-    expect(m.createOrder.mock.calls[2][0].paymentMethodId).toBe("cash");
+    expect(m.defaultMethod).toHaveBeenCalledWith("etransfer");
+    expect(m.createOrder.mock.calls[0][0].paymentMethodId).toBe("etransfer");
+  });
+
+  it("refuses a source order that is not active, paused or completed", async () => {
+    m.loadRenewContext.mockResolvedValue({ ...SRC, status: "cancelled" });
+    expect("error" in (await renewOrderAction(input))).toBe(true);
+    expect(m.createOrder).not.toHaveBeenCalled();
   });
 
   it("returns the overlap ValidationError as a result", async () => {

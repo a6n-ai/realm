@@ -122,11 +122,13 @@ async function quote(
   // Used only as the Stripe Tax address, same shape createOrder passes. Absent until typed.
   addressLine?: string,
   city?: string,
+  // Staff previews price from the source order's org; absent means the request's own.
+  orgId?: string | null,
 ): Promise<RepriceResult> {
   // Must match the snapshot the wizard page rendered from (same orgId), or a
   // franchise-scoped meal size/coupon the client priced against could resolve
   // to a different (or missing) row here and disagree on the total.
-  const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
+  const snapshot = await loadCatalogSnapshot(orgId !== undefined ? orgId : await resolveRequestOrg());
   const trialMeal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   const trial = trialMeal?.trial ? await quoteTrial(snapshot, selections) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snapshot, selections);

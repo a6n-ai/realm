@@ -303,7 +303,10 @@ export function Checkout({
     : null;
   // Quick Renew arrives with its plan, address and contact settled: open on Pay once the zone check lands.
   useEffect(() => {
-    if (wantPay.current && selections && zone?.served && step1Reason == null) {
+    if (!wantPay.current || !selections || !zone) return;
+    // A failed zone check must not leave the intent armed for a later address change.
+    if (!zone.served) { wantPay.current = false; return; }
+    if (step1Reason == null) {
       wantPay.current = false;
       setStep(2);
     }
