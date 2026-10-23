@@ -1,7 +1,7 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, plans } from "@/db/schema";
+import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -105,4 +105,30 @@ export async function loadQuickRenewForOrder(orderPublicId: string): Promise<Qui
   const [row] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
   if (row?.userId == null) return null;
   return build(row.userId, src.organizationId, src, true);
+}
+
+/** What a staff renewal takes from the source order, never from the client: owner, contact, plan, address. */
+export async function loadRenewContext(orderPublicId: string) {
+  const [row] = await db
+    .select({
+      planKey: plans.key,
+      organizationId: orders.organizationId,
+      status: orders.status,
+      trialLength: orders.trialLength,
+      ownerPublicId: users.publicId,
+      ownerName: users.name,
+      email: users.email,
+      phone: users.phone,
+      fullName: orders.fullName,
+      addressLine: orders.addressLine,
+      city: orders.city,
+      postalCode: orders.postalCode,
+      addressPublicId: sql<string | null>`(select ${customerAddresses.publicId} from ${customerAddresses} where ${customerAddresses.id} = ${orders.addressId})`,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(users, eq(orders.userId, users.id))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  return row ?? null;
 }

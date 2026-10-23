@@ -47,6 +47,7 @@ import { StartDateControl } from "./start-date-control";
 import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
 import { LookOutControl } from "./look-out-control";
+import { RenewControl } from "./renew-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "@/components/dashboard/deliveries-section";
@@ -329,6 +330,7 @@ async function OrderDetail({
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
+      {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && !renewal && <RenewControl orderId={order.publicId} />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={!order.deploymentId.startsWith("wc-") && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl
