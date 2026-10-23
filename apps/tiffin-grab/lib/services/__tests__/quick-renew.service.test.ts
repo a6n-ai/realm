@@ -9,7 +9,7 @@ vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async ()
 vi.mock("server-only", () => ({}));
 
 import { PgDialect } from "drizzle-orm/pg-core";
-const { pickRenewSource, findUnpaidRenewal, defaultPaymentMethodId } = await import("../quick-renew.service");
+const { pickRenewSource, findUnpaidRenewal, findUnpaidRenewalForOwner, defaultPaymentMethodId } = await import("../quick-renew.service");
 const sqlOf = (c: unknown) => new PgDialect().sqlToQuery(c as never);
 
 const row = (status: string, endDate: string | null, trialLength: number | null = null) => ({ status, endDate, trialLength });
@@ -40,11 +40,17 @@ describe("findUnpaidRenewal", () => {
     expect(q.params).toContain("ord_1");
   });
 
-  it("customer form: org and owner only, no source-order conditions", async () => {
+  it("staff order with no org still filters on null org", async () => {
     await findUnpaidRenewal({ userId: 1n, organizationId: null });
+    expect(sqlOf(m.where.mock.calls.at(-1)![0]).sql).toContain('"organization_id" is null');
+  });
+
+  it("customer form: owner only, no org or source-order conditions", async () => {
+    await findUnpaidRenewalForOwner(1n);
     const q = sqlOf(m.where.mock.calls.at(-1)![0]);
-    expect(q.sql).toContain('"organization_id" is null');
+    expect(q.sql).not.toContain("organization_id");
     expect(q.sql).not.toContain("<>");
+    expect(q.params).toContain(1n);
   });
 
   it("is null without an owner", async () => {

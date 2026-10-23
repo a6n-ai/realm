@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
 import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, payments, plans, users } from "@/db/schema";
@@ -124,13 +124,9 @@ export async function loadQuickRenewForOrder(orderPublicId: string): Promise<Qui
   return build(row.userId, src.organizationId, src, true);
 }
 
-/**
- * A later order of the same customer, in the same organization, that is not a running plan yet (unpaid or waitlisted).
- * Renewing again would stack a duplicate on it, so the order page, renewOrderAction and /me/renew all refuse while one exists.
- * Staff pass the source order (publicId, startDate: only a later one counts); the customer path passes just owner and org.
- */
-export async function findUnpaidRenewal(order: { userId: bigint | null; organizationId: string | null; publicId?: string; startDate?: string }): Promise<{ publicId: string; deploymentId: string; payPublicId: string | null } | null> {
-  if (order.userId == null) return null;
+type UnpaidRenewal = { publicId: string; deploymentId: string; payPublicId: string | null };
+
+async function queryUnpaidRenewal(userId: bigint, extra: (SQL | undefined)[]): Promise<UnpaidRenewal | null> {
   const [row] = await db
     .select({
       publicId: orders.publicId,
@@ -138,15 +134,27 @@ export async function findUnpaidRenewal(order: { userId: bigint | null; organiza
       payPublicId: sql<string | null>`(select ${payments.publicId} from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.method} = 'stripe' and ${payments.status} = 'awaiting_payment' and ${payments.addonRequest} is null order by ${payments.id} desc limit 1)`,
     })
     .from(orders)
-    .where(and(
-      eq(orders.userId, order.userId),
-      order.organizationId == null ? isNull(orders.organizationId) : eq(orders.organizationId, order.organizationId),
-      inArray(orders.status, ["pending", "waitlisted"]),
-      order.publicId ? ne(orders.publicId, order.publicId) : undefined,
-      order.startDate ? gt(orders.startDate, order.startDate) : undefined,
-    ))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, ["pending", "waitlisted"]), ...extra))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Staff: a later order of the source order's customer, in the source order's own organization, that is not a running
+ * plan yet (unpaid or waitlisted). Renewing again would stack a duplicate on it, so the order page and renewOrderAction refuse.
+ */
+export async function findUnpaidRenewal(order: { userId: bigint | null; organizationId: string | null; publicId?: string; startDate?: string }): Promise<UnpaidRenewal | null> {
+  if (order.userId == null) return null;
+  return queryUnpaidRenewal(order.userId, [
+    order.organizationId == null ? isNull(orders.organizationId) : eq(orders.organizationId, order.organizationId),
+    order.publicId ? ne(orders.publicId, order.publicId) : undefined,
+    order.startDate ? gt(orders.startDate, order.startDate) : undefined,
+  ]);
+}
+
+/** Customer /me/renew: /me skips org resolution, and the owner's userId already scopes the query, so no org filter. */
+export function findUnpaidRenewalForOwner(userId: bigint): Promise<UnpaidRenewal | null> {
+  return queryUnpaidRenewal(userId, []);
 }
 
 /** What a staff renewal takes from the source order, never from the client: owner, contact, plan, address. */

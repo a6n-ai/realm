@@ -12,9 +12,8 @@ import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
 import { QuickRenewClient } from "./quick-renew-client";
-import Link from "next/link";
-import { Button, Notice } from "@/components/customer/kit";
-import { findUnpaidRenewal, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
+import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
+import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
 import { renewPageMode } from "@/components/renew/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
 import { quoteCodes, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
@@ -29,20 +28,8 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   const quoteParams = Boolean(params.p);
   const full = params.full === "1";
   const orgId = await resolveRequestOrg();
-  const unpaid = quoteParams || full ? null : await findUnpaidRenewal({ userId, organizationId: orgId });
-  if (unpaid) {
-    // A second renewal would overlap the unpaid one and the customer could pay both.
-    return (
-      <PageShell>
-        <div className="mx-auto w-full max-w-3xl space-y-4">
-          <Notice>You have a renewal waiting for payment</Notice>
-          <Link href={unpaid.payPublicId ? `/me/pay/${unpaid.payPublicId}` : "/me/deliveries"}>
-            <Button variant="primary" size="lg">{unpaid.payPublicId ? "Pay now" : "View my plan"}</Button>
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
+  const unpaid = quoteParams || full ? null : await findUnpaidRenewalForOwner(userId);
+  if (unpaid) return <PageShell><UnpaidRenewalNotice payPublicId={unpaid.payPublicId} /></PageShell>;
   const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, orgId);
   if (data && renewPageMode({ quoteParams, full, data }) === "quick") {
     return (
