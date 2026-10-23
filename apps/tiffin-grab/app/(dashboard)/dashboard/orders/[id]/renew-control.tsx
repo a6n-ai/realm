@@ -13,8 +13,11 @@ import { loadRenewAction, renewOrderAction } from "./renew-actions";
 
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: QuickRenewData | null };
 
-/** Admin: renew this customer's plan in one sheet. Creates the order only; payment happens on the pay link or via proof. */
-export function RenewControl({ orderId }: { orderId: string }) {
+/**
+ * Admin: renew this customer's plan in one sheet. Creates the order only; payment happens on the pay link or via proof.
+ * `canRenew` hides only the trigger: the refresh after create flips it, and the pay-link dialog must outlive that.
+ */
+export function RenewControl({ orderId, canRenew }: { orderId: string; canRenew: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [load, setLoad] = useState<Load>({ state: "loading" });
@@ -32,7 +35,7 @@ export function RenewControl({ orderId }: { orderId: string }) {
 
   return (
     <>
-      <ResponsiveDialog
+      {canRenew && <ResponsiveDialog
         open={open}
         onOpenChange={(o) => {
           setOpen(o);
@@ -77,7 +80,7 @@ export function RenewControl({ orderId }: { orderId: string }) {
             }}
           />
         )}
-      </ResponsiveDialog>
+      </ResponsiveDialog>}
       <AdminOrderCreatedDialog open={created != null} onOpenChange={(o) => !o && setCreated(null)} result={created} />
     </>
   );

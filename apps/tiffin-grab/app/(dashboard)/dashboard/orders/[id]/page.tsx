@@ -336,7 +336,7 @@ async function OrderDetail({
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
-      {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && !renewal && !unpaidRenewal && <RenewControl orderId={order.publicId} />}
+      {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && <RenewControl orderId={order.publicId} canRenew={!renewal && !unpaidRenewal} />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={!order.deploymentId.startsWith("wc-") && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl
