@@ -1,0 +1,27 @@
+;; a6n.ai on Cloudflare (account 04244aeac63353bc0ecc1ee64058cd82, zone 37d674763879670f0ada7dcedefc6954).
+;; Snapshot of live records, re-export after every change: cf dns records export -z a6n.ai
+;; TTL 1 = Cloudflare "auto". cf_tags=cf-proxied:false = grey cloud (DNS only).
+;; NS Records
+a6n.ai.	86400	IN	NS	kia.ns.cloudflare.com.
+a6n.ai.	86400	IN	NS	zac.ns.cloudflare.com.
+;; A Records
+a6n.ai.	1	IN	A	185.199.111.153 ; cf_tags=cf-proxied:false
+a6n.ai.	1	IN	A	185.199.110.153 ; cf_tags=cf-proxied:false
+a6n.ai.	1	IN	A	185.199.109.153 ; cf_tags=cf-proxied:false
+a6n.ai.	1	IN	A	185.199.108.153 ; cf_tags=cf-proxied:false
+xplorers.a6n.ai.	1	IN	A	52.220.206.110 ; cf_tags=cf-proxied:false
+;; CNAME Records
+got4n4kq52efx6lguyrvmtolj5qyoulz._domainkey.xplorers.a6n.ai.	1	IN	CNAME	got4n4kq52efx6lguyrvmtolj5qyoulz.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+pa5s5vyphw67ztrgwjcczdfa6elq5ncs._domainkey.xplorers.a6n.ai.	1	IN	CNAME	pa5s5vyphw67ztrgwjcczdfa6elq5ncs.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+tyhjx74u4qc67tpe2aktjmyuosu5eita._domainkey.xplorers.a6n.ai.	1	IN	CNAME	tyhjx74u4qc67tpe2aktjmyuosu5eita.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+;; MX Records
+a6n.ai.	1	IN	MX	58 route3.mx.cloudflare.net.
+a6n.ai.	1	IN	MX	10 route2.mx.cloudflare.net.
+a6n.ai.	1	IN	MX	82 route1.mx.cloudflare.net.
+mail.xplorers.a6n.ai.	1	IN	MX	10 feedback-smtp.ap-southeast-1.amazonses.com.
+;; TXT Records
+a6n.ai.	1	IN	TXT	"v=spf1 include:_spf.mx.cloudflare.net ~all"
+cf2024-1._domainkey.a6n.ai.	1	IN	TXT	"v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78k" "m4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB"
+_dmarc.a6n.ai.	1	IN	TXT	"v=DMARC1; p=none"
+_github-pages-challenge-a6n-ai.a6n.ai.	1	IN	TXT	"2cd8e1604dbef96f5e961835571904"
+mail.xplorers.a6n.ai.	1	IN	TXT	"v=spf1 include:amazonses.com ~all"

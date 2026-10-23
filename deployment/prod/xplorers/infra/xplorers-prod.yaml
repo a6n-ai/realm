@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
   Xplorers prod in ap-southeast-1 (Singapore): VPC + EC2 + EIP
-  + IAM instance role + security group + Route 53 A record for xplorers.a6n.ai.
+  + IAM instance role + security group. DNS for xplorers.a6n.ai lives in Cloudflare
+  (deployment/cloudflare).
   Every billable resource is tagged client/app/env/project so Cost Explorer can
   invoice this client. Activate those tag keys in Billing → Cost allocation tags.
   tiffin-grab and puchkaman stay in us-east-1 — do not reuse that VPC.
@@ -24,10 +25,6 @@ Parameters:
   DomainName:
     Type: String
     Default: xplorers.a6n.ai
-  HostedZoneId:
-    Type: AWS::Route53::HostedZone::Id
-    Default: Z05881901LHJHX7AHKCFJ
-    Description: a6n.ai hosted zone (global). Record is created from this regional stack.
   ClientTag:
     Type: String
     Default: xplorers
@@ -365,16 +362,6 @@ Resources:
     Properties:
       AllocationId: !GetAtt ElasticIp.AllocationId
       InstanceId: !Ref Box
-
-  DnsRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZoneId
-      Name: !Ref DomainName
-      Type: A
-      TTL: "300"
-      ResourceRecords:
-        - !Ref ElasticIp
 
 Outputs:
   PublicIp:

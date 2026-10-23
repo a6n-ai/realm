@@ -3,7 +3,7 @@
 Xplorers runs on its OWN EC2 box in **Singapore** with its OWN Neon project, separate from
 tiffin-grab and puchkaman (those stay **us-east-1**). Public URL:
 https://xplorers.a6n.ai. Full stack: web → Neon (pooled endpoint), better-auth, SES.
-No redis/worker. DNS is the existing `a6n.ai` hosted zone in Route 53.
+No redis/worker. DNS is the `a6n.ai` zone on Cloudflare (see `deployment/cloudflare/README.md`); the stacks no longer write DNS.
 
 CI builds `xplorers-web` + `xplorers-tools` on push to `main` (see
 `.github/workflows/deploy-xplorers.yml`) and pushes them to GHCR. SSH deploy
