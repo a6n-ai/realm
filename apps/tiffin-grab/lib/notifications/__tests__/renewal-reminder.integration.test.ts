@@ -54,7 +54,8 @@ describe("renewal reminders (integration)", () => {
     expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toEqual({ days5: 1, days1: 0 });
     // Rerun the same day: the dedupe key keeps it to one email.
     await sendRenewalReminders(noonOn(minusDays(last, 5)));
-    expect(await reminders()).toEqual([{ key: `renewal:${o.publicId}:${last}:5` }]);
+    // The engine suffixes the channel onto the dedupe key.
+    expect(await reminders()).toEqual([{ key: `renewal:${o.publicId}:${last}:5:email` }]);
 
     // An unpaid later plan counts as renewed: no last-day reminder.
     const next = await createOrder(input(snap.mealSizes[0].publicId, snap.plans[0].key, "+16475550444"));
