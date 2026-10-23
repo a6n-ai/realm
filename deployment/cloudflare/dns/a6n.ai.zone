@@ -11,6 +11,7 @@ a6n.ai.	1	IN	A	185.199.109.153 ; cf_tags=cf-proxied:false
 a6n.ai.	1	IN	A	185.199.108.153 ; cf_tags=cf-proxied:false
 xplorers.a6n.ai.	1	IN	A	52.220.206.110 ; cf_tags=cf-proxied:false
 ;; CNAME Records
+www.a6n.ai.	1	IN	CNAME	a6n-ai.github.io. ; cf_tags=cf-proxied:false
 got4n4kq52efx6lguyrvmtolj5qyoulz._domainkey.xplorers.a6n.ai.	1	IN	CNAME	got4n4kq52efx6lguyrvmtolj5qyoulz.dkim.amazonses.com. ; cf_tags=cf-proxied:false
 pa5s5vyphw67ztrgwjcczdfa6elq5ncs._domainkey.xplorers.a6n.ai.	1	IN	CNAME	pa5s5vyphw67ztrgwjcczdfa6elq5ncs.dkim.amazonses.com. ; cf_tags=cf-proxied:false
 tyhjx74u4qc67tpe2aktjmyuosu5eita._domainkey.xplorers.a6n.ai.	1	IN	CNAME	tyhjx74u4qc67tpe2aktjmyuosu5eita.dkim.amazonses.com. ; cf_tags=cf-proxied:false
