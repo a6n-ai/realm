@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { stripePayLink } from "@/lib/payments/stripe";
-import { assertOrderVisible, createOrder, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { loadQuickRenewForOrder, loadRenewContext } from "@/lib/services/quick-renew.service";
+import { enabledMethods } from "@foundry/payments";
+import { stripeMethodAvailable, stripePayLink } from "@/lib/payments/stripe";
+import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { assertOnePerson, assertOrderVisible, createOrder, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
 import type { QuickRenewData } from "@/components/renew/types";
 import type { WizardSelections } from "@/components/wizard/selections";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -40,10 +42,30 @@ export async function renewOrderAction(input: {
     const addressPublicId = input.addressPublicId ?? src.addressPublicId;
     if (!addressPublicId) throw new ValidationError("Pick a delivery address");
     if (!src.phone) throw new ValidationError("This customer has no phone number. Use New order.");
+    const c = input.selections;
+    const base = await loadRenewSourceSelections(input.orderPublicId, c.startDate);
+    if (!base) throw new ValidationError("This plan can't be quick-renewed. Use New order.");
+    // Only these come from the client; plan, size, days and persons are the source order's.
+    const selections: WizardSelections = {
+      ...base,
+      startDate: c.startDate,
+      durationWeeks: c.durationWeeks,
+      addonSelections: c.addonSelections ?? [],
+      deliveryTagId: c.deliveryTagId,
+      deliveryStrategyIds: c.deliveryStrategyIds,
+      addressTagId: c.addressTagId,
+    };
+    assertOnePerson({ selections });
+    // Server picks the rail: card when Stripe is live (the pay link needs it), else the order's own, else the first enabled.
+    const enabled = enabledMethods(await getPaymentConfig()).map((m) => m.id);
+    const paymentMethodId = (await stripeMethodAvailable()) ? "stripe"
+      : src.sourceMethodId && enabled.includes(src.sourceMethodId) ? src.sourceMethodId
+      : (enabled[0] ?? null);
     const result = await createOrder(
       {
         addressPublicId,
-        selections: input.selections,
+        paymentMethodId,
+        selections,
         planKey: src.planKey,
         contact: {
           fullName: src.ownerName ?? src.fullName,

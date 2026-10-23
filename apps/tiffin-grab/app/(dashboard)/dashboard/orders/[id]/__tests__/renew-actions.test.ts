@@ -7,25 +7,32 @@ const m = vi.hoisted(() => ({
   loadRenewContext: vi.fn(),
   loadQuickRenewForOrder: vi.fn(),
   assertOrderVisible: vi.fn(),
+  loadRenewSourceSelections: vi.fn(),
+  stripeAvailable: vi.fn(),
+  methods: vi.fn(),
 }));
+vi.mock("@/lib/payments/stripe", () => ({ stripeMethodAvailable: m.stripeAvailable, stripePayLink: async (id: string) => `https://pay/${id}` }));
+vi.mock("@/lib/services/app-settings.service", () => ({ getPaymentConfig: async () => ({}) }));
+vi.mock("@foundry/payments", () => ({ enabledMethods: () => m.methods() }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: m.requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("@/lib/payments/stripe", () => ({ stripePayLink: async (id: string) => `https://pay/${id}` }));
 vi.mock("@/lib/services/orders.service", () => ({
   createOrder: m.createOrder,
   assertOrderVisible: m.assertOrderVisible,
+  assertOnePerson: (i: { selections: { persons: number } }) => { if (i.selections.persons !== 1) throw new ValidationError("one person"); },
   resolveSessionVisibleOrgIds: async () => "all",
 }));
 vi.mock("@/lib/services/quick-renew.service", () => ({
   loadRenewContext: m.loadRenewContext,
   loadQuickRenewForOrder: m.loadQuickRenewForOrder,
+  loadRenewSourceSelections: m.loadRenewSourceSelections,
 }));
 
 const { renewOrderAction } = await import("../renew-actions");
 
 const SRC = {
-  planKey: "veg", organizationId: "org_1", trialLength: null, ownerPublicId: "usr_owner", ownerName: "Asha",
+  planKey: "veg", organizationId: "org_1", trialLength: null, sourceMethodId: "etransfer", ownerPublicId: "usr_owner", ownerName: "Asha",
   email: "a@x.ca", phone: "+14165550101", fullName: "Asha", addressLine: "1 Main", city: "Toronto", postalCode: "M5V1A1", addressPublicId: "adr_1",
 };
 const input = { orderPublicId: "ord_1", selections: { planKey: "hacked" } as never, addressPublicId: "adr_2" };
@@ -35,6 +42,9 @@ beforeEach(() => {
   m.requirePermission.mockResolvedValue(undefined);
   m.assertOrderVisible.mockResolvedValue(undefined);
   m.loadRenewContext.mockResolvedValue(SRC);
+  m.loadRenewSourceSelections.mockResolvedValue({ planKey: "veg", mealSizeId: "ms_src", frequencyKey: "daily", eatingDays: ["mon"], persons: 1, mealSlots: [], includeSaturday: false, includeSunday: false, durationWeeks: 4, startDate: "2026-11-01", addonSelections: [] });
+  m.stripeAvailable.mockResolvedValue(true);
+  m.methods.mockReturnValue([{ id: "stripe" }, { id: "etransfer" }]);
   m.createOrder.mockResolvedValue({ publicId: "ord_2", deploymentId: "SUB-1", paymentPublicId: "pay_1" });
 });
 
@@ -50,6 +60,31 @@ describe("renewOrderAction", () => {
     await renewOrderAction({ ...input, selections: { planKey: "hacked" } as never });
     expect(m.createOrder.mock.calls[0][0].planKey).toBe("veg");
     expect(m.createOrder.mock.calls[0][0].addressPublicId).toBe("adr_2");
+  });
+
+  it("takes plan, size, days and persons from the source, only picks from the client", async () => {
+    const hostile = { planKey: "x", mealSizeId: "ms_evil", frequencyKey: "f", eatingDays: ["sun"], persons: 4, mealSlots: ["a"], includeSaturday: true, includeSunday: true, trialDays: 3, startDate: "2026-12-01", durationWeeks: 8, addonSelections: [{ key: "k", qty: 1 }] } as never;
+    await renewOrderAction({ ...input, selections: hostile });
+    const sel = m.createOrder.mock.calls[0][0].selections;
+    expect(sel).toMatchObject({ mealSizeId: "ms_src", persons: 1, includeSaturday: false, includeSunday: false, eatingDays: ["mon"], mealSlots: [], frequencyKey: "daily", startDate: "2026-12-01", durationWeeks: 8, addonSelections: [{ key: "k", qty: 1 }] });
+    expect(sel.trialDays).toBeUndefined();
+  });
+
+  it("errors inline when the source can't be rebuilt", async () => {
+    m.loadRenewSourceSelections.mockResolvedValue(null);
+    expect(await renewOrderAction(input)).toEqual({ error: "This plan can't be quick-renewed. Use New order." });
+    expect(m.createOrder).not.toHaveBeenCalled();
+  });
+
+  it("passes stripe when available, else the source method, else the first enabled", async () => {
+    await renewOrderAction(input);
+    expect(m.createOrder.mock.calls[0][0].paymentMethodId).toBe("stripe");
+    m.stripeAvailable.mockResolvedValue(false);
+    await renewOrderAction(input);
+    expect(m.createOrder.mock.calls[1][0].paymentMethodId).toBe("etransfer");
+    m.methods.mockReturnValue([{ id: "cash" }]);
+    await renewOrderAction(input);
+    expect(m.createOrder.mock.calls[2][0].paymentMethodId).toBe("cash");
   });
 
   it("returns the overlap ValidationError as a result", async () => {

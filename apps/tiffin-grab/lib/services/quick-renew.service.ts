@@ -115,6 +115,7 @@ export async function loadRenewContext(orderPublicId: string) {
       organizationId: orders.organizationId,
       status: orders.status,
       trialLength: orders.trialLength,
+      sourceMethodId: sql<string | null>`${orders.pricingSnapshot}->>'paymentMethodId'`,
       ownerPublicId: users.publicId,
       ownerName: users.name,
       email: users.email,
@@ -131,4 +132,23 @@ export async function loadRenewContext(orderPublicId: string) {
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   return row ?? null;
+}
+
+/** The source order's plan as wizard picks (plan, size, days, persons), so a renewal never trusts those from the client. */
+export async function loadRenewSourceSelections(orderPublicId: string, startDate: string) {
+  const [src] = await sourceQuery().where(eq(orders.publicId, orderPublicId)).limit(1);
+  if (!src) return null;
+  const client = toClientCatalog(await loadCatalogSnapshot(src.organizationId));
+  return renewSelections(
+    client,
+    {
+      planKey: src.planKey,
+      mealSizePublicId: src.mealSizePublicId,
+      frequencyKey: src.frequencyKey,
+      eatingDays: (src.eatingDays ?? []) as DayOfWeek[],
+      durationWeeks: src.durationWeeks,
+      trialLength: src.trialLength,
+    },
+    startDate,
+  );
 }
