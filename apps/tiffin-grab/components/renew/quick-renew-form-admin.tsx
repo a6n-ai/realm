@@ -70,7 +70,7 @@ export function QuickRenewFormAdmin(props: QuickRenewProps & { tagLabel: string 
 
       <div className="flex flex-col gap-2">
         <Label id="renew-weeks">Weeks</Label>
-        <RadioGroup aria-labelledby="renew-weeks" className="grid-cols-4 gap-2" value={String(sel.durationWeeks)} onValueChange={(v) => set({ durationWeeks: Number(v) })}>
+        <RadioGroup aria-labelledby="renew-weeks" className="grid-cols-5 gap-2" value={String(sel.durationWeeks)} onValueChange={(v) => set({ durationWeeks: Number(v) })}>
           {[...catalog.durations].sort((a, b) => a.weeks - b.weeks).map((d) => (
             <Label key={d.weeks} htmlFor={`renew-w${d.weeks}`} className="flex items-center gap-2 font-normal">
               <RadioGroupItem id={`renew-w${d.weeks}`} value={String(d.weeks)} aria-label={`${d.weeks} weeks`} />
