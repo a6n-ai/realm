@@ -5,6 +5,7 @@ import { QuickRenewForm } from "@/components/renew/quick-renew-form";
 import type { QuickRenewData } from "@/components/renew/types";
 import {
   RENEW_ADDRESS_KEY,
+  QUOTE_CODES_KEY,
   RENEW_PAY_KEY,
   WIZARD_ORIGIN_KEY,
   WIZARD_STEP_KEY,
@@ -19,6 +20,7 @@ export function QuickRenewClient(data: QuickRenewData) {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, "renew");
     sessionStorage.removeItem(WIZARD_STEP_KEY);
+    sessionStorage.removeItem(QUOTE_CODES_KEY);
     sessionStorage.removeItem(RENEW_PAY_KEY);
     sessionStorage.removeItem(RENEW_ADDRESS_KEY);
   };

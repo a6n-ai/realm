@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedAddress } from "@foundry/address";
 import { RENEW_ADDRESS_KEY, RENEW_PAY_KEY, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { StrictMode } from "react";
+import { validatePostal } from "@/app/(public)/subscribe/actions";
 import { Checkout } from "../checkout";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -33,7 +35,7 @@ const BOOK = [saved("adr_home", "Home", "9 Bay St", true), saved("adr_work", "Wo
 const PREFILL = { fullName: "Jane Doe", phone: "4165551234", email: "jane@example.com" };
 
 describe("Checkout opened by Quick Renew", () => {
-  afterEach(cleanup);
+  afterEach(() => { cleanup(); confirmSubscription.mockClear(); });
   beforeEach(() => {
     sessionStorage.clear();
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
@@ -52,10 +54,18 @@ describe("Checkout opened by Quick Renew", () => {
     expect(confirmSubscription.mock.calls[0]![0]).toMatchObject({ addressPublicId: "adr_work", contact: { addressLine: "200 Bay St" } });
   });
 
+  it("still lands on Pay with the picked address under StrictMode", async () => {
+    render(<StrictMode><Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={BOOK} /></StrictMode>);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /continue to payment/i })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
+    await waitFor(() => expect(confirmSubscription).toHaveBeenCalled());
+    expect(confirmSubscription.mock.calls[0]![0]).toMatchObject({ addressPublicId: "adr_work" });
+  });
+
   it("stays on step 1 when the contact is incomplete", async () => {
     render(<Checkout defaultCountry="CA" prefill={{ ...PREFILL, fullName: "" }} savedAddresses={BOOK} />);
     expect(await screen.findByRole("button", { name: /continue to payment/i })).toBeTruthy();
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy();
+    await waitFor(() => expect(validatePostal).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy());
   });
 });

@@ -227,6 +227,8 @@ export function Checkout({
   // The card payment placed for these exact inputs. A retry reuses it; any input change drops it
   // (the server re-checks the match too, this just avoids sending a stale id).
   const wantPay = useRef(false);
+  const renewRead = useRef(false);
+  const renewAddrPick = useRef<SavedAddress | undefined>(undefined);
   const placed = useRef<{ paymentPublicId: string; deploymentId: string } | null>(null);
   useEffect(() => {
     placed.current = null;
@@ -335,12 +337,16 @@ export function Checkout({
     let quoted: string[] = [];
     try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
     // Quick Renew's one-shot flags: read once so a reload lands back on step 1.
-    const renewPay = storedOriginKey === "renew" && sessionStorage.getItem(RENEW_PAY_KEY) === "1";
-    const renewAddrId = renewPay ? sessionStorage.getItem(RENEW_ADDRESS_KEY) : null;
-    sessionStorage.removeItem(RENEW_PAY_KEY);
-    sessionStorage.removeItem(RENEW_ADDRESS_KEY);
-    wantPay.current = renewPay;
-    const renewAddr = renewAddrId ? savedAddresses.find((a) => a.publicId === renewAddrId) : undefined;
+    if (!renewRead.current) {
+      renewRead.current = true;
+      const renewPay = storedOriginKey === "renew" && sessionStorage.getItem(RENEW_PAY_KEY) === "1";
+      const renewAddrId = renewPay ? sessionStorage.getItem(RENEW_ADDRESS_KEY) : null;
+      sessionStorage.removeItem(RENEW_PAY_KEY);
+      sessionStorage.removeItem(RENEW_ADDRESS_KEY);
+      if (renewPay) wantPay.current = true;
+      renewAddrPick.current = renewAddrId ? savedAddresses.find((a) => a.publicId === renewAddrId) : undefined;
+    }
+    const renewAddr = renewAddrPick.current;
     if (renewAddr) {
       setAddressPublicId(renewAddr.publicId);
       setContact((c) => ({ ...c, ...addressFields(renewAddr) }));

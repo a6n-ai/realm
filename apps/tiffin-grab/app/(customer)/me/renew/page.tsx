@@ -27,7 +27,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   const quoteParams = Boolean(params.p);
   const full = params.full === "1";
   const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, await resolveRequestOrg());
-  if (renewPageMode({ quoteParams, full, data: quoteParams || full ? {} : data }) === "quick" && data) {
+  if (data && renewPageMode({ quoteParams, full, data }) === "quick") {
     return (
       <PageShell>
         <div className="mx-auto w-full max-w-3xl">
