@@ -15,6 +15,7 @@ export function DateField({
   minDate,
   maxDate,
   allowedDays,
+  closedDates,
 }: {
   id: string;
   label: string;
@@ -25,6 +26,8 @@ export function DateField({
   minDate?: string;
   maxDate?: string;
   allowedDays?: readonly string[];
+  /** Closed days (YYYY-MM-DD) that cannot be picked. */
+  closedDates?: readonly string[];
 }) {
   const allowed = allowedDays && allowedDays.length > 0 ? allowedDays : undefined;
   return (
@@ -37,7 +40,7 @@ export function DateField({
       format={(iso) => formatDateOnly(iso)}
       min={minDate ?? today}
       max={maxDate}
-      disabledReason={(iso) => (allowed && !allowed.includes(weekdayKey(parseIsoDateUtc(iso))) ? "Not a delivery day" : undefined)}
+      disabledReason={(iso) => (closedDates?.includes(iso) ? "We are closed that day" : allowed && !allowed.includes(weekdayKey(parseIsoDateUtc(iso))) ? "Not a delivery day" : undefined)}
     />
   );
 }

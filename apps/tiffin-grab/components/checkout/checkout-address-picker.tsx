@@ -18,7 +18,7 @@ export function CheckoutAddressPicker({
   addresses,
   value,
   onPick,
-  draft,
+  draft = null,
   draftFromAccount = false,
   onAdd,
   onEditDraft,
@@ -31,11 +31,12 @@ export function CheckoutAddressPicker({
   value: string | null;
   onPick: (address: SavedAddress | null) => void;
   /** The typed-in address on one line; null when there is none. */
-  draft: string | null;
+  draft?: string | null;
   /** The draft is the account's address on file, untouched. */
   draftFromAccount?: boolean;
-  onAdd: () => void;
-  onEditDraft: () => void;
+  /** Omit both to offer saved addresses only (quick renew). */
+  onAdd?: () => void;
+  onEditDraft?: () => void;
   dropOff?: DropOffCatalog;
   /** Saved address public id → its drop-off. */
   dropOffs?: Record<string, DropOffValue>;
@@ -66,7 +67,7 @@ export function CheckoutAddressPicker({
           ))}
           {draft != null && (
             // Tapping the picked draft again reopens it for editing.
-            <Row selected={value === null} onClick={() => (value === null ? onEditDraft() : onPick(null))} icon={<MapPin className="size-[18px]" />}>
+            <Row selected={value === null} onClick={() => (value === null ? onEditDraft?.() : onPick(null))} icon={<MapPin className="size-[18px]" />}>
               <span className="flex items-center gap-2">
                 <span className="text-[16px] font-semibold tracking-[-0.01em]">{draftFromAccount ? "Address on file" : "New address"}</span>
                 {draftFromAccount && <Pill tone="soft" size="sm">From your account</Pill>}
@@ -80,7 +81,7 @@ export function CheckoutAddressPicker({
           {draft != null && value === null && extra}
         </div>
       )}
-      <button
+      {onAdd && <button
         type="button"
         onClick={onAdd}
         className="border-border text-foreground hover:bg-muted flex min-h-[60px] w-full items-center gap-3.5 rounded-[20px] border-2 border-dashed px-4 py-3 text-left transition-[transform,background-color] duration-100 active:scale-[.98] motion-reduce:active:scale-100"
@@ -92,7 +93,7 @@ export function CheckoutAddressPicker({
           <span className="block text-[16px] font-semibold tracking-[-0.01em]">{hasOptions ? "Add new address" : "Add delivery address"}</span>
           {!hasOptions && <span className="text-muted-foreground block text-[13px]">We&apos;ll check we deliver there.</span>}
         </span>
-      </button>
+      </button>}
     </div>
   );
 }
