@@ -25,6 +25,7 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   staff_invitation: ["email"],
   customer_invitation: ["email"],
   payment_reminder: ["email"],
+  order_renewal_reminder: ["email"],
 };
 
 export type { EnqueueInput };

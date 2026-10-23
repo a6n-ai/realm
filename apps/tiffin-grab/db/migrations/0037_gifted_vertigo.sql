@@ -1,0 +1,1 @@
+ALTER TYPE "public"."app_event" ADD VALUE 'order_renewal_reminder';

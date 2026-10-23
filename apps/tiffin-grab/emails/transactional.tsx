@@ -593,4 +593,23 @@ export const TEMPLATES: EmailTemplate[] = [
       </Layout>
     ),
   },
+  {
+    event: "order_renewal_reminder",
+    subject: "Your last tiffin is {{order.lastTiffinWhen}} — renew in 1 tap",
+    element: (
+      <Layout preview="Same meal, new dates. Renew in one tap.">
+        <Eyebrow>Your plan</Eyebrow>
+        <Title lead="Keep your tiffins" accent="coming." />
+        <P>Hi {"{{order.customerName}}"}, your {"{{order.mealSize}}"} plan ends {"{{order.lastTiffinWhen}}"}.</P>
+        <Details
+          rows={[
+            ["Last tiffin", "{{order.lastTiffin}}"],
+            ["Order", "{{order.code}}"],
+          ]}
+        />
+        <Cta href={`${BASE}/me/renew`}>Renew in 1 tap</Cta>
+        <Note>Same meal, new dates. You can change the start date and number of weeks before you pay.</Note>
+      </Layout>
+    ),
+  },
 ];

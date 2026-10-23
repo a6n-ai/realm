@@ -260,6 +260,13 @@
       "when": 1792692692914,
       "tag": "0036_fine_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792755979014,
+      "tag": "0037_gifted_vertigo",
+      "breakpoints": true
     }
   ]
 }

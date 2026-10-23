@@ -64,6 +64,10 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
       ? { mode, date: day, pushed: d.push.pushed, failed: d.push.failed, stale: d.push.staleCount }
       : { mode, date: day, matched: d.pull?.matched ?? 0, cleared: d.pull?.cleared ?? 0 };
   },
+  "renewal-reminders": async () => {
+    const { sendRenewalReminders } = await import("@/lib/notifications/renewal-reminder");
+    return sendRenewalReminders();
+  },
   notifications: async () => {
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
     const materialized = await materializeDue();

@@ -3,7 +3,7 @@
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
 // the app); change both together. Times are UTC, as GitHub runs them.
 
-export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons";
+export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders";
 
 export type CronJob = {
   key: CronJobKey;
@@ -47,6 +47,13 @@ export const CRON_JOBS: CronJob[] = [
     cron: null,
     runnable: true,
     inputs: "sync",
+  },
+  {
+    key: "renewal-reminders",
+    name: "Renewal reminder emails",
+    description: "Emails customers whose weekly plan's last tiffin is 5 days or 1 day away, with a one-tap link to renew. Skips anyone who already has a later plan. Each reminder goes once per plan ending.",
+    cron: "0 13 * * *",
+    runnable: true,
   },
   {
     key: "review-nudge",
