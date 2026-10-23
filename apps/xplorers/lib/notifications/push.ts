@@ -22,6 +22,7 @@ export async function pushInAppNotification(input: {
     })
     .returning({ publicId: notifications.publicId });
   if (!row) throw new Error("Failed to create notification");
-  await broadcastNotification({ userId: input.userId });
+  // Fire-and-forget: a slow Worker must not stall callers that notify in a loop.
+  void broadcastNotification({ userId: input.userId }).catch((e) => console.error("broadcastNotification", e));
   return row;
 }

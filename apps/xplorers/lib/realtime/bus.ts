@@ -1,3 +1,5 @@
 import { pickBus } from "@foundry/realtime/server";
+import { realtimeConfig } from "./config";
 
-export const realtimeBus = pickBus();
+const cfg = realtimeConfig();
+export const realtimeBus = pickBus(cfg ? { REALTIME_URL: cfg.url, REALTIME_SECRET: cfg.secret } : {});
