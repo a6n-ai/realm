@@ -58,7 +58,7 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 pb-4 sm:pb-10">
       <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} addressDropOffs={addressDropOffs} suggestedCoupons={suggestedCoupons} lastTiffin={lastTiffin} cardContext={cardContext} />
     </main>
   );

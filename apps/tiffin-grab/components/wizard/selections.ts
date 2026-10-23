@@ -15,8 +15,6 @@ export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
 export type WizardOrigin = "subscribe" | "renew" | "trial";
 
 // One-shot flags from Quick Renew: open checkout on Pay, with this saved address (publicId).
-export const RENEW_PAY_KEY = "tiffin.renew.pay";
-export const RENEW_ADDRESS_KEY = "tiffin.renew.address";
 
 // Wizard step to reopen on when "Edit plan" comes back from checkout.
 export const WIZARD_STEP_KEY = "tiffin.wizard.step";

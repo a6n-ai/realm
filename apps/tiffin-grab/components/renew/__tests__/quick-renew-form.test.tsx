@@ -108,13 +108,9 @@ describe("QuickRenewForm", () => {
     expect((screen.getByRole("button", { name: "Pay now" }) as HTMLButtonElement).disabled || screen.getByRole("button", { name: "Pay now" }).getAttribute("aria-disabled") === "true").toBe(true);
   });
 
-  it("hands the current picks to onUseNewAddress, customer only", () => {
-    const onUseNewAddress = vi.fn();
-    const { unmount } = render(form({ onUseNewAddress }));
-    fireEvent.click(screen.getByRole("button", { name: "Use a different address" }));
-    expect(onUseNewAddress).toHaveBeenCalledWith(expect.objectContaining({ durationWeeks: 4 }));
-    unmount();
-    render(form({ variant: "admin", onUseNewAddress }));
+  it("customer screen has no address section: checkout's Delivery step picks it", () => {
+    render(form());
+    expect(screen.queryByText("Deliver to")).toBeNull();
     expect(screen.queryByRole("button", { name: "Use a different address" })).toBeNull();
   });
 

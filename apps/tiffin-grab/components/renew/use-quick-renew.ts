@@ -39,6 +39,8 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
 
   useEffect(() => {
     let active = true;
+    // Marks the in-flight reprice; the last result stays on screen meanwhile.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrice((p) => ({ ...p, loading: true, error: null }));
     // The saved address's drop-off fee is part of what checkout charges, so the quote must carry it or the total jumps on the pay step.
     const drop = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), address ? addressDropOffs[address.publicId] : null);

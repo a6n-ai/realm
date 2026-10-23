@@ -6,55 +6,51 @@ import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { Button, IconButton } from "@/components/customer/kit";
 import { Brand } from "@/components/customer/shell/customer-shell";
 
-/** Sticky top chrome for public subscribe/checkout — Back + Close so users aren't trapped. Back shows here from sm up; below sm it lives in the bottom action bar. */
+/**
+ * The one top bar of the order flow (subscribe, new order, renew, checkout). It takes the place of the
+ * app's logo bar on those pages and is built to the same 64px shape, so moving between steps moves
+ * nothing: logo left (with Back from sm up; below sm Back lives in the bottom action bar), step name
+ * centered, price chip and Close right.
+ */
 export function SubscribeChrome({
   closeHref,
   onBack,
   backLabel = "Back",
   stepTag,
   trailing,
-  brand = false,
 }: {
   closeHref: string;
   onBack?: () => void;
   backLabel?: string;
-  /** Centered uppercase step label shown in the sticky bar, e.g. "BASELINE". */
+  /** Centered step label, e.g. "Plan". */
   stepTag?: string;
   /** Sits left of Close (e.g. the running-total chip). */
   trailing?: ReactNode;
-  /**
-   * Show the Tiffin Grab mark on the left below sm, where Back moves to the bottom bar.
-   * Public pages (email step, checkout) set it; /me/renew already has the app header's brand.
-   */
-  brand?: boolean;
 }) {
   const router = useRouter();
   return (
-    <div className="bg-background sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between border-b px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:mx-0 sm:px-0 sm:pt-2">
-      {brand && (
-        <div className="sm:hidden">
-          <Brand href={closeHref} compact />
+    // Full-bleed out of whatever centered column renders it, like the app header (html clips the overflow-x).
+    <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] border-b border-[var(--border)] pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 lg:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <Brand href={closeHref} />
+          <Button
+            variant="ghost"
+            className="!hidden gap-1 !px-2 !text-[13px] tracking-tight sm:!inline-flex"
+            onClick={() => (onBack ? onBack() : router.back())}
+          >
+            <ArrowLeftIcon aria-hidden className="size-3.5" />
+            {backLabel}
+          </Button>
         </div>
-      )}
-      <Button
-        variant="ghost"
-        className="-ml-2 !hidden gap-1 !px-1.5 !text-[13px] tracking-tight sm:!inline-flex"
-        onClick={() => (onBack ? onBack() : router.back())}
-      >
-        <ArrowLeftIcon aria-hidden className="size-3.5" />
-        {backLabel}
-      </Button>
-      {stepTag && (
-        <span className="absolute left-1/2 hidden sm:block -translate-x-1/2 text-[15px] font-semibold tracking-[-0.01em]">
-          {stepTag}
-        </span>
-      )}
-      <div className="ml-auto flex items-center gap-2">
-      {trailing}
-      <IconButton href={closeHref} aria-label="Close" className="!size-[42px]">
-        <XIcon aria-hidden className="size-4" />
-      </IconButton>
+        <span className="text-[15px] font-semibold tracking-[-0.01em] max-sm:invisible">{stepTag}</span>
+        <div className="flex items-center justify-end gap-2">
+          {trailing}
+          <IconButton href={closeHref} aria-label="Close" className="!size-11">
+            <XIcon aria-hidden className="size-4" />
+          </IconButton>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

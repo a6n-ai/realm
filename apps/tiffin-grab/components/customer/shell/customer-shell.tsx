@@ -19,6 +19,9 @@ const MENU_PATHS = ["/me/menu", "/me/renew"];
 const SUPPORT_PATHS = ["/me/support"];
 const REFER_PATHS = ["/me/refer"];
 const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
+// Order-flow pages (renew and new order) draw their own top bar (SubscribeChrome) and bottom action bar,
+// so the app's logo bar, cutoff, wallet and tab bar step aside: one bar on top, same as checkout.
+const FLOW_PATHS = ["/me/renew"];
 
 type Tab = "deliveries" | "menu" | "refer" | "support" | "account";
 
@@ -150,6 +153,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const tab = activeTab(pathname);
+  const flow = FLOW_PATHS.some((b) => under(pathname, b));
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -177,7 +181,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   return (
     <div className={cn(FONT, "min-h-dvh bg-[var(--background)] text-[var(--foreground)]")}>
       <a href="#main" className={cn(FOCUS, "sr-only z-50 rounded-full border border-[var(--primary)] bg-[var(--card)] px-4 py-3 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-[calc(env(safe-area-inset-top)+4.5rem)]")}>Skip to content</a>
-      <header
+      {!flow && <header
         className="c-glass sticky top-0 z-40 border-b border-[var(--border)] pt-[env(safe-area-inset-top)]"
         style={{ viewTransitionName: "customer-header" }}
       >
@@ -197,11 +201,11 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
             <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />
           </div>
         </div>
-      </header>
+      </header>}
 
-      <main id="main" tabIndex={-1} className="mx-auto outline-none w-full max-w-[1280px] px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:px-6 lg:pb-10 lg:pt-6"><PageTransition>{children}</PageTransition></main>
+      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
 
-      <nav
+      {!flow && <nav
         aria-label="Primary"
         className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden"
         style={{ viewTransitionName: "customer-bottom-nav" }}
@@ -227,7 +231,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
             <Ellipsis aria-hidden className="size-6" />More
           </MenuButton>
         </div>
-      </nav>
+      </nav>}
 
       <Sheet open={open} onClose={() => setOpen(false)} title="More">
         {/* Ordered by how often people reach for them: this week's food first, ordering last. */}

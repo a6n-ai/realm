@@ -44,8 +44,8 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const referralCode = isReferralCodeShape(linkRef) ? linkRef : (jar.get(REFERRAL_COOKIE)?.value ?? "");
 
   return (
-    <main className="customer-app mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
-      <SubscribeChrome closeHref="/" stepTag="Your account" brand />
+    <main className="customer-app mx-auto w-full max-w-3xl px-4 pb-4 sm:pb-10">
+      <SubscribeChrome closeHref="/" stepTag="Your account" />
       <header className="space-y-1 pb-2">
         <h1 className="c-title-page">
           Hi! Let&apos;s build your <em className="c-accent">tiffin.</em>
