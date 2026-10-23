@@ -11,16 +11,35 @@ import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer
 import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
+import { QuickRenewClient } from "./quick-renew-client";
+import { loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
+import { renewPageMode } from "@/components/renew/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
 import { quoteCodes, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
-export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams> }) {
+export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams & { full?: string }> }) {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
   const params = await searchParams;
+  const quoteParams = Boolean(params.p);
+  const full = params.full === "1";
+  const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, await resolveRequestOrg());
+  if (renewPageMode({ quoteParams, full, data: quoteParams || full ? {} : data }) === "quick" && data) {
+    return (
+      <PageShell>
+        <div className="mx-auto w-full max-w-3xl">
+          <header className="space-y-1 pb-2">
+            <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">Renew your plan</h1>
+            <p className="text-muted-foreground text-sm text-pretty">Same plan, new dates. Change anything below, then pay.</p>
+          </header>
+          <QuickRenewClient {...data} />
+        </div>
+      </PageShell>
+    );
+  }
 
   const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs] = await Promise.all([
     loadCatalogSnapshot(),

@@ -31,7 +31,7 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, RENEW_ADDRESS_KEY, RENEW_PAY_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
@@ -226,6 +226,7 @@ export function Checkout({
   const prevStep = useRef(step);
   // The card payment placed for these exact inputs. A retry reuses it; any input change drops it
   // (the server re-checks the match too, this just avoids sending a stale id).
+  const wantPay = useRef(false);
   const placed = useRef<{ paymentPublicId: string; deploymentId: string } | null>(null);
   useEffect(() => {
     placed.current = null;
@@ -289,6 +290,23 @@ export function Checkout({
     return () => window.removeEventListener("pageshow", onShow);
   }, [router, prefill]);
 
+  const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
+  const emailValid = emailSchema.safeParse(contact.email.trim()).success;
+  const step1Reason = !contact.fullName.trim() ? "Add your name in Account to continue."
+    : !emailValid ? "Add an email in Account to continue."
+    : !contact.postalCode ? "Add your delivery address to continue."
+    : !isFullPostalCode(contact.postalCode) ? "Enter your full postal code, like M5V 2T6."
+    : zone != null && !zone.served ? "We don't deliver to this postal code yet. Join the waitlist above."
+    : !phoneValid ? "Add your phone number to continue."
+    : null;
+  // Quick Renew arrives with its plan, address and contact settled: open on Pay once the zone check lands.
+  useEffect(() => {
+    if (wantPay.current && selections && zone?.served && step1Reason == null) {
+      wantPay.current = false;
+      setStep(2);
+    }
+  }, [selections, zone, step1Reason]);
+
   useEffect(() => {
     // markPaid clears the wizard storage; once paid, the receipt stays on screen and a re-run of this
     // effect (router identity change) must not read the empty storage as "no selections".
@@ -316,7 +334,20 @@ export function Checkout({
     // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
     let quoted: string[] = [];
     try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
-    refreshPrice(s, quoted, null).then(
+    // Quick Renew's one-shot flags: read once so a reload lands back on step 1.
+    const renewPay = storedOriginKey === "renew" && sessionStorage.getItem(RENEW_PAY_KEY) === "1";
+    const renewAddrId = renewPay ? sessionStorage.getItem(RENEW_ADDRESS_KEY) : null;
+    sessionStorage.removeItem(RENEW_PAY_KEY);
+    sessionStorage.removeItem(RENEW_ADDRESS_KEY);
+    wantPay.current = renewPay;
+    const renewAddr = renewAddrId ? savedAddresses.find((a) => a.publicId === renewAddrId) : undefined;
+    if (renewAddr) {
+      setAddressPublicId(renewAddr.publicId);
+      setContact((c) => ({ ...c, ...addressFields(renewAddr) }));
+      handleDropOffChange(validDropOff(dropOff, addressDropOffs[renewAddr.publicId]));
+    }
+    const priceAddr = renewAddr ?? contact;
+    refreshPrice(s, quoted, null, undefined, priceAddr.postalCode, priceAddr).then(
       async (r) => {
         sessionStorage.removeItem(PRICE_RELOAD_KEY);
         if (!quoted.length) return;
@@ -345,7 +376,8 @@ export function Checkout({
     );
     // The default saved address is checked against our zones straight away, like a picked one.
     // The first price above already used its postal code, so no second re-price.
-    if (defaultAddress) void checkPostal(defaultAddress.postalCode, false, defaultAddress);
+    const checked = renewAddr ?? defaultAddress;
+    if (checked) void checkPostal(checked.postalCode, false, checked);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
@@ -626,17 +658,8 @@ export function Checkout({
     : (freq?.name ?? null);
   const editHref = origin === "renew" ? "/me/renew" : origin === "trial" ? "/me/trial" : "/subscribe";
 
-  const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
-  const emailValid = emailSchema.safeParse(contact.email.trim()).success;
   const goBack = () => (step > 1 ? setStep(1) : router.push(editHref, { transitionTypes: ["nav-back"] }));
   const backLabel = step > 1 ? "Back" : "Edit plan";
-  const step1Reason = !contact.fullName.trim() ? "Add your name in Account to continue."
-    : !emailValid ? "Add an email in Account to continue."
-    : !contact.postalCode ? "Add your delivery address to continue."
-    : !isFullPostalCode(contact.postalCode) ? "Enter your full postal code, like M5V 2T6."
-    : zone != null && !zone.served ? "We don't deliver to this postal code yet. Join the waitlist above."
-    : !phoneValid ? "Add your phone number to continue."
-    : null;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const cardOn = cardContext?.publishableKey != null && result != null;
   const payWithCard = cardOn && paymentMethodId === "stripe";
