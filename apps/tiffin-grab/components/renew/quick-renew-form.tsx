@@ -13,6 +13,7 @@ import { pickedAddons, type WizardSelections } from "@/components/wizard/selecti
 import { StepDuration } from "@/components/wizard/steps/step-duration";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { TotalChip } from "@/components/wizard/total-chip";
+import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
 import { PlanSummary } from "@/components/wizard/plan-summary";
 import { Invoice } from "@/components/wizard/invoice";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
@@ -64,6 +65,8 @@ function CustomerShell({ changePlanHref, onUseNewAddress, ...data }: QuickRenewD
       <SubscribeChrome closeHref="/me" onBack={goBack} stepTag="Renew"
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
+
+      <Progress steps={CHECKOUT_STEPS} current={0} />
 
       <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">Renew your plan.</h2>
 

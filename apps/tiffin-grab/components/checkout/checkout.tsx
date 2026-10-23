@@ -34,7 +34,7 @@ import { emailSchema, phoneSchema } from "@foundry/commons";
 import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, RENEW_ADDRESS_KEY, RENEW_PAY_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
-import { Progress } from "@/components/wizard/progress";
+import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
 import { BottomBar, Button, Label, PillToggle, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
@@ -48,7 +48,7 @@ import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
-const STEPS = ["Plan", "Delivery", "Payment"] as const;
+const STEPS = CHECKOUT_STEPS;
 const TITLES = { 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
 // @foundry/ui PhoneInput is h-8; lift it (and its country button) to the kit's 52px field.
@@ -310,6 +310,8 @@ export function Checkout({
     if (!zone.served) { wantPay.current = false; return; }
     if (step1Reason == null) {
       wantPay.current = false;
+      // One-shot jump once the async zone check lands; the ref keeps it from cascading.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(2);
     }
   }, [selections, zone, step1Reason]);

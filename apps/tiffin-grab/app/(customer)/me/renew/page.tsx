@@ -112,16 +112,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   return (
     <PageShell>
       <div className="mx-auto w-full max-w-3xl">
-        <header className="space-y-1 pb-2">
-          <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">
-            {current ? "Renew your plan" : "Build your next plan"}
-          </h1>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {current
-              ? "We'll start this plan after your current one ends. A trial skips the schedule step."
-              : "Pick a baseline and a meal. A weekly plan sets its schedule; a trial goes straight to a start date."}
-          </p>
-        </header>
+        {/* No page header: the wizard's own top bar and step questions say where you are, same as the quick renew screen. */}
         <Wizard
           catalog={client}
           closeHref="/me"

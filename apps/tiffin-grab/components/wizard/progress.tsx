@@ -1,3 +1,6 @@
+/** Checkout's steps; quick renew shows the same bar on Plan so renew → pay reads as one flow. */
+export const CHECKOUT_STEPS = ["Plan", "Delivery", "Payment"] as const;
+
 /** Segmented progress bar shared by the subscribe wizard and checkout, so the two read as one flow. */
 export function Progress({ steps, current }: { steps: readonly string[]; current: number }) {
   return (
