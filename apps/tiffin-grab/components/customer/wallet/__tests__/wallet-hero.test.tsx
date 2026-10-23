@@ -7,7 +7,6 @@ vi.mock("@/components/motion", () => ({
   Lottie: () => <div data-testid="lottie" />,
 }));
 import { WalletHero } from "../wallet-hero";
-import { EarnSpendTiles } from "../earn-spend-tiles";
 afterEach(cleanup);
 describe("WalletHero", () => {
   it("shows coins and money value", () => {
@@ -20,10 +19,15 @@ describe("WalletHero", () => {
     expect(screen.queryByText(/\$/)).toBeNull();
   });
 });
-describe("EarnSpendTiles", () => {
-  it("shows earned and spent", () => {
-    render(<EarnSpendTiles earned={2100} spent={860} />);
-    expect(screen.getByText("2100")).toBeInTheDocument();
-    expect(screen.getByText("860")).toBeInTheDocument();
+describe("WalletHero extras", () => {
+  it("folds earned/spent into one neutral caption", () => {
+    render(<WalletHero coins={5} money={null} currency="USD" earned={2100} spent={860} />);
+    expect(screen.getByText("Earned 2100 · Spent 860")).toBeInTheDocument();
+  });
+  it("at 0 coins explains earning with live settings and no top-up copy", () => {
+    render(<WalletHero coins={0} money={0} currency="USD" earnPct={2.5} coinWorth={0.25} />);
+    expect(screen.getByText(/Earn 2\.5% back/)).toHaveTextContent("$0.25");
+    expect(screen.getByRole("link", { name: "Refer a friend" })).toHaveAttribute("href", "/me/refer");
+    expect(screen.queryByText(/top up/i)).toBeNull();
   });
 });

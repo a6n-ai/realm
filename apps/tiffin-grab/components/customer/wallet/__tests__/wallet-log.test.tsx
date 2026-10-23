@@ -97,5 +97,7 @@ describe("WalletLog", () => {
   it("shows the empty state when there are no items", () => {
     render(<WalletLog items={[]} page={0} size={25} total={0} />);
     expect(screen.getByText("No wallet activity yet")).toBeInTheDocument();
+    expect(screen.queryByTestId("facet-filters")).toBeNull();
+    expect(screen.queryByTestId("list-pagination")).toBeNull();
   });
 });

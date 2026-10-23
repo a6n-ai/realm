@@ -36,7 +36,7 @@ import { OrderSummary, money, startLabel } from "@/components/checkout/order-sum
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
-import { BottomBar, Button, Label, Pill, PillToggle, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, Label, PillToggle, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
@@ -399,7 +399,7 @@ export function Checkout({
     }
   };
 
-  const applyCoupon = async (picked?: string) => {
+  const applyCoupon = async (picked?: string, methodId: string | null = paymentMethodId) => {
     if (!selections) return;
     if (picked) setCouponCode(picked);
     const code = (picked ?? couponCode).trim().toUpperCase();
@@ -413,20 +413,20 @@ export function Checkout({
     }
     setCouponState({ status: "checking" });
     const tried = [...appliedCodes, code];
-    const r = await refreshPrice(selections, tried, paymentMethodId, appliedCoins || undefined);
+    const r = await refreshPrice(selections, tried, methodId, appliedCoins || undefined);
     const error = r.couponErrors ? r.couponErrors.find((e) => e.code === code)?.error : r.couponError;
     // A refused code, or one a better combination beat, is not kept: price again without it
     // so the total on screen is what the order will charge.
     const left = r.couponsNotApplied?.find((n) => n.code.toUpperCase() === code)?.reason;
     const inSet = r.appliedCoupons.some((c) => c.code.toUpperCase() === code);
     if (error || !inSet) {
-      await refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined);
+      await refreshPrice(selections, appliedCodes, methodId, appliedCoins || undefined);
       setCouponState(error ? { status: "error", message: error } : { status: "applied", message: left ?? "A better discount is already applied" });
       return;
     }
     setAppliedCodes(tried);
     setCouponCode("");
-    setCouponState({ status: "applied", message: "Coupon applied" });
+    setCouponState({ status: "idle" });
   };
 
   // Offer every listed code at once; the server keeps the best combination, and anything it
@@ -442,7 +442,7 @@ export function Checkout({
     const added = kept.length - appliedCodes.filter((c) => kept.includes(c)).length;
     const refused = r.couponErrors?.[0];
     setCouponState(added > 0
-      ? { status: "applied", message: added === 1 ? "1 coupon applied" : `${added} coupons applied` }
+      ? { status: "idle" }
       : refused
         ? { status: "error", message: `${refused.code}: ${refused.error}` }
         : { status: "applied", message: "None of these coupons lowers this order" });
@@ -700,16 +700,9 @@ export function Checkout({
   const summary = (plain = false) => (
     <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} deliverTo={deliverTo}>
       {applied.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Applied coupons">
-          {applied.map((c) => (
-            <li key={c.code}>
-              <Pill tone="save" size="sm" icon={<Tag aria-hidden className="size-3" />}>
-                <span className="font-mono">{c.code}</span>
-                <span className="font-medium opacity-80">{c.auto ? "auto" : "entered"}</span>
-              </Pill>
-            </li>
-          ))}
-        </ul>
+        <p className="nums mt-4 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
+          Saved {money(applied.reduce((n, c) => n + c.amount, 0))}
+        </p>
       )}
     </OrderSummary>
   );
@@ -745,6 +738,8 @@ export function Checkout({
             suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
             onPick={(code) => void applyCoupon(code)}
             onApplyAll={(codes) => void applyAllCoupons(codes)}
+            appliedCount={applied.length}
+            onSwitchMethod={async (id, code) => { await selectMethod(id); await applyCoupon(code, id); }}
             methodName={(id) => (id === "stripe" ? "Card" : paymentMethods.find((m) => m.id === id)?.label ?? id)}
           />
           {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
@@ -951,13 +946,14 @@ export function Checkout({
           {/* Card step: wallet and card action live here at every width, like Continue on the Delivery step. */}
           <BottomBar
             alignEnd
-            note={step === 2 && payWithCard && phone && result ? `Total ${money(result.total)}` : (actionReason ?? undefined)}
+            note={step === 2 && payWithCard && phone && result ? undefined : (actionReason ?? undefined)}
             className="sm:sticky sm:mt-8 sm:px-0"
           >
             {step === 2 && payWithCard ? (
               // Wallet full width above one row: Back left, Pay right (as Continue on the Delivery step).
               <div className="flex w-full flex-col gap-2">
-                <ExpressPay height={50} />
+                {phone && result && <p role="status" className="nums text-[15px] font-semibold sm:text-right">Total {money(result.total)}</p>}
+                <div className="min-h-[50px]"><ExpressPay height={50} /></div>
                 <div className="flex items-start gap-2">
                   <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
                   <div className="min-w-0 flex-1 sm:ml-auto sm:w-60 sm:flex-none">{cardPay}</div>
@@ -1140,7 +1136,7 @@ function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save
 
 // A collapsed "Add a coupon code" row that opens into one field with Apply inside it,
 // so the action never sits off-screen and the row costs one line until it's needed.
-function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick, onApplyAll, methodName }: {
+function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick, onApplyAll, methodName, appliedCount, onSwitchMethod }: {
   value: string;
   onChange: (v: string) => void;
   onApply: () => void;
@@ -1150,15 +1146,32 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
   onPick: (code: string) => void;
   onApplyAll: (codes: string[]) => void;
   methodName: (id: string) => string;
+  appliedCount: number;
+  onSwitchMethod: (methodId: string, code: string) => void;
 }) {
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
+  const [focusField, setFocusField] = useState(false);
+  const lastCount = useRef(appliedCount);
+  // A new applied row is the confirmation: fold the entry away.
+  useEffect(() => {
+    if (appliedCount > lastCount.current) { setOpen(false); setFocusField(false); }
+    lastCount.current = appliedCount;
+  }, [appliedCount]);
+  const typed = value.trim().toUpperCase();
+  const gated = state.status === "error" && state.message === "This coupon is not valid for the selected payment method"
+    ? suggestions.find((c) => c.code.toUpperCase() === typed && c.allowedPaymentMethods.length > 0)
+    : undefined;
+  const gatedMethod = gated?.allowedPaymentMethods[0];
+  const errorMessage = state.status === "error"
+    ? state.message === "Invalid coupon code" && suggestions.length > 0 ? `${state.message}. Check the spelling, or pick one below.` : state.message
+    : undefined;
   return (
     <div>
       <button
         type="button"
         aria-expanded={open}
         aria-controls="coupon-entry"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setFocusField(!open); setOpen((o) => !o); }}
         className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-[var(--muted)]"
       >
         <RowIcon tone="wash"><Tag aria-hidden className="size-[18px]" /></RowIcon>
@@ -1169,7 +1182,13 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
         {(open || state.status !== "idle") && (
           <motion.div key="coupon" id="coupon-entry" {...reveal} className="px-4 pb-4">
             <Label htmlFor="coupon" className="sr-only">Coupon code</Label>
-            <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={state} />
+            <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus={focusField} applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={gated ? { status: "idle" } : errorMessage ? { status: "error", message: errorMessage } : state} />
+            {gated && gatedMethod && (
+              <p role="alert" className="text-destructive mt-2 text-[13px] font-medium">
+                {gated.code} works with {methodName(gatedMethod)} only.{" "}
+                <button type="button" onClick={() => onSwitchMethod(gatedMethod, gated.code)} className="text-primary -my-3 min-h-11 font-semibold underline underline-offset-2">Pay with {methodName(gatedMethod)}</button>
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1202,7 +1221,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                   <span className="min-w-0">
                     <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
                     <span className="text-muted-foreground block truncate text-[12px]">
-                      {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.name}
+                      {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.minSubtotal != null ? `On orders ${money(Number(c.minSubtotal)).replace(/\.00$/, "")}+` : c.name}
                     </span>
                   </span>
                   <span className="text-primary shrink-0 text-[13px] font-semibold">{discountLine(c)}</span>

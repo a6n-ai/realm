@@ -1,6 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/customer/kit";
+import Link from "next/link";
+import { Skeleton, buttonClass } from "@/components/customer/kit";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";
@@ -60,21 +61,25 @@ export function TransactionsList({
   size,
   total,
   currency,
+  filtered = false,
 }: {
   items: MoneyLedgerTx[];
   page: number;
   size: number;
   total: number;
   currency: string;
+  filtered?: boolean;
 }) {
   return (
     <div className="space-y-4">
-      <ReuiFacetFilters spec={MONEY_LEDGER_FACETS} />
+      {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
+      {(total > 0 || filtered) && <ReuiFacetFilters spec={MONEY_LEDGER_FACETS} />}
       {items.length === 0 ? (
         <LottieEmptyState
           animation="coin-burst"
           title="No transactions yet"
           body="Payments, refunds, and discounts will appear here."
+          action={<Link href="/me/renew" className={buttonClass({ variant: "outline" })}>Renew plan</Link>}
         />
       ) : (
         <Reveal.Group className="divide-y">
@@ -83,7 +88,7 @@ export function TransactionsList({
           ))}
         </Reveal.Group>
       )}
-      <ListPagination page={page} size={size} total={total} />
+      {total > 0 && <ListPagination page={page} size={size} total={total} />}
     </div>
   );
 }

@@ -9,16 +9,13 @@ export type PayMethodOption = { id: string; label: string };
 
 // Customers see "Stripe" whatever the config label says, so every place that names the method agrees.
 function payMethodTitle(m: PayMethodOption) {
-  return m.id === "stripe" ? "Stripe" : m.label;
+  return m.id === "stripe" ? "Stripe" : m.label.replace(/-/g, "\u2011");
 }
 
 // Simplified marks from the ReUI payment-method radio cards (c-radio-group-13).
 const VisaMark = (props: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" {...props}>
-    <path
-      d="M9.5 8L7 16H5L3 8H5L6.25 13.5L8 8H9.5ZM11 8H12.5V16H11V8ZM16.5 10.5C16.5 9.7 15.8 9.2 14.8 9.2C14 9.2 13.3 9.5 12.8 10L12 9C12.8 8.3 13.8 8 15 8C16.8 8 18 9 18 10.5C18 13.5 14 12.5 14 14.2C14 14.8 14.5 15 15.2 15C16 15 16.7 14.7 17.2 14.2L18 15.2C17.2 15.9 16.2 16.2 15 16.2C13.5 16.2 12.5 15.3 12.5 14C12.5 11.2 16.5 12 16.5 10.5ZM21 16H19.5L22 8H23.5L21 16Z"
-      fill="currentColor"
-    />
+  <svg viewBox="0 0 32 24" fill="none" {...props}>
+    <text x="16" y="17" textAnchor="middle" fill="currentColor" fontFamily="Arial, Helvetica, sans-serif" fontSize="13" fontWeight="900" fontStyle="italic" letterSpacing="-0.5">VISA</text>
   </svg>
 );
 const MastercardMark = (props: SVGProps<SVGSVGElement>) => (
@@ -40,7 +37,7 @@ const TILE = {
 } as const;
 const ICON: Record<string, LucideIcon> = { stripe: CreditCard, cash: Banknote, etransfer: ArrowLeftRight };
 
-const SUBTITLE: Record<string, string> = { stripe: "Card or wallet", cash: "Pay on delivery", etransfer: "Interac" };
+const SUBTITLE: Record<string, string> = { stripe: "Card or wallet", cash: "Pay the driver", etransfer: "Send to our email" };
 
 /** One structure for every card (so all are the same height): icon tile and side marks on top, title over subtitle below. */
 function Choice({ value, icon, tile, title, subtitle, aside }: { value: string; icon: LucideIcon; tile: string; title: string; subtitle?: string; aside?: ReactNode }) {
@@ -89,7 +86,7 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
             tile={m.id in TILE ? TILE[m.id as keyof typeof TILE] : TILE.other}
             title={payMethodTitle(m)}
             subtitle={SUBTITLE[m.id]}
-            aside={m.id === "stripe" ? <><VisaMark className="size-5 text-[#1A1F71] dark:text-foreground" /><MastercardMark className="size-5" /></> : undefined}
+            aside={m.id === "stripe" ? <><VisaMark className="h-5 w-7 text-[#1A1F71] dark:text-foreground" /><MastercardMark className="size-5" /></> : undefined}
           />
         ))}
       </RadioGroup>

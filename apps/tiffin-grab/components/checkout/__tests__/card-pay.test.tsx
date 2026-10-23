@@ -150,7 +150,7 @@ describe("Checkout Pay step", () => {
   it("e-Transfer confirm creates the order then opens the dialog instead of navigating", async () => {
     reprice.mockImplementation(async () => ({ pricing, paymentMethods: [...methods, { id: "etransfer", label: "e-Transfer", payeeHandle: "pay@tiffin.ca", instructions: "Auto-deposit", requireProof: true }], coinBalance: null, appliedCoupons: [] }));
     await toPayment();
-    fireEvent.click(await screen.findByRole("radio", { name: /e-transfer/i }));
+    fireEvent.click(await screen.findByRole("radio", { name: /e.transfer/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm subscription/i }));
     expect(await screen.findByTestId("etransfer-dialog")).toBeTruthy();
     expect(confirmSubscription).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "etransfer" }));
@@ -169,7 +169,7 @@ describe("Checkout Pay step", () => {
   it("closing the e-Transfer dialog without proof toasts and replaces to /activate", async () => {
     reprice.mockImplementation(async () => ({ pricing, paymentMethods: [...methods, { id: "etransfer", label: "e-Transfer" }], coinBalance: null, appliedCoupons: [] }));
     await toPayment();
-    fireEvent.click(await screen.findByRole("radio", { name: /e-transfer/i }));
+    fireEvent.click(await screen.findByRole("radio", { name: /e.transfer/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm subscription/i }));
     await screen.findByTestId("etransfer-dialog");
     etransferProps.value!.onClosedWithoutProof!();
@@ -354,7 +354,9 @@ describe("Checkout Pay step", () => {
     fireEvent.click(screen.getByRole("button", { name: /add a coupon code/i }));
     fireEvent.change(await screen.findByLabelText(/coupon code/i), { target: { value: "SAVE5" } });
     fireEvent.click(screen.getByRole("button", { name: /apply coupon/i }));
-    await screen.findByText(/coupon applied/i);
+    await screen.findByRole("button", { name: /remove coupon save5/i });
+    await waitFor(() => expect(screen.queryByLabelText(/coupon code/i)).toBeNull());
+    expect(screen.queryByText(/coupon applied/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /pay now/i }));
     await waitFor(() => expect(payCheckout).toHaveBeenCalledTimes(2));

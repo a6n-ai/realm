@@ -7,23 +7,19 @@ import { FinanceStats, FinanceStatsSkeleton } from "../finance-stats";
 afterEach(cleanup);
 
 describe("FinanceStats", () => {
-  it("renders the four usage numbers, money in the app currency", () => {
+  it("renders one Spent/Saved line in the app currency", () => {
     render(
       <FinanceStats
         usage={{ tiffinsDelivered: 12, subscriptionCount: 3, plans: [], totalSpent: "142.50", totalSaved: "18.00" }}
         currency="CAD"
       />,
     );
-    expect(screen.getByText("Tiffins delivered")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
-    expect(screen.getByText("Subscriptions")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("$142.50")).toBeInTheDocument();
-    expect(screen.getByText("$18.00")).toBeInTheDocument();
+    expect(screen.getByText("Spent $142.50 · Saved $18.00")).toBeInTheDocument();
+    expect(screen.queryByText("Tiffins delivered")).toBeNull();
   });
 
-  it("skeleton reserves four tiles", () => {
+  it("skeleton renders a single line", () => {
     const { container } = render(<FinanceStatsSkeleton />);
-    expect(container.querySelectorAll("div[aria-hidden] > div")).toHaveLength(4);
+    expect(container.children).toHaveLength(1);
   });
 });

@@ -13,7 +13,6 @@ import { PageHeader, Skeleton } from "@/components/customer/kit";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
-import { EarnSpendTiles } from "@/components/customer/wallet/earn-spend-tiles";
 import { WalletLog, WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
 import { WALLET_FACETS } from "@/components/customer/wallet/wallet-facets";
 import { BillsList, BillsListSkeleton } from "@/components/customer/wallet/bills-list";
@@ -90,18 +89,12 @@ async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchPara
     walletService.ledgerPage(userId, condition, page),
     getCoinEarnPct(),
   ]);
-  const money = await walletService.moneyValue(balance, currency);
+  const [money, coinWorth] = await Promise.all([walletService.moneyValue(balance, currency), walletService.moneyValue(1, currency)]);
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:items-stretch">
-        <WalletHero coins={balance} money={money} currency={currency} />
-        <EarnSpendTiles earned={earned} spent={spent} />
-      </div>
-      {earnPct > 0 && (
-        <p className="text-muted-foreground text-sm">Earn {earnPct}% back as coins on every paid order.</p>
-      )}
-      <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} />
+      <WalletHero coins={balance} money={money} currency={currency} earned={earned} spent={spent} earnPct={earnPct} coinWorth={coinWorth} />
+      <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} filtered={condition != null} />
     </div>
   );
 }
@@ -139,6 +132,7 @@ async function TransactionsPanel({ userId, searchParams }: { userId: bigint; sea
       size={ledger.size}
       total={ledger.total}
       currency={currency}
+      filtered={condition != null}
     />
   );
 }
@@ -152,12 +146,9 @@ async function CouponsPanel({ userId, searchParams }: { userId: bigint; searchPa
     myCouponTotals(userId),
     myCouponsPage(userId, page),
   ]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const weekOut = Date.now() + 7 * 86_400_000;
-  const expiringSoon = available.filter((c) => c.expiresAt != null && c.expiresAt <= weekOut).length;
   return (
     <div className="space-y-6">
-      <CouponStats totals={{ available: available.length, expiringSoon, ...totals }} currency={currency} />
+      <CouponStats available={available.length} saved={totals.saved} currency={currency} />
       <CouponsSection coupons={available} />
       <CouponHistory items={history.items} page={history.page} size={history.size} total={history.total} currency={currency} />
     </div>

@@ -15,10 +15,11 @@ vi.mock("@/components/motion", () => ({
   Reveal: Object.assign(({ children }: { children: ReactNode }) => <div>{children}</div>, {
     Group: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   }),
-  LottieEmptyState: ({ title, body }: { title: string; body: string }) => (
+  LottieEmptyState: ({ title, body, action }: { title: string; body: string; action?: ReactNode }) => (
     <div>
       <p>{title}</p>
       <p>{body}</p>
+      {action}
     </div>
   ),
 }));
@@ -86,6 +87,9 @@ describe("BillsList empty state", () => {
         publicId: "ord_1",
         deploymentId: "SUB-1",
         planName: "Weekly Veg",
+        mealSizeName: "Regular",
+        startDate: "2026-07-13",
+        lastDeliveryDate: "2026-08-07",
         status: "active",
         total: "120.00",
         createdAt: Date.UTC(2026, 6, 10),
@@ -96,6 +100,9 @@ describe("BillsList empty state", () => {
         publicId: "ord_2",
         deploymentId: "SUB-2",
         planName: "Monthly",
+        mealSizeName: "Large",
+        startDate: "2026-06-08",
+        lastDeliveryDate: null,
         status: "completed",
         total: "200.00",
         createdAt: Date.UTC(2026, 5, 5),
@@ -104,16 +111,25 @@ describe("BillsList empty state", () => {
       },
     ];
     render(<BillsList items={items} page={0} size={25} total={2} currency="CAD" />);
-    expect(screen.getByText("Weekly Veg")).toBeInTheDocument();
-    expect(screen.getByText("Monthly")).toBeInTheDocument();
     expect(screen.getByText(/July 2026/i)).toBeInTheDocument();
     expect(screen.getByText(/June 2026/i)).toBeInTheDocument();
+    expect(screen.getByText("Weekly Veg · Regular")).toBeInTheDocument();
+    expect(screen.getByText("Jul 13 – Aug 7, 2026")).toBeInTheDocument();
+    expect(screen.getByText(/Paid \$120\.00/)).toBeInTheDocument();
+  });
+
+  it("explains Verifying and capitalises the card brand", () => {
+    const pay = { publicId: "p", status: "pending_verification" as const, method: "etransfer" as never, amount: "5.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00", cardPayable: false, addonLines: null };
+    const base = { publicId: "o", deploymentId: "SUB-9", planName: "P", mealSizeName: "R", startDate: "2026-07-13", lastDeliveryDate: null, status: "active" as const, total: "5.00", createdAt: Date.UTC(2026, 6, 10), taxLines: [] };
+    render(<BillsList items={[{ ...base, payments: [pay, { ...pay, publicId: "c", method: "stripe", status: "paid", cardBrand: "visa", cardLast4: "4242" }] }]} page={0} size={25} total={1} currency="CAD" />);
+    expect(screen.getByText("We're checking your e-Transfer.")).toBeInTheDocument();
+    expect(screen.getByText(/Visa ••4242/)).toBeInTheDocument();
   });
 });
 
 describe("BillsList card payments", () => {
   const bill = (pays: CustomerBill["payments"]): CustomerBill => ({
-    publicId: "ord_1", deploymentId: "SUB-1", planName: "Weekly Veg", status: "active", total: "120.00",
+    publicId: "ord_1", deploymentId: "SUB-1", planName: "Weekly Veg", mealSizeName: "Regular", startDate: "2026-07-13", lastDeliveryDate: "2026-08-07", status: "active", total: "120.00",
     createdAt: Date.UTC(2026, 6, 10), taxLines: [{ name: "HST", ratePct: 13, amount: 15.6 }], payments: pays,
   });
   const card = (o: Partial<CustomerBill["payments"][number]>): CustomerBill["payments"][number] => ({
@@ -140,6 +156,8 @@ describe("TransactionsList empty state", () => {
   it("shows No transactions yet when empty", () => {
     render(<TransactionsList items={[]} page={0} size={25} total={0} currency="CAD" />);
     expect(screen.getByText(/No transactions yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Renew plan" })).toHaveAttribute("href", "/me/renew");
+    expect(screen.queryByTestId("facets")).toBeNull();
   });
 
   it("renders a payment row", () => {

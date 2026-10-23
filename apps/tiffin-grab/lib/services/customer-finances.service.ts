@@ -5,7 +5,7 @@ import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
 import { cardPayClosed } from "@/lib/orders/display-status";
 import { payPageLines } from "@/app/(customer)/me/pay/[paymentId]/lines";
-import { couponRedemptions, coupons, ledgerEntries, orders, payments, plans } from "@/db/schema";
+import { couponRedemptions, coupons, deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 
 export type BillPaymentSummary = {
   publicId: string;
@@ -28,6 +28,10 @@ export type CustomerBill = {
   publicId: string;
   deploymentId: string;
   planName: string;
+  mealSizeName: string;
+  /** Plan window as `YYYY-MM-DD`: the start date and the last scheduled tiffin (null before any is placed). */
+  startDate: string;
+  lastDeliveryDate: string | null;
   status: (typeof orders.status.enumValues)[number];
   total: string;
   createdAt: number;
@@ -54,6 +58,8 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
         publicId: orders.publicId,
         deploymentId: orders.deploymentId,
         planName: plans.name,
+        mealSizeName: mealSizes.name,
+        startDate: orders.startDate,
         status: orders.status,
         total: orders.total,
         createdAt: orders.createdAt,
@@ -62,6 +68,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
+      .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
       .where(where)
       .orderBy(desc(orders.createdAt), desc(orders.id))
       .limit(page.size)
@@ -77,6 +84,12 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
   }
 
   const orderIds = rows.map((r) => r.id);
+  const lastRows = await db
+    .select({ orderId: deliveries.orderId, last: sql<string>`max(${deliveries.deliveryDate})` })
+    .from(deliveries)
+    .where(inArray(deliveries.orderId, orderIds))
+    .groupBy(deliveries.orderId);
+  const lastByOrder = new Map(lastRows.map((r) => [r.orderId, r.last]));
   const payRows = await db
     .select({
       orderId: payments.orderId,
@@ -125,6 +138,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
   return {
     items: rows.map(({ id, snapshot, ...r }) => ({
       ...r,
+      lastDeliveryDate: lastByOrder.get(id) ?? null,
       taxLines: (snapshot as { taxLines?: CustomerBill["taxLines"] } | null)?.taxLines ?? [],
       payments: paysByOrder.get(id) ?? [],
     })),

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, RefreshCw, Wallet, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -23,6 +23,8 @@ const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`
 type Tab = "deliveries" | "menu" | "refer" | "support" | "account";
 
 function activeTab(p: string): Tab | null {
+  // Finances belongs to the header CoinChip, not to a nav item.
+  if (under(p, "/me/wallet")) return null;
   if (MENU_PATHS.some((b) => under(p, b))) return "menu";
   if (REFER_PATHS.some((b) => under(p, b))) return "refer";
   if (SUPPORT_PATHS.some((b) => under(p, b))) return "support";
@@ -233,6 +235,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           <ListRow href="/me/menu" icon={<UtensilsCrossed className="size-[18px]" />} label="Weekly menu" sublabel="What is being served" />
           <ListRow href="/me/renew" icon={<RefreshCw className="size-[18px]" />} label="Renew plan" sublabel="Keep your meals coming" />
           <ListRow href="/subscribe" icon={<Plus className="size-[18px]" />} label="New order" sublabel="Start another plan" />
+        </MenuSection>
+        <MenuSection title="Money">
+          <ListRow href="/me/wallet" icon={<Wallet className="size-[18px]" />} label="Finances" sublabel="Coins, coupons, bills" />
         </MenuSection>
         <MenuSection title="Appearance">
           <Segmented label="Theme" idPrefix="menu-theme" items={THEMES} value={theme ?? "system"} onChange={(t) => setTheme(t as "light" | "dark" | "system")} className="[&>button]:flex-1" />

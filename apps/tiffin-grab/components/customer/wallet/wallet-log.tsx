@@ -1,6 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/customer/kit";
+import Link from "next/link";
+import { Skeleton, buttonClass } from "@/components/customer/kit";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";
@@ -31,21 +32,24 @@ function WalletLogRow({ tx }: { tx: WalletTx }) {
 }
 
 export function WalletLog({
-  items, page, size, total,
+  items, page, size, total, filtered = false,
 }: {
   items: WalletTx[];
   page: number;
   size: number;
   total: number;
+  filtered?: boolean;
 }) {
   return (
     <div className="space-y-4">
-      <ReuiFacetFilters spec={WALLET_FACETS} />
+      {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
+      {(total > 0 || filtered) && <ReuiFacetFilters spec={WALLET_FACETS} />}
       {items.length === 0 ? (
         <LottieEmptyState
           animation="coin-burst"
           title="No wallet activity yet"
           body="Earns and redemptions will appear here."
+          action={<Link href="/me/refer" className={buttonClass({ variant: "outline" })}>Refer a friend</Link>}
         />
       ) : (
         <Reveal.Group className="divide-y">
@@ -54,7 +58,7 @@ export function WalletLog({
           ))}
         </Reveal.Group>
       )}
-      <ListPagination page={page} size={size} total={total} />
+      {total > 0 && <ListPagination page={page} size={size} total={total} />}
     </div>
   );
 }
