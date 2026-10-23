@@ -194,6 +194,7 @@ export function Checkout({
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [coinsInput, setCoinsInput] = useState("");
   const [appliedCoins, setAppliedCoins] = useState(0);
+  const [coinsApplied, setCoinsApplied] = useState<{ coins: number; amount: number } | null>(null);
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [coinsToEarn, setCoinsToEarn] = useState<number | null>(null);
   const [coinCap, setCoinCap] = useState<RepriceResult["coinCap"]>(null);
@@ -261,6 +262,7 @@ export function Checkout({
     setCoinBalance(r.coinBalance);
     setCoinsToEarn(r.coinsToEarn);
     setCoinCap(r.coinCap);
+    setCoinsApplied(r.coinsApplied ?? null);
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
       // Card is the default when it can be paid in place.
@@ -497,6 +499,14 @@ export function Checkout({
     await refreshPrice(selections, next, paymentMethodId, appliedCoins || undefined);
   };
 
+  const removeCoins = async () => {
+    if (!selections) return;
+    setCoinsInput("");
+    setAppliedCoins(0);
+    setCoinsState({ status: "idle" });
+    await refreshPrice(selections, appliedCodes, paymentMethodId, undefined);
+  };
+
   const applyCoins = async () => {
     if (!selections) return;
     const requested = Number(coinsInput.trim());
@@ -730,13 +740,7 @@ export function Checkout({
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} deliverTo={deliverTo}>
-      {applied.length > 0 && (
-        <p className="nums mt-4 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
-          Saved {money(applied.reduce((n, c) => n + c.amount, 0))}
-        </p>
-      )}
-    </OrderSummary>
+    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} deliverTo={deliverTo} />
   );
 
   const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
@@ -760,6 +764,19 @@ export function Checkout({
                 )}
               </motion.div>
             ))}
+            {coinsApplied && (
+              <motion.div key="coins" {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                <RowIcon tone="save"><Coins aria-hidden className="size-[18px]" /></RowIcon>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold">Coins</p>
+                  <p className="nums text-muted-foreground truncate text-[13px]">{coinsApplied.coins} coins used</p>
+                </div>
+                <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(coinsApplied.amount)}</span>
+                <button type="button" onClick={() => void removeCoins()} aria-label="Remove coins" className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                  <X aria-hidden className="size-[18px]" />
+                </button>
+              </motion.div>
+            )}
           </AnimatePresence>
           <CouponEntry
             value={couponCode}
@@ -904,6 +921,7 @@ export function Checkout({
                 meta={[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `Starts ${start}` : null].filter(Boolean).join(" · ")}
                 address={deliverTo?.address}
                 total={result?.total}
+                saved={result?.adjustments.reduce((n, a) => n + a.amount, 0)}
                 onOpen={() => setSummaryOpen(true)}
               />
               {startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
@@ -1135,7 +1153,7 @@ function EtransferSubmitted({ deploymentId, onSent }: { deploymentId: string; on
 }
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */
-function OrderGlance({ title, baseline, meta, address, total, onOpen }: { title: string; baseline?: string | null; meta: string; address?: string; total?: number; onOpen: () => void }) {
+function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: { title: string; baseline?: string | null; meta: string; address?: string; total?: number; saved?: number; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -1151,7 +1169,12 @@ function OrderGlance({ title, baseline, meta, address, total, onOpen }: { title:
         {meta && <span className="text-muted-foreground block truncate text-[13px]">{meta}</span>}
         {address && <span className="text-muted-foreground block truncate text-[13px]">To {address}</span>}
       </span>
-      {total != null && <span className="nums text-[17px] font-bold">{money(total)}</span>}
+      {total != null && (
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <span className="nums text-[17px] font-bold">{money(total)}</span>
+          {saved ? <span className="nums rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">Saved {money(saved)}</span> : null}
+        </span>
+      )}
       <ChevronRight aria-hidden className="text-muted-foreground size-4 shrink-0" />
     </button>
   );

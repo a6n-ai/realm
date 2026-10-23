@@ -117,6 +117,32 @@ or SNS can't auto-confirm it:
    sandbox). Each should flip `notification_prefs.suppressed=true` for a matching
    user (create test users with those addresses first).
 
+## Transactional config set + reputation alarms
+
+Open/click tracking makes SES add a pixel and rewrite every link through
+`awstrack.me`, a spam signal on OTP mail. So transactional mail uses its own
+config set `tiffin-grab-transactional` (bounce/complaint/delivery, no
+OPEN/CLICK); campaigns keep `tiffin-grab-prod` for stats. The same stack holds
+two CloudWatch alarms on `Reputation.BounceRate` (> 2%) and
+`Reputation.ComplaintRate` (> 0.1%) that email `AlertEmail`.
+
+1. Deploy (adds the set, alert topic, alarms):
+   ```bash
+   aws cloudformation deploy --region us-east-1 \
+     --stack-name tiffin-grab-ses-suppression \
+     --template-file deployment/email/ses-suppression.yaml \
+     --parameter-overrides AlertEmail=<you@example.com>
+   ```
+   Click the confirm link in the "AWS Notification - Subscription Confirmation" mail.
+2. Ship the app code first, then point transactional sends at the set:
+   ```bash
+   aws ssm put-parameter --region us-east-1 --overwrite \
+     --name /tiffin-grab/prod/SES_TRANSACTIONAL_CONFIGURATION_SET --type String \
+     --value tiffin-grab-transactional
+   ```
+   and redeploy. Unset falls back to `SES_CONFIGURATION_SET`.
+3. Verify: an OTP mail's links point at `app.tiffingrab.ca`, not `awstrack.me`.
+
 ## Transactional sender on `notify.tiffingrab.ca`
 
 Transactional mail (OTP, orders, reminders) leaves from `hi@notify.tiffingrab.ca`

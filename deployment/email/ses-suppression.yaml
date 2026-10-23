@@ -16,6 +16,13 @@ Parameters:
     Type: String
     Default: https://app.tiffingrab.ca/api/webhooks/ses
     Description: HTTPS endpoint SNS delivers feedback to. Must be live before deploy (auto-confirm).
+  TransactionalConfigurationSetName:
+    Type: String
+    Default: tiffin-grab-transactional
+    Description: Config set for OTP/order mail, no open/click tracking. Put this in SSM SES_TRANSACTIONAL_CONFIGURATION_SET, then redeploy the app.
+  AlertEmail:
+    Type: String
+    Description: Address that gets the SES reputation alarm emails (confirm the SNS subscription mail once).
 
 Resources:
   ConfigSet:
@@ -80,10 +87,80 @@ Resources:
       Protocol: https
       Endpoint: !Ref WebhookEndpoint
 
+  # Transactional mail (OTP, orders) gets no OPEN/CLICK: SES adds a pixel and
+  # rewrites every link through awstrack.me for those, a spam signal on OTPs.
+  TransactionalConfigSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref TransactionalConfigurationSetName
+
+  TransactionalEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: FeedbackTopicPolicy
+    Properties:
+      ConfigurationSetName: !Ref TransactionalConfigSet
+      EventDestination:
+        Name: sns-bounce-complaint
+        Enabled: true
+        MatchingEventTypes:
+          - BOUNCE
+          - COMPLAINT
+          - DELIVERY
+          - DELIVERY_DELAY
+          - REJECT
+          - RENDERING_FAILURE
+        SnsDestination:
+          TopicARN: !Ref FeedbackTopic
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: tiffin-grab-ses-alerts
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  # Account-wide reputation. SES may review an account from 5% bounce or 0.1%
+  # complaint and pause it at 10% / 0.5%; Gmail spam-folders from ~0.3%.
+  BounceRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: tiffin-grab-ses-bounce-rate
+      AlarmDescription: SES bounce rate above 2% - check the last campaign list.
+      Namespace: AWS/SES
+      MetricName: Reputation.BounceRate
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 0.02
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  ComplaintRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: tiffin-grab-ses-complaint-rate
+      AlarmDescription: SES complaint rate above 0.1% - SES review level, OTP mail at risk of spam folder.
+      Namespace: AWS/SES
+      MetricName: Reputation.ComplaintRate
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 0.001
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
 Outputs:
   ConfigurationSetName:
     Description: Set SSM /tiffin-grab/prod/SES_CONFIGURATION_SET to this, then redeploy.
     Value: !Ref ConfigSet
+  TransactionalConfigurationSetName:
+    Description: Set SSM /tiffin-grab/prod/SES_TRANSACTIONAL_CONFIGURATION_SET to this, then redeploy.
+    Value: !Ref TransactionalConfigSet
   FeedbackTopicArn:
     Description: Optionally set SSM /tiffin-grab/prod/SES_FEEDBACK_TOPIC_ARN to this (webhook defense-in-depth).
     Value: !Ref FeedbackTopic

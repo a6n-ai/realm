@@ -27,11 +27,11 @@ describe("OrderSummary", () => {
     expect(screen.getByText(/Starts Mon, Sep 21/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/subscribe");
   });
-  it("displays server amounts verbatim and the savings note", () => {
+  it("displays server amounts verbatim without a duplicate savings note", () => {
     render(<OrderSummary selections={sel} result={result} editHref="/subscribe" />);
     expect(screen.getByText("$124.30")).toBeTruthy();
     expect(screen.getByText("−$10.00")).toBeTruthy();
-    expect(screen.getByText("You save $10.00")).toBeTruthy();
+    expect(screen.queryByText(/You save/)).toBeNull();
   });
   it("shows the delivery count, and the subtotal above the discounts", () => {
     render(<OrderSummary selections={sel} result={{ ...result, tiffinCount: 24, deliveryCount: 16 }} editHref="/subscribe" />);

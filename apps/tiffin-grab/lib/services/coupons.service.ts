@@ -3,7 +3,7 @@ import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
 import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, orders, users } from "@/db/schema";
+import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
 import { getDiscountPolicy } from "./app-settings.service";
@@ -593,6 +593,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     if (coupon.maxPerUser != null) {
       const used = await this.userRedemptionCount(db, coupon.id, userId);
       if (used >= coupon.maxPerUser) return "You have already used this coupon";
+      if (used + (await this.heldByUnpaidOrders(coupon, userId)) >= coupon.maxPerUser) {
+        return "You have already used this coupon on an order waiting for payment";
+      }
     }
     if (coupon.kind === "first_order") {
       const [{ n }] = await db
@@ -634,6 +637,23 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .select({ n: sql<number>`cast(count(*) as int)` })
       .from(couponRedemptions)
       .where(and(eq(couponRedemptions.couponId, couponId), eq(couponRedemptions.userId, userId)));
+    return n;
+  }
+
+  // Coupons ride on an order until its payment is verified. Once the customer says they
+  // paid (pending_verification), the code is spoken for; an abandoned checkout still
+  // awaiting payment doesn't hold it, so retrying that checkout keeps the code.
+  private async heldByUnpaidOrders(coupon: Coupon, userId: bigint): Promise<number> {
+    const [{ n }] = await db
+      .select({ n: sql<number>`cast(count(distinct ${orders.id}) as int)` })
+      .from(orders)
+      .innerJoin(payments, eq(payments.orderId, orders.id))
+      .where(and(
+        eq(orders.userId, userId),
+        ne(orders.status, "cancelled"),
+        eq(payments.status, "pending_verification"),
+        sql`${orders.pricingSnapshot}->'pendingRedemptions' @> ${JSON.stringify([{ couponPublicId: coupon.publicId }])}::jsonb`,
+      ));
     return n;
   }
 }
