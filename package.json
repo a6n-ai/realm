@@ -44,10 +44,12 @@
     "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp"
   },
   "devDependencies": {
+    "@foundry/realtime-worker": "github:a6n-ai/foundry#path:services/realtime",
     "jose": "^6.2.3",
     "konsistent": "1.0.0-beta.4",
     "turbo": "^2.9.18",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4"
   }
 }

@@ -1,0 +1,15 @@
+// Code ships from foundry services/realtime (@foundry/realtime-worker).
+// Secret is set with `wrangler secret put REALTIME_SECRET --env xplorers`, never in this file.
+{
+  "name": "realtime",
+  "main": "../../../node_modules/@foundry/realtime-worker/src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "env": {
+    "xplorers": {
+      "name": "realtime-xplorers",
+      "routes": [{ "pattern": "rt.xplorers.a6n.ai", "custom_domain": true }],
+      "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "ChannelRoom" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChannelRoom"] }]
+    }
+  }
+}
