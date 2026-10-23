@@ -54,6 +54,29 @@ describe("renewSelections", () => {
     expect(renewSelections(catalog, { ...src, frequencyKey: "mwf" }, start)).toBeNull();
   });
 
+  it("legacy order with no stored days takes the frequency's weekdays", () => {
+    for (const eatingDays of [null, []]) {
+      const s = renewSelections(catalog, { ...src, eatingDays }, start)!;
+      expect(s.eatingDays).toEqual(["mon", "tue", "wed", "thu", "fri"]);
+      expect(firstBlockedStep(catalog, s)).toBeNull();
+    }
+  });
+
+  it("legacy order drops weekend days the meal size does not serve", () => {
+    const cat = {
+      ...catalog,
+      mealSizes: [{ ...catalog.mealSizes[0], servesWeekends: false }],
+      frequencies: [{ publicId: "frq_7", key: "7_day", name: "7 day", daysPerWeek: 7, weekdays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }],
+    } as ClientCatalogSnapshot;
+    const s = renewSelections(cat, { ...src, frequencyKey: "7_day", eatingDays: null }, start)!;
+    expect(s.eatingDays).toEqual(["mon", "tue", "wed", "thu", "fri"]);
+    expect(s.includeSaturday).toBe(false);
+  });
+
+  it("legacy order stays null when the frequency is not selectable", () => {
+    expect(renewSelections(catalog, { ...src, frequencyKey: "mwf", eatingDays: null }, start)).toBeNull();
+  });
+
   it("snaps an unoffered duration to the closest, ties going down", () => {
     const cat = { ...catalog, durations: [{ publicId: "a", weeks: 1 }, { publicId: "b", weeks: 2 }, { publicId: "c", weeks: 4 }] };
     expect(renewSelections(cat, { ...src, durationWeeks: 3 }, start)!.durationWeeks).toBe(2);

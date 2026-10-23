@@ -3,16 +3,17 @@ import { test, expect } from "../fixtures";
 /**
  * Quick renew: /me/renew is one prefilled screen, "Continue to pay" lands on checkout's Pay step,
  * and the total the customer saw is the total checkout charges.
- * Needs a customer whose latest non-trial plan has eating days; otherwise the page shows the
- * full stepper, and the spec skips instead of failing.
+ * Runs as the seeded e2e customer, who must have a non-trial plan (`pnpm tsx scripts/reseed-e2e-users.ts`
+ * plus a plan). Set E2E_RENEW_READY=1 once that holds; without it the spec skips with that reason.
+ * With it set, a missing quick screen is a failure, never a skip.
  */
 for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["phone", { width: 390, height: 844 }]] as const) {
   test(`Quick renew: one screen to the Pay step (${name})`, async ({ page }) => {
+    test.skip(!process.env.E2E_RENEW_READY, "set E2E_RENEW_READY=1 when the e2e customer has a non-trial plan to renew");
     await page.setViewportSize(viewport);
     await page.goto("/me/renew");
     const pay = page.getByRole("button", { name: /continue to pay/i });
-    const quick = await pay.waitFor({ timeout: 45_000 }).then(() => true, () => false);
-    test.skip(!quick, "customer has no one-tap renewable plan; /me/renew shows the stepper");
+    await expect(pay, "quick renew screen did not render (stepper or error instead?)").toBeVisible({ timeout: 45_000 });
 
     await expect(page.getByTestId("plan-card")).toBeVisible();
     await expect(page.getByLabel("Start date")).toBeVisible();

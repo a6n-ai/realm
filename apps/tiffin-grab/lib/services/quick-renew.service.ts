@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -76,7 +76,7 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
       planKey: src.planKey,
       mealSizePublicId: src.mealSizePublicId,
       frequencyKey: src.frequencyKey,
-      eatingDays: (src.eatingDays ?? []) as DayOfWeek[],
+      eatingDays: src.eatingDays as DayOfWeek[] | null,
       durationWeeks: src.durationWeeks,
       trialLength: src.trialLength,
     },
@@ -107,10 +107,27 @@ export async function loadQuickRenewForOrder(orderPublicId: string): Promise<Qui
   return build(row.userId, src.organizationId, src, true);
 }
 
+/**
+ * A later order of the same customer that is not a running plan yet (unpaid or waitlisted). Renewing again would
+ * stack a duplicate on it, so both the order page and renewOrderAction refuse while one exists.
+ */
+export async function findUnpaidRenewal(order: { publicId: string; userId: bigint | null; startDate: string }): Promise<{ publicId: string; deploymentId: string } | null> {
+  if (order.userId == null) return null;
+  const [row] = await db
+    .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
+    .from(orders)
+    .where(and(eq(orders.userId, order.userId), ne(orders.publicId, order.publicId), inArray(orders.status, ["pending", "waitlisted"]), gt(orders.startDate, order.startDate)))
+    .limit(1);
+  return row ?? null;
+}
+
 /** What a staff renewal takes from the source order, never from the client: owner, contact, plan, address. */
 export async function loadRenewContext(orderPublicId: string) {
   const [row] = await db
     .select({
+      publicId: orders.publicId,
+      userId: orders.userId,
+      startDate: orders.startDate,
       planKey: plans.key,
       organizationId: orders.organizationId,
       status: orders.status,
@@ -145,7 +162,7 @@ export async function loadRenewSourceSelections(orderPublicId: string, startDate
       planKey: src.planKey,
       mealSizePublicId: src.mealSizePublicId,
       frequencyKey: src.frequencyKey,
-      eatingDays: (src.eatingDays ?? []) as DayOfWeek[],
+      eatingDays: src.eatingDays as DayOfWeek[] | null,
       durationWeeks: src.durationWeeks,
       trialLength: src.trialLength,
     },

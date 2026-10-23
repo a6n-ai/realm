@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { EyeIcon, PackageIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
-import { and, eq, gt, inArray, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
@@ -26,7 +26,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
-import { deliveryZones, orders as orderRows, plans, users } from "@/db/schema";
+import { deliveryZones, plans, users } from "@/db/schema";
 import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -48,6 +48,7 @@ import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
 import { LookOutControl } from "./look-out-control";
 import { RenewControl } from "./renew-control";
+import { findUnpaidRenewal } from "@/lib/services/quick-renew.service";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "@/components/dashboard/deliveries-section";
@@ -278,11 +279,7 @@ async function OrderDetail({
   const lastTiffin = deliveryRows.filter((r) => r.status !== "cancelled").map((r) => r.deliveryDate).sort().at(-1) ?? null;
   const cancelledAt = activities.find((a) => a.type === "cancelled")?.createdAt;
   // An unpaid renewal is not a running plan yet, but a second Renew would stack a duplicate on it.
-  const [unpaidRenewal] = order.userId == null ? [] : await db
-    .select({ id: orderRows.id })
-    .from(orderRows)
-    .where(and(eq(orderRows.userId, order.userId), ne(orderRows.publicId, order.publicId), inArray(orderRows.status, ["pending", "waitlisted"]), gt(orderRows.startDate, order.startDate)))
-    .limit(1);
+  const unpaidRenewal = await findUnpaidRenewal(order);
   const renewal = otherPlans.filter((p) => p.startDate > order.startDate).sort((x, y) => x.startDate.localeCompare(y.startDate))[0];
   const stats = stageCards({
     displayStatus,
@@ -337,6 +334,11 @@ async function OrderDetail({
       {order.trialLength != null && <TrialPill className="self-center" />}
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
       {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && <RenewControl orderId={order.publicId} canRenew={!renewal && !unpaidRenewal} />}
+      {unpaidRenewal && (
+        <Badge variant="outline" asChild>
+          <Link href={`/dashboard/orders/${unpaidRenewal.publicId}`}>Renewal {unpaidRenewal.deploymentId} waiting for payment</Link>
+        </Badge>
+      )}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={!order.deploymentId.startsWith("wc-") && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl

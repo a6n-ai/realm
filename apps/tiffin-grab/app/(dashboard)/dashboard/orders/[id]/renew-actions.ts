@@ -8,7 +8,7 @@ import { enabledMethods } from "@foundry/payments";
 import { stripeMethodAvailable, stripePayLink } from "@/lib/payments/stripe";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { assertOnePerson, assertOrderVisible, createOrder, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
+import { findUnpaidRenewal, loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
 import type { QuickRenewData } from "@/components/renew/types";
 import type { WizardSelections } from "@/components/wizard/selections";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -38,6 +38,7 @@ export async function renewOrderAction(input: {
     const session = await guard(input.orderPublicId);
     const src = await loadRenewContext(input.orderPublicId);
     if (!src) throw new ValidationError("Order not found");
+    if (await findUnpaidRenewal(src)) throw new ValidationError("This customer already has a renewal waiting for payment. Open it to resend the pay link or cancel it.");
     if (src.trialLength != null) throw new ValidationError("A trial can't be quick-renewed. Use New order.");
     const addressPublicId = input.addressPublicId ?? src.addressPublicId;
     if (!addressPublicId) throw new ValidationError("Pick a delivery address");

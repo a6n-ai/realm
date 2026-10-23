@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   requirePermission: vi.fn(),
   createOrder: vi.fn(),
   loadRenewContext: vi.fn(),
+  findUnpaidRenewal: vi.fn(),
   loadQuickRenewForOrder: vi.fn(),
   assertOrderVisible: vi.fn(),
   loadRenewSourceSelections: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/lib/services/orders.service", () => ({
 }));
 vi.mock("@/lib/services/quick-renew.service", () => ({
   loadRenewContext: m.loadRenewContext,
+  findUnpaidRenewal: m.findUnpaidRenewal,
   loadQuickRenewForOrder: m.loadQuickRenewForOrder,
   loadRenewSourceSelections: m.loadRenewSourceSelections,
 }));
@@ -42,6 +44,7 @@ beforeEach(() => {
   m.requirePermission.mockResolvedValue(undefined);
   m.assertOrderVisible.mockResolvedValue(undefined);
   m.loadRenewContext.mockResolvedValue(SRC);
+  m.findUnpaidRenewal.mockResolvedValue(null);
   m.loadRenewSourceSelections.mockResolvedValue({ planKey: "veg", mealSizeId: "ms_src", frequencyKey: "daily", eatingDays: ["mon"], persons: 1, mealSlots: [], includeSaturday: false, includeSunday: false, durationWeeks: 4, startDate: "2026-11-01", addonSelections: [] });
   m.stripeAvailable.mockResolvedValue(true);
   m.methods.mockReturnValue([{ id: "stripe" }, { id: "etransfer" }]);
@@ -53,6 +56,12 @@ describe("renewOrderAction", () => {
     m.requirePermission.mockRejectedValue(new Error("nope"));
     const res = await renewOrderAction(input);
     expect("error" in res).toBe(true);
+    expect(m.createOrder).not.toHaveBeenCalled();
+  });
+
+  it("refuses while an unpaid renewal exists and never creates", async () => {
+    m.findUnpaidRenewal.mockResolvedValue({ publicId: "ord_9", deploymentId: "SUB-9" });
+    expect(await renewOrderAction(input)).toEqual({ error: "This customer already has a renewal waiting for payment. Open it to resend the pay link or cancel it." });
     expect(m.createOrder).not.toHaveBeenCalled();
   });
 
