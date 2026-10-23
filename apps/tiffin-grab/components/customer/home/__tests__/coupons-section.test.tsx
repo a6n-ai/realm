@@ -18,6 +18,7 @@ function coupon(overrides: Partial<AvailableCoupon>): AvailableCoupon {
     valueAmount: null,
     minSubtotal: null,
     planTypes: [],
+    allowedPaymentMethods: [],
     autoApply: false,
     expiresAt: null,
     ...overrides,

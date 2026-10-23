@@ -148,7 +148,7 @@ async function CouponsPanel({ userId, searchParams }: { userId: bigint; searchPa
   const { currency } = await getAppSettings();
   const { page } = parseFilterState([], await searchParams);
   const [available, totals, history] = await Promise.all([
-    couponsService.listAvailable(),
+    couponsService.listAvailable(userId),
     myCouponTotals(userId),
     myCouponsPage(userId, page),
   ]);

@@ -32,6 +32,8 @@ const couponSchema = z.object({
   autoApply: z.boolean(),
   visible: z.boolean(),
   planTypes: z.array(z.enum(planType.enumValues)).default([]),
+  // Empty = valid with every payment method.
+  allowedPaymentMethods: z.array(z.string().trim().min(1).max(64)).max(20).default([]),
   startsAt: z.number().int().nullish(),
   expiresAt: z.number().int().nullish(),
   active: z.boolean(),
@@ -91,6 +93,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     autoApply: data.autoApply,
     visible: data.visible,
     planTypes: data.planTypes,
+    allowedPaymentMethods: data.allowedPaymentMethods,
     startsAt: data.startsAt ?? null,
     expiresAt: data.expiresAt ?? null,
     active: data.active,

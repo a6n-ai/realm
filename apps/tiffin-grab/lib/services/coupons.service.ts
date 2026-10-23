@@ -87,6 +87,7 @@ export interface AvailableCoupon {
   valueAmount: string | null;
   minSubtotal: string | null;
   planTypes: string[];
+  allowedPaymentMethods: string[];
   autoApply: boolean;
   expiresAt: number | null;
 }
@@ -513,8 +514,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   }
 
   // Customer browse list: active, non-rep coupons currently in-window, projected
-  // to customer-safe fields. Catalog data (not user-owned) — no userId gate.
-  async listAvailable(): Promise<AvailableCoupon[]> {
+  // to customer-safe fields. With a userId, codes this customer can no longer use
+  // (used up, first-order only) are left out so we never suggest a dead code.
+  async listAvailable(userId?: bigint | null): Promise<AvailableCoupon[]> {
     const rows = await db
       .select()
       .from(coupons)
@@ -527,8 +529,11 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
           notInArray(coupons.kind, ["rep_daily", "rep_code"]),
         ),
       );
-    return rows
-      .filter((c) => !this.windowError(c))
+    const live = rows.filter((c) => !this.windowError(c) && (c.maxRedemptions == null || c.redemptionCount < c.maxRedemptions));
+    const usable = userId == null
+      ? live
+      : (await Promise.all(live.map(async (c) => ((await this.userEligibilityError(c, userId)) ? null : c)))).filter((c) => c != null);
+    return usable
       .map((c) => ({
         code: c.code,
         name: c.name,
@@ -538,6 +543,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         valueAmount: c.valueAmount,
         minSubtotal: c.minSubtotal,
         planTypes: c.planTypes,
+        allowedPaymentMethods: c.allowedPaymentMethods,
         autoApply: c.autoApply,
         expiresAt: c.expiresAt,
       }));
@@ -579,15 +585,20 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
       return "This coupon has been fully redeemed";
     }
-    if (ctx.userId != null && coupon.maxPerUser != null) {
-      const used = await this.userRedemptionCount(db, coupon.id, ctx.userId);
+    return ctx.userId != null ? this.userEligibilityError(coupon, ctx.userId) : null;
+  }
+
+  // The checks that depend only on who is paying, not on the cart.
+  private async userEligibilityError(coupon: Coupon, userId: bigint): Promise<string | null> {
+    if (coupon.maxPerUser != null) {
+      const used = await this.userRedemptionCount(db, coupon.id, userId);
       if (used >= coupon.maxPerUser) return "You have already used this coupon";
     }
-    if (coupon.kind === "first_order" && ctx.userId != null) {
+    if (coupon.kind === "first_order") {
       const [{ n }] = await db
         .select({ n: sql<number>`cast(count(*) as int)` })
         .from(orders)
-        .where(eq(orders.userId, ctx.userId));
+        .where(eq(orders.userId, userId));
       if (n > 0) return "This coupon is only valid on your first order";
     }
     return null;

@@ -57,6 +57,7 @@ type CouponRow = {
   autoApply: boolean;
   visible: boolean;
   planTypes: string[];
+  allowedPaymentMethods: string[];
   startsAt: number | null;
   expiresAt: number | null;
   active: boolean;
@@ -76,6 +77,7 @@ type Draft = {
   maxRedemptions: string;
   maxPerUser: string;
   planTypes: string[];
+  allowedPaymentMethods: string[];
   startsAt: string;
   expiresAt: string;
   stackable: boolean;
@@ -98,6 +100,7 @@ function emptyDraft(): Draft {
     maxRedemptions: "",
     maxPerUser: "",
     planTypes: [],
+    allowedPaymentMethods: [],
     startsAt: "",
     expiresAt: "",
     stackable: false,
@@ -121,6 +124,7 @@ function toDraft(c: CouponRow, tz: string): Draft {
     maxRedemptions: c.maxRedemptions == null ? "" : String(c.maxRedemptions),
     maxPerUser: c.maxPerUser == null ? "" : String(c.maxPerUser),
     planTypes: c.planTypes,
+    allowedPaymentMethods: c.allowedPaymentMethods,
     startsAt: toLocalInput(c.startsAt, tz),
     expiresAt: toLocalInput(c.expiresAt, tz),
     stackable: c.stackable,
@@ -172,12 +176,14 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
 
 export function CouponsManager({
   coupons,
+  paymentMethods,
   stats,
   sort,
   pagination,
   spec,
 }: {
   coupons: CouponRow[];
+  paymentMethods: { value: string; label: string }[];
   stats: StatItem[];
   sort: SortState<CouponSortColumn>;
   pagination: { page: number; size: number };
@@ -211,6 +217,7 @@ export function CouponsManager({
       autoApply: draft.autoApply,
       visible: draft.visible,
       planTypes: draft.planTypes,
+      allowedPaymentMethods: draft.allowedPaymentMethods,
       startsAt: fromLocalInput(draft.startsAt, tz),
       expiresAt: fromLocalInput(draft.expiresAt, tz),
       active: draft.active,
@@ -421,6 +428,19 @@ export function CouponsManager({
                     emptyText="No plan found."
                   />
                   <p className="text-muted-foreground text-xs">Leave empty to allow all plans.</p>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label>Payment methods</Label>
+                  <Multiselect
+                    options={paymentMethods}
+                    value={draft.allowedPaymentMethods}
+                    onChange={(v) => setDraft({ ...draft, allowedPaymentMethods: v })}
+                    placeholder="All payment methods"
+                    searchPlaceholder="Search methods..."
+                    emptyText="No payment method found."
+                  />
+                  <p className="text-muted-foreground text-xs">Leave empty to allow every payment method.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

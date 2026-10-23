@@ -95,4 +95,15 @@ describe("couponsService.listAvailable (customer browse list)", () => {
     expect(result[0]).not.toHaveProperty("ownerUserId");
     expect(result[0]).not.toHaveProperty("istDate");
   });
+
+  it("leaves out a code this customer has used up, and keeps it for everyone else", async () => {
+    const [u] = await db.insert(users).values({ email: "used@test.com", role: "user", name: "Used" }).returning({ id: users.id });
+    await db.insert(coupons).values({ code: "WELCOME10", kind: "percentage", name: "Welcome", valuePct: "10", maxPerUser: 1, active: true, visible: true });
+    // Stands in for one redemption row (which would need a full order fixture).
+    const spy = vi.spyOn(couponsService as unknown as { userRedemptionCount: () => Promise<number> }, "userRedemptionCount").mockResolvedValue(1);
+
+    expect((await couponsService.listAvailable(u.id)).map((c) => c.code)).toEqual([]);
+    expect((await couponsService.listAvailable()).map((c) => c.code)).toEqual(["WELCOME10"]);
+    spy.mockRestore();
+  });
 });

@@ -228,10 +228,11 @@ async function quotePrice(
 
   // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts.
   const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
+  const customerId = await previewCustomerId(input.contact);
   const best = await couponsService.resolveBestCoupons({
     subtotal: postCatalog,
     planType: plan?.planType,
-    userId: await previewCustomerId(input.contact),
+    userId: customerId,
     paymentMethodId: method?.enabled ? method.id : "simulated",
     manualCode: input.couponCode,
     manualCodes: input.couponCodes,
@@ -273,7 +274,7 @@ async function quotePrice(
       error,
       codeErrors: best.manualErrors,
       notApplied: best.notApplied,
-      available: (await couponsService.listAvailable()).filter((c) => !c.autoApply),
+      available: (await couponsService.listAvailable(customerId)).filter((c) => !c.autoApply),
     },
   };
 }

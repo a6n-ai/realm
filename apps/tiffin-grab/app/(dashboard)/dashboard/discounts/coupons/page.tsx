@@ -4,6 +4,7 @@ import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "../kind-labels";
@@ -75,6 +76,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       autoApply: coupons.autoApply,
       visible: coupons.visible,
       planTypes: coupons.planTypes,
+      allowedPaymentMethods: coupons.allowedPaymentMethods,
       startsAt: coupons.startsAt,
       expiresAt: coupons.expiresAt,
       active: coupons.active,
@@ -103,7 +105,8 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
     { label: "Expiring in 7 days", value: live.filter((c) => c.expiresAt != null && c.expiresAt <= weekOut).length.toLocaleString() },
     { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
   ];
-  return <CouponsManager coupons={couponRows} stats={stats} sort={sort} pagination={page} spec={SPEC} />;
+  const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card (Stripe)" : m.label }));
+  return <CouponsManager coupons={couponRows} paymentMethods={paymentMethods} stats={stats} sort={sort} pagination={page} spec={SPEC} />;
 }
 
 export type { CouponSortColumn };

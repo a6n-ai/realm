@@ -39,7 +39,7 @@ export default async function CheckoutPage() {
   const savedAddresses = await addressService.list({ userId, orgId });
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   // Auto-apply coupons land on their own; only codes a customer must type are worth suggesting.
-  const suggestedCoupons = (await couponsService.listAvailable()).filter((c) => !c.autoApply);
+  const suggestedCoupons = (await couponsService.listAvailable(userId)).filter((c) => !c.autoApply);
   const { lastTiffin } = await myRenewalWindow(userId);
   // Province only drives the fee note; an address changed in step 1 keeps the first guess (the server charges by the real one).
   const address = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? prefill ?? null;

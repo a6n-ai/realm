@@ -440,9 +440,12 @@ export function Checkout({
     if (kept.length !== tried.length) await refreshPrice(selections, kept, paymentMethodId, appliedCoins || undefined);
     setAppliedCodes(kept);
     const added = kept.length - appliedCodes.filter((c) => kept.includes(c)).length;
+    const refused = r.couponErrors?.[0];
     setCouponState(added > 0
       ? { status: "applied", message: added === 1 ? "1 coupon applied" : `${added} coupons applied` }
-      : { status: "applied", message: "None of these coupons lowers this order" });
+      : refused
+        ? { status: "error", message: `${refused.code}: ${refused.error}` }
+        : { status: "applied", message: "None of these coupons lowers this order" });
   };
 
   const removeCoupon = async (code: string) => {
@@ -481,7 +484,15 @@ export function Checkout({
   const selectMethod = async (id: string) => {
     if (!selections) return;
     setPaymentMethodId(id);
-    await refreshPrice(selections, appliedCodes, id, appliedCoins || undefined);
+    const r = await refreshPrice(selections, appliedCodes, id, appliedCoins || undefined);
+    // A code tied to another payment method drops out here; say so rather than letting it vanish.
+    const refused = (r.couponErrors ?? []).filter((e) => appliedCodes.includes(e.code));
+    if (refused.length) {
+      const keep = appliedCodes.filter((c) => !refused.some((e) => e.code === c));
+      setAppliedCodes(keep);
+      await refreshPrice(selections, keep, id, appliedCoins || undefined);
+      setCouponState({ status: "error", message: `${refused.map((e) => e.code).join(", ")} removed: ${refused[0]!.error.toLowerCase()}` });
+    }
   };
 
   const handleAddressTagSelect = (tagId: string) => {
@@ -734,6 +745,7 @@ export function Checkout({
             suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
             onPick={(code) => void applyCoupon(code)}
             onApplyAll={(codes) => void applyAllCoupons(codes)}
+            methodName={(id) => (id === "stripe" ? "Card" : paymentMethods.find((m) => m.id === id)?.label ?? id)}
           />
           {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
           {coinBalance == null || coinBalance === 0 ? null : (
@@ -1128,7 +1140,7 @@ function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save
 
 // A collapsed "Add a coupon code" row that opens into one field with Apply inside it,
 // so the action never sits off-screen and the row costs one line until it's needed.
-function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick, onApplyAll }: {
+function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick, onApplyAll, methodName }: {
   value: string;
   onChange: (v: string) => void;
   onApply: () => void;
@@ -1137,6 +1149,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
   suggestions: AvailableCoupon[];
   onPick: (code: string) => void;
   onApplyAll: (codes: string[]) => void;
+  methodName: (id: string) => string;
 }) {
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
   return (
@@ -1153,7 +1166,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
         <Plus aria-hidden className={`text-muted-foreground size-5 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-45" : ""}`} />
       </button>
       <AnimatePresence initial={false}>
-        {open && (
+        {(open || state.status !== "idle") && (
           <motion.div key="coupon" id="coupon-entry" {...reveal} className="px-4 pb-4">
             <Label htmlFor="coupon" className="sr-only">Coupon code</Label>
             <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={state} />
@@ -1188,7 +1201,9 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                 >
                   <span className="min-w-0">
                     <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
-                    <span className="text-muted-foreground block truncate text-[12px]">{c.name}</span>
+                    <span className="text-muted-foreground block truncate text-[12px]">
+                      {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.name}
+                    </span>
                   </span>
                   <span className="text-primary shrink-0 text-[13px] font-semibold">{discountLine(c)}</span>
                 </button>
