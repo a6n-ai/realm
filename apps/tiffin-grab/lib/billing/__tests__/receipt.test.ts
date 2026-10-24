@@ -10,6 +10,7 @@ const parts = (u: string) => {
 
 describe("receipt link", () => {
   const now = 1_800_000_000_000;
+  process.env.BETTER_AUTH_URL ??= "https://app.test";
   it("verifies its own signature until it expires", () => {
     const { exp, sig } = parts(signedReceiptUrl("ord_1", now));
     expect(verifyReceiptSignature("ord_1", exp, sig, now)).toBe(true);
@@ -34,9 +35,8 @@ describe("renderReceiptPdf", () => {
       lines: [{ label: "20 tiffins", amount: 200 }, { label: "Coupon SAVE10", amount: -20 }],
       taxLines: [{ label: "HST 13%", amount: 23.4 }],
       orderTotal: 203.4,
-      addons: [{ date: 1_791_000_000_000, lines: [{ label: "Extra roti ×5", amount: 10 }], taxLines: [], total: 10 }],
-      payments: [{ date: 1_790_000_000_000, method: "Visa ••4242", reference: "pi_123", amount: 203.4, cardFee: 5.5, status: "paid" }],
-      cardFees: 5.5, paid: 208.9, refunded: 0, balanceDue: 0,
+      payments: [{ date: 1_790_000_000_000, method: "Visa ••4242", reference: "pi_123", amount: 208.9, cardFee: 5.5, refunded: 10, status: "paid" }],
+      cardFees: 5.5, paid: 208.9, refunded: 10, balanceDue: 0,
     };
     const bytes = await renderReceiptPdf(r);
     expect(Buffer.from(bytes.subarray(0, 5)).toString()).toBe("%PDF-");

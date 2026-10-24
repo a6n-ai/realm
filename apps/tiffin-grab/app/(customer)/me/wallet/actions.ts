@@ -8,7 +8,7 @@ import {
   type ClaimPaymentContext,
 } from "@/lib/services/orders.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
-import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageOrder, assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { runAction, type ActionResult } from "../action-result";
 import { emailOrderReceipt } from "@/lib/billing/email-receipt";
@@ -46,7 +46,9 @@ export async function loadClaimPaymentContext(paymentPublicId: string): Promise<
 
 export async function emailReceiptAction(orderPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
-    await assertCanManageOrder(orderPublicId);
+    const userId = await currentUserId();
+    if (userId == null) throw new NotFoundError("Order not found");
+    await assertOwnsOrder(userId, orderPublicId);
     await emailOrderReceipt(orderPublicId);
   });
 }

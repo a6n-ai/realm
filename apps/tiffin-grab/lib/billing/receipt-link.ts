@@ -24,6 +24,8 @@ export function receiptPath(orderPublicId: string): string {
 export function signedReceiptUrl(orderPublicId: string, now = Date.now()): string {
   const exp = now + TTL_MS;
   const origin = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
+  // The email queue fetches this from the server: a relative url can never resolve.
+  if (!origin) throw new Error("BETTER_AUTH_URL is not set; cannot build the receipt link");
   return `${origin}${receiptPath(orderPublicId)}?exp=${exp}&sig=${sign(orderPublicId, exp)}`;
 }
 
@@ -34,6 +36,12 @@ export function verifyReceiptSignature(orderPublicId: string, exp: string | null
   return want.length === got.length && timingSafeEqual(want, got);
 }
 
-export function receiptAttachment(order: { publicId: string; deploymentId: string }) {
-  return { filename: `TiffinGrab-receipt-${order.deploymentId}.pdf`, url: signedReceiptUrl(order.publicId), contentType: "application/pdf" };
+/** The email attachment ref, or [] when the link can't be built: never block a payment confirm over a receipt. */
+export function receiptAttachments(order: { publicId: string; deploymentId: string }) {
+  try {
+    return [{ filename: `TiffinGrab-receipt-${order.deploymentId}.pdf`, url: signedReceiptUrl(order.publicId), contentType: "application/pdf" }];
+  } catch (e) {
+    console.error("[receipt] attachment skipped:", e);
+    return [];
+  }
 }

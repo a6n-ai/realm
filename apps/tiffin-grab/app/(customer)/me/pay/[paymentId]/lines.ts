@@ -23,10 +23,11 @@ export function payPageLines(
   const snap = order.pricingSnapshot as OrderPricingSnapshot;
   return {
     lines: [
-      ...snap.lineItems.map((l) => ({ label: l.label, amount: l.amount })),
-      ...snap.adjustments.map((a) => ({ label: a.label, amount: -a.amount })),
+      ...(snap.lineItems ?? []).map((l) => ({ label: l.label, amount: l.amount })),
+      // Older snapshots can lack these arrays.
+      ...(snap.adjustments ?? []).map((a) => ({ label: a.label, amount: -a.amount })),
     ],
-    taxLines: snap.taxLines.map((t) => ({ label: `${t.name} ${t.ratePct}%`, amount: t.amount })),
+    taxLines: (snap.taxLines ?? []).map((t) => ({ label: `${t.name} ${t.ratePct}%`, amount: t.amount })),
     total,
   };
 }

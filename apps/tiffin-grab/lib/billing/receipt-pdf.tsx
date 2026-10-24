@@ -80,18 +80,6 @@ export async function renderReceiptPdf(r: Receipt): Promise<Uint8Array> {
           </View>
         </View>
 
-        {r.addons.map((a, i) => (
-          <View key={i} style={s.section} wrap={false}>
-            <Text style={s.label}>Add-ons · {day(a.date)}</Text>
-            {rows(a.lines)}
-            {rows(a.taxLines)}
-            <View style={s.total}>
-              <Text>Add-on total</Text>
-              <Text>{money(a.total)}</Text>
-            </View>
-          </View>
-        ))}
-
         <View style={s.section} wrap={false}>
           <Text style={s.label}>Payments</Text>
           {r.payments.length === 0 ? <Text style={s.muted}>No payments yet.</Text> : r.payments.map((p, i) => (
@@ -103,8 +91,9 @@ export async function renderReceiptPdf(r: Receipt): Promise<Uint8Array> {
               </Text>
               <Text style={[s.muted, { width: "16%" }]}>{p.status === "paid" ? "Paid" : p.status === "refunded" ? "Refunded" : "Pending"}</Text>
               <Text style={{ width: "26%", textAlign: "right" }}>
-                {money(p.status === "refunded" ? -p.amount : p.amount + p.cardFee)}
+                {money(p.amount)}
                 {p.cardFee > 0 ? <Text style={s.muted}>{`\nincl. card fee ${money(p.cardFee)}`}</Text> : null}
+                {p.refunded > 0 ? <Text style={s.muted}>{`\nrefunded ${money(-p.refunded)}`}</Text> : null}
               </Text>
             </View>
           ))}

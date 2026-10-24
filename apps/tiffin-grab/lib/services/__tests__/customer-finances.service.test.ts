@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
@@ -79,6 +79,31 @@ describe("customer-finances.service (integration)", () => {
     expect(r!.lines.length).toBeGreaterThan(0);
     expect(Buffer.from((await renderReceiptPdf(r!)).subarray(0, 5)).toString()).toBe("%PDF-");
     expect(await loadReceipt("ord_missing")).toBeNull();
+  });
+
+  it("loadReceipt: paid owes nothing, refunds come from the ledger or the refunded status", async () => {
+    const snap = await loadCatalogSnapshot();
+    const [user] = await db.insert(users).values({ email: "receipt-refund@x.com", role: "user" }).returning();
+    await createOrder(buildInput(snap, "+16475550144", 0), { ownerUserId: user.publicId });
+    const [bill] = (await myBillsPage(user.id, { page: 0, size: 25 })).items;
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, bill.publicId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, o.id));
+    await db.update(payments).set({ status: "paid", amount: o.total }).where(eq(payments.id, pay.id));
+
+    const paid = await loadReceipt(bill.publicId);
+    expect(paid?.balanceDue).toBe(0);
+    expect(paid?.paid).toBeCloseTo(Number(o.total), 2);
+
+    await db.insert(ledgerEntries).values({ userId: user.id, orderId: o.id, paymentId: pay.id, direction: "debit", type: "refund", amount: "5.00" });
+    const partial = await loadReceipt(bill.publicId);
+    expect(partial?.refunded).toBe(5);
+    expect(partial?.balanceDue).toBe(0);
+
+    await db.delete(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id));
+    await db.update(payments).set({ status: "refunded" }).where(eq(payments.id, pay.id));
+    const full = await loadReceipt(bill.publicId);
+    expect(full?.refunded).toBeCloseTo(Number(o.total), 2);
+    expect(full?.balanceDue).toBe(0);
   });
 
   it("myBillsPage paginates", async () => {

@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, orders, payments, plans, users } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import { payPageLines, type Line } from "@/app/(customer)/me/pay/[paymentId]/lines";
 import { paymentMethodLabel } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
@@ -13,8 +13,11 @@ export type ReceiptPayment = {
   method: string;
   /** Stripe PaymentIntent id or the customer's e-Transfer reference. */
   reference: string | null;
+  /** What was charged, card fee included. */
   amount: number;
   cardFee: number;
+  /** Money returned on this payment (partial or full). */
+  refunded: number;
   status: "paid" | "pending" | "refunded";
 };
 
@@ -30,9 +33,8 @@ export type Receipt = {
   plan: { title: string; startDate: string; lastDate: string | null; weeks: number; tiffins: number };
   lines: Line[];
   taxLines: Line[];
+  /** orders.total: paid mid-plan add-ons are already folded into it and into the lines. */
   orderTotal: number;
-  /** Each paid mid-plan add-on, priced on its own. */
-  addons: { date: number; lines: Line[]; taxLines: Line[]; total: number }[];
   payments: ReceiptPayment[];
   cardFees: number;
   paid: number;
@@ -41,6 +43,8 @@ export type Receipt = {
 };
 
 const PAID: PayStatus[] = ["paid", "simulated_paid"];
+// Money that came in at some point; a refund afterwards is shown separately, not as owed.
+const RECEIVED: PayStatus[] = [...PAID, "refunded"];
 // Not money received or owed yet: an unpaid card link, a rejected claim.
 const SKIP: PayStatus[] = ["awaiting_payment", "rejected"];
 
@@ -55,6 +59,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
       code: orders.deploymentId,
       createdAt: orders.createdAt,
       total: orders.total,
+      status: orders.status,
       snapshot: orders.pricingSnapshot,
       startDate: orders.startDate,
       weeks: orders.durationWeeks,
@@ -90,7 +95,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
         reference: payments.reference,
         capturedAt: payments.capturedAt,
         createdAt: payments.createdAt,
-        addonRequest: payments.addonRequest,
+        id: payments.id,
       })
       .from(payments)
       .where(and(eq(payments.orderId, o.id)))
@@ -98,6 +103,13 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     getAppSettings(),
     getBrandOrganizationAddress(),
   ]);
+  // Stripe refunds (partial and full) are ledger rows; a staff refund only flips the status.
+  const refundRows = await db
+    .select({ paymentId: ledgerEntries.paymentId, amount: sql<string>`sum(${ledgerEntries.amount})` })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.orderId, o.id), eq(ledgerEntries.type, "refund")))
+    .groupBy(ledgerEntries.paymentId);
+  const ledgerRefund = new Map(refundRows.map((r) => [r.paymentId, Number(r.amount)]));
 
   // WordPress-imported orders carry a snapshot without price lines; show the plan as one line.
   const snap = o.snapshot as { lineItems?: unknown } | null;
@@ -106,24 +118,28 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     : { lines: [{ label: `${o.mealSize} plan`, amount: Number(o.total) }], taxLines: [], total: Number(o.total) };
 
   const kept = pays.filter((p) => !SKIP.includes(p.status));
-  const receiptPayments: ReceiptPayment[] = kept.map((p) => ({
-    date: p.capturedAt ?? p.createdAt,
-    method: paymentMethodLabel(p),
-    reference: p.method === "stripe" ? p.providerRef : p.reference,
-    amount: Number(p.amount),
-    cardFee: p.method === "stripe" ? Number(p.surcharge) : 0,
-    status: PAID.includes(p.status) ? "paid" : p.status === "refunded" ? "refunded" : "pending",
-  }));
-  const addons = kept
-    .filter((p) => p.addonRequest && PAID.includes(p.status))
-    .map((p) => {
-      const l = payPageLines(p, { pricingSnapshot: null });
-      return { date: p.capturedAt ?? p.createdAt, lines: l.lines, taxLines: l.taxLines, total: l.total };
-    });
+  const receiptPayments: ReceiptPayment[] = kept.map((p) => {
+    const cardFee = p.method === "stripe" ? Number(p.surcharge) : 0;
+    const amount = round(Number(p.amount) + cardFee);
+    const refunded = ledgerRefund.get(p.id) ?? (p.status === "refunded" ? amount : 0);
+    return {
+      date: p.capturedAt ?? p.createdAt,
+      method: paymentMethodLabel(p),
+      reference: p.method === "stripe" ? p.providerRef : p.reference,
+      amount,
+      cardFee,
+      refunded: round(refunded),
+      status: PAID.includes(p.status) ? "paid" : p.status === "refunded" ? "refunded" : "pending",
+    };
+  });
+  // WordPress imports have no payment row: they were paid on the old site.
+  if (o.code.startsWith("wc-") && !kept.some((p) => RECEIVED.includes(p.status))) {
+    receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
+  }
 
   const sum = (xs: number[]) => round(xs.reduce((a, b) => a + b, 0));
-  const paidRows = receiptPayments.filter((p) => p.status === "paid");
-  const paidForOrder = sum(kept.filter((p) => !p.addonRequest && PAID.includes(p.status)).map((p) => Number(p.amount)));
+  const received = receiptPayments.filter((p) => p.status !== "pending");
+  const covered = sum(received.map((p) => p.amount - p.cardFee));
 
   return {
     orderPublicId: o.publicId,
@@ -142,11 +158,11 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     lines: order.lines,
     taxLines: order.taxLines,
     orderTotal: order.total,
-    addons,
     payments: receiptPayments,
-    cardFees: sum(paidRows.map((p) => p.cardFee)),
-    paid: sum(paidRows.map((p) => p.amount + p.cardFee)),
-    refunded: sum(receiptPayments.filter((p) => p.status === "refunded").map((p) => p.amount)),
-    balanceDue: Math.max(0, round(order.total - paidForOrder)),
+    cardFees: sum(received.map((p) => p.cardFee)),
+    paid: sum(received.map((p) => p.amount)),
+    refunded: sum(receiptPayments.map((p) => p.refunded)),
+    // A cancelled order owes nothing, whatever was or wasn't paid.
+    balanceDue: o.status === "cancelled" ? 0 : Math.max(0, round(order.total - covered)),
   };
 }
