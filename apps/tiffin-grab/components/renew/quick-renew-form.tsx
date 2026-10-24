@@ -4,10 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
-import { formatAddress } from "@foundry/address/ui";
 import { BottomBar, Button, Card, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
-import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
 import { AddonsPanel } from "@/components/wizard/addons-panel";
 import { pickedAddons, type WizardSelections } from "@/components/wizard/selections";
 import { StepDuration } from "@/components/wizard/steps/step-duration";
@@ -17,7 +15,6 @@ import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
 import { PlanSummary } from "@/components/wizard/plan-summary";
 import { Invoice } from "@/components/wizard/invoice";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
-import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { QuickRenewFormAdmin } from "./quick-renew-form-admin";
 import { useQuickRenew } from "./use-quick-renew";
 import type { QuickRenewData } from "./types";
@@ -32,25 +29,21 @@ export type QuickRenewFormProps = QuickRenewData & {
   onSubmit: (s: WizardSelections, addressPublicId: string | null) => Promise<string | null>;
   /** Customer only: back to the full stepper to change meal or days. */
   changePlanHref?: string;
-  /** Customer only: hands the current picks to the page, which sends the customer to checkout to type a new address. */
-  onUseNewAddress?: (s: WizardSelections) => void;
 };
 
 /** One-screen renewal: everything prefilled, one button to pay. `variant` picks the shell over one shared state hook. */
-export function QuickRenewForm({ variant, changePlanHref, onUseNewAddress, ...data }: QuickRenewFormProps) {
-  return variant === "admin" ? <QuickRenewFormAdmin {...data} /> : <CustomerShell {...data} changePlanHref={changePlanHref} onUseNewAddress={onUseNewAddress} />;
+export function QuickRenewForm({ variant, changePlanHref, ...data }: QuickRenewFormProps) {
+  return variant === "admin" ? <QuickRenewFormAdmin {...data} /> : <CustomerShell {...data} changePlanHref={changePlanHref} />;
 }
 
-function CustomerShell({ changePlanHref, onUseNewAddress, ...data }: QuickRenewData & Pick<QuickRenewFormProps, "submitLabel" | "onSubmit" | "changePlanHref" | "onUseNewAddress">) {
+function CustomerShell({ changePlanHref, ...data }: QuickRenewData & Pick<QuickRenewFormProps, "submitLabel" | "onSubmit" | "changePlanHref">) {
   const q = useQuickRenew(data);
   const { sel, set, catalog, price } = q;
   const router = useRouter();
-  const [pickingAddress, setPickingAddress] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [addonsOpen, setAddonsOpen] = useState(false);
   const picked = pickedAddons(catalog, sel);
   const color = data.tagColor && HEX.test(data.tagColor) ? data.tagColor : null;
-  const dropOff = dropOffCatalog(catalog.deliveryCharges, catalog.waivers);
   const diet = data.tagLabel || q.plan?.name;
   // StepDuration reads this as "a plan is running" and explains why the start date sits after it.
   const currentPlan: CurrentPlanSummary | null = data.minStartDate
@@ -61,7 +54,7 @@ function CustomerShell({ changePlanHref, onUseNewAddress, ...data }: QuickRenewD
   const result = price.result;
 
   return (
-    <div className="pb-44 sm:pb-6">
+    <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-6">
       <SubscribeChrome closeHref="/me" onBack={goBack} stepTag="Renew"
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
@@ -105,31 +98,6 @@ function CustomerShell({ changePlanHref, onUseNewAddress, ...data }: QuickRenewD
           lastTiffin={data.lastTiffin}
           holidayDates={data.holidayDates}
         />
-
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Deliver to</p>
-            {data.savedAddresses.length > 1 && (
-              <Button variant="quiet" pill onClick={() => setPickingAddress((o) => !o)}>{pickingAddress ? "Done" : "Change"}</Button>
-            )}
-          </div>
-          {pickingAddress ? (
-            <CheckoutAddressPicker
-              addresses={data.savedAddresses}
-              value={q.addressId}
-              onPick={(a) => { q.setAddressId(a?.publicId ?? null); setPickingAddress(false); }}
-              dropOff={dropOff}
-              dropOffs={data.addressDropOffs}
-            />
-          ) : (
-            <p className="c-body">
-              {q.address ? <><span className="font-semibold">{q.address.label}</span> <span className="c-caption">{formatAddress(q.address)}</span></> : <span className="c-caption">No saved address yet.</span>}
-            </p>
-          )}
-          {onUseNewAddress && (
-            <Button variant="quiet" pill className="self-start" onClick={() => onUseNewAddress(sel)}>Use a different address</Button>
-          )}
-        </div>
 
         {price.error && (
           <Notice tone="error">

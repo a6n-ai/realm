@@ -5,7 +5,7 @@ import { CalendarIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { formatAddress } from "@foundry/address/ui";
 import { Button } from "@foundry/ui/button";
 import { Calendar } from "@foundry/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
+import { Card, CardHeader, CardTitle } from "@foundry/ui/card";
 import { Label } from "@foundry/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";

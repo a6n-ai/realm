@@ -152,7 +152,7 @@ export function IdentityGate({
   const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <form method="post" onSubmit={onSubmit} noValidate className="max-w-md pb-40 sm:pb-0">
+    <form method="post" onSubmit={onSubmit} noValidate className="max-w-md pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-0">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
           <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>

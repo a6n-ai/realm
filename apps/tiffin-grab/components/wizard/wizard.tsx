@@ -175,7 +175,7 @@ export function Wizard({
 
   if (bouncing) return null;
   return (
-    <div className="pb-44 sm:pb-6">
+    <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-6">
       <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]}
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
