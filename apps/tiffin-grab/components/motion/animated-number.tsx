@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { animate, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { transitions } from "@/lib/motion/tokens";
 
 interface AnimatedNumberProps {
@@ -20,11 +20,20 @@ export function AnimatedNumber({ value, format = (n) => String(Math.round(n)), c
 
   useEffect(() => {
     if (reduce) return;
-    const controls = animate(display, value, {
-      ...transitions.easeSlow,
-      onUpdate: (v) => setDisplay(v),
+    let cancelled = false;
+    let controls: { stop: () => void } | undefined;
+    // animate() pulls in motion's whole engine; load it on demand, not with the page.
+    void import("motion").then(({ animate }) => {
+      if (cancelled) return;
+      controls = animate(display, value, {
+        ...transitions.easeSlow,
+        onUpdate: (v) => setDisplay(v),
+      });
     });
-    return () => controls.stop();
+    return () => {
+      cancelled = true;
+      controls?.stop();
+    };
     // display intentionally excluded — we animate FROM the current display each
     // time the target value changes, not on every intermediate frame.
     // eslint-disable-next-line react-hooks/exhaustive-deps

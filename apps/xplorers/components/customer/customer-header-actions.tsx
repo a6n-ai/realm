@@ -1,6 +1,6 @@
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBellMount } from "@/components/notifications/notification-bell-mount";
-import type { FeedResponse } from "@relay/engine/ui";
+import type { FeedResponse } from "@relay/engine/ui/use-notifications";
 import { CoinChip } from "./coin-chip";
 import { SupportChip } from "./support-chip";
 

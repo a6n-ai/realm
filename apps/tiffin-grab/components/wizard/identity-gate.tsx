@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
@@ -154,10 +155,10 @@ export function IdentityGate({
   return (
     <form method="post" onSubmit={onSubmit} noValidate className="max-w-md pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-0">
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
+        <m.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
           <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
           {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-[var(--muted-foreground)]">{COPY[phase].body}</p> : null}
-        </motion.div>
+        </m.div>
       </AnimatePresence>
 
       <div className="mt-6 flex flex-col gap-5">
@@ -324,8 +325,8 @@ export function IdentityGate({
 
 function Reveal({ children, motionProps }: { children: ReactNode; motionProps: object }) {
   return (
-    <motion.div layout {...motionProps} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+    <m.div layout {...motionProps} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }

@@ -3,7 +3,8 @@
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { formatPhoneNumberIntl, type Country } from "react-phone-number-input";
 import { PhoneInput } from "@foundry/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
@@ -718,7 +719,7 @@ export function Checkout({
         <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
           <AnimatePresence initial={false}>
             {applied.map((c) => (
-              <motion.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
+              <m.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
                 <RowIcon tone="save"><Tag aria-hidden className="size-[18px]" /></RowIcon>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold tracking-[0.04em] uppercase">{c.code}</p>
@@ -730,10 +731,10 @@ export function Checkout({
                     <X aria-hidden className="size-[18px]" />
                   </button>
                 )}
-              </motion.div>
+              </m.div>
             ))}
             {coinsApplied && (
-              <motion.div key="coins" {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
+              <m.div key="coins" {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
                 <RowIcon tone="save"><Coins aria-hidden className="size-[18px]" /></RowIcon>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold">Coins</p>
@@ -743,7 +744,7 @@ export function Checkout({
                 <button type="button" onClick={() => void removeCoins()} aria-label="Remove coins" className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
                   <X aria-hidden className="size-[18px]" />
                 </button>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
           <CouponEntry
@@ -816,9 +817,9 @@ export function Checkout({
             {/* Outside the cards: the copy button can't nest inside a label. */}
             <AnimatePresence initial={false}>
               {selectedMethod && (selectedMethod.payeeHandle || selectedMethod.instructions) && (
-                <motion.div key={selectedMethod.id} {...reveal} className="px-4">
+                <m.div key={selectedMethod.id} {...reveal} className="px-4">
                   <PaymentInstructions payeeHandle={selectedMethod.payeeHandle} instructions={selectedMethod.instructions} />
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
@@ -873,7 +874,7 @@ export function Checkout({
           <Progress steps={STEPS} current={step} />
 
           <AnimatePresence mode="popLayout" initial={false} custom={sign}>
-            <motion.div
+            <m.div
               key={step}
               initial={{ opacity: 0, x: slide * sign }}
               animate={{ opacity: 1, x: 0 }}
@@ -912,17 +913,17 @@ export function Checkout({
                       />
                       <div aria-live="polite" className="grid gap-2 empty:hidden">
                         {zone?.served && !waitlisted && (
-                          <motion.div key="served" {...reveal}>
+                          <m.div key="served" {...reveal}>
                             <StatusBanner tone="success" icon={<MapPin aria-hidden className="mt-0.5 size-4 shrink-0" />}>
                               <span className="font-semibold">We deliver here.</span> {zone.name}{zone.slotWindow ? `, ${zone.slotWindow}` : ""}
                             </StatusBanner>
-                          </motion.div>
+                          </m.div>
                         )}
                         {zone && !zone.served && !waitlisted && (
-                          <motion.div key="unserved" {...reveal} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${toneClasses("warning").bg}`}>
+                          <m.div key="unserved" {...reveal} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${toneClasses("warning").bg}`}>
                             <p className={`text-sm font-medium ${toneClasses("warning").text}`}>We don&apos;t deliver here yet.</p>
                             <Button pill variant="quiet" className="!min-h-11" disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
-                          </motion.div>
+                          </m.div>
                         )}
                         {waitlisted && (
                           <StatusBanner tone="success" icon={<Check aria-hidden className="mt-0.5 size-4 shrink-0" />}>
@@ -957,7 +958,7 @@ export function Checkout({
                   </section>
                 </div>
               ) : payStepBody}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
 
           {/* Card step: wallet and card action live here at every width, like Continue on the Delivery step. */}
@@ -1202,7 +1203,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
       </button>
       <AnimatePresence initial={false}>
         {(open || state.status !== "idle") && (
-          <motion.div key="coupon" id="coupon-entry" {...reveal} className="px-4 pb-4">
+          <m.div key="coupon" id="coupon-entry" {...reveal} className="px-4 pb-4">
             <Label htmlFor="coupon" className="sr-only">Coupon code</Label>
             <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus={focusField} applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={gated ? { status: "idle" } : errorMessage ? { status: "error", message: errorMessage } : state} />
             {gated && gatedMethod && (
@@ -1211,7 +1212,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                 <button type="button" onClick={() => onSwitchMethod(gatedMethod, gated.code)} className="text-primary -my-3 min-h-11 font-semibold underline underline-offset-2">Pay with {methodName(gatedMethod)}</button>
               </p>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
       {suggestions.length > 0 && (

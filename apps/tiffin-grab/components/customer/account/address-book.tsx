@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { AnimatePresence, MotionConfig } from "motion/react";
+import * as m from "motion/react-m";
 import { PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
@@ -41,7 +42,7 @@ function DefaultStar({ on, label, onSelect }: { on: boolean; label: string; onSe
         onSelect();
       }}
     >
-      <motion.span
+      <m.span
         key={taps}
         className="grid place-items-center"
         animate={taps ? { scale: [1, 1.5, 0.88, 1], rotate: [0, -20, 10, 0] } : undefined}
@@ -51,9 +52,9 @@ function DefaultStar({ on, label, onSelect }: { on: boolean; label: string; onSe
           className="size-4 transition-[fill,color] duration-300 motion-reduce:transition-none"
           style={on ? { color: GOLD, fill: GOLD } : { fill: "transparent" }}
         />
-      </motion.span>
+      </m.span>
       {taps > 0 && (
-        <motion.span
+        <m.span
           key={`ring-${taps}`}
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-full border-2"
@@ -152,7 +153,7 @@ export function AddressBook({
       <MotionConfig reducedMotion="user">
       <ul className="space-y-3">
         {book.addresses.map((a) => (
-          <motion.li
+          <m.li
             key={a.publicId}
             // Slides to its new place when it becomes (or stops being) the default.
             layout
@@ -165,7 +166,7 @@ export function AddressBook({
                 <span>{a.label}</span>
                 <AnimatePresence initial={false}>
                   {a.isDefault && (
-                    <motion.span
+                    <m.span
                       key="default"
                       initial={{ opacity: 0, scale: 0.6 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -173,7 +174,7 @@ export function AddressBook({
                       transition={{ type: "spring", stiffness: 520, damping: 22 }}
                     >
                       <Pill tone="ok" size="sm">Default</Pill>
-                    </motion.span>
+                    </m.span>
                   )}
                 </AnimatePresence>
               </p>
@@ -191,7 +192,7 @@ export function AddressBook({
                 </IconButton>
               )}
             </div>
-          </motion.li>
+          </m.li>
         ))}
       </ul>
       </MotionConfig>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { type FeedResponse } from "@relay/engine/ui";
+import type { FeedResponse } from "@relay/engine/ui/use-notifications";
 import { makeSubscriber } from "@/components/notifications/realtime";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 

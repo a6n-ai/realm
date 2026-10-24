@@ -8,6 +8,7 @@ import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { repAllowanceFor } from "@/lib/services/rep-allowance";
 import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
@@ -118,6 +119,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <div className="crm-app">
     <TimezoneProvider tz={timezone}>
+    <MotionProvider>
     <QuickAddProvider>
     <CrmShell
       hideSidebarOnMobile
@@ -155,6 +157,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {hasRepAllowance && <div aria-hidden className="h-20" />}
     </CrmShell>
     </QuickAddProvider>
+    </MotionProvider>
     </TimezoneProvider>
     </div>
   );

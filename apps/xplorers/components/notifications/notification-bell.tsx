@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { Separator } from "@foundry/ui/separator";
 import { cn } from "@foundry/ui/cn";
-import { useNotifications, type UseNotificationsOptions } from "@relay/engine/ui";
+import { useNotifications, type UseNotificationsOptions } from "@relay/engine/ui/use-notifications";
 import { HeaderTooltip } from "@/components/customer/header-tooltip";
 
 function timeAgo(ms: number): string {

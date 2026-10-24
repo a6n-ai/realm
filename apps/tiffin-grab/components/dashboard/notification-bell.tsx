@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { Separator } from "@foundry/ui/separator";
 import { cn } from "@foundry/ui/cn";
-import { useNotifications, type UseNotificationsOptions } from "@relay/engine/ui";
+import { useNotifications, type UseNotificationsOptions } from "@relay/engine/ui/use-notifications";
 
 function timeAgo(ms: number): string {
   const s = Math.max(1, Math.round((Date.now() - ms) / 1000));

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { MotionConfig, motion, useReducedMotion } from "motion/react";
+import { MotionConfig, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { buttonClass } from "@/components/customer/kit";
 
 export type Receipt = {
@@ -134,14 +135,14 @@ export function ReceiptPrinter({
           </div>
           {stage !== "processing" ? (
             <div className="-mt-1 overflow-hidden px-3">
-              <motion.div
+              <m.div
                 initial={stage === "printing" && !reduce && !fed ? { y: "-100%" } : false}
                 animate={{ y: 0 }}
                 transition={{ duration: rows * PER_ROW, ease: steppedEase(rows) }}
                 onAnimationComplete={stage === "printing" ? finish : undefined}
               >
                 <Paper receipt={receipt} status={status} timeZone={timeZone} />
-              </motion.div>
+              </m.div>
             </div>
           ) : (
             <p className="mt-3 text-center text-xs text-muted-foreground">We&apos;ll confirm by email.</p>

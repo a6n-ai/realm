@@ -12,19 +12,17 @@ import { notificationTables } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
-import {
-  CampaignAnalytics,
-  CampaignCompleteButton,
-  CampaignContentSection,
-  CampaignFlow,
-  CampaignDeleteButton,
-  CampaignDuplicateButton,
-  CampaignRetriggerButton,
-  CampaignRetryFailedButton,
-  formatConsentDate,
-  parseStep,
-  type AudienceValue,
-} from "@relay/engine/ui";
+import { CampaignAnalytics } from "@relay/engine/ui/campaign-analytics";
+import { CampaignCompleteButton } from "@relay/engine/ui/campaign-complete-button";
+import { CampaignContentSection } from "@relay/engine/ui/campaign-content-section";
+import { CampaignFlow } from "@relay/engine/ui/campaign-flow/campaign-flow";
+import { CampaignDeleteButton } from "@relay/engine/ui/campaign-delete-button";
+import { CampaignDuplicateButton } from "@relay/engine/ui/campaign-duplicate-button";
+import { CampaignRetriggerButton } from "@relay/engine/ui/campaign-retrigger-button";
+import { CampaignRetryFailedButton } from "@relay/engine/ui/campaign-retry-failed-button";
+import { formatConsentDate } from "@relay/engine/ui/date";
+import { parseStep } from "@relay/engine/ui/campaign-flow/steps";
+import type { AudienceValue } from "@relay/engine/ui/audience-builder";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 import { BulkRuns } from "./bulk-runs";

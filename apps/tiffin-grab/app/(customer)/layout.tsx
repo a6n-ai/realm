@@ -8,6 +8,7 @@ import { walletService } from "@/lib/services/wallet.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { MotionProvider } from "@/components/motion/motion-provider";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this stops Next from wastefully rendering all of them
@@ -41,7 +42,9 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   return (
     <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
-        <CustomerShell coinBalance={coinBalance} coinValue={coinValue} cutoffHour={cutoffHour} userPublicId={user.publicId} staffReplies={staffReplies}>{children}</CustomerShell>
+        <MotionProvider>
+          <CustomerShell coinBalance={coinBalance} coinValue={coinValue} cutoffHour={cutoffHour} userPublicId={user.publicId} staffReplies={staffReplies}>{children}</CustomerShell>
+        </MotionProvider>
       </TimezoneProvider>
     </div>
   );

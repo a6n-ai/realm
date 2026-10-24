@@ -6,7 +6,7 @@ import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@foundry/ui/badge";
-import { eventLabel } from "@relay/engine/ui";
+import { eventLabel } from "@relay/engine/ui/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";

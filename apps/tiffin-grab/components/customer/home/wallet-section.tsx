@@ -5,7 +5,7 @@ import { CoinsIcon } from "lucide-react";
 import { Skeleton } from "@/components/customer/kit";
 import { Card, SectionCard } from "@/components/ds";
 import { AnimatedNumber, LottieEmptyState } from "@/components/motion";
-import { eventLabel } from "@relay/engine/ui";
+import { eventLabel } from "@relay/engine/ui/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";

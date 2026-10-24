@@ -8,7 +8,7 @@ import { parseSort, type SortState } from "@/lib/list/sort";
 import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
 import { pageOrder } from "@foundry/database";
 import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
-import { eventLabel } from "@relay/engine/ui";
+import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";

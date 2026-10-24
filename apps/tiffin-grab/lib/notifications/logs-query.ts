@@ -1,7 +1,7 @@
 import { and, count, eq } from "drizzle-orm";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canClearSuppression, suppressionKind } from "@relay/engine";
-import { eventLabel } from "@relay/engine/ui";
+import { eventLabel } from "@relay/engine/ui/template-status";
 import { db } from "@/db/client";
 import { campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";

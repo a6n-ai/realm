@@ -11,7 +11,8 @@ import { contactList } from "@/db/schema";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { ContactListFromSegment, ContactListManualAdd } from "@relay/engine/ui";
+import { ContactListFromSegment } from "@relay/engine/ui/contact-list-from-segment";
+import { ContactListManualAdd } from "@relay/engine/ui/contact-list-manual-add";
 import { ContactListsTable, ContactListsTableSkeleton, type ContactListRow } from "./contact-lists-table";
 
 export const dynamic = "force-dynamic";

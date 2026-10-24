@@ -1,6 +1,6 @@
 "use client";
 
-import type { RealtimeNotification } from "@relay/engine/ui";
+import type { RealtimeNotification } from "@relay/engine/ui/use-notifications";
 
 export type { RealtimeNotification };
 

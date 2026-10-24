@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { cn } from "@foundry/ui/cn";
 import { transitions } from "@/lib/motion/tokens";
 
@@ -31,13 +32,13 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
   if (reduce) return <div className={cn(className)}>{children}</div>;
   if (inGroup) {
     return (
-      <motion.div className={cn(className)} variants={itemVariants}>
+      <m.div className={cn(className)} variants={itemVariants}>
         {children}
-      </motion.div>
+      </m.div>
     );
   }
   return (
-    <motion.div
+    <m.div
       className={cn(className)}
       variants={itemVariants}
       initial="hidden"
@@ -46,7 +47,7 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
       transition={{ ...transitions.easeBase, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -54,7 +55,7 @@ Reveal.Group = function RevealGroup({ children, className }: { children: ReactNo
   const reduce = useReducedMotion();
   if (reduce) return <div className={cn(className)}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={cn(className)}
       variants={groupVariants}
       initial="hidden"
@@ -62,6 +63,6 @@ Reveal.Group = function RevealGroup({ children, className }: { children: ReactNo
       viewport={revealViewport}
     >
       <RevealGroupContext.Provider value={true}>{children}</RevealGroupContext.Provider>
-    </motion.div>
+    </m.div>
   );
 };

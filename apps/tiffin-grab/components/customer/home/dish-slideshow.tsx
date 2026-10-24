@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import type { CustomerDish } from "@/lib/services/dishes.service";
 import { DishImage } from "./dish-image";
 
@@ -36,7 +37,7 @@ export function DishSlideshow({ dishes, className }: { dishes: CustomerDish[]; c
   return (
     <div className={className}>
       <AnimatePresence mode="wait">
-        <motion.div
+        <m.div
           key={index}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -45,7 +46,7 @@ export function DishSlideshow({ dishes, className }: { dishes: CustomerDish[]; c
           className="h-full w-full"
         >
           <DishImage image={active.image} name={active.name} />
-        </motion.div>
+        </m.div>
       </AnimatePresence>
     </div>
   );

@@ -1,4 +1,5 @@
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -71,7 +72,7 @@ export function TripTimeline({
       <ol aria-label="Delivery preview" className="relative sm:sr-only">
         <AnimatePresence initial={false} mode="popLayout">
           {trips.map((t, i) => (
-            <motion.li
+            <m.li
               key={t.day}
               layout={!reduce}
               initial={{ opacity: 0, y: reduce ? 0 : 8 }}
@@ -96,7 +97,7 @@ export function TripTimeline({
                   {t.units === 1 && t.days[0] === t.day ? "Eaten the same day" : `For ${t.days.map((d) => FULL[d]).join(", ").replace(/, ([^,]*)$/, " and $1")}`}
                 </p>
               </div>
-            </motion.li>
+            </m.li>
           ))}
         </AnimatePresence>
       </ol>
@@ -134,14 +135,14 @@ export function TripTimeline({
                   {joinLeft && <span className="absolute top-1/2 left-0 h-1 w-1/2 -translate-y-1/2" style={{ background: tint }} />}
                   {joinRight && <span className="absolute top-1/2 right-0 h-1 w-1/2 -translate-y-1/2" style={{ background: tint }} />}
                   {delivery ? (
-                    <motion.span
+                    <m.span
                       layout={!reduce}
                       transition={spring}
                       className="text-primary-foreground relative z-10 grid size-8 place-items-center rounded-full shadow-sm"
                       style={{ background: tint }}
                     >
                       <Truck className="size-4" strokeWidth={2.25} />
-                    </motion.span>
+                    </m.span>
                   ) : pick?.deliveryDay?.(d) ? (
                     <span className="bg-card text-muted-foreground relative z-10 grid size-6 place-items-center rounded-full border-[1.5px] border-dashed">
                       <Truck className="size-3" strokeWidth={2.25} />

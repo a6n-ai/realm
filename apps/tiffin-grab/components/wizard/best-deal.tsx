@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { CheckCircle2Icon, XIcon } from "lucide-react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
@@ -48,7 +49,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
   return (
     <AnimatePresence initial={false}>
       {view && !dismissed && (
-        <motion.section
+        <m.section
           key="best-deal"
           aria-label={applied ? copy.appliedTitle : copy.title}
           initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }}
@@ -59,7 +60,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
         >
           <div className={`mb-5 flex items-center gap-2 rounded-2xl border-2 py-2 pr-1 pl-3 transition-colors duration-300 ${applied ? "border-emerald-500/40 bg-emerald-500/10" : "border-primary/30 bg-primary/10"}`}>
             <AnimatePresence initial={false} mode="wait">
-              <motion.div
+              <m.div
                 key={view.state}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -80,7 +81,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 >
                   {applied ? "Undo" : "Use this"}
                 </button>
-              </motion.div>
+              </m.div>
             </AnimatePresence>
             <button
               type="button"
@@ -91,7 +92,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
               <XIcon className="size-4" />
             </button>
           </div>
-        </motion.section>
+        </m.section>
       )}
     </AnimatePresence>
   );
