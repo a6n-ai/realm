@@ -13,7 +13,7 @@ import { PageHeader, Skeleton } from "@/components/customer/kit";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
-import { WalletLog, WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
+import { CoinsPanelSkeleton, WalletLog } from "@/components/customer/wallet/wallet-log";
 import { WALLET_FACETS } from "@/components/customer/wallet/wallet-facets";
 import { BillsList, BillsListSkeleton } from "@/components/customer/wallet/bills-list";
 import { TransactionsList, TransactionsListSkeleton } from "@/components/customer/wallet/transactions-list";
@@ -45,7 +45,7 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
       </Suspense>
 
       {tab === "coins" ? (
-        <Suspense fallback={<WalletLogSkeleton />}>
+        <Suspense fallback={<CoinsPanelSkeleton />}>
           <CoinsPanel userId={userId} searchParams={searchParams} />
         </Suspense>
       ) : null}

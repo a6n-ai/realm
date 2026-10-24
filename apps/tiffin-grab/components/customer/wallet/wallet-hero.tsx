@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Coins } from "lucide-react";
 import { Card } from "@/components/customer/kit";
-import { AnimatedNumber, Lottie } from "@/components/motion";
+import { AnimatedNumber } from "@/components/motion";
 
 export function WalletHero({
   coins,
@@ -27,41 +27,11 @@ export function WalletHero({
   // (₹ for INR, $ for USD/CAD, …) — never a hardcoded "$".
   const fmt = new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol" });
 
-  // No customer-initiated top-up flow exists in the app today — coins only ever change via
-  // admin payouts/awards landing between page loads/revalidations. So "funds were added" is
-  // detected the only way it can be: this render's balance is higher than the last one this
-  // component actually saw, not a submit-triggered event. `useRef` (not state) so the compare
-  // doesn't itself cause a re-render, and it starts at the initial value so a fresh page load
-  // is never mistaken for a celebration.
-  const prevCoins = useRef(coins);
-  const [celebrating, setCelebrating] = useState(false);
-  const [burstKey, setBurstKey] = useState(0);
-
-  useEffect(() => {
-    if (coins > prevCoins.current) {
-      setCelebrating(true);
-      setBurstKey((k) => k + 1);
-      const timer = setTimeout(() => setCelebrating(false), 1600);
-      prevCoins.current = coins;
-      return () => clearTimeout(timer);
-    }
-    prevCoins.current = coins;
-  }, [coins]);
-
   return (
-    <Card className="relative flex items-center gap-3 overflow-hidden p-4 md:gap-4 md:p-5">
-      <Lottie src="/lottie/coin-burst.json" mode="loop" className="size-16 shrink-0 md:size-20" />
-      {celebrating ? (
-        // Keyed remount replays the "once" clip from frame 0 every time funds land, on top
-        // of the ambient loop already playing — a brief, one-shot emphasis, not a swap.
-        <Lottie
-          key={burstKey}
-          src="/lottie/coin-burst.json"
-          mode="once"
-          label="Funds added"
-          className="pointer-events-none absolute inset-0 scale-150"
-        />
-      ) : null}
+    <Card className="flex items-center gap-3 p-4 md:gap-4 md:p-5">
+      <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)] md:size-16">
+        <Coins className="size-7 md:size-8" />
+      </span>
       <div className="min-w-0">
         <p className="text-2xl font-bold tabular-nums md:text-3xl">
           <AnimatedNumber value={coins} /> coins

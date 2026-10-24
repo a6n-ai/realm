@@ -158,17 +158,19 @@ const kitChatUi: Partial<ChatUi> = {
 
 export function TicketThreadSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden>
-      <div className="flex gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3" aria-hidden>
+      <div className="flex shrink-0 gap-2">
         <Skeleton className="h-7 w-16 rounded-full" />
         <Skeleton className="h-7 w-20 rounded-full" />
       </div>
-      {[false, true, false].map((mine, i) => (
-        <div key={i} className={cn("flex", mine && "justify-end")}>
-          <Skeleton className="h-12 w-56" />
-        </div>
-      ))}
-      <Skeleton className="h-24 w-full" />
+      <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 rounded-2xl border border-[var(--border)] px-3 py-3">
+        {[false, true, false].map((mine, i) => (
+          <div key={i} className={cn("flex", mine && "justify-end")}>
+            <Skeleton className="h-12 w-56" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-12 w-full shrink-0" />
     </div>
   );
 }

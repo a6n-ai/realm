@@ -1,9 +1,10 @@
 "use client";
 
 import { ListPagination } from "@/components/ds";
-import { Reveal, LottieEmptyState } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import Link from "next/link";
-import { Skeleton, buttonClass } from "@/components/customer/kit";
+import { TicketPercent } from "lucide-react";
+import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerCouponUse } from "@/lib/services/customer-finances.service";
@@ -54,8 +55,8 @@ export function CouponHistory({
     <section aria-labelledby="coupon-history" className="space-y-3">
       <h2 id="coupon-history" className="text-base font-semibold tracking-tight">Coupons you&apos;ve used</h2>
       {items.length === 0 ? (
-        <LottieEmptyState
-          animation="coin-burst"
+        <EmptyState
+          icon={<TicketPercent className="size-6" />}
           title="No coupons used yet"
           body="Apply a code at checkout and your savings show up here."
           action={<Link href="/me/renew" className={buttonClass({ variant: "outline" })}>Renew plan</Link>}

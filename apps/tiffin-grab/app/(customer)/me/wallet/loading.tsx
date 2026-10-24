@@ -1,6 +1,6 @@
 import { PageHeader, Skeleton } from "@/components/customer/kit";
 import { FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
-import { WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
+import { CoinsPanelSkeleton } from "@/components/customer/wallet/wallet-log";
 
 export default function Loading() {
   return (
@@ -8,7 +8,7 @@ export default function Loading() {
       <PageHeader eyebrow="Account" title="Your" accent="finances." subtitle="Coins, bills, and money transactions in one place." />
       <FinanceStatsSkeleton />
       <Skeleton className="h-11 w-72 rounded-full" />
-      <WalletLogSkeleton />
+      <CoinsPanelSkeleton />
     </div>
   );
 }

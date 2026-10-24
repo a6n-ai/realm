@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Skeleton, buttonClass } from "@/components/customer/kit";
+import { Coins } from "lucide-react";
+import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { Reveal, LottieEmptyState } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -45,8 +46,8 @@ export function WalletLog({
       {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
       {(total > 0 || filtered) && <ReuiFacetFilters spec={WALLET_FACETS} />}
       {items.length === 0 ? (
-        <LottieEmptyState
-          animation="coin-burst"
+        <EmptyState
+          icon={<Coins className="size-6" />}
           title="No wallet activity yet"
           body="Earns and redemptions will appear here."
           action={<Link href="/me/refer" className={buttonClass({ variant: "outline" })}>Refer a friend</Link>}
@@ -63,7 +64,7 @@ export function WalletLog({
   );
 }
 
-export function WalletLogSkeleton() {
+function WalletLogSkeleton() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-8 w-48 rounded-full" />
@@ -72,6 +73,16 @@ export function WalletLogSkeleton() {
         <Skeleton className="h-10 w-full rounded-lg" />
         <Skeleton className="h-10 w-full rounded-lg" />
       </div>
+    </div>
+  );
+}
+
+/** The coins tab: WalletHero card above the ledger. */
+export function CoinsPanelSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-24 md:h-[120px]" />
+      <WalletLogSkeleton />
     </div>
   );
 }

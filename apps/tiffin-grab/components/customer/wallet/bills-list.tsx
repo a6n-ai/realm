@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Clock, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
-import { Button, Pill, Skeleton, type Tone } from "@/components/customer/kit";
+import { Check, Clock, FileText, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
+import { Button, EmptyState, Pill, Skeleton, type Tone } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@foundry/ui/dialog";
 import { ListPagination, OrderStatusBadge } from "@/components/ds";
-import { Reveal, LottieEmptyState } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
@@ -206,8 +206,8 @@ export function BillsList({
 
   if (items.length === 0) {
     return (
-      <LottieEmptyState
-        animation="coin-burst"
+      <EmptyState
+        icon={<FileText className="size-6" />}
         title="No bills yet"
         body="Subscription receipts will appear here after you place an order."
       />
@@ -275,8 +275,8 @@ export function BillsListSkeleton() {
   return (
     <div className="space-y-3">
       <Skeleton className="h-4 w-28" />
-      <Skeleton className="h-16 w-full rounded-lg" />
-      <Skeleton className="h-16 w-full rounded-lg" />
+      <Skeleton className="h-24 w-full rounded-lg" />
+      <Skeleton className="h-24 w-full rounded-lg" />
     </div>
   );
 }

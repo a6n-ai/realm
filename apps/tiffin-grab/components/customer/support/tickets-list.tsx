@@ -59,18 +59,29 @@ export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[
   );
 }
 
+// Current chats + History, as TicketsList lays them out.
 export function TicketsListSkeleton() {
   return (
-    <ListGroup>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex min-h-14 items-center gap-3 px-4 py-3">
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-28" />
+    <div className="space-y-6">
+      {[2, 3].map((rows, s) => (
+        <div key={s} className="space-y-2">
+          <div className="space-y-1.5">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3.5 w-44" />
           </div>
-          <Skeleton className="h-7 w-16 rounded-full" />
+          <ListGroup>
+            {Array.from({ length: rows }, (_, i) => (
+              <div key={i} className="flex min-h-14 items-center gap-3 px-4 py-3">
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-7 w-16 rounded-full" />
+              </div>
+            ))}
+          </ListGroup>
         </div>
       ))}
-    </ListGroup>
+    </div>
   );
 }

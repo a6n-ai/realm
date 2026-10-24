@@ -4,7 +4,6 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/components/motion", () => ({
   AnimatedNumber: ({ value, format }: { value: number; format?: (n: number) => string }) => <span>{format ? format(value) : String(value)}</span>,
-  Lottie: () => <div data-testid="lottie" />,
 }));
 import { WalletHero } from "../wallet-hero";
 afterEach(cleanup);

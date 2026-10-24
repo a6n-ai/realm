@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Skeleton, buttonClass } from "@/components/customer/kit";
+import { ReceiptText } from "lucide-react";
+import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { Reveal, LottieEmptyState } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
@@ -75,8 +76,8 @@ export function TransactionsList({
       {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
       {(total > 0 || filtered) && <ReuiFacetFilters spec={MONEY_LEDGER_FACETS} />}
       {items.length === 0 ? (
-        <LottieEmptyState
-          animation="coin-burst"
+        <EmptyState
+          icon={<ReceiptText className="size-6" />}
           title="No transactions yet"
           body="Payments, refunds, and discounts will appear here."
           action={<Link href="/me/renew" className={buttonClass({ variant: "outline" })}>Renew plan</Link>}
