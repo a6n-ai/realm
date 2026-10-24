@@ -34,7 +34,6 @@ ENV CI=true
 # fetch populates the pnpm store from the lockfile alone; this layer is cached
 # until pnpm-lock.yaml changes, so source edits don't re-download deps.
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm fetch
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
