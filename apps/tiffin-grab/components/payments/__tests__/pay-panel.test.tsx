@@ -96,10 +96,11 @@ describe("PayPanel", () => {
     expect(h.update).toHaveBeenLastCalledWith({ amount: 6500 });
   });
 
-  it("Elements only ever offers card and Link, whatever the Stripe account has enabled", async () => {
+  // The server creates the intent without payment_method_types; Stripe rejects a token from a restricted Elements.
+  it("Elements never restricts payment method types", async () => {
     setup();
     await openCard();
-    for (const [opts] of h.elements.mock.calls) expect((opts as { allowedPaymentMethodTypes?: string[] }).allowedPaymentMethodTypes).toEqual(["card", "link"]);
+    for (const [opts] of h.elements.mock.calls) expect(opts).not.toHaveProperty("allowedPaymentMethodTypes");
   });
 
   it("the options hold only the payment methods, never a saved-card tile", () => {
