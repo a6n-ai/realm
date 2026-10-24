@@ -18,7 +18,9 @@ import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normaliz
 // verifying the SNS message signature). Add a prefix here to make it public.
 // /api/unsubscribe: the HMAC token is the auth, and Gmail/Yahoo POST to it
 // (List-Unsubscribe one-click) with no cookie — a 401 there breaks unsubscribe.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe"];
+// /api/receipts: the email queue fetches the PDF with no cookie; the route checks the
+// signed link, or the session owner/staff when there is no signature.
+const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts"];
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all

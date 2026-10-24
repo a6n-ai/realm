@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Clock, FileText, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
+import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button, EmptyState, Pill, Skeleton, type Tone } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import {
@@ -17,9 +18,9 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
-import { loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
+import { emailReceiptAction, loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
 import { ClaimPayment } from "./claim-payment";
-import { cardBrandLabel } from "./payment-labels";
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -89,6 +90,29 @@ function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number]): st
   return parts.length ? parts.join(" · ") : null;
 }
 
+// The receipt route is plain GET (not a page), so a native anchor, never <Link>.
+function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
+  const [sending, start] = useTransition();
+  const email = () =>
+    start(async () => {
+      const res = await emailReceiptAction(orderPublicId);
+      if ("error" in res) toast.error(res.error);
+      else toast("Receipt sent to your email");
+    });
+  return (
+    <div className="flex flex-wrap gap-2 pt-1">
+      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download className={buttonClass({ variant: "quiet", pill: true, className: "gap-1.5 text-sm" })}>
+        <Download aria-hidden className="size-4" />
+        Download receipt
+      </a>
+      <Button type="button" variant="quiet" pill className="gap-1.5 text-sm" pending={sending} onClick={email}>
+        <Mail aria-hidden className="size-4" />
+        Email receipt
+      </Button>
+    </div>
+  );
+}
+
 function BillRow({
   bill,
   currency,
@@ -155,6 +179,7 @@ function BillRow({
         {details.map((d) => (
           <p key={d} className="text-muted-foreground text-xs">{d}</p>
         ))}
+        <ReceiptActions orderPublicId={bill.publicId} />
       </div>
       <span className="shrink-0 text-sm font-semibold tabular-nums">
         {formatDollars(bill.total, currency)}

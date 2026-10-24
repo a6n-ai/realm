@@ -612,4 +612,17 @@ export const TEMPLATES: EmailTemplate[] = [
       </Layout>
     ),
   },
+  {
+    event: "order_receipt",
+    subject: "Your Tiffin Grab receipt for order {{order.code}}",
+    element: (
+      <Layout preview="Your receipt is attached as a PDF.">
+        <Eyebrow>Receipt</Eyebrow>
+        <Title lead="Here's your" accent="receipt." />
+        <P>Hi {"{{order.customerName}}"}, your receipt for order {"{{order.code}}"} ({"{{order.mealSize}}"}) is attached as a PDF.</P>
+        <Cta href={`${BASE}/me/wallet?tab=bills`}>View my bills</Cta>
+        <Note>It lists the order, any add-ons, and every payment with its method and transaction ID.</Note>
+      </Layout>
+    ),
+  },
 ];

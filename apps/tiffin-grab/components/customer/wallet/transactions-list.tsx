@@ -12,7 +12,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
-import { paymentMethodLabel } from "./payment-labels";
+import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {

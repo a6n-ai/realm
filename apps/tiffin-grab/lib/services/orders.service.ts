@@ -53,6 +53,7 @@ import { round2 } from "@/lib/custom-meal/pricing";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { receiptAttachment } from "@/lib/billing/receipt-link";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertStartNotHoliday, upcomingHolidays } from "./holiday-dates";
@@ -1048,6 +1049,7 @@ export async function verifyPayment(
         },
       },
       dedupeKey: `payment_approved:${pay.publicId}`,
+      attachments: [receiptAttachment(order)],
     });
 
     // Waitlisted orders earn in activate instead, once they go active.

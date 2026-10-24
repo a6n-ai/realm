@@ -11,6 +11,7 @@ import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { runAction, type ActionResult } from "../action-result";
+import { emailOrderReceipt } from "@/lib/billing/email-receipt";
 
 async function assertCanClaimPayment(paymentPublicId: string): Promise<ClaimPaymentContext> {
   const ctx = await getClaimPaymentContext(paymentPublicId);
@@ -41,4 +42,11 @@ async function claimPaymentUnsafe(paymentPublicId: string, form: FormData) {
 
 export async function loadClaimPaymentContext(paymentPublicId: string): Promise<ClaimPaymentContext> {
   return assertCanClaimPayment(paymentPublicId);
+}
+
+export async function emailReceiptAction(orderPublicId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await emailOrderReceipt(orderPublicId);
+  });
 }

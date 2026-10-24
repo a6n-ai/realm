@@ -10,6 +10,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createOrder } = await import("../orders.service");
 const { ledgerService } = await import("../ledger.service");
 const { myBillsPage, myMoneyLedgerPage } = await import("../customer-finances.service");
+const { loadReceipt } = await import("@/lib/billing/receipt");
+const { renderReceiptPdf } = await import("@/lib/billing/receipt-pdf");
 
 async function reset() {
   await db.delete(deliveries);
@@ -62,6 +64,21 @@ describe("customer-finances.service (integration)", () => {
     const bOnly = await myBillsPage(userB.id, { page: 0, size: 25 });
     expect(bOnly.total).toBe(1);
     expect(bOnly.items).toHaveLength(1);
+  });
+
+  it("loadReceipt matches the bill and renders", async () => {
+    const snap = await loadCatalogSnapshot();
+    const [user] = await db.insert(users).values({ email: "receipt@x.com", role: "user" }).returning();
+    await createOrder(buildInput(snap, "+16475550133", 0), { ownerUserId: user.publicId });
+    const [bill] = (await myBillsPage(user.id, { page: 0, size: 25 })).items;
+
+    const r = await loadReceipt(bill.publicId);
+    expect(r?.code).toBe(bill.deploymentId);
+    expect(r?.orderTotal).toBeCloseTo(Number(bill.total), 2);
+    expect(r?.customer.address).toContain("Toronto");
+    expect(r!.lines.length).toBeGreaterThan(0);
+    expect(Buffer.from((await renderReceiptPdf(r!)).subarray(0, 5)).toString()).toBe("%PDF-");
+    expect(await loadReceipt("ord_missing")).toBeNull();
   });
 
   it("myBillsPage paginates", async () => {

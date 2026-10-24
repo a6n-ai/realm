@@ -48,6 +48,8 @@ export const appEvent = pgEnum("app_event", [
   "referral_friend",
   // Daily job: the plan's last tiffin is 5 days or 1 day away.
   "order_renewal_reminder",
+  // Customer pressed "Email receipt" on a bill: the order's receipt PDF, attached.
+  "order_receipt",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({
