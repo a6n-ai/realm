@@ -47,6 +47,18 @@ export type MoneyLedgerTx = {
   memo: string | null;
   createdAt: number;
   orderPublicId: string | null;
+  /** The order number customers quote to support. */
+  orderDeploymentId: string | null;
+  /** The payment this entry settles, when it has one (discounts and adjustments usually don't). */
+  payment: {
+    method: (typeof payments.method.enumValues)[number];
+    cardBrand: string | null;
+    cardLast4: string | null;
+    /** Stripe PaymentIntent id (pi_…) for card payments. */
+    providerRef: string | null;
+    /** The customer's own e-Transfer reference. */
+    reference: string | null;
+  } | null;
 };
 
 /** Paginated subscription receipts for the signed-in customer (IDOR-gated). */
@@ -174,9 +186,16 @@ export async function myMoneyLedgerPage(
         memo: ledgerEntries.memo,
         createdAt: ledgerEntries.createdAt,
         orderPublicId: orders.publicId,
+        orderDeploymentId: orders.deploymentId,
+        payMethod: payments.method,
+        cardBrand: payments.cardBrand,
+        cardLast4: payments.cardLast4,
+        providerRef: payments.providerRef,
+        reference: payments.reference,
       })
       .from(ledgerEntries)
       .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
+      .leftJoin(payments, eq(ledgerEntries.paymentId, payments.id))
       .where(where)
       .orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id))
       .limit(page.size)
@@ -188,7 +207,12 @@ export async function myMoneyLedgerPage(
   ]);
 
   return {
-    items: rows.map((r) => ({ ...r, orderPublicId: r.orderPublicId ?? null })),
+    items: rows.map(({ payMethod, cardBrand, cardLast4, providerRef, reference, ...r }) => ({
+      ...r,
+      orderPublicId: r.orderPublicId ?? null,
+      orderDeploymentId: r.orderDeploymentId ?? null,
+      payment: payMethod ? { method: payMethod, cardBrand, cardLast4, providerRef, reference } : null,
+    })),
     page: page.page,
     size: page.size,
     total: count,

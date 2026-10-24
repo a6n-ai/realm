@@ -170,10 +170,15 @@ describe("TransactionsList empty state", () => {
         memo: "Checkout",
         createdAt: Date.UTC(2026, 6, 1, 12),
         orderPublicId: "ord_1",
+        orderDeploymentId: "TG-1001",
+        payment: { method: "stripe", cardBrand: "visa", cardLast4: "4242", providerRef: "pi_123", reference: null },
       },
     ];
     render(<TransactionsList items={items} page={0} size={25} total={1} currency="CAD" />);
     expect(screen.getByText("Payment")).toBeInTheDocument();
     expect(screen.getByText(/Checkout/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Visa ••4242/).length).toBeGreaterThan(0);
+    expect(screen.getByText("pi_123")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy transaction id" })).toBeInTheDocument();
   });
 });

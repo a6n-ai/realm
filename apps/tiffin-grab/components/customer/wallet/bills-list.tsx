@@ -19,6 +19,7 @@ import type { CustomerBill } from "@/lib/services/customer-finances.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
 import { ClaimPayment } from "./claim-payment";
+import { cardBrandLabel } from "./payment-labels";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -61,14 +62,6 @@ function paymentPill(status: PayStatus): { label: string; tone: Tone; Icon: Luci
 }
 
 const isPaid = (s: PayStatus) => s === "paid" || s === "simulated_paid";
-
-const BRANDS: Record<string, string> = { visa: "Visa", mastercard: "Mastercard", amex: "Amex", discover: "Discover", diners: "Diners Club", jcb: "JCB", unionpay: "UnionPay" };
-
-function cardBrandLabel(brand: string | null): string {
-  if (!brand) return "Card";
-  const key = brand.toLowerCase();
-  return BRANDS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
-}
 
 // Date-only strings: format in UTC so the day never shifts with the viewer's zone.
 function planRange(start: string, last: string | null): string {
