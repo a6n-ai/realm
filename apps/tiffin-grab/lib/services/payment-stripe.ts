@@ -15,7 +15,7 @@ import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import {
-  NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT,
+  NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT,
 } from "./stripe-notes";
 import { ledgerService } from "./ledger.service";
 import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
@@ -88,6 +88,29 @@ async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof 
 
 const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
 
+// A late webhook may already have settled this payment with an earlier PI; keep that one so a second charge is flagged, not hidden.
+const bindIntent = (payId: bigint, piId: string) =>
+  db.update(payments).set({ providerRef: piId }).where(and(eq(payments.id, payId), inArray(payments.status, SETTLEABLE as Payment["status"][])));
+
+/** A second PI for an already-paid payment (create timed out, customer retried) means the card was charged twice. */
+async function flagDuplicateCharge(pay: Payment, piId: string, source: string) {
+  const rt = await stripeRuntime();
+  if (!rt) return;
+  const st = await fetchIntentStatus(rt.stripe, piId);
+  if (st.status !== "succeeded" || st.paymentRef !== pay.publicId) return;
+  await activityOnce(pay.orderId, "payment_failed", NOTE_DUPLICATE_CHARGE, piId, `- payment already settled by ${pay.providerRef}; refund ${piId} in Stripe`);
+  const [order] = await db.select({ publicId: orders.publicId, deploymentId: orders.deploymentId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+  if (order) {
+    await db.transaction((tx) => enqueueStaffNotification(tx, {
+      title: "Card charged twice",
+      body: `Refund the duplicate charge ${piId} · order ${order.deploymentId}`,
+      href: `/dashboard/orders/${order.publicId}`,
+      dedupeKey: `duplicate_charge:${piId}`,
+    }));
+  }
+  log.error({ paymentId: pay.publicId, piId, source }, "stripe duplicate charge");
+}
+
 export async function settleStripePayment(
   ref: { paymentRef?: string | null; piId?: string | null },
   source: "webhook" | "return" | "view" | "staff" | "reconcile",
@@ -95,7 +118,10 @@ export async function settleStripePayment(
 ): Promise<SettleOutcome> {
   const pay = await findStripePayment(ref);
   if (!pay) return "not_found";
-  if (!SETTLEABLE.includes(pay.status)) return "already_paid";
+  if (!SETTLEABLE.includes(pay.status)) {
+    if (pay.status === "paid" && ref.piId && pay.providerRef && ref.piId !== pay.providerRef) await flagDuplicateCharge(pay, ref.piId, source);
+    return "already_paid";
+  }
   const piId = ref.piId ?? pay.providerRef;
   if (!piId) return "not_succeeded";
   const rt = await stripeRuntime();
@@ -134,6 +160,14 @@ export async function settleStripePayment(
       piId,
       `- received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} CAD, not settled`,
     );
+    if (order) {
+      await db.transaction((tx) => enqueueStaffNotification(tx, {
+        title: "Card payment not settled",
+        body: `Stripe amount differs from the order · order ${order.deploymentId}`,
+        href: `/dashboard/orders/${order.publicId}`,
+        dedupeKey: `amount_mismatch:${piId}`,
+      }));
+    }
     log.error({ paymentId: pay.publicId, piId, source }, "stripe amount mismatch");
     return "amount_mismatch";
   }
@@ -434,6 +468,22 @@ async function readToken(stripe: Stripe, tokenId: string): Promise<{ card: CardP
   return { card, customer: typeof c === "string" ? c : c?.id ?? null };
 }
 
+// A 4xx means no intent exists. A timeout may have charged, so the stamped fee must stay for settlement to match.
+const isRejected = (e: unknown) => (e as { type?: string })?.type === "StripeInvalidRequestError";
+
+/** Stripe refused to create the intent (not a decline): staff must see it, it is our integration failing. */
+async function recordIntentError(pay: Payment, order: Order, e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  log.error({ paymentId: pay.publicId, err: e }, "stripe intent create failed");
+  await activity(pay.orderId, "payment_failed", `Card payment could not start: ${msg.slice(0, 300)}`);
+  await db.transaction((tx) => enqueueStaffNotification(tx, {
+    title: "Card payments failing",
+    body: `Stripe rejected a card payment · order ${order.deploymentId}`,
+    href: `/dashboard/orders/${order.publicId}`,
+    dedupeKey: `intent_error:${pay.publicId}`,
+  }));
+}
+
 export async function payByCard(i: {
   paymentPublicId: string; userPublicId: string; source: CardSource; acceptSurcharge: boolean; returnUrl: string;
 }): Promise<PayByCardResult> {
@@ -462,6 +512,8 @@ export async function payByCard(i: {
       const token = await readToken(rt.stripe, tokenId);
       // A token minted from a saved card carries that card's customer; a new card has none yet.
       if (token.customer && token.customer !== (await customerStore.get(user.publicId))) throw new ValidationError("That card is not available. Choose another card.");
+      // Fees, receipts and saved cards only understand cards (wallets ride on card) and Link.
+      if (token.card.type && token.card.type !== "card" && token.card.type !== "link") throw new ValidationError("Pay with a card, Apple Pay, Google Pay or Link.");
       card = token.card;
     }
     const baseCents = toCents(pay.amount);
@@ -481,15 +533,21 @@ export async function payByCard(i: {
     });
     let r;
     try {
-      r = await createIntent(customerId);
+      try {
+        r = await createIntent(customerId);
+      } catch (e) {
+        if (!isMissingCustomer(e)) throw e;
+        await clearStripeCustomer(user.publicId);
+        if (saved) throw new ValidationError("That card is not available. Choose another card.");
+        // Stored id is from another Stripe account/mode: drop it and retry once with a fresh customer.
+        r = await createIntent(await ensureCustomer(rt.stripe, customerStore, who));
+      }
     } catch (e) {
-      if (!isMissingCustomer(e)) throw e;
-      await clearStripeCustomer(user.publicId);
-      if (saved) throw new ValidationError("That card is not available. Choose another card.");
-      // Stored id is from another Stripe account/mode: drop it and retry once with a fresh customer.
-      r = await createIntent(await ensureCustomer(rt.stripe, customerStore, who));
+      if (e instanceof ValidationError || isRejected(e)) await clearCard(pay.id);
+      if (!(e instanceof ValidationError)) await recordIntentError(pay, order, e);
+      throw e;
     }
-    if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
+    if (r.piId) await bindIntent(pay.id, r.piId);
 
     if (r.status === "succeeded") {
       const receipt = { paidWith: paidWithLabel(card), feeCents: extraCents, totalCents: baseCents + extraCents };
@@ -552,11 +610,15 @@ async function chargeSavedCardLocked(paymentPublicId: string, actorPublicId: str
         orgRef: order.organizationId, taxCalculationId: calcId, attempt: String(pay.chargeAttempt),
       });
     } catch (e) {
-      if (!isMissingCustomer(e)) throw e;
+      if (isRejected(e)) await clearCard(pay.id);
+      if (!isMissingCustomer(e)) {
+        await recordIntentError(pay, order, e);
+        throw e;
+      }
       await clearStripeCustomer(user.publicId);
       return { kind: "no_card" };
     }
-    if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
+    if (r.piId) await bindIntent(pay.id, r.piId);
     // Only a definitive decline opens a new idempotency key; processing/requires_action must replay the same charge.
     if (r.status === "failed") {
       await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));

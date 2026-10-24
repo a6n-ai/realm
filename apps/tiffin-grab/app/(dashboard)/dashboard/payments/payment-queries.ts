@@ -4,7 +4,7 @@ import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
-import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
+import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
@@ -39,6 +39,7 @@ const FLAGGED_NOTES = [
   `${NOTE_PI_OTHER_PAYMENT} % belongs to another payment%`,
   `${NOTE_CANCELLED_ORDER} %`,
   `${NOTE_CC_NO_SURCHARGE} %`,
+  `${NOTE_DUPLICATE_CHARGE} %`,
 ];
 
 const activityExists = (cond: SQL) =>

@@ -4,3 +4,4 @@ export const NOTE_CC_NO_SURCHARGE = "Credit card used without surcharge";
 export const NOTE_PI_OTHER_PAYMENT = "Stripe PaymentIntent";
 export const NOTE_CANCELLED_ORDER = "Cancelled-order card payment";
 export const NOTE_AMOUNT_MISMATCH = "Stripe amount mismatch for";
+export const NOTE_DUPLICATE_CHARGE = "Duplicate card charge";

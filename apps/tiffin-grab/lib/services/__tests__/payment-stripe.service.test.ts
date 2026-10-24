@@ -109,6 +109,30 @@ describe("settleStripePayment guards", () => {
   beforeEach(async () => { await reset(); status.mockReset(); });
   afterAll(cleanup);
 
+  it("flags a second succeeded PI on an already-paid payment as a duplicate charge", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: "pi_first" });
+    status.mockResolvedValue({ piId: "pi_first", status: "succeeded", amountReceivedCents: 20000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook", "evt_a")).toBe("paid");
+    status.mockResolvedValue({ piId: "pi_second", status: "succeeded", amountReceivedCents: 20000, currency: "cad", paymentRef: pay.publicId, created: 2 });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId, piId: "pi_second" }, "webhook", "evt_b")).toBe("already_paid");
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.filter((a) => a.note?.startsWith("Duplicate card charge pi_second"))).toHaveLength(1);
+  });
+
+  it("a retry's PI never replaces the PI that already settled the payment", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ type: "card", funding: "debit", brand: "visa", last4: "1111", wallet: null });
+    // PI A's late webhook settles the payment while PI B's create is in flight.
+    create.mockImplementation(async () => {
+      status.mockResolvedValue({ piId: "pi_a", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+      await svc.settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a");
+      return { status: "succeeded", piId: "pi_b", clientSecret: "cs" };
+    });
+    await svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, source: { confirmationTokenId: "ct_b" }, acceptSurcharge: false, returnUrl: "u" });
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ status: "paid", providerRef: "pi_a" });
+  });
+
   it("never settles a succeeded PI bound to a different payment", async () => {
     const pay = await makeStripePayment({ amount: "10.00", piId: "pi_x" });
     status.mockResolvedValue({ piId: "pi_x", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: "pay_other", created: 1 });
@@ -257,6 +281,42 @@ describe("payByCard", () => {
     create.mockRejectedValueOnce(gone).mockResolvedValueOnce({ status: "requires_action", piId: "pi_r", clientSecret: "cs" });
     expect((await go(pay)).kind).toBe("requires_action");
     expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("charges Link at the base amount, labelled Link, with no surcharge prompt", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ type: "link", funding: "unknown", brand: null, last4: null, wallet: "link" });
+    create.mockResolvedValue({ status: "succeeded", piId: "pi_link", clientSecret: "cs" });
+    status.mockResolvedValue({ piId: "pi_link", status: "succeeded", amountReceivedCents: 20000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await go(pay)).toMatchObject({ kind: "succeeded", receipt: { paidWith: "Link", feeCents: 0, totalCents: 20000 } });
+  });
+
+  it("refuses a non-card payment method before any charge", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ type: "klarna", funding: "unknown", brand: null, last4: null, wallet: null });
+    await expect(go(pay)).rejects.toThrow(/Pay with a card/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("a Stripe rejection of the create clears the card, records activity and alerts staff", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ type: "card", funding: "debit", brand: "visa", last4: "1111", wallet: null });
+    create.mockRejectedValue(Object.assign(new Error("allowed_payment_method_types cannot be confirmed"), { type: "StripeInvalidRequestError" }));
+    await expect(go(pay)).rejects.toThrow(/allowed_payment_method_types/);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ cardBrand: null, cardLast4: null, surchargeAmount: "0.00" });
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.some((a) => a.type === "payment_failed" && a.note?.startsWith("Card payment could not start"))).toBe(true);
+    expect(staffNotify).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ dedupeKey: `intent_error:${pay.publicId}` }));
+  });
+
+  it("a timed-out create keeps the stamped card and fee so a late success still settles", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ type: "card", funding: "credit", brand: "visa", last4: "4242", wallet: null });
+    create.mockRejectedValue(Object.assign(new Error("Request timed out"), { type: "StripeConnectionError" }));
+    await expect(go(pay, { accept: true })).rejects.toThrow(/timed out/);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ cardBrand: "visa", surchargeAmount: "4.80" });
   });
 
   it("does not retry a second missing-customer error", async () => {

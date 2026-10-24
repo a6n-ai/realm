@@ -69,7 +69,7 @@ export type LogSortKey = (typeof LOG_SORT_KEYS)[number];
 export const STRIPE_FACETS = [
   { value: "stuck", label: "Stuck (PI open > 2 min)" },
   { value: "failed", label: "Failed in last 7 days" },
-  { value: "flagged", label: "Mismatch / cancelled order / no surcharge" },
+  { value: "flagged", label: "Mismatch / duplicate / cancelled order / no surcharge" },
   { value: "disputed", label: "Disputed" },
   { value: "event_error", label: "Webhook error" },
   { value: "fallback", label: "Fallback tax rates" },
