@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ScaleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -104,5 +105,17 @@ export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenC
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function ReconcileButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <ScaleIcon data-icon="inline-start" /> Reconcile with Stripe
+      </Button>
+      <ReconcileDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 }

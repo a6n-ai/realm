@@ -8,6 +8,8 @@ import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/services/payment-stripe";
 import { listPayments } from "../payment-queries";
+import { PaymentKpis } from "../payment-kpis";
+import { ReconcileButton } from "./reconcile-dialog";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -17,11 +19,14 @@ const serverNow = () => Date.now();
 
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Stripe payments">
-      <Suspense fallback={<StripeTableSkeleton />}>
-        <StripeData searchParams={searchParams} />
-      </Suspense>
-    </SectionCard>
+    <>
+      <PaymentKpis searchParams={searchParams} />
+      <SectionCard title="Stripe payments" action={<ReconcileButton />}>
+        <Suspense fallback={<StripeTableSkeleton />}>
+          <StripeData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </>
   );
 }
 
