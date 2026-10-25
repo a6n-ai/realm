@@ -36,7 +36,7 @@ const SPEC: FacetDef[] = [
 type Key = PaymentSortKey | "card" | "actions";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true, width: "w-40" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-36" },
   { key: "order", label: "Order", sortable: true, width: "w-36" },
   { key: "card", label: "Card", width: "w-28" },
   { key: "status", label: "Status", sortable: true, width: "w-36" },
