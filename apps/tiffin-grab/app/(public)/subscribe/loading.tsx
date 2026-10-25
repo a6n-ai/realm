@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/customer/kit";
-import { ChromeSkeleton } from "@/components/wizard/flow-skeleton";
+import { ChromeSkeleton } from "@/components/wizard/chrome-skeleton";
 
 // Same frame as the page: top bar, title, coupon preview, then the sign-in step.
 export default function Loading() {

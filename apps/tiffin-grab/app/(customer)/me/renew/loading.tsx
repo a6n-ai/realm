@@ -1,5 +1,7 @@
 import { Skeleton } from "@/components/customer/kit";
-import { BottomBarSkeleton, ChromeSkeleton, ProgressSkeleton } from "@/components/wizard/flow-skeleton";
+import { BottomBarSkeleton } from "@/components/wizard/bottom-bar-skeleton";
+import { ChromeSkeleton } from "@/components/wizard/chrome-skeleton";
+import { ProgressSkeleton } from "@/components/wizard/progress-skeleton";
 
 // Quick renew's frame (top bar, stepper, heading, plan card, week cards, action bar), so nothing jumps when it lands.
 export default function Loading() {
