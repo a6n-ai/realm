@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, EyeIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -31,33 +31,42 @@ const SPEC: FacetDef[] = [
   { kind: "search", fields: [] },
 ];
 
-// Same frame as the e-transfer table; surcharge, tax source and expiry time live in the detail dialog and tooltips.
-type Key = PaymentSortKey | "card" | "stripe" | "actions";
+// Sized to fit the card at 1400px without side-scroll: the payment ID, surcharge, tax source and
+// expiry time live in the detail dialog (row click) and tooltips.
+type Key = PaymentSortKey | "card" | "actions";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "order", label: "Order", sortable: true },
-  { key: "card", label: "Card", width: "w-32" },
-  { key: "stripe", label: "Stripe", width: "w-36" },
-  { key: "status", label: "Status", sortable: true, width: "w-48" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-40" },
+  { key: "order", label: "Order", sortable: true, width: "w-36" },
+  { key: "card", label: "Card", width: "w-28" },
+  { key: "status", label: "Status", sortable: true, width: "w-36" },
   { key: "amount", label: "Amount", sortable: true, align: "right", width: "w-24" },
   { key: "actions", label: "Actions", align: "right", width: "w-28" },
 ];
 
-export function ExpiryBadge({ r, now, tz }: { r: Pick<PaymentRow, "isAddon" | "expiresAt" | "status">; now: number; tz: string }) {
+/** Pay-link state that says more than the status pill (Void, Refund needed, Expired); otherwise `fallback`. */
+export function ExpiryBadge({
+  r, now, tz, fallback = null,
+}: {
+  r: Pick<PaymentRow, "isAddon" | "expiresAt" | "status">;
+  now: number;
+  tz: string;
+  fallback?: ReactNode;
+}) {
   // expiresAt 0 is a void link (voidLink writes status rejected).
   if (r.expiresAt === 0) {
     // A void link a late webhook still charged: the money is in, the add-ons are not applied.
     if (r.isAddon && r.status === "paid") return <Badge variant="destructive-light">Refund needed</Badge>;
-    return r.status === "rejected" ? <Badge variant="outline">Void</Badge> : null;
+    return r.status === "rejected" ? <Badge variant="outline">Void</Badge> : fallback;
   }
-  if (r.status !== "awaiting_payment" || r.expiresAt == null) return null;
-  if (r.expiresAt <= now) return <Badge variant="warning-light">Expired</Badge>;
-  return (
-    <Badge variant="info-light" title={`Expires ${formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}`}>
-      Link open
-    </Badge>
-  );
+  if (r.status === "awaiting_payment" && r.expiresAt != null && r.expiresAt <= now) {
+    return (
+      <Badge variant="warning-light" title={`Expired ${formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}`}>
+        Expired
+      </Badge>
+    );
+  }
+  return fallback;
 }
 
 export function StripeTable({
@@ -119,7 +128,6 @@ export function StripeTable({
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
-        idAccessor={(r) => r.publicId}
         onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<Key>}
@@ -142,29 +150,25 @@ export function StripeTable({
               </div>
             </TableCell>
             <TableCell className="whitespace-nowrap text-xs">
-              {r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : "-"}
-            </TableCell>
-            <TableCell className="font-mono text-xs">
-              {r.providerRef ? (
-                <a
-                  href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate hover:underline"
-                  title={r.providerRef}
-                 
-                >
-                  {r.providerRef}
-                </a>
-              ) : (
-                "-"
-              )}
+              {(() => {
+                const card = r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : r.providerRef ? "Stripe" : "-";
+                return r.providerRef ? (
+                  <a
+                    href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:underline"
+                    title={`Open ${r.providerRef} in Stripe`}
+                  >
+                    {card}
+                  </a>
+                ) : (
+                  card
+                );
+              })()}
             </TableCell>
             <TableCell>
-              <div className="flex items-center gap-1 whitespace-nowrap">
-                <PaymentStatusPill status={r.status} />
-                <ExpiryBadge r={r} now={now} tz={tz} />
-              </div>
+              <ExpiryBadge r={r} now={now} tz={tz} fallback={<PaymentStatusPill status={r.status} />} />
             </TableCell>
             <TableCell
               className="whitespace-nowrap text-right tabular-nums"
@@ -225,5 +229,5 @@ export function StripeTable({
 }
 
 export function StripeTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <DataTable.Skeleton columns={COLUMNS} />;
 }
