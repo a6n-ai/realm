@@ -47,7 +47,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs, popular] = await Promise.all([
+  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs, popular, checkout] = await Promise.all([
     loadCatalogSnapshot(),
     resolveRequestOrg().then(getTrialSettings),
     db
@@ -70,6 +70,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
     myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
     popularMealSizesByPlan(orgId),
+    getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId)),
   ]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
@@ -126,6 +127,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           exitHref="/me"
           origin={full ? "subscribe" : "renew"}
           initial={initial}
+          checkout={checkout ?? undefined}
           quote={quoted ? { picks: initial, codes: quoteCodes(params) } : null}
           currentPlan={current}
           minStartDate={earliestStartDate}

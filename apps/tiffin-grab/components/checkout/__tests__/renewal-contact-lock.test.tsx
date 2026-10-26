@@ -108,7 +108,7 @@ describe("checkout contact locking", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
     await screen.findByLabelText(/phone/i);
-    const backs = screen.getAllByRole("button", { name: "Edit plan" });
+    const backs = screen.getAllByRole("button", { name: "Back" });
     expect(backs).toHaveLength(2);
     expect(backs.filter((b) => b.className.includes("sm:hidden"))).toHaveLength(1);
     expect(backs.filter((b) => b.className.includes("hidden") && b.className.includes("sm:!inline-flex"))).toHaveLength(1);

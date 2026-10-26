@@ -133,6 +133,15 @@ export type CheckoutPlanSlot = {
   pending?: boolean;
 };
 
+/** The plan builder (Wizard) hands Checkout its finished picks in memory, so Delivery and Payment open in place instead of navigating to /checkout. */
+export type CheckoutHandoff = {
+  selections: WizardSelections;
+  origin: WizardOrigin;
+  planSteps: string[];
+  quoteCodes?: string[];
+  onEditPlan: () => void;
+};
+
 /** reprice answered with a reason (stale cart), as opposed to failing outright. */
 class UnpriceableCart extends Error {}
 
@@ -162,8 +171,10 @@ export function Checkout({
   lastTiffin = null,
   cardContext = null,
   plan,
+  handoff,
 }: {
   plan?: CheckoutPlanSlot;
+  handoff?: CheckoutHandoff;
   defaultCountry: Country;
   closeHref?: string;
   /** Present only for a signed-in customer: their account's contact. */
@@ -204,8 +215,8 @@ export function Checkout({
   const storedOrigin = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_ORIGIN_KEY), () => null);
   const storedPlanSteps = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY), () => null);
   // Kept in state: markPaid clears storage, and the paid screen must still show the same bar.
-  const [planSteps, setPlanSteps] = useState<string[]>(() => (plan ? ["Plan"] : parsePlanSteps(storedPlanSteps)));
-  const [ownSelections, setSelections] = useState<WizardSelections | null>(() => (plan ? seedFrom(plan.selections) : storedRaw ? seed(storedRaw) : null));
+  const [planSteps, setPlanSteps] = useState<string[]>(() => (plan ? ["Plan"] : handoff ? handoff.planSteps : parsePlanSteps(storedPlanSteps)));
+  const [ownSelections, setSelections] = useState<WizardSelections | null>(() => (plan ? seedFrom(plan.selections) : handoff ? seedFrom(handoff.selections) : storedRaw ? seed(storedRaw) : null));
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<0 | 1 | 2>(plan ? 0 : 1);
   // While Plan is open its live picks drive the aside and summary; every other step reads this order's own copy.
@@ -246,7 +257,7 @@ export function Checkout({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   // Payment methods arrive with the price; if that load fails the payment step offers a retry.
   const [priceFailed, setPriceFailed] = useState(false);
-  // The server's reason this cart can't be priced; Retry can't fix it, Edit plan can.
+  // The server's reason this cart can't be priced; Retry can't fix it, Back can.
   const [priceError, setPriceError] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   // The address sheet's working copy; null = closed. Saved into `contact` only on "Use this address".
@@ -258,7 +269,7 @@ export function Checkout({
   );
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
-  const [origin, setOrigin] = useState<WizardOrigin>(plan ? "renew" : storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
+  const [origin, setOrigin] = useState<WizardOrigin>(plan ? "renew" : handoff ? handoff.origin : storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
   const reduce = useReducedMotion();
   // Stripe.js loads while the customer is still on the address step, so the wallet button is ready on Pay.
   useWarmStripe(cardContext?.publishableKey);
@@ -337,11 +348,12 @@ export function Checkout({
     // markPaid clears the wizard storage; once paid, the receipt stays on screen and a re-run of this
     // effect (router identity change) must not read the empty storage as "no selections".
     if (isPaid()) return;
-    // Quick renew carries its plan in props: no wizard storage, nothing to redirect for or restore.
+    // Quick renew and the wizard's in-place handoff carry the plan in props: no wizard storage, nothing to redirect for or restore.
     let s: WizardSelections;
     let quoted: string[] = [];
-    if (plan) {
+    if (plan || handoff) {
       s = selections!;
+      quoted = handoff?.quoteCodes ?? [];
     } else {
       const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
       if (!raw) { router.replace("/subscribe"); return; }
@@ -688,10 +700,11 @@ export function Checkout({
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
   const first = plan ? 0 : 1;
-  const goBack = () => (step > first ? setStep((step - 1) as 0 | 1 | 2) : router.push(plan ? "/me" : editHref, { transitionTypes: ["nav-back"] }));
-  const backLabel = !plan && step === 1 ? "Edit plan" : "Back";
+  const goBack = () => (step > first ? setStep((step - 1) as 0 | 1 | 2) : handoff ? handoff.onEditPlan() : router.push(plan ? "/me" : editHref, { transitionTypes: ["nav-back"] }));
+  const backLabel = "Back";
   // Quick renew keeps the plan on this page; the wizard's flows leave for their own route.
   const editPlan = () => {
+    if (handoff) return handoff.onEditPlan();
     if (!plan) return router.push(editHref, { transitionTypes: ["nav-back"] });
     setSummaryOpen(false);
     setStep(0);
@@ -720,7 +733,7 @@ export function Checkout({
   const simulated = !realPayments && result != null && process.env.NODE_ENV !== "production";
   const payReason = realPayments ? (paymentMethodId ? null : "Choose a payment method to confirm.")
     : simulated ? null
-    : priceError ? `${priceError}. Tap Edit plan to fix it.`
+    : priceError ? `${priceError}. Tap Back to fix it.`
     : priceFailed ? "Couldn't load payment options. Tap Retry."
     : "Loading payment options…";
   // Reload, not re-call: after a deploy the same stale Server Action id fails every time.
@@ -766,13 +779,13 @@ export function Checkout({
     ? `Current plan ends ${startLabel(lastTiffin)}.`
     : null;
 
-  const sign = plan ? dir : step === 2 ? 1 : -1;
+  const sign = plan || handoff ? dir : step === 2 ? 1 : -1;
   const slide = reduce ? 0 : 24;
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={shown} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} onEdit={plan ? editPlan : undefined} deliverTo={deliverTo} />
+    <OrderSummary plain={plain} selections={selections} result={shown} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} onEdit={plan || handoff ? editPlan : undefined} deliverTo={deliverTo} />
   );
 
   const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
@@ -892,7 +905,7 @@ export function Checkout({
           ) : priceError ? (
             <div role="alert" className="mt-3 flex items-center justify-between gap-3">
               <p className="text-destructive text-sm text-pretty">{priceError}</p>
-              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={editPlan}>Edit plan</Button>
+              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={editPlan}>Back</Button>
             </div>
           ) : priceFailed ? (
             <div role="alert" className="mt-3 flex items-center justify-between gap-3">
@@ -936,7 +949,8 @@ export function Checkout({
         <div className="min-w-0">
           <Progress steps={CHECKOUT_STEPS} current={step} planParts={planSteps.length} />
 
-          <AnimatePresence mode="popLayout" initial={false} custom={sign}>
+          {/* Arriving from the plan builder the Delivery body slides in, as Plan → Delivery does on quick renew. */}
+          <AnimatePresence mode="popLayout" initial={!!handoff} custom={sign}>
             <m.div
               key={step}
               initial={{ opacity: 0, x: slide * sign }}

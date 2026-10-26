@@ -23,7 +23,7 @@ const selections: WizardSelections = {
 describe("checkout with a cart the server can't price", () => {
   afterEach(cleanup);
 
-  it("shows the reason and an Edit plan way out, not a Retry that reloads forever", async () => {
+  it("shows the reason and a Back way out, not a Retry that reloads forever", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
     await screen.findByLabelText(/phone/i);
@@ -34,7 +34,7 @@ describe("checkout with a cart the server can't price", () => {
     expect(await screen.findByText("Invalid duration")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
     expect(sessionStorage.getItem("tiffin.checkout.price-reload")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Edit plan" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Back" }).find((b) => b.className.includes("!shrink-0"))!);
     expect(mockRouter.push).toHaveBeenCalledWith("/subscribe", expect.anything());
   });
 });
