@@ -79,7 +79,7 @@ describe("RenewCheckout", () => {
     const a = repriceMock.mock.calls.find((c) => c[8] === "org_9")!;
     expect(a[3]).toBe("stripe");
     await screen.findAllByText("$123.45");
-    fireEvent.click(screen.getByRole("radio", { name: /1wk/ }));
+    fireEvent.change(screen.getByRole("slider", { name: "Commitment length" }), { target: { value: "0" } });
     await waitFor(() => expect(repriceMock.mock.calls.at(-1)![0]).toMatchObject({ durationWeeks: 1 }));
   });
 
@@ -115,8 +115,8 @@ describe("RenewCheckout", () => {
     await screen.findByRole("heading", { name: "Where should we deliver?" });
     fireEvent.click(screen.getAllByRole("button", { name: "Back" })[0]!);
     await screen.findByTestId("plan-card");
-    expect(screen.getByRole("radio", { name: /4wk/ }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: /1wk/ }));
+    expect(screen.getByRole("slider", { name: "Commitment length" }).getAttribute("aria-valuetext")).toMatch(/^4 weeks/);
+    fireEvent.change(screen.getByRole("slider", { name: "Commitment length" }), { target: { value: "0" } });
     await cont();
     await screen.findByRole("heading", { name: "Where should we deliver?" });
     await waitFor(() => expect(repriceMock.mock.calls.at(-1)![0]).toMatchObject({ durationWeeks: 1 }));

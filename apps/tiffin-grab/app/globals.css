@@ -568,6 +568,18 @@ body:has(.customer-app) {
   .c-liquid, .c-liquid-tint { border-color: var(--foreground); }
 }
 
+/* Weeks slider (components/wizard/weeks-slider.tsx): a timeline track, saffron up to the thumb (--fill),
+   and a 28px white thumb like iOS. */
+.c-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; cursor: pointer; touch-action: pan-y; }
+.c-range:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 9999px; }
+.c-range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: linear-gradient(to right, var(--primary) var(--fill, 0%), color-mix(in srgb, var(--foreground) 14%, transparent) var(--fill, 0%)); }
+.c-range::-moz-range-track { height: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--foreground) 14%, transparent); }
+.c-range::-moz-range-progress { height: 6px; border-radius: 9999px; background: var(--primary); }
+.c-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); transition: transform 150ms; }
+.c-range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); }
+.c-range:active::-webkit-slider-thumb { transform: scale(1.1); }
+@media (prefers-reduced-motion: reduce) { .c-range::-webkit-slider-thumb { transition: none; } }
+
 /* Phones: the order flow's bottom bar drops its strip and its buttons float as liquid glass, like the
    capsules over the tab bar; a fade from the page keeps the bar's note readable. Unlayered on purpose so it
    beats the buttons' own variant utilities. */

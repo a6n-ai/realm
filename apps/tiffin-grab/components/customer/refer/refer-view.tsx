@@ -1,4 +1,4 @@
-import { Gift, Users } from "lucide-react";
+import { Gift, Users, Wallet } from "lucide-react";
 import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatTile, type Tone } from "@/components/customer/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
@@ -30,7 +30,7 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
       <ShareCard code={code} />
 
       <Card className="flex gap-3 p-5">
-        <IconTile tint="pink" size="lg"><Gift /></IconTile>
+        <IconTile tint="orange" size="lg"><Gift /></IconTile>
         <div className="space-y-1">
           <h2 className="c-h2">How it works</h2>
           <p className="c-caption text-[15px]">{howItWorks(settings)}</p>
@@ -38,14 +38,15 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile label="From referrals" value={totalCoins} unit="coins" hint={`${totalCoins} coins earned`} />
+      <div className={wallet ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+        <StatTile icon={<IconTile tint="pink"><Users /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint="Earned from friends" />
         {wallet ? (
           <StatTile
+            icon={<IconTile tint="indigo"><Wallet /></IconTile>}
             label="In your wallet"
             value={wallet.coins}
             unit="coins"
-            hint={wallet.dollars == null ? undefined : `Worth $${wallet.dollars.toFixed(2)}`}
+            hint={wallet.dollars == null ? "Ready to spend" : `Worth $${wallet.dollars.toFixed(2)}`}
           />
         ) : null}
       </div>

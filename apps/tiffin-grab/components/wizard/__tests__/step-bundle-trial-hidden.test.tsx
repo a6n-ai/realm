@@ -56,7 +56,7 @@ describe("StepBundle trial sizes", () => {
     expect(screen.queryByText("trial_thali")).toBeNull();
   });
 
-  it("shows a trial size in its own color when trials are open", () => {
+  it("shows a trial size as its own Try-first card when trials are open", () => {
     render(
       <StepBundle
         catalog={catalog}
@@ -66,7 +66,8 @@ describe("StepBundle trial sizes", () => {
       />,
     );
     expect(screen.getByText("trial_thali")).toBeDefined();
-    expect(screen.getAllByText("Trial").length).toBeGreaterThan(0);
+    expect(screen.getByText("New here? Try a tiffin first")).toBeDefined();
+    expect(screen.getByText("Try first")).toBeDefined();
   });
 });
 
@@ -74,10 +75,12 @@ describe("StepBundle kcal pill", () => {
   it("hides the kcal pill for a size with no kcal (custom meals are 0–0)", () => {
     const zero = { ...meal("custom_zero"), kcalMin: 0, kcalMax: 0 };
     render(<StepBundle catalog={{ ...catalog, mealSizes: [zero] }} selections={{ ...selections, mealSizeId: zero.publicId }} set={vi.fn()} />);
-    expect(screen.queryByText(/kcal/)).toBeNull();
+    // Every card shows its kcal beside the name; the 0–0 one shows none.
+    const card = screen.getByText("custom_zero").closest("button")!;
+    expect(card.textContent).not.toMatch(/kcal/);
   });
   it("shows it when kcal is set", () => {
     render(<StepBundle catalog={catalog} selections={{ ...selections, mealSizeId: "msz_small_thali" }} set={vi.fn()} />);
-    expect(screen.getByText("400–600 kcal")).toBeDefined();
+    expect(screen.getAllByText("400–600 kcal").length).toBeGreaterThan(0);
   });
 });

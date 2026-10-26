@@ -20,7 +20,8 @@ describe("ReferView", () => {
     expect(screen.getByText("ABCD2345")).toBeDefined();
     expect(screen.getByText(/\/subscribe\?ref=ABCD2345$/)).toBeDefined();
     expect(screen.getByText(/You get 20 coins/)).toBeDefined();
-    expect(screen.getByText(/40 coins earned/)).toBeDefined();
+    expect(screen.getByText("40")).toBeDefined();
+    expect(screen.getByText("Earned from friends")).toBeDefined();
     expect(screen.getByText("Priya S.")).toBeDefined();
     expect(screen.getByText("Rewarded")).toBeDefined();
   });

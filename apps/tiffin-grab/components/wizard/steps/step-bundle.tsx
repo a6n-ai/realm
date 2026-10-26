@@ -2,7 +2,8 @@ import { Fragment } from "react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "../selections";
 import { AddonsPanel } from "../addons-panel";
-import { OptionCard, Pill } from "@/components/customer/kit";
+import { Gift } from "lucide-react";
+import { IconTile, OptionCard, Pill } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
@@ -41,7 +42,7 @@ export function StepBundle({
       ) : null}
       {trials.length > 0 && trial && (
         <section>
-          <h3 className="mb-3 text-[13px] font-semibold tracking-[0.02em] text-[var(--s-vac-fg,#8a5a00)]">Trial</h3>
+          <h3 className="mb-3 text-[13px] font-semibold tracking-[0.02em] text-[var(--muted-foreground)]">New here? Try a tiffin first</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {trials.map((m) => (
               <MealOption
@@ -104,24 +105,39 @@ function MealOption({
   trial?: boolean;
   onPick: () => void;
 }) {
+  // A trial is a feature card of its own: brand-tinted, a gift tile and "Try first", so it reads as an offer
+  // rather than one more size in the grid. Selected it gets the same ring as every option.
+  if (trial) {
+    return (
+      <OptionCard selected={active} onClick={onPick} className="flex min-w-0 gap-3 bg-[color-mix(in_oklch,var(--primary)_10%,var(--card))] p-4">
+        <IconTile tint="orange" size="lg"><Gift /></IconTile>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <Pill tone="brand" size="sm" className="mb-1 w-fit">Try first</Pill>
+              <span className="block text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
+            </span>
+            <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[17px] font-bold" />
+          </div>
+          <p className="text-muted-foreground text-sm text-pretty">{meal.description || "Taste it before you commit to a plan."}</p>
+          <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
+        </div>
+      </OptionCard>
+    );
+  }
   return (
-    <OptionCard selected={active} tone={trial ? "trial" : undefined} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
+    <OptionCard selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
-        <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
-        <MealSizePrice meal={meal} perTiffin priceClassName={trial ? "text-[17px] font-bold text-[var(--s-vac-fg,#8a5a00)]" : "text-primary text-[17px] font-bold"} />
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
+          {/* Shown on every card beside the name, so picking one never makes it taller. */}
+          {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+        </span>
+        <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[17px] font-bold" />
       </div>
-      {trial && <Pill tone="vac" size="sm" className="-mt-1 w-fit">Trial</Pill>}
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
       <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
-      {active && (
-        <div className="flex flex-wrap gap-1">
-          {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
-          {meal.proteinG != null && <Pill tone="soft" size="sm">P {meal.proteinG}g</Pill>}
-          {meal.carbsG != null && <Pill tone="soft" size="sm">C {meal.carbsG}g</Pill>}
-          {meal.fatG != null && <Pill tone="soft" size="sm">F {meal.fatG}g</Pill>}
-        </div>
-      )}
     </OptionCard>
   );
 }

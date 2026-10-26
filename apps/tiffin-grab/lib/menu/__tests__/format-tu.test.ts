@@ -29,7 +29,7 @@ describe("formatTuHuman", () => {
 
 describe("mealChipLabel", () => {
   it("appends the human portion and never says TU", () => {
-    expect(mealChipLabel(1, "Sabzi", "12oz")).toBe("1× Sabzi · 12oz");
+    expect(mealChipLabel(1, "Sabzi", "12oz")).toBe("Sabzi · 12oz");
     expect(mealChipLabel(4, "Roti", "1 roti")).toBe("4× Roti · 1 roti");
     expect(mealChipLabel(2, "Dal")).toBe("2× Dal");
     expect(mealChipLabel(1, "Sabzi", "12oz")).not.toMatch(/\bTU\b/);
