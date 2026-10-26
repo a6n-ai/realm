@@ -20,3 +20,11 @@ describe("PlanHeader renew", () => {
     expect(screen.queryByRole("link", { name: "Renew plan" })).not.toBeInTheDocument();
   });
 });
+
+describe("PlanHeader in a line of renewals", () => {
+  it("says it renewed instead of offering Renew", () => {
+    render(<PlanHeader sub={sub} counts={counts} renew={3} renewal="Renewed · next plan starts Nov 2" />);
+    expect(screen.queryByRole("link", { name: "Renew plan" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("plan-renewal")).toHaveTextContent("Renewed · next plan starts Nov 2");
+  });
+});

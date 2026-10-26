@@ -205,8 +205,9 @@ describe("DeliveriesView (one plan)", () => {
 });
 
 describe("DeliveriesView (week, plans on top, delivery info)", () => {
+  const sideBySide = { ...win, o2: { first: "2026-09-15", last: "2026-10-30", next: "2026-09-21" } };
   it("plan tabs on top; only the selected plan's eating days are listed; no 'All plans'", () => {
-    multi();
+    multi({ windows: sideBySide });
     const nav = screen.getByRole("navigation", { name: "Your plans" });
     expect(within(nav).getAllByRole("button")).toHaveLength(2);
     expect(within(nav).queryByText(/All plans/)).toBeNull();
@@ -214,10 +215,15 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
   it("switching plan reloads with ?sub and refreshes so the new plan's own data isn't served from cache", () => {
     replace.mockClear();
     refresh.mockClear();
-    multi();
+    multi({ windows: sideBySide });
     fireEvent.click(within(screen.getByRole("navigation", { name: "Your plans" })).getByRole("button", { name: /Small/ }));
     expect(replace.mock.calls[0]![0]).toBe("/me?sub=o2");
     expect(refresh).toHaveBeenCalled();
+  });
+  it("a renewal gets its own tab; the card says it renewed", () => {
+    multi();
+    expect(within(screen.getByRole("navigation", { name: "Your plans" })).getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByTestId("plan-renewal")).toHaveTextContent(/^Renewed · next plan/);
   });
   it("strip marks the delivery day with a truck; other eating days have none", () => {
     multi();

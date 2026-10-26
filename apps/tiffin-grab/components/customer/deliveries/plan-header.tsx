@@ -23,9 +23,13 @@ const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "v
 const TONE: Record<string, keyof typeof DOT> = { active: "ok", upcoming: "ok", paused: "ok", waitlisted: "warn", payment_review: "warn", cancelled: "bad", rejected: "bad" };
 
 /** Greets the customer by name; the plan gets a bold size title and one summary line (status · diet · tiffins left). */
-export function PlanHeader({ name, sub, counts, renew, color, actions }: {
+export function PlanHeader({ name, sub, counts, renew, color, actions, plans, renewal }: {
   /** Plan-wide actions (pause days, resume all): a row at the foot of the plan box. */
   actions?: React.ReactNode;
+  /** Plan switcher, shown above the plan box so a second plan is seen before scrolling. */
+  plans?: React.ReactNode;
+  /** Renewed, or is the renewal: this replaces "Renews in" and the Renew button (the tabs above reach the other plan). */
+  renewal?: string | null;
   name?: string | null;
   sub: Subscription;
   counts: TiffinCounts;
@@ -34,6 +38,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
 }) {
   const dot = color ?? (sub.tagColor && HEX.test(sub.tagColor) ? sub.tagColor : null);
   const first = name?.trim().split(/\s+/)[0];
+  const renewSoon = !renewal && renew != null && renew <= RENEW_SOON_DAYS;
   return (
     <header className="mb-4 lg:mb-6">
       <div className="flex items-start justify-between gap-3">
@@ -41,6 +46,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
           {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
         </h1>
       </div>
+      {plans}
       {/* The plan sits in its own box so it reads apart from the greeting; the plan's tag colour edges it. */}
       <div
         className="mt-4 rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-3.5"
@@ -65,13 +71,19 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>
-        {renew != null && (
-          <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2">
-            <p className={cn("text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>
-            {renew <= RENEW_SOON_DAYS && <Link href="/me/renew" className={buttonClass({ variant: "primary", pill: true, className: "text-sm" })}>Renew plan</Link>}
+        {/* Same line, same place on every plan: when it renews, or that it already has. */}
+        {(renewal || renew != null) && (
+          <p className={cn("mt-0.5 text-[13px]", MUTED)} data-testid="plan-renewal">
+            {renewal ?? `Renews in ${renew} ${renew === 1 ? "day" : "days"}`}
+          </p>
+        )}
+        {/* Every button lives in the footer, so plans differ only by how many there are. */}
+        {(renewSoon || actions) && (
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--border)] pt-3 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">
+            {renewSoon && <Link href="/me/renew" className={buttonClass({ variant: "primary", className: "whitespace-nowrap" })}>Renew plan</Link>}
+            {actions}
           </div>
         )}
-        {actions && <div className="mt-3 flex gap-2 border-t border-[var(--border)] pt-3 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">{actions}</div>}
       </div>
     </header>
   );

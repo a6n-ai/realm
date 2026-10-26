@@ -99,3 +99,21 @@ export function pickDefaultTrip(trips: Trip[], requested: string | undefined): s
   if (requested && trips.some((t) => t.date === requested)) return requested;
   return (trips.find((t) => t.status === "upcoming") ?? trips.find((t) => t.status === "failed") ?? trips[0])?.date ?? null;
 }
+
+/**
+ * Groups plans into lines: a renewal joins the line whose latest plan ends before it starts;
+ * plans that overlap start their own line. Each line is ordered by start date.
+ */
+// ponytail: dates stand in for a renewal link; once plans may overlap, store renewed_from_order_id and chain by it.
+export function planLines<T extends { publicId: string }>(subs: T[], windows: Record<string, { first: string; last: string }>): T[][] {
+  const lines: T[][] = [];
+  const sorted = [...subs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
+  for (const s of sorted) {
+    const first = windows[s.publicId]?.first;
+    const end = (l: T[]) => windows[l[l.length - 1]!.publicId]?.last ?? "";
+    const line = first ? lines.filter((l) => end(l) < first).sort((a, b) => end(b).localeCompare(end(a)))[0] : undefined;
+    if (line) line.push(s);
+    else lines.push([s]);
+  }
+  return lines;
+}
