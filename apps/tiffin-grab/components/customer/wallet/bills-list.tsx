@@ -105,8 +105,8 @@ function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
       else toast("Receipt sent to your email");
     });
   return (
-    // Icon-only, on the status line's right end; the labels stay as their names and hover tips.
-    <span className="ml-auto flex gap-1.5">
+    // Icon-only, under the bill's price on the card's right side; the labels stay as their names and hover tips.
+    <span className="flex gap-1.5">
       <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "quiet", className: "!size-9 !min-h-9 !px-0" })}>
         <Download aria-hidden className="size-[18px]" />
       </a>
@@ -178,7 +178,6 @@ function BillRow({
               {claimable.status === "pending_verification" ? "Update claim" : "I've sent it"}
             </Button>
           )}
-          <ReceiptActions orderPublicId={bill.publicId} />
         </div>
         {hints.map((h) => (
           <p key={h} className="text-muted-foreground text-xs">{h}</p>
@@ -187,9 +186,10 @@ function BillRow({
           <p key={d} className="text-muted-foreground text-xs">{d}</p>
         ))}
       </div>
-      <span className="shrink-0 text-[15px] font-semibold tabular-nums">
-        {formatDollars(bill.total, currency)}
-      </span>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <span className="text-[15px] font-semibold tabular-nums">{formatDollars(bill.total, currency)}</span>
+        <ReceiptActions orderPublicId={bill.publicId} />
+      </div>
     </div>
   );
 }
