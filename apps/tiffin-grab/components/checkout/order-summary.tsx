@@ -20,6 +20,7 @@ export function OrderSummary({
   selections,
   result,
   editHref,
+  onEdit,
   diet,
   mealName,
   addons,
@@ -32,7 +33,9 @@ export function OrderSummary({
 }: {
   selections: WizardSelections;
   result: PricingResult | null;
-  editHref: string;
+  editHref?: string;
+  /** Stays on the page (quick renew's Plan step) instead of linking to the edit route. */
+  onEdit?: () => void;
   diet?: string;
   mealName?: string | null;
   /** Add-ons riding in every tiffin. */
@@ -63,7 +66,11 @@ export function OrderSummary({
     <section aria-label="Your order" className={plain ? undefined : "bg-card border-border rounded-[24px] border p-5"}>
       <div className="flex items-center justify-between gap-2">
         {plain ? <span /> : <h2 className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Your order</h2>}
-        <Link href={editHref} transitionTypes={["nav-back"]} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-[13px] font-semibold">Edit</Link>
+        {onEdit ? (
+          <button type="button" onClick={onEdit} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-[13px] font-semibold">Edit</button>
+        ) : (
+          <Link href={editHref!} transitionTypes={["nav-back"]} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-[13px] font-semibold">Edit</Link>
+        )}
       </div>
       <div className="mt-1 space-y-2 text-[13px]">
         {(mealName || diet) && <p className="text-[22px] leading-tight font-bold tracking-[-0.03em]">{mealName ?? diet}</p>}

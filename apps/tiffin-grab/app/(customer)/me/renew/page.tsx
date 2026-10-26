@@ -11,7 +11,10 @@ import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer
 import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
-import { QuickRenewClient } from "./quick-renew-client";
+import { RenewCheckout } from "./quick-renew-client";
+import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
+import { loadCheckoutProps } from "@/lib/checkout/load-checkout-props";
+import { getSession } from "@/lib/auth/session";
 import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
 import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
 import { renewPageMode } from "@/components/renew/renew-selections";
@@ -32,10 +35,12 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   if (unpaid) return <PageShell><UnpaidRenewalNotice payPublicId={unpaid.payPublicId} /></PageShell>;
   const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, orgId);
   if (data && renewPageMode({ quoteParams, full, data }) === "quick") {
+    const checkout = await getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId));
+    if (!checkout) return <CheckoutUnavailable />;
     return (
       <PageShell>
-        <div className="mx-auto w-full max-w-3xl">
-          <QuickRenewClient {...data} />
+        <div className="mx-auto w-full max-w-5xl">
+          <RenewCheckout data={data} checkout={checkout} />
         </div>
       </PageShell>
     );

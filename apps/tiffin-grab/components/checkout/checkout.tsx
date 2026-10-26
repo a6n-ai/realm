@@ -1,7 +1,7 @@
 "use client";
 
 import { PaymentInstructions } from "@/components/payment-instructions";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
@@ -49,7 +49,7 @@ import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
-const TITLES = { 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
+const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
 // @foundry/ui PhoneInput is h-8; lift it (and its country button) to the kit's 52px field.
 const PHONE = "[&_input]:h-[52px] [&_input]:rounded-2xl [&_input]:text-base [&_button]:h-[52px] [&_button]:rounded-2xl";
@@ -115,6 +115,24 @@ const parsePlanSteps = (raw: string | null): string[] => {
 };
 const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
+/** Quick renew's plan picks over this order's own delivery fields (drop-off and address type belong to Delivery, not Plan). */
+const withPlan = (own: WizardSelections, p: WizardSelections): WizardSelections => ({
+  ...p,
+  deliveryTagId: own.deliveryTagId,
+  deliveryStrategyIds: own.deliveryStrategyIds,
+  addressTagId: own.addressTagId,
+});
+
+/** Quick renew hands Checkout its Plan step: Plan → Delivery → Payment then run on one page with no navigation between them. */
+export type CheckoutPlanSlot = {
+  body: ReactNode;
+  selections: WizardSelections;
+  /** The plan step's own quote; shown only while Plan is open. Checkout's `result` is what Pay charges. */
+  price: PricingResult | null;
+  canContinue: boolean;
+  pending?: boolean;
+};
+
 /** reprice answered with a reason (stale cart), as opposed to failing outright. */
 class UnpriceableCart extends Error {}
 
@@ -143,7 +161,9 @@ export function Checkout({
   suggestedCoupons = [],
   lastTiffin = null,
   cardContext = null,
+  plan,
 }: {
+  plan?: CheckoutPlanSlot;
   defaultCountry: Country;
   closeHref?: string;
   /** Present only for a signed-in customer: their account's contact. */
@@ -170,24 +190,36 @@ export function Checkout({
   const markProofSent = useCallback(() => { proofSent.current = true; }, []);
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
-  /** The wizard's saved plan, plus the default address's own drop-off unless this order already chose one. */
-  const seed = (raw: string): WizardSelections => {
-    const saved = JSON.parse(raw) as WizardSelections;
+  /** A saved plan, plus the default address's own drop-off unless this order already chose one. */
+  const seedFrom = (saved: WizardSelections): WizardSelections => {
     const parsed = catalog ? reconcileSelections(catalog, saved) : saved;
     const own = defaultAddress ? addressDropOffs[defaultAddress.publicId] : undefined;
     const ownPick = own && !parsed.deliveryTagId ? validDropOff(dropOff, own) : null;
     return ownPick ? { ...parsed, deliveryTagId: ownPick.tagId, deliveryStrategyIds: ownPick.strategyIds } : parsed;
   };
+  const seed = (raw: string) => seedFrom(JSON.parse(raw) as WizardSelections);
   // Read during render on a client navigation (wizard → checkout) so the page arrives filled and the
   // page transition animates real content; the server snapshot is null, so a full load seeds after hydration.
   const storedRaw = useSyncExternalStore(noSubscribe, () => (prefill ? sessionStorage.getItem(WIZARD_STORAGE_KEY) : null), () => null);
   const storedOrigin = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_ORIGIN_KEY), () => null);
   const storedPlanSteps = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY), () => null);
   // Kept in state: markPaid clears storage, and the paid screen must still show the same bar.
-  const [planSteps, setPlanSteps] = useState<string[]>(() => parsePlanSteps(storedPlanSteps));
-  const [selections, setSelections] = useState<WizardSelections | null>(() => (storedRaw ? seed(storedRaw) : null));
+  const [planSteps, setPlanSteps] = useState<string[]>(() => (plan ? ["Plan"] : parsePlanSteps(storedPlanSteps)));
+  const [ownSelections, setSelections] = useState<WizardSelections | null>(() => (plan ? seedFrom(plan.selections) : storedRaw ? seed(storedRaw) : null));
   const [result, setResult] = useState<PricingResult | null>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<0 | 1 | 2>(plan ? 0 : 1);
+  // While Plan is open its live picks drive the aside and summary; every other step reads this order's own copy.
+  const selections = useMemo(
+    () => (plan && step === 0 && ownSelections ? withPlan(ownSelections, plan.selections) : ownSelections),
+    [plan, step, ownSelections],
+  );
+  // Which way the step slid, so Back on Delivery returns to Plan the way it came.
+  const [seenStep, setSeenStep] = useState(step);
+  const [dir, setDir] = useState<1 | -1>(1);
+  if (seenStep !== step) {
+    setSeenStep(step);
+    setDir(step > seenStep ? 1 : -1);
+  }
   // null = the customer is typing a new address (always the case with no saved address).
   const [addressPublicId, setAddressPublicId] = useState<string | null>(defaultAddress?.publicId ?? null);
   const [contact, setContact] = useState<Contact>({
@@ -226,7 +258,7 @@ export function Checkout({
   );
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
-  const [origin, setOrigin] = useState<WizardOrigin>(storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
+  const [origin, setOrigin] = useState<WizardOrigin>(plan ? "renew" : storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
   const reduce = useReducedMotion();
   // Stripe.js loads while the customer is still on the address step, so the wallet button is ready on Pay.
   useWarmStripe(cardContext?.publishableKey);
@@ -305,30 +337,36 @@ export function Checkout({
     // markPaid clears the wizard storage; once paid, the receipt stays on screen and a re-run of this
     // effect (router identity change) must not read the empty storage as "no selections".
     if (isPaid()) return;
-    const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
-    if (!raw) { router.replace("/subscribe"); return; }
-    if (prefill == null) { router.replace("/subscribe"); return; }
-    const s = selections ?? seed(raw);
-    const storedOriginKey = sessionStorage.getItem(WIZARD_ORIGIN_KEY);
-    // The catalog dropped something this cart needs (a meal size, a frequency): it can't be
-    // priced, so send the customer to the wizard step that asks for it instead of a dead end.
-    const blockedAt = catalog ? firstBlockedStep(catalog, s) : null;
-    if (blockedAt != null) {
-      sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
-      sessionStorage.setItem(WIZARD_STEP_KEY, String(blockedAt));
-      router.replace(storedOriginKey === "renew" ? "/me/renew" : storedOriginKey === "trial" ? "/me/trial" : "/subscribe");
-      return;
-    }
-    // A full page load seeds here: sessionStorage is only readable on the client, after hydration.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!selections) setSelections(s);
-    if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
-    if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
-    setPlanSteps(parsePlanSteps(sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY)));
-    // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
-    // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
+    // Quick renew carries its plan in props: no wizard storage, nothing to redirect for or restore.
+    let s: WizardSelections;
     let quoted: string[] = [];
-    try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
+    if (plan) {
+      s = selections!;
+    } else {
+      const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+      if (!raw) { router.replace("/subscribe"); return; }
+      if (prefill == null) { router.replace("/subscribe"); return; }
+      s = selections ?? seed(raw);
+      const storedOriginKey = sessionStorage.getItem(WIZARD_ORIGIN_KEY);
+      // The catalog dropped something this cart needs (a meal size, a frequency): it can't be
+      // priced, so send the customer to the wizard step that asks for it instead of a dead end.
+      const blockedAt = catalog ? firstBlockedStep(catalog, s) : null;
+      if (blockedAt != null) {
+        sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
+        sessionStorage.setItem(WIZARD_STEP_KEY, String(blockedAt));
+        router.replace(storedOriginKey === "renew" ? "/me/renew" : storedOriginKey === "trial" ? "/me/trial" : "/subscribe");
+        return;
+      }
+      // A full page load seeds here: sessionStorage is only readable on the client, after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (!selections) setSelections(s);
+      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
+      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
+      setPlanSteps(parsePlanSteps(sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY)));
+      // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
+      // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
+      try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
+    }
     refreshPrice(s, quoted, null).then(
       async (r) => {
         sessionStorage.removeItem(PRICE_RELOAD_KEY);
@@ -649,8 +687,23 @@ export function Checkout({
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
-  const goBack = () => (step > 1 ? setStep(1) : router.push(editHref, { transitionTypes: ["nav-back"] }));
-  const backLabel = step > 1 ? "Back" : "Edit plan";
+  const first = plan ? 0 : 1;
+  const goBack = () => (step > first ? setStep((step - 1) as 0 | 1 | 2) : router.push(plan ? "/me" : editHref, { transitionTypes: ["nav-back"] }));
+  const backLabel = !plan && step === 1 ? "Edit plan" : "Back";
+  // Quick renew keeps the plan on this page; the wizard's flows leave for their own route.
+  const editPlan = () => {
+    if (!plan) return router.push(editHref, { transitionTypes: ["nav-back"] });
+    setSummaryOpen(false);
+    setStep(0);
+  };
+  const shown = plan && step === 0 ? plan.price : result;
+  const continuePlan = () => {
+    setSelections(selections);
+    setStep(1);
+    // Same as Continue to payment: the plan changed, so the price (and the payment methods) follow it.
+    void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined)
+      .then(() => setPriceFailed(false), () => setPriceFailed(true));
+  };
   const step1Reason = !contact.fullName.trim() ? "Add your name in Account to continue."
     : !emailValid ? "Add an email in Account to continue."
     : !contact.postalCode ? "Add your delivery address to continue."
@@ -672,7 +725,7 @@ export function Checkout({
     : "Loading payment options…";
   // Reload, not re-call: after a deploy the same stale Server Action id fails every time.
   const retryPrice = () => window.location.reload();
-  const actionReason = step === 1 ? step1Reason : payReason;
+  const actionReason = step === 0 ? null : step === 1 ? step1Reason : payReason;
   const addressLine = oneLine(contact);
   // Pay step only: step 1 is where these are edited, so the order card would just repeat them there.
   const deliverTo = step === 2 && addressLine
@@ -713,13 +766,13 @@ export function Checkout({
     ? `Current plan ends ${startLabel(lastTiffin)}.`
     : null;
 
-  const sign = step === 2 ? 1 : -1;
+  const sign = plan ? dir : step === 2 ? 1 : -1;
   const slide = reduce ? 0 : 24;
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} deliverTo={deliverTo} />
+    <OrderSummary plain={plain} selections={selections} result={shown} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} onEdit={plan ? editPlan : undefined} deliverTo={deliverTo} />
   );
 
   const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
@@ -839,7 +892,7 @@ export function Checkout({
           ) : priceError ? (
             <div role="alert" className="mt-3 flex items-center justify-between gap-3">
               <p className="text-destructive text-sm text-pretty">{priceError}</p>
-              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
+              <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={editPlan}>Edit plan</Button>
             </div>
           ) : priceFailed ? (
             <div role="alert" className="mt-3 flex items-center justify-between gap-3">
@@ -875,8 +928,8 @@ export function Checkout({
         closeHref={closeHref}
         onBack={goBack}
         backLabel={backLabel}
-        stepTag={CHECKOUT_STEPS[step]}
-        trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={summaryOpen} onOpen={() => setSummaryOpen(true)} /> : null}
+        stepTag={step === 0 ? "Renew" : CHECKOUT_STEPS[step]}
+        trailing={shown ? <TotalChip tiffinCount={shown.tiffinCount} total={shown.total} open={summaryOpen} onOpen={() => setSummaryOpen(true)} /> : null}
       />
 
       <div className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,1fr)_340px] md:items-start lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
@@ -893,7 +946,7 @@ export function Checkout({
             >
               <h1 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
 
-              <OrderGlance
+              {step === 0 ? null : <OrderGlance
                 title={meal?.name ?? "Your plan"}
                 baseline={baseline}
                 meta={[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `Starts ${start}` : null].filter(Boolean).join(" · ")}
@@ -901,10 +954,10 @@ export function Checkout({
                 total={result?.total}
                 saved={result?.adjustments.reduce((n, a) => n + a.amount, 0)}
                 onOpen={() => setSummaryOpen(true)}
-              />
-              {startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
+              />}
+              {step !== 0 && startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
 
-              {step === 1 ? (
+              {step === 0 ? plan?.body : step === 1 ? (
                 <div className="space-y-10">
                   <section aria-labelledby="co-address">
                     <h2 id="co-address" className={H}>Deliver to</h2>
@@ -990,7 +1043,9 @@ export function Checkout({
             ) : (
               <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
             )}
-            {step === 1 ? (
+            {step === 0 && plan ? (
+              <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!plan.canContinue} pending={plan.pending} onClick={continuePlan}>Continue</Button>
+            ) : step === 1 ? (
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
                 setStep(2);
                 // The address is final now — re-price so tax reflects its province.
