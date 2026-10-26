@@ -85,6 +85,8 @@ export type SwapCategory = {
   key: string;
   // Per-pick TU from this meal size's composition; null when the meal size has no row for it.
   pickTu: number | null;
+  /** Per-pick TU of each composition row of this category, in row order; `fromRow` indexes it. */
+  rowTu?: number[];
   unitType: "weight" | "count";
   unitLabel: string;
   maxPicksPerTiffin: number | null;
@@ -150,8 +152,10 @@ export function crossUnitPicks(giveTu: number, toTu: number): number {
 /** One line of category_swap_pairs.exchange_overrides: give this portion, receive that one (TU). */
 export type ExchangeOverride = { giveTu: number; receiveTu: number };
 
-/** A pair's exchange rule: its override lines, and what an amount with no line does ("Other amounts"). */
-/** `receivesMissing`: the pair may deliver `to` even when the meal size has no row for it. */
+/**
+ * A pair's exchange rule: its override lines, what an amount with no line does ("Other amounts"),
+ * and `receivesMissing` (the pair may deliver `to` even when the meal size has no row for it).
+ */
 export type SwapPairRule = { overrides: ExchangeOverride[]; naturalFallback: boolean; receivesMissing: boolean };
 
 /** Why an amount with no override line can't be swapped when the pair turns the natural exchange off. */
@@ -197,9 +201,11 @@ export function swapAmounts(
   qtyTo: number,
   /** The swap's snapshotted override TU per received pick; wins over the natural size. */
   receiveTu?: number | null,
+  /** The swapped row of `from`; sizes the give side when the category has rows of different sizes. */
+  fromRow?: number | null,
 ): { give: string; get: string } | null {
   if (!from?.unitSize || !to?.unitSize) return null;
-  const fromTu = from.pickTu ?? to.pickTu;
+  const fromTu = (fromRow != null ? from.rowTu?.[fromRow] : undefined) ?? from.pickTu ?? to.pickTu;
   const toTu = to.pickTu ?? from.pickTu;
   if (fromTu == null || toTu == null) return null;
   const fmt = (c: SwapCategory, tu: number) => formatTuHuman({ tuUnitType: c.unitType, tuUnitSize: c.unitSize!, tuUnitLabel: c.unitLabel }, tu);
@@ -210,7 +216,7 @@ export function swapAmounts(
 
 /** "Rice 6oz → Roti 4 roti"; falls back to pick counts when units are unknown. */
 export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Record<string, SwapCategory>): string {
-  const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu);
+  const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu, s.fromRow);
   return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
 }
 

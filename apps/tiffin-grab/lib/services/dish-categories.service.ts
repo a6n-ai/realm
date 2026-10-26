@@ -389,9 +389,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         .orderBy(asc(mealSizeItems.sortOrder)),
     ]);
     const pickTu = new Map<string, number>();
-    for (const i of items) if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
+    const rowTu = new Map<string, number[]>();
+    for (const i of items) {
+      if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
+      rowTu.set(i.category, [...(rowTu.get(i.category) ?? []), Number(i.tuAmount)]);
+    }
     return new Map(cats.map((c) => [c.key, {
-      key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
+      key: c.key, pickTu: pickTu.get(c.key) ?? null, ...(rowTu.has(c.key) ? { rowTu: rowTu.get(c.key) } : {}), unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
       ...(size.custom && !pickTu.has(c.key) ? { addable: true } : {}),
     }]));
   }

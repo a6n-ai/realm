@@ -9,7 +9,7 @@ const roti: SwapCategory = { key: "roti", pickTu: 1.5, unitType: "count", unitLa
 
 const item = (category: string, tuAmount: number, sortOrder: number) => ({ category, tuAmount, maxTuAmount: null, sortOrder });
 const labels = { sabzi: "Sabzi", daal: "Daal", rice: "Rice", roti: "Roti", salad: "Salad", raita: "Raita" };
-const sabzi = oz("sabzi", 1.5);
+const sabzi: SwapCategory = { ...oz("sabzi", 1.5), rowTu: [1.5, 1] };
 const salad = oz("salad", null, 2);
 const raita = oz("raita", null);
 
@@ -47,9 +47,8 @@ describe("receivesMissing", () => {
       overrides: [{ giveTu: 1, receiveTu: 0.25 }], naturalFallback: false,
     });
     expect(r).toMatchObject({ ok: true, getTu: 0.25, receiveTu: 0.25 });
-    const row = { fromCategory: "sabzi", toCategory: "raita", qtyFrom: 1, qtyTo: 1, receiveTu: 0.25 };
-    // The give side is the category's leading pick size (swapLabel has no row), same as for overrides today.
-    expect(swapLabel(row, (k) => labels[k as keyof typeof labels], Object.fromEntries(large.categories))).toMatch(/→ Raita · 2oz$/);
+    const row = { fromCategory: "sabzi", toCategory: "raita", qtyFrom: 1, qtyTo: 1, fromRow: 1, receiveTu: 0.25 };
+    expect(swapLabel(row, (k) => labels[k as keyof typeof labels], Object.fromEntries(large.categories))).toBe("Sabzi · 8oz → Raita · 2oz");
   });
 
   it("without the flag the missing category is still refused", () => {
@@ -73,6 +72,18 @@ describe("receivesMissing", () => {
     const third = validateProposedSwap({ composition: three, applied: [swap(0), swap(1)], next: sabziTo("salad", 2), ...args });
     expect(third).toMatchObject({ ok: false });
     expect((third as { reason: string }).reason).toContain("at most 2 Salad");
+  });
+
+  it("5 Item Regular: two 8oz sabzi both go to salad within the cap of 2", () => {
+    const regular: CompositionContext = {
+      ...large,
+      mealSizeItems: [item("sabzi", 1, 0), item("sabzi", 1, 1), item("daal", 1, 2), item("rice", 1, 3), item("roti", 1.5, 4)],
+      baseCounts: { sabzi: 2, daal: 1, rice: 1, roti: 1 },
+    };
+    const args = { receivesMissing: true, overrides: saladLine, naturalFallback: false };
+    const applied = [{ fromCategory: "sabzi", toCategory: "salad", qtyFrom: 1, qtyTo: 1, fromRow: 0, receiveTu: 1 }];
+    expect(validateProposedSwap({ composition: regular, applied: [], next: sabziTo("salad", 0), ...args }).ok).toBe(true);
+    expect(validateProposedSwap({ composition: regular, applied, next: sabziTo("salad", 1), ...args }).ok).toBe(true);
   });
 
   it("refuses to swap back what a received swap brought in", () => {

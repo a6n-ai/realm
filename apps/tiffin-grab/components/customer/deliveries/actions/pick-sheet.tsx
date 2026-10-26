@@ -233,7 +233,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       categories: grid.categories,
       // The meal's own rows: an 8-roti row reads "8 roti" even with 3 add-on roti on the day.
       basePortions: serverGrid?.preview.items.length ? mealBasePortions(serverGrid.preview) : grid.portionsBySlot,
-      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
+      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu, s.fromRow),
       folded: (key) => isCountCategory(new Map(serverGrid?.preview.tu ?? []).get(key)),
     })
     : [];
