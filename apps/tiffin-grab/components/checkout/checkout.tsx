@@ -32,7 +32,7 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
@@ -49,7 +49,6 @@ import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
-const STEPS = CHECKOUT_STEPS;
 const TITLES = { 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
 // @foundry/ui PhoneInput is h-8; lift it (and its country button) to the kit's 52px field.
@@ -107,6 +106,13 @@ function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; char
 }
 
 const noSubscribe = () => () => {};
+const parsePlanSteps = (raw: string | null): string[] => {
+  try {
+    const v: unknown = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string")) return v;
+  } catch { /* stale or hand-edited storage: fall back */ }
+  return ["Plan"];
+};
 const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
 /** reprice answered with a reason (stale cart), as opposed to failing outright. */
@@ -176,6 +182,9 @@ export function Checkout({
   // page transition animates real content; the server snapshot is null, so a full load seeds after hydration.
   const storedRaw = useSyncExternalStore(noSubscribe, () => (prefill ? sessionStorage.getItem(WIZARD_STORAGE_KEY) : null), () => null);
   const storedOrigin = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_ORIGIN_KEY), () => null);
+  const storedPlanSteps = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY), () => null);
+  // Kept in state: markPaid clears storage, and the paid screen must still show the same bar.
+  const [planSteps, setPlanSteps] = useState<string[]>(() => parsePlanSteps(storedPlanSteps));
   const [selections, setSelections] = useState<WizardSelections | null>(() => (storedRaw ? seed(storedRaw) : null));
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
@@ -315,6 +324,7 @@ export function Checkout({
     if (!selections) setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
+    setPlanSteps(parsePlanSteps(sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY)));
     // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
     // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
     let quoted: string[] = [];
@@ -865,13 +875,13 @@ export function Checkout({
         closeHref={closeHref}
         onBack={goBack}
         backLabel={backLabel}
-        stepTag={STEPS[step]}
+        stepTag={CHECKOUT_STEPS[step]}
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={summaryOpen} onOpen={() => setSummaryOpen(true)} /> : null}
       />
 
       <div className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,1fr)_340px] md:items-start lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
         <div className="min-w-0">
-          <Progress steps={STEPS} current={step} />
+          <Progress steps={CHECKOUT_STEPS} current={step} planParts={planSteps.length} />
 
           <AnimatePresence mode="popLayout" initial={false} custom={sign}>
             <m.div
@@ -1043,7 +1053,7 @@ export function Checkout({
     <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-10">
       <SubscribeChrome closeHref="/me/deliveries" onBack={() => router.replace("/me/deliveries")} backLabel="Deliveries" stepTag="Paid" />
       <div className="mx-auto max-w-xl">
-        <Progress steps={STEPS} current={STEPS.length - 1} />
+        <Progress steps={CHECKOUT_STEPS} current={CHECKOUT_STEPS.length - 1} planParts={planSteps.length} />
         <PaidPage
           kind={kind}
           subtitle={kind === "processing" ? "We'll confirm by email." : kind === "submitted" ? "We'll verify your e-Transfer and email you." : start ? `Your first tiffin arrives ${start}.` : "We've emailed your receipt."}
