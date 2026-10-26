@@ -6,6 +6,7 @@ import type { CustomerTicketRow, TicketStatus } from "@/lib/services/tickets.ser
 import { EmptyState, ListGroup, ListRow, Pill, Skeleton } from "@/components/customer/kit";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";
+import { topicFor } from "./topics";
 
 const DONE = new Set<string>(["resolved", "closed"]);
 
@@ -25,9 +26,12 @@ function TicketSection({ title, hint, tickets, timezone, empty }: { title: strin
         <ListGroup>
           {tickets.map((t) => {
             const status = t.status as TicketStatus;
+            const topic = topicFor(t.category);
             return (
               <ListRow
                 key={t.publicId}
+                icon={<topic.icon />}
+                tint={topic.tint}
                 href={`/me/support/${t.publicId}`}
                 label={t.subject}
                 sublabel={`${categoryLabel(t.category)} · ${formatEpoch(t.createdAt, { timeZone: timezone, mode: "date", locale: "en-CA" })}`}

@@ -1,5 +1,5 @@
 import { Clock, Headset } from "lucide-react";
-import { Card, Chip } from "@/components/customer/kit";
+import { Card, Chip, IconTile } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { getAppSettings, getSupportHours } from "@/lib/services/app-settings.service";
 import { supportHoursView, type SupportHoursView } from "@/lib/support/support-hours";
@@ -27,15 +27,7 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
   return (
     <Card className="space-y-4 p-4">
       <div className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-full",
-            view.open ? "bg-[var(--s-delivered-bg)] text-[var(--s-delivered-fg)]" : "bg-[var(--muted)] text-[var(--muted-foreground,#6E6558)]",
-          )}
-        >
-          <Headset className="size-5" />
-        </span>
+        <IconTile tint={view.open ? "green" : "gray"} size="lg"><Headset /></IconTile>
         <div className="min-w-0">
           <p className="text-[17px] font-semibold leading-tight">{view.open ? "We're open now" : "We're closed now"}</p>
           <p className="text-[14px] text-[var(--muted-foreground,#6E6558)]">{view.detail}</p>

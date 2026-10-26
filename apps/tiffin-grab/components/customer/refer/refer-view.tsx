@@ -1,5 +1,5 @@
 import { Coins, Gift, Share2, Users, UtensilsCrossed, Wallet } from "lucide-react";
-import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, type Tone } from "@/components/customer/kit";
+import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, StepList, type Tone } from "@/components/customer/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
 import { ShareCard } from "./share-card";
@@ -16,7 +16,6 @@ const paused = (s: ReferralSettings) => s.referrerValue <= 0 && s.friendValue <=
 /** "20" + "coins", or "5%" + "back" for percentage rewards. */
 const reward = (s: ReferralSettings, v: number) => (s.mode === "pct" ? { value: `${v}%`, unit: "back" } : { value: v, unit: v === 1 ? "coin" : "coins" });
 
-/** Three short steps on a line, like an onboarding screen, instead of a paragraph. */
 function HowItWorks({ settings }: { settings: ReferralSettings }) {
   const you = reward(settings, settings.referrerValue);
   const friend = reward(settings, settings.friendValue);
@@ -28,21 +27,7 @@ function HowItWorks({ settings }: { settings: ReferralSettings }) {
   return (
     <section aria-labelledby="refer-how" className="space-y-3">
       <h2 id="refer-how" className="c-h2">How it works</h2>
-      <Card className="p-5">
-        <ol className="space-y-5">
-          {steps.map((st, i) => (
-            <li key={st.title} className="relative flex gap-3">
-              {/* The line joining each step to the next. */}
-              {i < steps.length - 1 && <span aria-hidden className="absolute top-11 bottom-[-1.25rem] left-5 w-px bg-[var(--border)]" />}
-              <IconTile tint={st.tint} size="lg">{st.icon}</IconTile>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-[15px] font-semibold">{st.title}</p>
-                <p className="c-caption text-pretty">{st.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Card>
+      <StepList steps={steps} />
     </section>
   );
 }

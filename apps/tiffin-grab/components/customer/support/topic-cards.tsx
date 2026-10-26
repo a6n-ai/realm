@@ -1,17 +1,7 @@
 import Link from "next/link";
-import { CalendarDays, CreditCard, MessageCircleHeart, Package, Truck, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { IconTile, type IconTint } from "@/components/customer/kit";
-import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
-
-const TOPICS: { category: TicketCategoryValue; title: string; icon: LucideIcon; tint: IconTint }[] = [
-  { category: "delivery", title: "Delivery", icon: Truck, tint: "orange" },
-  { category: "food_meal", title: "Food", icon: UtensilsCrossed, tint: "red" },
-  { category: "plan_subscription", title: "Plan", icon: CalendarDays, tint: "blue" },
-  { category: "billing", title: "Billing", icon: CreditCard, tint: "indigo" },
-  { category: "packaging", title: "Packaging", icon: Package, tint: "brown" },
-  { category: "feedback", title: "Feedback", icon: MessageCircleHeart, tint: "pink" },
-];
+import { IconTile } from "@/components/customer/kit";
+import { TOPICS } from "./topics";
 
 /** Big tappable topics: each opens a new ticket with that topic already picked. */
 export function TopicCards() {

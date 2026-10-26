@@ -12,6 +12,9 @@ const TINT = {
   red: "bg-[#FF3B30]",
   purple: "bg-[#AF52DE]",
   brown: "bg-[#A2845E]",
+  cyan: "bg-[#32ADE6]",
+  mint: "bg-[#00C7BE]",
+  yellow: "bg-[#FFCC00] !text-[#3D2E00]",
   gray: "bg-[#8E8E93]",
 } as const;
 
