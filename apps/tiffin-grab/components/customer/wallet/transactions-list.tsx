@@ -2,17 +2,22 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDown, Copy, ReceiptText } from "lucide-react";
+import { ChevronDown, Copy, CreditCard, Percent, ReceiptText, RotateCcw, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
-import { ListPagination } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { Reveal } from "@/components/motion";
+import { EmptyState, IconTile, ListGroup, Skeleton, buttonClass, type IconTint } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
+import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
+
+const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIcon }> = {
+  payment: { tint: "green", Icon: CreditCard },
+  refund: { tint: "blue", Icon: RotateCcw },
+  discount: { tint: "yellow", Icon: Percent },
+  adjustment: { tint: "gray", Icon: SlidersHorizontal },
+};
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -70,29 +75,31 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
     tx.memo ? { label: "Note", value: tx.memo } : null,
     { label: "Receipt no.", value: <CopyValue label="Receipt number" value={tx.publicId} /> },
   ].filter((d) => d != null);
+  const { tint, Icon } = TYPE_STYLE[tx.type];
   return (
-    <Reveal>
+    <div>
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-2.5 [&::-webkit-details-marker]:hidden">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <IconTile tint={tint}><Icon /></IconTile>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold">
               {typeLabel(tx.type)}
-              {method ? <span className="text-muted-foreground font-normal"> · {method}</span> : null}
+              {method ? <span className="font-normal text-[var(--muted-foreground)]"> · {method}</span> : null}
             </p>
-            <p className="text-muted-foreground text-xs tabular-nums">
+            <p className="text-[13px] tabular-nums text-[var(--muted-foreground)]">
               {formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
               {tx.orderDeploymentId ? ` · ${tx.orderDeploymentId}` : ""}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1">
-            <span className={`text-sm font-semibold tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+            <span className={`text-[15px] font-semibold tabular-nums ${credit ? "text-ok" : "text-[var(--foreground)]"}`}>
               {credit ? "+" : "−"}
               {formatDollars(tx.amount, currency)}
             </span>
             <ChevronDown aria-hidden className="text-muted-foreground size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
           </span>
         </summary>
-        <dl className="mb-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-2xl bg-[var(--muted)]/60 px-3 py-2 text-sm">
+        <dl className="mx-4 mb-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)] px-3 py-2 text-sm">
           {details.map((d) => (
             <div key={d.label} className="contents">
               <dt className="text-muted-foreground text-xs">{d.label}</dt>
@@ -101,7 +108,7 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
           ))}
         </dl>
       </details>
-    </Reveal>
+    </div>
   );
 }
 
@@ -120,10 +127,11 @@ export function TransactionsList({
   currency: string;
   filtered?: boolean;
 }) {
+  const tz = useTimezone();
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
-      {(total > 0 || filtered) && <ReuiFacetFilters spec={MONEY_LEDGER_FACETS} />}
+      {(total > 0 || filtered) && <FilterBar spec={MONEY_LEDGER_FACETS} />}
       {items.length === 0 ? (
         <EmptyState
           icon={<ReceiptText className="size-6" />}
@@ -132,13 +140,18 @@ export function TransactionsList({
           action={<Link href="/me/renew" className={buttonClass({ variant: "outline" })}>Renew plan</Link>}
         />
       ) : (
-        <Reveal.Group className="divide-y">
-          {items.map((tx) => (
-            <MoneyTxRow key={tx.publicId} tx={tx} currency={currency} />
-          ))}
-        </Reveal.Group>
+        groupByMonth(items, (tx) => tx.createdAt, tz).map((g) => (
+          <section key={g.key} aria-label={g.label}>
+            <GroupHeader>{g.label}</GroupHeader>
+            <ListGroup>
+              {g.items.map((tx) => (
+                <MoneyTxRow key={tx.publicId} tx={tx} currency={currency} />
+              ))}
+            </ListGroup>
+          </section>
+        ))
       )}
-      {total > 0 && <ListPagination page={page} size={size} total={total} />}
+      {total > 0 && <QuietPagination page={page} size={size} total={total} />}
     </div>
   );
 }
@@ -146,12 +159,8 @@ export function TransactionsList({
 export function TransactionsListSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-8 w-48 rounded-full" />
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-      </div>
+      <Skeleton className="h-9 w-28 rounded-full" />
+      <Skeleton className="h-[168px] w-full rounded-3xl" />
     </div>
   );
 }

@@ -1,34 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { Coins } from "lucide-react";
-import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
-import { ListPagination } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { Reveal } from "@/components/motion";
+import { ArrowDownLeft, ArrowUpRight, Coins } from "lucide-react";
+import { EmptyState, ListGroup, ListRow, Skeleton, buttonClass } from "@/components/customer/kit";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
 import { WALLET_FACETS } from "./wallet-facets";
+import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 
 function WalletLogRow({ tx }: { tx: WalletTx }) {
   const tz = useTimezone();
   const credit = tx.direction === "credit";
   return (
-    <Reveal className="flex items-center justify-between gap-3 py-2.5">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{walletEntryLabel(tx.sourceType, tx.eventType ? eventLabel(tx.eventType) : null)}</p>
-        <p className="text-muted-foreground text-xs tabular-nums">
-          {formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
-        </p>
-      </div>
-      <span className={`shrink-0 text-sm font-semibold tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
-        {credit ? "+" : "−"}
-        {tx.coins}
-      </span>
-    </Reveal>
+    <ListRow
+      tint={credit ? "green" : "orange"}
+      icon={credit ? <ArrowDownLeft /> : <ArrowUpRight />}
+      label={walletEntryLabel(tx.sourceType, tx.eventType ? eventLabel(tx.eventType) : null)}
+      sublabel={formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
+      value={
+        <span className={credit ? "text-ok" : "text-[var(--foreground)]"}>
+          {credit ? "+" : "−"}
+          {tx.coins}
+        </span>
+      }
+    />
   );
 }
 
@@ -41,10 +39,11 @@ export function WalletLog({
   total: number;
   filtered?: boolean;
 }) {
+  const tz = useTimezone();
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Stays while a filter is on, so an empty filtered result can still be cleared. */}
-      {(total > 0 || filtered) && <ReuiFacetFilters spec={WALLET_FACETS} />}
+      {(total > 0 || filtered) && <FilterBar spec={WALLET_FACETS} />}
       {items.length === 0 ? (
         <EmptyState
           icon={<Coins className="size-6" />}
@@ -53,13 +52,18 @@ export function WalletLog({
           action={<Link href="/me/refer" className={buttonClass({ variant: "outline" })}>Refer a friend</Link>}
         />
       ) : (
-        <Reveal.Group className="divide-y">
-          {items.map((tx) => (
-            <WalletLogRow key={tx.publicId} tx={tx} />
-          ))}
-        </Reveal.Group>
+        groupByMonth(items, (tx) => tx.createdAt, tz).map((g) => (
+          <section key={g.key} aria-label={g.label}>
+            <GroupHeader>{g.label}</GroupHeader>
+            <ListGroup>
+              {g.items.map((tx) => (
+                <WalletLogRow key={tx.publicId} tx={tx} />
+              ))}
+            </ListGroup>
+          </section>
+        ))
       )}
-      {total > 0 && <ListPagination page={page} size={size} total={total} />}
+      {total > 0 && <QuietPagination page={page} size={size} total={total} />}
     </div>
   );
 }
@@ -67,12 +71,8 @@ export function WalletLog({
 function WalletLogSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-8 w-48 rounded-full" />
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-      </div>
+      <Skeleton className="h-9 w-28 rounded-full" />
+      <Skeleton className="h-[168px] w-full rounded-3xl" />
     </div>
   );
 }
@@ -81,7 +81,7 @@ function WalletLogSkeleton() {
 export function CoinsPanelSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-24 md:h-[120px]" />
+      <Skeleton className="h-[104px] rounded-[20px]" />
       <WalletLogSkeleton />
     </div>
   );

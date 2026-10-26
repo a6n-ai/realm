@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button, EmptyState, Pill, Skeleton, type Tone } from "@/components/customer/kit";
+import { Button, EmptyState, IconTile, ListGroup, Pill, Skeleton, type IconTint, type Tone } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import {
   Dialog,
@@ -12,8 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@foundry/ui/dialog";
-import { ListPagination, OrderStatusBadge } from "@/components/ds";
-import { Reveal } from "@/components/motion";
+import { OrderStatusBadge } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
@@ -21,6 +20,7 @@ import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { emailReceiptAction, loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
 import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
+import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -28,14 +28,6 @@ function formatDollars(amount: string, currency: string) {
     currency,
     currencyDisplay: "narrowSymbol",
   }).format(Number(amount));
-}
-
-function monthKey(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(ms);
-}
-
-function monthLabel(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "long" }).format(ms);
 }
 
 type PayStatus = CustomerBill["payments"][number]["status"];
@@ -61,6 +53,19 @@ function paymentPill(status: PayStatus): { label: string; tone: Tone; Icon: Luci
     }
   }
 }
+
+const BILL_TINT: Record<PayStatus, IconTint> = {
+  paid: "green",
+  simulated_paid: "green",
+  pending: "orange",
+  awaiting_payment: "orange",
+  pending_verification: "indigo",
+  rejected: "red",
+  refunded: "gray",
+};
+
+// A bill's tile follows its first payment (a bill with no payment rows reads as awaiting).
+const billTint = (b: CustomerBill): IconTint => (b.payments[0] ? BILL_TINT[b.payments[0].status] : "orange");
 
 const isPaid = (s: PayStatus) => s === "paid" || s === "simulated_paid";
 
@@ -131,13 +136,14 @@ function BillRow({
   const details = bill.payments.map((p) => cardDetail(bill, p)).filter(Boolean);
 
   return (
-    <Reveal className="flex items-start justify-between gap-3 py-3">
-      <div className="min-w-0 space-y-1">
-        <p className="truncate text-sm font-medium">
+    <div className="flex items-start gap-3 px-4 py-3">
+      <IconTile tint={billTint(bill)}><FileText /></IconTile>
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="truncate text-[15px] font-semibold">
           {bill.planName} · {bill.mealSizeName}
         </p>
-        <p className="text-xs tabular-nums">{planRange(bill.startDate, bill.lastDeliveryDate)}</p>
-        <p className="text-muted-foreground truncate text-xs tabular-nums">
+        <p className="text-[13px] tabular-nums">{planRange(bill.startDate, bill.lastDeliveryDate)}</p>
+        <p className="truncate text-[13px] tabular-nums text-[var(--muted-foreground)]">
           {bill.deploymentId}
           {" · "}
           {formatEpoch(bill.createdAt, { mode: "date", timeZone: tz })}
@@ -158,7 +164,7 @@ function BillRow({
           {payable && (
             <Link
               href={`/me/pay/${payable.publicId}`}
-              className={buttonClass({ variant: "primary" })}
+              className={buttonClass({ variant: "primary", className: "min-h-9 px-3 text-sm" })}
             >
               Pay by card
             </Link>
@@ -167,6 +173,7 @@ function BillRow({
             <Button
               type="button"
               variant="outline"
+              className="min-h-9 px-3 text-sm"
               onClick={() => onClaim(claimable.publicId)}
             >
               {claimable.status === "pending_verification" ? "Update claim" : "I've sent it"}
@@ -181,10 +188,10 @@ function BillRow({
         ))}
         <ReceiptActions orderPublicId={bill.publicId} />
       </div>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">
+      <span className="shrink-0 text-[15px] font-semibold tabular-nums">
         {formatDollars(bill.total, currency)}
       </span>
-    </Reveal>
+    </div>
   );
 }
 
@@ -228,46 +235,30 @@ export function BillsList({
         icon={<FileText className="size-6" />}
         title="No bills yet"
         body="Subscription receipts will appear here after you place an order."
+        action={<Link href="/subscribe" className={buttonClass({ variant: "outline" })}>Browse plans</Link>}
       />
     );
   }
 
-  const groups: { key: string; label: string; bills: CustomerBill[]; paid: number }[] = [];
-  for (const bill of items) {
-    const key = monthKey(bill.createdAt, tz);
-    const last = groups[groups.length - 1];
-    const paid = bill.payments.filter((p) => isPaid(p.status)).reduce((n, p) => n + Number(p.amount), 0);
-    if (last?.key === key) {
-      last.bills.push(bill);
-      last.paid += paid;
-    } else {
-      groups.push({ key, label: monthLabel(bill.createdAt, tz), bills: [bill], paid });
-    }
-  }
+  const groups = groupByMonth(items, (b) => b.createdAt, tz).map((g) => ({
+    ...g,
+    paid: g.items.reduce((n, bill) => n + bill.payments.filter((p) => isPaid(p.status)).reduce((m, p) => m + Number(p.amount), 0), 0),
+  }));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {loadError && <p className="text-destructive text-sm">{loadError}</p>}
       {groups.map((g) => (
-        <section key={g.key} className="space-y-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-              {g.label}
-            </h2>
-            {g.paid > 0 && (
-              <span className="text-muted-foreground text-xs tabular-nums">
-                Paid {formatDollars(String(g.paid), currency)}
-              </span>
-            )}
-          </div>
-          <Reveal.Group className="divide-y">
-            {g.bills.map((bill) => (
+        <section key={g.key} aria-label={g.label}>
+          <GroupHeader note={g.paid > 0 ? `Paid ${formatDollars(String(g.paid), currency)}` : undefined}>{g.label}</GroupHeader>
+          <ListGroup>
+            {g.items.map((bill) => (
               <BillRow key={bill.publicId} bill={bill} currency={currency} cardAvailable={cardAvailable} onClaim={openClaim} />
             ))}
-          </Reveal.Group>
+          </ListGroup>
         </section>
       ))}
-      <ListPagination page={page} size={size} total={total} />
+      <QuietPagination page={page} size={size} total={total} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
@@ -293,8 +284,7 @@ export function BillsListSkeleton() {
   return (
     <div className="space-y-3">
       <Skeleton className="h-4 w-28" />
-      <Skeleton className="h-24 w-full rounded-lg" />
-      <Skeleton className="h-24 w-full rounded-lg" />
+      <Skeleton className="h-52 w-full rounded-3xl" />
     </div>
   );
 }

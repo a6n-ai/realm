@@ -7,18 +7,21 @@ import { FinanceStats, FinanceStatsSkeleton } from "../finance-stats";
 afterEach(cleanup);
 
 describe("FinanceStats", () => {
-  it("renders one Spent/Saved line in the app currency", () => {
+  it("renders Spent and Saved tiles in the app currency", () => {
     render(
       <FinanceStats
         usage={{ tiffinsDelivered: 12, subscriptionCount: 3, plans: [], totalSpent: "142.50", totalSaved: "18.00" }}
         currency="CAD"
       />,
     );
-    expect(screen.getByText("Spent $142.50 · Saved $18.00")).toBeInTheDocument();
+    expect(screen.getByText("Spent")).toBeInTheDocument();
+    expect(screen.getByText("$142.50")).toBeInTheDocument();
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("$18.00")).toBeInTheDocument();
     expect(screen.queryByText("Tiffins delivered")).toBeNull();
   });
 
-  it("skeleton renders a single line", () => {
+  it("skeleton renders a single block", () => {
     const { container } = render(<FinanceStatsSkeleton />);
     expect(container.children).toHaveLength(1);
   });
