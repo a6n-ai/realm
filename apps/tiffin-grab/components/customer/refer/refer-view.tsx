@@ -44,7 +44,7 @@ const dateFmt = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric
 export function ReferView({ summary, wallet, rate = null }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null }; rate?: Rate }) {
   const { code, settings, totalCoins, friends, canEnterCode } = summary;
   const flat = settings.mode === "flat";
-  const offerHint = (coins: number, when: string) => (flat && worth(rate, coins) ? `Worth ${worth(rate, coins)} · ${when.toLowerCase()}` : when);
+  const offerWorth = (coins: number) => (flat ? worth(rate, coins) : null);
   return (
     <div className="space-y-6">
       {canEnterCode ? <EnterCodeCard /> : null}
@@ -57,8 +57,8 @@ export function ReferView({ summary, wallet, rate = null }: { summary: ReferralS
         </Card>
       ) : (
         <StatGroup>
-          <StatTile bare icon={<IconTile tint="orange"><Gift /></IconTile>} label="You get" {...reward(settings, settings.referrerValue)} hint={offerHint(settings.referrerValue, "When their first order is paid")} />
-          <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="Your friend gets" {...reward(settings, settings.friendValue)} hint={offerHint(settings.friendValue, "On their first order")} />
+          <StatTile bare icon={<IconTile tint="orange"><Gift /></IconTile>} label="You get" {...reward(settings, settings.referrerValue)} worth={offerWorth(settings.referrerValue)} hint="When their first order is paid" />
+          <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="Your friend gets" {...reward(settings, settings.friendValue)} worth={offerWorth(settings.friendValue)} hint="On their first order" />
         </StatGroup>
       )}
 
@@ -72,7 +72,7 @@ export function ReferView({ summary, wallet, rate = null }: { summary: ReferralS
           {rate ? <p className="c-caption tabular-nums">1 coin = {worth(rate, 1)}</p> : null}
         </div>
         <StatGroup>
-          <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint={worth(rate, totalCoins) ? `Worth ${worth(rate, totalCoins)} · earned from friends` : "Earned from friends"} />
+          <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="From referrals" value={totalCoins} unit="coins" worth={worth(rate, totalCoins)} hint="Earned from friends" />
           {wallet ? (
             <StatTile
               bare
@@ -80,7 +80,8 @@ export function ReferView({ summary, wallet, rate = null }: { summary: ReferralS
               label="In your wallet"
               value={wallet.coins}
               unit="coins"
-              hint={wallet.dollars == null ? "Ready to spend" : `Worth $${wallet.dollars.toFixed(2)}`}
+              worth={wallet.dollars == null ? null : worth(rate, wallet.coins) ?? `$${wallet.dollars.toFixed(2)}`}
+            hint="Ready to spend"
             />
           ) : null}
         </StatGroup>
