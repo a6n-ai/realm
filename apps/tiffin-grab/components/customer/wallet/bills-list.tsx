@@ -105,14 +105,13 @@ function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
       else toast("Receipt sent to your email");
     });
   return (
-    <div className="flex flex-wrap gap-2 pt-1">
-      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download className={buttonClass({ variant: "quiet", pill: true, className: "gap-1.5 text-sm" })}>
-        <Download aria-hidden className="size-4" />
-        Download receipt
+    // Icon-only at the card's foot; the labels stay as their names and hover tips.
+    <div className="flex justify-end gap-2 pt-1">
+      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "quiet", className: "!size-10 !min-h-10 !px-0" })}>
+        <Download aria-hidden className="size-[18px]" />
       </a>
-      <Button type="button" variant="quiet" pill className="gap-1.5 text-sm" pending={sending} onClick={email}>
-        <Mail aria-hidden className="size-4" />
-        Email receipt
+      <Button type="button" variant="quiet" aria-label="Email receipt" title="Email receipt" className="!size-10 !min-h-10 !px-0" pending={sending} onClick={email}>
+        <Mail aria-hidden className="size-[18px]" />
       </Button>
     </div>
   );

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
 import type { Area, CropperProps } from "react-easy-crop";
-import { BellIcon, GlobeIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
+import { BellIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
 import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { getCroppedBlob } from "@/lib/images/crop";
@@ -61,8 +61,22 @@ function SaveBar({ pending, dirty, status, label = "Save" }: { pending: boolean;
   );
 }
 
-function Block({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
-  return <SettingsBlock title={title} footer={subtitle}>{children}</SettingsBlock>;
+function Block({ title, subtitle, card, children }: { title: string; subtitle?: string; card?: boolean; children: ReactNode }) {
+  return <SettingsBlock title={title} footer={subtitle} card={card}>{children}</SettingsBlock>;
+}
+
+/** Google's own multicolour "G" on a white tile, as sign-in-with-Google rows show it. */
+function GoogleTile() {
+  return (
+    <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-white">
+      <svg viewBox="0 0 24 24" className="size-[18px]">
+        <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81Z" />
+        <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.9l-3.88-3.02c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.95H1.27v3.11A12 12 0 0 0 12 24Z" />
+        <path fill="#FBBC05" d="M5.28 14.28A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.38-2.28V6.61H1.27a12 12 0 0 0 0 10.78l4.01-3.11Z" />
+        <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.59 1.8l3.44-3.44A11.5 11.5 0 0 0 12 0 12 12 0 0 0 1.27 6.61l4.01 3.11C6.23 6.88 8.88 4.77 12 4.77Z" />
+      </svg>
+    </span>
+  );
 }
 
 function submit(fn: () => void) {
@@ -272,7 +286,8 @@ export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
     s.run(() => updateMyPreferences({ ...state, ...patch }).catch((e) => { setState(prev); throw e; }), "Saved.");
   };
   return (
-    <Block title="Notifications" subtitle="Choose how we reach you about orders and account updates.">
+    // The row group is the surface itself, like every other settings page (no card around a card).
+    <Block card={false} title="Notifications" subtitle="Choose how we reach you about orders and account updates.">
       <ListGroup>
         <ListRow icon={<BellIcon />} tint="red" label="Email" sublabel="Confirmations, receipts, important updates" value={<Toggle label="Email notifications" checked={state.notifyEmail} disabled={s.pending} onChange={(v) => set({ notifyEmail: v })} />} />
       </ListGroup>
@@ -281,11 +296,11 @@ export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
   );
 }
 
-function SecurityItem({ tint, icon, title, footer, children }: { tint: IconTint; icon: ReactNode; title: string; footer: string; children: ReactNode }) {
+function SecurityItem({ tint, icon, tile, title, footer, children }: { tint?: IconTint; icon?: ReactNode; /** A ready-made tile (e.g. Google's logo) instead of tint + icon. */ tile?: ReactNode; title: string; footer: string; children: ReactNode }) {
   return (
     <section className="grid gap-3 px-4 py-4">
       <div className="flex items-center gap-3">
-        <IconTile tint={tint}>{icon}</IconTile>
+        {tile ?? <IconTile tint={tint ?? "gray"}>{icon}</IconTile>}
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold">{title}</h2>
           <p className="text-[13px] text-[var(--muted-foreground)]">{footer}</p>
@@ -318,7 +333,7 @@ export function SecurityPanel({
           <ChangeEmailForm currentEmail={email} ui={kitAuthUi} />
         </SecurityItem>
         {google ? (
-          <SecurityItem tint="orange" icon={<GlobeIcon />} title="Google" footer="Sign in with your Google account instead of a code.">
+          <SecurityItem tile={<GoogleTile />} title="Google" footer="Sign in with your Google account instead of a code.">
             <GoogleConnectionField connected={google.connected} callbackURL="/me/account?section=security" ui={kitAuthUi} />
           </SecurityItem>
         ) : null}
