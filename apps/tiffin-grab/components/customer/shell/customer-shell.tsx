@@ -60,8 +60,12 @@ function MenuButton({ active, onClick, className, children }: { active: boolean;
   );
 }
 
+// Each tab is its own pill inside the floating bar; the current one is lit like an iOS tab bar.
 const tabCls = (on: boolean) =>
-  cn("flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold", on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]");
+  cn(
+    "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors [-webkit-tap-highlight-color:transparent]",
+    on ? "bg-[color-mix(in_oklab,var(--primary)_16%,transparent)] text-[var(--primary)]" : "text-[var(--muted-foreground)] active:bg-[var(--muted)]",
+  );
 
 /** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
 function UnreadBadge({ count, className }: { count: number; className?: string }) {
@@ -203,14 +207,15 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         </div>
       </header>}
 
-      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
+      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
 
       {!flow && <nav
         aria-label="Primary"
-        className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        // Floats off the edges as a glass pill (iOS tab bar); content scrolls visibly beneath it.
+        className="c-glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 rounded-full border border-[var(--border)] p-1 shadow-[0_10px_30px_-8px_rgba(0,0,0,.28)] lg:hidden"
         style={{ viewTransitionName: "customer-bottom-nav" }}
       >
-        <div className="relative mx-auto flex max-w-md items-stretch">
+        <div className="relative mx-auto flex max-w-md items-stretch gap-0.5">
           <Link href="/me" aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "deliveries"))}>
             <CalendarDays aria-hidden className="size-6" />Deliveries
           </Link>

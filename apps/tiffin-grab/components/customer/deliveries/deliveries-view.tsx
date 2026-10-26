@@ -177,7 +177,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || model.resume.day));
 
   return (
-    <div className={`${FONT} ${hasBar ? "pb-14" : "pb-4"} lg:pb-8`}>
+    <div className={`${FONT} ${hasBar ? "pb-20" : "pb-4"} lg:pb-8`}>
       <PlanHeader
         name={customerName}
         sub={sub}
@@ -287,7 +287,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+        <div className={`${FONT} fixed inset-x-3 bottom-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex gap-2 rounded-[22px] border border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_80%,transparent)] p-2 shadow-[0_10px_30px_-8px_rgba(0,0,0,.28)] backdrop-blur-xl backdrop-saturate-150 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}
