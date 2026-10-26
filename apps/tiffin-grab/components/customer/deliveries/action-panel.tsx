@@ -24,6 +24,9 @@ interface Props {
 export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPause, pausing }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";
+  // Over the tab bar the actions sit on one glass bar like the tabs do: the main one solid, the rest clear.
+  const main = "primary";
+  const rest = bar ? "ghost" : undefined;
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
   const primary = model.rows.find((r) => r.key === model.primary);
   // Only Move sits beside the primary; the rest (address) lives behind "•••".
@@ -35,7 +38,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
   const more = overflow.length > 0 && (
     <Popover.Root open={menu} onOpenChange={setMenu}>
       <Popover.Trigger asChild>
-        <Button size={bar ? "lg" : "md"} aria-label="More actions" className={cn("shrink-0", bar ? "px-4" : "px-4")}>
+        <Button variant={rest} size={bar ? "lg" : "md"} aria-label="More actions" className={cn("shrink-0", bar ? "px-4" : "px-4")}>
           <MoreHorizontal aria-hidden className="size-5" />
         </Button>
       </Popover.Trigger>
@@ -63,6 +66,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
   const btn = (k: TripAction, a: { ok: boolean; why: string | null }, label: string) => (
     <Button
       key={k}
+      variant={rest}
       size={bar ? "lg" : "md"}
       aria-label={ACTION_LABEL[k]}
       aria-disabled={!a.ok || undefined}
@@ -82,10 +86,10 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
     <div className={cn(FONT, bar ? "min-w-0 flex-1 space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
       <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
-        {!primary && model.goTo && <Button variant="primary" size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
+        {!primary && model.goTo && <Button variant={main} size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
         {primary && (
           <Button
-            variant="primary"
+            variant={main}
             size="lg"
             aria-label={ACTION_LABEL[primary.key]}
             aria-disabled={!primary.av.ok || undefined}
@@ -98,7 +102,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
         <div className={bar || cardRow ? "contents" : "flex gap-2"}>
           {secondary.map((r) => btn(r.key, r.av, ACTION_SHORT[r.key]))}
           {model.pause && onPause && (
-            <Button size={bar ? "lg" : "md"} aria-label={PAUSE_DAY_LABEL} pending={pausing} className={bar ? "min-w-0 flex-1 whitespace-nowrap px-1" : "shrink-0 px-5"} onClick={onPause}>Pause</Button>
+            <Button variant={rest} size={bar ? "lg" : "md"} aria-label={PAUSE_DAY_LABEL} pending={pausing} className={bar ? "min-w-0 flex-1 whitespace-nowrap px-1" : "shrink-0 px-5"} onClick={onPause}>Pause</Button>
           )}
           {more}
         </div>

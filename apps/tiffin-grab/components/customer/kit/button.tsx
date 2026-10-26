@@ -39,6 +39,7 @@ export function Button({
       <button
         {...props}
         type={type}
+        data-variant={variant}
         aria-disabled={blocked || undefined}
         aria-busy={pending || undefined}
         aria-describedby={disabledReason ? reasonId : props["aria-describedby"]}

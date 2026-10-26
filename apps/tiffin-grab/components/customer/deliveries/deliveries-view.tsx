@@ -30,6 +30,8 @@ interface Props {
   plan: PlanView;
   /** All the customer's plans, ordered by start date, for the tabs on top. */
   subs: Subscription[];
+  /** A further plan is booked but not live yet (payment or confirmation pending), so it is not in `subs`. */
+  waitingRenewal?: boolean;
   windows: Record<string, SubscriptionWindow>;
   /** Trips of the selected week for this plan. */
   trips: Trip[];
@@ -53,12 +55,12 @@ interface Props {
 
 /** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : "c-bevel border-transparent bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
 
@@ -141,7 +143,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     ? `Renewed · next plan${lower(windowLabel(windows[after.publicId], today), " ")}`
     : before
       ? `Renewal${lower(windowLabel(windows[plan.orderId], today), " · ")}`
-      : null;
+      : waitingRenewal
+        ? "Renewed · next plan is waiting for confirmation"
+        : null;
   // Every live plan gets a tab, ordered by start; the meal name joins the dates once dates alone can't tell plans apart.
   const tabs = lines.flat().sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
   const named = lines.length > 1 || new Set(tabs.map((s) => s.mealSizeName)).size > 1;
@@ -287,7 +291,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} fixed inset-x-3 bottom-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex gap-2 rounded-[22px] border border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_80%,transparent)] p-2 shadow-[0_10px_30px_-8px_rgba(0,0,0,.28)] backdrop-blur-xl backdrop-saturate-150 lg:hidden`}>
+        <div className={`${FONT} c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full border p-1 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}

@@ -39,7 +39,7 @@ export function ListRow({ label, sublabel, icon, value, href, className }: ListR
 /** Rounded card holding ListRows, hairline dividers between them. */
 export function ListGroup({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("divide-y divide-[var(--border)] overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)]", className)}>
+    <div className={cn("c-bevel divide-y divide-[var(--border)] overflow-hidden rounded-3xl bg-[var(--card)]", className)}>
       {children}
     </div>
   );
