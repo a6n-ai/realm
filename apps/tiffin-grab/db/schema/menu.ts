@@ -1,7 +1,7 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { dishes, mealItemRole, plans } from "./catalog";
+import { dishes, mealItemRole, mealSizes, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
 
@@ -79,15 +79,26 @@ export const categorySwapPairs = pgTable(
     // "Other amounts": a given portion with no override line uses the natural exchange (true), or
     // can't be swapped at all (false) — Roti <-> Rice, where the natural rate (1 rice = 4 roti) is too costly.
     naturalFallback: boolean("natural_fallback").notNull().default(true),
+    // The pair may deliver a category this meal size has no row for, same-unit only, sized by the
+    // given portion or an override line (old 5 Item "3rd item -> Salad/Raita").
+    receivesMissing: boolean("receives_missing").notNull().default(false),
+    // Narrower than planId; meal size > plan > all.
+    mealSizeId: bigint("meal_size_id", { mode: "bigint" }).references(() => mealSizes.id, { onDelete: "cascade" }),
   },
   (t) => [
-    uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId, t.planId),
+    uniqueIndex("category_swap_pairs_pair_unique")
+      .on(t.fromCategoryId, t.toCategoryId, t.planId)
+      .where(sql`${t.mealSizeId} IS NULL`),
+    uniqueIndex("category_swap_pairs_pair_meal_size_unique")
+      .on(t.fromCategoryId, t.toCategoryId, t.mealSizeId)
+      .where(sql`${t.mealSizeId} IS NOT NULL`),
+    index("category_swap_pairs_meal_size_idx").on(t.mealSizeId),
     // Postgres treats NULL as distinct in a regular unique index, so the index
     // above would let in unlimited duplicate null-plan rows for the same pair —
     // this partial index is what actually enforces "at most one all-plans rule".
     uniqueIndex("category_swap_pairs_pair_null_plan_unique")
       .on(t.fromCategoryId, t.toCategoryId)
-      .where(sql`${t.planId} IS NULL`),
+      .where(sql`${t.planId} IS NULL AND ${t.mealSizeId} IS NULL`),
     index("category_swap_pairs_to_category_idx").on(t.toCategoryId),
     index("category_swap_pairs_plan_idx").on(t.planId),
   ],
