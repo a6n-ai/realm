@@ -67,7 +67,9 @@ const tabCls = (on: boolean, compact = false) =>
     "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-[height,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
     compact ? "h-10" : "h-14",
     // The lit pill itself is one shared highlight that slides between tabs (see TAB_ORDER).
-    "relative z-[1]", on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]",
+    "relative z-[1]",
+    // Like Airbnb's tab bar: the tab you land on pops its icon once (spring up, settle back).
+    on ? "text-[var(--primary)] [&_svg]:animate-[tab-pop_360ms_cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:[&_svg]:animate-none" : "text-[var(--muted-foreground)]",
   );
 
 /** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
