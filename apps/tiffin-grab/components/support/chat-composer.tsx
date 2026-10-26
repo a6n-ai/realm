@@ -15,11 +15,14 @@ export function ChatComposer({
   composer,
   placeholder = "Write a message…",
   typingLabel,
+  shellClassName = "bg-card border",
 }: {
   composer: Composer;
   placeholder?: string;
   /** Shown while the other side is typing, e.g. "Support is typing…". */
   typingLabel: string;
+  /** The input capsule's surface; the customer app passes its liquid glass, admin keeps the bordered card. */
+  shellClassName?: string;
 }) {
   // Destructured: the composer carries a ref, and reading fields off it in render trips the React Compiler.
   const { body, onBodyChange, files, removeFile, inputRef, addFiles, pending, error, peerTyping, submit } = composer;
@@ -45,7 +48,7 @@ export function ChatComposer({
           e.preventDefault();
           if (!pending && !empty) submit();
         }}
-        className="bg-card focus-within:ring-ring/40 flex items-center gap-1.5 rounded-full border p-1.5 focus-within:ring-2"
+        className={`${shellClassName} focus-within:ring-ring/40 flex items-center gap-1.5 rounded-full p-1.5 focus-within:ring-2`}
       >
         <input ref={inputRef} type="file" accept={COMPOSER_LIMITS.accept.join(",")} multiple hidden onChange={(e) => addFiles(e.target.files)} />
         <button
