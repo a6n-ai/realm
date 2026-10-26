@@ -181,4 +181,17 @@ describe("TransactionsList empty state", () => {
     expect(screen.getByText("pi_123")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy transaction id" })).toBeInTheDocument();
   });
+
+  it("reads from the customer's side: a payment is money out, a refund is money back", () => {
+    const base = { memo: null, createdAt: Date.UTC(2026, 6, 1, 12), orderPublicId: "ord_1", orderDeploymentId: "TG-1001", payment: null };
+    const items: MoneyLedgerTx[] = [
+      { ...base, publicId: "led_pay", type: "payment", direction: "credit", amount: "50.00" },
+      { ...base, publicId: "led_ref", type: "refund", direction: "debit", amount: "12.00" },
+    ];
+    render(<TransactionsList items={items} page={0} size={25} total={2} currency="CAD" />);
+    const paid = screen.getByText((_, el) => el?.tagName === "SPAN" && el.className.includes("tabular-nums") && /^−\$50\.00$/.test(el.textContent ?? ""));
+    const back = screen.getByText((_, el) => el?.tagName === "SPAN" && el.className.includes("tabular-nums") && /^\+\$12\.00$/.test(el.textContent ?? ""));
+    expect(paid.className).not.toMatch(/text-ok/);
+    expect(back.className).toMatch(/text-ok/);
+  });
 });

@@ -65,7 +65,9 @@ function CopyValue({ label, value }: { label: string; value: string }) {
 
 function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
   const tz = useTimezone();
-  const credit = tx.direction === "credit";
+  // The ledger is the business's: its credit is the customer paying. The customer reads it the other
+  // way round, so a payment is money out (−) and a refund or discount is money back to them (+, green).
+  const toCustomer = tx.direction === "debit";
   const method = tx.payment ? paymentMethodLabel(tx.payment) : null;
   const details: { label: string; value: ReactNode }[] = [
     tx.orderDeploymentId ? { label: "Order", value: tx.orderDeploymentId } : null,
@@ -92,8 +94,8 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1">
-            <span className={`text-[15px] font-semibold tabular-nums ${credit ? "text-ok" : "text-[var(--foreground)]"}`}>
-              {credit ? "+" : "−"}
+            <span className={`text-[15px] font-semibold tabular-nums ${toCustomer ? "text-ok" : "text-[var(--foreground)]"}`}>
+              {toCustomer ? "+" : "−"}
               {formatDollars(tx.amount, currency)}
             </span>
             <ChevronDown aria-hidden className="text-muted-foreground size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
