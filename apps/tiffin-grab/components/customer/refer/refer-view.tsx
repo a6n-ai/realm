@@ -1,5 +1,5 @@
 import { Gift, Users, Wallet } from "lucide-react";
-import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatTile, type Tone } from "@/components/customer/kit";
+import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, type Tone } from "@/components/customer/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
 import { ShareCard } from "./share-card";
@@ -38,10 +38,11 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
         </div>
       </Card>
 
-      <div className={wallet ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
-        <StatTile icon={<IconTile tint="pink"><Users /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint="Earned from friends" />
+      <StatGroup>
+        <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint="Earned from friends" />
         {wallet ? (
           <StatTile
+            bare
             icon={<IconTile tint="indigo"><Wallet /></IconTile>}
             label="In your wallet"
             value={wallet.coins}
@@ -49,7 +50,7 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
             hint={wallet.dollars == null ? "Ready to spend" : `Worth $${wallet.dollars.toFixed(2)}`}
           />
         ) : null}
-      </div>
+      </StatGroup>
 
       <section className="space-y-3">
         <h2 className="c-h2">Your friends</h2>
