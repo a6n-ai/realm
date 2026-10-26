@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { EyeIcon, PackageIcon } from "lucide-react";
+import { EyeIcon, FileDownIcon, PackageIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
@@ -38,6 +38,7 @@ import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { payLink } from "@/lib/payments/stripe";
+import { receiptPath } from "@/lib/billing/receipt-link";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
@@ -332,6 +333,12 @@ async function OrderDetail({
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
+      <Button asChild variant="outline" size="sm">
+        <a href={receiptPath(order.publicId)} download>
+          <FileDownIcon />
+          Receipt
+        </a>
+      </Button>
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
       {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && <RenewControl orderId={order.publicId} canRenew={!renewal && !unpaidRenewal} />}
       {unpaidRenewal && (
