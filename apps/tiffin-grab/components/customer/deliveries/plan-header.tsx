@@ -23,9 +23,13 @@ const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "v
 const TONE: Record<string, keyof typeof DOT> = { active: "ok", upcoming: "ok", paused: "ok", waitlisted: "warn", payment_review: "warn", cancelled: "bad", rejected: "bad" };
 
 /** Greets the customer by name; the plan gets a bold size title and one summary line (status · diet · tiffins left). */
-export function PlanHeader({ name, sub, counts, renew, color, actions }: {
+export function PlanHeader({ name, sub, counts, renew, color, actions, plans, nextPlan }: {
   /** Plan-wide actions (pause days, resume all): a row at the foot of the plan box. */
   actions?: React.ReactNode;
+  /** Plan switcher, shown above the plan box so a second plan is seen before scrolling. */
+  plans?: React.ReactNode;
+  /** Already renewed: the plan box points at the next plan instead of offering Renew. */
+  nextPlan?: { when: string | null; onView: () => void } | null;
   name?: string | null;
   sub: Subscription;
   counts: TiffinCounts;
@@ -41,6 +45,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
           {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
         </h1>
       </div>
+      {plans}
       {/* The plan sits in its own box so it reads apart from the greeting; the plan's tag colour edges it. */}
       <div
         className="mt-4 rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-3.5"
@@ -65,7 +70,14 @@ export function PlanHeader({ name, sub, counts, renew, color, actions }: {
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>
-        {renew != null && (
+        {nextPlan ? (
+          <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2" data-testid="next-plan">
+            <p className={cn("text-[13px]", MUTED)}>Renewed{nextPlan.when ? ` · next plan ${nextPlan.when.replace(/^./, (c) => c.toLowerCase())}` : ""}</p>
+            <button type="button" onClick={nextPlan.onView} className={buttonClass({ variant: "quiet", pill: true, className: "text-sm" })}>
+              View next plan <span aria-hidden>›</span>
+            </button>
+          </div>
+        ) : renew != null && (
           <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2">
             <p className={cn("text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>
             {renew <= RENEW_SOON_DAYS && <Link href="/me/renew" className={buttonClass({ variant: "primary", pill: true, className: "text-sm" })}>Renew plan</Link>}

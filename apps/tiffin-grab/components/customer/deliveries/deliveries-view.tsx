@@ -55,6 +55,7 @@ interface Props {
 function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
   return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "flex min-h-11 shrink-0 flex-col justify-center rounded-2xl border-[1.5px] px-4 py-1.5 text-left [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
 }
+const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
@@ -130,6 +131,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // A plain replace can serve the previous plan's cached RSC render for the same path — refresh forces this plan's own ctx/counts.
   const switchPlan = (id: string) => startNav(() => (router.replace(`/me?sub=${id}`, { scroll: false }), router.refresh()));
 
+  // A renewal: a live plan of this customer whose first tiffin comes after this plan's last one.
+  const last = plan.counts.lastDeliveryDate;
+  const nextPlan = last ? subs.find((s) => s.publicId !== plan.orderId && !DEAD.has(s.displayStatus) && (windows[s.publicId]?.first ?? "") > last) : undefined;
+
   const closeToast = useCallback(() => setToast(null), []);
   const changed = (message: string) => (setToast(message), router.refresh());
   const done = (message?: string) => {
@@ -167,26 +172,26 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         sub={sub}
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
+        nextPlan={nextPlan ? { when: windowLabel(windows[nextPlan.publicId], today), onView: () => switchPlan(nextPlan.publicId) } : null}
+        plans={multi && (
+          <nav aria-label="Your plans" className="mt-4 flex flex-wrap gap-2">
+            {subs.map((s) => (
+              <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
+                <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+                  {s.mealSizeName}
+                  <OrderStatusBadge status={s.displayStatus} />
+                </span>
+                <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
+              </PlanTab>
+            ))}
+          </nav>
+        )}
         actions={!locked && !plan.sub.trial ? (
           <>
             <Button className="min-h-11 whitespace-nowrap" onClick={() => setPauseOpen(true)}>{PAUSE_OR_RESUME_LABEL}</Button>
           </>
         ) : undefined}
       />
-
-      {multi && (
-        <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
-          {subs.map((s) => (
-            <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
-              <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
-                {s.mealSizeName}
-                <OrderStatusBadge status={s.displayStatus} />
-              </span>
-              <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
-            </PlanTab>
-          ))}
-        </nav>
-      )}
 
       {locked && claimPayment && (
         <Card className="mb-4 p-5" data-testid="payment-claim">

@@ -20,3 +20,14 @@ describe("PlanHeader renew", () => {
     expect(screen.queryByRole("link", { name: "Renew plan" })).not.toBeInTheDocument();
   });
 });
+
+describe("PlanHeader after renewal", () => {
+  it("points at the next plan instead of offering Renew", () => {
+    let viewed = false;
+    render(<PlanHeader sub={sub} counts={counts} renew={3} nextPlan={{ when: "Starts Nov 2", onView: () => { viewed = true; } }} />);
+    expect(screen.queryByRole("link", { name: "Renew plan" })).not.toBeInTheDocument();
+    expect(screen.getByText("Renewed · next plan starts Nov 2")).toBeInTheDocument();
+    screen.getByRole("button", { name: /View next plan/ }).click();
+    expect(viewed).toBe(true);
+  });
+});
