@@ -595,23 +595,6 @@ export function computeSwapOption(args: {
     });
   }
 
-  if (bundles.length === 0) {
-    return {
-      fromCategory,
-      toCategory,
-      available: false,
-      reason: firstFail ?? NOT_ENOUGH_FOR_SWAP,
-      validBundles: [],
-      minFromPicks: null,
-      maxFromPicks: null,
-      bundleIncrement: null,
-      giveNatural: null,
-      getNatural: null,
-    };
-  }
-
-  const fromPicks = bundles.map((b) => b.fromPicks);
-  const smallest = bundles[0]!;
   const rowBundles = overrides?.length
     ? Object.fromEntries(
         (rowsAfterSwaps(composition, applied).get(fromCategory) ?? []).flatMap((r) => {
@@ -630,6 +613,24 @@ export function computeSwapOption(args: {
         }),
       )
     : undefined;
+  if (bundles.length === 0) {
+    return {
+      fromCategory,
+      toCategory,
+      available: false,
+      reason: firstFail ?? NOT_ENOUGH_FOR_SWAP,
+      validBundles: [],
+      minFromPicks: null,
+      maxFromPicks: null,
+      bundleIncrement: null,
+      giveNatural: null,
+      getNatural: null,
+      ...(rowBundles ? { rowBundles } : {}),
+    };
+  }
+
+  const fromPicks = bundles.map((b) => b.fromPicks);
+  const smallest = bundles[0]!;
   return {
     fromCategory,
     toCategory,

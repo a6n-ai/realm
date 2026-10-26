@@ -237,7 +237,7 @@ export function buildSlotDropdownOptions(args: {
     // A pair with exchange overrides sizes each row on its own (rowBundles).
     const own = rowOf != null ? opt.rowBundles?.[rowOf] : undefined;
     const bundles = own !== undefined ? (own ? [own] : []) : opt.validBundles.filter((b) => !onePerRow || b.fromPicks === 1);
-    if (!opt.available || bundles.length === 0) {
+    if ((own === undefined && !opt.available) || bundles.length === 0) {
       emit(1, toLabel, opt.reason ?? "Not available for this item", null);
       continue;
     }

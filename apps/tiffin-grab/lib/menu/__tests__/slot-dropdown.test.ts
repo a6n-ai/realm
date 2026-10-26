@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SwapOption } from "../meal-validation";
+import { computeSwapOption, type CompositionContext, type SwapOption } from "../meal-validation";
+import type { SwapCategory } from "../swap-rules";
 import {
   buildSlotDropdownOptions,
   dishOptionValue,
@@ -219,5 +220,47 @@ describe("buildSlotDropdownOptions: Muskan's side row (2026-10-08)", () => {
       destinationDishes: () => [{ id: "soya", name: "Soya Keema" }],
     });
     expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual([expect.stringMatching(/^Any sabzi/)]);
+  });
+});
+
+describe("Edit meal: a pair with exchange overrides is decided per row", () => {
+  const cat = (key: string, pickTu: number | null): SwapCategory => ({
+    key, pickTu, unitType: "weight", unitLabel: "oz", maxPicksPerTiffin: null, unitSize: 8,
+  });
+  // 5 Item Thali Large: Sabzi 12oz + Sabzi 8oz, Daal 12oz, Rice 8oz, Roti 12oz.
+  const composition: CompositionContext = {
+    mealSizeItems: [
+      { category: "sabzi", tuAmount: 1.5, maxTuAmount: null, sortOrder: 0 },
+      { category: "daal", tuAmount: 1.5, maxTuAmount: null, sortOrder: 1 },
+      { category: "sabzi", tuAmount: 1.0, maxTuAmount: null, sortOrder: 2 },
+      { category: "rice", tuAmount: 1, maxTuAmount: null, sortOrder: 3 },
+      { category: "roti", tuAmount: 1.5, maxTuAmount: null, sortOrder: 4 },
+    ],
+    baseCounts: { sabzi: 2, daal: 1, rice: 1, roti: 1 },
+    categories: new Map([
+      ["sabzi", cat("sabzi", 1.5)], ["daal", cat("daal", 1.5)], ["rice", cat("rice", 1)],
+      ["roti", cat("roti", 1.5)], ["salad", cat("salad", null)], ["raita", cat("raita", null)],
+    ]),
+    labels: { sabzi: "Sabzi", salad: "Green Salad" },
+  };
+  const option = computeSwapOption({
+    composition, applied: [], fromCategory: "sabzi", toCategory: "salad",
+    overrides: [{ giveTu: 1, receiveTu: 1 }], naturalFallback: false, receivesMissing: true,
+  });
+  const row = (fromRow: number) =>
+    buildSlotDropdownOptions({
+      cellIndexInCategory: fromRow, categoryKey: "sabzi", dishes: [], swapOptions: [option],
+      onePerRow: true, fromRow, categoryLabel: (k) => composition.labels![k] ?? k,
+    }).filter((o) => o.kind === "swap");
+
+  it("the 8oz row offers Salad even though the leading 12oz row has no line", () => {
+    const [o] = row(1);
+    expect(o).toBeDefined();
+    expect(o!.disabled).toBeFalsy();
+  });
+
+  it("the 12oz row shows Salad disabled for this amount", () => {
+    const [o] = row(0);
+    expect(o).toMatchObject({ disabled: true, reason: "Not available for this amount" });
   });
 });
