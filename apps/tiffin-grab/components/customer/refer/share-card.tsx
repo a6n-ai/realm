@@ -34,7 +34,7 @@ export function ShareCard({ code }: { code: string }) {
   return (
     <Card className="space-y-4 p-5">
       <div className="flex items-center gap-3">
-        <IconTile tint="orange" size="lg"><Ticket /></IconTile>
+        <IconTile tint="purple" size="lg"><Ticket /></IconTile>
         <div className="min-w-0">
           <p className="text-[15px] font-semibold">Your referral code</p>
           <p className="c-caption">Share it with friends</p>
