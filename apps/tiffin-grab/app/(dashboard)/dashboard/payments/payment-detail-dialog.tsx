@@ -57,6 +57,15 @@ export function PaymentDetailDialog({
             <Field label="Reference">
               <ReferenceEditor key={payment.publicId} orderId={payment.orderPublicId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} label="" />
             </Field>
+            {payment.method === "stripe" && (
+              <>
+                <Field label="Card">{payment.cardLast4 ? `${payment.cardBrand ?? "card"} ••${payment.cardLast4}` : "-"}</Field>
+                {Number(payment.surchargeAmount) > 0 && <Field label="Surcharge">{formatMoney(Number(payment.surchargeAmount))}</Field>}
+                {payment.taxSource && <Field label="Tax source">{payment.taxSource}</Field>}
+                {payment.providerRef && <Field label="Stripe"><span className="break-all font-mono text-xs">{payment.providerRef}</span></Field>}
+                {payment.expiresAt != null && payment.expiresAt > 0 && <Field label="Link expires">{when(payment.expiresAt)}</Field>}
+              </>
+            )}
             <Field label="Created">{when(payment.createdAt)}</Field>
             {payment.claimedAt && <Field label="Claimed">{when(payment.claimedAt)}</Field>}
             {payment.capturedAt && <Field label="Captured">{when(payment.capturedAt)}</Field>}

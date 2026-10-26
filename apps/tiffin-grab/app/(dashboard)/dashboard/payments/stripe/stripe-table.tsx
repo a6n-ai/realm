@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCardIcon, RefreshCwIcon, ScaleIcon, Undo2Icon } from "lucide-react";
+import { CreditCardIcon, EyeIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
@@ -19,8 +19,10 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import { PAYMENT_STATUS_OPTIONS, STRIPE_FACETS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
 import { PaymentStatusPill } from "../payment-status-pill";
+import { PaymentDetailDialog } from "../payment-detail-dialog";
+import { sendPaymentReminderAction } from "../../orders/[id]/actions";
+import { sendTone } from "../../customers/customer-invite-cell";
 import { checkStatusAction, refundAction } from "./actions";
-import { ReconcileDialog } from "./reconcile-dialog";
 
 const SPEC: FacetDef[] = [
   { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
@@ -29,31 +31,42 @@ const SPEC: FacetDef[] = [
   { kind: "search", fields: [] },
 ];
 
-type Key = PaymentSortKey | "for" | "card" | "surcharge" | "tax" | "stripe" | "actions";
+// Sized to fit the card at 1400px without side-scroll: the payment ID, surcharge, tax source and
+// expiry time live in the detail dialog (row click) and tooltips.
+type Key = PaymentSortKey | "card" | "actions";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "order", label: "Order", sortable: true },
-  { key: "for", label: "For", width: "w-40" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-36" },
+  { key: "order", label: "Order", sortable: true, width: "w-36" },
   { key: "card", label: "Card", width: "w-28" },
-  { key: "surcharge", label: "Surcharge", align: "right", width: "w-24" },
-  { key: "tax", label: "Tax", width: "w-24" },
-  { key: "stripe", label: "Stripe", width: "w-36" },
-  { key: "status", label: "Status", sortable: true, width: "w-40" },
+  { key: "status", label: "Status", sortable: true, width: "w-36" },
   { key: "amount", label: "Amount", sortable: true, align: "right", width: "w-24" },
-  { key: "actions", label: "Actions", align: "right", width: "w-24" },
+  { key: "actions", label: "Actions", align: "right", width: "w-28" },
 ];
 
-export function ExpiryBadge({ r, now, tz }: { r: Pick<PaymentRow, "isAddon" | "expiresAt" | "status">; now: number; tz: string }) {
+/** Pay-link state that says more than the status pill (Void, Refund needed, Expired); otherwise `fallback`. */
+export function ExpiryBadge({
+  r, now, tz, fallback = null,
+}: {
+  r: Pick<PaymentRow, "isAddon" | "expiresAt" | "status">;
+  now: number;
+  tz: string;
+  fallback?: ReactNode;
+}) {
   // expiresAt 0 is a void link (voidLink writes status rejected).
   if (r.expiresAt === 0) {
     // A void link a late webhook still charged: the money is in, the add-ons are not applied.
     if (r.isAddon && r.status === "paid") return <Badge variant="destructive-light">Refund needed</Badge>;
-    return r.status === "rejected" ? <Badge variant="outline">Void</Badge> : null;
+    return r.status === "rejected" ? <Badge variant="outline">Void</Badge> : fallback;
   }
-  if (r.status !== "awaiting_payment" || r.expiresAt == null) return null;
-  if (r.expiresAt <= now) return <Badge variant="warning-light">Expired</Badge>;
-  return <Badge variant="info-light">Expires {formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}</Badge>;
+  if (r.status === "awaiting_payment" && r.expiresAt != null && r.expiresAt <= now) {
+    return (
+      <Badge variant="warning-light" title={`Expired ${formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}`}>
+        Expired
+      </Badge>
+    );
+  }
+  return fallback;
 }
 
 export function StripeTable({
@@ -72,7 +85,7 @@ export function StripeTable({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [refunding, setRefunding] = useState<PaymentRow | null>(null);
-  const [reconciling, setReconciling] = useState(false);
+  const [viewing, setViewing] = useState<PaymentRow | null>(null);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
 
@@ -81,6 +94,15 @@ export function StripeTable({
       const res = await checkStatusAction(r.publicId);
       if ("error" in res) return void toast.error(res.error);
       (res.settled ? toast.success : toast)(res.message);
+      router.refresh();
+    });
+  }
+
+  function remind(r: PaymentRow) {
+    start(async () => {
+      const res = await sendPaymentReminderAction(r.orderPublicId, r.publicId);
+      if ("error" in res) return void toast.error(res.error);
+      toast.success("Payment reminder emailed", { description: `Sent to ${r.email ?? "the customer"}.` });
       router.refresh();
     });
   }
@@ -101,21 +123,15 @@ export function StripeTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => setReconciling(true)}>
-          <ScaleIcon data-icon="inline-start" /> Reconcile with Stripe
-        </Button>
-      </div>
       <DataTable
         serialOffset={page * size}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
-        idAccessor={(r) => r.publicId}
-        idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+        onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<Key>}
-        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={CreditCardIcon}
         emptyMessage="No card payments yet."
         emptySearchMessage="No card payments match your filters."
@@ -126,46 +142,56 @@ export function StripeTable({
             </TableCell>
             <TableCell className="text-muted-foreground truncate" title={r.email ?? undefined}>{r.email ?? "-"}</TableCell>
             <TableCell>
-              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="block truncate hover:underline">{r.orderPublicId}</Link>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="text-sm">{r.isAddon ? "Add-ons" : "Order"}</span>
-                <ExpiryBadge r={r} now={now} tz={tz} />
+              <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+                <Link href={`/dashboard/orders/${r.orderPublicId}`} className="truncate hover:underline">
+                  {r.orderPublicId}
+                </Link>
+                {r.isAddon && <span className="text-xs text-muted-foreground">Add-ons</span>}
               </div>
             </TableCell>
             <TableCell className="whitespace-nowrap text-xs">
-              {r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : "-"}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {Number(r.surchargeAmount) > 0 ? formatMoney(Number(r.surchargeAmount)) : "-"}
+              {(() => {
+                const card = r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : r.providerRef ? "Stripe" : "-";
+                return r.providerRef ? (
+                  <a
+                    href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:underline"
+                    title={`Open ${r.providerRef} in Stripe`}
+                  >
+                    {card}
+                  </a>
+                ) : (
+                  card
+                );
+              })()}
             </TableCell>
             <TableCell>
-              {r.taxSource ? (
-                <Badge variant={r.taxSource === "fallback" ? "outline" : "secondary"} className="text-[0.65rem]">{r.taxSource}</Badge>
-              ) : (
-                "-"
-              )}
+              <ExpiryBadge r={r} now={now} tz={tz} fallback={<PaymentStatusPill status={r.status} />} />
             </TableCell>
-            <TableCell className="font-mono text-xs">
-              {r.providerRef ? (
-                <a
-                  href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate hover:underline"
-                  title={r.providerRef}
-                >
-                  {r.providerRef}
-                </a>
-              ) : (
-                "-"
-              )}
+            <TableCell
+              className="whitespace-nowrap text-right tabular-nums"
+              title={Number(r.surchargeAmount) > 0 ? `Includes ${formatMoney(Number(r.surchargeAmount))} card surcharge` : undefined}
+            >
+              {formatMoney(Number(r.amount))}
             </TableCell>
-            <TableCell><PaymentStatusPill status={r.status} /></TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
             <TableCell className="text-right">
               <RowActions>
+                <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
+                {(r.status === "awaiting_payment" || r.status === "rejected") && (() => {
+                  const { tone, status } = sendTone(r.lastReminder, (ms) => formatEpoch(ms, { mode: "datetime", timeZone: tz }));
+                  return (
+                    <RowActionTooltipButton
+                      icon={MailIcon}
+                      label="Send payment reminder"
+                      hint={`Send payment reminder · ${status}`}
+                      tone={tone}
+                      disabled={pending || !r.email}
+                      onClick={() => remind(r)}
+                    />
+                  );
+                })()}
                 {r.providerRef && r.status !== "paid" && r.status !== "refunded" && (
                   <RowActionTooltipButton icon={RefreshCwIcon} label="Check status" disabled={pending} onClick={() => check(r)} />
                 )}
@@ -197,11 +223,11 @@ export function StripeTable({
         </DialogContent>
       </Dialog>
 
-      <ReconcileDialog open={reconciling} onOpenChange={setReconciling} />
+      <PaymentDetailDialog payment={viewing} onOpenChange={(o) => !o && setViewing(null)} />
     </div>
   );
 }
 
 export function StripeTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <DataTable.Skeleton columns={COLUMNS} />;
 }

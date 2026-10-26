@@ -35,15 +35,17 @@ const SPEC: FacetDef[] = [
 ];
 
 // reference/proof/actions have no sort key in PAYMENT_SORT_KEYS, so they stay plain headers.
+// Sized to fit the card at 1400px without side-scroll (same frame as the Stripe tab); the
+// payment ID is in the detail dialog (row click).
 const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions">[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "order", label: "Order", sortable: true },
-  { key: "reference", label: "Reference", width: "w-24" },
-  { key: "proof", label: "Proof", width: "w-16" },
-  { key: "status", label: "Status", sortable: true, width: "w-40" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-36" },
+  { key: "order", label: "Order", sortable: true, width: "w-36" },
+  { key: "reference", label: "Reference", width: "w-20" },
+  { key: "proof", label: "Proof", width: "w-14" },
+  { key: "status", label: "Status", sortable: true, width: "w-36" },
   { key: "amount", label: "Amount", sortable: true, align: "right", width: "w-24" },
-  { key: "actions", label: "Actions", align: "right", width: "w-24" },
+  { key: "actions", label: "Actions", align: "right", width: "w-28" },
 ];
 
 export function RequestsTable({
@@ -116,7 +118,6 @@ export function RequestsTable({
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
-        idAccessor={(r) => r.publicId}
         onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
@@ -225,5 +226,5 @@ export function RequestsTable({
 }
 
 export function RequestsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <DataTable.Skeleton columns={COLUMNS} />;
 }

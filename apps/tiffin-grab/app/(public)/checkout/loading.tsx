@@ -1,5 +1,7 @@
 import { Skeleton } from "@/components/customer/kit";
-import { BottomBarSkeleton, ChromeSkeleton, ProgressSkeleton } from "@/components/wizard/flow-skeleton";
+import { BottomBarSkeleton } from "@/components/wizard/bottom-bar-skeleton";
+import { ChromeSkeleton } from "@/components/wizard/chrome-skeleton";
+import { ProgressSkeleton } from "@/components/wizard/progress-skeleton";
 
 // Checkout's frame: top bar, then stepper + step sections beside the order summary, then the action bar.
 export default function Loading() {
