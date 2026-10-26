@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
-const { categorySwapPairs, mealSizeItems, mealSizes, plans } = await import("@/db/schema");
+const { categorySwapPairs, dishCategories, dishes, mealSizeItems, mealSizes, plans } = await import("@/db/schema");
 const { dishCategoriesService: svc } = await import("../dish-categories.service");
 
 const TAG = `swpscope-${Date.now()}`;
@@ -36,12 +36,14 @@ describe("meal-size-scoped swap pair rules", () => {
   });
 
   afterAll(async () => {
+    await db.delete(dishes).where(eq(dishes.category, `${TAG}tgt`));
     if (pairIds.length) await db.delete(categorySwapPairs).where(inArray(categorySwapPairs.publicId, pairIds));
     const ids = sizes.map((s) => s.id);
     if (ids.length) {
       await db.delete(mealSizeItems).where(inArray(mealSizeItems.mealSizeId, ids));
       await db.delete(mealSizes).where(inArray(mealSizes.id, ids));
     }
+    await db.delete(dishCategories).where(eq(dishCategories.key, `${TAG}tgt`));
   });
 
   it("meal-size rule beats plan and all-plans rules whatever the row order, without leaking to a sibling size", async () => {
@@ -73,6 +75,26 @@ describe("meal-size-scoped swap pair rules", () => {
     if (hi) pairIds.push(hi.publicId);
     expect(hi == null || hi.id > low.id).toBe(true);
     expect((await svc.swapPairRuleForMealSize("daal", "sabzi", f.id))?.overrides).toEqual([{ giveTu: 1, receiveTu: 0.75 }]);
+  });
+
+  it("a meal-size rule counts when its target's dishes sit on a reachable plan other than the rule's own", async () => {
+    const [veg] = await db.select().from(plans).where(eq(plans.publicId, "pln_veg"));
+    const [nv] = await db.select().from(plans).where(eq(plans.publicId, "pln_halal_nonveg"));
+    const key = `${TAG}tgt`;
+    await db.insert(dishCategories).values({ key, label: key, enabled: true });
+    await db.insert(dishes).values({ planId: veg.id, name: key, category: key });
+    const [s] = await db.insert(mealSizes).values({
+      key: `${TAG}-nv`, name: `${TAG} nv`, planId: nv.id, tier: "budget", kcalMin: 1, kcalMax: 2, basePrice: "1.00",
+    }).returning();
+    sizes.push({ id: s.id, publicId: s.publicId });
+    await db.insert(mealSizeItems).values([
+      { mealSizeId: s.id, name: "rice", category: "rice", planId: nv.id, tuAmount: "1", sortOrder: 0 },
+      { mealSizeId: s.id, name: key, category: key, planId: veg.id, tuAmount: "1", sortOrder: 1 },
+    ]);
+    const all = await svc.addSwapPair("rice", key, null, { exchangeOverrides: [{ giveTu: 1, receiveTu: 0.5 }] });
+    const sized = await svc.addSwapPair("rice", key, null, { exchangeOverrides: [{ giveTu: 1, receiveTu: 0.25 }], mealSizePublicId: s.publicId });
+    pairIds.push(all.publicId, sized.publicId);
+    expect((await svc.swapPairRuleForMealSize("rice", key, s.id))?.overrides).toEqual([{ giveTu: 1, receiveTu: 0.25 }]);
   });
 
   it("editSwapPair keeps the meal size when omitted and clears it on null", async () => {

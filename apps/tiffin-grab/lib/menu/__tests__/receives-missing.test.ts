@@ -51,6 +51,11 @@ describe("receivesMissing", () => {
     expect(swapLabel(row, (k) => labels[k as keyof typeof labels], Object.fromEntries(large.categories))).toBe("Sabzi · 8oz → Raita · 2oz");
   });
 
+  it("a same-unit swap with no line reads the given row's size on both sides", () => {
+    const row = { fromCategory: "sabzi", toCategory: "salad", qtyFrom: 1, qtyTo: 1, fromRow: 1, receiveTu: null };
+    expect(swapLabel(row, (k) => labels[k as keyof typeof labels], Object.fromEntries(large.categories))).toBe("Sabzi · 8oz → Salad · 8oz");
+  });
+
   it("without the flag the missing category is still refused", () => {
     const r = validateProposedSwap({ composition: large, applied: [], next: sabziTo("salad", 1), overrides: saladLine, naturalFallback: false });
     expect(r).toMatchObject({ ok: false });

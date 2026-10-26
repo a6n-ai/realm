@@ -15,7 +15,7 @@ function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
   return rows.filter((r) => (seen.has(r.key) ? false : (seen.add(r.key), true)));
 }
 
-/** Postgres unique-violation on category_swap_pairs (from, to[, plan]) — drizzle wraps cause. */
+/** Postgres unique-violation on category_swap_pairs (from, to[, plan[, meal size]]) — drizzle wraps cause. */
 function isDuplicateSwapPair(err: unknown): boolean {
   type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr; message?: string };
   const layers = [err, (err as PgErr)?.cause, (err as PgErr)?.cause?.cause].filter(Boolean) as PgErr[];
@@ -196,14 +196,14 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   /**
    * Resolves (fromKey, toKey, planId) to its category_swap_pairs row id, if
    * configured at all — matching either a rule scoped to exactly this plan or
-   * a null-plan ("all plans") rule.
+   * a null-plan ("all plans") rule. Meal-size-scoped rows are not plan-level config and are skipped.
    */
   private async findSwapPairId(fromKey: string, toKey: string, planId: bigint): Promise<bigint | null> {
     const rows = await db
       .select({ id: categorySwapPairs.id })
       .from(categorySwapPairs)
       .innerJoin(dishCategories, eq(dishCategories.id, categorySwapPairs.fromCategoryId))
-      .where(and(eq(dishCategories.key, fromKey), or(isNull(categorySwapPairs.planId), eq(categorySwapPairs.planId, planId))))
+      .where(and(eq(dishCategories.key, fromKey), isNull(categorySwapPairs.mealSizeId), or(isNull(categorySwapPairs.planId), eq(categorySwapPairs.planId, planId))))
       .limit(1000);
     if (rows.length === 0) return null;
     // Two-step (rather than a single join on both sides) because we need both
@@ -457,8 +457,8 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * Every (from, to) pair allowed on ANY plan this meal size's composition reaches:
    * a pair rule for that plan (or for all plans) AND a dish in toKey on that plan —
    * isSwapPairAllowed's rule, run for every pair and plan in four queries instead of
-   * several per pair per plan. Keys are `from>to`, in pair-rule order, each with its
-   * exchange overrides: a plan-scoped rule's win over an all-plans rule for the same pair.
+   * several per pair per plan. Keys are `from>to`, each with its exchange rule: for the same
+   * pair a meal-size rule beats a plan rule beats an all-plans rule, whatever the row order.
    */
   private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, SwapPairRule>> {
     // Custom meals swap like catalog meals (2026-10-07; reverses spec 2026-09-28 rule 6): staff were
@@ -493,7 +493,8 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const from = keyOf.get(p.fromCategoryId);
       const to = keyOf.get(p.toCategoryId);
       if (!from || !to) continue;
-      const plansForRule = p.planId == null ? planIds : [p.planId];
+      // A meal-size row stores its size's own plan, but the size reaches other plans too (non-veg sizes carry veg rows).
+      const plansForRule = p.planId == null || p.mealSizeId != null ? planIds : [p.planId];
       if (!plansForRule.some((planId) => hasDish.has(`${to}@${planId}`))) continue;
       const key = `${from}>${to}`;
       // meal size (2) > plan (1) > all plans (0), whatever the row order.
