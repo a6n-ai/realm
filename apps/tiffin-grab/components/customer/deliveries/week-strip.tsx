@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -51,18 +51,51 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
     offset(0);
     el.addEventListener("transitionend", () => (el.style.transition = ""), { once: true });
   };
+  // Changing week: the old days leave the way the finger went and the new ones arrive from the other side,
+  // so the strip never springs back to the old week while the new one loads.
+  const leaving = useRef<number | null>(null);
+  const shown = useRef(week);
+  const still = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const go = (dir: 1 | -1) => {
+    const el = grid.current;
+    if (el && !still()) {
+      el.style.transition = "transform 180ms cubic-bezier(0.4,0,1,1), opacity 180ms ease-in";
+      el.style.transform = `translateX(${-dir * el.offsetWidth * 0.4}px)`;
+      el.style.opacity = "0";
+      // A week change that never lands (offline, error) must not leave the strip hidden.
+      const t = window.setTimeout(() => leaving.current === t && (settle(), (el.style.opacity = ""), (leaving.current = null)), 3000);
+      leaving.current = t;
+    }
+    onWeek(addDays(week, 7 * dir));
+  };
+  useLayoutEffect(() => {
+    if (week === shown.current) return;
+    const dir = week > shown.current ? 1 : -1;
+    shown.current = week;
+    if (leaving.current) window.clearTimeout(leaving.current);
+    leaving.current = null;
+    const el = grid.current;
+    if (!el || still()) return;
+    el.style.transition = "none";
+    el.style.transform = `translateX(${dir * el.offsetWidth * 0.4}px)`;
+    el.style.opacity = "0";
+    void el.offsetWidth;
+    el.style.transition = "transform 320ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease-out";
+    el.style.transform = "";
+    el.style.opacity = "";
+  }, [week]);
   const arrow = cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]");
 
   return (
-    <section aria-label="Delivery week" data-testid="week-timeline" className="rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
+    <section aria-label="Delivery week" data-testid="week-timeline" className="overflow-x-clip rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
           {MON.format(at(week))} – {MON.format(at(addDays(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
           <Legend />
-          <button type="button" aria-label="Previous week" disabled={!canPrev} onClick={() => onWeek(addDays(week, -7))} className={arrow}><ChevronLeft aria-hidden className="size-4" /></button>
-          <button type="button" aria-label="Next week" disabled={!canNext} onClick={() => onWeek(addDays(week, 7))} className={arrow}><ChevronRight aria-hidden className="size-4" /></button>
+          <button type="button" aria-label="Previous week" disabled={!canPrev} onClick={() => go(-1)} className={arrow}><ChevronLeft aria-hidden className="size-4" /></button>
+          <button type="button" aria-label="Next week" disabled={!canNext} onClick={() => go(1)} className={arrow}><ChevronRight aria-hidden className="size-4" /></button>
         </span>
       </div>
       {/* Swipe the days to change week; pan-y keeps vertical scrolling with the browser. */}
@@ -94,11 +127,9 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
           if (!d?.horizontal) return;
           swiped.current = true;
           const flick = Math.abs(d.dx) / Math.max(e.timeStamp - d.t, 1) > 0.5;
-          settle();
-          if (Math.abs(d.dx) > 50 || flick) {
-            if (d.dx < 0 && canNext) onWeek(addDays(week, 7));
-            else if (d.dx > 0 && canPrev) onWeek(addDays(week, -7));
-          }
+          const dir = d.dx < 0 ? 1 : -1;
+          if ((Math.abs(d.dx) > 50 || flick) && (dir === 1 ? canNext : canPrev)) go(dir);
+          else settle();
         }}
         onPointerCancel={() => {
           drag.current = null;
