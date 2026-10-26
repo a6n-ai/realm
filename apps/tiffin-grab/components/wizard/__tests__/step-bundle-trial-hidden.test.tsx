@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { StepBundle } from "../steps/step-bundle";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
@@ -88,10 +88,12 @@ describe("StepBundle kcal pill", () => {
 describe("StepBundle most popular", () => {
   it("puts the popular sizes first, two across, and takes them out of the tier list", () => {
     const sizes = [meal("small_thali"), meal("big_thali"), meal("mid_thali")];
-    render(<StepBundle catalog={{ ...catalog, mealSizes: sizes }} selections={selections} set={vi.fn()} popular={["msz_mid_thali", "msz_nope"]} />);
-    expect(screen.getByText("Most popular")).toBeDefined();
+    const { container } = render(<StepBundle catalog={{ ...catalog, mealSizes: sizes }} selections={selections} set={vi.fn()} popular={["msz_mid_thali", "msz_nope"]} />);
+    const view = within(container);
+    expect(view.getByText("Most popular")).toBeDefined();
     // Shown once, in the popular row; unknown ids are ignored.
-    expect(screen.getAllByText("mid_thali")).toHaveLength(1);
-    expect(screen.getByText("Popular")).toBeDefined();
+    expect(view.getAllByText("mid_thali")).toHaveLength(1);
+    // Always two: the ranked one plus a catalog top-up.
+    expect(view.getAllByText("Popular")).toHaveLength(2);
   });
 });

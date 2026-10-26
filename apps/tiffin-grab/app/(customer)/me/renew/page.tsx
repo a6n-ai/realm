@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { popularMealSizeIds } from "@/lib/services/popular-meal-sizes.service";
+import { popularMealSizesByPlan } from "@/lib/services/popular-meal-sizes.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
@@ -69,8 +69,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
       .limit(1),
     myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
-    // Ranked across every plan; the Bundle step keeps the top two on the chosen one.
-    popularMealSizeIds(orgId, 12),
+    popularMealSizesByPlan(orgId),
   ]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);

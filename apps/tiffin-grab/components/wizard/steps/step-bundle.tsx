@@ -25,11 +25,14 @@ export function StepBundle({
   currentPlan?: CurrentPlanSummary | null;
   /** When set, trial sizes appear in this step. Null hides them (trials are off). */
   trial?: { maxDays: number; weekdays: string[] } | null;
-  /** Most-ordered meal size ids; the ones on this plan go first, side by side, and leave the tier lists. */
+  /** This plan's most-ordered meal size ids; they go first, side by side, and leave the tier lists. */
   popular?: string[];
 }) {
   const meals = listableMealSizes(catalog.mealSizes).filter((m) => m.planKey === selections.planKey);
-  const top = popular.map((id) => meals.find((m) => m.publicId === id && !m.trial)).filter((m): m is ClientMealSizeView => !!m).slice(0, 2);
+  const ordered = meals.filter((m) => !m.trial);
+  const ranked = popular.map((id) => ordered.find((m) => m.publicId === id)).filter((m): m is ClientMealSizeView => !!m);
+  // Always two: a plan with fewer ordered sizes is topped up from the catalog's own order.
+  const top = [...ranked, ...ordered.filter((m) => !ranked.includes(m))].slice(0, Math.min(2, ordered.length));
   const weekly = meals.filter((m) => !m.trial && !top.includes(m));
   const pick = (m: ClientMealSizeView) => set({
     mealSizeId: m.publicId,
