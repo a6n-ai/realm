@@ -190,7 +190,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
         renewal={renewal}
         plans={tabs.length > 1 && (
           // Swipeable and edge to edge on a phone (cancels the page's px-4): the pill cut off at the screen edge says there is more.
-          <nav aria-label="Your plans" className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:scroll-px-0 lg:px-0">
+          <nav aria-label="Your plans" className="-mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:scroll-px-0 lg:px-0">
             {tabs.map((s) => {
               const dot = lines.length > 1 && s.tagColor && /^#[0-9a-fA-F]{6}$/.test(s.tagColor) ? s.tagColor : null;
               const selected = s.publicId === plan.orderId;
