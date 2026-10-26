@@ -241,7 +241,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     // Small table, admin-only read: resolve both sides against one category
     // lookup rather than joining dish_categories twice (drizzle needs an
     // explicit alias for a self-join, more ceremony than this is worth here).
-    const [pairs, cats, planRows] = await Promise.all([
+    const [pairs, cats, planRows, sizeRows] = await Promise.all([
       db
         .select({
           id: categorySwapPairs.id,
@@ -251,11 +251,15 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           planId: categorySwapPairs.planId,
           exchangeOverrides: categorySwapPairs.exchangeOverrides,
           naturalFallback: categorySwapPairs.naturalFallback,
+          receivesMissing: categorySwapPairs.receivesMissing,
+          mealSizeId: categorySwapPairs.mealSizeId,
         })
         .from(categorySwapPairs),
       db.select({ id: dishCategories.id, key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
       db.select({ id: plans.id, publicId: plans.publicId, name: plans.name }).from(plans),
+      db.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes),
     ]);
+    const sizeById = new Map(sizeRows.map((m) => [m.id, m]));
     const catById = new Map(cats.map((c) => [c.id, c]));
     const planById = new Map(planRows.map((p) => [p.id, p]));
     return pairs.map((p) => ({
@@ -269,6 +273,9 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       planName: p.planId == null ? "All plans" : (planById.get(p.planId)?.name ?? ""),
       exchangeOverrides: p.exchangeOverrides,
       naturalFallback: p.naturalFallback,
+      receivesMissing: p.receivesMissing,
+      mealSizeId: p.mealSizeId == null ? null : (sizeById.get(p.mealSizeId)?.publicId ?? null),
+      mealSizeName: p.mealSizeId == null ? null : (sizeById.get(p.mealSizeId)?.name ?? null),
     }));
   }
 
@@ -280,18 +287,34 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return plan.id;
   }
 
+  /**
+   * Resolves the optional meal size scope. A meal size belongs to exactly one plan, so the stored
+   * planId follows it; an explicit plan that disagrees is a caller mistake.
+   */
+  private async resolveScope(
+    planPublicId: string | null | undefined,
+    mealSizePublicId: string | null | undefined,
+  ): Promise<{ planId: bigint | null; mealSizeId: bigint | null }> {
+    const planId = await this.resolvePlanId(planPublicId);
+    if (!mealSizePublicId) return { planId, mealSizeId: null };
+    const [size] = await db.select({ id: mealSizes.id, planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.publicId, mealSizePublicId)).limit(1);
+    if (!size) throw new ValidationError("Meal size not found");
+    if (planId != null && planId !== size.planId) throw new ValidationError("Meal size is not on this plan");
+    return { planId: size.planId, mealSizeId: size.id };
+  }
+
   async addSwapPair(
     fromKey: string,
     toKey: string,
     planPublicId?: string | null,
-    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; actorId?: bigint | null } = {},
+    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; receivesMissing?: boolean; mealSizePublicId?: string | null; actorId?: bigint | null } = {},
   ) {
-    const [rows, planId] = await Promise.all([
+    const [rows, scope] = await Promise.all([
       db
         .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
         .from(dishCategories)
         .where(inArray(dishCategories.key, [fromKey, toKey])),
-      this.resolvePlanId(planPublicId),
+      this.resolveScope(planPublicId, opts.mealSizePublicId),
     ]);
     const byKey = new Map(rows.map((r) => [r.key, r]));
     const from = byKey.get(fromKey);
@@ -302,9 +325,10 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const [created] = await db
         .insert(categorySwapPairs)
         .values({
-          fromCategoryId: from.id, toCategoryId: to.id, planId,
+          fromCategoryId: from.id, toCategoryId: to.id, ...scope,
           exchangeOverrides: opts.exchangeOverrides ?? [],
           naturalFallback: opts.naturalFallback ?? true,
+          receivesMissing: opts.receivesMissing ?? false,
           createdBy: opts.actorId ?? null, updatedBy: opts.actorId ?? null,
         })
         .returning();
@@ -323,14 +347,14 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     fromKey: string,
     toKey: string,
     planPublicId?: string | null,
-    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; actorId?: bigint | null } = {},
+    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; receivesMissing?: boolean; mealSizePublicId?: string | null; actorId?: bigint | null } = {},
   ) {
-    const [rows, planId] = await Promise.all([
+    const [rows, scope] = await Promise.all([
       db
         .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
         .from(dishCategories)
         .where(inArray(dishCategories.key, [fromKey, toKey])),
-      this.resolvePlanId(planPublicId),
+      this.resolveScope(planPublicId, opts.mealSizePublicId),
     ]);
     const byKey = new Map(rows.map((r) => [r.key, r]));
     const from = byKey.get(fromKey);
@@ -341,10 +365,11 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const updated = await db
         .update(categorySwapPairs)
         .set({
-          fromCategoryId: from.id, toCategoryId: to.id, planId,
+          fromCategoryId: from.id, toCategoryId: to.id, ...scope,
           // Omitted = keep what is there; applied swaps keep their own receive_tu snapshot either way.
           ...(opts.exchangeOverrides ? { exchangeOverrides: opts.exchangeOverrides } : {}),
           ...(opts.naturalFallback != null ? { naturalFallback: opts.naturalFallback } : {}),
+          ...(opts.receivesMissing != null ? { receivesMissing: opts.receivesMissing } : {}),
           updatedBy: opts.actorId ?? null,
         })
         .where(eq(categorySwapPairs.publicId, publicId))
@@ -437,9 +462,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           exchangeOverrides: categorySwapPairs.exchangeOverrides,
           naturalFallback: categorySwapPairs.naturalFallback,
           receivesMissing: categorySwapPairs.receivesMissing,
+          mealSizeId: categorySwapPairs.mealSizeId,
         })
         .from(categorySwapPairs)
-        .where(or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)))
+        .where(and(
+          or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)),
+          or(isNull(categorySwapPairs.mealSizeId), eq(categorySwapPairs.mealSizeId, mealSizeId)),
+        ))
         .orderBy(asc(categorySwapPairs.id)),
       db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories),
       db.selectDistinct({ category: dishes.category, planId: dishes.planId }).from(dishes).where(inArray(dishes.planId, planIds)),
@@ -447,7 +476,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     const keyOf = new Map(cats.map((c) => [c.id, c.key]));
     const hasDish = new Set(dishCats.map((d) => `${d.category}@${d.planId}`));
     const out = new Map<string, SwapPairRule>();
-    const planScoped = new Set<string>();
+    const rank = new Map<string, number>();
     for (const p of pairs) {
       const from = keyOf.get(p.fromCategoryId);
       const to = keyOf.get(p.toCategoryId);
@@ -455,9 +484,11 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const plansForRule = p.planId == null ? planIds : [p.planId];
       if (!plansForRule.some((planId) => hasDish.has(`${to}@${planId}`))) continue;
       const key = `${from}>${to}`;
-      if (planScoped.has(key)) continue;
-      if (p.planId != null) planScoped.add(key);
-      if (p.planId != null || !out.has(key)) out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback, receivesMissing: p.receivesMissing });
+      // meal size (2) > plan (1) > all plans (0), whatever the row order.
+      const r = p.mealSizeId != null ? 2 : p.planId != null ? 1 : 0;
+      if ((rank.get(key) ?? -1) >= r) continue;
+      rank.set(key, r);
+      out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback, receivesMissing: p.receivesMissing });
     }
     return out;
   }
