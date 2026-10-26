@@ -115,7 +115,7 @@ function MealOption({
           <div className="flex items-start justify-between gap-3">
             <span className="min-w-0">
               <Pill tone="brand" size="sm" className="mb-1 w-fit">Try first</Pill>
-              <span className="block text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
+              <span className="block text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
             </span>
             <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
           </div>
@@ -129,7 +129,7 @@ function MealOption({
     <OptionCard selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
+          <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
           {/* Shown on every card beside the name, so picking one never makes it taller. */}
           {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
         </span>
