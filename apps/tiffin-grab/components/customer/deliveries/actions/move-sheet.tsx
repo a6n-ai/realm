@@ -16,7 +16,7 @@ const weekdayLong = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateSt
 
 // Plain spans on theme tokens, so the admin (shadcn) and kit sheets both render them.
 const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
-  <li className="c-bevel inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] px-3 py-1 text-[13px] font-medium">
+  <li className="c-surface inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] px-3 py-1 text-[13px] font-medium">
     <Icon aria-hidden className="size-3.5 shrink-0" />
     {children}
   </li>

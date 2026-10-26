@@ -152,7 +152,7 @@ function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffC
   return (
     <div className="grid gap-2">
       {catalog.offers.map((offer) => (
-        <p key={offer.name} className="flex items-center gap-2 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[13px] text-pretty">
+        <p key={offer.name} className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 px-3 py-2 text-[13px] text-pretty">
           <SparklesIcon aria-hidden className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>
             <span className="font-semibold text-emerald-700 dark:text-emerald-400">{offer.name}</span>
@@ -161,7 +161,7 @@ function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffC
         </p>
       ))}
       {cheaper && (
-        <div className="flex items-center gap-2 rounded-2xl border-2 border-[var(--primary)]/30 bg-[var(--primary)]/10 py-1.5 pr-1.5 pl-3">
+        <div className="flex items-center gap-2 rounded-2xl bg-[var(--primary)]/10 py-1.5 pr-1.5 pl-3">
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty">
             <span className="font-semibold">{cheaper.alt.name}</span>
             <span className="text-[var(--muted-foreground)]"> saves ${cheaper.saves.toFixed(2)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>

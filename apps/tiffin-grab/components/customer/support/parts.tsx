@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, type Tone } from "@/components/customer/kit";
+import { Button, buttonClass, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 
@@ -36,7 +36,7 @@ export function LinkButton({ href, children }: { href: string; children: ReactNo
   return (
     <Link
       href={href}
-      className={cn(FONT, FOCUS, "inline-flex min-h-[44px] select-none items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-[var(--primary)] bg-[var(--primary)] px-4 text-[15px] font-semibold text-[var(--primary-foreground,#fff)] [touch-action:manipulation] active:scale-[.97] motion-reduce:active:scale-100")}
+      className={buttonClass({ variant: "primary" })}
     >
       {children}
     </Link>
@@ -105,7 +105,7 @@ export function PhotoPicker({
           {files.map((f, i) => (
             <li key={`${f.name}-${i}`} className={cn(FONT, "flex min-h-11 max-w-full items-center gap-1 rounded-full bg-[var(--muted)] pl-4 pr-1 text-[13px] font-medium")}>
               <span className="truncate">{f.name}</span>
-              <button type="button" aria-label={`Remove ${f.name}`} disabled={disabled} onClick={() => onRemove(i)} className={cn(FOCUS, "grid size-9 shrink-0 place-items-center rounded-full text-[var(--muted-foreground)] [touch-action:manipulation] active:bg-[var(--border)]")}>
+              <button type="button" aria-label={`Remove ${f.name}`} disabled={disabled} onClick={() => onRemove(i)} className={cn(FOCUS, "grid size-9 shrink-0 place-items-center rounded-full text-[var(--muted-foreground)] [touch-action:manipulation] active:bg-[var(--muted)]")}>
                 <X aria-hidden className="size-4" />
               </button>
             </li>

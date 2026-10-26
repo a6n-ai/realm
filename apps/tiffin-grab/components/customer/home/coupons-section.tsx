@@ -40,7 +40,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
     }
   };
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-[var(--primary)]/50 bg-[var(--primary-wash)] p-4">
+    <div className="flex flex-col gap-3 c-surface rounded-2xl bg-[var(--primary-wash)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[14px] font-semibold tracking-[0.04em]">{coupon.code}</p>

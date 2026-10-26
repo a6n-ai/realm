@@ -3,7 +3,7 @@ import { cn, FONT } from "./cn";
 
 export function StatTile({ label, value, unit, hint, className }: { label: string; value: ReactNode; unit?: string; hint?: string; className?: string }) {
   return (
-    <div className={cn(FONT, "rounded-[20px] border border-[var(--border)] bg-[var(--card)] p-4", className)}>
+    <div className={cn(FONT, "c-surface rounded-[20px] bg-[var(--card)] p-4", className)}>
       <p className="c-label">{label}</p>
       <p className="mt-2 leading-none">
         <span className="c-stat text-[var(--primary)]">{value}</span>

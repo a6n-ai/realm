@@ -298,7 +298,7 @@ function MenuTile({ href, icon, label, sublabel, primary = false }: { href: stri
       href={href}
       className={cn(
         FONT, FOCUS,
-        "c-bevel flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
+        "c-surface flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
         primary
           ? "bg-[color-mix(in_oklch,var(--primary)_12%,var(--card))]"
           : "bg-[var(--card)] hover:bg-[var(--muted)]",

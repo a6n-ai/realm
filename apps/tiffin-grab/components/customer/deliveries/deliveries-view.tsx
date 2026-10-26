@@ -55,7 +55,7 @@ interface Props {
 
 /** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : "c-bevel border-transparent bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)] ring-[1.5px] ring-[var(--primary)]" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -291,7 +291,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full border p-1 lg:hidden`}>
+        <div className={`${FONT} c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full p-1 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}

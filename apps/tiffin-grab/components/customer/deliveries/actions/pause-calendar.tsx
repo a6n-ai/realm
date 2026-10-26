@@ -30,7 +30,7 @@ function months(dates: string[]): { label: string; cells: (string | null)[] }[] 
   });
 }
 
-const DOT = "relative flex size-11 items-center justify-center rounded-full border-[1.5px] text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]";
+const DOT = "relative flex size-11 items-center justify-center rounded-full border-[1.5px] border-transparent text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]";
 
 /**
  * The pause drawer's days as round buttons on a month grid, so a long plan reads at a glance
@@ -66,28 +66,28 @@ export function PauseCalendar({ days, picked, resuming, canPick, atCap, pending,
               if (day.paused && day.lapsed) {
                 return (
                   <button key={date} type="button" aria-label={`${name}, paused past cutoff. Move`} disabled={!onMove || pending} onClick={() => onMove?.(date)}
-                    className={`${DOT} border-dashed border-[var(--muted-foreground)] text-[var(--muted-foreground)] disabled:opacity-40`}>{n}</button>
+                    className={`${DOT} !border-dashed border-[var(--muted-foreground)] text-[var(--muted-foreground)] disabled:opacity-40`}>{n}</button>
                 );
               }
               if (day.paused) {
                 const back = resuming.includes(date);
                 return (
                   <button key={date} type="button" aria-label={`${name}, paused`} aria-pressed={back} disabled={pending} onClick={() => onResume(date)}
-                    className={`${DOT} ${back ? "border-[var(--primary)] bg-[var(--card)] text-[var(--foreground)] ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--card)]" : "border-dashed border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_14%,transparent)] text-[var(--foreground)]"}`}>{n}</button>
+                    className={`${DOT} ${back ? "bg-[var(--card)] text-[var(--foreground)] ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--card)]" : "!border-dashed border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_14%,transparent)] text-[var(--foreground)]"}`}>{n}</button>
                 );
               }
               const on = picked.includes(date);
               const blocked = !canPick || (!on && atCap);
               return (
                 <button key={date} type="button" aria-label={name} aria-pressed={on} aria-disabled={blocked || undefined} onClick={() => !blocked && onPick(date)}
-                  className={`${DOT} ${on ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]" : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--primary)]"} ${blocked ? "opacity-40" : ""}`}>{n}</button>
+                  className={`${DOT} ${on ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "c-surface bg-[var(--card)] hover:bg-[var(--primary-wash,var(--muted))]"} ${blocked ? "opacity-40" : ""}`}>{n}</button>
               );
             })}
           </div>
         </div>
       ))}
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]" aria-label="Legend">
-        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-[var(--border)]" />Delivery</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="c-surface size-3 rounded-full bg-[var(--card)]" />Delivery</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full bg-[var(--primary)]" />To pause</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-dashed border-[var(--primary)]" />Paused</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-[var(--primary)] ring-1 ring-[var(--primary)] ring-offset-1" />To resume</li>

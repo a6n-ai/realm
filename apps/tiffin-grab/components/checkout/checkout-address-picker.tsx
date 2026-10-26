@@ -84,7 +84,7 @@ export function CheckoutAddressPicker({
       {onAdd && <button
         type="button"
         onClick={onAdd}
-        className="border-border text-foreground hover:bg-muted flex min-h-[60px] w-full items-center gap-3.5 rounded-[20px] border-2 border-dashed px-4 py-3 text-left transition-[transform,background-color] duration-100 active:scale-[.98] motion-reduce:active:scale-100"
+        className="c-surface text-foreground flex min-h-[60px] w-full items-center gap-3.5 rounded-[20px] bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-4 py-3 text-left transition-[transform,background-color] duration-100 hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)] active:scale-[.98] motion-reduce:active:scale-100"
       >
         <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full">
           <Plus className="size-[18px]" />

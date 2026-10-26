@@ -167,7 +167,7 @@ export function StepDuration({
         </p>
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
         {sameWeekConflict && !startDateError ? (
-          <p className="mt-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-pretty">
+          <p className="mt-2 rounded-2xl bg-warn/10 px-3 py-2 text-xs text-pretty">
             For this week you&apos;re already subscribed on your current plan. You can still continue —
             check overlapping deliveries on Manage if that is not intentional.
           </p>
@@ -185,7 +185,7 @@ export function StepDuration({
           {[...catalog.durations].sort((a, b) => b.weeks - a.weeks).map((d) => {
             const save = savings[d.weeks] ?? 0;
             const tint = save > 0 && selections.durationWeeks !== d.weeks
-              ? "border-[color-mix(in_oklch,var(--primary)_45%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_6%,var(--card))]"
+              ? "bg-[color-mix(in_oklch,var(--primary)_8%,var(--card))]"
               : "";
             return (
               <Choice key={d.weeks} value={String(d.weeks)} className={`min-h-[72px] p-4 text-sm font-semibold ${tint}`}>

@@ -11,7 +11,7 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * Bare wizard option shell: 20px radius, 2px border, primary/10 wash when selected, press scale.
+ * Bare wizard option shell: 20px radius, bevel (no outline), primary ring + wash when selected, press scale.
  * Callers own the inner layout (SelectableCard is the titled row; bundle and delivery cards are stacks).
  * role="radio" swaps aria-pressed for aria-checked so it can sit in a ChoiceGroup.
  */
@@ -25,15 +25,15 @@ export function OptionCard({ selected, tone, className, children, type = "button
       className={cn(
         FONT,
         FOCUS,
-        "cursor-pointer rounded-[20px] border-2 text-left [touch-action:manipulation] transition-[transform,background-color,border-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100",
+        "cursor-pointer rounded-[20px] text-left [touch-action:manipulation] transition-[transform,background-color,box-shadow] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100",
         SPRING,
         tone === "trial"
           ? selected
-            ? "border-[var(--s-vac,#d98a00)] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_16%,transparent)]"
-            : "border-[color-mix(in_oklch,var(--s-vac,#d98a00)_70%,var(--border))] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_8%,var(--card))]"
+            ? "ring-2 ring-[var(--s-vac,#d98a00)] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_16%,transparent)]"
+            : "c-surface bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_8%,var(--card))]"
           : selected
-            ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
-            : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted-foreground,#6E6558)] hover:bg-[var(--muted)]",
+            ? "ring-2 ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
+            : "c-surface bg-[var(--card)] hover:bg-[var(--muted)]",
         className,
       )}
     >
@@ -51,7 +51,7 @@ interface SelectableCardProps extends Omit<ButtonHTMLAttributes<HTMLButtonElemen
   indicator?: boolean;
 }
 
-/** Wizard option card: 20px radius, 2px border, primary/10 wash when selected. */
+/** Wizard option card: 20px radius, bevel, primary ring + wash when selected. */
 export function SelectableCard({ selected, title, description, trailing, indicator, className, children, ...rest }: SelectableCardProps) {
   return (
     <OptionCard {...rest} selected={selected} className={cn("flex min-h-24 w-full items-center justify-between gap-4 p-4", className)}>
@@ -86,9 +86,9 @@ export function PillToggle({ on, className, children, type = "button", ...rest }
       className={cn(
         FONT,
         FOCUS,
-        "flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full border px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color,border-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-[15px]",
+        "c-surface flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-[15px]",
         SPRING,
-        on ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "border-[var(--border)] bg-[var(--card)]",
+        on ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]",
         className,
       )}
     >

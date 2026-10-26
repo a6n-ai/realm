@@ -23,7 +23,7 @@ export function TopicCards() {
             <Link
               href={`/me/support?ticket=new&category=${t.category}`}
               scroll={false}
-              className={cn(FOCUS, "flex h-full min-h-14 items-center gap-3 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card)] px-4 py-3 transition-transform [touch-action:manipulation] active:scale-[.98] motion-reduce:active:scale-100")}
+              className={cn(FOCUS, "flex h-full min-h-14 items-center gap-3 c-surface rounded-2xl bg-[var(--card)] px-4 py-3 transition-transform [touch-action:manipulation] active:scale-[.98] motion-reduce:active:scale-100")}
             >
               <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)]">
                 <t.icon className="size-5" />

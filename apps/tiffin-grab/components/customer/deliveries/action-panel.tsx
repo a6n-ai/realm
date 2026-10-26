@@ -43,7 +43,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] p-1.5 text-[var(--foreground)] shadow-lg")}>
+        <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-[var(--foreground)] shadow-lg")}>
           {overflow.map((r) => (
             <button key={r.key} type="button" aria-disabled={!r.av.ok || undefined} className={cn(item, !r.av.ok && "opacity-45")} onClick={() => (setMenu(false), fire(r.key, r.av))}>
               <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />

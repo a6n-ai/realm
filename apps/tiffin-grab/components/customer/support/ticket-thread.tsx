@@ -79,7 +79,7 @@ export function TicketThread({
       </div>
 
       {/* The chat window: the one scrolling part. Short chats sit at its bottom, like a chat app. */}
-      <div ref={paneRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] px-3 py-3">
+      <div ref={paneRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl c-surface bg-[var(--card)] px-3 py-3">
         <div className="mt-auto">
           <ChatMessageList
             className="space-y-2"
@@ -111,7 +111,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), channel, peerRole: "staff" });
 
   if (closed) {
-    return <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
+    return <p className="c-surface rounded-2xl bg-[var(--card)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
   }
 
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" />;
@@ -133,7 +133,7 @@ const kitChatUi: Partial<ChatUi> = {
       <div
         className={cn(
           "max-w-[80%] rounded-2xl px-3 py-1.5 text-[14px] leading-snug sm:max-w-[70%]",
-          mine ? "rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "rounded-bl-sm border border-[var(--border)] bg-[var(--card)]",
+          mine ? "rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "rounded-bl-sm bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]",
         )}
       >
         <p className="whitespace-pre-wrap text-pretty">
@@ -163,7 +163,7 @@ export function TicketThreadSkeleton() {
         <Skeleton className="h-7 w-16 rounded-full" />
         <Skeleton className="h-7 w-20 rounded-full" />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 rounded-2xl border border-[var(--border)] px-3 py-3">
+      <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 rounded-2xl c-surface bg-[var(--card)] px-3 py-3">
         {[false, true, false].map((mine, i) => (
           <div key={i} className={cn("flex", mine && "justify-end")}>
             <Skeleton className="h-12 w-56" />

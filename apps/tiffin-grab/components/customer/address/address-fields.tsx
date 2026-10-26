@@ -32,7 +32,7 @@ const kitAddressUi: AddressUi = {
     </div>
   ),
   Suggestions: ({ id, items, activeIndex, optionId, onPick }) => (
-    <ul id={id} role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-1 shadow-lg">
+    <ul id={id} role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden c-surface rounded-[14px] bg-[var(--card)] p-1">
       {items.map((s, i) => (
         <li
           key={s.placeId}

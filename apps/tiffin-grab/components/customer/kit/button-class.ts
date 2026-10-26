@@ -4,14 +4,14 @@ import { cn, FOCUS, FONT, SPRING } from "./cn";
 export type ButtonVariant = "primary" | "outline" | "quiet" | "ghost" | "danger" | "hero" | "glass" | "glass-prominent";
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: "c-bevel border-transparent bg-[var(--primary)] text-[var(--primary-foreground,#fff)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
+  primary: "c-surface border-transparent bg-[var(--primary)] text-[var(--primary-foreground,#fff)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
   hero:
     "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
   // No outlines: secondary buttons are filled and bevelled (Apple style).
   // No outlines: secondary buttons are filled and bevelled (Apple style). The fill is a wash of the text colour,
   // so it always reads a step off whatever it sits on: lighter on the dark green ground, darker on cream.
-  outline: "c-bevel border-transparent bg-[color-mix(in_oklch,var(--foreground)_11%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_16%,transparent)]",
-  quiet: "c-bevel border-transparent bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)]",
+  outline: "c-surface border-transparent bg-[color-mix(in_oklch,var(--foreground)_11%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_16%,transparent)]",
+  quiet: "c-surface border-transparent bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)]",
   ghost: "border-transparent bg-transparent text-[var(--foreground)] hover:bg-[var(--muted)]",
   // Floating controls over content (above the tab bar): liquid glass, see .c-liquid in globals.css.
   glass: "c-liquid text-[var(--foreground)]",

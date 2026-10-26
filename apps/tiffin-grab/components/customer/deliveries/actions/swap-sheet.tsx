@@ -35,7 +35,7 @@ function BundleStepper({
   const atMax = index >= bundles.length - 1;
   const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-[var(--muted)]");
   return (
-    <div className="c-bevel inline-flex items-center rounded-full bg-[var(--card)]">
+    <div className="c-surface inline-flex items-center rounded-full bg-[var(--card)]">
       <button
         type="button"
         className={btn}
@@ -66,7 +66,7 @@ function BundleStepper({
 function MealSummary({ meal, portions }: { meal: ResolvedCategory[] | null | undefined; portions: Record<string, string> }) {
   if (!meal?.length) return null;
   return (
-    <section aria-label="Your meal" className="c-bevel flex flex-col gap-2 rounded-3xl bg-[var(--muted)]/40 p-3">
+    <section aria-label="Your meal" className="c-surface flex flex-col gap-2 rounded-3xl bg-[var(--muted)]/40 p-3">
       <h3 className="text-sm font-semibold">Your meal</h3>
       <ul className="flex flex-col gap-2">
         {meal.map((cat) => (
@@ -288,7 +288,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                       key={key}
                       className={cn(
                         "rounded-3xl p-3",
-                        on ? "ring-[1.5px] ring-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40" : "c-bevel bg-[var(--card)]",
+                        on ? "ring-[1.5px] ring-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40" : "c-surface bg-[var(--card)]",
                       )}
                     >
                       <button

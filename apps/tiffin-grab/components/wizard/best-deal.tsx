@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { CheckCircle2Icon, XIcon } from "lucide-react";
+import { buttonClass } from "@/components/customer/kit/button-class";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
 import { bundleDeal, frequencyOrDurationDeal } from "./best-deal-state";
@@ -58,7 +59,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
           transition={spring}
           className="overflow-hidden"
         >
-          <div className={`mb-5 flex items-center gap-2 rounded-2xl border-2 py-2 pr-1 pl-3 transition-colors duration-300 ${applied ? "border-emerald-500/40 bg-emerald-500/10" : "border-primary/30 bg-primary/10"}`}>
+          <div className={`mb-5 flex items-center gap-2 c-surface rounded-2xl py-2 pr-1 pl-3 transition-colors duration-300 ${applied ? "bg-emerald-500/10" : "bg-[var(--primary-wash)]"}`}>
             <AnimatePresence initial={false} mode="wait">
               <m.div
                 key={view.state}
@@ -77,7 +78,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 <button
                   type="button"
                   onClick={applied ? revert : apply}
-                  className={`relative h-9 shrink-0 cursor-pointer rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,color] duration-100 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] active:scale-[0.97] motion-reduce:active:scale-100 ${applied ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950" : "bg-primary text-primary-foreground"}`}
+                  className={buttonClass({ variant: "primary", className: `relative !min-h-9 h-9 shrink-0 !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] ${applied ? "!bg-emerald-600 !text-white dark:!bg-emerald-500 dark:!text-emerald-950" : ""}` })}
                 >
                   {applied ? "Undo" : "Use this"}
                 </button>

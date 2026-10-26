@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClockIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
+import { Button } from "@/components/customer/kit";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { makeImageThumbnail } from "@/components/ds";
@@ -159,7 +159,6 @@ export function ClaimPayment({
             <Button
               type="button"
               variant="ghost"
-              size="sm"
               disabled={pending}
               onClick={() => {
                 pickFile(null);
@@ -174,7 +173,7 @@ export function ClaimPayment({
             type="button"
             disabled={pending}
             onClick={() => inputRef.current?.click()}
-            className="border-dashed text-muted-foreground hover:bg-muted/40 flex flex-col items-center gap-2 rounded-lg border p-4 text-sm"
+            className="c-surface text-muted-foreground flex flex-col items-center gap-2 rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] p-4 text-sm transition-colors hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)]"
           >
             <UploadIcon className="size-5" />
             <span>Upload payment screenshot</span>
@@ -191,7 +190,7 @@ export function ClaimPayment({
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <Button onClick={submit} disabled={pending} className="w-full sm:w-auto">
+      <Button variant="primary" onClick={submit} disabled={pending} className="w-full sm:w-auto">
         {pending ? (
           <>
             <Loader2Icon className="size-4 animate-spin" /> Submitting…

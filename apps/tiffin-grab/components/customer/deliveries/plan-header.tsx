@@ -49,7 +49,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
       {plans}
       {/* The plan sits in its own box so it reads apart from the greeting; the plan's tag colour edges it. */}
       <div
-        className="c-bevel mt-4 rounded-[20px] border-[1.5px] border-transparent bg-[var(--card,#fff)] px-4 py-3.5"
+        className="c-surface mt-4 rounded-[20px] bg-[var(--card,#fff)] px-4 py-3.5"
         style={dot ? { borderLeft: `4px solid ${dot}` } : undefined}
         data-testid="plan-card"
       >

@@ -37,7 +37,7 @@ import { OrderSummary, money, startLabel } from "@/components/checkout/order-sum
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
-import { BottomBar, Button, Label, PillToggle, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, buttonClass, Label, PillToggle, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
@@ -779,7 +779,7 @@ export function Checkout({
   const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
-        <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
+        <div className="c-surface bg-card mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-3xl">
           <AnimatePresence initial={false}>
             {applied.map((c) => (
               <m.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
@@ -851,7 +851,7 @@ export function Checkout({
                   <button
                     type="button"
                     onClick={() => { setCoinsInput(String(Math.min(coinBalance, coinCap.maxCoins))); setCoinsState({ status: "idle" }); }}
-                    className="text-primary h-9 shrink-0 rounded-[10px] px-2.5 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
+                    className="text-primary h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
                   >
                     Max
                   </button>
@@ -1000,7 +1000,7 @@ export function Checkout({
                   <section aria-labelledby="co-contact">
                     <h2 id="co-contact" className={H}>Contact</h2>
                     <div className="mt-3 grid grid-cols-1 gap-4">
-                      <div className="bg-card border-border flex items-center gap-3.5 rounded-[20px] border p-4">
+                      <div className="c-surface bg-card flex items-center gap-3.5 rounded-3xl p-4">
                         <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold">
                           {(contact.fullName.trim()[0] ?? "?").toUpperCase()}
                         </span>
@@ -1192,7 +1192,7 @@ function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: {
       type="button"
       aria-haspopup="dialog"
       onClick={onOpen}
-      className="bg-card border-border mb-8 flex w-full items-center gap-3 rounded-[20px] border p-4 text-left transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100 md:hidden"
+      className="c-surface bg-card mb-8 flex w-full items-center gap-3 rounded-3xl p-4 text-left transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100 md:hidden"
     >
       <span className="min-w-0 flex-1">
         <span className="text-muted-foreground block text-xs font-semibold tracking-[0.02em]">Your order</span>
@@ -1304,7 +1304,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                   onClick={() => onPick(c.code)}
                   disabled={state.status === "checking"}
                   aria-label={`Apply ${c.code}, ${discountLine(c)}: ${c.name}`}
-                  className="flex min-h-14 max-w-[15rem] items-center gap-2.5 rounded-2xl border border-dashed border-[var(--primary)]/50 bg-[var(--primary-wash)] py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
+                  className="flex min-h-14 max-w-[15rem] items-center gap-2.5 c-surface rounded-2xl bg-[var(--primary-wash)] py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
                 >
                   <span className="min-w-0">
                     <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
@@ -1363,7 +1363,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
           onClick={onApply}
           disabled={checking || !value.trim()}
           aria-label={applyLabel}
-          className="h-10 shrink-0 rounded-xl bg-[var(--foreground)] px-4 text-[14px] font-semibold text-[var(--background)] transition-[opacity,transform] duration-150 active:scale-[0.97] disabled:opacity-35 motion-reduce:active:scale-100"
+          className={buttonClass({ variant: "primary", className: "!min-h-10 h-10 shrink-0 !px-4 !text-[14px] disabled:opacity-35" })}
         >
           {checking ? "Checking…" : "Apply"}
         </button>

@@ -45,12 +45,12 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
       className={cn(
         FONT,
         FOCUS,
-        "relative flex flex-none flex-col items-center justify-center rounded-[14px] border-[1.5px] text-xs leading-tight [touch-action:manipulation] transition-[transform,background-color] duration-150 active:scale-[.97] motion-reduce:transition-none",
+        "relative flex flex-none flex-col items-center justify-center rounded-[14px] text-xs leading-tight [touch-action:manipulation] transition-[transform,background-color] duration-150 active:scale-[.97] motion-reduce:transition-none",
         SPRING,
         compact ? "size-11" : delivery !== undefined ? "h-[62px] min-w-11" : "h-[52px] min-w-11",
         selected
-          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]"
-          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--primary)] [@media(hover:hover)]:hover:-translate-y-0.5 motion-reduce:transform-none",
+          ? "c-surface bg-[var(--primary)] text-[var(--primary-foreground,#fff)]"
+          : "c-surface bg-[var(--card)] hover:ring-[1.5px] hover:ring-[var(--primary)] [@media(hover:hover)]:hover:-translate-y-0.5 motion-reduce:transform-none",
         disabledReason && "opacity-35",
         className,
       )}

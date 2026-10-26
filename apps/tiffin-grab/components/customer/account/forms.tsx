@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
 import type { Area, CropperProps } from "react-easy-crop";
-import { Button, Card, Field, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle } from "@/components/customer/kit";
+import { Button, Field, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { getCroppedBlob } from "@/lib/images/crop";
 import {
@@ -20,6 +20,7 @@ import { PinForm } from "@foundry/auth-ui";
 import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
 import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
 import { kitAuthUi } from "./auth-ui-kit";
+import { SettingsBlock } from "./settings-block";
 
 type CropperType = (typeof import("react-easy-crop"))["default"];
 const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as ComponentType<
@@ -59,15 +60,7 @@ function SaveBar({ pending, dirty, status, label = "Save" }: { pending: boolean;
 }
 
 function Block({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
-  return (
-    <Card className="space-y-5 p-5 md:p-6">
-      <header className="space-y-1">
-        <h2 className="c-h2">{title}</h2>
-        {subtitle && <p className="text-sm text-[var(--muted-foreground)]">{subtitle}</p>}
-      </header>
-      {children}
-    </Card>
-  );
+  return <SettingsBlock title={title} footer={subtitle}>{children}</SettingsBlock>;
 }
 
 function submit(fn: () => void) {
@@ -143,7 +136,7 @@ function AvatarEditor({ image, name }: { image: string | null; name: string | nu
     <div className="flex items-center gap-4">
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element -- secured file URL carries a per-request token
-        <img src={image} alt="" className="size-20 rounded-full border border-[var(--border)] object-cover" />
+        <img src={image} alt="" className="c-surface size-20 rounded-full object-cover" />
       ) : (
         <span aria-hidden className="grid size-20 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-2xl font-bold text-[#B5430B] dark:text-[#FFB877]">
           {initials(name)}
@@ -264,8 +257,8 @@ export function DietaryForm({ allergens, dietaryNotes }: { allergens: string[]; 
                   className={cn(
                     FONT,
                     FOCUS,
-                    "min-h-11 rounded-full border-2 px-4 text-sm font-semibold [touch-action:manipulation] active:scale-[.97]",
-                    on ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "border-[var(--border)] bg-[var(--card)]",
+                    "c-surface min-h-11 rounded-full px-4 text-sm font-semibold [touch-action:manipulation] active:scale-[.97]",
+                    on ? "ring-[1.5px] ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "bg-[var(--card)]",
                   )}
                 >
                   {a}

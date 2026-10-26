@@ -74,13 +74,13 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
   const picker = (
     <>
         <div className="flex items-center justify-between pb-3">
-          <IconButton aria-label="Previous month" disabled={!canPrev} className="disabled:opacity-35" onClick={() => canPrev && setMonth(shift(month, -1))}>
+          <IconButton bare aria-label="Previous month" disabled={!canPrev} className="disabled:opacity-35" onClick={() => canPrev && setMonth(shift(month, -1))}>
             <ChevronLeft aria-hidden className="size-5" />
           </IconButton>
           <span aria-live="polite" className="text-[15px] font-semibold">
             {TITLE.format(new Date(`${month}-01T00:00:00Z`))}
           </span>
-          <IconButton aria-label="Next month" disabled={!canNext} className="disabled:opacity-35" onClick={() => canNext && setMonth(shift(month, 1))}>
+          <IconButton bare aria-label="Next month" disabled={!canNext} className="disabled:opacity-35" onClick={() => canNext && setMonth(shift(month, 1))}>
             <ChevronRight aria-hidden className="size-5" />
           </IconButton>
         </div>
@@ -121,7 +121,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
       </Button>
       {wide ? (
         open && (
-          <div role="dialog" aria-label={label} className={cn("absolute left-0 z-50 w-[325px] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]", above ? "bottom-[calc(100%-20px)]" : "top-full mt-2")}>
+          <div role="dialog" aria-label={label} className={cn("c-surface absolute left-0 z-50 w-[325px] rounded-2xl bg-[var(--card)] p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]", above ? "bottom-[calc(100%-20px)]" : "top-full mt-2")}>
             {picker}
           </div>
         )

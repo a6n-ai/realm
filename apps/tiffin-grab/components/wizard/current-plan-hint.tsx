@@ -9,7 +9,7 @@ export type CurrentPlanSummary = Pick<
 
 export function CurrentPlanHint({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-pretty">
+    <p className="rounded-2xl bg-[var(--primary-wash)] px-3 py-2.5 text-sm text-pretty">
       {children}
     </p>
   );

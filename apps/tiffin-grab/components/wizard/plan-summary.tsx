@@ -20,7 +20,7 @@ export interface PlanSummaryProps {
 export function PlanSummary({ baseline, mealName, deliveryName, eatingDays, weeks, startDate, tiffinCount, addons = [] }: PlanSummaryProps) {
   const perWeek = eatingDays.length;
   return (
-    <section aria-label="What you're getting" className="bg-card border-border mb-3 rounded-[20px] border p-4 text-sm">
+    <section aria-label="What you're getting" className="c-surface bg-card mb-3 rounded-[20px] p-4 text-sm">
       <h3 className="text-muted-foreground mb-2 text-[13px] font-semibold tracking-[0.02em]">What you&apos;re getting</h3>
       <p className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{mealName ?? "Your meal"}</p>
       {baseline ? <p className="text-muted-foreground">{baseline}</p> : null}

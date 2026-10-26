@@ -20,7 +20,7 @@ function TicketSection({ title, hint, tickets, timezone, empty }: { title: strin
         {tickets.length > 0 ? <span className="text-[13px] font-semibold tabular-nums text-[var(--muted-foreground,#6E6558)]">{tickets.length}</span> : null}
       </div>
       {tickets.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-5 text-[14px] text-[var(--muted-foreground,#6E6558)]">{empty}</p>
+        <p className="c-surface rounded-2xl bg-[var(--card)] px-4 py-5 text-[14px] text-[var(--muted-foreground,#6E6558)]">{empty}</p>
       ) : (
         <ListGroup>
           {tickets.map((t) => {
