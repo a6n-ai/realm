@@ -303,6 +303,18 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return { planId: size.planId, mealSizeId: size.id };
   }
 
+  /** Edit scope: an omitted meal size keeps the row's current one, null clears it. */
+  private async editScope(publicId: string, planPublicId: string | null | undefined, mealSizePublicId: string | null | undefined) {
+    if (mealSizePublicId !== undefined) return this.resolveScope(planPublicId, mealSizePublicId);
+    const [row] = await db
+      .select({ sizePublicId: mealSizes.publicId })
+      .from(categorySwapPairs)
+      .leftJoin(mealSizes, eq(mealSizes.id, categorySwapPairs.mealSizeId))
+      .where(eq(categorySwapPairs.publicId, publicId))
+      .limit(1);
+    return this.resolveScope(planPublicId, row?.sizePublicId ?? null);
+  }
+
   async addSwapPair(
     fromKey: string,
     toKey: string,
@@ -354,7 +366,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
         .from(dishCategories)
         .where(inArray(dishCategories.key, [fromKey, toKey])),
-      this.resolveScope(planPublicId, opts.mealSizePublicId),
+      this.editScope(publicId, planPublicId, opts.mealSizePublicId),
     ]);
     const byKey = new Map(rows.map((r) => [r.key, r]));
     const from = byKey.get(fromKey);
