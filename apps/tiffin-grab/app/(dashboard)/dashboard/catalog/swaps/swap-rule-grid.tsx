@@ -8,6 +8,8 @@ import { SectionCard, DataTable, ResponsiveDialog, type Column } from "@/compone
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { TableCell } from "@foundry/ui/table";
+import { Switch } from "@foundry/ui/switch";
+import { Badge } from "@/components/reui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { addSwapPair, editSwapPair, removeSwapPair } from "./actions";
 import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
@@ -16,6 +18,7 @@ import type { ExchangeOverride } from "@/lib/menu/swap-rules";
 
 export type CategoryOption = { key: string; label: string };
 export type PlanOption = { value: string; label: string };
+export type MealSizeOption = { id: string; name: string; planId: string };
 export type SwapPairRow = {
   id: string; // pair publicId
   fromCategory: string;
@@ -28,6 +31,9 @@ export type SwapPairRow = {
   exchangeOverrides: ExchangeOverride[];
   /** "Other amounts": an amount with no line uses the natural exchange (true) or can't be swapped (false). */
   naturalFallback: boolean;
+  receivesMissing: boolean;
+  mealSizeId: string | null;
+  mealSizeName: string | null;
 };
 
 /** Admin enters natural units (12 oz, 8 roti); the category's unit is fixed, only the amount is overridden. */
@@ -39,6 +45,7 @@ const unitOf = (cat: AdminTuCategory | undefined) => cat?.tuUnitLabel ?? "TU";
 // Radix Select rejects an empty-string item value, so "all plans" needs a
 // real sentinel — translated back to null at the service-call boundary.
 const ALL_PLANS = "__all_plans__";
+const ALL_SIZES = "__all_sizes__";
 
 type Cols = "pair" | "plan" | "exchange" | "actions";
 const COLUMNS: readonly Column<Cols>[] = [
@@ -52,12 +59,14 @@ export function SwapPairGrid({
   categoryOptions,
   categoryTu,
   planOptions,
+  mealSizeOptions,
   plansByCategoryKey,
   pairs,
 }: {
   categoryOptions: CategoryOption[];
   categoryTu: AdminTuCategory[];
   planOptions: PlanOption[];
+  mealSizeOptions: MealSizeOption[];
   plansByCategoryKey: Record<string, string[]>;
   pairs: SwapPairRow[];
 }) {
@@ -97,7 +106,10 @@ export function SwapPairGrid({
               </span>
             </TableCell>
             <TableCell>
-              <span className="text-sm">{pair.planName}</span>
+              <span className="flex items-center gap-2 text-sm">
+                {pair.mealSizeName ?? pair.planName}
+                {pair.receivesMissing ? <Badge variant="info-light">Adds missing</Badge> : null}
+              </span>
             </TableCell>
             <TableCell>
               {pair.exchangeOverrides.length > 0 && fromTu && toTu ? (
@@ -141,6 +153,7 @@ export function SwapPairGrid({
         categoryOptions={categoryOptions}
         categoryTu={categoryTu}
         planOptions={planOptions}
+        mealSizeOptions={mealSizeOptions}
         plansByCategoryKey={plansByCategoryKey}
       />
       <SwapPairDialog
@@ -152,6 +165,7 @@ export function SwapPairGrid({
         categoryOptions={categoryOptions}
         categoryTu={categoryTu}
         planOptions={planOptions}
+        mealSizeOptions={mealSizeOptions}
         plansByCategoryKey={plansByCategoryKey}
       />
     </SectionCard>
@@ -189,6 +203,7 @@ function SwapPairDialog({
   categoryOptions,
   categoryTu,
   planOptions,
+  mealSizeOptions,
   plansByCategoryKey,
 }: {
   mode: "add" | "edit";
@@ -198,6 +213,7 @@ function SwapPairDialog({
   categoryOptions: CategoryOption[];
   categoryTu: AdminTuCategory[];
   planOptions: PlanOption[];
+  mealSizeOptions: MealSizeOption[];
   plansByCategoryKey: Record<string, string[]>;
 }) {
   const router = useRouter();
@@ -205,10 +221,14 @@ function SwapPairDialog({
   const [fromCategory, setFromCategory] = React.useState(pair?.fromCategory ?? "");
   const [toCategory, setToCategory] = React.useState(pair?.toCategory ?? "");
   const [planId, setPlanId] = React.useState(pair ? (pair.planId ?? ALL_PLANS) : "");
+  const [mealSizeId, setMealSizeId] = React.useState(pair?.mealSizeId ?? ALL_SIZES);
+  const [receivesMissing, setReceivesMissing] = React.useState(pair?.receivesMissing ?? false);
   const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
   const fromTu = tuByKey.get(fromCategory);
   const toTu = tuByKey.get(toCategory);
   const conversion = naturalSwapConversion(fromTu, toTu);
+  const sameUnit = !!fromTu && !!toTu && fromTu.tuUnitType === toTu.tuUnitType && fromTu.tuUnitSize === toTu.tuUnitSize;
+  const sizeChoices = mealSizeOptions.filter((s) => s.planId === planId);
   const [naturalFallback, setNaturalFallback] = React.useState(pair?.naturalFallback ?? true);
   const [overrides, setOverrides] = React.useState<OverrideDraft[]>(() => {
     const f = pair && tuByKey.get(pair.fromCategory);
@@ -233,6 +253,8 @@ function SwapPairDialog({
       setFromCategory("");
       setToCategory("");
       setPlanId("");
+      setMealSizeId(ALL_SIZES);
+      setReceivesMissing(false);
       setOverrides([]);
       setNaturalFallback(true);
     }
@@ -257,13 +279,15 @@ function SwapPairDialog({
       }
       exchangeOverrides = parsed.map((o) => ({ giveTu: o.give / fromTu.tuUnitSize, receiveTu: o.receive / toTu.tuUnitSize }));
     }
+    const resolvedMealSizeId = resolvedPlanId && mealSizeId !== ALL_SIZES ? mealSizeId : null;
+    const rm = sameUnit && receivesMissing;
     start(async () => {
       try {
         if (mode === "add") {
-          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback });
+          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId });
           toast.success("Swap rule added");
         } else if (pair) {
-          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback });
+          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId });
           toast.success("Swap rule updated");
         }
         router.refresh();
@@ -298,6 +322,8 @@ function SwapPairDialog({
             onValueChange={(v) => {
               setFromCategory(v);
               setPlanId("");
+              setMealSizeId(ALL_SIZES);
+              setReceivesMissing(false);
               // Overrides are in the old category's units; they don't carry over.
               setOverrides([]);
             }}
@@ -315,6 +341,8 @@ function SwapPairDialog({
             onValueChange={(v) => {
               setToCategory(v);
               setPlanId("");
+              setMealSizeId(ALL_SIZES);
+              setReceivesMissing(false);
               setOverrides([]);
             }}
           >
@@ -326,7 +354,7 @@ function SwapPairDialog({
             </SelectContent>
           </Select>
         </div>
-        <Select value={planId} onValueChange={setPlanId} disabled={!fromCategory || !toCategory}>
+        <Select value={planId} onValueChange={(v) => { setPlanId(v); setMealSizeId(ALL_SIZES); }} disabled={!fromCategory || !toCategory}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder={fromCategory && toCategory ? "All plans" : "Pick both categories first"} />
           </SelectTrigger>
@@ -337,6 +365,22 @@ function SwapPairDialog({
             ))}
           </SelectContent>
         </Select>
+        <Select value={mealSizeId} onValueChange={setMealSizeId} disabled={!planId || planId === ALL_PLANS}>
+          <SelectTrigger className="w-full" aria-label="Meal size"><SelectValue placeholder="All meal sizes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_SIZES}>All meal sizes</SelectItem>
+            {sizeChoices.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-medium">Allow when the meal doesn&apos;t have it</p>
+            <p className="text-xs text-muted-foreground">Customers can swap into this even if their meal size has no row for it. Same unit only.</p>
+          </div>
+          <Switch checked={sameUnit && receivesMissing} onCheckedChange={setReceivesMissing} disabled={!sameUnit} aria-label="Allow when the meal doesn't have it" />
+        </div>
         {conversion ? (
           <div className="bg-muted/40 rounded-lg border px-3 py-2 text-sm">
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Based on current category configuration</p>
