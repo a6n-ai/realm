@@ -1,5 +1,5 @@
 import { Clock, Headset } from "lucide-react";
-import { IconTile, Pill } from "@/components/customer/kit";
+import { Card, Chip, IconTile, Pill } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { getAppSettings, getSupportHours } from "@/lib/services/app-settings.service";
 import { supportHoursView, type SupportHoursView } from "@/lib/support/support-hours";
@@ -24,39 +24,55 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
     );
   }
 
-  const today = view.week.find((d) => d.today);
-  // A Settings-style group: status row, today, the week merged by hours, then the reply time as its footer.
+  // The week reads like the deliveries calendar: a cell per day, open days tinted, today ringed, closed days muted.
   return (
-    <section aria-label="Support hours" className={cn(FONT, "c-surface divide-y divide-[var(--border)] overflow-hidden rounded-3xl bg-[var(--card)]")}>
-      <div className="flex items-center gap-3 px-4 py-3.5">
+    <Card className="space-y-4 p-4">
+      <div className="flex items-center gap-3">
         <IconTile tint={view.open ? "green" : "gray"} size="lg"><Headset /></IconTile>
         <div className="min-w-0 flex-1">
           <p className="text-[17px] leading-tight font-semibold">{view.open ? "We're open now" : "We're closed now"}</p>
-          <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{view.detail}</p>
+          <p className="text-[14px] text-[var(--muted-foreground,#6E6558)]">{view.detail}</p>
         </div>
         <Pill tone={view.open ? "ok" : "soft"} size="sm">{view.open ? "Open" : "Closed"}</Pill>
       </div>
-      {today && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
-          <span className="font-semibold">Today</span>
-          <span className={cn("tabular-nums", today.open ? "font-semibold" : "text-[var(--muted-foreground,#6E6558)]")}>{today.open ? today.hours : "Closed"}</span>
-        </div>
-      )}
-      <ul aria-label="Weekly hours" className="divide-y divide-[var(--border)]">
+
+      {/* Decorative: the same days and hours are in the chips below. */}
+      <div aria-hidden className="grid grid-cols-7 gap-1">
+        {view.week.map((d) => (
+          <div key={d.day} className={cn("flex flex-col items-center gap-1 rounded-2xl py-2", d.today && "bg-[var(--primary-wash,#FBE3D2)]")}>
+            <span className="text-[11px] font-semibold tracking-wide text-[var(--muted-foreground,#6E6558)] uppercase">{d.day.slice(0, 3)}</span>
+            <span
+              className={cn(
+                "grid size-8 place-items-center rounded-full text-[15px] font-semibold",
+                d.open ? "bg-[color-mix(in_oklch,var(--primary)_16%,transparent)] text-[var(--primary)]" : "text-[var(--muted-foreground,#6E6558)] opacity-50",
+                d.today && "ring-[1.5px] ring-[var(--primary)]",
+              )}
+            >
+              {d.day[0]}
+            </span>
+            <span aria-hidden className="size-1.5 rounded-full" style={{ background: d.open ? "var(--s-delivered,#10b981)" : "transparent" }} />
+          </div>
+        ))}
+      </div>
+
+      <ul className="flex flex-wrap gap-2">
         {view.groups.map((g) => (
-          <li key={g.days} className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
-            <span>{g.days}</span>
-            <span className={cn("tabular-nums", g.open ? "" : "text-[var(--muted-foreground,#6E6558)]")}>{g.open ? g.hours : "Closed"}</span>
+          <li key={g.days}>
+            <Chip tone={g.open ? "neutral" : "soft"}>
+              <span className="font-semibold">{g.days}</span>
+              {g.open ? g.hours : "Closed"}
+            </Chip>
           </li>
         ))}
       </ul>
+
       {view.reply ? (
-        <p className="flex items-center gap-2 px-4 py-3 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        <p className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]">
           <Clock aria-hidden className="size-4 shrink-0" />
           {view.reply}.
         </p>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
