@@ -325,6 +325,8 @@ export type ValidateSwapInput = {
   overrides?: ExchangeOverride[];
   /** "Other amounts": false refuses an amount with no override line instead of using the natural exchange. */
   naturalFallback?: boolean;
+  /** The pair may deliver a category the meal size has no row for. */
+  receivesMissing?: boolean;
 };
 
 export type ValidateSwapResult =
@@ -342,7 +344,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   if (!from || !to) {
     return { ok: false, reason: "Both categories must be part of this plan" };
   }
-  if (!swapPairFits(from, to)) {
+  if (!swapPairFits(from, to, input.receivesMissing)) {
     return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
   }
 
@@ -501,8 +503,9 @@ export function computeSwapOption(args: {
   toCategory: string;
   overrides?: ExchangeOverride[];
   naturalFallback?: boolean;
+  receivesMissing?: boolean;
 }): SwapOption {
-  const { composition, applied, fromCategory, toCategory, overrides, naturalFallback } = args;
+  const { composition, applied, fromCategory, toCategory, overrides, naturalFallback, receivesMissing } = args;
   const from = composition.categories.get(fromCategory);
   const to = composition.categories.get(toCategory);
 
@@ -573,6 +576,7 @@ export function computeSwapOption(args: {
       next: { fromCategory, toCategory, fromPicks: q },
       overrides,
       naturalFallback,
+      receivesMissing,
     });
     if (!r.ok) {
       firstFail ??= r.reason;
@@ -612,7 +616,7 @@ export function computeSwapOption(args: {
     ? Object.fromEntries(
         (rowsAfterSwaps(composition, applied).get(fromCategory) ?? []).flatMap((r) => {
           if (r.row == null) return [];
-          const v = validateProposedSwap({ composition, applied, next: { fromCategory, toCategory, fromPicks: 1, fromRow: r.row }, overrides, naturalFallback });
+          const v = validateProposedSwap({ composition, applied, next: { fromCategory, toCategory, fromPicks: 1, fromRow: r.row }, overrides, naturalFallback, receivesMissing });
           const bundle: SwapBundle | null = v.ok
             ? {
                 fromPicks: 1,
@@ -644,7 +648,7 @@ export function computeSwapOption(args: {
 export function computeAllSwapOptions(args: {
   composition: CompositionContext;
   applied: SwapRow[];
-  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; receivesMissing?: boolean }[];
   /** When true, omit unavailable options (customer default). */
   hideUnavailable?: boolean;
 }): SwapOption[] {
@@ -656,6 +660,7 @@ export function computeAllSwapOptions(args: {
       toCategory: p.toCategory,
       overrides: p.exchangeOverrides,
       naturalFallback: p.naturalFallback,
+      receivesMissing: p.receivesMissing,
     }),
   );
   return args.hideUnavailable ? options.filter((o) => o.available) : options;

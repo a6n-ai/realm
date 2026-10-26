@@ -432,6 +432,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           planId: categorySwapPairs.planId,
           exchangeOverrides: categorySwapPairs.exchangeOverrides,
           naturalFallback: categorySwapPairs.naturalFallback,
+          receivesMissing: categorySwapPairs.receivesMissing,
         })
         .from(categorySwapPairs)
         .where(or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)))
@@ -452,7 +453,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const key = `${from}>${to}`;
       if (planScoped.has(key)) continue;
       if (p.planId != null) planScoped.add(key);
-      if (p.planId != null || !out.has(key)) out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback });
+      if (p.planId != null || !out.has(key)) out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback, receivesMissing: p.receivesMissing });
     }
     return out;
   }
@@ -470,13 +471,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
   async swapPairsForMealSize(
     mealSizeId: bigint,
-  ): Promise<{ fromCategory: string; toCategory: string; exchangeOverrides: ExchangeOverride[]; naturalFallback: boolean }[]> {
+  ): Promise<{ fromCategory: string; toCategory: string; exchangeOverrides: ExchangeOverride[]; naturalFallback: boolean; receivesMissing: boolean }[]> {
     const [cats, allowed] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.allowedSwapPairKeys(mealSizeId)]);
     return [...allowed].flatMap(([k, rule]) => {
       const [fromCategory, toCategory] = k.split(">") as [string, string];
       const from = cats.get(fromCategory);
       const to = cats.get(toCategory);
-      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory, exchangeOverrides: rule.overrides, naturalFallback: rule.naturalFallback }] : [];
+      return from && to && swapPairFits(from, to, rule.receivesMissing) ? [{ fromCategory, toCategory, exchangeOverrides: rule.overrides, naturalFallback: rule.naturalFallback, receivesMissing: rule.receivesMissing }] : [];
     });
   }
 

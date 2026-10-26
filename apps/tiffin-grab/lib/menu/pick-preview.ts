@@ -23,7 +23,7 @@ export type PreviewBase = {
     categories: [string, SwapCategory][];
     labels?: Record<string, string>;
   };
-  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; receivesMissing?: boolean }[];
 };
 
 const keyOf = (c: GridCell) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`;
@@ -136,7 +136,7 @@ export function previewOverride(
   const pair = base.pairs.find((p) => p.fromCategory === next.fromCategory && p.toCategory === next.toCategory);
   const overrides = pair?.exchangeOverrides;
   if (!overrides?.length) return null;
-  const r = validateProposedSwap({ ...previewStack(base, date, provisional), next, overrides, naturalFallback: pair?.naturalFallback });
+  const r = validateProposedSwap({ ...previewStack(base, date, provisional), next, overrides, naturalFallback: pair?.naturalFallback, receivesMissing: pair?.receivesMissing });
   return r.ok && r.receiveTu != null ? { receiveTu: r.receiveTu, qtyTo: r.qtyTo } : null;
 }
 

@@ -82,6 +82,7 @@ export async function applyDeliverySwap(
       next: { fromCategory, toCategory, fromPicks, fromRow },
       overrides: rule.overrides,
       naturalFallback: rule.naturalFallback,
+      receivesMissing: rule.receivesMissing,
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;

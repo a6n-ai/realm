@@ -3,7 +3,8 @@
 // so the drawer never offers a swap the server then refuses.
 //
 // A swap target does not have to be in the meal size's composition: a non-veg 4-item
-// thali is Curry + Daal, and trading its curry for a sabzi is the whole point. A pick
+// thali is Curry + Daal, and trading its curry for a sabzi is the whole point. Two ways
+// in: a custom meal's `addable` categories, or a pair flagged `receivesMissing`. A pick
 // of the missing side is priced as the present side's portion (8oz curry -> 8oz sabzi),
 // which is only meaningful when both are measured in the same unit — so roti -> rice
 // on a meal size without rice is never offered.
@@ -102,8 +103,8 @@ export function sameUnit(from: SwapCategory, to: SwapCategory): boolean {
 // The from side may be absent only when it was received by an earlier same-unit swap.
 // Exception: a custom meal (to.addable) may receive a missing category like-for-like, since a
 // same-unit swap keeps the given portion (12oz sabzi -> 12oz daal) and needs no row to size it.
-export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
-  if (to.pickTu == null) return !!to.addable && from.pickTu != null && sameUnit(from, to);
+export function swapPairFits(from: SwapCategory, to: SwapCategory, receivesMissing = false): boolean {
+  if (to.pickTu == null) return (!!to.addable || receivesMissing) && from.pickTu != null && sameUnit(from, to);
   return from.pickTu != null || sameUnit(from, to);
 }
 
@@ -111,8 +112,9 @@ export function swapQuantities(
   from: SwapCategory,
   to: SwapCategory,
   fromPicks: number,
+  receivesMissing = false,
 ): { ok: true; qtyTo: number } | { ok: false; reason: string } {
-  if (!swapPairFits(from, to)) return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
+  if (!swapPairFits(from, to, receivesMissing)) return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
   if (sameUnit(from, to)) return { ok: true, qtyTo: fromPicks };
   const fromTu = from.pickTu ?? to.pickTu!;
   const toTu = to.pickTu ?? from.pickTu!;
@@ -149,7 +151,8 @@ export function crossUnitPicks(giveTu: number, toTu: number): number {
 export type ExchangeOverride = { giveTu: number; receiveTu: number };
 
 /** A pair's exchange rule: its override lines, and what an amount with no line does ("Other amounts"). */
-export type SwapPairRule = { overrides: ExchangeOverride[]; naturalFallback: boolean };
+/** `receivesMissing`: the pair may deliver `to` even when the meal size has no row for it. */
+export type SwapPairRule = { overrides: ExchangeOverride[]; naturalFallback: boolean; receivesMissing: boolean };
 
 /** Why an amount with no override line can't be swapped when the pair turns the natural exchange off. */
 export const NO_LINE_FOR_AMOUNT = "Not available for this amount";
@@ -216,20 +219,21 @@ export function hasEvenPortionSwap(
   from: SwapCategory | undefined,
   to: SwapCategory | undefined,
   availableFromPicks: number,
+  receivesMissing = false,
 ): boolean {
   if (availableFromPicks < 1) return false;
   if (!from || !to) return true;
   for (let q = 1; q <= availableFromPicks; q++) {
-    if (swapQuantities(from, to, q).ok) return true;
+    if (swapQuantities(from, to, q, receivesMissing).ok) return true;
   }
   return false;
 }
 
 /** Side note for a swap option: the smallest whole swap in real units ("8oz ⇄ 8oz", "4 roti ⇄ 1 unit"); "" when none fits. */
-export function smallestSwapNote(from: SwapCategory | undefined, to: SwapCategory | undefined): string {
+export function smallestSwapNote(from: SwapCategory | undefined, to: SwapCategory | undefined, receivesMissing = false): string {
   if (!from || !to) return "";
   for (let q = 1; q <= 8; q++) {
-    const r = swapQuantities(from, to, q);
+    const r = swapQuantities(from, to, q, receivesMissing);
     if (r.ok) {
       const a = swapAmounts(from, to, q, r.qtyTo);
       return a ? `${a.give} ⇄ ${a.get}` : "";
