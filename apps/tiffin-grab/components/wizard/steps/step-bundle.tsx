@@ -117,7 +117,7 @@ function MealOption({
               <Pill tone="brand" size="sm" className="mb-1 w-fit">Try first</Pill>
               <span className="block text-[17px] leading-snug font-semibold tracking-[-0.02em]">{meal.name}</span>
             </span>
-            <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[17px] font-bold" />
+            <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
           </div>
           <p className="text-muted-foreground text-sm text-pretty">{meal.description || "Taste it before you commit to a plan."}</p>
           <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
@@ -133,7 +133,7 @@ function MealOption({
           {/* Shown on every card beside the name, so picking one never makes it taller. */}
           {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
         </span>
-        <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[17px] font-bold" />
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
