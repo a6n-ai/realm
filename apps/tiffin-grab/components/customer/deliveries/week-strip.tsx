@@ -1,4 +1,5 @@
 "use client";
+import { useRef } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -11,6 +12,8 @@ const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", t
 const WD = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
+/** Past the last week there is nothing more: the grid resists instead of following the finger 1:1. */
+const rubberband = (x: number, width: number) => (x * width * 0.55) / (width + 0.55 * Math.abs(x));
 
 interface Props {
   firstWeek: string;
@@ -30,6 +33,24 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
   const isos = weekDays(week);
   const thisWeek = mondayOf(today);
   const arrives = new Map(trips.map((t) => [t.day, t.units]));
+  const canPrev = week > firstWeek;
+  const canNext = week < lastWeek;
+  const grid = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ id: number; x: number; y: number; t: number; dx: number; horizontal: boolean | null } | null>(null);
+  const swiped = useRef(false);
+  const offset = (dx: number) => {
+    const el = grid.current;
+    if (!el) return;
+    const blocked = (dx > 0 && !canPrev) || (dx < 0 && !canNext);
+    el.style.transform = dx ? `translateX(${blocked ? rubberband(dx, el.offsetWidth) : dx}px)` : "";
+  };
+  const settle = () => {
+    const el = grid.current;
+    if (!el) return;
+    el.style.transition = "transform 300ms cubic-bezier(0.22,1,0.36,1)";
+    offset(0);
+    el.addEventListener("transitionend", () => (el.style.transition = ""), { once: true });
+  };
   const arrow = cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]");
 
   return (
@@ -40,11 +61,58 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
         </p>
         <span className="flex items-center">
           <Legend />
-          <button type="button" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))} className={arrow}><ChevronLeft aria-hidden className="size-4" /></button>
-          <button type="button" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))} className={arrow}><ChevronRight aria-hidden className="size-4" /></button>
+          <button type="button" aria-label="Previous week" disabled={!canPrev} onClick={() => onWeek(addDays(week, -7))} className={arrow}><ChevronLeft aria-hidden className="size-4" /></button>
+          <button type="button" aria-label="Next week" disabled={!canNext} onClick={() => onWeek(addDays(week, 7))} className={arrow}><ChevronRight aria-hidden className="size-4" /></button>
         </span>
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
+      {/* Swipe the days to change week; pan-y keeps vertical scrolling with the browser. */}
+      <div
+        ref={grid}
+        className="mt-1 grid grid-cols-7 gap-1 [touch-action:pan-y] motion-reduce:!transform-none"
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse") return;
+          drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, dx: 0, horizontal: null };
+          swiped.current = false;
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d || d.id !== e.pointerId) return;
+          const dx = e.clientX - d.x;
+          const dy = e.clientY - d.y;
+          // Decide the direction once, after a 10px slop, then track 1:1.
+          if (d.horizontal === null && Math.hypot(dx, dy) > 10) {
+            d.horizontal = Math.abs(dx) > Math.abs(dy);
+            if (d.horizontal) e.currentTarget.setPointerCapture(e.pointerId);
+          }
+          if (!d.horizontal) return;
+          d.dx = dx;
+          offset(dx);
+        }}
+        onPointerUp={(e) => {
+          const d = drag.current;
+          drag.current = null;
+          if (!d?.horizontal) return;
+          swiped.current = true;
+          const flick = Math.abs(d.dx) / Math.max(e.timeStamp - d.t, 1) > 0.5;
+          settle();
+          if (Math.abs(d.dx) > 50 || flick) {
+            if (d.dx < 0 && canNext) onWeek(addDays(week, 7));
+            else if (d.dx > 0 && canPrev) onWeek(addDays(week, -7));
+          }
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          settle();
+        }}
+        onClickCapture={(e) => {
+          // The tap that ends a swipe must not also pick a day.
+          if (swiped.current) {
+            swiped.current = false;
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        }}
+      >
         {isos.map((iso, i) => {
           const s = dayStatus[DAYS[i]!];
           const units = arrives.get(DAYS[i]!);

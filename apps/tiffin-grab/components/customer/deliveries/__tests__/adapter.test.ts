@@ -1,6 +1,6 @@
 import { buildTrips } from "@/lib/deliveries-view";
 import { describe, expect, it } from "vitest";
-import { buildPlanContext, pickDefaultTrip, renewDays, toCalendarInputs } from "../adapter";
+import { buildPlanContext, pickDefaultTrip, planLines, renewDays, toCalendarInputs } from "../adapter";
 
 const counts = { total: 20, complimentary: 0, delivered: 4, remaining: 16, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
 const day = (date: string, o: Record<string, unknown> = {}) => ({
@@ -58,4 +58,19 @@ describe("pickDefaultTrip", () => {
   it("honours ?trip when it exists", () => expect(pickDefaultTrip(trips, "2026-09-25")).toBe("2026-09-25"));
   it("falls back to the next upcoming trip", () => expect(pickDefaultTrip(trips, "1999-01-01")).toBe("2026-09-23"));
   it("empty is null", () => expect(pickDefaultTrip([], undefined)).toBeNull());
+});
+
+describe("planLines", () => {
+  const w = (first: string, last: string) => ({ first, last });
+  it("chains a renewal onto the plan it follows", () => {
+    const lines = planLines([{ publicId: "b" }, { publicId: "a" }], { a: w("2026-10-22", "2026-11-18"), b: w("2026-11-19", "2026-12-16") });
+    expect(lines.map((l) => l.map((s) => s.publicId))).toEqual([["a", "b"]]);
+  });
+  it("gives overlapping plans their own lines, each with its renewal", () => {
+    const lines = planLines(
+      [{ publicId: "lunch" }, { publicId: "dinner" }, { publicId: "lunch2" }, { publicId: "dinner2" }],
+      { lunch: w("2026-10-01", "2026-10-28"), dinner: w("2026-10-10", "2026-11-06"), lunch2: w("2026-10-29", "2026-11-25"), dinner2: w("2026-11-07", "2026-12-04") },
+    );
+    expect(lines.map((l) => l.map((s) => s.publicId))).toEqual([["lunch", "lunch2"], ["dinner", "dinner2"]]);
+  });
 });

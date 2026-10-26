@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button, Card, Notice, Toast } from "@/components/customer/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
-import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries-view/eating";
@@ -18,7 +17,7 @@ import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
-import { renewDays, type PlanView } from "./adapter";
+import { planLines, renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
@@ -52,8 +51,9 @@ interface Props {
   initialAction?: string | null;
 }
 
-function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "flex min-h-11 shrink-0 flex-col justify-center rounded-2xl border-[1.5px] px-4 py-1.5 text-left [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
+/** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
+function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -61,7 +61,6 @@ const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ?
 export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
-  const multi = subs.length > 1;
 
   const [sel, setSel] = useState<string | null>(initialTrip);
   const [wk, setWk] = useState(weekStart);
@@ -131,9 +130,21 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // A plain replace can serve the previous plan's cached RSC render for the same path — refresh forces this plan's own ctx/counts.
   const switchPlan = (id: string) => startNav(() => (router.replace(`/me?sub=${id}`, { scroll: false }), router.refresh()));
 
-  // A renewal: a live plan of this customer whose first tiffin comes after this plan's last one.
-  const last = plan.counts.lastDeliveryDate;
-  const nextPlan = last ? subs.find((s) => s.publicId !== plan.orderId && !DEAD.has(s.displayStatus) && (windows[s.publicId]?.first ?? "") > last) : undefined;
+  // Renewals continue a plan, so they share its tab; only plans running side by side get tabs of their own.
+  const lines = planLines(subs.filter((s) => !DEAD.has(s.displayStatus)), windows);
+  const line = lines.find((l) => l.some((s) => s.publicId === plan.orderId)) ?? [];
+  const at = line.findIndex((s) => s.publicId === plan.orderId);
+  const after = line[at + 1];
+  const before = at > 0 ? line[at - 1] : undefined;
+  const lower = (x: string | null | undefined, sep: string) => (x ? `${sep}${x.replace(/^./, (c) => c.toLowerCase())}` : "");
+  const renewal: string | null = after
+    ? `Renewed · next plan${lower(windowLabel(windows[after.publicId], today), " ")}`
+    : before
+      ? `Renewal${lower(windowLabel(windows[plan.orderId], today), " · ")}`
+      : null;
+  // Every live plan gets a tab, ordered by start; the meal name joins the dates once dates alone can't tell plans apart.
+  const tabs = lines.flat().sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
+  const named = lines.length > 1 || new Set(tabs.map((s) => s.mealSizeName)).size > 1;
 
   const closeToast = useCallback(() => setToast(null), []);
   const changed = (message: string) => (setToast(message), router.refresh());
@@ -172,18 +183,25 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         sub={sub}
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
-        nextPlan={nextPlan ? { when: windowLabel(windows[nextPlan.publicId], today), onView: () => switchPlan(nextPlan.publicId) } : null}
-        plans={multi && (
-          <nav aria-label="Your plans" className="mt-4 flex flex-wrap gap-2">
-            {subs.map((s) => (
-              <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
-                <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
-                  {s.mealSizeName}
-                  <OrderStatusBadge status={s.displayStatus} />
-                </span>
-                <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
-              </PlanTab>
-            ))}
+        renewal={renewal}
+        plans={tabs.length > 1 && (
+          // Swipeable and edge to edge on a phone (cancels the page's px-4): the pill cut off at the screen edge says there is more.
+          <nav aria-label="Your plans" className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:scroll-px-0 lg:px-0">
+            {tabs.map((s) => {
+              const dot = lines.length > 1 && s.tagColor && /^#[0-9a-fA-F]{6}$/.test(s.tagColor) ? s.tagColor : null;
+              const selected = s.publicId === plan.orderId;
+              return (
+                <PlanTab
+                  key={s.publicId}
+                  selected={selected}
+                  ref={selected ? (el) => el?.scrollIntoView?.({ block: "nearest", inline: "center" }) : undefined}
+                  onClick={() => switchPlan(s.publicId)}
+                >
+                  {dot && <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full align-middle" style={{ background: dot }} />}
+                  {named ? `${s.mealSizeCustom ? "Custom meal" : s.mealSizeName} · ` : ""}{windowLabel(windows[s.publicId], today) ?? s.mealSizeName}
+                </PlanTab>
+              );
+            })}
           </nav>
         )}
         actions={!locked && !plan.sub.trial ? (
