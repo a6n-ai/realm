@@ -2,11 +2,14 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn, FONT, FOCUS } from "./cn";
+import { IconTile, type IconTint } from "./icon-tile";
 
 interface ListRowProps {
   label: string;
   sublabel?: string;
   icon?: ReactNode;
+  /** Draws the icon on a Settings-style coloured tile instead of the muted one. */
+  tint?: IconTint;
   value?: ReactNode;
   /** Renders a link with a chevron. Omit for a static row. */
   href?: string;
@@ -15,10 +18,10 @@ interface ListRowProps {
 
 const base = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
 
-export function ListRow({ label, sublabel, icon, value, href, className }: ListRowProps) {
+export function ListRow({ label, sublabel, icon, tint, value, href, className }: ListRowProps) {
   const body = (
     <>
-      {icon && <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--muted)]">{icon}</span>}
+      {icon && (tint ? <IconTile tint={tint}>{icon}</IconTile> : <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--muted)]">{icon}</span>)}
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{label}</span>
         {sublabel && <span className="block text-[13px] text-[var(--muted-foreground)]">{sublabel}</span>}

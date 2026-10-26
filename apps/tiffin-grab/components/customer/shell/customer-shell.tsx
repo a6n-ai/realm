@@ -8,7 +8,7 @@ import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, Refre
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet } from "@/components/customer/kit";
+import { CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
@@ -276,13 +276,13 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         <MenuSection title="Meals">
           {/* Renew sits in the middle and is the one lit up: it is what most customers open this for. */}
           <div className="grid grid-cols-3 gap-2">
-            <MenuTile href="/me/menu" icon={<UtensilsCrossed className="size-5" />} label="Weekly menu" sublabel="This week" />
-            <MenuTile href="/me/renew" icon={<RefreshCw className="size-5" />} label="Renew" sublabel="Same plan" primary />
-            <MenuTile href="/subscribe" icon={<Plus className="size-5" />} label="New order" sublabel="Another plan" />
+            <MenuTile href="/me/menu" tint="orange" icon={<UtensilsCrossed />} label="Weekly menu" sublabel="This week" />
+            <MenuTile href="/me/renew" tint="green" icon={<RefreshCw />} label="Renew" sublabel="Same plan" primary />
+            <MenuTile href="/subscribe" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" />
           </div>
         </MenuSection>
         <MenuSection title="Money">
-          <ListRow href="/me/wallet" icon={<Wallet className="size-[18px]" />} label="Finances" sublabel="Coins, coupons, bills" />
+          <ListRow href="/me/wallet" tint="indigo" icon={<Wallet />} label="Finances" sublabel="Coins, coupons, bills" />
         </MenuSection>
         <MenuSection title="Appearance">
           <Segmented label="Theme" idPrefix="menu-theme" items={THEMES} value={theme ?? "system"} onChange={(t) => setTheme(t as "light" | "dark" | "system")} className="[&>button]:flex-1" />
@@ -292,7 +292,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   );
 }
 
-function MenuTile({ href, icon, label, sublabel, primary = false }: { href: string; icon: ReactNode; label: string; sublabel: string; primary?: boolean }) {
+function MenuTile({ href, icon, tint, label, sublabel, primary = false }: { href: string; icon: ReactNode; tint: IconTint; label: string; sublabel: string; primary?: boolean }) {
   return (
     <Link
       href={href}
@@ -304,7 +304,7 @@ function MenuTile({ href, icon, label, sublabel, primary = false }: { href: stri
           : "bg-[var(--card)] hover:bg-[var(--muted)]",
       )}
     >
-      <span aria-hidden className={cn("grid size-10 place-items-center rounded-xl", primary ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)]")}>{icon}</span>
+      <IconTile tint={tint} size="lg">{icon}</IconTile>
       <span className="text-[15px] leading-tight font-semibold">{label}</span>
       <span className="text-[13px] leading-tight text-[var(--muted-foreground)]">{sublabel}</span>
     </Link>
