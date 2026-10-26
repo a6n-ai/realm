@@ -2,11 +2,13 @@
 
 import type { AuthUi } from "@foundry/auth-ui";
 import { Button, Field, Notice } from "@/components/customer/kit";
+import { cn } from "@/components/customer/kit/cn";
 
 /** Customer-kit primitives for the shared @foundry/auth-ui security screens. */
 export const kitAuthUi: AuthUi = {
-  Button: ({ children, disabled, pending, pendingLabel: _pl, variant = "primary", ...rest }) => (
-    <Button variant={variant} size="lg" pending={pending} disabled={disabled} {...rest}>
+  Button: ({ children, disabled, pending, pendingLabel: _pl, variant = "primary", className, ...rest }) => (
+    // Capsules hug their label; the shared forms ask for w-full on phones.
+    <Button variant={variant} pending={pending} disabled={disabled} className={cn("justify-self-start self-start", className?.replace(/\bw-full\b/, "w-fit"))} {...rest}>
       {children}
     </Button>
   ),

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, LifeBuoy } from "lucide-react";
 import type { ReactNode } from "react";
 import { Role, type RoleValue } from "@foundry/commons";
-import { ListGroup, PageHeader } from "@/components/customer/kit";
+import { IconTile, ListGroup, PageHeader, type IconTint } from "@/components/customer/kit";
+import { Avatar } from "./avatar";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
@@ -51,26 +52,23 @@ function SectionBody({ k, user, role, addresses, cards, dropOff, dropOffs, googl
   }
 }
 
-const TILE: Record<string, string> = {
-  profile: "bg-[#007AFF]",
-  security: "bg-[#34C759]",
-  contact: "bg-[#30B0C7]",
-  "payment-methods": "bg-[#5856D6]",
-  address: "bg-[#FF9500]",
-  dietary: "bg-[#FF2D55]",
-  notifications: "bg-[#FF3B30]",
-  support: "bg-[#AF52DE]",
+const TILE: Record<string, IconTint> = {
+  profile: "blue",
+  security: "green",
+  contact: "teal",
+  "payment-methods": "indigo",
+  address: "orange",
+  dietary: "pink",
+  notifications: "red",
+  support: "purple",
 };
 
-const initials = (name: string | null) => {
-  const w = name?.trim().split(/\s+/).filter(Boolean) ?? [];
-  return w.length ? w.slice(0, 2).map((x) => x[0].toUpperCase()).join("") : "U";
-};
+const CURRENT = "lg:bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]";
 
 const rowBase = "flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left text-[15px] transition-colors active:bg-[var(--muted)]";
 
 function Tile({ k, children }: { k: string; children: ReactNode }) {
-  return <span aria-hidden className={cn("grid size-8 shrink-0 place-items-center rounded-lg text-white", TILE[k])}>{children}</span>;
+  return <IconTile tint={TILE[k]}>{children}</IconTile>;
 }
 
 function GroupHeader({ children }: { children: ReactNode }) {
@@ -87,7 +85,7 @@ function SectionRow({ s, current }: { s: AccountSection; current: boolean }) {
       href={accountSectionHref(s)}
       scroll={false}
       aria-current={current ? "page" : undefined}
-      className={cn(FONT, FOCUS, rowBase, "font-semibold", current && "lg:bg-[var(--primary-wash,#FBE3D2)]")}
+      className={cn(FONT, FOCUS, rowBase, "font-semibold", current && CURRENT)}
     >
       <Tile k={s.key}><s.icon className="size-[18px]" /></Tile>
       <span className="min-w-0 flex-1">
@@ -102,14 +100,7 @@ function SectionRow({ s, current }: { s: AccountSection; current: boolean }) {
 function AccountRow({ user, profile, current }: { user: AccountUser; profile: AccountSection | undefined; current: boolean }) {
   const body = (
     <>
-      {user.image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- secured file URL carries a per-request token
-        <img src={user.image} alt="" className="size-14 shrink-0 rounded-full object-cover" />
-      ) : (
-        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-xl font-bold text-[#B5430B] dark:text-[#FFB877]">
-          {initials(user.name)}
-        </span>
-      )}
+      <Avatar name={user.name} image={user.image} className="size-14 text-xl" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[17px] font-semibold">{user.name?.trim() || "Your account"}</span>
         <span className="block truncate text-[13px] font-normal text-[var(--muted-foreground)]">{user.email}</span>
@@ -117,7 +108,7 @@ function AccountRow({ user, profile, current }: { user: AccountUser; profile: Ac
       {profile && <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />}
     </>
   );
-  const cls = cn(FONT, rowBase, "min-h-[4.5rem] py-3", current && "lg:bg-[var(--primary-wash,#FBE3D2)]");
+  const cls = cn(FONT, rowBase, "min-h-[4.5rem] py-3", current && CURRENT);
   return profile ? (
     <Link href={accountSectionHref(profile)} scroll={false} aria-current={current ? "page" : undefined} aria-label={`${user.name?.trim() || "Profile"}, ${user.email}. Profile`} className={cn(FOCUS, cls)}>
       {body}
@@ -159,7 +150,8 @@ export function AccountPage({
   const pick = (keys: AccountSectionKey[]) => sections.filter((s) => keys.includes(s.key));
   const groups = [
     { header: "Account", rows: pick(["security", "contact", "payment-methods"]), footer: undefined },
-    { header: "Preferences", rows: pick(["address", "dietary", "notifications"]), footer: "Allergens are flagged on every order." },
+    // The allergens note belongs to the Dietary row, so it only shows when that row does.
+    { header: "Preferences", rows: pick(["address", "dietary", "notifications"]), footer: sections.some((s) => s.key === "dietary") ? "Allergens are flagged on every order." : undefined },
   ].filter((g) => g.rows.length > 0);
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">

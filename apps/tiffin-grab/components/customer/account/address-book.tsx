@@ -8,7 +8,7 @@ import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
 import { useAddressBook } from "@foundry/address/hooks";
 import { formatAddress } from "@foundry/address/ui";
-import { Button, Field, IconButton, ListGroup, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, Field, IconButton, IconTile, ListGroup, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { SettingsBlock } from "./settings-block";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
@@ -158,9 +158,7 @@ export function AddressBook({
             data-address={a.publicId}
             className="flex min-h-14 items-start justify-between gap-3 px-4 py-3"
           >
-            <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#FF9500] text-white">
-              <MapPinIcon className="size-[18px]" />
-            </span>
+            <IconTile tint="orange"><MapPinIcon /></IconTile>
             <div className="min-w-0 flex-1 space-y-1">
               <p className="flex items-center gap-2 text-[15px] font-semibold">
                 <span>{a.label}</span>

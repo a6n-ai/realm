@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, Trash2Icon } from "lucide-react";
-import { Button, EmptyState, ListGroup, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, EmptyState, IconTile, ListGroup, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { removeSavedCard } from "@/app/(customer)/me/account/card-actions";
 import { SettingsBlock } from "./settings-block";
 import { unwrapAction } from "@/lib/actions/unwrap";
@@ -44,9 +44,7 @@ export function SavedCards({ cards }: { cards: SavedCardView[] }) {
         {cards.map((c) => (
           <div key={c.paymentMethodId} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
-              <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#5856D6] text-white">
-                <CreditCardIcon className="size-[18px]" />
-              </span>
+              <IconTile tint="indigo"><CreditCardIcon /></IconTile>
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-[15px] font-semibold">
                   <span>{brandName(c.brand)} •••• {c.last4 ?? "????"}</span>
