@@ -83,12 +83,32 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
 
 /** Live countdown to the next cutoff in the app timezone; tap for what it means. Server render and
  * the first client frame show a dashed placeholder, so hydration never sees a clock. */
+/** The account's photo, or its initials, as a round glass button to Account — the iOS profile corner. */
+function AccountAvatar({ name, image, active }: { name: string | null; image: string | null; active: boolean }) {
+  const initials = (name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+  return (
+    <Link
+      href="/me/account"
+      aria-label="Account"
+      aria-current={active ? "page" : undefined}
+      className={cn(FOCUS, "c-liquid grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-transparent text-[15px] font-semibold transition-transform active:scale-[.96] motion-reduce:transform-none", active && "ring-[1.5px] ring-[var(--primary)]")}
+    >
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="size-full object-cover" />
+      ) : (
+        <span aria-hidden>{initials}</span>
+      )}
+    </Link>
+  );
+}
+
 function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   const tz = useTimezone();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     setNow(Date.now());
-    const i = setInterval(() => setNow(Date.now()), 1000);
+    const i = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(i);
   }, []);
   const next = now === null ? null : nextCutoff(now, cutoffHour, tz);
@@ -117,8 +137,8 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         data-urgent={urgent || undefined}
         className={cn(
           FOCUS,
-          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-[var(--primary)] active:scale-[.97] motion-reduce:transform-none [@media(hover:hover)]:hover:-translate-y-px",
-          urgent ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
+          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none [@media(hover:hover)]:hover:-translate-y-px",
+          urgent ? "border-transparent bg-[var(--primary-wash,#FBE3D2)]" : "c-liquid border-transparent",
         )}
       >
         {urgent ? (
@@ -132,7 +152,7 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         <span className="flex flex-col leading-none">
           <span className="hidden text-[11px] font-semibold text-[var(--muted-foreground)] sm:block">Cutoff in</span>
           <span className={cn("text-[13px] sm:mt-0.5 font-bold tabular-nums", urgent && "text-[#B5430B] dark:text-[#FFB877]")}>
-            {next ? formatCountdown(next.ms) : "--:--:--"}
+            {next ? formatCountdown(next.ms) : "--"}
           </span>
         </span>
       </button>
@@ -153,7 +173,7 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   );
 }
 
-export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
+export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, userName = null, userImage = null, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; userName?: string | null; userImage?: string | null; staffReplies?: Record<string, number>; children: ReactNode }) {
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
@@ -168,10 +188,13 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   // Like iOS 26 (tabBarMinimizeBehavior .onScrollDown): scrolling down shrinks the bar to icons, scrolling up
   // brings the labels back. Pages read --tabbar-h to keep their floating bars just above it.
   const [compact, setCompact] = useState(false);
+  // iOS navigation bar: see-through at the top of the page, glass with a hairline once content scrolls under it.
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     let last = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
+      setScrolled(y > 4);
       if (y > last + 8 && y > 120) setCompact(true);
       else if (y < last - 8 || y < 120) setCompact(false);
       if (Math.abs(y - last) > 8) last = y;
@@ -214,7 +237,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
     <div className={cn(FONT, "min-h-dvh bg-[var(--background)] text-[var(--foreground)]")}>
       <a href="#main" className={cn(FOCUS, "sr-only z-50 rounded-full border border-[var(--primary)] bg-[var(--card)] px-4 py-3 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-[calc(env(safe-area-inset-top)+4.5rem)]")}>Skip to content</a>
       {!flow && <header
-        className="c-glass sticky top-0 z-40 border-b border-[var(--border)] pt-[env(safe-area-inset-top)]"
+        className={cn("sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-200", scrolled ? "c-glass border-[var(--border)]" : "border-transparent bg-transparent")}
         style={{ viewTransitionName: "customer-header" }}
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
@@ -231,6 +254,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           <div className="flex items-center justify-end gap-2">
             <CutoffChip cutoffHour={cutoffHour} />
             <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />
+            <AccountAvatar name={userName} image={userImage} active={tab === "account"} />
           </div>
         </div>
       </header>}

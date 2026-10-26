@@ -36,8 +36,8 @@ export function CoinChip({ href, balance, value, active }: { href: string; balan
       className={cn(
         FONT,
         FOCUS,
-        "inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-[var(--primary)] active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transform-none",
-        active ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
+        "inline-flex h-11 items-center gap-1.5 rounded-full border border-transparent px-3.5 text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-[background-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none",
+        active ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "c-liquid",
       )}
     >
       <Wallet aria-hidden className="size-5 text-[var(--primary)]" />
