@@ -105,15 +105,15 @@ function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
       else toast("Receipt sent to your email");
     });
   return (
-    // Icon-only at the card's foot; the labels stay as their names and hover tips.
-    <div className="flex justify-end gap-2 pt-1">
-      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "quiet", className: "!size-10 !min-h-10 !px-0" })}>
+    // Icon-only, on the status line's right end; the labels stay as their names and hover tips.
+    <span className="ml-auto flex gap-1.5">
+      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "quiet", className: "!size-9 !min-h-9 !px-0" })}>
         <Download aria-hidden className="size-[18px]" />
       </a>
-      <Button type="button" variant="quiet" aria-label="Email receipt" title="Email receipt" className="!size-10 !min-h-10 !px-0" pending={sending} onClick={email}>
+      <Button type="button" variant="quiet" aria-label="Email receipt" title="Email receipt" className="!size-9 !min-h-9 !px-0" pending={sending} onClick={email}>
         <Mail aria-hidden className="size-[18px]" />
       </Button>
-    </div>
+    </span>
   );
 }
 
@@ -178,6 +178,7 @@ function BillRow({
               {claimable.status === "pending_verification" ? "Update claim" : "I've sent it"}
             </Button>
           )}
+          <ReceiptActions orderPublicId={bill.publicId} />
         </div>
         {hints.map((h) => (
           <p key={h} className="text-muted-foreground text-xs">{h}</p>
@@ -185,7 +186,6 @@ function BillRow({
         {details.map((d) => (
           <p key={d} className="text-muted-foreground text-xs">{d}</p>
         ))}
-        <ReceiptActions orderPublicId={bill.publicId} />
       </div>
       <span className="shrink-0 text-[15px] font-semibold tabular-nums">
         {formatDollars(bill.total, currency)}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LifeBuoy } from "lucide-react";
+import { ChevronLeft, ChevronRight, LifeBuoy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Role, type RoleValue } from "@foundry/commons";
 import { IconTile, ListGroup, PageHeader, type IconTint } from "@/components/customer/kit";
@@ -61,6 +61,7 @@ const TILE: Record<string, IconTint> = {
   dietary: "pink",
   notifications: "red",
   support: "purple",
+  finances: "mint",
 };
 
 const CURRENT = "lg:bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]";
@@ -173,6 +174,20 @@ export function AccountPage({
               {g.footer && <GroupFooter>{g.footer}</GroupFooter>}
             </div>
           ))}
+          {/* Finances lives in the header coin pill too; Settings lists it so it's found where accounts usually keep money. */}
+          <div>
+            <GroupHeader>Money</GroupHeader>
+            <ListGroup>
+              <Link href="/me/wallet" className={cn(FONT, FOCUS, rowBase, "font-semibold")}>
+                <Tile k="finances"><Wallet className="size-[18px]" /></Tile>
+                <span className="min-w-0 flex-1">
+                  <span className="block">Finances</span>
+                  <span className="block text-[13px] font-normal text-[var(--muted-foreground)] lg:hidden">Coins, coupons, bills</span>
+                </span>
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+              </Link>
+            </ListGroup>
+          </div>
           <div>
             <GroupHeader>Help</GroupHeader>
             <ListGroup>
