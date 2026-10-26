@@ -5,6 +5,7 @@ import {
   buildSlotDropdownOptions,
   dishOptionValue,
   hasOutgoingSwapOptions,
+  liveSwapOptions,
   parseSlotOptionValue,
   swapOptionValue,
 } from "../slot-dropdown";
@@ -262,5 +263,12 @@ describe("Edit meal: a pair with exchange overrides is decided per row", () => {
   it("the 12oz row shows Salad disabled for this amount", () => {
     const [o] = row(0);
     expect(o).toMatchObject({ disabled: true, reason: "Not available for this amount" });
+  });
+
+  it("the sheet keeps the pair live and allows the 1-pick swap for the usable row", () => {
+    expect(option.available).toBe(false);
+    const [live] = liveSwapOptions([option]);
+    expect(live!.validBundles.map((b) => b.fromPicks)).toEqual([1]);
+    expect(liveSwapOptions([{ ...option, rowBundles: { 0: null, 1: null } }])).toEqual([]);
   });
 });

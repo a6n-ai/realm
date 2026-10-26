@@ -40,6 +40,19 @@ export function dishesAllowedByRules<D extends GridDish>(args: {
 }
 
 /**
+ * Options the sheet may offer: available ones, plus pairs whose leading row fails but
+ * another row has its own exchange-override bundle (their usable row bundles stand in
+ * as validBundles so the rule check and the allowed set see them).
+ */
+export function liveSwapOptions(options: SwapOption[]): SwapOption[] {
+  return options.flatMap((o) => {
+    if (o.available) return [o];
+    const rows = Object.values(o.rowBundles ?? {}).filter((b): b is NonNullable<typeof b> => !!b);
+    return rows.length ? [{ ...o, available: true, reason: null, validBundles: rows }] : [];
+  });
+}
+
+/**
  * Swap bundles whose new slots can each still be filled with a dish from that day's
  * menu without breaking a meal rule (e.g. no swap into a Chicken-only category when
  * the meal already has its one Chicken dish). The given picks leave first, in the
