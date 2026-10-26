@@ -106,11 +106,11 @@ function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
     });
   return (
     // Icon-only, under the bill's price on the card's right side; the labels stay as their names and hover tips.
-    <span className="flex gap-1.5">
-      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "quiet", className: "!size-9 !min-h-9 !px-0" })}>
+    <span className="-mr-2 flex">
+      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "ghost", className: "!size-10 !min-h-10 !px-0 text-[var(--muted-foreground)] hover:!bg-transparent hover:text-[var(--foreground)]" })}>
         <Download aria-hidden className="size-[18px]" />
       </a>
-      <Button type="button" variant="quiet" aria-label="Email receipt" title="Email receipt" className="!size-9 !min-h-9 !px-0" pending={sending} onClick={email}>
+      <Button type="button" variant="ghost" aria-label="Email receipt" title="Email receipt" className="!size-10 !min-h-10 !px-0 text-[var(--muted-foreground)] hover:!bg-transparent hover:text-[var(--foreground)]" pending={sending} onClick={email}>
         <Mail aria-hidden className="size-[18px]" />
       </Button>
     </span>
