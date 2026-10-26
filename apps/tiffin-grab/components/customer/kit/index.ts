@@ -22,5 +22,6 @@ export { MenuSection } from "./menu-sheet";
 export { CoinChip, NavPill } from "./nav-pill";
 export { PageHeader } from "./page-header";
 export { Choice, ChoiceGroup, OptionCard, PillToggle, SelectableCard } from "./selectable-card";
+export { IconTile, type IconTint } from "./icon-tile";
 export { StatTile } from "./stat-tile";
 export { ThemeToggle } from "./theme-toggle";

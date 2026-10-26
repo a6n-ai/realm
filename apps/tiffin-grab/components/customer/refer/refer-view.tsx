@@ -1,5 +1,5 @@
 import { Gift, Users } from "lucide-react";
-import { Card, EmptyState, ListGroup, ListRow, Pill, StatTile, type Tone } from "@/components/customer/kit";
+import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatTile, type Tone } from "@/components/customer/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
 import { ShareCard } from "./share-card";
@@ -30,9 +30,7 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
       <ShareCard code={code} />
 
       <Card className="flex gap-3 p-5">
-        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)]">
-          <Gift className="size-5" />
-        </span>
+        <IconTile tint="pink" size="lg"><Gift /></IconTile>
         <div className="space-y-1">
           <h2 className="c-h2">How it works</h2>
           <p className="c-caption text-[15px]">{howItWorks(settings)}</p>

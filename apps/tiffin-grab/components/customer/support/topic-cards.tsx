@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { CalendarDays, CreditCard, MessageCircleHeart, Package, Truck, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { IconTile, type IconTint } from "@/components/customer/kit";
 import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
-const TOPICS: { category: TicketCategoryValue; title: string; icon: LucideIcon }[] = [
-  { category: "delivery", title: "Delivery", icon: Truck },
-  { category: "food_meal", title: "Food", icon: UtensilsCrossed },
-  { category: "plan_subscription", title: "Plan", icon: CalendarDays },
-  { category: "billing", title: "Billing", icon: CreditCard },
-  { category: "packaging", title: "Packaging", icon: Package },
-  { category: "feedback", title: "Feedback", icon: MessageCircleHeart },
+const TOPICS: { category: TicketCategoryValue; title: string; icon: LucideIcon; tint: IconTint }[] = [
+  { category: "delivery", title: "Delivery", icon: Truck, tint: "orange" },
+  { category: "food_meal", title: "Food", icon: UtensilsCrossed, tint: "red" },
+  { category: "plan_subscription", title: "Plan", icon: CalendarDays, tint: "blue" },
+  { category: "billing", title: "Billing", icon: CreditCard, tint: "indigo" },
+  { category: "packaging", title: "Packaging", icon: Package, tint: "brown" },
+  { category: "feedback", title: "Feedback", icon: MessageCircleHeart, tint: "pink" },
 ];
 
 /** Big tappable topics: each opens a new ticket with that topic already picked. */
@@ -25,9 +26,7 @@ export function TopicCards() {
               scroll={false}
               className={cn(FOCUS, "flex h-full min-h-14 items-center gap-3 c-surface rounded-2xl bg-[var(--card)] px-4 py-3 transition-transform [touch-action:manipulation] active:scale-[.98] motion-reduce:active:scale-100")}
             >
-              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)]">
-                <t.icon className="size-5" />
-              </span>
+              <IconTile tint={t.tint} size="lg"><t.icon /></IconTile>
               <span className="min-w-0 truncate text-[15px] font-semibold">{t.title}</span>
             </Link>
           </li>
