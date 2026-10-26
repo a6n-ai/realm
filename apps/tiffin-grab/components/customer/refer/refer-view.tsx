@@ -13,16 +13,23 @@ const STATUS: Record<ReferralFriendStatus, { label: string; tone: Tone }> = {
 };
 
 const paused = (s: ReferralSettings) => s.referrerValue <= 0 && s.friendValue <= 0;
+type Rate = { perCoin: number; currency: string } | null;
+
+/** What coins are worth in money, so every card answers "how much is that?". Null without a rate. */
+const worth = (rate: Rate, coins: number) =>
+  rate ? new Intl.NumberFormat("en-CA", { style: "currency", currency: rate.currency }).format(coins * rate.perCoin) : null;
+
 /** "20" + "coins", or "5%" + "back" for percentage rewards. */
 const reward = (s: ReferralSettings, v: number) => (s.mode === "pct" ? { value: `${v}%`, unit: "back" } : { value: v, unit: v === 1 ? "coin" : "coins" });
 
-function HowItWorks({ settings }: { settings: ReferralSettings }) {
+function HowItWorks({ settings, rate }: { settings: ReferralSettings; rate: Rate }) {
   const you = reward(settings, settings.referrerValue);
   const friend = reward(settings, settings.friendValue);
+  const inMoney = (v: number) => (settings.mode === "flat" && worth(rate, v) ? ` (${worth(rate, v)})` : "");
   const steps = [
     { icon: <Share2 />, tint: "blue" as const, title: "Share your code", body: "Send your link or code to a friend." },
     { icon: <UtensilsCrossed />, tint: "teal" as const, title: "They order", body: "They sign up with it and pay for their first plan." },
-    { icon: <Coins />, tint: "green" as const, title: "You both get coins", body: `${you.value} ${you.unit} for you, ${friend.value} ${friend.unit} for them, in both wallets.` },
+    { icon: <Coins />, tint: "green" as const, title: "You both get coins", body: `${you.value} ${you.unit}${inMoney(settings.referrerValue)} for you, ${friend.value} ${friend.unit}${inMoney(settings.friendValue)} for them, in both wallets.` },
   ];
   return (
     <section aria-labelledby="refer-how" className="space-y-3">
@@ -34,8 +41,10 @@ function HowItWorks({ settings }: { settings: ReferralSettings }) {
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
-export function ReferView({ summary, wallet }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null } }) {
+export function ReferView({ summary, wallet, rate = null }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null }; rate?: Rate }) {
   const { code, settings, totalCoins, friends, canEnterCode } = summary;
+  const flat = settings.mode === "flat";
+  const offerHint = (coins: number, when: string) => (flat && worth(rate, coins) ? `Worth ${worth(rate, coins)} · ${when.toLowerCase()}` : when);
   return (
     <div className="space-y-6">
       {canEnterCode ? <EnterCodeCard /> : null}
@@ -48,19 +57,22 @@ export function ReferView({ summary, wallet }: { summary: ReferralSummary; walle
         </Card>
       ) : (
         <StatGroup>
-          <StatTile bare icon={<IconTile tint="orange"><Gift /></IconTile>} label="You get" {...reward(settings, settings.referrerValue)} hint="When their first order is paid" />
-          <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="Your friend gets" {...reward(settings, settings.friendValue)} hint="On their first order" />
+          <StatTile bare icon={<IconTile tint="orange"><Gift /></IconTile>} label="You get" {...reward(settings, settings.referrerValue)} hint={offerHint(settings.referrerValue, "When their first order is paid")} />
+          <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="Your friend gets" {...reward(settings, settings.friendValue)} hint={offerHint(settings.friendValue, "On their first order")} />
         </StatGroup>
       )}
 
       <ShareCard code={code} />
 
-      <HowItWorks settings={settings} />
+      <HowItWorks settings={settings} rate={rate} />
 
       <section aria-labelledby="refer-coins" className="space-y-3">
-        <h2 id="refer-coins" className="c-h2">Your coins</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="refer-coins" className="c-h2">Your coins</h2>
+          {rate ? <p className="c-caption tabular-nums">1 coin = {worth(rate, 1)}</p> : null}
+        </div>
         <StatGroup>
-          <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint="Earned from friends" />
+          <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="From referrals" value={totalCoins} unit="coins" hint={worth(rate, totalCoins) ? `Worth ${worth(rate, totalCoins)} · earned from friends` : "Earned from friends"} />
           {wallet ? (
             <StatTile
               bare

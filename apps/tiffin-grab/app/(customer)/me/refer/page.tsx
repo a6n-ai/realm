@@ -27,6 +27,10 @@ async function ReferData({ userId }: { userId: bigint }) {
     walletService.balance(userId),
     getAppSettings(),
   ]);
-  const dollars = await walletService.moneyValue(coins, currency);
-  return <ReferView summary={summary} wallet={{ coins, dollars }} />;
+  const [dollars, perCoin] = await Promise.all([
+    walletService.moneyValue(coins, currency),
+    // Display only; no rate set for this currency means coins-only cards.
+    walletService.activeRate(currency).catch(() => null),
+  ]);
+  return <ReferView summary={summary} wallet={{ coins, dollars }} rate={perCoin == null ? null : { perCoin, currency }} />;
 }
