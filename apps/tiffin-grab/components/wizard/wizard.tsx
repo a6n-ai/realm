@@ -41,6 +41,7 @@ export function Wizard({
   exitHref,
   trial = null,
   holidayDates = [],
+  popular = [],
   quote = null,
 }: {
   /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
@@ -58,6 +59,8 @@ export function Wizard({
   exitHref?: string;
   /** Declared closed days; the start date cannot be one. */
   holidayDates?: string[];
+  /** Most-ordered meal size ids, shown first on Bundle. */
+  popular?: string[];
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
@@ -215,7 +218,7 @@ export function Wizard({
           <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
 
           {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
-          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} />}
+          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} popular={popular} />}
           {step === 2 && !trialSelected && <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
           {step === 3 && (
             <StepDuration

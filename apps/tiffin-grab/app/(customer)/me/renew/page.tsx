@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { popularMealSizeIds } from "@/lib/services/popular-meal-sizes.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
@@ -46,7 +47,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs] = await Promise.all([
+  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs, popular] = await Promise.all([
     loadCatalogSnapshot(),
     resolveRequestOrg().then(getTrialSettings),
     db
@@ -68,6 +69,8 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
       .limit(1),
     myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
+    // Ranked across every plan; the Bundle step keeps the top two on the chosen one.
+    popularMealSizeIds(orgId, 12),
   ]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
@@ -129,6 +132,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}
           holidayDates={holidayDates}
+          popular={popular}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
           trial={
             trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0

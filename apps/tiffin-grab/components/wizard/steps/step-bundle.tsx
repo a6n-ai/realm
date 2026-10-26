@@ -17,6 +17,7 @@ export function StepBundle({
   set,
   currentPlan = null,
   trial = null,
+  popular = [],
 }: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
@@ -24,9 +25,19 @@ export function StepBundle({
   currentPlan?: CurrentPlanSummary | null;
   /** When set, trial sizes appear in this step. Null hides them (trials are off). */
   trial?: { maxDays: number; weekdays: string[] } | null;
+  /** Most-ordered meal size ids; the ones on this plan go first, side by side, and leave the tier lists. */
+  popular?: string[];
 }) {
   const meals = listableMealSizes(catalog.mealSizes).filter((m) => m.planKey === selections.planKey);
-  const weekly = meals.filter((m) => !m.trial);
+  const top = popular.map((id) => meals.find((m) => m.publicId === id && !m.trial)).filter((m): m is ClientMealSizeView => !!m).slice(0, 2);
+  const weekly = meals.filter((m) => !m.trial && !top.includes(m));
+  const pick = (m: ClientMealSizeView) => set({
+    mealSizeId: m.publicId,
+    trialDays: undefined,
+    // Another meal may not offer the same add-ons; the server would refuse a stale one.
+    ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
+    ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
+  });
   const trials = trial ? meals.filter((m) => m.trial) : [];
 
   // Add-ons on this plan's menu, plus plan-bound ones (see mealSizeAddons).
@@ -40,6 +51,18 @@ export function StepBundle({
           {currentPlan.daysPerWeek} delivery days/wk. Choose a meal size for the <strong>new</strong> plan.
         </CurrentPlanHint>
       ) : null}
+      {top.length > 0 && (
+        <section>
+          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Most popular</h3>
+          {/* Two across at every width: the pick most people make, before the full list. */}
+          <div className={top.length > 1 ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+            {top.map((m) => <PopularOption key={m.publicId} meal={m} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
+            {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
+              <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} selections={selections} set={set} className="col-span-2 hidden sm:block" />
+            )}
+          </div>
+        </section>
+      )}
       {trials.length > 0 && trial && (
         <section>
           <h3 className="mb-3 text-[13px] font-semibold tracking-[0.02em] text-[var(--muted-foreground)]">New here? Try a tiffin first</h3>
@@ -70,13 +93,7 @@ export function StepBundle({
                     meal={m}
                     active={selections.mealSizeId === m.publicId}
                     categoryLabels={catalog.categoryLabels}
-                    onPick={() => set({
-                      mealSizeId: m.publicId,
-                      trialDays: undefined,
-                      // Another meal may not offer the same add-ons; the server would refuse a stale one.
-                      ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
-                      ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
-                    })}
+                    onPick={() => pick(m)}
                   />
                   {/* Desktop: right under the meal it extends. Phones get the drawer on Next instead. */}
                   {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
@@ -89,6 +106,20 @@ export function StepBundle({
         );
       })}
     </div>
+  );
+}
+
+/** Compact card for the Most popular row: name, kcal and price, sized for half a phone's width. */
+function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; active: boolean; onPick: () => void }) {
+  return (
+    <OptionCard selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5">
+      <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
+      <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance">{meal.name}</span>
+      {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+      <span className="mt-auto pt-1">
+        <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[22px] font-bold tracking-[-0.03em]" />
+      </span>
+    </OptionCard>
   );
 }
 

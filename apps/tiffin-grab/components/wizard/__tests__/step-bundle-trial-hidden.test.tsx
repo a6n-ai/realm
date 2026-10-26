@@ -84,3 +84,14 @@ describe("StepBundle kcal pill", () => {
     expect(screen.getAllByText("400–600 kcal").length).toBeGreaterThan(0);
   });
 });
+
+describe("StepBundle most popular", () => {
+  it("puts the popular sizes first, two across, and takes them out of the tier list", () => {
+    const sizes = [meal("small_thali"), meal("big_thali"), meal("mid_thali")];
+    render(<StepBundle catalog={{ ...catalog, mealSizes: sizes }} selections={selections} set={vi.fn()} popular={["msz_mid_thali", "msz_nope"]} />);
+    expect(screen.getByText("Most popular")).toBeDefined();
+    // Shown once, in the popular row; unknown ids are ignored.
+    expect(screen.getAllByText("mid_thali")).toHaveLength(1);
+    expect(screen.getByText("Popular")).toBeDefined();
+  });
+});
