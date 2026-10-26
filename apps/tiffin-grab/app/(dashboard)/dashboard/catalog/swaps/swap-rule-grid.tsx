@@ -227,7 +227,7 @@ function SwapPairDialog({
   const fromTu = tuByKey.get(fromCategory);
   const toTu = tuByKey.get(toCategory);
   const conversion = naturalSwapConversion(fromTu, toTu);
-  const sameUnit = !!fromTu && !!toTu && fromTu.tuUnitType === toTu.tuUnitType && fromTu.tuUnitSize === toTu.tuUnitSize;
+  const sameUnit = !!fromTu && !!toTu && fromTu.tuUnitType === toTu.tuUnitType && fromTu.tuUnitLabel === toTu.tuUnitLabel;
   const sizeChoices = mealSizeOptions.filter((s) => s.planId === planId);
   const [naturalFallback, setNaturalFallback] = React.useState(pair?.naturalFallback ?? true);
   const [overrides, setOverrides] = React.useState<OverrideDraft[]>(() => {
