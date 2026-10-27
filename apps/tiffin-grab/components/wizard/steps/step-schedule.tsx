@@ -129,7 +129,7 @@ export function StepSchedule({
         </div>
       </section>
 
-      <section aria-labelledby="sched-preview" className="bg-card border-border rounded-[20px] border p-5">
+      <section aria-labelledby="sched-preview" className="c-surface bg-card rounded-[20px] p-5">
         <div className="flex items-end justify-between gap-3">
           <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
           <p className="text-right leading-none">

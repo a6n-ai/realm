@@ -68,7 +68,7 @@ function MealRuleNotes({
 }) {
   if (rules.length === 0) return null;
   return (
-    <section className="rounded-lg border p-3">
+    <section className="rounded-2xl bg-[var(--muted)]/50 p-3">
       <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
         Good to know
       </h3>
@@ -585,7 +585,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
               </div>
 
               {/* One grouped list: each category a row, dividers between, one open at a time. */}
-              <div className="divide-y divide-[var(--border,#E8E0D5)] overflow-hidden rounded-2xl border border-[var(--border,#E8E0D5)] bg-[var(--card,#fff)]">
+              <div className="divide-y divide-[var(--border,#E8E0D5)] c-surface overflow-hidden rounded-2xl bg-[var(--card,#fff)]">
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
@@ -744,7 +744,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
                 // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
-                <div className="overflow-hidden rounded-2xl border border-[var(--primary)]/40 bg-[var(--card,#fff)]">
+                <div className="c-surface overflow-hidden rounded-2xl bg-[var(--card,#fff)] ring-[1.5px] ring-[var(--primary)]/40">
                 <U.CategorySection
                   label="Add-ons"
                   summary={addonSummary.map((b) => b.lines.join(", ")).join(" · ")}

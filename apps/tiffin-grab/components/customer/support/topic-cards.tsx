@@ -1,16 +1,7 @@
 import Link from "next/link";
-import { CalendarDays, CreditCard, MessageCircleHeart, Package, Truck, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
-
-const TOPICS: { category: TicketCategoryValue; title: string; icon: LucideIcon }[] = [
-  { category: "delivery", title: "Delivery", icon: Truck },
-  { category: "food_meal", title: "Food", icon: UtensilsCrossed },
-  { category: "plan_subscription", title: "Plan", icon: CalendarDays },
-  { category: "billing", title: "Billing", icon: CreditCard },
-  { category: "packaging", title: "Packaging", icon: Package },
-  { category: "feedback", title: "Feedback", icon: MessageCircleHeart },
-];
+import { IconTile } from "@/components/customer/kit";
+import { TOPICS } from "./topics";
 
 /** Big tappable topics: each opens a new ticket with that topic already picked. */
 export function TopicCards() {
@@ -23,11 +14,9 @@ export function TopicCards() {
             <Link
               href={`/me/support?ticket=new&category=${t.category}`}
               scroll={false}
-              className={cn(FOCUS, "flex h-full min-h-14 items-center gap-3 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card)] px-4 py-3 transition-transform [touch-action:manipulation] active:scale-[.98] motion-reduce:active:scale-100")}
+              className={cn(FOCUS, "flex h-full min-h-14 items-center gap-3 c-surface rounded-2xl bg-[var(--card)] px-4 py-3 transition-transform [touch-action:manipulation] active:scale-[.98] motion-reduce:active:scale-100")}
             >
-              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)]">
-                <t.icon className="size-5" />
-              </span>
+              <IconTile tint={t.tint} size="lg"><t.icon /></IconTile>
               <span className="min-w-0 truncate text-[15px] font-semibold">{t.title}</span>
             </Link>
           </li>

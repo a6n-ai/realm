@@ -14,6 +14,10 @@ export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
 export type WizardOrigin = "subscribe" | "renew" | "trial";
 
+// The plan steps the customer came through (JSON string[]), so checkout's Plan segment keeps the
+// same ticks: one for quick renew, the wizard's Baseline/Bundle/… for subscribe and trial.
+export const WIZARD_PLAN_STEPS_KEY = "tiffin.wizard.planSteps";
+
 // One-shot flags from Quick Renew: open checkout on Pay, with this saved address (publicId).
 
 // Wizard step to reopen on when "Edit plan" comes back from checkout.

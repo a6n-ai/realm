@@ -49,7 +49,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
       {plans}
       {/* The plan sits in its own box so it reads apart from the greeting; the plan's tag colour edges it. */}
       <div
-        className="mt-4 rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-3.5"
+        className="c-surface mt-4 rounded-[20px] bg-[var(--card,#fff)] px-4 py-3.5"
         style={dot ? { borderLeft: `4px solid ${dot}` } : undefined}
         data-testid="plan-card"
       >
@@ -79,7 +79,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
         )}
         {/* Every button lives in the footer, so plans differ only by how many there are. */}
         {(renewSoon || actions) && (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--border)] pt-3 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">
+          <div className="mt-3 flex flex-wrap gap-2 pt-1 [&>*]:min-w-0 [&>*]:flex-1 lg:justify-end lg:[&>*]:flex-none" data-testid="plan-actions">
             {renewSoon && <Link href="/me/renew" className={buttonClass({ variant: "primary", className: "whitespace-nowrap" })}>Renew plan</Link>}
             {actions}
           </div>

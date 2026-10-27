@@ -56,7 +56,7 @@ export function Tabs({ label, items, value, onChange, idPrefix = "kit", variant 
               on
                 ? "bg-[var(--foreground)] text-[var(--background)]"
                 : variant === "tabs"
-                  ? "border-[1.5px] border-[var(--border)] bg-[var(--card)]"
+                  ? "c-surface bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]"
                   : "text-[var(--muted-foreground,#6E6558)] hover:bg-[var(--card)] hover:text-[var(--foreground)]",
             )}
           >

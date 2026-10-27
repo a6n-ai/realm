@@ -43,7 +43,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
         <MotionProvider>
-          <CustomerShell coinBalance={coinBalance} coinValue={coinValue} cutoffHour={cutoffHour} userPublicId={user.publicId} staffReplies={staffReplies}>{children}</CustomerShell>
+          <CustomerShell coinBalance={coinBalance} coinValue={coinValue} cutoffHour={cutoffHour} userPublicId={user.publicId} userName={user.name ?? null} userImage={user.image ?? null} staffReplies={staffReplies}>{children}</CustomerShell>
         </MotionProvider>
       </TimezoneProvider>
     </div>

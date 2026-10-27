@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { StepBundle } from "../steps/step-bundle";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
@@ -56,7 +56,7 @@ describe("StepBundle trial sizes", () => {
     expect(screen.queryByText("trial_thali")).toBeNull();
   });
 
-  it("shows a trial size in its own color when trials are open", () => {
+  it("shows a trial size as its own Try-first card when trials are open", () => {
     render(
       <StepBundle
         catalog={catalog}
@@ -66,7 +66,8 @@ describe("StepBundle trial sizes", () => {
       />,
     );
     expect(screen.getByText("trial_thali")).toBeDefined();
-    expect(screen.getAllByText("Trial").length).toBeGreaterThan(0);
+    expect(screen.getByText("New here? Try a tiffin first")).toBeDefined();
+    expect(screen.getByText("Try first")).toBeDefined();
   });
 });
 
@@ -74,10 +75,25 @@ describe("StepBundle kcal pill", () => {
   it("hides the kcal pill for a size with no kcal (custom meals are 0–0)", () => {
     const zero = { ...meal("custom_zero"), kcalMin: 0, kcalMax: 0 };
     render(<StepBundle catalog={{ ...catalog, mealSizes: [zero] }} selections={{ ...selections, mealSizeId: zero.publicId }} set={vi.fn()} />);
-    expect(screen.queryByText(/kcal/)).toBeNull();
+    // Every card shows its kcal beside the name; the 0–0 one shows none.
+    const card = screen.getByText("custom_zero").closest("button")!;
+    expect(card.textContent).not.toMatch(/kcal/);
   });
   it("shows it when kcal is set", () => {
     render(<StepBundle catalog={catalog} selections={{ ...selections, mealSizeId: "msz_small_thali" }} set={vi.fn()} />);
-    expect(screen.getByText("400–600 kcal")).toBeDefined();
+    expect(screen.getAllByText("400–600 kcal").length).toBeGreaterThan(0);
+  });
+});
+
+describe("StepBundle most popular", () => {
+  it("puts the popular sizes first, two across, and takes them out of the tier list", () => {
+    const sizes = [meal("small_thali"), meal("big_thali"), meal("mid_thali")];
+    const { container } = render(<StepBundle catalog={{ ...catalog, mealSizes: sizes }} selections={selections} set={vi.fn()} popular={["msz_mid_thali", "msz_nope"]} />);
+    const view = within(container);
+    expect(view.getByText("Most popular")).toBeDefined();
+    // Shown once, in the popular row; unknown ids are ignored.
+    expect(view.getAllByText("mid_thali")).toHaveLength(1);
+    // Always two: the ranked one plus a catalog top-up.
+    expect(view.getAllByText("Popular")).toHaveLength(2);
   });
 });

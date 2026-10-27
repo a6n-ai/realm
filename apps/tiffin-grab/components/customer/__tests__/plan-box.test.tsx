@@ -15,7 +15,7 @@ describe("MealInfoChips", () => {
         categoryPortions={{ sabzi: "12oz", roti: "1 roti" }}
       />,
     );
-    expect(screen.getByText("1× Sabzi · 12oz")).toBeInTheDocument();
+    expect(screen.getByText("Sabzi · 12oz")).toBeInTheDocument();
     expect(screen.getByText("4× Roti · 1 roti")).toBeInTheDocument();
     expect(screen.queryByText(/\bTU\b/)).not.toBeInTheDocument();
   });

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, Trash2Icon } from "lucide-react";
-import { Button, Card, EmptyState, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, EmptyState, IconTile, ListGroup, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { removeSavedCard } from "@/app/(customer)/me/account/card-actions";
+import { SettingsBlock } from "./settings-block";
 import { unwrapAction } from "@/lib/actions/unwrap";
 
 export type SavedCardView = { paymentMethodId: string; brand: string | null; last4: string | null; expMonth: number; expYear: number; isDefault: boolean };
@@ -38,30 +39,26 @@ export function SavedCards({ cards }: { cards: SavedCardView[] }) {
   }
 
   return (
-    <Card className="space-y-5 p-5 md:p-6">
-      <header className="space-y-1">
-        <h2 className="c-h2">Payment methods</h2>
-        <p className="text-sm text-[var(--muted-foreground)]">Cards you pay with are saved here for renewals.</p>
-      </header>
-      <ul className="space-y-3">
+    <SettingsBlock title="Payment methods" footer="Cards you pay with are saved here for renewals." card={false}>
+      <ListGroup>
         {cards.map((c) => (
-          <li key={c.paymentMethodId} className="flex items-center justify-between gap-3 rounded-2xl border bg-[var(--card)] p-4">
+          <div key={c.paymentMethodId} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
-              <CreditCardIcon aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground)]" />
+              <IconTile tint="indigo"><CreditCardIcon /></IconTile>
               <div className="min-w-0">
-                <p className="flex items-center gap-2 font-semibold">
+                <p className="flex items-center gap-2 text-[15px] font-semibold">
                   <span>{brandName(c.brand)} •••• {c.last4 ?? "????"}</span>
                   {c.isDefault && <Pill tone="ok" size="sm">Default</Pill>}
                 </p>
-                <p className="text-sm text-[var(--muted-foreground)]">Expires {expiry(c)}</p>
+                <p className="text-[13px] text-[var(--muted-foreground)]">Expires {expiry(c)}</p>
               </div>
             </div>
             <IconButton aria-label={`Remove ${brandName(c.brand)} ending ${c.last4 ?? ""}`} onClick={() => { setError(null); setRemoving(c); }}>
               <Trash2Icon className="size-4" />
             </IconButton>
-          </li>
+          </div>
         ))}
-      </ul>
+      </ListGroup>
       <Sheet
         open={removing !== null}
         onClose={() => setRemoving(null)}
@@ -73,6 +70,6 @@ export function SavedCards({ cards }: { cards: SavedCardView[] }) {
           {error && <Notice tone="error">{error}</Notice>}
         </div>
       </Sheet>
-    </Card>
+    </SettingsBlock>
   );
 }

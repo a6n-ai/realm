@@ -7,6 +7,8 @@ interface Props extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-labe
   href?: string;
   /** Short hint shown above the button on hover or keyboard focus (touch relies on the label). */
   tip?: string;
+  /** No fill: a bare glyph with the same 44px hit area (prev/next arrows). */
+  bare?: boolean;
   children: ReactNode;
 }
 
@@ -22,9 +24,18 @@ function Tip({ text }: { text: string }) {
   );
 }
 
-/** 44px round icon control on a muted fill (close, back). With `href` it renders a link. */
-export function IconButton({ href, className, children, type = "button", tip, ...rest }: Props) {
-  const cls = cn(FONT, FOCUS, "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-[var(--muted)] text-[var(--foreground)] [touch-action:manipulation] transition-[background-color,transform] duration-150 hover:bg-[color-mix(in_oklch,var(--muted)_82%,var(--foreground))] active:scale-[.96] motion-reduce:transition-none", tip && "group relative", className);
+/** 44px round icon control on a bevelled fill (close, back); `bare` drops the fill. With `href` it renders a link. */
+export function IconButton({ href, className, children, type = "button", tip, bare, ...rest }: Props) {
+  const cls = cn(
+    FONT,
+    FOCUS,
+    "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full [touch-action:manipulation] transition-[background-color,color,transform] duration-150 active:scale-[.96] motion-reduce:transition-none",
+    bare
+      ? "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+      : "c-surface bg-[color-mix(in_oklch,var(--foreground)_10%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_15%,transparent)]",
+    tip && "group relative",
+    className,
+  );
   if (href) {
     return (
       <Link href={href} aria-label={rest["aria-label"]} className={cls}>

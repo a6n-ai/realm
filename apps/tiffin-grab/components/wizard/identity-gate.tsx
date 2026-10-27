@@ -306,7 +306,7 @@ export function IdentityGate({
 
       {/* Same bar as the wizard steps: Back + one primary action, fixed on phones, inline from sm up. */}
       <BottomBar alignEnd className="sm:sticky sm:mt-8 sm:px-0">
-        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={back}>
+        <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={back}>
           Back
         </Button>
         {phase === "staff" ? (

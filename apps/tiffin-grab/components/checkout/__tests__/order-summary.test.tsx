@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { OrderSummary } from "../order-summary";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/components/wizard/selections";
@@ -26,6 +26,13 @@ describe("OrderSummary", () => {
     expect(screen.getByText("Wed")).toBeTruthy();
     expect(screen.getByText(/Starts Mon, Sep 21/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/subscribe");
+  });
+  it("onEdit renders a button that stays on the page instead of a link", () => {
+    const onEdit = vi.fn();
+    render(<OrderSummary selections={sel} result={result} onEdit={onEdit} />);
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
   it("displays server amounts verbatim without a duplicate savings note", () => {
     render(<OrderSummary selections={sel} result={result} editHref="/subscribe" />);

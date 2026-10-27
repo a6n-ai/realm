@@ -1,5 +1,5 @@
-import { Gift, Users } from "lucide-react";
-import { Card, EmptyState, ListGroup, ListRow, Pill, StatTile, type Tone } from "@/components/customer/kit";
+import { Coins, Gift, Share2, Users, UtensilsCrossed, Wallet } from "lucide-react";
+import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, StepList, type Tone } from "@/components/customer/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/referrals.service";
 import { ShareCard } from "./share-card";
@@ -12,45 +12,80 @@ const STATUS: Record<ReferralFriendStatus, { label: string; tone: Tone }> = {
   reversed: { label: "Refunded", tone: "soft" },
 };
 
-function howItWorks(s: ReferralSettings): string {
-  if (s.referrerValue <= 0 && s.friendValue <= 0) return "Referral rewards are paused right now. Your code still works for when they're back.";
-  if (s.mode === "pct") {
-    return `You get ${s.referrerValue}% and your friend gets ${s.friendValue}% of their first order back as coins, once it's paid.`;
-  }
-  return `You get ${s.referrerValue} coins and your friend gets ${s.friendValue} coins when their first order is paid.`;
+const paused = (s: ReferralSettings) => s.referrerValue <= 0 && s.friendValue <= 0;
+type Rate = { perCoin: number; currency: string } | null;
+
+/** What coins are worth in money, so every card answers "how much is that?". Null without a rate. */
+const worth = (rate: Rate, coins: number) =>
+  rate ? new Intl.NumberFormat("en-CA", { style: "currency", currency: rate.currency }).format(coins * rate.perCoin) : null;
+
+/** "20" + "coins", or "5%" + "back" for percentage rewards. */
+const reward = (s: ReferralSettings, v: number) => (s.mode === "pct" ? { value: `${v}%`, unit: "back" } : { value: v, unit: v === 1 ? "coin" : "coins" });
+
+function HowItWorks({ settings, rate }: { settings: ReferralSettings; rate: Rate }) {
+  const you = reward(settings, settings.referrerValue);
+  const friend = reward(settings, settings.friendValue);
+  const inMoney = (v: number) => (settings.mode === "flat" && worth(rate, v) ? ` (${worth(rate, v)})` : "");
+  const steps = [
+    { icon: <Share2 />, tint: "blue" as const, title: "Share your code", body: "Send your link or code to a friend." },
+    { icon: <UtensilsCrossed />, tint: "teal" as const, title: "They order", body: "They sign up with it and pay for their first plan." },
+    { icon: <Coins />, tint: "green" as const, title: "You both get coins", body: `${you.value} ${you.unit}${inMoney(settings.referrerValue)} for you, ${friend.value} ${friend.unit}${inMoney(settings.friendValue)} for them, in both wallets.` },
+  ];
+  return (
+    <section aria-labelledby="refer-how" className="space-y-3">
+      <h2 id="refer-how" className="c-h2">How it works</h2>
+      <StepList steps={steps} />
+    </section>
+  );
 }
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
-export function ReferView({ summary, wallet }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null } }) {
+export function ReferView({ summary, wallet, rate = null }: { summary: ReferralSummary; wallet?: { coins: number; dollars: number | null }; rate?: Rate }) {
   const { code, settings, totalCoins, friends, canEnterCode } = summary;
+  const flat = settings.mode === "flat";
+  const offerWorth = (coins: number) => (flat ? worth(rate, coins) : null);
   return (
     <div className="space-y-6">
       {canEnterCode ? <EnterCodeCard /> : null}
+
+      {/* The offer at a glance: what each side gets, before anything else. */}
+      {paused(settings) ? (
+        <Card className="flex items-center gap-3 p-5">
+          <IconTile tint="gray" size="lg"><Gift /></IconTile>
+          <p className="c-caption text-[15px] text-pretty">Referral rewards are paused right now. Your code still works for when they&apos;re back.</p>
+        </Card>
+      ) : (
+        <StatGroup>
+          <StatTile bare icon={<IconTile tint="orange"><Gift /></IconTile>} label="You get" {...reward(settings, settings.referrerValue)} worth={offerWorth(settings.referrerValue)} hint="When their first order is paid" />
+          <StatTile bare icon={<IconTile tint="pink"><Users /></IconTile>} label="Your friend gets" {...reward(settings, settings.friendValue)} worth={offerWorth(settings.friendValue)} hint="On their first order" />
+        </StatGroup>
+      )}
+
       <ShareCard code={code} />
 
-      <Card className="flex gap-3 p-5">
-        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[var(--primary)]">
-          <Gift className="size-5" />
-        </span>
-        <div className="space-y-1">
-          <h2 className="c-h2">How it works</h2>
-          <p className="c-caption text-[15px]">{howItWorks(settings)}</p>
-          <p className="c-caption">Your friend signs up with your link or code. Rewards land in both wallets after their first paid order.</p>
-        </div>
-      </Card>
+      <HowItWorks settings={settings} rate={rate} />
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile label="From referrals" value={totalCoins} unit="coins" hint={`${totalCoins} coins earned`} />
-        {wallet ? (
-          <StatTile
-            label="In your wallet"
-            value={wallet.coins}
-            unit="coins"
-            hint={wallet.dollars == null ? undefined : `Worth $${wallet.dollars.toFixed(2)}`}
-          />
-        ) : null}
-      </div>
+      <section aria-labelledby="refer-coins" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="refer-coins" className="c-h2">Your coins</h2>
+          {rate ? <p className="c-caption tabular-nums">1 coin = {worth(rate, 1)}</p> : null}
+        </div>
+        <StatGroup>
+          <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="From referrals" value={totalCoins} unit="coins" worth={worth(rate, totalCoins)} hint="Earned from friends" />
+          {wallet ? (
+            <StatTile
+              bare
+              icon={<IconTile tint="indigo"><Wallet /></IconTile>}
+              label="In your wallet"
+              value={wallet.coins}
+              unit="coins"
+              worth={wallet.dollars == null ? null : worth(rate, wallet.coins) ?? `$${wallet.dollars.toFixed(2)}`}
+            hint="Ready to spend"
+            />
+          ) : null}
+        </StatGroup>
+      </section>
 
       <section className="space-y-3">
         <h2 className="c-h2">Your friends</h2>

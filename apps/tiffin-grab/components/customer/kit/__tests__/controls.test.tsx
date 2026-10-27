@@ -7,9 +7,9 @@ import { ActionRow, Button, Field, Notice, Stepper, Toggle } from "..";
 afterEach(cleanup);
 
 describe("Button", () => {
-  it("matches the wizard Next: 14px radius, 50px tall; hero is the pill", () => {
+  it("every button is a capsule like the tab bar; lg is 50px tall", () => {
     render(<><Button variant="primary" size="lg">A</Button><Button variant="hero">B</Button></>);
-    expect(screen.getByText("A").className).toMatch(/rounded-\[14px\].*min-h-\[50px\]/);
+    expect(screen.getByText("A").className).toMatch(/rounded-full.*min-h-\[50px\]/);
     expect(screen.getByText("B").className).toContain("rounded-full");
   });
   it("with a reason is aria-disabled, never fires, and shows the reason on tap", () => {

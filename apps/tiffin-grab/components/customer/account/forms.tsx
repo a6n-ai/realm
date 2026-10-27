@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
 import type { Area, CropperProps } from "react-easy-crop";
-import { Button, Card, Field, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle } from "@/components/customer/kit";
+import { BellIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
+import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { getCroppedBlob } from "@/lib/images/crop";
 import {
@@ -20,6 +21,8 @@ import { PinForm } from "@foundry/auth-ui";
 import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
 import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
 import { kitAuthUi } from "./auth-ui-kit";
+import { SettingsBlock } from "./settings-block";
+import { Avatar } from "./avatar";
 
 type CropperType = (typeof import("react-easy-crop"))["default"];
 const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as ComponentType<
@@ -58,15 +61,21 @@ function SaveBar({ pending, dirty, status, label = "Save" }: { pending: boolean;
   );
 }
 
-function Block({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+function Block({ title, subtitle, card, children }: { title: string; subtitle?: string; card?: boolean; children: ReactNode }) {
+  return <SettingsBlock title={title} footer={subtitle} card={card}>{children}</SettingsBlock>;
+}
+
+/** Google's own multicolour "G" on a white tile, as sign-in-with-Google rows show it. */
+function GoogleTile() {
   return (
-    <Card className="space-y-5 p-5 md:p-6">
-      <header className="space-y-1">
-        <h2 className="c-h2">{title}</h2>
-        {subtitle && <p className="text-sm text-[var(--muted-foreground)]">{subtitle}</p>}
-      </header>
-      {children}
-    </Card>
+    <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-white">
+      <svg viewBox="0 0 24 24" className="size-[18px]">
+        <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81Z" />
+        <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.9l-3.88-3.02c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.95H1.27v3.11A12 12 0 0 0 12 24Z" />
+        <path fill="#FBBC05" d="M5.28 14.28A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.38-2.28V6.61H1.27a12 12 0 0 0 0 10.78l4.01-3.11Z" />
+        <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.59 1.8l3.44-3.44A11.5 11.5 0 0 0 12 0 12 12 0 0 0 1.27 6.61l4.01 3.11C6.23 6.88 8.88 4.77 12 4.77Z" />
+      </svg>
+    </span>
   );
 }
 
@@ -79,11 +88,6 @@ function submit(fn: () => void) {
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
-
-function initials(name: string | null) {
-  const w = name?.trim().split(/\s+/).filter(Boolean) ?? [];
-  return w.length ? w.slice(0, 2).map((x) => x[0].toUpperCase()).join("") : "U";
-}
 
 function AvatarEditor({ image, name }: { image: string | null; name: string | null }) {
   const router = useRouter();
@@ -141,14 +145,7 @@ function AvatarEditor({ image, name }: { image: string | null; name: string | nu
 
   return (
     <div className="flex items-center gap-4">
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- secured file URL carries a per-request token
-        <img src={image} alt="" className="size-20 rounded-full border border-[var(--border)] object-cover" />
-      ) : (
-        <span aria-hidden className="grid size-20 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-2xl font-bold text-[#B5430B] dark:text-[#FFB877]">
-          {initials(name)}
-        </span>
-      )}
+      <Avatar name={name} image={image} className="size-24 text-3xl" />
       <div className="flex flex-wrap gap-2">
         <Button variant="quiet" onClick={() => input.current?.click()}>
           {image ? "Change photo" : "Add photo"}
@@ -227,8 +224,7 @@ export function ContactForm({ phone, email, emailVerified, phoneVerified }: { ph
         <SaveBar pending={s.pending} dirty={v !== saved} status={s.status} label="Save phone" />
       </form>
       <ListGroup>
-        <ListRow label="Email" sublabel="Change it under Security" value={<Pill tone={emailVerified ? "ok" : "neutral"}>{emailVerified ? "Verified" : "Unverified"}</Pill>} />
-        <ListRow label={email} />
+        <ListRow icon={<MailIcon />} tint="teal" label="Email" sublabel={`${email}. Change it under Security`} value={<Pill tone={emailVerified ? "ok" : "neutral"}>{emailVerified ? "Verified" : "Unverified"}</Pill>} />
       </ListGroup>
     </Block>
   );
@@ -264,8 +260,8 @@ export function DietaryForm({ allergens, dietaryNotes }: { allergens: string[]; 
                   className={cn(
                     FONT,
                     FOCUS,
-                    "min-h-11 rounded-full border-2 px-4 text-sm font-semibold [touch-action:manipulation] active:scale-[.97]",
-                    on ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "border-[var(--border)] bg-[var(--card)]",
+                    "c-surface min-h-11 rounded-full px-4 text-sm font-semibold [touch-action:manipulation] active:scale-[.97]",
+                    on ? "ring-[1.5px] ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "bg-[var(--card)]",
                   )}
                 >
                   {a}
@@ -290,16 +286,32 @@ export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
     s.run(() => updateMyPreferences({ ...state, ...patch }).catch((e) => { setState(prev); throw e; }), "Saved.");
   };
   return (
-    <Block title="Notifications" subtitle="Choose how we reach you about orders and account updates.">
+    // The row group is the surface itself, like every other settings page (no card around a card).
+    <Block card={false} title="Notifications" subtitle="Choose how we reach you about orders and account updates.">
       <ListGroup>
-        <ListRow label="Email" sublabel="Confirmations, receipts, important updates" value={<Toggle label="Email notifications" checked={state.notifyEmail} disabled={s.pending} onChange={(v) => set({ notifyEmail: v })} />} />
+        <ListRow icon={<BellIcon />} tint="red" label="Email" sublabel="Confirmations, receipts, important updates" value={<Toggle label="Email notifications" checked={state.notifyEmail} disabled={s.pending} onChange={(v) => set({ notifyEmail: v })} />} />
       </ListGroup>
       {s.status && <Notice tone={s.status.kind === "error" ? "error" : "info"}>{s.status.text}</Notice>}
     </Block>
   );
 }
 
-/** Password, email and delete flows are the shared @foundry/auth-ui screens (stock styling, kit cards around them). */
+function SecurityItem({ tint, icon, tile, title, footer, children }: { tint?: IconTint; icon?: ReactNode; /** A ready-made tile (e.g. Google's logo) instead of tint + icon. */ tile?: ReactNode; title: string; footer: string; children: ReactNode }) {
+  return (
+    <section className="grid gap-3 px-4 py-4">
+      <div className="flex items-center gap-3">
+        {tile ?? <IconTile tint={tint ?? "gray"}>{icon}</IconTile>}
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold">{title}</h2>
+          <p className="text-[13px] text-[var(--muted-foreground)]">{footer}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Password, email and delete flows are the shared @foundry/auth-ui screens (stock logic, kit surfaces around them). */
 export function SecurityPanel({
   email,
   staffPin,
@@ -310,26 +322,30 @@ export function SecurityPanel({
   google?: { connected: boolean } | null;
 }) {
   return (
-    <div className="space-y-4">
-      {staffPin && (
-        <Block title="PIN" subtitle="Unlocks the console after idle.">
-          <PinForm hasPin={staffPin.hasPin} onSetPin={setMyPin} onRemovePin={removeMyPin} ui={kitAuthUi} />
-        </Block>
-      )}
-      <Block title="Email address" subtitle="Used for sign-in and account notices. We verify your current and new address.">
-        <ChangeEmailForm currentEmail={email} ui={kitAuthUi} />
-      </Block>
-      {google ? (
-        <Block title="Google" subtitle="Sign in with your Google account instead of a code.">
-          <GoogleConnectionField connected={google.connected} callbackURL="/me/account?section=security" ui={kitAuthUi} />
-        </Block>
-      ) : null}
-      <Block title="Password" subtitle="Change your password. Other devices are signed out.">
-        <ChangePasswordForm ui={kitAuthUi} />
-      </Block>
-      <Block title="Delete account" subtitle="Permanently close your account. This can't be undone.">
-        <DeleteAccountForm ui={kitAuthUi} />
-      </Block>
+    <div className="space-y-6">
+      <ListGroup>
+        {staffPin && (
+          <SecurityItem tint="indigo" icon={<LockIcon />} title="PIN" footer="Unlocks the console after idle.">
+            <PinForm hasPin={staffPin.hasPin} onSetPin={setMyPin} onRemovePin={removeMyPin} ui={kitAuthUi} />
+          </SecurityItem>
+        )}
+        <SecurityItem tint="blue" icon={<MailIcon />} title="Email address" footer="Used for sign-in and account notices. We verify your current and new address.">
+          <ChangeEmailForm currentEmail={email} ui={kitAuthUi} />
+        </SecurityItem>
+        {google ? (
+          <SecurityItem tile={<GoogleTile />} title="Google" footer="Sign in with your Google account instead of a code.">
+            <GoogleConnectionField connected={google.connected} callbackURL="/me/account?section=security" ui={kitAuthUi} />
+          </SecurityItem>
+        ) : null}
+        <SecurityItem tint="green" icon={<KeyRoundIcon />} title="Password" footer="Change your password. Other devices are signed out.">
+          <ChangePasswordForm ui={kitAuthUi} />
+        </SecurityItem>
+      </ListGroup>
+      <ListGroup>
+        <SecurityItem tint="red" icon={<Trash2Icon />} title="Delete account" footer="Permanently close your account. This can't be undone.">
+          <DeleteAccountForm ui={kitAuthUi} />
+        </SecurityItem>
+      </ListGroup>
     </div>
   );
 }

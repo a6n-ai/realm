@@ -1,13 +1,12 @@
 "use client";
 
-import { ListPagination } from "@/components/ds";
-import { Reveal } from "@/components/motion";
 import Link from "next/link";
-import { TicketPercent } from "lucide-react";
-import { EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
+import { Tag, Ticket, TicketPercent } from "lucide-react";
+import { EmptyState, IconTile, ListGroup, ListRow, Skeleton, StatGroup, StatTile, buttonClass } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerCouponUse } from "@/lib/services/customer-finances.service";
+import { QuietPagination } from "./finance-kit";
 
 function money(amount: string | number, currency: string) {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amount));
@@ -15,30 +14,27 @@ function money(amount: string | number, currency: string) {
 
 export function CouponStats({ available, saved, currency }: { available: number; saved: string; currency: string }) {
   return (
-    <p aria-label="Your coupons" className="c-caption nums">
-      {available} available · {money(saved, currency)} saved with coupons
-    </p>
+    <StatGroup>
+      <StatTile bare icon={<IconTile tint="yellow"><Ticket /></IconTile>} label="Available" value={available} unit={available === 1 ? "coupon" : "coupons"} />
+      <StatTile bare icon={<IconTile tint="cyan"><Tag /></IconTile>} label="Saved with coupons" value={money(saved, currency)} />
+    </StatGroup>
   );
 }
 
 export function CouponStatsSkeleton() {
-  return <Skeleton className="h-4 w-60 rounded-full" />;
+  return <Skeleton className="h-[104px] rounded-[20px]" />;
 }
 
 function UseRow({ use, currency }: { use: CustomerCouponUse; currency: string }) {
   const tz = useTimezone();
   return (
-    <Reveal className="flex items-center justify-between gap-3 py-2.5">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{use.code ?? use.name}</p>
-        <p className="text-muted-foreground truncate text-xs tabular-nums">
-          {use.orderDeploymentId}
-          {" · "}
-          {formatEpoch(use.createdAt, { mode: "date", timeZone: tz })}
-        </p>
-      </div>
-      <span className="text-ok shrink-0 text-sm font-semibold tabular-nums">−{money(use.saved, currency)}</span>
-    </Reveal>
+    <ListRow
+      tint="blue"
+      icon={<TicketPercent />}
+      label={use.code ?? use.name}
+      sublabel={`${use.orderDeploymentId} · ${formatEpoch(use.createdAt, { mode: "date", timeZone: tz })}`}
+      value={<span className="text-ok">−{money(use.saved, currency)}</span>}
+    />
   );
 }
 
@@ -52,8 +48,8 @@ export function CouponHistory({
   currency: string;
 }) {
   return (
-    <section aria-labelledby="coupon-history" className="space-y-3">
-      <h2 id="coupon-history" className="text-base font-semibold tracking-tight">Coupons you&apos;ve used</h2>
+    <section aria-labelledby="coupon-history" className="flex flex-col gap-3">
+      <h2 id="coupon-history" className="c-h2">Coupons you&apos;ve used</h2>
       {items.length === 0 ? (
         <EmptyState
           icon={<TicketPercent className="size-6" />}
@@ -62,13 +58,13 @@ export function CouponHistory({
           action={<Link href="/me/renew" className={buttonClass({ variant: "outline" })}>Renew plan</Link>}
         />
       ) : (
-        <Reveal.Group className="divide-y">
+        <ListGroup>
           {items.map((u) => (
             <UseRow key={u.publicId} use={u} currency={currency} />
           ))}
-        </Reveal.Group>
+        </ListGroup>
       )}
-      {total > 0 && <ListPagination page={page} size={size} total={total} />}
+      {total > 0 && <QuietPagination page={page} size={size} total={total} />}
     </section>
   );
 }
@@ -77,11 +73,7 @@ export function CouponHistorySkeleton() {
   return (
     <div className="space-y-3">
       <Skeleton className="h-6 w-44 rounded-full" />
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-      </div>
+      <Skeleton className="h-[168px] w-full rounded-3xl" />
     </div>
   );
 }

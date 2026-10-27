@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import * as m from "motion/react-m";
-import { PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { MapPinIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
 import { useAddressBook } from "@foundry/address/hooks";
 import { formatAddress } from "@foundry/address/ui";
-import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, Field, IconButton, IconTile, ListGroup, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { SettingsBlock } from "./settings-block";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
 import { AddressDropOffLines, DropOffPicker } from "@/components/customer/address/drop-off";
@@ -144,25 +145,22 @@ export function AddressBook({
   }
 
   return (
-    <Card className="space-y-5 p-5 md:p-6">
-      <header className="space-y-1">
-        <h2 className="c-h2">Delivery addresses</h2>
-        <p className="text-sm text-[var(--muted-foreground)]">Checkout uses your default. You can pick another for any delivery.</p>
-      </header>
+    <SettingsBlock title="Delivery addresses" footer="Checkout uses your default. You can pick another for any delivery." card={false}>
 
       <MotionConfig reducedMotion="user">
-      <ul className="space-y-3">
+      <ListGroup>
         {book.addresses.map((a) => (
-          <m.li
+          <m.div
             key={a.publicId}
             // Slides to its new place when it becomes (or stops being) the default.
             layout
             transition={{ type: "spring", stiffness: 420, damping: 34 }}
             data-address={a.publicId}
-            className="flex items-start justify-between gap-3 rounded-2xl border bg-[var(--card)] p-4"
+            className="flex min-h-14 items-start justify-between gap-3 px-4 py-3"
           >
-            <div className="min-w-0 space-y-1">
-              <p className="flex items-center gap-2 font-semibold">
+            <IconTile tint="orange"><MapPinIcon /></IconTile>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="flex items-center gap-2 text-[15px] font-semibold">
                 <span>{a.label}</span>
                 <AnimatePresence initial={false}>
                   {a.isDefault && (
@@ -192,9 +190,9 @@ export function AddressBook({
                 </IconButton>
               )}
             </div>
-          </m.li>
+          </m.div>
         ))}
-      </ul>
+      </ListGroup>
       </MotionConfig>
 
       {/* Sheet actions show their error inside the sheet; this covers make-default. */}
@@ -253,6 +251,6 @@ export function AddressBook({
           {book.error && <Notice tone="error">{book.error}</Notice>}
         </div>
       </Sheet>
-    </Card>
+    </SettingsBlock>
   );
 }

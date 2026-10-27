@@ -466,6 +466,7 @@ body:has(.crm-app) .font-pixel-circle {
 @keyframes vt-slide-in { from { translate: var(--vt-offset) 0; } }
 @keyframes vt-slide-out { to { translate: var(--vt-offset) 0; } }
 @keyframes vt-rise { from { translate: 0 6px; } }
+@keyframes tab-pop { 0% { scale: 0.82; } 55% { scale: 1.14; } 100% { scale: 1; } }
 
 /* One global brake: kill motion for users who ask for it. Primitives ALSO guard
    in JS (useReducedMotion) — this covers CSS-only animation and view transitions. */
@@ -536,9 +537,80 @@ body:has(.customer-app) {
   .c-caption { font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
   .c-stat { font-size: 28px; line-height: 1; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .c-glass { background: color-mix(in srgb, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+  /* Surfaces in place of outlines: no border, no shadow, just a faint wash of the text colour over the fill,
+     the same quiet step the tab bar uses — lighter on the dark green ground, a touch darker on cream. */
+  .c-surface { background-image: linear-gradient(color-mix(in srgb, var(--foreground) 4%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
+  /* Liquid glass for floating controls (tab bar, its action buttons): clearer than c-glass so the page shows
+     through, a bright top edge where light catches it, and a soft drop. Never put one inside another. */
+  .c-liquid {
+    background: color-mix(in srgb, var(--background) 30%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(190%);
+    backdrop-filter: blur(18px) saturate(190%);
+    border-color: transparent;
+    /* A soft bevel, not a rim: the faintest light on the top edge. */
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 28px -10px rgb(0 0 0 / 0.35);
+  }
+  /* Prominent: the same glass tinted with the brand colour, for the one main action. */
+  .c-liquid-tint {
+    background: color-mix(in oklab, var(--primary) 82%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(190%);
+    backdrop-filter: blur(18px) saturate(190%);
+    border-color: transparent;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
+  }
+  .dark .c-liquid, .dark .c-liquid-tint { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 10px 28px -10px rgb(0 0 0 / 0.6); }
 }
 @media (prefers-reduced-transparency: reduce) {
   .c-glass { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .c-liquid { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .c-liquid-tint { background: var(--primary); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .c-liquid, .c-liquid-tint { border-color: var(--foreground); }
+}
+
+/* Weeks slider (components/wizard/weeks-slider.tsx): a timeline track, saffron up to the thumb (--fill),
+   and a 28px white thumb like iOS. */
+.c-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; cursor: pointer; touch-action: pan-y; }
+.c-range:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 9999px; }
+.c-range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: linear-gradient(to right, var(--primary) var(--fill, 0%), color-mix(in srgb, var(--foreground) 14%, transparent) var(--fill, 0%)); }
+.c-range::-moz-range-track { height: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--foreground) 14%, transparent); }
+.c-range::-moz-range-progress { height: 6px; border-radius: 9999px; background: var(--primary); }
+.c-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); transition: transform 150ms; }
+.c-range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); }
+.c-range:active::-webkit-slider-thumb { transform: scale(1.1); }
+@media (prefers-reduced-motion: reduce) { .c-range::-webkit-slider-thumb { transition: none; } }
+
+/* Phones: the order flow's bottom bar drops its strip and its buttons float as liquid glass, like the
+   capsules over the tab bar; a fade from the page keeps the bar's note readable. Unlayered on purpose so it
+   beats the buttons' own variant utilities. */
+@media (max-width: 639.98px) {
+  .c-float-bar {
+    background: linear-gradient(to top, var(--background) 35%, color-mix(in srgb, var(--background) 0%, transparent));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-top-color: transparent;
+  }
+  .c-float-bar [data-variant] {
+    background: color-mix(in srgb, var(--background) 30%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(190%);
+    backdrop-filter: blur(18px) saturate(190%);
+    border-color: transparent;
+    color: var(--foreground);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 -1px 0 rgb(0 0 0 / 0.06), 0 10px 28px -10px rgb(0 0 0 / 0.35);
+    border-radius: 9999px;
+  }
+  .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] {
+    background: color-mix(in oklab, var(--primary) 82%, transparent);
+    color: var(--primary-foreground, #fff);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
+  }
+  .dark .c-float-bar [data-variant] { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -1px 0 rgb(0 0 0 / 0.3), 0 10px 28px -10px rgb(0 0 0 / 0.6); }
+}
+@media (max-width: 639.98px) and (prefers-reduced-transparency: reduce) {
+  .c-float-bar { background: var(--background); }
+  .c-float-bar [data-variant] { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] { background: var(--primary); }
 }
 
 /* Dark ground: the bright saffron already reads as text. */

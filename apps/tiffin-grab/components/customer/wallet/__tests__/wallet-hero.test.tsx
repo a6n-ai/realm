@@ -19,9 +19,11 @@ describe("WalletHero", () => {
   });
 });
 describe("WalletHero extras", () => {
-  it("folds earned/spent into one neutral caption", () => {
+  it("shows earned and used as their own tiles", () => {
     render(<WalletHero coins={5} money={null} currency="USD" earned={2100} spent={860} />);
-    expect(screen.getByText("Earned 2100 · Spent 860")).toBeInTheDocument();
+    expect(screen.getByText("Earned")).toBeInTheDocument();
+    expect(screen.getByText("2100")).toBeInTheDocument();
+    expect(screen.getByText("860")).toBeInTheDocument();
   });
   it("at 0 coins explains earning with live settings and no top-up copy", () => {
     render(<WalletHero coins={0} money={0} currency="USD" earnPct={2.5} coinWorth={0.25} />);

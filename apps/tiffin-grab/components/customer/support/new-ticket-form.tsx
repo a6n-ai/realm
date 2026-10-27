@@ -109,7 +109,7 @@ export function NewTicketForm({
 
   return (
     <form
-      className="grid w-full max-w-xl gap-5"
+      className="grid w-full max-w-xl gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         submit();
@@ -149,25 +149,28 @@ export function NewTicketForm({
         />
       ) : null}
 
-      <Textarea id="ticket-body" label={LABEL.body} rows={5} placeholder="Tell us what happened, and anything that helps us sort it out…" value={body} onChange={(e) => setBody(e.target.value)} />
+      <Textarea id="ticket-body" label={LABEL.body} rows={3} placeholder="Tell us what happened, and anything that helps us sort it out…" value={body} onChange={(e) => setBody(e.target.value)} />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="ticket-photos" className="text-sm font-semibold">
           Photos or screenshots
         </label>
         <PhotoPicker id="ticket-photos" files={files} inputRef={inputRef} onAdd={addFiles} onRemove={(i) => setFiles(files.filter((_, j) => j !== i))} disabled={pending} />
-        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Optional, up to {MAX_FILES}. PNG, JPEG, WebP or GIF, max 5 MB each. Great for delivery issues or app screenshots.</p>
+        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Optional · up to {MAX_FILES} images, 5 MB each.</p>
       </div>
 
       {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Button type="submit" variant="primary" size="lg" pending={pending}>
+      {/* In the sheet, Submit stays pinned to the bottom while the form scrolls, and the sheet's ✕ is Cancel. */}
+      <div className={onCancel ? "sticky bottom-0 -mx-4 bg-[var(--card)] px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "flex flex-col gap-2 sm:flex-row sm:items-center"}>
+        <Button type="submit" variant="primary" size="lg" pending={pending} className={onCancel ? "w-full" : undefined}>
           {pending ? "Sending…" : "Submit ticket"}
         </Button>
-        <Button variant="quiet" size="lg" disabled={pending} onClick={onCancel ?? (() => router.push("/me/support"))}>
-          Cancel
-        </Button>
+        {onCancel ? null : (
+          <Button variant="quiet" size="lg" disabled={pending} onClick={() => router.push("/me/support")}>
+            Cancel
+          </Button>
+        )}
       </div>
     </form>
   );

@@ -1,32 +1,47 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { QuickRenewForm } from "@/components/renew/quick-renew-form";
-import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
+import { useState } from "react";
+import { Button, Sheet } from "@/components/customer/kit";
+import { AddonsPanel } from "@/components/wizard/addons-panel";
+import { Checkout } from "@/components/checkout/checkout";
+import { RenewPlanStep } from "@/components/renew/renew-plan-step";
+import { useQuickRenew } from "@/components/renew/use-quick-renew";
 import type { QuickRenewData } from "@/components/renew/types";
-import { QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
+import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
 
-export function QuickRenewClient(data: QuickRenewData) {
-  const router = useRouter();
-  // Back from a paid checkout must not reopen renewal (the new plan would now send it to the full wizard).
-  const bouncing = useBounceAfterPaid();
+/**
+ * Quick renew on one page: Plan is Checkout's step 0, so Plan → Delivery → Payment slide in place with
+ * no navigation. This component never unmounts, so plan picks survive going Back to Plan. A refresh
+ * re-renders from the server's picks (unsaved plan edits are lost); nothing is written to sessionStorage.
+ * Checkout's own useBounceAfterPaid is the only one: a second would fight it over the SEEN stamp.
+ */
+export function RenewCheckout({ data, checkout }: { data: QuickRenewData; checkout: CheckoutProps }) {
+  const q = useQuickRenew({ ...data, submitLabel: "", onSubmit: async () => null });
+  const [addonsOpen, setAddonsOpen] = useState(false);
 
-  if (bouncing) return null;
   return (
-    <QuickRenewForm
-      {...data}
-      variant="customer"
-      submitLabel="Continue"
-      changePlanHref="/me/renew?full=1"
-      // Checkout's Delivery step comes next, with the default address already picked.
-      onSubmit={async (s) => {
-        sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
-        sessionStorage.setItem(WIZARD_ORIGIN_KEY, "renew");
-        sessionStorage.removeItem(WIZARD_STEP_KEY);
-        sessionStorage.removeItem(QUOTE_CODES_KEY);
-        router.push("/checkout", { transitionTypes: ["nav-forward"] });
-        return null;
-      }}
-    />
+    <>
+      <Checkout
+        {...checkout}
+        closeHref="/me"
+        plan={{
+          body: <RenewPlanStep q={q} data={data} changePlanHref="/me/renew?full=1" onOpenAddons={() => setAddonsOpen(true)} />,
+          selections: q.sel,
+          price: q.price.result,
+          canContinue: q.canSubmit,
+          pending: q.price.loading,
+        }}
+      />
+      <Sheet
+        bottom
+        open={addonsOpen}
+        onClose={() => setAddonsOpen(false)}
+        title="Add to every tiffin?"
+        footer={<Button variant="primary" size="lg" className="w-full" onClick={() => setAddonsOpen(false)}>{q.addonCount > 0 ? "Done" : "Skip extras"}</Button>}
+      >
+        <p className="text-muted-foreground -mt-1 mb-3 text-[13px]">Optional extras for your {q.meal?.name ?? "meal"}, billed per tiffin.</p>
+        <AddonsPanel bare addons={q.addons} categoryLabels={q.catalog.categoryLabels} selections={q.sel} set={q.set} className="pb-2" />
+      </Sheet>
+    </>
   );
 }

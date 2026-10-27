@@ -12,6 +12,7 @@ import { earliestTrialIso } from "@/lib/trial/schedule";
 import { appToday, firstStartOnOrAfter } from "@/lib/services/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
+import { WeeksSlider } from "../weeks-slider";
 
 function dayBefore(iso: string): string {
   const d = parseIsoDateUtc(iso);
@@ -167,7 +168,7 @@ export function StepDuration({
         </p>
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
         {sameWeekConflict && !startDateError ? (
-          <p className="mt-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-pretty">
+          <p className="mt-2 rounded-2xl bg-warn/10 px-3 py-2 text-xs text-pretty">
             For this week you&apos;re already subscribed on your current plan. You can still continue —
             check overlapping deliveries on Manage if that is not intentional.
           </p>
@@ -176,27 +177,15 @@ export function StepDuration({
       {trial ? (multiDay && <TrialLength trial={trial} picks={picks} set={set} />) : (
       <div>
         <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
-        <ChoiceGroup
-          label="Commitment duration"
-          className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
-          value={String(selections.durationWeeks)}
-          onChange={(v) => set({ durationWeeks: Number(v) })}
-        >
-          {[...catalog.durations].sort((a, b) => b.weeks - a.weeks).map((d) => {
-            const save = savings[d.weeks] ?? 0;
-            const tint = save > 0 && selections.durationWeeks !== d.weeks
-              ? "border-[color-mix(in_oklch,var(--primary)_45%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_6%,var(--card))]"
-              : "";
-            return (
-              <Choice key={d.weeks} value={String(d.weeks)} className={`min-h-[72px] p-4 text-sm font-semibold ${tint}`}>
-                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{d.weeks}wk</span>
-                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>Save {save}%</Pill>}
-                </span>
-              </Choice>
-            );
-          })}
-        </ChoiceGroup>
+        <div className="mt-3">
+          <WeeksSlider
+            weeks={catalog.durations.map((d) => d.weeks)}
+            value={selections.durationWeeks}
+            savings={savings}
+            perWeek={selections.eatingDays?.length || freq?.daysPerWeek}
+            onChange={(w) => set({ durationWeeks: w })}
+          />
+        </div>
       </div>
       )}
       {schedule && <ScheduleCard trips={schedule.trips} shifted={schedule.shifted} />}

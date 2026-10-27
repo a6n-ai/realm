@@ -9,13 +9,25 @@ export function MealSizePrice({
   meal,
   priceClassName = "text-sm font-medium",
   perTiffin = false,
+  stacked = false,
 }: {
   meal: Pick<ClientMealSizeView, "basePrice" | "discountType" | "discountValue">;
   priceClassName?: string;
   /** Appends a small "/tiffin" so a list price is never read as a weekly or monthly total. */
   perTiffin?: boolean;
+  /** Price on its own line, right-aligned, with any was-price above and "/tiffin" under it (plan cards). */
+  stacked?: boolean;
 }) {
   const unit = perTiffin ? <span className="text-muted-foreground text-xs font-normal">/tiffin</span> : null;
+  if (stacked) {
+    return (
+      <span className="nums flex shrink-0 flex-col items-end leading-none">
+        {meal.discountType !== "none" && <span className="text-muted-foreground mb-1 text-xs line-through">${meal.basePrice.toFixed(2)}</span>}
+        <span className={priceClassName}>${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)}</span>
+        {unit && <span className="mt-1">{unit}</span>}
+      </span>
+    );
+  }
   if (meal.discountType === "none") {
     return <span className="nums flex items-baseline gap-1"><span className={priceClassName}>${meal.basePrice.toFixed(2)}</span>{unit}</span>;
   }

@@ -30,6 +30,8 @@ interface Props {
   plan: PlanView;
   /** All the customer's plans, ordered by start date, for the tabs on top. */
   subs: Subscription[];
+  /** A further plan is booked but not live yet (payment or confirmation pending), so it is not in `subs`. */
+  waitingRenewal?: boolean;
   windows: Record<string, SubscriptionWindow>;
   /** Trips of the selected week for this plan. */
   trips: Trip[];
@@ -53,12 +55,12 @@ interface Props {
 
 /** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)] ring-[1.5px] ring-[var(--primary)]" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
 
@@ -141,7 +143,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     ? `Renewed · next plan${lower(windowLabel(windows[after.publicId], today), " ")}`
     : before
       ? `Renewal${lower(windowLabel(windows[plan.orderId], today), " · ")}`
-      : null;
+      : waitingRenewal
+        ? "Renewed · next plan is waiting for confirmation"
+        : null;
   // Every live plan gets a tab, ordered by start; the meal name joins the dates once dates alone can't tell plans apart.
   const tabs = lines.flat().sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
   const named = lines.length > 1 || new Set(tabs.map((s) => s.mealSizeName)).size > 1;
@@ -177,7 +181,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || model.resume.day));
 
   return (
-    <div className={`${FONT} ${hasBar ? "pb-14" : "pb-4"} lg:pb-8`}>
+    <div className={`${FONT} ${hasBar ? "pb-20" : "pb-4"} lg:pb-8`}>
       <PlanHeader
         name={customerName}
         sub={sub}
@@ -186,7 +190,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         renewal={renewal}
         plans={tabs.length > 1 && (
           // Swipeable and edge to edge on a phone (cancels the page's px-4): the pill cut off at the screen edge says there is more.
-          <nav aria-label="Your plans" className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:scroll-px-0 lg:px-0">
+          <nav aria-label="Your plans" className="-mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:scroll-px-0 lg:px-0">
             {tabs.map((s) => {
               const dot = lines.length > 1 && s.tagColor && /^#[0-9a-fA-F]{6}$/.test(s.tagColor) ? s.tagColor : null;
               const selected = s.publicId === plan.orderId;
@@ -287,7 +291,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+        <div className={`${FONT} c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full p-1 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}

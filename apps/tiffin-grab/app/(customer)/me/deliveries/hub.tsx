@@ -139,6 +139,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
       <DeliveriesView
         plan={plan}
         subs={subs}
+        waitingRenewal={waitlisted.length > 0}
         windows={windows}
         trips={trips}
         agenda={agenda}

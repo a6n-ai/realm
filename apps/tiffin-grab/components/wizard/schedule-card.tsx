@@ -56,9 +56,9 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
   const w = weeks[i]!;
   const last = i === weeks.length - 1;
   const short = (iso: string) => formatDateOnly(iso, { mode: "short" });
-  const navBtn = "border-border hover:bg-muted grid size-8 place-items-center rounded-full border disabled:opacity-40 disabled:hover:bg-transparent";
+  const navBtn = "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40 disabled:hover:text-[var(--muted-foreground)]";
   return (
-    <section aria-labelledby="start-preview" className="bg-card border-border rounded-[20px] border p-5">
+    <section aria-labelledby="start-preview" className="c-surface bg-card rounded-[20px] p-5">
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <h2 id="start-preview" className={H}>How your tiffins arrive</h2>
         <p className="text-sm">
@@ -73,12 +73,12 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
           <span className="text-muted-foreground font-normal"> · {formatMenuWeekRange(w.weekStart)}</span>
         </p>
         {weeks.length > 1 && (
-          <div className="flex gap-1.5">
+          <div className="-my-2 -mr-3 flex">
             <button type="button" className={navBtn} disabled={i === 0} onClick={() => setPage(i - 1)} aria-label="Previous week">
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-5" />
             </button>
             <button type="button" className={navBtn} disabled={last} onClick={() => setPage(i + 1)} aria-label="Next week">
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-5" />
             </button>
           </div>
         )}

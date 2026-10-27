@@ -22,8 +22,9 @@ describe("nextCutoff", () => {
 
 describe("formatCountdown", () => {
   it("ticks h:mm:ss, then m:ss under an hour", () => {
-    expect(formatCountdown(3 * 3600_000 + 2 * 60_000 + 9_000)).toBe("3:02:09");
-    expect(formatCountdown(42 * 60_000 + 5_000)).toBe("42:05");
-    expect(formatCountdown(-1)).toBe("0:00");
+    expect(formatCountdown(3 * 3600_000 + 2 * 60_000 + 9_000)).toBe("3h 02m");
+    expect(formatCountdown(42 * 60_000 + 5_000)).toBe("42m");
+    expect(formatCountdown(30_000)).toBe("<1m");
+    expect(formatCountdown(-1)).toBe("<1m");
   });
 });

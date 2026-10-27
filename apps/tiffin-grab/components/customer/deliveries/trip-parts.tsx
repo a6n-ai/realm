@@ -43,7 +43,7 @@ export const movedFact = (row: EatingRow): string => `${weekdayShort(row.date)}'
 export type PlanTagInfo = { color: string; label: string };
 export function PlanTag({ plan }: { plan: PlanTagInfo }) {
   return (
-    <span data-testid="plan-tag" className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
+    <span data-testid="plan-tag" className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />
       <span className="truncate">{plan.label}</span>
     </span>
@@ -380,7 +380,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
     <Sheet open={open} onClose={onClose} title={`${humanDate(row.date)} · your meal`}>
       <div className="space-y-4 pb-2 text-[15px]">
         {cats.length > 0 ? (
-          <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]" aria-label="Meal">
+          <ul className="divide-y divide-[var(--border)] c-surface overflow-hidden rounded-2xl bg-[var(--card)]" aria-label="Meal">
             {cats.map((c) => (
               <li key={c.category} className="px-4 py-3">
                 <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>

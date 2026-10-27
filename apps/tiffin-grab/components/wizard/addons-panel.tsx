@@ -42,7 +42,7 @@ export function AddonsPanel({
         return (
           <li
             key={addon.key}
-            className={`border-border flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "border-primary/40 bg-primary/10" : ""}`}
+            className={`flex min-h-14 items-center justify-between gap-3 rounded-2xl px-4 py-2 transition-colors ${active ? "bg-[var(--primary-wash)] ring-[1.5px] ring-[var(--primary)]" : "bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)]"}`}
           >
             <div className="flex min-w-0 flex-col">
               <span className="text-[15px] font-medium">
@@ -71,7 +71,7 @@ export function AddonsPanel({
         const total = items.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
         return (
           <details key={category} open={count > 0 || groups.size === 1} className="group">
-            <summary className="border-border flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border px-4 [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-4 [&::-webkit-details-marker]:hidden">
               <span className="text-[15px] font-semibold">{categoryLabels?.[category] ?? category}</span>
               <span className="text-muted-foreground flex items-center gap-2 text-[13px]">
                 {count > 0 ? <span className="nums text-primary font-medium">{count} added · +${total.toFixed(2)}/tiffin</span> : `${items.length} option${items.length === 1 ? "" : "s"}`}
@@ -87,7 +87,7 @@ export function AddonsPanel({
 
   if (bare) return <section aria-label="Add-ons" className={className}>{list}</section>;
   return (
-    <section aria-label="Add-ons" className={`bg-card border-border rounded-2xl border p-4 ${className}`}>
+    <section aria-label="Add-ons" className={`c-surface bg-card rounded-3xl p-4 ${className}`}>
       <h4 className="text-[15px] font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
       <p className="text-muted-foreground mt-0.5 text-[13px]">Optional extras, billed per tiffin.</p>
       {list}

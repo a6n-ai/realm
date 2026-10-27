@@ -151,7 +151,7 @@ export function Stepper({ label, value, onChange, min = 0, max = Infinity }: Ste
   };
   const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-[var(--muted)]");
   return (
-    <div className={cn(FONT, "inline-flex items-center rounded-full border-[1.5px] border-[var(--border)] bg-[var(--card)]")}>
+    <div className={cn(FONT, "c-surface inline-flex items-center rounded-full bg-[var(--card)]")}>
       <button type="button" className={btn} aria-label={`Decrease ${label}`} aria-disabled={value <= min || undefined} onClick={() => step(-1)}>
         <Minus aria-hidden className="size-4" />
       </button>

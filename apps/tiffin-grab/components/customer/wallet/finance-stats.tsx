@@ -1,4 +1,5 @@
-import { Skeleton } from "@/components/customer/kit";
+import { PiggyBank, Wallet } from "lucide-react";
+import { IconTile, Skeleton, StatGroup, StatTile } from "@/components/customer/kit";
 import type { UsageSummary } from "@/lib/services/customer-usage.service";
 
 function money(amount: string, currency: string) {
@@ -7,12 +8,13 @@ function money(amount: string, currency: string) {
 
 export function FinanceStats({ usage, currency }: { usage: UsageSummary; currency: string }) {
   return (
-    <p aria-label="Your totals" className="c-caption nums -mt-2">
-      Spent {money(usage.totalSpent, currency)} · Saved {money(usage.totalSaved, currency)}
-    </p>
+    <StatGroup>
+      <StatTile bare icon={<IconTile tint="purple"><Wallet /></IconTile>} label="Spent" value={money(usage.totalSpent, currency)} />
+      <StatTile bare icon={<IconTile tint="pink"><PiggyBank /></IconTile>} label="Saved" value={money(usage.totalSaved, currency)} />
+    </StatGroup>
   );
 }
 
 export function FinanceStatsSkeleton() {
-  return <Skeleton className="-mt-2 h-4 w-52 rounded-full" />;
+  return <Skeleton className="h-[104px] rounded-[20px]" />;
 }

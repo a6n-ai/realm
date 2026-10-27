@@ -35,7 +35,7 @@ function BundleStepper({
   const atMax = index >= bundles.length - 1;
   const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-[var(--muted)]");
   return (
-    <div className="inline-flex items-center rounded-full border-[1.5px] border-[var(--border)] bg-[var(--card)]">
+    <div className="c-surface inline-flex items-center rounded-full bg-[var(--card)]">
       <button
         type="button"
         className={btn}
@@ -66,7 +66,7 @@ function BundleStepper({
 function MealSummary({ meal, portions }: { meal: ResolvedCategory[] | null | undefined; portions: Record<string, string> }) {
   if (!meal?.length) return null;
   return (
-    <section aria-label="Your meal" className="flex flex-col gap-2 rounded-3xl border-[1.5px] border-[var(--border)] bg-[var(--muted)]/40 p-3">
+    <section aria-label="Your meal" className="c-surface flex flex-col gap-2 rounded-3xl bg-[var(--muted)]/40 p-3">
       <h3 className="text-sm font-semibold">Your meal</h3>
       <ul className="flex flex-col gap-2">
         {meal.map((cat) => (
@@ -287,8 +287,8 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                     <div
                       key={key}
                       className={cn(
-                        "rounded-3xl border-[1.5px] p-3",
-                        on ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40" : "border-[var(--border)] bg-[var(--card)]",
+                        "rounded-3xl p-3",
+                        on ? "ring-[1.5px] ring-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40" : "c-surface bg-[var(--card)]",
                       )}
                     >
                       <button

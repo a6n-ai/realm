@@ -16,7 +16,7 @@ describe("MealSizeItems", () => {
       />,
     );
     expect(screen.getByText("3× Bread")).toBeDefined();
-    expect(screen.getByText("1× Sabzi · 12oz")).toBeDefined();
+    expect(screen.getByText("Sabzi · 12oz")).toBeDefined();
   });
 
   it("renders nothing for an empty item list", () => {
@@ -36,7 +36,7 @@ describe("MealSizeItems", () => {
       />,
     );
     expect(screen.getByText("2× Roti")).toBeDefined();
-    expect(screen.getByText("1× Sabzi · 8oz")).toBeDefined();
+    expect(screen.getByText("Sabzi · 8oz")).toBeDefined();
   });
 
   it("falls back to the raw category key when no categoryLabels are given", () => {

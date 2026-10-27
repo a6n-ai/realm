@@ -19,8 +19,12 @@ describe("ReferView", () => {
     );
     expect(screen.getByText("ABCD2345")).toBeDefined();
     expect(screen.getByText(/\/subscribe\?ref=ABCD2345$/)).toBeDefined();
-    expect(screen.getByText(/You get 20 coins/)).toBeDefined();
-    expect(screen.getByText(/40 coins earned/)).toBeDefined();
+    // The offer card, and the same numbers spelled out in the last step.
+    expect(screen.getByText("You get")).toBeDefined();
+    expect(screen.getByText("Your friend gets")).toBeDefined();
+    expect(screen.getByText(/20 coins for you, 10 coins for them/)).toBeDefined();
+    expect(screen.getByText("40")).toBeDefined();
+    expect(screen.getByText("Earned from friends")).toBeDefined();
     expect(screen.getByText("Priya S.")).toBeDefined();
     expect(screen.getByText("Rewarded")).toBeDefined();
   });

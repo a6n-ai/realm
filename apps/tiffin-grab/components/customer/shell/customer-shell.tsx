@@ -8,7 +8,7 @@ import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, Refre
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet } from "@/components/customer/kit";
+import { CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
@@ -60,8 +60,17 @@ function MenuButton({ active, onClick, className, children }: { active: boolean;
   );
 }
 
-const tabCls = (on: boolean) =>
-  cn("flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold", on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]");
+// Each tab is its own pill inside the floating bar; the current one is lit like an iOS tab bar.
+const TAB_ORDER = ["deliveries", "support", "refer", "account", "menu"] as const;
+const tabCls = (on: boolean, compact = false) =>
+  cn(
+    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-[height,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
+    compact ? "h-10" : "h-14",
+    // The lit pill itself is one shared highlight that slides between tabs (see TAB_ORDER).
+    "relative z-[1]",
+    // Like Airbnb's tab bar: the tab you land on pops its icon once (spring up, settle back).
+    on ? "text-[var(--primary)] [&_svg]:animate-[tab-pop_360ms_cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:[&_svg]:animate-none" : "text-[var(--muted-foreground)]",
+  );
 
 /** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
 function UnreadBadge({ count, className }: { count: number; className?: string }) {
@@ -76,12 +85,32 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
 
 /** Live countdown to the next cutoff in the app timezone; tap for what it means. Server render and
  * the first client frame show a dashed placeholder, so hydration never sees a clock. */
+/** The account's photo, or its initials, as a round glass button to Account — the iOS profile corner. */
+function AccountAvatar({ name, image, active }: { name: string | null; image: string | null; active: boolean }) {
+  const initials = (name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+  return (
+    <Link
+      href="/me/account"
+      aria-label="Account"
+      aria-current={active ? "page" : undefined}
+      className={cn(FOCUS, "c-liquid grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-transparent text-[15px] font-semibold transition-transform active:scale-[.96] motion-reduce:transform-none", active && "ring-[1.5px] ring-[var(--primary)]")}
+    >
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="size-full object-cover" />
+      ) : (
+        <span aria-hidden>{initials}</span>
+      )}
+    </Link>
+  );
+}
+
 function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   const tz = useTimezone();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     setNow(Date.now());
-    const i = setInterval(() => setNow(Date.now()), 1000);
+    const i = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(i);
   }, []);
   const next = now === null ? null : nextCutoff(now, cutoffHour, tz);
@@ -110,8 +139,8 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         data-urgent={urgent || undefined}
         className={cn(
           FOCUS,
-          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-[var(--primary)] active:scale-[.97] motion-reduce:transform-none [@media(hover:hover)]:hover:-translate-y-px",
-          urgent ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
+          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none [@media(hover:hover)]:hover:-translate-y-px",
+          urgent ? "border-transparent bg-[var(--primary-wash,#FBE3D2)]" : "c-liquid border-transparent",
         )}
       >
         {urgent ? (
@@ -125,7 +154,7 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         <span className="flex flex-col leading-none">
           <span className="hidden text-[11px] font-semibold text-[var(--muted-foreground)] sm:block">Cutoff in</span>
           <span className={cn("text-[13px] sm:mt-0.5 font-bold tabular-nums", urgent && "text-[#B5430B] dark:text-[#FFB877]")}>
-            {next ? formatCountdown(next.ms) : "--:--:--"}
+            {next ? formatCountdown(next.ms) : "--"}
           </span>
         </span>
       </button>
@@ -146,13 +175,41 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   );
 }
 
-export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
+export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, userName = null, userImage = null, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; userName?: string | null; userImage?: string | null; staffReplies?: Record<string, number>; children: ReactNode }) {
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const tab = activeTab(pathname);
+  // The tapped tab lights at once; the route catches up behind it, so switching never waits on the page.
+  const [tapped, setTapped] = useState<string | null>(null);
+  useEffect(() => setTapped(null), [pathname]);
+  const lit = tapped ?? tab;
+  const litAt = TAB_ORDER.indexOf(lit as (typeof TAB_ORDER)[number]);
+  // Like iOS 26 (tabBarMinimizeBehavior .onScrollDown): scrolling down shrinks the bar to icons, scrolling up
+  // brings the labels back. Pages read --tabbar-h to keep their floating bars just above it.
+  const [compact, setCompact] = useState(false);
+  // iOS navigation bar: see-through at the top of the page, glass with a hairline once content scrolls under it.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 4);
+      if (y > last + 8 && y > 120) setCompact(true);
+      else if (y < last - 8 || y < 120) setCompact(false);
+      if (Math.abs(y - last) > 8) last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => setCompact(false), [pathname]);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--tabbar-h", compact ? "3rem" : "4rem");
+    return () => { document.documentElement.style.removeProperty("--tabbar-h"); };
+  }, [compact]);
+  const label = cn("transition-opacity duration-200", compact && "sr-only");
   const flow = FLOW_PATHS.some((b) => under(pathname, b));
 
   useEffect(() => setOpen(false), [pathname]);
@@ -182,7 +239,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
     <div className={cn(FONT, "min-h-dvh bg-[var(--background)] text-[var(--foreground)]")}>
       <a href="#main" className={cn(FOCUS, "sr-only z-50 rounded-full border border-[var(--primary)] bg-[var(--card)] px-4 py-3 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-[calc(env(safe-area-inset-top)+4.5rem)]")}>Skip to content</a>
       {!flow && <header
-        className="c-glass sticky top-0 z-40 border-b border-[var(--border)] pt-[env(safe-area-inset-top)]"
+        className={cn("sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-200", scrolled ? "c-glass border-[var(--border)]" : "border-transparent bg-transparent")}
         style={{ viewTransitionName: "customer-header" }}
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
@@ -199,36 +256,43 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           <div className="flex items-center justify-end gap-2">
             <CutoffChip cutoffHour={cutoffHour} />
             <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />
+            <AccountAvatar name={userName} image={userImage} active={tab === "account"} />
           </div>
         </div>
       </header>}
 
-      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
+      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
 
       {!flow && <nav
         aria-label="Primary"
-        className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        // Floats off the edges as a glass pill (iOS tab bar); content scrolls visibly beneath it.
+        className="c-liquid fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 rounded-full border p-1 lg:hidden"
         style={{ viewTransitionName: "customer-bottom-nav" }}
       >
         <div className="relative mx-auto flex max-w-md items-stretch">
-          <Link href="/me" aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "deliveries"))}>
-            <CalendarDays aria-hidden className="size-6" />Deliveries
+          <span
+            aria-hidden
+            className={cn("absolute inset-y-0 left-0 w-1/5 rounded-full bg-[color-mix(in_oklab,var(--primary)_16%,transparent)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none", litAt < 0 && "opacity-0")}
+            style={{ transform: `translateX(${Math.max(litAt, 0) * 100}%)` }}
+          />
+          <Link href="/me" onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>
+            <CalendarDays aria-hidden className="size-6" /><span className={label}>Deliveries</span>
           </Link>
-          <Link href="/me/support" aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "support"))}>
+          <Link href="/me/support" onClick={() => setTapped("support")} aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "support", compact))}>
             <span className="relative">
               <LifeBuoy aria-hidden className="size-6" />
               <UnreadBadge count={unread} className="absolute -right-2.5 -top-1.5" />
             </span>
-            Support
+            <span className={label}>Support</span>
           </Link>
-          <Link href="/me/refer" aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "refer"))}>
-            <Gift aria-hidden className="size-6" />Refer
+          <Link href="/me/refer" onClick={() => setTapped("refer")} aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "refer", compact))}>
+            <Gift aria-hidden className="size-6" /><span className={label}>Refer</span>
           </Link>
-          <Link href="/me/account" aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "account"))}>
-            <User aria-hidden className="size-6" />Account
+          <Link href="/me/account" onClick={() => setTapped("account")} aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "account", compact))}>
+            <User aria-hidden className="size-6" /><span className={label}>Account</span>
           </Link>
-          <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(tab === "menu")}>
-            <Ellipsis aria-hidden className="size-6" />More
+          <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(lit === "menu", compact)}>
+            <Ellipsis aria-hidden className="size-6" /><span className={label}>More</span>
           </MenuButton>
         </div>
       </nav>}
@@ -238,13 +302,13 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         <MenuSection title="Meals">
           {/* Renew sits in the middle and is the one lit up: it is what most customers open this for. */}
           <div className="grid grid-cols-3 gap-2">
-            <MenuTile href="/me/menu" icon={<UtensilsCrossed className="size-5" />} label="Weekly menu" sublabel="This week" />
-            <MenuTile href="/me/renew" icon={<RefreshCw className="size-5" />} label="Renew" sublabel="Same plan" primary />
-            <MenuTile href="/subscribe" icon={<Plus className="size-5" />} label="New order" sublabel="Another plan" />
+            <MenuTile href="/me/menu" tint="orange" icon={<UtensilsCrossed />} label="Weekly menu" sublabel="This week" />
+            <MenuTile href="/me/renew" tint="green" icon={<RefreshCw />} label="Renew" sublabel="Same plan" primary />
+            <MenuTile href="/subscribe" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" />
           </div>
         </MenuSection>
         <MenuSection title="Money">
-          <ListRow href="/me/wallet" icon={<Wallet className="size-[18px]" />} label="Finances" sublabel="Coins, coupons, bills" />
+          <ListRow href="/me/wallet" tint="indigo" icon={<Wallet />} label="Finances" sublabel="Coins, coupons, bills" />
         </MenuSection>
         <MenuSection title="Appearance">
           <Segmented label="Theme" idPrefix="menu-theme" items={THEMES} value={theme ?? "system"} onChange={(t) => setTheme(t as "light" | "dark" | "system")} className="[&>button]:flex-1" />
@@ -254,19 +318,19 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   );
 }
 
-function MenuTile({ href, icon, label, sublabel, primary = false }: { href: string; icon: ReactNode; label: string; sublabel: string; primary?: boolean }) {
+function MenuTile({ href, icon, tint, label, sublabel, primary = false }: { href: string; icon: ReactNode; tint: IconTint; label: string; sublabel: string; primary?: boolean }) {
   return (
     <Link
       href={href}
       className={cn(
         FONT, FOCUS,
-        "flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
+        "c-surface flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
         primary
-          ? "border-[color-mix(in_oklch,var(--primary)_45%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_8%,var(--card))]"
-          : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]",
+          ? "bg-[color-mix(in_oklch,var(--primary)_12%,var(--card))]"
+          : "bg-[var(--card)] hover:bg-[var(--muted)]",
       )}
     >
-      <span aria-hidden className={cn("grid size-10 place-items-center rounded-xl", primary ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)]")}>{icon}</span>
+      <IconTile tint={tint} size="lg">{icon}</IconTile>
       <span className="text-[15px] leading-tight font-semibold">{label}</span>
       <span className="text-[13px] leading-tight text-[var(--muted-foreground)]">{sublabel}</span>
     </Link>

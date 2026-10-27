@@ -11,20 +11,22 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
-import { BottomBar, Button, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
 import { StepDuration } from "./steps/step-duration";
 import { BestDeal } from "./best-deal";
 import { SubscribeChrome } from "./subscribe-chrome";
-import { Progress } from "./progress";
+import { CHECKOUT_STEPS, Progress } from "./progress";
 import { TotalChip } from "./total-chip";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
+import { Checkout } from "@/components/checkout/checkout";
+import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
 const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;
@@ -41,8 +43,12 @@ export function Wizard({
   exitHref,
   trial = null,
   holidayDates = [],
+  popular = {},
   quote = null,
+  checkout,
 }: {
+  /** Present: the last step opens Delivery and Payment in place instead of navigating to /checkout. */
+  checkout?: CheckoutProps;
   /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
   quote?: { picks: WizardSelections; codes: string[] } | null;
   catalog: ClientCatalogSnapshot;
@@ -58,6 +64,8 @@ export function Wizard({
   exitHref?: string;
   /** Declared closed days; the start date cannot be one. */
   holidayDates?: string[];
+  /** Most-ordered meal size ids per plan key, shown first on Bundle. */
+  popular?: Record<string, string[]>;
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
@@ -127,10 +135,18 @@ export function Wizard({
   const blocked = nextBlockedReason(step, catalog, selections);
   const canNext = blocked === null;
 
+  const [atCheckout, setAtCheckout] = useState(false);
+
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
+    sessionStorage.setItem(WIZARD_PLAN_STEPS_KEY, JSON.stringify(stepLabels));
     if (quote?.codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(quote.codes));
+    if (checkout) {
+      setAtCheckout(true);
+      window.scrollTo({ top: 0 });
+      return;
+    }
     router.push("/checkout", { transitionTypes: ["nav-forward"] });
   };
 
@@ -175,17 +191,17 @@ export function Wizard({
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   if (bouncing) return null;
-  return (
+  const builder = (
     <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-6">
       <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]}
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
 
-      <Progress steps={stepLabels} current={progressIndex} />
+      <Progress steps={CHECKOUT_STEPS} current={0} planParts={stepLabels.length} planAt={progressIndex} />
 
       {quote && quoteChanged(quote.picks, selections) && (
         // Same shape as the BestDeal banner, so it reads as an offer to undo, not an error.
-        <div className="mb-5 flex items-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/10 py-2 pr-1 pl-3" role="status">
+        <div className="mb-5 flex items-center gap-2 c-surface rounded-2xl bg-[var(--primary-wash)] py-2 pr-1 pl-3" role="status">
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty sm:text-sm">
             <span className="text-foreground font-semibold">Changed from your estimate</span>
             <span className="text-muted-foreground"> · price will differ</span>
@@ -193,7 +209,7 @@ export function Wizard({
           <button
             type="button"
             onClick={() => set({ ...quote.picks, startDate: selections.startDate })}
-            className="bg-primary text-primary-foreground relative h-9 shrink-0 cursor-pointer rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,color] duration-100 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] active:scale-[0.97] motion-reduce:active:scale-100"
+            className={buttonClass({ variant: "primary", className: "relative !min-h-9 h-9 shrink-0 !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
           >
             Use my estimate
           </button>
@@ -214,7 +230,7 @@ export function Wizard({
           <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
 
           {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
-          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} />}
+          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} popular={popular[selections.planKey ?? ""] ?? []} />}
           {step === 2 && !trialSelected && <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
           {step === 3 && (
             <StepDuration
@@ -275,7 +291,7 @@ export function Wizard({
       </Sheet>
 
       <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
-        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
+        <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
         {step < 3 ? (
           <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={goNext}>Next</Button>
         ) : (
@@ -286,6 +302,23 @@ export function Wizard({
       </BottomBar>
     </div>
   );
+  if (!checkout) return builder;
+  // No wrapper animation: the builder and Checkout share the same top bar and bottom bar, so swapping them
+  // in one frame keeps both bars still (a transformed wrapper would also drag the fixed phone bar along).
+  // Only the step content moves: Checkout slides its Delivery body in on arrival.
+  return atCheckout ? (
+    <Checkout
+      {...checkout}
+      closeHref={closeHref}
+      handoff={{
+        selections,
+        origin,
+        planSteps: [...stepLabels],
+        quoteCodes: quote?.codes,
+        onEditPlan: () => { setAtCheckout(false); window.scrollTo({ top: 0 }); },
+      }}
+    />
+  ) : builder;
 }
 
 // Everything the estimate priced; the start date is not part of a quote.

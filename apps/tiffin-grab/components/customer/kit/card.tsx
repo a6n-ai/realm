@@ -13,9 +13,9 @@ export function Card({ interactive, selected, className, ...rest }: CardProps) {
       {...(interactive ? { role: rest.role ?? "button", tabIndex: rest.tabIndex ?? 0, "aria-pressed": selected } : {})}
       className={cn(
         FONT,
-        "rounded-3xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]",
+        "c-surface rounded-3xl border border-transparent bg-[var(--card)] text-[var(--foreground)]",
         interactive && cn(FOCUS, "cursor-pointer transition-transform duration-150 active:scale-[.985] motion-reduce:transition-none", SPRING),
-        selected && "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]",
+        selected && "ring-[1.5px] ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]",
         className,
       )}
     />

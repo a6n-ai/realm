@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { popularMealSizesByPlan } from "@/lib/services/popular-meal-sizes.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
@@ -11,7 +12,10 @@ import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer
 import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
-import { QuickRenewClient } from "./quick-renew-client";
+import { RenewCheckout } from "./quick-renew-client";
+import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
+import { loadCheckoutProps } from "@/lib/checkout/load-checkout-props";
+import { getSession } from "@/lib/auth/session";
 import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
 import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
 import { renewPageMode } from "@/components/renew/renew-selections";
@@ -32,16 +36,18 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   if (unpaid) return <PageShell><UnpaidRenewalNotice payPublicId={unpaid.payPublicId} /></PageShell>;
   const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, orgId);
   if (data && renewPageMode({ quoteParams, full, data }) === "quick") {
+    const checkout = await getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId));
+    if (!checkout) return <CheckoutUnavailable />;
     return (
       <PageShell>
-        <div className="mx-auto w-full max-w-3xl">
-          <QuickRenewClient {...data} />
+        <div className="mx-auto w-full max-w-5xl">
+          <RenewCheckout data={data} checkout={checkout} />
         </div>
       </PageShell>
     );
   }
 
-  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs] = await Promise.all([
+  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs, popular, checkout] = await Promise.all([
     loadCatalogSnapshot(),
     resolveRequestOrg().then(getTrialSettings),
     db
@@ -63,6 +69,8 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
       .limit(1),
     myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
+    popularMealSizesByPlan(orgId),
+    getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId)),
   ]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
@@ -119,11 +127,13 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           exitHref="/me"
           origin={full ? "subscribe" : "renew"}
           initial={initial}
+          checkout={checkout ?? undefined}
           quote={quoted ? { picks: initial, codes: quoteCodes(params) } : null}
           currentPlan={current}
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}
           holidayDates={holidayDates}
+          popular={popular}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
           trial={
             trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0

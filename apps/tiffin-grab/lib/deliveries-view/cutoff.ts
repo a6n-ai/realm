@@ -15,10 +15,10 @@ export function nextCutoff(nowMs: number, cutoffHour: number, timeZone: string):
 }
 
 /** A ticking timer: "12:04:09", then "42:05" under an hour. Seconds keep it reading as a countdown, not a clock time. */
+/** "2h 54m" / "54m" / "<1m": minutes are enough for a cutoff, and a ticking seconds digit only adds noise. */
 export function formatCountdown(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const mm = String(Math.floor((total % 3600) / 60)).padStart(h > 0 ? 2 : 1, "0");
-  const ss = String(total % 60).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  const mins = Math.max(0, Math.floor(ms / 60_000));
+  if (mins < 1) return "<1m";
+  const h = Math.floor(mins / 60);
+  return h > 0 ? `${h}h ${String(mins % 60).padStart(2, "0")}m` : `${mins}m`;
 }

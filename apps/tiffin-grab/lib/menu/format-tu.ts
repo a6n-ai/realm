@@ -22,7 +22,9 @@ export function formatTuHuman(category: TuCategory, tuAmount: number): string {
 
 /** Customer/wizard chip copy: pick count × category, human portion when known — never raw TU. */
 export function mealChipLabel(qty: number, label: string, portion?: string | null): string {
-  return portion ? `${qty}× ${label} · ${portion}` : `${qty}× ${label}`;
+  // One of a thing needs no count: "Sabzi · 8oz", but "2× Sabzi · 8oz".
+  const name = qty === 1 ? label : `${qty}× ${label}`;
+  return portion ? `${name} · ${portion}` : name;
 }
 
 /**

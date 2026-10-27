@@ -11,6 +11,7 @@ import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import { SupportHoursSlot } from "@/components/customer/support/support-hours";
 import { TopicCards } from "@/components/customer/support/topic-cards";
+import { HowSupportWorks } from "@/components/customer/support/how-support-works";
 
 type SearchParams = Promise<{ orderId?: string }>;
 
@@ -27,6 +28,7 @@ export default function SupportPage({ searchParams }: { searchParams: SearchPara
       <Suspense fallback={<TicketsListSkeleton />}>
         <TicketsData />
       </Suspense>
+      <HowSupportWorks />
     </div>
   );
 }
