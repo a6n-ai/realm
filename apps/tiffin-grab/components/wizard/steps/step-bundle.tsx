@@ -141,9 +141,8 @@ function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; classNam
 /** The size's price level as $ / $$ / $$$, on the card itself. */
 function TierMark({ meal }: { meal: ClientMealSizeView }) {
   const t = TIER_MARK[meal.tier];
-  // Bottom-right corner of the card, clear of the price above it.
   return (
-    <span aria-label={t.label} className="text-muted-foreground absolute right-4 bottom-3 text-[13px] font-bold tracking-[0.08em]">
+    <span aria-label={t.label} className="text-muted-foreground shrink-0 text-[13px] font-bold tracking-[0.08em]">
       {t.mark}
     </span>
   );
@@ -155,7 +154,7 @@ const cardLabel = (meal: ClientMealSizeView) =>
 
 function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
   return (
-    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4 pb-9">
+    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4">
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
@@ -169,8 +168,11 @@ function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientM
         <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {/* What's in it, same line as the other cards, so a popular pick is never a blind one. */}
-      <div className="pr-8"><MealSizeItems items={meal.items} categoryLabels={categoryLabels} /></div>
-      <TierMark meal={meal} />
+      {/* What's in it on the left, the price level on the same line at the right. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
+        <TierMark meal={meal} />
+      </div>
     </OptionCard>
   );
 }
@@ -224,8 +226,10 @@ function MealOption({
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
-      <div className="pr-10"><MealSizeItems items={meal.items} categoryLabels={categoryLabels} /></div>
-      <TierMark meal={meal} />
+      <div className="flex items-baseline justify-between gap-3">
+        <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
+        <TierMark meal={meal} />
+      </div>
     </OptionCard>
   );
 }
