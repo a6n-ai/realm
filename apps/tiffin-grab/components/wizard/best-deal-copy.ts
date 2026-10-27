@@ -3,9 +3,9 @@
 export const BEST_DEAL_COPY = {
   bundle: {
     title: "Deal on now",
-    body: (label: string, pct: number) => `Select ${label}: ${pct}% off right now.`,
+    body: (label: string, pct: number) => `${label} is ${pct}% off.`,
     appliedTitle: "Applied",
-    appliedBody: (label: string, pct: number) => `You've picked ${label} — ${pct}% off right now.`,
+    appliedBody: (label: string, pct: number) => `${label} · ${pct}% off.`,
   },
   frequency: {
     title: "Tip for your delivery",
@@ -14,9 +14,9 @@ export const BEST_DEAL_COPY = {
     appliedBody: (label: string, pct: number) => `You're getting ${label} — saving ${pct}% on every tiffin.`,
   },
   duration: {
-    title: "Tip for your plan length",
+    title: "Longer plan, lower price",
     body: (label: string, pct: number) => `Select ${label} to save ${pct}% on every tiffin.`,
     appliedTitle: "Applied",
-    appliedBody: (label: string, pct: number) => `You've picked ${label} — saving ${pct}% on every tiffin.`,
+    appliedBody: (label: string, pct: number) => `${label} · saving ${pct}% on every tiffin.`,
   },
 } as const;

@@ -109,7 +109,7 @@ describe("BestDeal", () => {
       const c = disc(10);
       const { rerender } = render(<BestDeal vary="bundle" catalog={c} selections={sel({ planKey: "veg", mealSizeId: "msz_2" })} set={set} />);
       expect(screen.getByText("Deal on now")).toBeTruthy();
-      expect(screen.getByText(/Select K: 10% off right now/)).toBeTruthy();
+      expect(screen.getByText(/K is 10% off/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Use this" }));
       expect(set).toHaveBeenLastCalledWith({ mealSizeId: "msz_1" });
       rerender(<BestDeal vary="bundle" catalog={c} selections={sel({ planKey: "veg", mealSizeId: "msz_1" })} set={set} />);

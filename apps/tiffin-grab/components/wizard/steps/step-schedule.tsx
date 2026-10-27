@@ -7,7 +7,7 @@ import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { TripTimeline, colorTrips } from "../trip-timeline";
+import { TripTimeline } from "../trip-timeline";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
@@ -49,23 +49,29 @@ export function StepSchedule({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row, frequencies.length]);
 
+  const weekendsOff = !servesWeekends(catalog, selections);
+  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
+  const open = (d: DayOfWeek) => !(weekendsOff && isWeekend(d)) && dayAllowed(d, allowed);
+  // The range a customer can actually pick: "3 to 7" is wrong when the weekend or the meal size closes days.
+  const max = Math.min(bounds.max, WEEK_DAYS.filter(open).length);
+  const min = Math.min(bounds.min, max);
+
   const toggle = (day: DayOfWeek) => {
     if (eating.includes(day)) {
-      if (eating.length > bounds.min) setEating(eating.filter((d) => d !== day));
-    } else if (eating.length < bounds.max) setEating([...eating, day]);
+      if (eating.length > min) setEating(eating.filter((d) => d !== day));
+    } else if (eating.length < max) setEating([...eating, day]);
   };
 
   const trips = row ? planWeek(deliveryDays, eating) : null;
-  const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
-  const atMax = eating.length >= bounds.max;
-  const atMin = eating.length <= bounds.min;
-  const weekendsOff = !servesWeekends(catalog, selections);
-  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
+  const error = row && eating.length >= min ? scheduleError(catalog, selections) : null;
+  const atMax = eating.length >= max;
+  const atMin = eating.length <= min;
+  const closedNote = allowed?.length ? `${onlyOnMessage(allowed)}.` : weekendsOff ? "No weekend dish with this meal." : null;
 
   return (
     <div className="space-y-8">
       {currentPlan ? (
-        <CurrentPlanHint>Now {currentPlan.daysPerWeek} days a week.</CurrentPlanHint>
+        <CurrentPlanHint>Your current plan: {currentPlan.daysPerWeek} days a week.</CurrentPlanHint>
       ) : null}
 
       <section aria-labelledby="sched-eating">
@@ -74,7 +80,7 @@ export function StepSchedule({
           {WEEK_DAYS.map((day) => {
             const on = eating.includes(day);
             return (
-              <PillToggle key={day} on={on} disabled={on ? atMin : atMax || (weekendsOff && isWeekend(day)) || !dayAllowed(day, allowed)} onClick={() => toggle(day)}>
+              <PillToggle key={day} on={on} disabled={on ? atMin : atMax || !open(day)} onClick={() => toggle(day)}>
                 {LABEL[day]}
               </PillToggle>
             );
@@ -85,10 +91,9 @@ export function StepSchedule({
             <span className="text-primary text-[28px] font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
             <span className="text-muted-foreground ml-1 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
           </span>
-          <span className={`text-[13px] ${eating.length < bounds.min ? "text-destructive font-medium" : "text-muted-foreground"}`}>Pick {bounds.min} to {bounds.max} days</span>
+          <span className={`text-[13px] ${eating.length < min ? "text-destructive font-medium" : "text-muted-foreground"}`}>{min === max ? `Pick ${min} days` : `Pick ${min} to ${max} days`}</span>
         </p>
-        {weekendsOff ? <p className="text-muted-foreground mt-2 text-[13px] text-pretty">This meal has no weekend dish, so Saturday and Sunday aren&apos;t available.</p> : null}
-        {allowed?.length ? <p className="text-muted-foreground mt-2 text-[13px] text-pretty">{onlyOnMessage(allowed)}.</p> : null}
+        {closedNote ? <p className="text-muted-foreground mt-2 text-[13px] text-pretty">{closedNote}</p> : null}
         {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
       </section>
 
@@ -116,15 +121,17 @@ export function StepSchedule({
                 onClick={() => set({ frequencyKey: f.key })}
                 className="flex min-h-24 flex-col items-start justify-between gap-3 p-4"
               >
-                <span className="flex w-full items-center justify-between gap-2">
-                  <span className="text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
+                <span className="flex w-full items-start justify-between gap-2">
+                  <span className="leading-none">
+                    <span className="text-[28px] font-bold tracking-[-0.03em]">{f.weekdays?.length}</span>
+                    <span className="text-muted-foreground ml-1.5 text-[15px] font-medium">deliveries a week</span>
+                  </span>
                   <span className="sr-only">{f.name}</span>
-                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>{save === bestSave ? `Best value · Save ${save}%` : `Save ${save}%`}</Pill>}
+                  {/* Green like the bundle step's price marks: savings read as money, the saffron stays for selection. */}
+                  {save > 0 && <Pill tone="ok" size="sm" aria-label={`Save ${save}%`}>{save === bestSave ? `Best value · Save ${save}%` : `Save ${save}%`}</Pill>}
                 </span>
-                <span className="flex flex-wrap gap-1.5">
-                  {(f.weekdays as DayOfWeek[]).map((d) => (
-                    <Pill key={d} size="sm" tone={active ? "solid" : "soft"}>{LABEL[d]}</Pill>
-                  ))}
+                <span className={`text-[15px] font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                  {(f.weekdays as DayOfWeek[]).map((d) => LABEL[d]).join(" · ")}
                 </span>
               </OptionCard>
             );
@@ -135,7 +142,7 @@ export function StepSchedule({
       <section aria-labelledby="sched-preview" className="c-surface bg-card rounded-[20px] p-5">
         {/* The tiffin count already sits under the day pills; this card only shows how they arrive. */}
         <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
-        {trips ? <TripTimeline trips={colorTrips(trips)} compact /> : null}
+        {trips ? <TripTimeline trips={trips} compact /> : null}
       </section>
     </div>
   );

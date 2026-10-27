@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
-import { CheckCircle2Icon, XIcon } from "lucide-react";
+import { CheckIcon, TagIcon, XIcon } from "lucide-react";
+import { IconTile } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
@@ -59,7 +60,9 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
           transition={spring}
           className="overflow-hidden"
         >
-          <div className={`mb-5 flex items-center gap-2 c-surface rounded-2xl py-2 pr-1 pl-3 transition-colors duration-300 ${applied ? "bg-emerald-500/10" : "bg-[var(--primary-wash)]"}`}>
+          {/* Liquid glass, like the bottom bar: an offer floats over the page instead of tinting a strip of it. */}
+          <div className="c-liquid mb-5 flex items-center gap-3 rounded-[22px] py-2.5 pr-1.5 pl-2.5">
+            <IconTile tint="green">{applied ? <CheckIcon strokeWidth={3} /> : <TagIcon />}</IconTile>
             <AnimatePresence initial={false} mode="wait">
               <m.div
                 key={view.state}
@@ -67,18 +70,16 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: reduce ? 0.1 : 0.18 }}
-                className="flex min-w-0 flex-1 items-center gap-2.5"
+                className="flex min-w-0 flex-1 items-center gap-2"
               >
-                {applied && <CheckCircle2Icon aria-hidden className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />}
-                <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty sm:truncate sm:text-sm">
-                  <span className={`font-semibold ${applied ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>{applied ? copy.appliedTitle : copy.title}</span>
-                  <span className="text-muted-foreground"> · </span>
-                  {applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}
+                <p className="min-w-0 flex-1 leading-snug text-pretty">
+                  <span className="block text-[15px] font-semibold tracking-[-0.01em]">{applied ? copy.appliedTitle : copy.title}</span>
+                  <span className="text-muted-foreground block text-[13px]">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</span>
                 </p>
                 <button
                   type="button"
                   onClick={applied ? revert : apply}
-                  className={buttonClass({ variant: "primary", className: `relative !min-h-9 h-9 shrink-0 !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] ${applied ? "!bg-emerald-600 !text-white dark:!bg-emerald-500 dark:!text-emerald-950" : ""}` })}
+                  className={buttonClass({ variant: applied ? "quiet" : "primary", className: "relative !min-h-9 h-9 shrink-0 !rounded-full !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
                 >
                   {applied ? "Undo" : "Use this"}
                 </button>
@@ -88,7 +89,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
               type="button"
               aria-label="Dismiss best deal"
               onClick={() => setDismissed(true)}
-              className="text-muted-foreground flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
+              className="text-muted-foreground -ml-1 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
             >
               <XIcon className="size-4" />
             </button>
