@@ -1,30 +1,23 @@
 {
 	# ACME account email for Let's Encrypt (auto-TLS). Set ACME_EMAIL in .env.production.
 	email {$ACME_EMAIL}
+	# Error entries (e.g. a 502 from reverse_proxy) carry the request too, and they
+	# also reach CloudWatch: same redaction as the access log.
+	log default {
+		output stderr
+		import redacted.caddy
+	}
 }
 
 # Request timing for sizing Neon (how many 5-min windows see traffic) and spotting
-# crawlers, shipped to CloudWatch (/tiffin/prod, stream prefix caddy). Query strings
-# carry magic-link, payment-link and receipt tokens, so they are cut; headers and
-# client IPs are dropped except the User-Agent. Static assets never touch the DB.
+# crawlers (User-Agent is the one header kept). Static assets never touch the DB.
 (access_log) {
 	@static path /_next/static/* /lottie/* /favicon.ico
 	log_skip @static
 	log_append ua {http.request.header.User-Agent}
 	log {
 		output stdout
-		format filter {
-			wrap json
-			fields {
-				request>uri regexp \?.* ""
-				request>headers delete
-				request>remote_ip delete
-				request>remote_port delete
-				request>client_ip delete
-				request>tls delete
-				resp_headers delete
-			}
-		}
+		import redacted.caddy
 	}
 }
 

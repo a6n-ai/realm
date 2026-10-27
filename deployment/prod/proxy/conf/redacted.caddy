@@ -1,0 +1,23 @@
+# Everything Caddy logs goes to CloudWatch (/tiffin/prod). Links are capabilities:
+# query strings carry magic-link and verify tokens, and some paths are themselves the
+# secret (invites, payment and receipt links, short links, password reset, file keys).
+# Cut the query, replace those path segments (and any long token-like segment, for
+# routes added later), and drop headers, cookies and client IPs.
+# Imported by the Caddyfile's default logger and every site's access log.
+format filter {
+	wrap json
+	fields {
+		request>uri multi_regexp {
+			regexp \?.* ""
+			regexp ^/(accept-invitation|me/pay|activate|q|api/receipts|api/auth/reset-password)/[^/]+ /$1/:id
+			regexp ^/api/files/.* /api/files/:key
+			regexp /[A-Za-z0-9_-]{20,} /:token
+		}
+		request>headers delete
+		request>remote_ip delete
+		request>remote_port delete
+		request>client_ip delete
+		request>tls delete
+		resp_headers delete
+	}
+}
