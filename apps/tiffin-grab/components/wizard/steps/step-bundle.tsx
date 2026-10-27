@@ -8,7 +8,7 @@ import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { dayAllowed, frequencyFits, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, frequencyFits, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 
@@ -122,6 +122,21 @@ export function StepBundle({
   );
 }
 
+const DAY_SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+
+/** The days a size is made on, as pills (e.g. non-veg only: Mon, Wed, Fri). Nothing for a size made every day. */
+function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; className?: string }) {
+  const days = meal.allowedDays;
+  if (!days?.length) return null;
+  return (
+    <span role="note" aria-label={`${onlyOnMessage(days)}.`} className={`flex flex-wrap items-center gap-1 ${className}`}>
+      {(Object.keys(DAY_SHORT) as DayOfWeek[]).filter((d) => days.includes(d)).map((d) => (
+        <Pill key={d} tone="wash" size="sm">{DAY_SHORT[d]}</Pill>
+      ))}
+    </span>
+  );
+}
+
 /** Compact card for the Most popular row: name, kcal and price, sized for half a phone's width. */
 function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; active: boolean; onPick: () => void }) {
   return (
@@ -129,6 +144,7 @@ function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; act
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
       <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance">{meal.name}</span>
       {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+      <MealDays meal={meal} />
       <span className="mt-auto pt-1">
         <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[22px] font-bold tracking-[-0.03em]" />
       </span>
@@ -164,6 +180,7 @@ function MealOption({
             <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
           </div>
           <p className="text-muted-foreground text-sm text-pretty">{meal.description || "Taste it before you commit to a plan."}</p>
+          <MealDays meal={meal} />
           <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
         </div>
       </OptionCard>
@@ -180,6 +197,7 @@ function MealOption({
         <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
+      <MealDays meal={meal} className="-mt-1" />
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
       <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
     </OptionCard>
