@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn, FONT, FOCUS } from "./cn";
 
-/** Sticky glass CTA bar: hairline top, safe-area padding, one primary action. On phones its buttons float as liquid-glass capsules instead (.c-float-bar, globals.css). */
+/** Sticky glass CTA bar, no hairline (it read as a white line over the buttons): safe-area padding, one primary action. On phones its buttons float as liquid-glass capsules instead (.c-float-bar, globals.css). */
 export function BottomBar({ children, note, className, alignEnd }: { children: ReactNode; note?: string; className?: string; /** From sm up, right-align the note and the actions (wizard bar). */ alignEnd?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   // Pages reserve exactly the bar's height (var(--bottom-bar-h)) so content ends just above it.
@@ -18,7 +18,7 @@ export function BottomBar({ children, note, className, alignEnd }: { children: R
     return () => { ro.disconnect(); root.style.removeProperty("--bottom-bar-h"); };
   }, []);
   return (
-    <div ref={ref} className={cn(FONT, "c-glass c-float-bar fixed inset-x-0 bottom-0 z-[45] border-t border-[var(--border)] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+    <div ref={ref} className={cn(FONT, "c-glass c-float-bar fixed inset-x-0 bottom-0 z-[45] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
       {note && <p role="status" className={cn("c-caption mx-auto mb-2 max-w-3xl text-center", alignEnd && "sm:text-right")}>{note}</p>}
       <div className={cn("mx-auto flex max-w-3xl gap-2", alignEnd && "sm:justify-end")}>{children}</div>
     </div>

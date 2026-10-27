@@ -18,20 +18,21 @@ export function MealSizeItems({
   if (items.length === 0) return null;
   const label = (category: string) => categoryLabels?.[category] ?? category;
 
-  // One representative catalog line per category — a row IS one dish pick now,
-  // so "N×" comes from counting rows in a category, not a qty column.
-  const countByCategory = new Map<string, number>();
-  const repByCategory = new Map<string, Item>();
+  // One chip per category and portion: a row IS one dish pick, so "N×" counts rows, but a 12oz main sabzi
+  // and an 8oz side sabzi are different containers and must not collapse into "2× Sabzi · 12oz".
+  const groups = new Map<string, { category: string; portion: Item["portion"]; count: number }>();
   for (const item of items) {
-    countByCategory.set(item.category, (countByCategory.get(item.category) ?? 0) + 1);
-    if (!repByCategory.has(item.category)) repByCategory.set(item.category, item);
+    const key = `${item.category}|${item.portion ?? ""}`;
+    const g = groups.get(key);
+    if (g) g.count += 1;
+    else groups.set(key, { category: item.category, portion: item.portion, count: 1 });
   }
 
   return (
     <div className="flex flex-wrap gap-1.5">
-      {[...repByCategory.entries()].map(([category, rep]) => (
-        <span key={category} className="bg-muted rounded-full px-2 py-0.5 text-xs">
-          {mealChipLabel(countByCategory.get(category) ?? 0, label(category), rep.portion)}
+      {[...groups].map(([key, g]) => (
+        <span key={key} className="bg-muted rounded-full px-2 py-0.5 text-xs">
+          {mealChipLabel(g.count, label(g.category), g.portion)}
         </span>
       ))}
     </div>

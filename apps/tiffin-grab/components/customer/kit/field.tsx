@@ -11,7 +11,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       {...rest}
       ref={ref}
       aria-invalid={invalid ? true : rest["aria-invalid"]}
-      className={cn(FONT, FOCUS, "border bg-[var(--card)] text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]", dense ? "min-h-11 rounded-xl px-2.5 md:text-sm" : "min-h-[52px] rounded-2xl px-4", invalid ? "border-[#be123c]" : "border-[var(--border)]", className)}
+      className={cn(FONT, FOCUS, "border bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]", dense ? "min-h-11 rounded-xl px-2.5 md:text-sm" : "min-h-[52px] rounded-2xl px-4", invalid ? "border-[#be123c]" : "border-transparent", className)}
     />
   );
 });

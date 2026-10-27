@@ -29,7 +29,7 @@ export function Select({ label, hint, error, placeholder, options, className, id
           aria-describedby={describedBy}
           className={cn(
             FOCUS,
-            "min-h-[52px] w-full appearance-none rounded-2xl border bg-[var(--card)] pl-4 pr-11 text-base text-[var(--foreground)] disabled:opacity-50",
+            "min-h-[52px] w-full appearance-none rounded-2xl border border-transparent bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] pl-4 pr-11 text-base text-[var(--foreground)] disabled:opacity-50",
             !rest.value && placeholder && "text-[var(--muted-foreground,#6E6558)]",
             error ? "border-[#be123c]" : "border-[var(--border)]",
             className,

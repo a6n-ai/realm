@@ -3,7 +3,7 @@
 import { Fragment, type ReactNode } from "react";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
-import { MapPin, Pencil, Plus } from "lucide-react";
+import { Check, MapPin, Pencil, Plus } from "lucide-react";
 import { OptionCard, Pill } from "@/components/customer/kit";
 import { AddressDropOffLines, AddressDropOffPanel } from "@/components/customer/address/drop-off";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
@@ -22,6 +22,7 @@ export function CheckoutAddressPicker({
   draftFromAccount = false,
   onAdd,
   onEditDraft,
+  onEditSaved,
   dropOff,
   dropOffs = {},
   selectedExtra,
@@ -37,6 +38,8 @@ export function CheckoutAddressPicker({
   /** Omit both to offer saved addresses only (quick renew). */
   onAdd?: () => void;
   onEditDraft?: () => void;
+  /** Tapping the picked saved address again opens it for editing. */
+  onEditSaved?: (address: SavedAddress) => void;
   dropOff?: DropOffCatalog;
   /** Saved address public id → its drop-off. */
   dropOffs?: Record<string, DropOffValue>;
@@ -51,7 +54,7 @@ export function CheckoutAddressPicker({
         <div role="radiogroup" aria-label="Delivery address" className="grid grid-cols-1 gap-2.5">
           {addresses.map((a) => (
             <Fragment key={a.publicId}>
-            <Row selected={value === a.publicId} onClick={() => onPick(a)} icon={<MapPin className="size-[18px]" />}>
+            <Row selected={value === a.publicId} onClick={() => (value === a.publicId && onEditSaved ? onEditSaved(a) : onPick(a))} icon={<MapPin className="size-[18px]" />}>
               <span className="flex items-center gap-2">
                 <span className="text-[16px] font-semibold tracking-[-0.01em]">{a.label}</span>
                 {a.isDefault && <Pill tone="soft" size="sm">Default</Pill>}
@@ -60,6 +63,9 @@ export function CheckoutAddressPicker({
               {dropOff && value !== a.publicId && <AddressDropOffLines catalog={dropOff} value={dropOffs[a.publicId]} note={a.deliveryInstructions} />}
               {value === a.publicId && a.deliveryInstructions && (
                 <span className="text-muted-foreground line-clamp-2 block text-[13px]">Note: {a.deliveryInstructions}</span>
+              )}
+              {value === a.publicId && onEditSaved && (
+                <span className="text-primary mt-1 inline-flex items-center gap-1 text-[13px] font-semibold"><Pencil aria-hidden className="size-3" /> Edit</span>
               )}
             </Row>
             {value === a.publicId && extra}
@@ -84,10 +90,10 @@ export function CheckoutAddressPicker({
       {onAdd && <button
         type="button"
         onClick={onAdd}
-        className="c-surface text-foreground flex min-h-[60px] w-full items-center gap-3.5 rounded-[20px] bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-4 py-3 text-left transition-[transform,background-color] duration-100 hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)] active:scale-[.98] motion-reduce:active:scale-100"
+        className="c-surface text-foreground flex min-h-12 w-full items-center gap-3 rounded-[20px] bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-4 py-2 text-left transition-[transform,background-color] duration-100 hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)] active:scale-[.98] motion-reduce:active:scale-100"
       >
-        <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full">
-          <Plus className="size-[18px]" />
+        <span aria-hidden className="bg-primary/15 text-primary flex size-8 shrink-0 items-center justify-center rounded-full">
+          <Plus className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-semibold tracking-[-0.01em]">{hasOptions ? "Add new address" : "Add delivery address"}</span>
@@ -105,8 +111,9 @@ function Row({ selected, onClick, icon, children }: { selected: boolean; onClick
         {icon}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
-      <span aria-hidden className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${selected ? "border-primary" : "border-border"}`}>
-        <span className={`bg-primary size-2.5 rounded-full transition-transform duration-200 ${selected ? "scale-100" : "scale-0"}`} />
+      {/* Same check as the payment cards, so every pick in the form reads the same. */}
+      <span aria-hidden className={`grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-200 ${selected ? "bg-primary text-primary-foreground" : "bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]"}`}>
+        {selected && <Check className="size-3.5" strokeWidth={3} />}
       </span>
     </OptionCard>
   );

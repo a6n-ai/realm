@@ -23,6 +23,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
 
+const updateSavedAddress = vi.fn();
+vi.mock("@/app/(customer)/me/account/address-actions", () => ({ updateSavedAddress: (...a: unknown[]) => updateSavedAddress(...a) }));
+
 // Checkout is signed-in only (the page redirects signed-out visitors).
 const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };
 
@@ -66,6 +69,18 @@ describe("Checkout with saved addresses", () => {
       addressPublicId: "adr_work",
       contact: { addressLine: "200 Bay St", postalCode: "M5V 2T6" },
     });
+  });
+
+  it("tapping the picked saved address again edits it in place and saves it to the account", async () => {
+    updateSavedAddress.mockResolvedValueOnce({ ok: true, ...BOOK[0]!, addressUnit: "Unit 12" });
+    render(<Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={BOOK} />);
+    const [home] = await screen.findAllByRole("radio", { name: /Home\s*Default/ });
+    fireEvent.click(home!);
+    const unit = (await screen.findAllByLabelText(/unit/i))[0]!;
+    fireEvent.change(unit, { target: { value: "Unit 12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save address" }));
+    await waitFor(() => expect(updateSavedAddress).toHaveBeenCalledWith("adr_home", expect.objectContaining({ addressUnit: "Unit 12", label: "Home" })));
+    expect(await screen.findByText(/Unit 12/)).toBeTruthy();
   });
 
   it("with no saved address there is no picker, only 'Add delivery address'", async () => {

@@ -291,11 +291,11 @@ describe("Checkout Pay step", () => {
     }
   });
 
-  it("phones pay from the bottom bar, with the total in it", async () => {
+  it("phones pay from the bottom bar, with no total line over the buttons (the header chip carries it)", async () => {
     await toPayment();
     const pay = screen.getByRole("button", { name: /pay now/i });
     expect(pay.closest(".c-glass")).toBeTruthy();
-    expect(screen.getByText("Total $50.00")).toBeTruthy();
+    expect(screen.queryByText("Total $50.00")).toBeNull();
   });
 
   it("express is only offered while Stripe is selected", async () => {

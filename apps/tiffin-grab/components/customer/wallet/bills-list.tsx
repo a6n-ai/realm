@@ -235,7 +235,7 @@ export function BillsList({
         icon={<FileText className="size-6" />}
         title="No bills yet"
         body="Subscription receipts will appear here after you place an order."
-        action={<Link href="/subscribe" className={buttonClass({ variant: "outline" })}>Browse plans</Link>}
+        action={<Link href="/me/renew?full=1" className={buttonClass({ variant: "outline" })}>Browse plans</Link>}
       />
     );
   }

@@ -323,7 +323,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           <div className="grid grid-cols-3 gap-2">
             <MenuTile href="/me/menu" tint="orange" icon={<UtensilsCrossed />} label="Weekly menu" sublabel="This week" />
             <MenuTile href="/me/renew" tint="green" icon={<RefreshCw />} label="Renew" sublabel="Same plan" primary />
-            <MenuTile href="/subscribe" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" />
+            <MenuTile href="/me/renew?full=1" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" />
           </div>
         </MenuSection>
         <MenuSection title="Money">

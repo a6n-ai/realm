@@ -7,6 +7,7 @@ import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { formatPhoneNumberIntl, type Country } from "react-phone-number-input";
 import { PhoneInput } from "@foundry/ui/phone-input";
+import { PhoneCountrySheet } from "@/components/customer/phone-country-sheet";
 import type { PricingResult } from "@/lib/pricing";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import {
@@ -25,6 +26,7 @@ import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-prin
 import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards } from "./payment-method-cards";
+import { updateSavedAddress } from "@/app/(customer)/me/account/address-actions";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
@@ -44,15 +46,21 @@ import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
-import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
+import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
-// @foundry/ui PhoneInput is h-8; lift it (and its country button) to the kit's 52px field.
-const PHONE = "[&_input]:h-[52px] [&_input]:rounded-2xl [&_input]:text-base [&_button]:h-[52px] [&_button]:rounded-2xl";
+// @foundry/ui PhoneInput is one joined field (country button + number). Make its wrapper the kit's 52px flat field
+// (one fill, no outline, focus ring around the whole thing) and let both halves sit transparent inside it.
+const PHONE = [
+  "[&>div]:h-[52px] [&>div]:overflow-hidden [&>div]:rounded-2xl [&>div]:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)]",
+  "[&>div]:transition-shadow [&>div:has(input:focus-visible)]:ring-2 [&>div:has(input:focus-visible)]:ring-[var(--primary)]",
+  "[&>div>button]:!h-full [&>div>button]:pl-4",
+  "[&_input]:!h-full [&_input]:!rounded-none [&_input]:!border-0 [&_input]:!bg-transparent [&_input]:!shadow-none [&_input]:!ring-0 [&_input]:!text-base [&_input]:pl-1",
+].join(" ");
 
 type Contact = {
   fullName: string;
@@ -262,6 +270,11 @@ export function Checkout({
   const [summaryOpen, setSummaryOpen] = useState(false);
   // The address sheet's working copy; null = closed. Saved into `contact` only on "Use this address".
   const [editor, setEditor] = useState<AddressDraft | null>(null);
+  // The saved address the sheet is editing (its public id); null = the sheet edits the typed-in draft.
+  const [editingSaved, setEditingSaved] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  // Local copy so an edit made here shows at once, without waiting on the page to refetch.
+  const [addresses, setAddresses] = useState(savedAddresses);
   // The typed-in address, kept apart from `contact` so picking a saved address doesn't lose it.
   // Starts as the account's address on file when there is no address book yet.
   const [draft, setDraft] = useState<AddressDraft | null>(
@@ -438,14 +451,41 @@ export function Checkout({
     if (next.postalCode) void checkPostal(next.postalCode, true, next);
   };
 
-  const saveEditor = () => {
+  const closeEditor = () => {
+    setEditor(null);
+    setEditingSaved(null);
+  };
+
+  const saveEditor = async () => {
     if (!editor) return;
+    if (editingSaved) {
+      const current = addresses.find((a) => a.publicId === editingSaved);
+      setSavingEdit(true);
+      try {
+        // Same action as Account → Address, so the change is saved to the account, zone-checked server-side.
+        const r = await updateSavedAddress(editingSaved, { ...editor, label: current?.label ?? null });
+        if ("error" in r) return void toast.error(r.error);
+        const { ok: _ok, message: _message, ...saved } = r;
+        setAddresses((list) => list.map((a) => (a.publicId === saved.publicId ? saved : a)));
+        // Not pickAddress: that reloads the address's stored drop-off and would drop a place picked on this visit.
+        const next = addressFields(saved);
+        setContact((c) => ({ ...c, ...next }));
+        setZone(null);
+        if (next.postalCode) void checkPostal(next.postalCode, true, next);
+        closeEditor();
+      } catch {
+        toast.error("Could not save the address. Try again.");
+      } finally {
+        setSavingEdit(false);
+      }
+      return;
+    }
     setDraft(editor);
     setAddressPublicId(null);
     setContact((c) => ({ ...c, ...editor }));
     setZone(null);
     void checkPostal(editor.postalCode, true, editor);
-    setEditor(null);
+    closeEditor();
   };
 
   const joinWaitlist = async () => {
@@ -788,7 +828,7 @@ export function Checkout({
     <OrderSummary plain={plain} selections={selections} result={shown} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref} onEdit={plan || handoff ? editPlan : undefined} deliverTo={deliverTo} />
   );
 
-  const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} />;
+  const cardPay = <CardPay dialogOpen={cardDialog} onDialogOpenChange={setCardDialog} trust={false} />;
   const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
@@ -916,19 +956,27 @@ export function Checkout({
             <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
           )
         )}
+        {/* Footnotes sit under the group at its row inset, like iOS section footers. The Stripe one lives here, by
+            the choice it reassures, instead of adding a row to the bottom bar. */}
+        {payWithCard && (
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
+            <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
+            Card and wallet payments are processed securely by Stripe.
+          </p>
+        )}
         {selectedMethod && !payWithCard && (
-          <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
             <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
             Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
           </p>
         )}
+        {coinsToEarn ? (
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
+            <Coins aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--primary-text,var(--primary))]" />
+            <span>You&apos;ll earn ~<span className="nums font-semibold text-[var(--foreground)]">{coinsToEarn}</span> coins when this order is paid</span>
+          </p>
+        ) : null}
       </section>
-
-      {coinsToEarn ? (
-        <p className="text-muted-foreground -mt-6 px-1 text-[13px]">
-          You&apos;ll earn ~<span className="nums">{coinsToEarn}</span> coins when this order is paid
-        </p>
-      ) : null}
 
       {!wide && savingsSection}
 
@@ -960,7 +1008,9 @@ export function Checkout({
             >
               <h1 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
 
-              {step === 0 ? null : <OrderGlance
+              {/* Payment only: on Delivery the header's total chip opens the same summary, and the card would push
+                  the phone row below the fold. */}
+              {step !== 2 ? null : <OrderGlance
                 title={meal?.name ?? "Your plan"}
                 baseline={baseline}
                 meta={[result ? `${result.tiffinCount} tiffins` : null, perWeek ? `${perWeek} a week` : null, start ? `Starts ${start}` : null].filter(Boolean).join(" · ")}
@@ -969,15 +1019,16 @@ export function Checkout({
                 saved={result?.adjustments.reduce((n, a) => n + a.amount, 0)}
                 onOpen={() => setSummaryOpen(true)}
               />}
-              {step !== 0 && startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
+              {step === 2 && startNote && <p className="text-muted-foreground -mt-3 mb-6 px-4 text-[13px] text-pretty">{startNote}</p>}
 
               {step === 0 ? plan?.body : step === 1 ? (
-                <div className="space-y-10">
+                <div className="space-y-8">
                   <section aria-labelledby="co-address">
                     <h2 id="co-address" className={H}>Deliver to</h2>
-                    <div className="mt-3 grid grid-cols-1 gap-4">
+                    <div className="mt-3 grid grid-cols-1 gap-2.5">
                       <CheckoutAddressPicker
-                        addresses={savedAddresses}
+                        addresses={addresses}
+                        onEditSaved={(a) => { setEditingSaved(a.publicId); setEditor({ ...EMPTY_ADDRESS, ...addressFields(a) } as AddressDraft); }}
                         value={addressPublicId}
                         onPick={pickAddress}
                         draft={draft ? oneLine(draft) : null}
@@ -990,11 +1041,11 @@ export function Checkout({
                       />
                       <div aria-live="polite" className="grid gap-2 empty:hidden">
                         {zone?.served && !waitlisted && (
-                          <m.div key="served" {...reveal}>
-                            <StatusBanner tone="success" icon={<MapPin aria-hidden className="mt-0.5 size-4 shrink-0" />}>
-                              <span className="font-semibold">We deliver here.</span> {zone.name}{zone.slotWindow ? `, ${zone.slotWindow}` : ""}
-                            </StatusBanner>
-                          </m.div>
+                          // A footnote under the cards, not a banner box: it confirms, it doesn't need a block of its own.
+                          <m.p key="served" {...reveal} className="flex items-start gap-2 px-4 text-[13px] text-[var(--s-delivered-fg,#059669)]">
+                            <MapPin aria-hidden className="mt-0.5 size-4 shrink-0" />
+                            <span><span className="font-semibold">We deliver here.</span> {zone.name}{zone.slotWindow ? `, ${zone.slotWindow}` : ""}</span>
+                          </m.p>
                         )}
                         {zone && !zone.served && !waitlisted && (
                           <m.div key="unserved" {...reveal} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${toneClasses("warning").bg}`}>
@@ -1013,8 +1064,9 @@ export function Checkout({
 
                   <section aria-labelledby="co-contact">
                     <h2 id="co-contact" className={H}>Contact</h2>
-                    <div className="mt-3 grid grid-cols-1 gap-4">
-                      <div className="c-surface bg-card flex items-center gap-3.5 rounded-3xl p-4">
+                    {/* One grouped card, like iOS Settings: who you are, then the phone row under a hairline. */}
+                    <div className="c-surface bg-card mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-3xl">
+                      <div className="flex items-center gap-3.5 px-4 py-3">
                         <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold">
                           {(contact.fullName.trim()[0] ?? "?").toUpperCase()}
                         </span>
@@ -1023,15 +1075,16 @@ export function Checkout({
                           <span className="text-muted-foreground block truncate text-[13px]">{contact.email}</span>
                         </span>
                       </div>
-                      <div className="grid grid-cols-1 gap-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <p id="phone-hint" className="text-muted-foreground -mt-1 text-[13px]">For delivery updates. Saved to your account.</p>
+                      <div className="px-3 py-3">
+                        <label htmlFor="phone" className="sr-only">Phone</label>
                         <div className={PHONE}>
-                          <PhoneInput id="phone" autoComplete="tel" inputMode="tel" aria-required aria-describedby="phone-hint" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
+                          <PhoneInput countrySelectComponent={PhoneCountrySheet} id="phone" autoComplete="tel" inputMode="tel" aria-required aria-describedby="phone-hint" placeholder="Phone" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
                         </div>
-                        {contact.phone.trim() && !phoneValid && <p role="alert" className="text-destructive text-[13px]">Enter a valid phone number</p>}
                       </div>
                     </div>
+                    {contact.phone.trim() && !phoneValid
+                      ? <p role="alert" className="text-destructive mt-2 px-4 text-[13px]">Enter a valid phone number</p>
+                      : <p id="phone-hint" className="text-muted-foreground mt-2 px-4 text-[13px]">Phone for delivery updates. Saved to your account.</p>}
                   </section>
                 </div>
               ) : payStepBody}
@@ -1047,7 +1100,6 @@ export function Checkout({
             {step === 2 && payWithCard ? (
               // Wallet full width above one row: Back left, Pay right (as Continue on the Delivery step).
               <div className="flex w-full flex-col gap-2">
-                {phone && result && <p role="status" className="nums text-[15px] font-semibold sm:text-right">Total {money(result.total)}</p>}
                 <div className="min-h-[50px]"><ExpressPay height={50} /></div>
                 <div className="flex items-start gap-2">
                   <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
@@ -1090,11 +1142,11 @@ export function Checkout({
 
       <Sheet
         open={editor != null}
-        onClose={() => setEditor(null)}
-        title="Delivery address"
+        onClose={closeEditor}
+        title={editingSaved ? "Edit address" : "Delivery address"}
         footer={
-          <Button variant="primary" size="lg" className="w-full" disabled={!editor?.addressLine.trim() || !editor?.postalCode.trim()} onClick={saveEditor}>
-            Use this address
+          <Button variant="primary" size="lg" className="w-full" pending={savingEdit} disabled={savingEdit || !editor?.addressLine.trim() || !editor?.postalCode.trim()} onClick={() => void saveEditor()}>
+            {editingSaved ? "Save address" : "Use this address"}
           </Button>
         }
       >

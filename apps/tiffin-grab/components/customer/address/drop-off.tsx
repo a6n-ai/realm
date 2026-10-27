@@ -25,7 +25,8 @@ export function AddressDropOffPanel({ children }: { children: ReactNode }) {
  * ::before strip takes the tap target to ~44px so a small pill is still easy to hit.
  */
 const PILL =
-  "relative h-8 flex-none gap-1.5 whitespace-nowrap px-3 text-[13px] font-medium sm:px-3 sm:text-[13px] before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
+  // `!`: the kit cn only joins classes, so PillToggle's own h-12 would win over a plain h-8.
+  "relative !h-8 flex-none gap-1.5 whitespace-nowrap px-3 text-[13px] font-medium sm:px-3 sm:text-[13px] before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
 
 /** Name, then its fee as a quieter tag; a waived fee is struck through with the saving in green. */
 function StrategyLabel({ o, on }: { o: DropOffOption; on: boolean }) {
@@ -73,7 +74,7 @@ export function DropOffPicker({
   const loose = options.filter((o) => !o.connectionId || !sets.some((c) => c.publicId === o.connectionId));
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="grid gap-2">
         <p className="text-[15px] font-semibold">Place</p>
         <div role="radiogroup" aria-label="Place" className="flex flex-wrap gap-2">
@@ -86,7 +87,7 @@ export function DropOffPicker({
               disabled={disabled}
               // Tapping the picked place again clears it: every choice here is optional.
               onClick={() => onChange(pickTag(value, g.publicId === value.tagId ? null : g.publicId))}
-              className="h-10 flex-none px-4 text-[14px] sm:text-[14px]"
+              className="!h-10 flex-none px-4 text-[14px] sm:text-[14px]"
             >
               {g.name}
             </Pill>
@@ -123,7 +124,7 @@ export function DropOffPicker({
 
       {loose.length > 0 && (
         <div className="grid gap-2">
-          {sets.length > 0 && <p className="text-[15px] font-semibold">Also</p>}
+          <p className="text-[15px] font-semibold">{sets.length > 0 ? "Also" : "Drop-off"}</p>
           <div className="flex flex-wrap gap-1.5">
             {loose.map((o) => (
               <Pill

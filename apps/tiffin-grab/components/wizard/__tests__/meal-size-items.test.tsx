@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MealSizeItems } from "../meal-size-items";
+
+afterEach(cleanup);
 
 describe("MealSizeItems", () => {
   it("groups rows by category into one chip: count x category, with portion suffix only when one exists", () => {
@@ -17,6 +19,23 @@ describe("MealSizeItems", () => {
     );
     expect(screen.getByText("3× Bread")).toBeDefined();
     expect(screen.getByText("Sabzi · 12oz")).toBeDefined();
+  });
+
+  it("keeps a 12oz main and an 8oz side of one category as separate chips (Sabzi Only — Large)", () => {
+    render(
+      <MealSizeItems
+        items={[
+          { name: "Sabzi", category: "sabzi", tuAmount: 1.5, maxTuAmount: null, portion: "12oz" },
+          { name: "Daal", category: "daal", tuAmount: 1.5, maxTuAmount: null, portion: "12oz" },
+          { name: "Sabzi", category: "sabzi", tuAmount: 1, maxTuAmount: null, portion: "8oz" },
+        ]}
+        categoryLabels={{ sabzi: "Sabzi", daal: "Daal" }}
+      />,
+    );
+    expect(screen.getByText("Sabzi · 12oz")).toBeDefined();
+    expect(screen.getByText("Daal · 12oz")).toBeDefined();
+    expect(screen.getByText("Sabzi · 8oz")).toBeDefined();
+    expect(screen.queryByText(/2× Sabzi/)).toBeNull();
   });
 
   it("renders nothing for an empty item list", () => {

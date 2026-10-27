@@ -91,7 +91,9 @@ export function CardPayProvider(props: Props) {
   return (
     <Elements
       stripe={stripePromise}
-      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance }}
+      // Only the wallet button lives in this Elements (the card form has its own), so it can take the capsule
+      // radius every other bar button has without rounding the card fields.
+      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance: { ...appearance, variables: { ...appearance.variables, borderRadius: "999px" } } }}
     >
       <Runner {...props} stripePromise={stripePromise} appearance={appearance} />
     </Elements>
@@ -228,7 +230,7 @@ export function ExpressPay({ height = 48 }: { height?: number } = {}) {
       {/* The slot holds the button's height while Stripe loads, so nothing jumps when it appears.
           While re-quoting it dims and goes inert rather than hiding. */}
       <div className="relative" style={{ minHeight: height }}>
-        {wallets === "loading" && <Skeleton aria-hidden className="absolute inset-0" />}
+        {wallets === "loading" && <Skeleton aria-hidden className="absolute inset-0 rounded-full" />}
         <div
           inert={disabled || wallets !== "ready"}
           className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${wallets !== "ready" ? "opacity-0" : disabled ? "opacity-50" : ""}`}
@@ -247,9 +249,11 @@ export function ExpressPay({ height = 48 }: { height?: number } = {}) {
 }
 
 /** The pay action for the Stripe method: opens the card form, where saved cards (removable) and a new card both live. */
-export function CardPay({ dialogOpen, onDialogOpenChange }: {
+export function CardPay({ dialogOpen, onDialogOpenChange, trust = true }: {
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
+  /** False when the caller centres the trust line under a wider row itself (checkout's bottom bar). */
+  trust?: boolean;
 }) {
   const { ctx, amountCents, pay, setDialogOpen, stripePromise, appearance, customerSession } = usePanel();
   // The provider needs to know the dialog is open, or it would swap the page out from under it.
@@ -261,7 +265,7 @@ export function CardPay({ dialogOpen, onDialogOpenChange }: {
   return (
     <div className="flex flex-col gap-4">
       <BarButton variant="primary" size="lg" className="w-full" onClick={() => onDialogOpenChange(true)}>Pay by card</BarButton>
-      <TrustLine />
+      {trust && <TrustLine />}
       <CardDialog open={dialogOpen} onOpenChange={onDialogOpenChange} ctx={ctx} amountCents={amountCents} pay={pay} stripePromise={stripePromise} appearance={appearance} loadSession={customerSession} />
     </div>
   );

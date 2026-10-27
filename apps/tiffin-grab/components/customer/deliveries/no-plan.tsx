@@ -31,7 +31,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
           ) : (
             <Notice>Card payments are paused right now. Please contact us.</Notice>
           ))}
-          {s.pay?.expired && <Link href="/subscribe"><Button variant="primary" size="lg">Start a new plan</Button></Link>}
+          {s.pay?.expired && <Link href="/me/renew?full=1"><Button variant="primary" size="lg">Start a new plan</Button></Link>}
         </Card>
       ))}
       {waitlisted.length === 0 && ended && <EndedPlanCard plan={ended} />}
@@ -39,7 +39,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
         <Card className="p-6">
           <p className="text-[17px] font-semibold">No plan running.</p>
           <p className="mb-4 mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">Start one and your trips will show up here.</p>
-          <Link href="/subscribe"><Button variant="primary" size="lg">Start a plan</Button></Link>
+          <Link href="/me/renew?full=1"><Button variant="primary" size="lg">Start a plan</Button></Link>
         </Card>
       )}
     </div>
