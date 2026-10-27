@@ -99,7 +99,7 @@ export function StepSchedule({
 
       <section aria-labelledby="sched-delivery">
         <h2 id="sched-delivery" className={`${H} flex items-center gap-1.5`}>
-          How should we deliver?
+          How often should we deliver?
           <Tooltip>
             <TooltipTrigger type="button" className="text-muted-foreground hover:text-foreground">
               <Info className="size-[15px]" />
@@ -108,6 +108,7 @@ export function StepSchedule({
             <TooltipContent>You cannot change your delivery days until your plan is completed</TooltipContent>
           </Tooltip>
         </h2>
+        <p className="text-muted-foreground mt-1 text-[13px] text-pretty">Fewer deliveries means some tiffins arrive a day or two before you eat them.</p>
         {frequencies.length === 0 ? <p role="alert" className="text-destructive mt-3 text-sm text-pretty">No delivery plan fits this meal&apos;s days.</p> : null}
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
