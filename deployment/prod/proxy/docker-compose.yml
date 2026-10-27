@@ -11,6 +11,15 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     env_file: .env.production # provides $ACME_EMAIL, $TG_DOMAIN to the Caddyfile
+    # Access log (see Caddyfile) goes to CloudWatch, nothing piles up on the box's disk
+    # (Docker keeps only its small capped local cache). Changing this recreates the
+    # container once; certs survive in caddy_data.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: us-east-1
+        awslogs-group: /tiffin/prod
+        tag: caddy-{{.ID}}
     ports:
       - "80:80"
       - "443:443"
