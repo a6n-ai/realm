@@ -40,14 +40,12 @@ export function StepBundle({
   const [showAll, setShowAll] = useState(false);
   const meals = listableMealSizes(catalog.mealSizes).filter((m) => m.planKey === selections.planKey);
   const ordered = meals.filter((m) => !m.trial);
-  // Days a week for the "≈ $/wk" line: what the customer picked, else their current plan's, else 5.
-  const weekDays = selections.trialDays == null && selections.eatingDays?.length ? selections.eatingDays.length : (currentPlan?.daysPerWeek || 5);
   const levels = TIERS.filter((t) => ordered.some((m) => m.tier === t));
   const inLevel = (m: ClientMealSizeView) => level === "all" || m.tier === level;
   const ranked = popular.map((id) => ordered.find((m) => m.publicId === id)).filter((m): m is ClientMealSizeView => !!m);
   // Always two: a plan with fewer ordered sizes is topped up from the catalog's own order.
   const top = [...ranked, ...ordered.filter((m) => !ranked.includes(m))].slice(0, Math.min(2, ordered.length));
-  // After the trial, highest price first: the fuller (and most profitable) thalis, Maharaja today, lead the list.
+  // Order: best sellers, then the trial (when there is one), then the rest highest price first: the fuller (and most profitable) thalis, Maharaja today, lead the list.
   const price = (m: ClientMealSizeView) => (m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m));
   const weeklyAll = meals.filter((m) => !m.trial && !top.includes(m)).sort((x, y) => price(y) - price(x));
   // Common path first: a few sizes, the rest one tap away. A filter, or a picked size further down, shows them all.
@@ -105,10 +103,10 @@ export function StepBundle({
       )}
       {top.filter(inLevel).length > 0 && (
         <section>
-          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Most popular</h3>
+          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Best sellers</h3>
           {/* One per row on phones (room for name, price and what's in it), two across from sm up. */}
           <div className={top.filter(inLevel).length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
-            {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} weekDays={weekDays} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
+            {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
             {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
               <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
             )}
@@ -134,12 +132,14 @@ export function StepBundle({
       )}
       {/* No tier headings: every size in one grid, highest price first; each card carries its $ / $$ / $$$ mark. */}
       {weekly.length > 0 && (
+        <section>
+        <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">All plans</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {weekly.map((m) => (
             <Fragment key={m.publicId}>
               <MealOption
                 meal={m}
-                weekDays={weekDays}
+               
                 active={selections.mealSizeId === m.publicId}
                 categoryLabels={catalog.categoryLabels}
                 onPick={() => pick(m)}
@@ -151,15 +151,18 @@ export function StepBundle({
             </Fragment>
           ))}
         </div>
+        </section>
       )}
-      {folded && (
+      {(folded || (showAll && level === "all" && weeklyAll.length > FOLD + 1)) && (
+        // Toggles both ways: folding back keeps the long list one tap from tidy.
         <button
           type="button"
-          onClick={() => setShowAll(true)}
+          aria-expanded={!folded}
+          onClick={() => setShowAll(folded)}
           className="c-surface text-foreground mx-auto flex min-h-11 items-center gap-2 rounded-full bg-[var(--card)] px-5 text-[15px] font-semibold transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100"
         >
-          See all sizes · {weeklyAll.length - weekly.length} more
-          <ChevronDown aria-hidden className="size-4" />
+          {folded ? `See all sizes · ${weeklyAll.length - weekly.length} more` : "Show fewer"}
+          <ChevronDown aria-hidden className={`size-4 transition-transform duration-200 motion-reduce:transition-none ${folded ? "" : "rotate-180"}`} />
         </button>
       )}
     </div>
@@ -196,10 +199,10 @@ function TierMark({ meal }: { meal: ClientMealSizeView }) {
 const cardLabel = (meal: ClientMealSizeView) =>
   `${meal.name}, $${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)} per tiffin`;
 
-function PopularOption({ meal, active, categoryLabels, weekDays, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; weekDays?: number; onPick: () => void }) {
+function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
   return (
     <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4">
-      <Pill tone="up" size="sm" className="w-fit">Popular</Pill>
+      <Pill tone="up" size="sm" className="w-fit">Best seller</Pill>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
@@ -209,7 +212,7 @@ function PopularOption({ meal, active, categoryLabels, weekDays, onPick }: { mea
           </span>
         </span>
         {/* Price top-right, as on every meal card: one popular card per row on phones, so there's room. */}
-        <MealSizePrice meal={meal} perTiffin stacked perWeek={weekDays} priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {/* What's in it, same line as the other cards, so a popular pick is never a blind one. */}
       {/* What's in it on the left, the price level on the same line at the right. */}
@@ -226,15 +229,12 @@ function MealOption({
   active,
   categoryLabels,
   trial = false,
-  weekDays,
   onPick,
 }: {
   meal: ClientMealSizeView;
   active: boolean;
   categoryLabels?: Record<string, string>;
   trial?: boolean;
-  /** Days a week for the "≈ $/wk" line under the price; not on trials. */
-  weekDays?: number;
   onPick: () => void;
 }) {
   // A trial is a feature card of its own: brand-tinted, a gift tile and "Try first", so it reads as an offer
@@ -269,7 +269,7 @@ function MealOption({
             <MealDays meal={meal} />
           </span>
         </span>
-        <MealSizePrice meal={meal} perTiffin stacked perWeek={weekDays} priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}

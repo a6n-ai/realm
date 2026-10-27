@@ -29,7 +29,7 @@ export function MealSizeItems({
 
   // One plain line ("Sabzi 12oz · Daal 12oz · 2× Roti 4 roti"), legible at 13px, instead of a wall of tiny chips.
   return (
-    <p className="text-[13px] leading-snug text-pretty text-[color-mix(in_srgb,var(--foreground)_72%,transparent)]">
+    <p className="text-[14px] leading-snug text-pretty text-[color-mix(in_srgb,var(--foreground)_72%,transparent)]">
       {[...groups].map(([key, g], i) => (
         <span key={key}>
           {i > 0 && <span aria-hidden className="text-muted-foreground"> · </span>}

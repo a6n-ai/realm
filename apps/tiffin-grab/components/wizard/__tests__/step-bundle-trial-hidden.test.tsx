@@ -86,14 +86,14 @@ describe("StepBundle kcal pill", () => {
 });
 
 describe("StepBundle most popular", () => {
-  it("puts the popular sizes first, two across, and takes them out of the tier list", () => {
+  it("puts the best sellers first and takes them out of the list below", () => {
     const sizes = [meal("small_thali"), meal("big_thali"), meal("mid_thali")];
     const { container } = render(<StepBundle catalog={{ ...catalog, mealSizes: sizes }} selections={selections} set={vi.fn()} popular={["msz_mid_thali", "msz_nope"]} />);
     const view = within(container);
-    expect(view.getByText("Most popular")).toBeDefined();
+    expect(view.getByText("Best sellers")).toBeDefined();
     // Shown once, in the popular row; unknown ids are ignored.
     expect(view.getAllByText("mid_thali")).toHaveLength(1);
     // Always two: the ranked one plus a catalog top-up.
-    expect(view.getAllByText("Popular")).toHaveLength(2);
+    expect(view.getAllByText("Best seller")).toHaveLength(2);
   });
 });
