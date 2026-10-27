@@ -2,6 +2,8 @@
 
 import { createContext, useContext, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Check } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 
 interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -18,6 +20,7 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * role="radio" swaps aria-pressed for aria-checked so it can sit in a ChoiceGroup.
  */
 export function OptionCard({ selected, tone, badge, className, children, type = "button", role, ...rest }: OptionCardProps) {
+  const reduced = useReducedMotion();
   return (
     <button
       {...rest}
@@ -42,9 +45,16 @@ export function OptionCard({ selected, tone, badge, className, children, type = 
     >
       {children}
       {badge && selected && (
-        <span aria-hidden className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_2px_6px_rgb(0_0_0/0.25)]">
+        // Springs in when picked (critically damped, no bounce); reduced motion shows it at once.
+        <m.span
+          aria-hidden
+          initial={reduced ? false : { scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+          className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_2px_6px_rgb(0_0_0/0.25)]"
+        >
           <Check className="size-3.5" strokeWidth={3} />
-        </span>
+        </m.span>
       )}
     </button>
   );

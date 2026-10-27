@@ -30,7 +30,8 @@ export function SubscribeChrome({
   const router = useRouter();
   return (
     // Full-bleed out of whatever centered column renders it, like the app header (html clips the overflow-x).
-    <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] border-b border-[var(--border)] pt-[env(safe-area-inset-top)]">
+    // A scroll edge, not a hairline: content fades as it passes under the glass bar.
+    <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] pt-[env(safe-area-inset-top)] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-[var(--background)] after:to-transparent after:content-['']">
       <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Brand href={closeHref} />
