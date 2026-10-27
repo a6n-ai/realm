@@ -5,6 +5,10 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Rotated on the box's disk: 3 × 10 MB at most.
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
     # Pure cache — evictable, no disk persistence. 128mb cap + LRU keeps it inside
     # a t3.micro alongside the app.
     command: >

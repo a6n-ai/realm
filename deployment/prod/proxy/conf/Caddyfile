@@ -1,11 +1,30 @@
 {
 	# ACME account email for Let's Encrypt (auto-TLS). Set ACME_EMAIL in .env.production.
 	email {$ACME_EMAIL}
+	# Error entries (e.g. a 502 from reverse_proxy) carry the request too, and they
+	# also reach CloudWatch: same redaction as the access log.
+	log default {
+		output stderr
+		import redacted.caddy
+	}
+}
+
+# Request timing for sizing Neon (how many 5-min windows see traffic) and spotting
+# crawlers (User-Agent is the one header kept). Static assets never touch the DB.
+(access_log) {
+	@static path /_next/static/* /lottie/* /favicon.ico
+	log_skip @static
+	log_append ua {http.request.header.User-Agent}
+	log {
+		output stdout
+		import redacted.caddy
+	}
 }
 
 # --- tiffin-grab --- $TG_DOMAIN from proxy/.env.production. Caddy auto-issues + renews.
 {$TG_DOMAIN} {
 	encode zstd gzip
+	import access_log
 
 	# Public marketing pages may enter the browser's back/forward cache. Next marks
 	# every dynamic render no-store; these carry no private data (the header reads the
@@ -38,6 +57,7 @@
 # Literal hosts, not env vars: an unset var here would break the whole proxy config.
 tiffingrab.ca, www.tiffingrab.ca {
 	encode zstd gzip
+	import access_log
 
 	# Public marketing pages may enter the browser's back/forward cache. Next marks
 	# every dynamic render no-store; these carry no private data (the header reads the

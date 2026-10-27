@@ -5,6 +5,10 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     restart: unless-stopped
+    # Rotated on the box's disk: 3 × 10 MB at most.
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
     environment:
       DB_HOST: ${PGBOUNCER_DB_HOST}
       DB_PORT: ${PGBOUNCER_DB_PORT:-5432}
