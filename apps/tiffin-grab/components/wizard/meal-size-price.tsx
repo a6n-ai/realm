@@ -26,8 +26,11 @@ export function MealSizePrice({
     return (
       <span className="nums flex shrink-0 flex-col items-end leading-none">
         {meal.discountType !== "none" && <span className="text-muted-foreground mb-1 text-xs line-through">${meal.basePrice.toFixed(2)}</span>}
-        <span className={priceClassName}>${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)}</span>
-        {unit && <span className="mt-1">{unit}</span>}
+        {/* "/tiffin" on the price line itself, so the figure never reads as a weekly or monthly total. */}
+        <span className="flex items-baseline gap-1">
+          <span className={priceClassName}>${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)}</span>
+          {unit}
+        </span>
         {perWeek ? (
           <span className="text-muted-foreground mt-1 text-xs whitespace-nowrap">
             ≈ ${((meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)) * perWeek).toFixed(0)}/wk

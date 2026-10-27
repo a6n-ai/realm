@@ -47,7 +47,9 @@ export function StepBundle({
   const ranked = popular.map((id) => ordered.find((m) => m.publicId === id)).filter((m): m is ClientMealSizeView => !!m);
   // Always two: a plan with fewer ordered sizes is topped up from the catalog's own order.
   const top = [...ranked, ...ordered.filter((m) => !ranked.includes(m))].slice(0, Math.min(2, ordered.length));
-  const weeklyAll = meals.filter((m) => !m.trial && !top.includes(m)).sort((x, y) => TIERS.indexOf(x.tier) - TIERS.indexOf(y.tier));
+  // After the trial, highest price first: the fuller (and most profitable) thalis, Maharaja today, lead the list.
+  const price = (m: ClientMealSizeView) => (m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m));
+  const weeklyAll = meals.filter((m) => !m.trial && !top.includes(m)).sort((x, y) => price(y) - price(x));
   // Common path first: a few sizes, the rest one tap away. A filter, or a picked size further down, shows them all.
   const FOLD = 4;
   const picked = weeklyAll.findIndex((m) => m.publicId === selections.mealSizeId);
@@ -130,10 +132,10 @@ export function StepBundle({
           </div>
         </section>
       )}
-      {/* No tier headings: every size in one grid, cheapest tier first; each card carries its $ / $$ / $$$ mark. */}
+      {/* No tier headings: every size in one grid, highest price first; each card carries its $ / $$ / $$$ mark. */}
       {weekly.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {[...weekly].sort((x, y) => TIERS.indexOf(x.tier) - TIERS.indexOf(y.tier)).map((m) => (
+          {weekly.map((m) => (
             <Fragment key={m.publicId}>
               <MealOption
                 meal={m}
@@ -156,7 +158,7 @@ export function StepBundle({
           onClick={() => setShowAll(true)}
           className="c-surface text-foreground mx-auto flex min-h-11 items-center gap-2 rounded-full bg-[var(--card)] px-5 text-[15px] font-semibold transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100"
         >
-          See all sizes · {weeklyAll.length - FOLD} more
+          See all sizes · {weeklyAll.length - weekly.length} more
           <ChevronDown aria-hidden className="size-4" />
         </button>
       )}
