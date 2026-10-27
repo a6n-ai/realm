@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { ArrowLeftRightIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { plans } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
+import { mealSizes, plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { PageHeader, PageShell } from "@/components/ds";
 import { SwapPairGrid, type SwapPairRow } from "./swap-rule-grid";
@@ -19,11 +20,17 @@ export default function SwapRulesPage() {
 async function SwapRulesData() {
   await requireAdmin();
 
-  const [pairs, categories, plansByCategoryKey, planRows] = await Promise.all([
+  const [pairs, categories, plansByCategoryKey, planRows, sizeRows] = await Promise.all([
     dishCategoriesService.listSwapPairs(),
     dishCategoriesService.enabledCategories(),
     dishCategoriesService.plansByCategoryKey(),
     db.select({ publicId: plans.publicId, name: plans.name }).from(plans),
+    db
+      .select({ id: mealSizes.publicId, name: mealSizes.name, planId: plans.publicId })
+      .from(mealSizes)
+      .innerJoin(plans, eq(mealSizes.planId, plans.id))
+      .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false)))
+      .orderBy(mealSizes.name),
   ]);
 
   const categoryOptions = categories.map((c) => ({ key: c.key, label: c.label }));
@@ -45,6 +52,9 @@ async function SwapRulesData() {
     planName: p.planName,
     exchangeOverrides: p.exchangeOverrides,
     naturalFallback: p.naturalFallback,
+    receivesMissing: p.receivesMissing,
+    mealSizeId: p.mealSizeId,
+    mealSizeName: p.mealSizeName,
   }));
 
   return (
@@ -58,6 +68,7 @@ async function SwapRulesData() {
         categoryOptions={categoryOptions}
         categoryTu={categoryTu}
         planOptions={planOptions}
+        mealSizeOptions={sizeRows}
         plansByCategoryKey={Object.fromEntries(plansByCategoryKey)}
         pairs={rows}
       />

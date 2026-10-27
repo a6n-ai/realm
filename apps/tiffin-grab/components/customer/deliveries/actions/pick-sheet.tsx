@@ -26,6 +26,7 @@ import {
 import {
   buildSlotDropdownOptions,
   dishesAllowedByRules,
+  liveSwapOptions,
   swapOptionsAllowedByRules,
   dishOptionValue,
   parseSlotOptionValue,
@@ -233,7 +234,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       categories: grid.categories,
       // The meal's own rows: an 8-roti row reads "8 roti" even with 3 add-on roti on the day.
       basePortions: serverGrid?.preview.items.length ? mealBasePortions(serverGrid.preview) : grid.portionsBySlot,
-      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
+      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu, s.fromRow),
       folded: (key) => isCountCategory(new Map(serverGrid?.preview.tu ?? []).get(key)),
     })
     : [];
@@ -363,14 +364,14 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     return dish ? [{ key: cellKey(c), category: c.slot, pickIndex: c.pickIndex, dish }] : [];
   });
   // Hide swaps whose new slots no menu dish could fill without breaking a meal rule.
-  const liveSwapOptions = swapOptionsAllowedByRules({
+  const ruleLiveSwapOptions = swapOptionsAllowedByRules({
     rules: grid?.mealRules ?? [],
-    options: swapOptions.filter((o) => o.available),
+    options: liveSwapOptions(swapOptions),
     mealPicks: [...mealPicks].sort((a, b) => a.pickIndex - b.pickIndex),
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
   const allowedSwaps = new Set(
-    liveSwapOptions.flatMap((o) => o.validBundles.map((b) => swapOptionValue(o.fromCategory, o.toCategory, b.fromPicks))),
+    ruleLiveSwapOptions.flatMap((o) => o.validBundles.map((b) => swapOptionValue(o.fromCategory, o.toCategory, b.fromPicks))),
   );
   // Dishes a meal rule refuses for this cell stay visible, greyed out.
   const blockedDishes = (category: string, dishes: GridCell["dishes"], cell: GridCell | null) => {

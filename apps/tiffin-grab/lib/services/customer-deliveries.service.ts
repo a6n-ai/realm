@@ -835,7 +835,7 @@ export type EatingDaySwaps = {
   date: string;
   appliedSwaps: AppliedSwap[];
   /** Pairs the swap sheet may offer (already filtered to this meal size and plan); same for every day of the order. */
-  swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
+  swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; receivesMissing?: boolean }[];
 };
 export type CalendarDay = {
   /** Name of the holiday that closed this trip. */

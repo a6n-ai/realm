@@ -96,7 +96,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => {
     const available = left ? (left[p.fromCategory] ?? 0) : 1;
     const cats = plan.swapCategories ?? {};
-    return hasEvenPortionSwap(cats[p.fromCategory], cats[p.toCategory], available);
+    return hasEvenPortionSwap(cats[p.fromCategory], cats[p.toCategory], available, p.receivesMissing);
   });
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
