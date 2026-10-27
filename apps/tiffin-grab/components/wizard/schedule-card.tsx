@@ -6,7 +6,7 @@ import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
 import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
-import { TripTimeline } from "./trip-timeline";
+import { TripTimeline, colorTrips } from "./trip-timeline";
 
 /** Every delivery a new order would get, trial or weekly, from the same date walks the server runs. Null while incomplete or invalid. */
 export function plannedSchedule(
@@ -83,7 +83,7 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
           </div>
         )}
       </div>
-      <TripTimeline trips={w.trips} weekStart={w.weekStart} compact={w.trips.every((t) => t.days.length === 1)} />
+      <TripTimeline trips={colorTrips(w.trips)} weekStart={w.weekStart} compact />
       {last && shifted && weeks.length > 1 && (
         <p className="text-muted-foreground mt-3 text-xs text-pretty">
           Days in your first week before your start date are added here, so you still get every tiffin.

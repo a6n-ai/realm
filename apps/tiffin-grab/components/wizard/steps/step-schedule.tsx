@@ -7,7 +7,7 @@ import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { TripTimeline } from "../trip-timeline";
+import { TripTimeline, colorTrips } from "../trip-timeline";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
@@ -135,7 +135,7 @@ export function StepSchedule({
       <section aria-labelledby="sched-preview" className="c-surface bg-card rounded-[20px] p-5">
         {/* The tiffin count already sits under the day pills; this card only shows how they arrive. */}
         <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
-        {trips ? <TripTimeline trips={trips} compact={trips.every((t) => t.days.length === 1)} /> : null}
+        {trips ? <TripTimeline trips={colorTrips(trips)} compact /> : null}
       </section>
     </div>
   );

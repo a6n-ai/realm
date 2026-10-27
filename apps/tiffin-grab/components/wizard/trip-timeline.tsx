@@ -14,6 +14,13 @@ const PRIMARY = "var(--primary)";
 /** `color` overrides the primary tint for this trip's truck, bar and count (e.g. a delivery status colour). */
 export type Trip = { day: DayOfWeek; units: number; days: DayOfWeek[]; color?: string };
 
+// Order-step previews: each delivery and the days it carries share one colour, so a week reads at a glance
+// (a 3-day plan shows three colour groups instead of one orange line).
+const PREVIEW_COLORS = ["var(--primary)", "#10B981", "#0EA5E9", "#8B5CF6", "#F43F5E", "#14B8A6", "#F59E0B"];
+export function colorTrips<T extends Trip>(trips: T[]): T[] {
+  return trips.map((t, i) => ({ ...t, color: t.color ?? PREVIEW_COLORS[i % PREVIEW_COLORS.length] }));
+}
+
 /** Tap-to-select days on the rail; needs `weekStart`. */
 export type TimelinePick = {
   selected: DayOfWeek | null;
@@ -45,8 +52,8 @@ export function TripTimeline({
   compact = false,
 }: {
   trips: Trip[];
-  /** Week strip at every width (the row list stays for screen readers): for a plan where each tiffin
-   *  arrives on its own eating day, the rows would only repeat "Eaten the same day". */
+  /** Week strip at every width (the row list stays for screen readers). The order steps use it for every
+   *  frequency: the strip's rings already show which days a delivery carries. */
   compact?: boolean;
   /** Monday ISO: label each day with its real date. */
   weekStart?: string;
