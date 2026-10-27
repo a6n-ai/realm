@@ -40,12 +40,23 @@ export async function setUserRole(userId: string, role: RoleValue) {
   revalidatePath("/dashboard/organization/members");
 }
 
-export async function adminUpdateContact(userId: string, input: { email?: string; phone?: string }) {
+// Returns the message instead of throwing: Next.js redacts thrown server-action
+// errors in production, so staff would never see which account holds the phone.
+export async function adminUpdateContact(
+  userId: string,
+  input: { email?: string; phone?: string },
+): Promise<{ error?: string }> {
   await requireAdmin();
-  await usersService.updateContact(userId, input);
+  try {
+    await usersService.updateContact(userId, input, { nameClash: true });
+  } catch (e) {
+    if (e instanceof ValidationError) return { error: e.message };
+    throw e;
+  }
   revalidatePath(`/dashboard/organization/members/${userId}`);
   revalidatePath(`/dashboard/customers/${userId}`);
   revalidatePath("/dashboard/organization/members");
+  return {};
 }
 
 export async function setUserFlag(userId: string, flagId: string, enabled: boolean) {

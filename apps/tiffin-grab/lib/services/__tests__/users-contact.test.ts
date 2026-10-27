@@ -35,6 +35,12 @@ describe("usersService.updateContact", () => {
     await expect(usersService.updateContact(custId, { phone: "+16475550200" }))
       .rejects.toBeInstanceOf(ValidationError);
   });
+  it("names the holder of the phone only for admin callers", async () => {
+    await expect(usersService.updateContact(custId, { phone: "+16475550200" }))
+      .rejects.toThrow(/^That phone is already in use$/);
+    await expect(usersService.updateContact(custId, { phone: "+16475550200" }, { nameClash: true }))
+      .rejects.toThrow(/already in use by .*usr_/);
+  });
   it("rejects clearing the customer's required phone", async () => {
     await expect(usersService.updateContact(custId, { phone: "" }))
       .rejects.toBeInstanceOf(ValidationError);

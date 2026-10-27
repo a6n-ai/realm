@@ -145,7 +145,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return verifyPassword(plain, acct.password);
   }
 
-  async updateContact(userId: string, input: { phone?: string; email?: string }) {
+  // nameClash: admin callers only. Self-service and checkout must not learn who
+  // else holds a phone/email.
+  async updateContact(userId: string, input: { phone?: string; email?: string }, opts: { nameClash?: boolean } = {}) {
     const [current] = await db.select().from(users).where(eq(users.publicId, userId)).limit(1);
     if (!current) throw new ValidationError("User not found");
 
@@ -159,7 +161,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
       } else {
         const p = phoneSchema().safeParse(phone);
         if (!p.success) throw new ValidationError("Enter a valid phone number");
-        await this.assertFree(userId, "phone", p.data);
+        await this.assertFree(userId, "phone", p.data, opts.nameClash);
         patch.phone = p.data;
       }
     }
@@ -172,7 +174,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
       } else {
         const e = emailSchema.safeParse(raw);
         if (!e.success) throw new ValidationError("Enter a valid email");
-        await this.assertFree(userId, "email", e.data);
+        await this.assertFree(userId, "email", e.data, opts.nameClash);
         patch.email = e.data;
       }
     }
@@ -469,14 +471,17 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return u.email;
   }
 
-  private async assertFree(userId: string, field: "phone" | "email", value: string) {
+  private async assertFree(userId: string, field: "phone" | "email", value: string, nameClash = false) {
     const col = field === "phone" ? users.phone : users.email;
     const [clash] = await db
-      .select({ publicId: users.publicId })
+      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
       .from(users)
       .where(and(eq(col, value), ne(users.publicId, userId)))
       .limit(1);
-    if (clash) throw new ValidationError(`That ${field} is already in use`);
+    if (!clash) return;
+    if (!nameClash) throw new ValidationError(`That ${field} is already in use`);
+    const who = [clash.name, clash.email ?? clash.phone, clash.publicId].filter(Boolean).join(" · ");
+    throw new ValidationError(`That ${field} is already in use by ${who}`);
   }
 }
 

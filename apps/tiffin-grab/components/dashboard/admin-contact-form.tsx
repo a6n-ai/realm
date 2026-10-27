@@ -31,7 +31,8 @@ export function AdminContactForm({ userId, email, phone }: { userId: string; ema
         onClick={() =>
           start(async () => {
             try {
-              await adminUpdateContact(userId, { email: value.email, phone: value.phone });
+              const res = await adminUpdateContact(userId, { email: value.email, phone: value.phone });
+              if (res.error) return void toast.error(res.error);
               toast.success(value.email !== email ? "Contact updated. The new email needs verifying at next sign-in." : "Contact updated.");
             } catch {
               toast.error("Could not update — check the email/phone are valid and free.");
