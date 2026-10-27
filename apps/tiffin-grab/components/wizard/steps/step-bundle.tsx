@@ -143,8 +143,10 @@ function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; act
     <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5">
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
       <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance">{meal.name}</span>
-      {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
-      <MealDays meal={meal} />
+      <span className="flex flex-wrap items-center gap-1">
+        {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+        <MealDays meal={meal} />
+      </span>
       <span className="mt-auto pt-1">
         <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[22px] font-bold tracking-[-0.03em]" />
       </span>
@@ -191,13 +193,16 @@ function MealOption({
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
-          {/* Always on its own line under the name, on every card, so long names and short ones line up. */}
-          {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+          {/* Always on its own line under the name, on every card, so long names and short ones line up; the days a
+              limited size is made on follow the kcal. */}
+          <span className="flex flex-wrap items-center gap-1">
+            {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+            <MealDays meal={meal} />
+          </span>
         </span>
         <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
-      <MealDays meal={meal} className="-mt-1" />
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
       <MealSizeItems items={meal.items} categoryLabels={categoryLabels} />
     </OptionCard>
