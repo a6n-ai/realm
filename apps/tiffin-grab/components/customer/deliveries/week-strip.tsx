@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -26,14 +27,27 @@ interface Props {
 }
 
 /** Compact 7-day date picker for the customer page: a dot under each day you eat, coloured by status, and a truck (with the tiffin count when more than one) on each delivery day. */
-export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
+export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
+  // The agenda already covers the whole plan, so the strip draws the next week the moment you swipe and
+  // lets the URL (and the day details below) catch up behind it, instead of sitting empty until the server
+  // answers. A new week from the parent (a link, Back) takes over again.
+  const [week, setWeek] = useState(propWeek);
+  const [seen, setSeen] = useState(propWeek);
+  if (seen !== propWeek) {
+    setSeen(propWeek);
+    setWeek(propWeek);
+  }
   const { trips, dayStatus } = weekTimeline(agenda, week, now);
   const isos = weekDays(week);
   const thisWeek = mondayOf(today);
   const arrives = new Map(trips.map((t) => [t.day, t.units]));
   const canPrev = week > firstWeek;
   const canNext = week < lastWeek;
-  const { ref: grid, bind, go: swipe } = useSwipePages({ page: week, canPrev, canNext, step: (dir) => onWeek(addDays(week, 7 * dir)) });
+  const { ref: grid, bind, go: swipe } = useSwipePages({ page: week, canPrev, canNext, step: (dir) => {
+    const next = addDays(week, 7 * dir);
+    setWeek(next);
+    onWeek(next);
+  } });
   
   return (
     <section aria-label="Delivery week" data-testid="week-timeline" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">

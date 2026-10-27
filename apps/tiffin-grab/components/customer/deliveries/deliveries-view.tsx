@@ -242,7 +242,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
 
       {!locked && (
       <>
-      <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-9 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:items-start lg:gap-12", navigating && "opacity-60 transition-opacity")} aria-busy={navigating}>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-9 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:items-start lg:gap-12" aria-busy={navigating}>
         {/* Schedule picks the day; everything below it is that day's delivery. */}
         <div className="min-w-0">
           <WeekStrip
@@ -265,7 +265,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
             </div>
           )}
         </div>
-        <div className="min-w-0">
+        <div className={cn("min-w-0 transition-opacity duration-200", navigating && "opacity-60")}>
           {row && trip && model ? (
             <EatingCard
               row={row}
