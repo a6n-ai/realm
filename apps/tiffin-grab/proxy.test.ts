@@ -131,6 +131,14 @@ describe("proxy URL-based org resolution", () => {
     expect(res?.headers.get("set-cookie") ?? "").not.toMatch(/tg_ref/);
   });
 
+  it("sends a signed-out /activate visitor to /login and back", async () => {
+    const res = await proxy(new NextRequest("http://localhost/activate/SUB-ABC123"));
+    expect(res?.status).toBe(307);
+    const to = new URL(res!.headers.get("location")!);
+    expect(to.pathname).toBe("/login");
+    expect(to.searchParams.get("callbackUrl")).toBe("/activate/SUB-ABC123");
+  });
+
   it("redirects to /locations when nothing matches and no default exists", async () => {
     await withNoDefaultOrg(async () => {
       const req = new NextRequest("http://localhost/nosuchcode/menu");
