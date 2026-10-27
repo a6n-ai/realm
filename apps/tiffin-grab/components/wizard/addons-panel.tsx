@@ -1,5 +1,6 @@
-import { CakeSlice, ChevronDownIcon, CupSoda, Leaf, PlusIcon, Salad, Soup, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
+import { Bean, Beef, CakeSlice, Carrot, ChevronDownIcon, Cookie, Croissant, CupSoda, Drumstick, Egg, Fish, Flame, IceCreamCone, Leaf, Milk, PlusIcon, Salad, Sandwich, Soup, Sparkles, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
 import type { CatalogAddon } from "@/lib/catalog/types";
+import type { CategoryIcon } from "@/lib/catalog/category-icons";
 import { IconTile, Stepper, type IconTint } from "@/components/customer/kit";
 import type { WizardSelections } from "./selections";
 
@@ -16,8 +17,14 @@ const CATEGORY: Record<string, { icon: LucideIcon; tint: IconTint }> = {
   sweet: { icon: CakeSlice, tint: "pink" },
   drink: { icon: CupSoda, tint: "blue" },
   beverage: { icon: CupSoda, tint: "blue" },
+  extra: { icon: Sparkles, tint: "purple" },
 };
 const SPARE: IconTint[] = ["purple", "indigo", "teal", "gray"];
+// Drawings for the icons staff pick on a category (dish_categories.icon); a pick beats the guess by key above.
+const PICKED: Record<CategoryIcon, LucideIcon> = {
+  salad: Salad, soup: Soup, wheat: Wheat, leaf: Leaf, carrot: Carrot, bean: Bean, egg: Egg, drumstick: Drumstick, beef: Beef, fish: Fish,
+  flame: Flame, sandwich: Sandwich, croissant: Croissant, "cake-slice": CakeSlice, cookie: Cookie, "ice-cream": IceCreamCone, "cup-soda": CupSoda, milk: Milk, sparkles: Sparkles,
+};
 
 /**
  * The add-on picker: inline under the picked meal on desktop, inside the "Add to every tiffin?" drawer on
@@ -29,6 +36,7 @@ const SPARE: IconTint[] = ["purple", "indigo", "teal", "gray"];
 export function AddonsPanel({
   addons,
   categoryLabels,
+  categoryIcons,
   selections,
   set,
   bare = false,
@@ -36,6 +44,7 @@ export function AddonsPanel({
 }: {
   addons: CatalogAddon[];
   categoryLabels?: Record<string, string>;
+  categoryIcons?: Record<string, string>;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
   bare?: boolean;
@@ -51,7 +60,11 @@ export function AddonsPanel({
   const groups = new Map<string, CatalogAddon[]>();
   for (const a of addons) groups.set(a.category, [...(groups.get(a.category) ?? []), a]);
   let spare = 0;
-  const look = (category: string) => CATEGORY[category.toLowerCase()] ?? { icon: UtensilsCrossed, tint: SPARE[spare++ % SPARE.length]! };
+  const look = (category: string) => {
+    const guess = CATEGORY[category.toLowerCase()] ?? { icon: UtensilsCrossed, tint: SPARE[spare++ % SPARE.length]! };
+    const picked = PICKED[categoryIcons?.[category] as CategoryIcon];
+    return picked ? { ...guess, icon: picked } : guess;
+  };
   const addedCount = addons.reduce((n, a) => n + qtyFor(a.key), 0);
   const addedPerTiffin = addons.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
 

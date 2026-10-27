@@ -87,6 +87,8 @@ export interface CatalogSnapshot {
   // fixtures/tests that build a snapshot by hand don't all need updating; callers
   // fall back to the raw category key when it's absent.
   categoryLabels?: Record<string, string>;
+  // category key -> its admin-picked icon (lib/catalog/category-icons.ts); unset keys are absent.
+  categoryIcons?: Record<string, string>;
   // dish-category key -> add-ons offered with it (addons.category).
   // An add-on shows for a meal size when its category is on the plan's menu —
   // see mealSizeAddons. Optional for the
@@ -147,6 +149,7 @@ export interface ClientCatalogSnapshot {
   durations: { publicId: string; weeks: number }[];
   zones: { publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   categoryLabels?: Record<string, string>;
+  categoryIcons?: Record<string, string>;
   addonsByCategory?: Record<string, CatalogAddon[]>;
   minTiffinsPerWeek?: number;
   // App-settings timezone: "today" for start dates is this zone's calendar date.
@@ -215,6 +218,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     durations: snapshot.durations.map(dropId),
     zones: snapshot.zones.map(dropId),
     categoryLabels: snapshot.categoryLabels,
+    categoryIcons: snapshot.categoryIcons,
     addonsByCategory: snapshot.addonsByCategory,
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
     timezone: snapshot.timezone,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CATEGORY_ICONS, CATEGORY_ICON_LABELS } from "@/lib/catalog/category-icons";
 
 export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "color" | "categoryCounts" | "composition";
 
@@ -207,6 +208,8 @@ const dishCategoriesSchema = z.object({
   tuUnitLabel: z.string().trim().min(1, "Unit label is required").default("oz"),
   // Blank = uncapped. Curry = 1 is what keeps a non-veg tiffin to one non-veg curry.
   maxPicksPerTiffin: optNum(z.coerce.number().int().positive()),
+  // Blank = the built-in guess by key.
+  icon: z.preprocess((v) => (v === "" || v == null ? null : v), z.enum(CATEGORY_ICONS).nullable().optional()),
 });
 
 export const RESOURCES: Record<string, ResourceDef> = {
@@ -235,6 +238,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tuUnitSize", label: "Natural units per TU", type: "number", tableHidden: true },
       { key: "tuUnitLabel", label: "Unit label", type: "text", tableHidden: true },
       { key: "maxPicksPerTiffin", label: "Max picks per tiffin", type: "number", optional: true, tableHidden: true },
+      { key: "icon", label: "Icon", type: "select", options: [...CATEGORY_ICONS], optionLabels: CATEGORY_ICON_LABELS, optional: true, tableHidden: true },
     ],
   },
   plans: {

@@ -61,7 +61,7 @@ export function StepBundle({
           <div className={top.length > 1 ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
             {top.map((m) => <PopularOption key={m.publicId} meal={m} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
             {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
-              <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} selections={selections} set={set} className="col-span-2 hidden sm:block" />
+              <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="col-span-2 hidden sm:block" />
             )}
           </div>
         </section>
@@ -100,7 +100,7 @@ export function StepBundle({
                   />
                   {/* Desktop: right under the meal it extends. Phones get the drawer on Next instead. */}
                   {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
-                    <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
+                    <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
                   )}
                 </Fragment>
               ))}

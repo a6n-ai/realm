@@ -78,7 +78,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(deliveryZones).where(and(eq(deliveryZones.active, true), scopedTo(deliveryZones.organizationId, orgId))),
     dishCategoriesService.forPlanType("tiffin"),
     dishCategoriesService.forPlanType("healthy"),
-    db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, weekend: dishCategories.weekend }).from(dishCategories),
+    db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, weekend: dishCategories.weekend, icon: dishCategories.icon }).from(dishCategories),
     dishCategoriesService.addonsByDishCategory(),
     getAppSettings(),
     db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
@@ -113,6 +113,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
   // built from slot rows already fetched above, not a new lookup.
   const categoryLabels: Record<string, string> = {};
   for (const s of [...tiffinSlots, ...healthySlots]) categoryLabels[s.key] = s.label;
+  const categoryIcons = Object.fromEntries(categoryRows.flatMap((c) => (c.icon ? [[c.key, c.icon]] : [])));
   const planKeyById = new Map(planRows.map((p) => [p.id, p.key]));
   const itemsByMealSize = new Map<bigint, typeof itemRows>();
   for (const item of itemRows) {
@@ -164,6 +165,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     durations: durRows.map((d) => ({ id: d.id, publicId: d.publicId, weeks: d.weeks })),
     zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm), postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),
     categoryLabels,
+    categoryIcons,
     // Same human portion as meal items ("2 roti", "8oz"), so qty 2 reads as what's actually added.
     addonsByCategory: Object.fromEntries(
       [...addonsByCategory].map(([key, list]) => [key, list.map((a) => {

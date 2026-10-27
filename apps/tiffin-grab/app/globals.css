@@ -540,14 +540,13 @@ body:has(.customer-app) {
      the same quiet step the tab bar uses — lighter on the dark green ground, a touch darker on cream. */
   .c-surface { background-image: linear-gradient(color-mix(in srgb, var(--foreground) 4%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
   /* Liquid glass for floating controls (tab bar, its action buttons): clearer than c-glass so the page shows
-     through, a bright top edge where light catches it, and a soft drop. Never put one inside another. */
+     through, and a soft drop. No edge highlight: it read as a white line. Never put one inside another. */
   .c-liquid {
     background: color-mix(in srgb, var(--background) 30%, transparent);
     -webkit-backdrop-filter: blur(18px) saturate(190%);
     backdrop-filter: blur(18px) saturate(190%);
     border-color: transparent;
-    /* A soft bevel, not a rim: the faintest light on the top edge. */
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 28px -10px rgb(0 0 0 / 0.35);
+    box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.35);
   }
   /* Prominent: the same glass tinted with the brand colour, for the one main action. */
   .c-liquid-tint {
@@ -555,9 +554,9 @@ body:has(.customer-app) {
     -webkit-backdrop-filter: blur(18px) saturate(190%);
     backdrop-filter: blur(18px) saturate(190%);
     border-color: transparent;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
+    box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
   }
-  .dark .c-liquid, .dark .c-liquid-tint { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 10px 28px -10px rgb(0 0 0 / 0.6); }
+  .dark .c-liquid, .dark .c-liquid-tint { box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.6); }
 }
 @media (prefers-reduced-transparency: reduce) {
   .c-glass { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -596,15 +595,15 @@ body:has(.customer-app) {
     backdrop-filter: blur(18px) saturate(190%);
     border-color: transparent;
     color: var(--foreground);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 -1px 0 rgb(0 0 0 / 0.06), 0 10px 28px -10px rgb(0 0 0 / 0.35);
+    box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.35);
     border-radius: 9999px;
   }
   .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] {
     background: color-mix(in oklab, var(--primary) 82%, transparent);
     color: var(--primary-foreground, #fff);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
+    box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
   }
-  .dark .c-float-bar [data-variant] { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -1px 0 rgb(0 0 0 / 0.3), 0 10px 28px -10px rgb(0 0 0 / 0.6); }
+  .dark .c-float-bar [data-variant] { box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.6); }
 }
 @media (max-width: 639.98px) and (prefers-reduced-transparency: reduce) {
   .c-float-bar { background: var(--background); }

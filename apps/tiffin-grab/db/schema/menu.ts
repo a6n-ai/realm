@@ -42,6 +42,8 @@ export const dishCategories = pgTable(
     // meal_size_items.maxTuAmount this still holds when the meal size has no row for
     // the category, which is exactly the state a swap-in creates.
     maxPicksPerTiffin: integer("max_picks_per_tiffin"),
+    // Customer-facing tile icon, one of lib/catalog/category-icons.ts. Null = the built-in guess by key.
+    icon: text("icon"),
     // Client-scoping — null = shared across the whole app, set = one org's own
     // category. See orders.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),

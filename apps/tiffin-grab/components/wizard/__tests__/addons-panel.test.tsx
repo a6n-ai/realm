@@ -57,4 +57,10 @@ describe("AddonsPanel category sections", () => {
     expect(screen.getByText("3 added · +$12.00/tiffin")).toBeTruthy();
     expect(screen.getByText("1 option")).toBeTruthy();
   });
+
+  it("draws the icon staff picked for the category over the built-in guess", () => {
+    const { container } = render(<AddonsPanel addons={[sabzi, roti]} categoryIcons={{ sabzi: "flame" }} selections={sel()} set={vi.fn()} />);
+    expect(container.querySelector("summary .lucide-flame")).toBeTruthy();
+    expect(container.querySelector("summary .lucide-wheat")).toBeTruthy();
+  });
 });

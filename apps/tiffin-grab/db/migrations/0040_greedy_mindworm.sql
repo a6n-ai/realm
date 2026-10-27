@@ -1,0 +1,1 @@
+ALTER TABLE "dish_categories" ADD COLUMN "icon" text;
