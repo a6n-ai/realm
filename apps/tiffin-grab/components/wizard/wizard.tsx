@@ -222,8 +222,7 @@ export function Wizard({
         </div>
       )}
 
-      {/* Not on Schedule (step 2): its frequency cards carry "Best value" themselves, where the choice is made. */}
-      {(step === 1 || step === 3) && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : "duration"} catalog={catalog} selections={selections} set={set} />}
+      {step >= 1 && step <= 3 && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 
       <AnimatePresence mode="popLayout" initial={false} custom={sign}>
         <m.div

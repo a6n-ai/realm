@@ -8,7 +8,7 @@ export const BEST_DEAL_COPY = {
     appliedBody: (label: string, pct: number) => `${label} · ${pct}% off.`,
   },
   frequency: {
-    title: "Tip for your delivery",
+    title: "Fewer deliveries, lower price",
     body: (label: string, pct: number) => `Select ${label} to save ${pct}% on every tiffin.`,
     appliedTitle: "Applied",
     appliedBody: (label: string, pct: number) => `You're getting ${label} — saving ${pct}% on every tiffin.`,

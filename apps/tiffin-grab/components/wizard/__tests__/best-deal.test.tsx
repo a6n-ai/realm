@@ -33,7 +33,7 @@ describe("BestDeal", () => {
     const set = vi.fn();
     render(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8 })} set={set} />);
     expect(screen.getByText(/3-day delivery/)).toBeTruthy();
-    expect(screen.getByText("Tip for your delivery")).toBeTruthy();
+    expect(screen.getByText("Fewer deliveries, lower price")).toBeTruthy();
     expect(screen.getByText(/save 10% on every tiffin/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use this" }));
     expect(set).toHaveBeenCalledWith({ frequencyKey: "3_day" });
@@ -58,7 +58,7 @@ describe("BestDeal", () => {
 
   it("is hidden without a meal size", () => {
     render(<BestDeal vary="duration" catalog={catalog} selections={sel({ mealSizeId: "" })} set={vi.fn()} />);
-    expect(screen.queryByText(/Tip for your/)).toBeNull();
+    expect(screen.queryByText(/lower price/)).toBeNull();
   });
 
   it("is dismissible", async () => {
