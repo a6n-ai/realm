@@ -306,7 +306,7 @@ describe("PayPanel", () => {
     await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
-    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    expect(await screen.findByRole("link", { name: "Go to my dashboard" }, { timeout: 3000 })).toHaveAttribute("href", "/me");
     expect(screen.getAllByText("$51.50")).toHaveLength(2);
     expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
@@ -321,7 +321,8 @@ describe("PayPanel", () => {
     await screen.findByText("SUB-REF1", {}, { timeout: 3000 });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByTestId("paid-page")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    // The receipt's actions land a beat after its order number; wait for them instead of racing the render.
+    expect(await screen.findByRole("link", { name: "Go to my dashboard" }, { timeout: 3000 })).toHaveAttribute("href", "/me");
     expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(screen.queryByTestId("payment-element")).toBeNull();
   });
@@ -331,7 +332,7 @@ describe("PayPanel", () => {
     await openCard();
     fireEvent.click(screen.getByRole("button", { name: "Pay $50.00" }));
     expect(await screen.findByText("We'll confirm by email.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to my dashboard" })).toHaveAttribute("href", "/me");
+    expect(await screen.findByRole("link", { name: "Go to my dashboard" }, { timeout: 3000 })).toHaveAttribute("href", "/me");
     expect(screen.queryByRole("link", { name: "View order details" })).toBeNull();
     expect(s.onProcessing).toHaveBeenCalled();
   });
