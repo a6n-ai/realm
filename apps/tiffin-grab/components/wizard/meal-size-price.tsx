@@ -10,6 +10,7 @@ export function MealSizePrice({
   priceClassName = "text-sm font-medium",
   perTiffin = false,
   stacked = false,
+  perWeek,
 }: {
   meal: Pick<ClientMealSizeView, "basePrice" | "discountType" | "discountValue">;
   priceClassName?: string;
@@ -17,6 +18,8 @@ export function MealSizePrice({
   perTiffin?: boolean;
   /** Price on its own line, right-aligned, with any was-price above and "/tiffin" under it (plan cards). */
   stacked?: boolean;
+  /** Stacked only: days a week, for a faint "≈ $50/wk" line, since customers budget by the week. */
+  perWeek?: number;
 }) {
   const unit = perTiffin ? <span className="text-muted-foreground text-xs font-normal">/tiffin</span> : null;
   if (stacked) {
@@ -25,6 +28,11 @@ export function MealSizePrice({
         {meal.discountType !== "none" && <span className="text-muted-foreground mb-1 text-xs line-through">${meal.basePrice.toFixed(2)}</span>}
         <span className={priceClassName}>${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)}</span>
         {unit && <span className="mt-1">{unit}</span>}
+        {perWeek ? (
+          <span className="text-muted-foreground mt-1 text-xs whitespace-nowrap">
+            ≈ ${((meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)) * perWeek).toFixed(0)}/wk
+          </span>
+        ) : null}
       </span>
     );
   }

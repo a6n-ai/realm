@@ -19,7 +19,12 @@ export function BottomBar({ children, note, className, alignEnd }: { children: R
   }, []);
   return (
     <div ref={ref} className={cn(FONT, "c-glass c-float-bar fixed inset-x-0 bottom-0 z-[45] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-      {note && <p role="status" className={cn("c-caption mx-auto mb-2 max-w-3xl text-center", alignEnd && "sm:text-right")}>{note}</p>}
+      {/* On phones the bar fades into the page, so the note rides its own glass capsule to stay legible over content. */}
+      {note && (
+        <p role="status" className={cn("c-caption mx-auto mb-2 w-fit max-w-full rounded-full px-3 py-1 text-center max-sm:bg-[color-mix(in_srgb,var(--background)_70%,transparent)] max-sm:backdrop-blur-xl max-sm:backdrop-saturate-150 sm:max-w-3xl sm:px-0 sm:py-0", alignEnd && "sm:mr-0 sm:text-right")}>
+          {note}
+        </p>
+      )}
       <div className={cn("mx-auto flex max-w-3xl gap-2", alignEnd && "sm:justify-end")}>{children}</div>
     </div>
   );

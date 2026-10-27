@@ -27,6 +27,7 @@ import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
 import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
+import { effectivePrice } from "@/lib/pricing";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
 const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;
@@ -133,6 +134,11 @@ export function Wizard({
   }, [selections, trial, catalog]);
 
   const blocked = nextBlockedReason(step, catalog, selections);
+  // Bundle step: the bar says what's picked, so nobody scrolls back up to check before Next.
+  const pickedSize = step === 1 ? catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId) : undefined;
+  const pickedNote = pickedSize
+    ? `${pickedSize.name} · $${(pickedSize.discountType === "none" ? pickedSize.basePrice : effectivePrice(pickedSize.basePrice, pickedSize)).toFixed(2)}/tiffin`
+    : undefined;
   const canNext = blocked === null;
 
   const [atCheckout, setAtCheckout] = useState(false);
@@ -290,7 +296,7 @@ export function Wizard({
         <AddonsPanel bare addons={offered} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="pb-2" />
       </Sheet>
 
-      <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
+      <BottomBar alignEnd note={blocked ?? pickedNote} className="sm:sticky sm:mt-6 sm:px-0">
         <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
         {step < 3 ? (
           <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={goNext}>Next</Button>

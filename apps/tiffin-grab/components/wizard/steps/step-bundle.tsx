@@ -1,8 +1,8 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "../selections";
 import { AddonsPanel } from "../addons-panel";
-import { Gift } from "lucide-react";
+import { ChevronDown, Gift } from "lucide-react";
 import { IconTile, OptionCard, Pill } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
@@ -36,12 +36,23 @@ export function StepBundle({
   /** This plan's most-ordered meal size ids; they go first, side by side, and leave the tier lists. */
   popular?: string[];
 }) {
+  const [level, setLevel] = useState<"all" | ClientMealSizeView["tier"]>("all");
+  const [showAll, setShowAll] = useState(false);
   const meals = listableMealSizes(catalog.mealSizes).filter((m) => m.planKey === selections.planKey);
   const ordered = meals.filter((m) => !m.trial);
+  // Days a week for the "≈ $/wk" line: what the customer picked, else their current plan's, else 5.
+  const weekDays = selections.trialDays == null && selections.eatingDays?.length ? selections.eatingDays.length : (currentPlan?.daysPerWeek || 5);
+  const levels = TIERS.filter((t) => ordered.some((m) => m.tier === t));
+  const inLevel = (m: ClientMealSizeView) => level === "all" || m.tier === level;
   const ranked = popular.map((id) => ordered.find((m) => m.publicId === id)).filter((m): m is ClientMealSizeView => !!m);
   // Always two: a plan with fewer ordered sizes is topped up from the catalog's own order.
   const top = [...ranked, ...ordered.filter((m) => !ranked.includes(m))].slice(0, Math.min(2, ordered.length));
-  const weekly = meals.filter((m) => !m.trial && !top.includes(m));
+  const weeklyAll = meals.filter((m) => !m.trial && !top.includes(m)).sort((x, y) => TIERS.indexOf(x.tier) - TIERS.indexOf(y.tier));
+  // Common path first: a few sizes, the rest one tap away. A filter, or a picked size further down, shows them all.
+  const FOLD = 4;
+  const picked = weeklyAll.findIndex((m) => m.publicId === selections.mealSizeId);
+  const folded = level === "all" && !showAll && picked < FOLD && weeklyAll.length > FOLD + 1;
+  const weekly = weeklyAll.filter(inLevel).slice(0, folded ? FOLD : undefined);
   const pick = (m: ClientMealSizeView) => {
     const days = selections.trialDays != null ? DEFAULT_EATING_DAYS : (selections.eatingDays ?? DEFAULT_EATING_DAYS);
     // A size made only on some days keeps only those eating days, and drops a frequency that delivers off them.
@@ -70,19 +81,39 @@ export function StepBundle({
           Now on {currentPlan.mealSizeName}, {currentPlan.daysPerWeek} days a week.
         </CurrentPlanHint>
       ) : null}
-      {top.length > 0 && (
+      {levels.length > 1 && (
+        // Liquid-glass capsule filter by price level; a filter, so plain toggle buttons rather than tabs.
+        <div role="group" aria-label="Filter by price" className="c-liquid inline-flex gap-1 rounded-full p-1">
+          {(["all", ...levels] as const).map((l) => {
+            const on = level === l;
+            return (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={on}
+                aria-label={l === "all" ? "All prices" : TIER_MARK[l].label}
+                onClick={() => setLevel(l)}
+                className={`min-h-9 min-w-12 rounded-full px-3.5 text-[13px] font-bold tracking-[0.04em] [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none ${on ? "bg-[var(--foreground)] text-[var(--background)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"}`}
+              >
+                {l === "all" ? "All" : TIER_MARK[l].mark}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {top.filter(inLevel).length > 0 && (
         <section>
           <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Most popular</h3>
           {/* One per row on phones (room for name, price and what's in it), two across from sm up. */}
-          <div className={top.length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
-            {top.map((m) => <PopularOption key={m.publicId} meal={m} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
+          <div className={top.filter(inLevel).length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
+            {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} weekDays={weekDays} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
             {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
               <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
             )}
           </div>
         </section>
       )}
-      {trials.length > 0 && trial && (
+      {trials.length > 0 && trial && level === "all" && (
         <section>
           <h3 className="mb-3 text-[13px] font-semibold tracking-[0.02em] text-[var(--muted-foreground)]">New here? Try a tiffin first</h3>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -106,6 +137,7 @@ export function StepBundle({
             <Fragment key={m.publicId}>
               <MealOption
                 meal={m}
+                weekDays={weekDays}
                 active={selections.mealSizeId === m.publicId}
                 categoryLabels={catalog.categoryLabels}
                 onPick={() => pick(m)}
@@ -117,6 +149,16 @@ export function StepBundle({
             </Fragment>
           ))}
         </div>
+      )}
+      {folded && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="c-surface text-foreground mx-auto flex min-h-11 items-center gap-2 rounded-full bg-[var(--card)] px-5 text-[15px] font-semibold transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100"
+        >
+          See all sizes · {weeklyAll.length - FOLD} more
+          <ChevronDown aria-hidden className="size-4" />
+        </button>
       )}
     </div>
   );
@@ -142,7 +184,7 @@ function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; classNam
 function TierMark({ meal }: { meal: ClientMealSizeView }) {
   const t = TIER_MARK[meal.tier];
   return (
-    <span aria-label={t.label} className="text-muted-foreground shrink-0 text-[13px] font-bold tracking-[0.08em]">
+    <span aria-label={t.label} className="shrink-0 text-[13px] font-bold tracking-[0.08em] text-[var(--s-delivered-fg,#059669)]">
       {t.mark}
     </span>
   );
@@ -152,10 +194,10 @@ function TierMark({ meal }: { meal: ClientMealSizeView }) {
 const cardLabel = (meal: ClientMealSizeView) =>
   `${meal.name}, $${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)} per tiffin`;
 
-function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
+function PopularOption({ meal, active, categoryLabels, weekDays, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; weekDays?: number; onPick: () => void }) {
   return (
     <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4">
-      <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
+      <Pill tone="up" size="sm" className="w-fit">Popular</Pill>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
@@ -165,7 +207,7 @@ function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientM
           </span>
         </span>
         {/* Price top-right, as on every meal card: one popular card per row on phones, so there's room. */}
-        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked perWeek={weekDays} priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {/* What's in it, same line as the other cards, so a popular pick is never a blind one. */}
       {/* What's in it on the left, the price level on the same line at the right. */}
@@ -182,12 +224,15 @@ function MealOption({
   active,
   categoryLabels,
   trial = false,
+  weekDays,
   onPick,
 }: {
   meal: ClientMealSizeView;
   active: boolean;
   categoryLabels?: Record<string, string>;
   trial?: boolean;
+  /** Days a week for the "≈ $/wk" line under the price; not on trials. */
+  weekDays?: number;
   onPick: () => void;
 }) {
   // A trial is a feature card of its own: brand-tinted, a gift tile and "Try first", so it reads as an offer
@@ -197,7 +242,7 @@ function MealOption({
       <OptionCard badge selected={active} onClick={onPick} aria-label={`${cardLabel(meal)}, trial`} className="flex min-w-0 gap-3 bg-[color-mix(in_oklch,var(--primary)_10%,var(--card))] p-4">
         <IconTile tint="orange" size="lg"><Gift /></IconTile>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <Pill tone="brand" size="sm" className="w-fit">Try first</Pill>
+          <Pill tone="vac" size="sm" className="w-fit">Try first</Pill>
           {/* Name and price on one row, the price top-right, as on every other meal card. */}
           <div className="flex items-start justify-between gap-3">
             <span className="min-w-0 text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
@@ -222,7 +267,7 @@ function MealOption({
             <MealDays meal={meal} />
           </span>
         </span>
-        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked perWeek={weekDays} priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}
