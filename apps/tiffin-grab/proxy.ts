@@ -150,7 +150,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
   // split (customer vs staff/admin) is decided by the (customer) layout below.
   // Segment-boundary match, not a bare prefix: "/me".startsWith would also
   // catch "/menu" (public) and wrongly force it through the login gate.
-  const onGuarded = ["/dashboard", "/me"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // /activate/<order>: the order id is in emails and legacy wc- ids are sequential,
+  // and the page shows the delivery location; the page itself checks owner/staff.
+  const onGuarded = ["/dashboard", "/me", "/activate"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (onGuarded && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
     // Keep ?month=&sub= so post-login lands back on the same calendar month.

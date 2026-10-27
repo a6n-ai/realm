@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { StaticMap } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
+import { isStaffRole } from "@/lib/auth/landing";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getClaimPaymentContext } from "@/lib/services/orders.service";
@@ -17,6 +18,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ActivatePage({ params }: { params: Promise<{ deploymentId: string }> }) {
   const { deploymentId } = await params;
+  // proxy.ts sends cookie-less visitors to /login; this catches an expired session.
+  const session = await getSession();
+  if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(`/activate/${deploymentId}`)}`);
+
   const [sub] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId)).limit(1);
   if (!sub) notFound();
 
@@ -31,9 +36,8 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
   const needsPayment = pay != null && (pay.status === "awaiting_payment" || pay.status === "rejected");
   const claimable = inReview || needsPayment;
 
-  const session = await getSession();
   let ownsOrder = false;
-  if (session?.user?.id && sub.userId != null) {
+  if (sub.userId != null) {
     const [u] = await db
       .select({ publicId: users.publicId })
       .from(users)
@@ -41,6 +45,8 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
       .limit(1);
     ownsOrder = u?.publicId === session.user.id;
   }
+  // Someone else's order reads as missing, so ids can't be probed.
+  if (!ownsOrder && !isStaffRole(session.user.role)) notFound();
 
   const { currency } = await getAppSettings();
   const claimCtx =
