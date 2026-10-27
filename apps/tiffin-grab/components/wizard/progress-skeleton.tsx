@@ -1,13 +1,19 @@
 import { Skeleton } from "@/components/customer/kit";
 
-/** Progress's shape: one 4px segment plus label per step. */
+/** Progress's shape: an icon tile + name/note per step, joined by chevrons. */
 export function ProgressSkeleton({ steps = 3 }: { steps?: number }) {
   return (
-    <div className="mb-6 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${steps}, minmax(0, 1fr))` }}>
+    <div className="mb-6 flex items-center justify-between gap-1.5 sm:justify-start sm:gap-3">
       {Array.from({ length: steps }, (_, i) => (
-        <div key={i} className="flex flex-col gap-1.5">
-          <Skeleton className="h-1 rounded-full" />
-          <Skeleton className="h-3 w-12 rounded-full" />
+        <div key={i} className="contents">
+          <div className="flex min-w-0 items-center gap-2">
+            <Skeleton className="size-8 shrink-0 rounded-[10px]" />
+            <div className="space-y-1">
+              <Skeleton className="h-3.5 w-12" />
+              <Skeleton className="h-3 w-9" />
+            </div>
+          </div>
+          {i < steps - 1 && <Skeleton className="h-4 w-2.5 shrink-0 rounded-sm" />}
         </div>
       ))}
     </div>

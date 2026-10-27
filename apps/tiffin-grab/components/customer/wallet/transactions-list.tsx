@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, Copy, CreditCard, Percent, ReceiptText, RotateCcw, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, IconTile, ListGroup, Skeleton, buttonClass, type IconTint } from "@/components/customer/kit";
+import { EmptyState, IconTile, ListGroup, buttonClass, type IconTint } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
+import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
 
 const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIcon }> = {
   payment: { tint: "green", Icon: CreditCard },
@@ -160,9 +161,9 @@ export function TransactionsList({
 
 export function TransactionsListSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-9 w-28 rounded-full" />
-      <Skeleton className="h-[168px] w-full rounded-3xl" />
+    <div className="flex flex-col gap-4">
+      <FilterBarSkeleton />
+      <MonthGroupSkeleton />
     </div>
   );
 }

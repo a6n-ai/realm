@@ -98,8 +98,8 @@ export function CouponsSectionSkeleton() {
     <section className="space-y-3">
       <h2 className="c-h2">Available coupons</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-40" />
+        <Skeleton className="h-40 rounded-3xl" />
+        <Skeleton className="h-40 rounded-3xl" />
       </div>
     </section>
   );

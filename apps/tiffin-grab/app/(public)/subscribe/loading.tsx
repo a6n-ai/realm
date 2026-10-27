@@ -13,8 +13,8 @@ export default function Loading() {
       <Skeleton className="mt-5 h-20 rounded-[20px]" />
       <div className="mt-8 space-y-3">
         <Skeleton className="h-[50px] rounded-full" />
-        <Skeleton className="h-12" />
-        <Skeleton className="h-[50px] w-40" />
+        <Skeleton className="h-[52px]" />
+        <Skeleton className="h-[50px] w-40 rounded-full" />
       </div>
     </main>
   );

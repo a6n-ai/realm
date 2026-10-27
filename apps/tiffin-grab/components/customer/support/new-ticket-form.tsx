@@ -178,18 +178,23 @@ export function NewTicketForm({
 
 export function NewTicketFormSkeleton() {
   return (
-    <div className="grid max-w-xl gap-5">
+    <div className="grid w-full max-w-xl gap-4">
       {/* Sub-category is hidden until a category is picked, so the loading state
           mirrors the form's initial shape rather than its fully-filled one. */}
-      {FIELDS.filter((f) => f.key !== "subcategory").map((f) => (
-        <div key={f.key} className="grid gap-1.5">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className={cn("w-full", f.control)} />
+      {FIELDS.filter((f) => f.key !== "subcategory" && f.key !== "photos").map((f) => (
+        <div key={f.key} className="flex flex-col gap-1.5">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className={cn("w-full", f.key === "body" ? "h-28" : "h-[52px]")} />
         </div>
       ))}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Skeleton className="h-11 w-full sm:w-36" />
-        <Skeleton className="h-11 w-full sm:w-24" />
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-11 w-full rounded-full sm:w-36" />
+        <Skeleton className="h-[18px] w-56 max-w-full" />
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Skeleton className="h-[50px] w-full rounded-full sm:w-40" />
+        <Skeleton className="h-[50px] w-full rounded-full sm:w-28" />
       </div>
     </div>
   );

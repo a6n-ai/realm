@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Coins } from "lucide-react";
-import { EmptyState, ListGroup, ListRow, Skeleton, buttonClass } from "@/components/customer/kit";
+import { EmptyState, ListGroup, ListRow, buttonClass } from "@/components/customer/kit";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -10,6 +10,7 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
 import { WALLET_FACETS } from "./wallet-facets";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
+import { FilterBarSkeleton, MonthGroupSkeleton, StatGroupSkeleton } from "@/components/customer/skeleton-parts";
 
 function WalletLogRow({ tx }: { tx: WalletTx }) {
   const tz = useTimezone();
@@ -70,9 +71,9 @@ export function WalletLog({
 
 function WalletLogSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-9 w-28 rounded-full" />
-      <Skeleton className="h-[168px] w-full rounded-3xl" />
+    <div className="flex flex-col gap-4">
+      <FilterBarSkeleton />
+      <MonthGroupSkeleton />
     </div>
   );
 }
@@ -81,7 +82,7 @@ function WalletLogSkeleton() {
 export function CoinsPanelSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-[104px] rounded-[20px]" />
+      <StatGroupSkeleton cells={3} hint={false} />
       <WalletLogSkeleton />
     </div>
   );

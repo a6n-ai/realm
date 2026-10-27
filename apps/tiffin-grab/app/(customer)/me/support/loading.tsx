@@ -1,6 +1,10 @@
 import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { HowSupportWorks } from "@/components/customer/support/how-support-works";
+import { SupportHoursSkeleton } from "@/components/customer/support/support-skeletons";
 import { TicketsListSkeleton } from "@/components/customer/support/tickets-list";
+import { TopicCards } from "@/components/customer/support/topic-cards";
 
+// Same order as the page; topic tiles and how-it-works are static, so they render for real.
 export default function Loading() {
   return (
     <div aria-busy="true" aria-label="Loading" role="status" className="mx-auto max-w-2xl space-y-6">
@@ -11,13 +15,10 @@ export default function Loading() {
         subtitle="Pick a topic or start a new ticket. We reply right here."
         action={<Skeleton className="h-11 w-32 rounded-full" />}
       />
-      <div className="space-y-3">
-        <Skeleton className="h-5 w-20" />
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
-        </div>
-      </div>
+      <SupportHoursSkeleton />
+      <TopicCards />
       <TicketsListSkeleton />
+      <HowSupportWorks />
     </div>
   );
 }

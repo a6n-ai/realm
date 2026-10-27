@@ -1,6 +1,7 @@
 import { PiggyBank, Wallet } from "lucide-react";
-import { IconTile, Skeleton, StatGroup, StatTile } from "@/components/customer/kit";
+import { IconTile, StatGroup, StatTile } from "@/components/customer/kit";
 import type { UsageSummary } from "@/lib/services/customer-usage.service";
+import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
 
 function money(amount: string, currency: string) {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amount));
@@ -16,5 +17,5 @@ export function FinanceStats({ usage, currency }: { usage: UsageSummary; currenc
 }
 
 export function FinanceStatsSkeleton() {
-  return <Skeleton className="h-[104px] rounded-[20px]" />;
+  return <StatGroupSkeleton hint={false} />;
 }

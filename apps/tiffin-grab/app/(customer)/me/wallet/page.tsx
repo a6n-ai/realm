@@ -9,7 +9,8 @@ import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@
 import { couponsService } from "@/lib/services/coupons.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { parseFilterState } from "@/components/ds";
-import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { PageHeader } from "@/components/customer/kit";
+import { TabsSkeleton } from "@/components/customer/skeleton-parts";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
@@ -40,7 +41,7 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
         <StatsData userId={userId} />
       </Suspense>
 
-      <Suspense fallback={<Skeleton className="h-11 w-72 rounded-full" />}>
+      <Suspense fallback={<TabsSkeleton />}>
         <FinancesTabs active={tab} />
       </Suspense>
 

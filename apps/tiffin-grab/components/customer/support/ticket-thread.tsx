@@ -166,21 +166,37 @@ const kitChatUi: Partial<ChatUi> = {
   ),
 };
 
+/** Mirrors TicketThread: meta row (topic tile, title, status pill), status banner, hours line, bubbles on the page, glass composer capsule. */
 export function TicketThreadSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" aria-hidden>
-      <div className="flex shrink-0 gap-2">
-        <Skeleton className="h-7 w-16 rounded-full" />
-        <Skeleton className="h-7 w-20 rounded-full" />
+      <div className="flex shrink-0 items-center gap-2.5">
+        <Skeleton className="size-8 shrink-0 rounded-lg" />
+        <Skeleton className="h-[22px] w-40 flex-1 max-w-[12rem]" />
+        <Skeleton className="ml-auto h-7 w-16 rounded-full" />
+      </div>
+      <div className="shrink-0 space-y-2">
+        <div className="flex items-start gap-3 rounded-2xl bg-[var(--muted)] px-4 py-3">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-full bg-[var(--border)]" />
+          <div className="flex-1 space-y-1">
+            <Skeleton className="h-[22px] w-40 bg-[var(--border)]" />
+            <Skeleton className="h-[18px] w-3/4 bg-[var(--border)]" />
+          </div>
+        </div>
+        <Skeleton className="h-[18px] w-64 max-w-full" />
       </div>
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 px-1 py-2">
         {[false, true, false].map((mine, i) => (
           <div key={i} className={cn("flex", mine && "justify-end")}>
-            <Skeleton className="h-12 w-56" />
+            <Skeleton className={cn("h-11 w-56 max-w-[70%] rounded-[20px]", mine ? "rounded-br-md" : "rounded-bl-md")} />
           </div>
         ))}
       </div>
-      <Skeleton className="h-12 w-full shrink-0" />
+      <div className="c-liquid flex shrink-0 items-center gap-1.5 rounded-full p-1.5">
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+        <Skeleton className="h-10 flex-1 rounded-full" />
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+      </div>
     </div>
   );
 }

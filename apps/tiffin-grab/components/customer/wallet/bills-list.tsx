@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button, EmptyState, IconTile, ListGroup, Pill, Skeleton, type IconTint, type Tone } from "@/components/customer/kit";
+import { Button, EmptyState, IconTile, ListGroup, Pill, type IconTint, type Tone } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import { emailReceiptAction, loadClaimPaymentContext } from "@/app/(customer)/me
 import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
+import { MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -281,9 +282,8 @@ export function BillsList({
 
 export function BillsListSkeleton() {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-4 w-28" />
-      <Skeleton className="h-52 w-full rounded-3xl" />
+    <div className="flex flex-col gap-6">
+      <MonthGroupSkeleton />
     </div>
   );
 }

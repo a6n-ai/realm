@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { Tag, Ticket, TicketPercent } from "lucide-react";
-import { EmptyState, IconTile, ListGroup, ListRow, Skeleton, StatGroup, StatTile, buttonClass } from "@/components/customer/kit";
+import { EmptyState, IconTile, ListGroup, ListRow, StatGroup, StatTile, buttonClass } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerCouponUse } from "@/lib/services/customer-finances.service";
 import { QuietPagination } from "./finance-kit";
+import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { H2Skeleton, ListGroupSkeleton } from "@/components/customer/skeleton-parts";
 
 function money(amount: string | number, currency: string) {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amount));
@@ -22,7 +24,7 @@ export function CouponStats({ available, saved, currency }: { available: number;
 }
 
 export function CouponStatsSkeleton() {
-  return <Skeleton className="h-[104px] rounded-[20px]" />;
+  return <StatGroupSkeleton hint={false} />;
 }
 
 function UseRow({ use, currency }: { use: CustomerCouponUse; currency: string }) {
@@ -71,9 +73,9 @@ export function CouponHistory({
 
 export function CouponHistorySkeleton() {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-6 w-44 rounded-full" />
-      <Skeleton className="h-[168px] w-full rounded-3xl" />
+    <div className="flex flex-col gap-3">
+      <H2Skeleton className="w-44" />
+      <ListGroupSkeleton rows={2} />
     </div>
   );
 }
