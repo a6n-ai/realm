@@ -73,11 +73,11 @@ export function StepBundle({
       {top.length > 0 && (
         <section>
           <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Most popular</h3>
-          {/* Two across at every width: the pick most people make, before the full list. */}
-          <div className={top.length > 1 ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+          {/* One per row on phones (room for name, price and what's in it), two across from sm up. */}
+          <div className={top.length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
             {top.map((m) => <PopularOption key={m.publicId} meal={m} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
             {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
-              <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="col-span-2 hidden sm:block" />
+              <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
             )}
           </div>
         </section>
@@ -155,26 +155,21 @@ const cardLabel = (meal: ClientMealSizeView) =>
 
 function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
   return (
-    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-3.5 sm:p-4 sm:pb-9">
+    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4 pb-9">
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
-          <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance sm:text-[20px] sm:tracking-[-0.025em]">{meal.name}</span>
+          <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-1">
                 {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit !text-[color-mix(in_srgb,var(--foreground)_80%,transparent)]">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
             <MealDays meal={meal} />
           </span>
         </span>
-        {/* Desktop: the price sits top-right like the list cards. Phones keep it below, the cards are half-width. */}
-        <span className="hidden sm:block">
-          <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
-        </span>
+        {/* Price top-right, as on every meal card: one popular card per row on phones, so there's room. */}
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
       </div>
       {/* What's in it, same line as the other cards, so a popular pick is never a blind one. */}
       <div className="pr-8"><MealSizeItems items={meal.items} categoryLabels={categoryLabels} /></div>
-      <span className="mt-auto pt-1 pr-8 sm:hidden">
-        <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[22px] font-bold tracking-[-0.03em]" />
-      </span>
       <TierMark meal={meal} />
     </OptionCard>
   );
