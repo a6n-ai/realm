@@ -10,7 +10,7 @@ import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
 import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer-deliveries.service";
 import { checkoutHolidayDates } from "@/lib/services/holidays.service";
-import { appToday, earliestPlanStart } from "@/lib/services/start-date";
+import { appToday, earliestPlanStart, planStartDays } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
 import { RenewCheckout } from "./quick-renew-client";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
@@ -100,7 +100,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   const base = quoted ?? prior;
   const basePlan = client.plans.find((p) => p.key === base.planKey);
   const initial = basePlan
-    ? { ...base, startDate: earliestPlanStart(today, basePlan.allowedStartDays, earliestStartDate, new Set(holidayDates)) }
+    ? { ...base, startDate: earliestPlanStart(today, planStartDays(basePlan.allowedStartDays, client.frequencies.find((f) => f.key === base.frequencyKey)?.weekdays), earliestStartDate, new Set(holidayDates)) }
     : base;
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =

@@ -14,7 +14,7 @@ import { addressService } from "./addresses.service";
 import { dropOffsFor } from "./address-drop-off.service";
 import { checkoutHolidayDates } from "./holidays.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
-import { appToday, earliestPlanStart } from "./start-date";
+import { appToday, earliestPlanStart, planStartDays } from "./start-date";
 
 export type { QuickRenewData };
 
@@ -84,7 +84,8 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
   ]);
   const plan = client.plans.find((p) => p.key === src.planKey);
   if (!plan) return null;
-  const startDate = earliestPlanStart(today, plan.allowedStartDays, minStartDate, new Set(holidayDates));
+  const freq = client.frequencies.find((f) => f.key === src.frequencyKey);
+  const startDate = earliestPlanStart(today, planStartDays(plan.allowedStartDays, freq?.weekdays), minStartDate, new Set(holidayDates));
   const initial = renewSelections(
     client,
     {

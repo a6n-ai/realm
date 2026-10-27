@@ -64,3 +64,14 @@ export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[],
   }
   return fromIso;
 }
+
+/**
+ * Weekdays a weekly order may start on: the plan's start days that are also delivery days, because the start date
+ * is the first delivery (starting Thu on Mon/Wed/Fri would first deliver Fri). Falls back to the plan's days when
+ * they share none, or the frequency has no weekdays.
+ */
+export function planStartDays(allowedStartDays: readonly string[] | null | undefined, frequencyWeekdays: readonly string[] | null | undefined): string[] {
+  const days = allowedStartDays?.length ? [...allowedStartDays] : ["mon", "tue", "wed", "thu", "fri"];
+  const both = days.filter((d) => frequencyWeekdays?.includes(d));
+  return both.length ? both : days;
+}

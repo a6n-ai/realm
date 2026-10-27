@@ -4,7 +4,7 @@ import { reprice } from "@/app/(public)/subscribe/actions";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 import { offeredAddons, type WizardSelections } from "@/components/wizard/selections";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { appToday, firstStartOnOrAfter } from "@/lib/services/start-date";
+import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/start-date";
 import type { PricingResult } from "@/lib/pricing";
 import type { QuickRenewData } from "./types";
 
@@ -27,7 +27,8 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
 
   const plan = catalog.plans.find((p) => p.key === sel.planKey);
   const meal = catalog.mealSizes.find((m) => m.publicId === sel.mealSizeId);
-  const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
+  const freq = catalog.frequencies.find((f) => f.key === sel.frequencyKey);
+  const allowed = planStartDays(plan?.allowedStartDays, freq?.weekdays);
   const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = nextWeekday(today).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;

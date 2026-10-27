@@ -9,7 +9,7 @@ import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso } from "@/lib/trial/schedule";
-import { appToday, firstStartOnOrAfter } from "@/lib/services/start-date";
+import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";
@@ -51,10 +51,7 @@ export function StepDuration({
   const multiDay = !!trial && trial.maxDays > 1;
   const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
   const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
-  // A weekly plan starts on one of its delivery days: starting Thu on Mon/Wed/Fri would first deliver Fri.
-  const startDays = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
-  const onDelivery = startDays.filter((d) => freq?.weekdays?.includes(d as never));
-  const allowed = trial ? (picks.length ? picks : trial.weekdays) : onDelivery.length ? onDelivery : startDays;
+  const allowed = trial ? (picks.length ? picks : trial.weekdays) : planStartDays(plan?.allowedStartDays, freq?.weekdays);
   const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
