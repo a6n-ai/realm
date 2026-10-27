@@ -1,5 +1,5 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { frequencyFits, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { rankDeals, type RankedDeal } from "@foundry/discounts";
 import { buildPricingCatalog } from "./build-catalog";
 import { priceSubscription } from "./engine";
@@ -56,8 +56,11 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
   if (!current) return null;
   let currentAlt: Alt | null = null;
   const alternatives: Alt[] = [];
+  // Never suggest a frequency the picked size can't be delivered on (a size made only on some days).
+  const allowed = snapshot.mealSizes?.find((m) => m.publicId === selections.mealSizeId)?.allowedDays;
   for (const f of snapshot.frequencies) {
     if (!f.weekdays?.length) continue;
+    if (!frequencyFits(f.weekdays as DayOfWeek[], allowed)) continue;
     if (planWeek(f.weekdays as DayOfWeek[], eating) === null) continue;
     if (vary === "duration" && f.key !== selections.frequencyKey) continue;
     for (const d of snapshot.durations) {

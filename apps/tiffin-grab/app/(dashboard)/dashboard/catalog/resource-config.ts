@@ -114,19 +114,19 @@ const mealSizesSchema = z.object({
   fatG: optNum(z.coerce.number().int().nonnegative()),
   basePrice: reqNum(z.coerce.number().nonnegative()),
   trial: z.boolean().optional(),
+  // Days this size is made on (e.g. non-veg only, Tue/Thu veg-only). Empty = every day.
+  allowedDays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).optional(),
   active,
 });
 
 const deliveryFrequenciesSchema = z.object({
   key, name,
   daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7).optional()),
-  // Null for the two legacy hardcoded shapes (5_day/mwf) — orderDeliveryDays()
-  // keeps its own fallback for those. Every other row needs this set so the
-  // catalog is the single source of truth for which days it actually means.
-  weekdays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).nullable().optional(),
+  // Every frequency names its delivery days: the catalog is the one source of which days it means, and a meal
+  // size limited to some days only offers frequencies whose days all fit (frequencyFits).
+  weekdays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).min(1, "Pick at least one delivery day"),
   active,
-}).transform((v) => ({ ...v, daysPerWeek: v.weekdays?.length ? v.weekdays.length : v.daysPerWeek }))
-  .refine((v) => v.daysPerWeek != null, { message: "Pick at least one delivery day", path: ["weekdays"] });
+}).transform((v) => ({ ...v, daysPerWeek: v.weekdays?.length ?? v.daysPerWeek }));
 
 const durationPackagesSchema = z.object({
   weeks: reqNum(z.coerce.number().int().positive()),
@@ -269,6 +269,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
       { key: "basePrice", label: "Base price", type: "number", unit: "$", section: "Pricing" },
       { key: "trial", label: "Trial", type: "boolean", section: "Basics", help: "Customers order this from the trial page. Length and send days are on the Trial tab." },
+      { key: "allowedDays", label: "Allowed days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS, optional: true, tableHidden: true, section: "Basics", help: "Days this meal is made on. Customers can only pick these days and frequencies that deliver on them. Leave empty for every day." },
     ],
     note: "Discounts are managed in Discounts",
   },

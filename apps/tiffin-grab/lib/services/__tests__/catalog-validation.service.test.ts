@@ -22,7 +22,8 @@ describe("catalog service validation", () => {
   });
 
   it("coerces numeric strings and persists surfaced columns", async () => {
-    const row = await deliveryFrequencyService.create({ key: "zz-test-freq", name: "ZZ Freq", daysPerWeek: "5" });
+    // Every frequency names its delivery days now; daysPerWeek is derived from them.
+    const row = await deliveryFrequencyService.create({ key: "zz-test-freq", name: "ZZ Freq", daysPerWeek: "5", weekdays: ["mon", "tue", "wed", "thu", "fri"] });
     expect(row.daysPerWeek).toBe(5);
   });
 

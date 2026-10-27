@@ -70,6 +70,9 @@ export const mealSizes = pgTable("meal_sizes", {
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
   trial: boolean("trial").notNull().default(false),
+  // Days this size can be eaten and delivered on (e.g. non-veg only, while Tue/Thu are veg-only). Null or
+  // empty = every day. Enforced by allowedDaysError/frequencyFits (lib/menu/delivery-days.ts).
+  allowedDays: text("allowed_days").array(),
   active: boolean("active").notNull().default(true),
   // Hidden per-composition size staff build for a customer (spec 2026-09-28-custom-meal).
   // Never listed in the wizard; priced live from custom_meal_pricing by the catalog loader.
@@ -147,12 +150,8 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
   daysPerWeek: integer("days_per_week").notNull(),
-  // Explicit weekday set for a frequency that isn't the two hardcoded shapes
-  // (5-day Mon–Fri, MWF) — e.g. a legacy customer on "Tuesday - Thursday" only.
-  // Null for "5_day"/"mwf": lib/menu/delivery-days.ts keeps its hardcoded
-  // fallback for those two so existing behavior is unchanged; this column is
-  // read only when frequencyKey isn't one of them (or, going forward, for any
-  // row that sets it explicitly). Values are DayOfWeek strings ("mon".."sun").
+  // The frequency's delivery days, DayOfWeek strings ("mon".."sun"). The admin form requires at least one;
+  // lib/menu/delivery-days.ts keeps a fallback for "5_day"/"mwf" only so very old rows still read.
   weekdays: text("weekdays").array(),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.

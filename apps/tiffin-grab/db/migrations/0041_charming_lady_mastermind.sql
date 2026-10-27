@@ -1,0 +1,1 @@
+ALTER TABLE "meal_sizes" ADD COLUMN "allowed_days" text[];

@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { emailSchema, ValidationError } from "@foundry/commons";
+import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -133,6 +134,21 @@ async function quote(
   const snapshot = await loadCatalogSnapshot(orgId !== undefined ? orgId : await resolveRequestOrg());
   const trialMeal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   const trial = trialMeal?.trial ? await quoteTrial(snapshot, selections) : null;
+  // Same day rules as createOrder, so the preview never prices a plan checkout would refuse.
+  if (trialMeal) {
+    const freqKey = trial ? trial.frequencyKey : selections.frequencyKey;
+    const freq = snapshot.frequencies.find((f) => f.key === freqKey);
+    const daysErr = planDaysError({
+      eatingDays: (trial ? trial.eatingDays : selections.eatingDays ?? []) as DayOfWeek[],
+      includeSaturday: !trial && selections.includeSaturday,
+      includeSunday: !trial && selections.includeSunday,
+      frequencyWeekdays: freq ? ((freq.weekdays ?? null) as DayOfWeek[] | null) : undefined,
+      servesWeekends: trialMeal.servesWeekends,
+      allowed: trialMeal.allowedDays,
+      trial: trial != null,
+    });
+    if (daysErr) throw new ValidationError(daysErr);
+  }
   const catalog = trial ? trial.catalog : buildPricingCatalog(snapshot, selections);
   const pricedSelections = trial ? trial.pricingSelections : selections;
   const base = priceSubscription(pricedSelections, catalog);

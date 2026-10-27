@@ -15,6 +15,7 @@ import {
 import { getAppSettings } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { SessionUpdatableService } from "./session-service";
+import { parsePatch } from "./parse-patch";
 
 // "Delete" retires the row (active=false) so historical orders that reference
 // it stay valid; the wizard loader filters these out, the admin editor shows them.
@@ -35,7 +36,7 @@ class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
     return super.create(this.schema.parse(values));
   }
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, this.schema.partial().parse(patch));
+    return super.update(id, parsePatch(this.schema, patch));
   }
 }
 
@@ -62,7 +63,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
   }
 
   async update(id: string, patch: Record<string, unknown>) {
-    return this.persist(id, this.schema.partial().parse(patch), false);
+    return this.persist(id, parsePatch(this.schema, patch), false);
   }
 
   private async persist(id: string | null, parsed: Record<string, unknown>, isCreate: boolean) {
@@ -215,7 +216,7 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
   }
 
   async update(id: string, patch: Record<string, unknown>) {
-    const parsed = this.schema.partial().parse(patch) as Record<string, unknown>;
+    const parsed = parsePatch(this.schema, patch);
     delete parsed.key; // immutable after create, like every keyed resource
     const kind = (parsed.kind as string | undefined) ?? (parsed.targetId !== undefined ? ((await this.read(id)) as { kind: string }).kind : undefined);
     return super.update(id, await this.toRow(parsed, kind));
@@ -269,7 +270,7 @@ class AddonService extends SoftDeleteService<typeof addons> {
     return super.create(await this.withPlanId(RESOURCES.addons.schema.parse(values)));
   }
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, await this.withPlanId(RESOURCES.addons.schema.partial().parse(patch)));
+    return super.update(id, await this.withPlanId(parsePatch(RESOURCES.addons.schema, patch)));
   }
   private async withPlanId(parsed: Record<string, unknown>) {
     const out = { ...parsed };

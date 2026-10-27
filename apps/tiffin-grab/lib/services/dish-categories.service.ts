@@ -8,6 +8,7 @@ import { swapPairFits, type ExchangeOverride, type SwapCategory, type SwapPairRu
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 import type { CatalogAddon } from "@/lib/catalog/types";
+import { parsePatch } from "./parse-patch";
 
 // A slot shared by several plans joins once per plan; callers want it once.
 function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
@@ -44,7 +45,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     // The generic catalog retire/restore action toggles `active`; this table has
     // no `active` column, so map it onto `enabled` (its status column).
     if ("active" in patch) return super.update(id, { enabled: Boolean(patch.active) });
-    const { planIds, ...rest } = this.schema.partial().parse(patch);
+    const { planIds, ...rest } = parsePatch(this.schema, patch);
     const row = Object.keys(rest).length ? await super.update(id, rest) : await this.read(id);
     if (planIds) await this.setPlans(id, planIds as string[]);
     return row;

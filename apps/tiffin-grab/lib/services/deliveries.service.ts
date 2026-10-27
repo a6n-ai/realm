@@ -4,9 +4,9 @@ import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, not, or, sq
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
-import { mealSizeServesWeekends } from "./weekend-dish";
+import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
-import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { allowedDaysError, dayAllowed, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
@@ -607,15 +607,24 @@ export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string
   throw new ValidationError("Could not find a make-up slot within 30 days");
 }
 
+/**
+ * The days this order can get a delivery on: its frequency's days, limited to the meal size's allowed days (a
+ * non-veg-only size never gets a make-up, redelivery, holiday extra or complimentary tiffin on a veg-only day,
+ * even on an old order whose frequency doesn't fit). If the limit would leave nothing, the frequency's days stand,
+ * so a make-up always finds a slot.
+ */
 export async function orderDeliveryDaySet(tx: Tx, order: Order): Promise<Set<string>> {
   const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
     .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-  return new Set(orderDeliveryDays({
+  const days = orderDeliveryDays({
     frequencyKey: freq!.key,
     weekdays: freq!.weekdays as DayOfWeek[] | null,
     includeSaturday: !order.eatingDays?.length && order.includeSaturday,
     includeSunday: !order.eatingDays?.length && order.includeSunday,
-  }));
+  });
+  const allowed = await mealSizeAllowedDays(order.mealSizeId, tx);
+  const kept = days.filter((d) => dayAllowed(d, allowed));
+  return new Set(kept.length > 0 ? kept : days);
 }
 
 /** Extras follow the trip; a single-day trip re-dated to the picked eat day carries them there. */
@@ -875,7 +884,12 @@ export async function shiftMissedDeliveries(
   )).orderBy(asc(deliveries.deliveryDate));
   if (missed.length === 0) return [];
 
-  const weekdays = new Set([...(await orderDeliveryDaySet(tx, order))].filter((d) => d !== "sat" && d !== "sun"));
+  // A trial rides the Trial settings frequency; its make-ups land on its own send days (already limited to the
+  // meal size's allowed days), the same rule holiday extras use (holiday-apply.ts planWeekdays).
+  const planDays = order.trialLength != null && order.trialWeekdays?.length
+    ? new Set(order.trialWeekdays as DayOfWeek[])
+    : await orderDeliveryDaySet(tx, order);
+  const weekdays = new Set([...planDays].filter((d) => d !== "sat" && d !== "sun"));
   const yesterday = parseIsoDateUtc(today);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const floor = yesterday.toISOString().slice(0, 10);
@@ -988,6 +1002,13 @@ export async function rescheduleDelivery(
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
     const weekendErr = weekendDaysError([weekdayKey(parseIsoDateUtc(eatingDateIso)) as DayOfWeek], await mealSizeServesWeekends(order.mealSizeId, tx));
     if (weekendErr) throw new ValidationError(weekendErr);
+    // A size made only on some days: neither the eating day nor the day it rides may fall outside them (the
+    // second matters for an old order whose frequency doesn't fit).
+    const allowedErr = allowedDaysError(
+      [weekdayKey(parseIsoDateUtc(eatingDateIso)), weekdayKey(parseIsoDateUtc(carriedOn))] as DayOfWeek[],
+      await mealSizeAllowedDays(order.mealSizeId, tx),
+    );
+    if (allowedErr) throw new ValidationError(allowedErr);
 
     const today = zonedDateIso(Date.now(), timezone);
     if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
@@ -1223,6 +1244,8 @@ export async function grantComplimentaryTiffin(
 
     const { timezone, cutoffHour } = await getAppSettings();
     const day = weekdayKey(parseIsoDateUtc(input.date));
+    const allowedErr = allowedDaysError([day as DayOfWeek], await mealSizeAllowedDays(order.mealSizeId, tx));
+    if (allowedErr) throw new ValidationError(allowedErr);
     if (WEEKEND.has(day) || !(await orderDeliveryDaySet(tx, order)).has(day)) {
       throw new ValidationError("Pick one of this plan's delivery days");
     }

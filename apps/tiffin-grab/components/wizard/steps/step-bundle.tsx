@@ -8,6 +8,7 @@ import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
+import { dayAllowed, frequencyFits, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 
@@ -34,13 +35,22 @@ export function StepBundle({
   // Always two: a plan with fewer ordered sizes is topped up from the catalog's own order.
   const top = [...ranked, ...ordered.filter((m) => !ranked.includes(m))].slice(0, Math.min(2, ordered.length));
   const weekly = meals.filter((m) => !m.trial && !top.includes(m));
-  const pick = (m: ClientMealSizeView) => set({
-    mealSizeId: m.publicId,
-    trialDays: undefined,
-    // Another meal may not offer the same add-ons; the server would refuse a stale one.
-    ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
-    ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
-  });
+  const pick = (m: ClientMealSizeView) => {
+    const days = selections.trialDays != null ? DEFAULT_EATING_DAYS : (selections.eatingDays ?? DEFAULT_EATING_DAYS);
+    // A size made only on some days keeps only those eating days, and drops a frequency that delivers off them.
+    const eatingDays = days.filter((d) => dayAllowed(d, m.allowedDays));
+    const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
+    set({
+      mealSizeId: m.publicId,
+      trialDays: undefined,
+      // Another meal may not offer the same add-ons; the server would refuse a stale one.
+      ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
+      eatingDays,
+      includeSaturday: eatingDays.includes("sat"),
+      includeSunday: eatingDays.includes("sun"),
+      ...(freq && !frequencyFits(freq.weekdays as DayOfWeek[] | null, m.allowedDays) ? { frequencyKey: "" } : {}),
+    });
+  };
   const trials = trial ? meals.filter((m) => m.trial) : [];
 
   // Add-ons on this plan's menu, plus plan-bound ones (see mealSizeAddons).
@@ -115,7 +125,7 @@ export function StepBundle({
 /** Compact card for the Most popular row: name, kcal and price, sized for half a phone's width. */
 function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; active: boolean; onPick: () => void }) {
   return (
-    <OptionCard selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5">
+    <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5">
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
       <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance">{meal.name}</span>
       {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
@@ -143,7 +153,7 @@ function MealOption({
   // rather than one more size in the grid. Selected it gets the same ring as every option.
   if (trial) {
     return (
-      <OptionCard selected={active} onClick={onPick} className="flex min-w-0 gap-3 bg-[color-mix(in_oklch,var(--primary)_10%,var(--card))] p-4">
+      <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 gap-3 bg-[color-mix(in_oklch,var(--primary)_10%,var(--card))] p-4">
         <IconTile tint="orange" size="lg"><Gift /></IconTile>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
@@ -160,7 +170,7 @@ function MealOption({
     );
   }
   return (
-    <OptionCard selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
+    <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>

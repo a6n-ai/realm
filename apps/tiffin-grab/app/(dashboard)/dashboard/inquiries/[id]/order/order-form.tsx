@@ -32,7 +32,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
@@ -68,7 +68,7 @@ function FormSection({ title, hint, action, hidden = false, children }: { title:
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; addons?: CatalogAddon[] }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; allowedDays?: DayOfWeek[] | null; addons?: CatalogAddon[] }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   timezone?: string;
@@ -282,7 +282,9 @@ export function OrderForm({
   const email = form.watch("email");
   const deliveryArea = useDeliveryArea(postalCode);
 
-  const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length);
+  // The picked size's allowed days: only frequencies that deliver on them are offered (non-veg only, Tue/Thu veg-only).
+  const sizeDays = catalog.mealSizes.find((m) => m.id === mealSizeId)?.allowedDays ?? null;
+  const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length && frequencyFits(f.weekdays as DayOfWeek[], sizeDays));
   const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
   const deliveryDays = (deliveryFrequencies.find((f) => f.key === frequencyKey)?.weekdays ?? []) as DayOfWeek[];
   const toggleEating = (d: DayOfWeek) => {
@@ -303,7 +305,7 @@ export function OrderForm({
     form.setValue("addonSelections", qty > 0 ? [...rest, { key, qty }] : rest, { shouldDirty: true });
   };
   // Trial send days for this meal: no Sat/Sun when it has no weekend dish.
-  const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
+  const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true, selectedSize?.allowedDays) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const baseMinStart = isTrial && trialSettings
     ? earliestTrialIso(appToday(catalog.timezone, catalog.cutoffHour), trialWeekdays)
@@ -912,6 +914,7 @@ export function OrderForm({
               eatingDays={eatingDays}
               onToggleDay={toggleEating}
               bounds={bounds}
+              mealDays={sizeDays}
             />
           </fieldset>}
           {schedule && <ScheduleCard trips={schedule.trips} shifted={schedule.shifted} />}

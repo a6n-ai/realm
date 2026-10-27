@@ -1,3 +1,4 @@
+import { onlyOnMessage } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
@@ -32,9 +33,12 @@ export async function quoteTrial(
   if (meal.custom) throw new ValidationError("A custom meal can't be a trial");
 
   const settings = await getTrialSettings(await resolveRequestOrg());
-  const weekdays = trialSendDays(settings.weekdays, meal.servesWeekends);
+  const weekdays = trialSendDays(settings.weekdays, meal.servesWeekends, meal.allowedDays);
   if (settings.maxDays == null || settings.maxDays < 1 || weekdays.length === 0) {
-    throw new ValidationError("Trials aren't available right now");
+    // Trial days exist but none suits this size: say which days it is made on.
+    const allSend = trialSendDays(settings.weekdays, meal.servesWeekends);
+    const trialsOn = settings.maxDays != null && settings.maxDays >= 1 && allSend.length > 0;
+    throw new ValidationError(trialsOn && meal.allowedDays?.length ? onlyOnMessage(meal.allowedDays) : "Trials aren't available right now");
   }
   const { sendDays, length } = resolveTrialDays(weekdays, settings.maxDays, selections.eatingDays, selections.trialDays);
   assertTrialStart(selections.startDate, sendDays, startBase);

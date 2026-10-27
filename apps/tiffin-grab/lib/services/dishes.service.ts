@@ -7,6 +7,7 @@ import { dishes, plans } from "@/db/schema";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { dishNameKey } from "@/lib/menu/similar-dishes";
 import { SessionUpdatableService } from "./session-service";
+import { parsePatch } from "./parse-patch";
 
 /** A plan's display tag, rendered verbatim — the code never interprets it. */
 export type PlanTag = { label: string; color: string };
@@ -38,7 +39,7 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
   }
 
   async update(id: string, patch: Record<string, unknown>) {
-    const { planId: planPublicId, ...rest } = this.schema.partial().parse(patch);
+    const { planId: planPublicId, ...rest } = parsePatch(this.schema, patch);
     if (typeof rest.name === "string") await this.assertNoDuplicate(rest.name, id);
     const planId = planPublicId ? await this.resolvePlanId(planPublicId as string) : undefined;
     return super.update(id, { ...rest, ...(planId ? { planId } : {}) });

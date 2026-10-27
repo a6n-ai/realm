@@ -1,3 +1,4 @@
+import { dayAllowed, type AllowedDays } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
 import { validateStartDate } from "@/lib/services/start-date";
 
@@ -11,9 +12,10 @@ export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
   return TRIAL_WEEKDAYS.filter((d) => picked.has(d));
 }
 
-/** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish. */
-export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean): TrialWeekday[] {
-  return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
+/** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish, and days outside the
+ *  meal size's allowed days (e.g. Tue/Thu for a non-veg-only size) drop out too. */
+export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean, allowed?: AllowedDays): TrialWeekday[] {
+  return orderedTrialWeekdays(weekdays).filter((d) => (servesWeekends || (d !== "sat" && d !== "sun")) && dayAllowed(d, allowed));
 }
 
 /**

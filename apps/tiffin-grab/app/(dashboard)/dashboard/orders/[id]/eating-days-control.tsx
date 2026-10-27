@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { NO_WEEKEND_DISH, eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { changeEatingDaysAction } from "./actions";
 
 const WEEK: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -18,6 +18,7 @@ export function EatingDaysControl({
   eatingDays,
   deliveryDays,
   servesWeekends,
+  mealDays = null,
   bounds,
   toFiveDay = false,
 }: {
@@ -26,6 +27,8 @@ export function EatingDaysControl({
   /** The frequency's delivery days: every eating day rides the nearest one at or before it. */
   deliveryDays: DayOfWeek[];
   servesWeekends: boolean;
+  /** The meal size's allowed days; others can't be picked. (Not `allowedDays`: on this page that means start/delivery days.) */
+  mealDays?: DayOfWeek[] | null;
   bounds: { min: number; max: number };
   /** A WordPress plan still on MWF: saving moves it to 5-day delivery, even with the same days. */
   toFiveDay?: boolean;
@@ -36,7 +39,7 @@ export function EatingDaysControl({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const invalid = eatingDaysError(deliveryDays, value, bounds);
+  const invalid = eatingDaysError(deliveryDays, value, bounds) ?? allowedDaysError(value, mealDays);
   const combined = (planWeek(deliveryDays, value) ?? []).filter((t) => t.units > 1);
   const unchanged = value.join() === eatingDays.join() && !toFiveDay;
 
@@ -76,13 +79,14 @@ export function EatingDaysControl({
           {WEEK.map((d) => {
             const on = value.includes(d);
             const noDish = !servesWeekends && (d === "sat" || d === "sun");
+            const offDay = !on && !dayAllowed(d, mealDays);
             return (
               <button
                 key={d}
                 type="button"
                 aria-pressed={on}
-                disabled={noDish}
-                title={noDish ? NO_WEEKEND_DISH : undefined}
+                disabled={noDish || offDay}
+                title={noDish ? NO_WEEKEND_DISH : offDay && mealDays ? onlyOnMessage(mealDays) : undefined}
                 onClick={() => setValue(WEEK.filter((x) => (x === d ? !on : value.includes(x))))}
                 className={cn(
                   "rounded-md border px-3 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",

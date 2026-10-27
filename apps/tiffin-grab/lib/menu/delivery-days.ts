@@ -63,6 +63,57 @@ export function weekendDaysError(days: readonly DayOfWeek[], servesWeekends: boo
   return !servesWeekends && days.some((d) => d === "sat" || d === "sun") ? NO_WEEKEND_DISH : null;
 }
 
+const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+
+/** A meal size's allowed days (Catalog → Meal sizes), null/empty = every day. */
+export type AllowedDays = readonly DayOfWeek[] | null | undefined;
+
+const limited = (allowed: AllowedDays): allowed is readonly DayOfWeek[] => allowed != null && allowed.length > 0 && allowed.length < 7;
+
+/** "Mon, Wed and Fri" in week order. */
+export function dayList(days: readonly DayOfWeek[]): string {
+  const names = WEEK_ORDER.filter((d) => days.includes(d)).map((d) => SHORT[d]);
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+export function onlyOnMessage(allowed: readonly DayOfWeek[]): string {
+  return `This meal is only made on ${dayList(allowed)}`;
+}
+
+/** Can this day be eaten on / delivered for this meal size? */
+export function dayAllowed(day: DayOfWeek, allowed: AllowedDays): boolean {
+  return !limited(allowed) || allowed.includes(day);
+}
+
+/** Sibling of weekendDaysError: a meal size made only on some days (e.g. non-veg only, while Tue/Thu are veg-only). */
+export function allowedDaysError(days: readonly DayOfWeek[], allowed: AllowedDays): string | null {
+  return limited(allowed) && days.some((d) => !allowed.includes(d)) ? onlyOnMessage(allowed) : null;
+}
+
+/** A delivery frequency fits a meal size only when every one of its delivery days is allowed. */
+export function frequencyFits(weekdays: readonly DayOfWeek[] | null | undefined, allowed: AllowedDays): boolean {
+  return !limited(allowed) || (weekdays != null && weekdays.length > 0 && weekdays.every((d) => allowed.includes(d)));
+}
+
+/**
+ * The day rules for one order's picks, in one place for createOrder and both price previews: weekend dish,
+ * then the frequency fit, then the allowed days. Sat/Sun flags count as eating days. Trials ride the Trial
+ * settings frequency, so they skip the fit. `frequencyWeekdays` undefined = no frequency picked yet.
+ */
+export function planDaysError(p: {
+  eatingDays: readonly DayOfWeek[];
+  includeSaturday?: boolean;
+  includeSunday?: boolean;
+  frequencyWeekdays?: readonly DayOfWeek[] | null;
+  servesWeekends: boolean;
+  allowed: AllowedDays;
+  trial: boolean;
+}): string | null {
+  const eaten: DayOfWeek[] = [...p.eatingDays, ...(p.includeSaturday ? ["sat" as const] : []), ...(p.includeSunday ? ["sun" as const] : [])];
+  const unfit = !p.trial && p.frequencyWeekdays !== undefined && !frequencyFits(p.frequencyWeekdays, p.allowed);
+  return weekendDaysError(eaten, p.servesWeekends) ?? (unfit ? onlyOnMessage(p.allowed!) : null) ?? allowedDaysError(eaten, p.allowed);
+}
+
 export function orderDeliveryDays(o: {
   frequencyKey: string;
   weekdays?: DayOfWeek[] | null;

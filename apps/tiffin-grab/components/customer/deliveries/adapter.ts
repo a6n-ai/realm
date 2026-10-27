@@ -78,6 +78,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     deliveryWeekdays: a.counts.deliveryWeekdays,
     eatingWeekdays: a.counts.eatingWeekdays,
     servesWeekends: a.counts.servesWeekends,
+    mealDays: a.counts.mealDays,
     startDate: a.startDate,
     holidays: a.holidays ?? {},
     otherPlanDays: a.otherPlanDays ?? {},

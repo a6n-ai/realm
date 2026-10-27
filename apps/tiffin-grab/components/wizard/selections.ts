@@ -1,6 +1,6 @@
 import type { PricingSelections } from "@/lib/pricing";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { eatingDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, planDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 
 export interface WizardSelections extends PricingSelections {
@@ -38,8 +38,10 @@ export const FIXED_PERSONS = 1;
 export const WEEK_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export const DEFAULT_EATING_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
 
-/** Frequencies a customer may pick: active rows (already filtered upstream) that define delivery days. */
-export const selectableFrequencies = (catalog: ClientCatalogSnapshot) => catalog.frequencies.filter((f) => f.weekdays?.length);
+/** Frequencies a customer may pick: active rows (already filtered upstream) that define delivery days. With a
+ *  cart, only those that deliver on the picked size's allowed days (e.g. MWF, not Mon-Fri, for non-veg only). */
+export const selectableFrequencies = (catalog: ClientCatalogSnapshot, s?: WizardSelections) =>
+  catalog.frequencies.filter((f) => f.weekdays?.length && (!s || frequencyFits(f.weekdays as DayOfWeek[], mealAllowedDays(catalog, s))));
 
 export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
   min: catalog.minTiffinsPerWeek ?? 3,
@@ -97,7 +99,18 @@ export function scheduleError(catalog: ClientCatalogSnapshot, s: WizardSelection
   const row = selectableFrequencies(catalog).find((f) => f.key === s.frequencyKey);
   if (!row) return "Choose a delivery frequency";
   return eatingDaysError(row.weekdays as DayOfWeek[], s.eatingDays ?? [], tiffinBounds(catalog))
-    ?? weekendDaysError(s.eatingDays ?? [], servesWeekends(catalog, s));
+    ?? planDaysError({
+      eatingDays: s.eatingDays ?? [],
+      frequencyWeekdays: row.weekdays as DayOfWeek[],
+      servesWeekends: servesWeekends(catalog, s),
+      allowed: mealAllowedDays(catalog, s),
+      trial: false,
+    });
+}
+
+/** The picked size's allowed days (Catalog → Meal sizes); null = every day, or no size picked yet. */
+export function mealAllowedDays(catalog: Partial<ClientCatalogSnapshot>, s: WizardSelections): DayOfWeek[] | null {
+  return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.allowedDays ?? null;
 }
 
 /** Unknown size (not picked yet) doesn't block weekends; createOrder re-checks the real one. */
@@ -130,7 +143,11 @@ export function reconcileSelections(catalog: Partial<ClientCatalogSnapshot>, s: 
     const ok = listableMealSizes(catalog.mealSizes, next.mealSizeId).some((m) => m.publicId === next.mealSizeId && m.planKey === next.planKey);
     if (!ok) next.mealSizeId = "";
   }
-  if (catalog.frequencies && next.frequencyKey !== "" && !catalog.frequencies.some((f) => f.key === next.frequencyKey && f.weekdays?.length)) {
+  // A frequency that no longer fits the size's allowed days clears too. Eating days are left as they are on
+  // purpose: a quick renew of an old Mon-Fri cart then fails scheduleError and opens the full builder, instead of
+  // silently renewing with fewer tiffins.
+  const allowed = mealAllowedDays(catalog, next);
+  if (catalog.frequencies && next.frequencyKey !== "" && !catalog.frequencies.some((f) => f.key === next.frequencyKey && f.weekdays?.length && frequencyFits(f.weekdays as DayOfWeek[], allowed))) {
     next.frequencyKey = "";
   }
   if (catalog.durations?.length && !catalog.durations.some((d) => d.weeks === next.durationWeeks)) {

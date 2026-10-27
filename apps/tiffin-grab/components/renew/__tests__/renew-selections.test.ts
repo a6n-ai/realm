@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { FIXED_PERSONS, firstBlockedStep } from "@/components/wizard/selections";
+import { FIXED_PERSONS, firstBlockedStep, scheduleError, selectableFrequencies } from "@/components/wizard/selections";
 import { renewPageMode, renewSelections, type RenewSource } from "../renew-selections";
 
 const catalog: ClientCatalogSnapshot = {
@@ -90,5 +90,28 @@ describe("renewPageMode", () => {
     expect(renewPageMode({ quoteParams: true, full: false, data: {} })).toBe("wizard");
     expect(renewPageMode({ quoteParams: false, full: true, data: {} })).toBe("wizard");
     expect(renewPageMode({ quoteParams: false, full: false, data: null })).toBe("wizard");
+  });
+});
+
+describe("meal size allowed days (non-veg only, Tue/Thu veg-only)", () => {
+  const mwf = { publicId: "frq_mwf", key: "mwf", name: "MWF", daysPerWeek: 3, weekdays: ["mon", "wed", "fri"] };
+  const limited: ClientCatalogSnapshot = {
+    ...catalog,
+    mealSizes: [{ ...catalog.mealSizes[0]!, allowedDays: ["mon", "wed", "fri"] }],
+    frequencies: [...catalog.frequencies, mwf],
+  };
+  it("an old Mon-Fri plan on a limited size isn't renewed in one tap: the full builder opens", () => {
+    expect(renewSelections(limited, src, start)).toBeNull();
+  });
+  it("a fitting MWF plan on the same size still renews in one tap", () => {
+    const s = renewSelections(limited, { ...src, frequencyKey: "mwf", eatingDays: ["mon", "wed", "fri"] }, start)!;
+    expect(s.frequencyKey).toBe("mwf");
+    expect(firstBlockedStep(limited, s)).toBeNull();
+  });
+  it("the builder offers only fitting frequencies and blocks a Tue eating day", () => {
+    const s = renewSelections(limited, { ...src, frequencyKey: "mwf", eatingDays: ["mon", "wed", "fri"] }, start)!;
+    expect(selectableFrequencies(limited, s).map((f) => f.key)).toEqual(["mwf"]);
+    expect(scheduleError(limited, { ...s, eatingDays: ["mon", "tue", "wed"] })).toBe("This meal is only made on Mon, Wed and Fri");
+    expect(scheduleError(limited, { ...s, frequencyKey: "5_day" })).toBe("This meal is only made on Mon, Wed and Fri");
   });
 });

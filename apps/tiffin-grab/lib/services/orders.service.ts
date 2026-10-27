@@ -79,8 +79,8 @@ import {
 } from "./wallet.service";
 import { awardReferral, reverseReferral } from "./referrals.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { eatingDaysError, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { mealSizeServesWeekends } from "./weekend-dish";
+import { allowedDaysError, eatingDaysError, orderDeliveryDays, planDaysError, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
@@ -317,12 +317,17 @@ export async function createOrder(
     );
     if (err) throw new ValidationError(err);
   }
-  const weekendErr = weekendDaysError([
-    ...(input.selections.eatingDays ?? []),
-    ...(input.selections.includeSaturday ? ["sat" as const] : []),
-    ...(input.selections.includeSunday ? ["sun" as const] : []),
-  ], mealSize.servesWeekends);
-  if (weekendErr) throw new ValidationError(weekendErr);
+  // Weekend dish, frequency fit and allowed days (e.g. a non-veg-only size while Tue/Thu are veg-only).
+  const daysErr = planDaysError({
+    eatingDays: input.selections.eatingDays ?? [],
+    includeSaturday: input.selections.includeSaturday,
+    includeSunday: input.selections.includeSunday,
+    frequencyWeekdays: (frequency.weekdays ?? null) as DayOfWeek[] | null,
+    servesWeekends: mealSize.servesWeekends,
+    allowed: mealSize.allowedDays,
+    trial: trial != null,
+  });
+  if (daysErr) throw new ValidationError(daysErr);
   // An override prices a custom size whose categories have no custom-meal pricing yet.
   const computedBase = mealSize.priceable ? mealSize.basePrice : null;
   const pricingSnapshotSource = basePriceOverride != null && !mealSize.priceable
@@ -2132,7 +2137,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
       const deliveryDays = orderDeliveryDays({ ...frequency, includeSaturday: false, includeSunday: false });
       const err = eatingDaysError(deliveryDays, days, { min: minTiffinsPerWeek, max: maxTiffinsPerWeek })
-        ?? weekendDaysError(days, await mealSizeServesWeekends(order.mealSizeId, tx));
+        ?? weekendDaysError(days, await mealSizeServesWeekends(order.mealSizeId, tx))
+        ?? allowedDaysError(days, await mealSizeAllowedDays(order.mealSizeId, tx));
       if (err) throw new ValidationError(err);
       const trips = planWeek(deliveryDays, days)!;
       const next = trips.flatMap((t) => t.days);

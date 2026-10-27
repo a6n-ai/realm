@@ -34,7 +34,7 @@ import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { payLink } from "@/lib/payments/stripe";
@@ -263,6 +263,7 @@ async function OrderDetail({
       deliveryDays={orderDeliveryDays({ frequencyKey: deliveryRow!.key, weekdays: deliveryRow!.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
       toFiveDay={deliveryRow !== frequencyRow}
       servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
+      mealDays={counts?.mealDays ?? null}
       bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
     />
   ) : null;
@@ -361,7 +362,7 @@ async function OrderDetail({
           orderId={order.publicId}
           ended={order.status === "completed"}
           minDate={nextWeekday(startToday).toISOString().slice(0, 10)}
-          allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun")}
+          allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun" && dayAllowed(d as DayOfWeek, counts?.mealDays))}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
           initialForId={free ?? null}

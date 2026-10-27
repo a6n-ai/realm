@@ -25,6 +25,10 @@ describe("durationWeeksCovering", () => {
 });
 
 describe("trialSendDays", () => {
+  it("drops days outside the meal size's allowed days", () => {
+    expect(trialSendDays(["mon", "tue", "wed", "thu", "fri"], true, ["mon", "wed", "fri"])).toEqual(["mon", "wed", "fri"]);
+    expect(trialSendDays(["mon", "tue"], true, null)).toEqual(["mon", "tue"]);
+  });
   it("drops Sat/Sun for a trial meal without a weekend dish", () => {
     expect(trialSendDays(["sat", "mon", "sun", "fri"], false)).toEqual(["mon", "fri"]);
     expect(trialSendDays(["sat", "mon", "sun", "fri"], true)).toEqual(["mon", "fri", "sat", "sun"]);

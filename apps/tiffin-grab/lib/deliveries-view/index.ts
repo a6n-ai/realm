@@ -1,3 +1,4 @@
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
@@ -72,6 +73,8 @@ export type PlanContext = {
   frequencyKey?: string | null;
   /** False: the meal has no weekend dish, so Move can't target Sat/Sun. */
   servesWeekends?: boolean;
+  /** The meal size's allowed days (e.g. non-veg only, Tue/Thu veg-only); unset/null = every day. */
+  mealDays?: DayOfWeek[] | null;
 };
 
 export type EatingDay = { date: string; dishSummary: string | null; swaps: string[]; locksWith: string | null };

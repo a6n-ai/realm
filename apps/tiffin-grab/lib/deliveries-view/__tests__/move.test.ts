@@ -125,6 +125,16 @@ describe("moveOptions weekend dish", () => {
   });
 });
 
+describe("moveOptions meal days", () => {
+  it("disables days outside the meal size's allowed days (2026-09-22 Tue, 09-24 Thu)", () => {
+    const c = { ...ctx, mealDays: ["mon", "wed", "fri"] as PlanContext["mealDays"] };
+    const at = (d: string) => moveOptions(trip, [], NOW, c, "2026-09-21").find((x) => x.date === d)!;
+    expect(at("2026-09-22").disabledReason).toBe("This meal is only made on Mon, Wed and Fri.");
+    expect(at("2026-09-24").disabledReason).toBe("This meal is only made on Mon, Wed and Fri.");
+    expect(at("2026-09-25").disabledReason).toBeUndefined();
+  });
+});
+
 describe("moveOptions other plan days", () => {
   it("greys out a day the renewal already delivers on, and the weekend that would ride it", () => {
     const c = { ...ctx, otherPlanDays: { "2026-09-25": "renewal" } };

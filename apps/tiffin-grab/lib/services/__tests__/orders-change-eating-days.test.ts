@@ -5,8 +5,8 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const weekend = vi.hoisted(() => ({ serves: true }));
-vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.serves }));
+const weekend = vi.hoisted(() => ({ serves: true, allowed: null as string[] | null }));
+vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.serves, mealSizeAllowedDays: async () => weekend.allowed }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, deliveryMoves, orderActivities, orders } = await import("@/db/schema");
@@ -27,6 +27,7 @@ const units = (rows: { tiffinUnits: number }[]) => rows.reduce((n, r) => n + r.t
 
 beforeEach(async () => {
   weekend.serves = true;
+  weekend.allowed = null;
   await resetTrips(WP, WP_PREFIX);
   await resetTrips(DEPLOYMENT, PREFIX);
 });
@@ -148,6 +149,14 @@ describe("changeEatingDays", () => {
     weekend.serves = false;
     await expect(changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"])).rejects.toThrow(/no weekend dish/);
     expect(await scheduled(order.id)).toHaveLength(10);
+  });
+
+  it("refuses a day outside the meal size's allowed days", async () => {
+    const { order } = await make();
+    weekend.allowed = ["mon", "wed", "fri"];
+    await expect(changeOrderEatingDays(order.publicId, ["mon", "tue", "wed", "fri"])).rejects.toThrow(/only made on Mon, Wed and Fri/);
+    expect(await scheduled(order.id)).toHaveLength(10);
+    weekend.allowed = null;
   });
 
   it("a WordPress plan imported as MWF moves to 5-day delivery on save, even with the same days", async () => {

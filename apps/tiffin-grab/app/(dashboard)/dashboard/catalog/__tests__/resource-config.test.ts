@@ -53,9 +53,13 @@ describe("delivery-frequencies discount field moved to Discounts", () => {
     expect(RESOURCES["delivery-frequencies"].fields.some((f) => f.key === "courierDiscountPct")).toBe(false);
     expect(RESOURCES["delivery-frequencies"].note).toMatch(/Discounts/);
   });
-  it("coerces numbers", () => {
-    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5" });
-    expect(out.daysPerWeek).toBe(5);
+  it("derives days per week from the delivery days", () => {
+    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5", weekdays: ["mon", "wed", "fri"] });
+    expect(out.daysPerWeek).toBe(3);
+  });
+  it("requires at least one delivery day", () => {
+    expect(() => RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5" })).toThrow();
+    expect(() => RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", weekdays: [] })).toThrow(/at least one delivery day/);
   });
 });
 
@@ -145,5 +149,16 @@ describe("delivery-frequencies derives daysPerWeek from weekdays", () => {
   it("overrides a conflicting daysPerWeek", () => {
     const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "x", name: "X", daysPerWeek: "5", weekdays: ["mon", "wed", "fri"] }) as { daysPerWeek: number };
     expect(out.daysPerWeek).toBe(3);
+  });
+});
+
+describe("meal-sizes allowed days", () => {
+  const size = { key: "only_nonveg", name: "Only non-veg", tier: "medium", planId: "pln_1", kcalMin: 500, kcalMax: 700, basePrice: 10 };
+  it("defaults to every day and accepts weekdays", () => {
+    expect(RESOURCES["meal-sizes"].schema.parse(size).allowedDays).toBeUndefined();
+    expect(RESOURCES["meal-sizes"].schema.parse({ ...size, allowedDays: ["mon", "wed", "fri"] }).allowedDays).toEqual(["mon", "wed", "fri"]);
+  });
+  it("rejects a stray day value", () => {
+    expect(() => RESOURCES["meal-sizes"].schema.parse({ ...size, allowedDays: ["monday"] })).toThrow();
   });
 });

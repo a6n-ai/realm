@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@foundry/ui/cn";
-import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
@@ -20,14 +20,16 @@ interface Props {
   eatingDays: DayOfWeek[];
   onToggleDay: (day: DayOfWeek) => void;
   bounds: { min: number; max: number };
+  /** The meal size's allowed days; other days can't be picked. Null/unset = every day. */
+  mealDays?: DayOfWeek[] | null;
 }
 
 const press = "transition-[transform,background-color,border-color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100";
 
-export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, bounds }: Props) {
+export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, bounds, mealDays }: Props) {
   const deliveryDays = frequencies.find((f) => f.key === frequencyKey)?.weekdays ?? [];
   const enough = eatingDays.length >= bounds.min;
-  const error = enough ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
+  const error = enough ? (eatingDaysError(deliveryDays, eatingDays, bounds) ?? allowedDaysError(eatingDays, mealDays)) : null;
 
   return (
     <div className="grid gap-5">
@@ -72,8 +74,9 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
         <DayPicker
           selected={eatingDays}
           onToggle={onToggleDay}
-          isDisabled={(_, on) => !on && eatingDays.length >= bounds.max}
+          isDisabled={(d, on) => !on && (eatingDays.length >= bounds.max || !dayAllowed(d, mealDays))}
         />
+        {mealDays?.length ? <p className="text-muted-foreground text-xs">{onlyOnMessage(mealDays)}.</p> : null}
         {(error || !enough) && (
           <p role="alert" className="text-destructive text-xs">{error ?? `Pick ${bounds.min} to ${bounds.max} eating days a week.`}</p>
         )}

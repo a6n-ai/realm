@@ -1,3 +1,4 @@
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { and, eq, isNull, lte, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -159,6 +160,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
         custom: m.custom,
         priceable: priced.priceable,
         servesWeekends: (itemsByMealSize.get(m.id) ?? []).some((i) => weekendCategories.has(i.category)),
+        allowedDays: m.allowedDays?.length ? (m.allowedDays as DayOfWeek[]) : null,
       };
     }),
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, weekdays: f.weekdays })),

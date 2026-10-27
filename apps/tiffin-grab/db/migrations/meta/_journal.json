@@ -288,6 +288,13 @@
       "when": 1793104569702,
       "tag": "0040_greedy_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793125159420,
+      "tag": "0041_charming_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

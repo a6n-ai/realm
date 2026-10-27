@@ -32,7 +32,7 @@ import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
-import { mealSizeServesWeekends } from "./weekend-dish";
+import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 
 // Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
 // only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
@@ -483,6 +483,8 @@ export type TiffinCounts = {
   eatingWeekdays?: string[] | null;
   /** False when the meal has no weekend dish: Sat/Sun can't be eating days. */
   servesWeekends?: boolean;
+  /** The meal size's allowed days; null = every day. Move and the staff pickers grey the rest. */
+  mealDays?: DayOfWeek[] | null;
 };
 
 // Delivered/remaining tiffins for one subscription, plus the plan's last delivery date and
@@ -549,6 +551,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     deliveryWeekdays,
     eatingWeekdays: order.eatingDays?.length ? (order.eatingDays as string[]) : null,
     servesWeekends: await mealSizeServesWeekends(order.mealSizeId),
+    mealDays: await mealSizeAllowedDays(order.mealSizeId),
   };
 }
 

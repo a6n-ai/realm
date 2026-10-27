@@ -8,6 +8,8 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   selected: boolean;
   /** Saffron trial treatment, so a trial size reads apart from a weekly bundle. */
   tone?: "trial";
+  /** Badge a check on the ring's top-right corner when selected (cards whose own corners hold a price). */
+  badge?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * Callers own the inner layout (SelectableCard is the titled row; bundle and delivery cards are stacks).
  * role="radio" swaps aria-pressed for aria-checked so it can sit in a ChoiceGroup.
  */
-export function OptionCard({ selected, tone, className, children, type = "button", role, ...rest }: OptionCardProps) {
+export function OptionCard({ selected, tone, badge, className, children, type = "button", role, ...rest }: OptionCardProps) {
   return (
     <button
       {...rest}
@@ -34,10 +36,16 @@ export function OptionCard({ selected, tone, className, children, type = "button
           : selected
             ? "ring-2 ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
             : "c-surface bg-[var(--card)] hover:bg-[var(--muted)]",
+        badge && "relative",
         className,
       )}
     >
       {children}
+      {badge && selected && (
+        <span aria-hidden className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_2px_6px_rgb(0_0_0/0.25)]">
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+      )}
     </button>
   );
 }
@@ -62,14 +70,15 @@ export function SelectableCard({ selected, title, description, trailing, indicat
       </span>
       {trailing}
       {indicator && (
+        // The same check every pick in the form uses: filled when picked, a faint fill otherwise, no outline.
         <span
           aria-hidden
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-full border-2 text-base",
-            selected ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "border-[var(--border)]",
+            "grid size-7 shrink-0 place-items-center rounded-full transition-colors",
+            selected ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]",
           )}
         >
-          {selected ? <Check className="size-4" /> : "→"}
+          {selected && <Check className="size-4" strokeWidth={3} />}
         </span>
       )}
     </OptionCard>

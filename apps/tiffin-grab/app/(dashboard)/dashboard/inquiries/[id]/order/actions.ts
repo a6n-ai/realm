@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
-import { weekendDaysError } from "@/lib/menu/delivery-days";
+import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -210,9 +210,21 @@ async function quotePrice(
   await requireStaff();
   const snap = await loadCatalogSnapshot();
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
-  const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
-  if (weekendErr) throw new ValidationError(weekendErr);
   const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
+  // Same day rules as createOrder: weekend dish, frequency fit, allowed days.
+  if (trialMeal) {
+    const freq = snap.frequencies.find((f) => f.key === (trial ? trial.frequencyKey : input.selections.frequencyKey));
+    const daysErr = planDaysError({
+      eatingDays: (trial ? trial.eatingDays : input.selections.eatingDays ?? []) as DayOfWeek[],
+      includeSaturday: !trial && input.selections.includeSaturday,
+      includeSunday: !trial && input.selections.includeSunday,
+      frequencyWeekdays: freq ? ((freq.weekdays ?? null) as DayOfWeek[] | null) : undefined,
+      servesWeekends: trialMeal.servesWeekends,
+      allowed: trialMeal.allowedDays,
+      trial: trial != null,
+    });
+    if (daysErr) throw new ValidationError(daysErr);
+  }
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.
