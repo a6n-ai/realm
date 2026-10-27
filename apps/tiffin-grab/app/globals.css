@@ -466,7 +466,6 @@ body:has(.crm-app) .font-pixel-circle {
 @keyframes vt-slide-in { from { translate: var(--vt-offset) 0; } }
 @keyframes vt-slide-out { to { translate: var(--vt-offset) 0; } }
 @keyframes vt-rise { from { translate: 0 6px; } }
-@keyframes tab-pop { 0% { scale: 0.82; } 55% { scale: 1.14; } 100% { scale: 1; } }
 
 /* One global brake: kill motion for users who ask for it. Primitives ALSO guard
    in JS (useReducedMotion) — this covers CSS-only animation and view transitions. */

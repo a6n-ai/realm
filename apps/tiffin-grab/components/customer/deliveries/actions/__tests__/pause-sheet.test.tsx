@@ -217,12 +217,36 @@ describe("PauseSheet", () => {
     expect(a.release).not.toHaveBeenCalled();
   });
 
-  it("days off the plan are not buttons; the calendar spans every month the days fall in", async () => {
+  it("days off the plan are not buttons; one month shows at a time and arrows page between them", async () => {
     a.load.mockResolvedValue(days([WED, false], ["2026-10-02", false]));
     await open();
     expect(await screen.findByRole("group", { name: "September 2026" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "October 2026" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(2);
+    expect(screen.queryByRole("group", { name: "October 2026" })).toBeNull();
+    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+    expect(await screen.findByRole("group", { name: "October 2026" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "September 2026" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Next month" })).toBeDisabled();
+  });
+
+  it("picks survive paging to another month and back, and one confirm sends both", async () => {
+    a.load.mockResolvedValue(days([WED, false], ["2026-10-02", false]));
+    a.pause.mockResolvedValue({ ok: true, paused: [WED, "2026-10-02"], skipped: [] });
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: /Wed, Sep 23/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Fri, Oct 2/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+    expect(await screen.findByRole("button", { name: /Wed, Sep 23/ })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Pause 2 deliveries" }));
+    await waitFor(() => expect(a.pause).toHaveBeenCalledWith("o", [WED, "2026-10-02"]));
+  });
+
+  it("opens on the month of the first open day", async () => {
+    a.load.mockResolvedValue(days([WED, true], ["2026-10-02", false]));
+    await open();
+    expect(await screen.findByRole("group", { name: "October 2026" })).toBeInTheDocument();
   });
 
   it("the end-of-plan switch shows the saved state and saves a flip", async () => {

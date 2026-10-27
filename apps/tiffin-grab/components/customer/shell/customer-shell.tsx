@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, RefreshCw, Wallet, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
@@ -68,8 +68,7 @@ const tabCls = (on: boolean, compact = false) =>
     compact ? "h-10" : "h-14",
     // The lit pill itself is one shared highlight that slides between tabs (see TAB_ORDER).
     "relative z-[1]",
-    // Like Airbnb's tab bar: the tab you land on pops its icon once (spring up, settle back).
-    on ? "text-[var(--primary)] [&_svg]:animate-[tab-pop_360ms_cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:[&_svg]:animate-none" : "text-[var(--muted-foreground)]",
+    on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]",
   );
 
 /** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
@@ -187,6 +186,25 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   useEffect(() => setTapped(null), [pathname]);
   const lit = tapped ?? tab;
   const litAt = TAB_ORDER.indexOf(lit as (typeof TAB_ORDER)[number]);
+  // iOS 26 tab bar: the lit pill stretches across to the tapped tab, then gathers onto it, like a drop of liquid.
+  const pill = useRef<HTMLSpanElement>(null);
+  const lastAt = useRef(litAt);
+  useLayoutEffect(() => {
+    const el = pill.current;
+    const from = lastAt.current;
+    lastAt.current = litAt;
+    if (!el || from < 0 || litAt < 0 || from === litAt || !el.animate) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const at = (i: number, stretch = 1) => `translateX(${i * 100}%) scaleX(${stretch})`;
+    el.animate(
+      [
+        { transform: at(from) },
+        { transform: at(Math.min(from, litAt), Math.abs(litAt - from) + 1), offset: 0.45 },
+        { transform: at(litAt) },
+      ],
+      { duration: 420, easing: "cubic-bezier(0.34,1.3,0.64,1)" },
+    );
+  }, [litAt]);
   // Like iOS 26 (tabBarMinimizeBehavior .onScrollDown): scrolling down shrinks the bar to icons, scrolling up
   // brings the labels back. Pages read --tabbar-h to keep their floating bars just above it.
   const [compact, setCompact] = useState(false);
@@ -271,8 +289,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
       >
         <div className="relative mx-auto flex max-w-md items-stretch">
           <span
+            ref={pill}
             aria-hidden
-            className={cn("absolute inset-y-0 left-0 w-1/5 rounded-full bg-[color-mix(in_oklab,var(--primary)_16%,transparent)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none", litAt < 0 && "opacity-0")}
+            className={cn("absolute inset-y-0 left-0 w-1/5 origin-left rounded-full bg-[color-mix(in_oklab,var(--primary)_16%,transparent)]", litAt < 0 && "opacity-0")}
             style={{ transform: `translateX(${Math.max(litAt, 0) * 100}%)` }}
           />
           <Link href="/me" onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>

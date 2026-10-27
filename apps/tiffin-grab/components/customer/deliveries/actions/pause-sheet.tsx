@@ -123,6 +123,12 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
       footer={
         <>
           {error && <Notice tone="error">{error}</Notice>}
+          {(canPauseAll || resumable.length > 1) && (
+            <div className="flex justify-end gap-2 pb-2">
+              {canPauseAll && <SecondaryButton pending={pending} onClick={pauseAll}>Pause all</SecondaryButton>}
+              {resumable.length > 1 && <SecondaryButton pending={pending} onClick={() => release("all")}>{RESUME_ALL_LABEL}</SecondaryButton>}
+            </div>
+          )}
           <PrimaryButton pending={pending} disabledReason={blocked} onClick={commit}>
             {label}
           </PrimaryButton>
@@ -166,12 +172,6 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
               onMove={onMove}
             />
             {atCap && <Reason>You can pause up to {cap} {cap === 1 ? "day" : "days"} at once.</Reason>}
-            {(canPauseAll || resumable.length > 1) && (
-              <div className="flex justify-end gap-2">
-                {canPauseAll && <SecondaryButton pending={pending} onClick={pauseAll}>Pause all</SecondaryButton>}
-                {resumable.length > 1 && <SecondaryButton pending={pending} onClick={() => release("all")}>{RESUME_ALL_LABEL}</SecondaryButton>}
-              </div>
-            )}
           </section>
         )}
         {days != null && openDays.length === 0 && paused.length === 0 && (

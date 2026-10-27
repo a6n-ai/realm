@@ -1,5 +1,9 @@
 "use client";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { parseIsoDateUtc } from "@foundry/commons";
+import { IconButton } from "../../kit/icon-button";
+import { useSwipePages } from "../use-swipe-pages";
 import { humanDate } from "@/lib/deliveries-view";
 import type { PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
 
@@ -13,7 +17,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
  * weekday. Week rows with no plan day at a month's start or end are dropped, so a plan starting
  * on the 23rd does not open on three empty weeks.
  */
-function months(dates: string[]): { label: string; cells: (string | null)[] }[] {
+function months(dates: string[]): { key: string; label: string; cells: (string | null)[] }[] {
   const has = new Set(dates);
   const keys = [...new Set(dates.map((d) => d.slice(0, 7)))].sort();
   return keys.map((key) => {
@@ -26,7 +30,7 @@ function months(dates: string[]): { label: string; cells: (string | null)[] }[] 
     const rows = Array.from({ length: cells.length / 7 }, (_, r) => cells.slice(r * 7, r * 7 + 7));
     const used = rows.map((row) => row.some((d) => d != null && has.has(d)));
     const kept = rows.slice(used.indexOf(true), used.lastIndexOf(true) + 1);
-    return { label: MONTH.format(first), cells: kept.flat() };
+    return { key, label: MONTH.format(first), cells: kept.flat() };
   });
 }
 
@@ -50,11 +54,23 @@ export function PauseCalendar({ days, picked, resuming, canPick, atCap, pending,
   onMove?: (date: string) => void;
 }) {
   const byDate = new Map(days.map((d) => [d.date, d]));
+  const all = months(days.map((d) => d.date));
+  // Opens on the first day still open to pause, else the first paused one; picks live in the parent, so they survive paging.
+  const [key, setKey] = useState(() => (days.find((d) => !d.paused) ?? days[0])!.date.slice(0, 7));
+  const at = Math.max(all.findIndex((m) => m.key === key), 0);
+  const m = all[at]!;
+  const canPrev = at > 0;
+  const canNext = at < all.length - 1;
+  const { ref, bind, go } = useSwipePages({ page: m.key, canPrev, canNext, step: (dir) => setKey(all[at + dir]!.key) });
   return (
-    <div className="space-y-5">
-      {months(days.map((d) => d.date)).map((m) => (
-        <div key={m.label} className="space-y-2">
-          <h3 className="text-sm font-semibold">{m.label}</h3>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <IconButton bare aria-label="Previous month" disabled={!canPrev} onClick={() => go(-1)} className="disabled:opacity-30"><ChevronLeft aria-hidden className="size-5" /></IconButton>
+        <h3 className="text-sm font-semibold" aria-live="polite">{m.label}</h3>
+        <IconButton bare aria-label="Next month" disabled={!canNext} onClick={() => go(1)} className="disabled:opacity-30"><ChevronRight aria-hidden className="size-5" /></IconButton>
+      </div>
+      <div ref={ref} {...bind} className="[touch-action:pan-y] motion-reduce:!transform-none">
+        <div>
           <div role="group" aria-label={m.label} className="grid grid-cols-7 justify-items-center gap-y-1.5">
             {WEEK.map((w) => <span key={w} aria-hidden className="text-xs font-semibold text-[var(--muted-foreground)]">{w}</span>)}
             {m.cells.map((date, i) => {
@@ -85,7 +101,7 @@ export function PauseCalendar({ days, picked, resuming, canPick, atCap, pending,
             })}
           </div>
         </div>
-      ))}
+      </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]" aria-label="Legend">
         <li className="flex items-center gap-1.5"><span aria-hidden className="c-surface size-3 rounded-full bg-[var(--card)]" />Delivery</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full bg-[var(--primary)]" />To pause</li>

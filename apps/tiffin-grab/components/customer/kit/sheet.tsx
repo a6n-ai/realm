@@ -22,6 +22,29 @@ interface SheetProps {
 
 const subscribeNone = () => () => {};
 
+// iOS Safari ignores `overflow: hidden` on body (the page scrolls on the root), so a drag inside a drawer
+// scrolled the page behind it. Pin the body where it is instead, and put the scroll back on close.
+// Counted, so two stacked sheets don't release each other's lock.
+let locks = 0;
+let saved: { y: number; style: Partial<CSSStyleDeclaration> } | null = null;
+function lockPage() {
+  if (locks++ === 0) {
+    const b = document.body.style;
+    saved = { y: window.scrollY, style: { position: b.position, top: b.top, left: b.left, right: b.right, overflow: b.overflow } };
+    Object.assign(b, { position: "fixed", top: `-${saved.y}px`, left: "0", right: "0", overflow: "hidden" });
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--locks === 0 && saved) {
+      Object.assign(document.body.style, saved.style);
+      window.scrollTo(0, saved.y);
+      saved = null;
+    }
+  };
+}
+
 export function Sheet({ open, onClose, title, children, footer, bottom }: SheetProps) {
   const [present, setPresent] = useState(open);
   // Portal targets document.body, which hydration also walks; render nothing until after hydration.
@@ -44,7 +67,6 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
     if (!present || !mounted) return;
     const el = panel.current;
     if (!open) {
-      document.body.style.overflow = "";
       const done = () => {
         setPresent(false);
         restore.current?.focus();
@@ -55,15 +77,13 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
       return;
     }
     restore.current = document.activeElement as HTMLElement | null;
-    document.body.style.overflow = "hidden";
-    el?.focus();
+    const unlock = lockPage();
+    el?.focus({ preventScroll: true });
     if (el?.animate && !reduced()) {
       el.animate({ transform: [off(), "none"] }, { duration: 300, easing: EASE });
       scrim.current?.animate({ opacity: [0, 1] }, { duration: 250, easing: EASE });
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return unlock;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, present, mounted]);
 
@@ -111,7 +131,7 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
 
   return createPortal(
     <div className={cn(FONT, "fixed inset-0 z-50")} onKeyDown={onKeyDown}>
-      <div ref={scrim} data-testid="sheet-scrim" onClick={onClose} className="absolute inset-0 bg-[rgba(20,16,12,.45)]" />
+      <div ref={scrim} data-testid="sheet-scrim" onClick={onClose} className="absolute inset-0 touch-none bg-[rgba(20,16,12,.45)]" />
       <div
         ref={panel}
         role="dialog"
