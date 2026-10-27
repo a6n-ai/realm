@@ -108,7 +108,7 @@ export function StepSchedule({
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
             const active = f.key === selections.frequencyKey;
-            const save = savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct);
+            const save = savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct);
             return (
               <OptionCard
                 key={f.key}

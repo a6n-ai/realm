@@ -29,7 +29,9 @@ interface CatalogDiscountLike { kind: string; targetPublicId: string | null; per
 // Display-only badge sum, clamped to maxPct (the pricing-time cap) when given.
 export function savePct(discounts: CatalogDiscountLike[] | undefined, kind: "delivery" | "duration", targetPublicId: string, weeks = 0, maxPct?: number): number {
   const sum = (discounts ?? [])
-    .filter((d) => d.kind === kind && d.percent > 0 && (d.targetPublicId == null || d.targetPublicId === targetPublicId) && (d.minWeeks == null || weeks >= d.minWeeks))
+    // A 1-week minimum covers every plan, so it counts even when the length isn't chosen yet (weeks = 0): the
+    // frequency cards call this before the duration step and showed no "Save 5%" for prod's MWF discount.
+    .filter((d) => d.kind === kind && d.percent > 0 && (d.targetPublicId == null || d.targetPublicId === targetPublicId) && (d.minWeeks == null || d.minWeeks <= 1 || weeks >= d.minWeeks))
     .reduce((s, d) => s + d.percent, 0);
   return maxPct == null ? sum : Math.min(sum, maxPct);
 }

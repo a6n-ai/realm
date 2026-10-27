@@ -18,6 +18,12 @@ describe("savePct", () => {
     expect(savePct(ds, "delivery", "f")).toBe(35);
     expect(savePct(ds, "delivery", "f", 0, 25)).toBe(25);
   });
+  it("a 1-week minimum counts before a length is picked; a longer one waits for it (prod MWF 5%, min 1 week)", () => {
+    const mwf = [{ kind: "delivery", targetPublicId: "mwf", percent: 5, minWeeks: 1 }, { kind: "delivery", targetPublicId: "mwf", percent: 3, minWeeks: 8 }];
+    expect(savePct(mwf, "delivery", "mwf")).toBe(5);
+    expect(savePct(mwf, "delivery", "mwf", 4)).toBe(5);
+    expect(savePct(mwf, "delivery", "mwf", 8)).toBe(8);
+  });
 });
 
 describe("postCatalogSubtotal", () => {
