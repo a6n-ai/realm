@@ -189,9 +189,9 @@ function MealOption({
   return (
     <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
-          {/* Shown on every card beside the name, so picking one never makes it taller. */}
+          {/* Always on its own line under the name, on every card, so long names and short ones line up. */}
           {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
         </span>
         <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
