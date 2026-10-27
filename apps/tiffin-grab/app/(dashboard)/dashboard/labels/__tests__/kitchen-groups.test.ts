@@ -29,7 +29,10 @@ describe("groupKitchenCounts", () => {
   it("orders dishes by volume and portions largest first; a generic unit gets no total", () => {
     const sabzi = groups.find((g) => g.category === "sabzi")!;
     expect(sabzi.total).toEqual({ amount: 8 * 2 + 8 * 162 + 12 * 98, unit: "oz" });
-    expect(groups.find((g) => g.category === "rice")!.total).toBeNull();
+    const rice = groups.find((g) => g.category === "rice")!;
+    expect(rice.total).toBeNull();
+    // "2 unit" is two rice boxes, not one.
+    expect(rice.containers).toBe(147 + 2 * 7);
     expect(sabzi.containers).toBe(262);
     expect(sabzi.dishes.map((d) => d.dish)).toEqual(["Veg Korma", "Aloo Matar"]);
     expect(sabzi.dishes[0]!.portions.map((p) => p.portion)).toEqual(["12oz", "8oz"]);

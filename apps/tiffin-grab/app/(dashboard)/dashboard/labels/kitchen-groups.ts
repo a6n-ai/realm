@@ -51,9 +51,12 @@ export function groupKitchenCounts(counts: KitchenCount[]): KitchenCategory[] {
     const parsed = cat.dishes.flatMap((d) => d.portions.map((p) => ({ amount: portionAmount(p.portion), count: p.count })));
     const units = new Set(parsed.map((p) => p.amount?.unit));
     const unit = parsed[0]?.amount?.unit;
-    // A generic "unit" (one rice box) would just restate the container count.
-    if (unit && units.size === 1 && !/^units?$/i.test(unit)) {
-      cat.total = { amount: parsed.reduce((n, p) => n + p.amount!.n * p.count, 0), unit };
+    const sum = () => parsed.reduce((n, p) => n + p.amount!.n * p.count, 0);
+    // A generic "unit" is one box each ("2 unit" rice = 2 boxes): the boxes ARE the containers.
+    if (parsed.length && parsed.every((p) => p.amount && /^units?$/i.test(p.amount.unit))) {
+      cat.containers = sum();
+    } else if (unit && units.size === 1) {
+      cat.total = { amount: sum(), unit };
     }
   }
   return [...byCategory.values()];
