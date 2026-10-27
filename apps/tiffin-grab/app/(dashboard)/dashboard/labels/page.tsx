@@ -17,6 +17,7 @@ import { LabelsExportButton } from "./labels-export-button";
 import { LabelsPrintButton } from "./labels-print-button";
 import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
+import { groupKitchenCounts } from "./kitchen-groups";
 import { KitchenCounts, LabelList } from "./labels-view";
 import { LabelsTabs } from "./labels-tabs";
 
@@ -63,7 +64,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
     listDayDeliveryStatuses(date),
     getSession().then(resolveSessionVisibleOrgIds).then((visible) => holidaysOn(date, visible)),
   ]);
-  const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
+  const containers = groupKitchenCounts(sheet.counts).reduce((n, g) => n + g.containers, 0);
   const noMenu = sheet.menuWeekPublicId == null ? (
     <SectionCard title="No menu released">
       <p className="text-muted-foreground text-sm">
