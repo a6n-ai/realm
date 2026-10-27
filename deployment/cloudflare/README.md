@@ -12,6 +12,13 @@ Everything Realm runs on Cloudflare. AWS pieces stay where they are (`prod/`, `d
 | `dns/a6n.ai.zone` | Snapshot of the live a6n.ai zone. Edit with `cf dns records …`, then re-export: `cf dns records export -z a6n.ai`. |
 | `realtime/` | Per-app deploy config for the realtime Worker (code ships in foundry `services/realtime`). Deploy: `pnpm exec wrangler deploy --config deployment/cloudflare/realtime/wrangler.jsonc --env xplorers`. Secret: `REALTIME_SECRET` (`wrangler secret put`, never committed). Run from a checkout after `pnpm install` (config `main` points into `node_modules`); always pass `--env <app>`. |
 
+## tiffingrab.ca
+
+- Zone `970680dc711f59ee1bb17ff536b1c61b`, copied 2026-10-27 from the live Route53 zone `Z0983728P9WL0KVAG4E2` (`dns/tiffingrab.ca.zone`). Registrar Open Provider, managed through Hostinger; nameservers `kia.ns.cloudflare.com` / `zac.ns.cloudflare.com` since 2026-10-27 (zone active 15:10 UTC).
+- Every record is DNS only. Proxying `app`/apex needs Caddy and the app to trust Cloudflare's client-IP header first (rate limits, audit IPs), so it is a separate change.
+- Mail records (Titan MX/SPF/DKIM, SES DKIM and MAIL FROM for the apex and `notify.`) must never be proxied.
+- Left: delete the Route53 zone (after 2026-10-29, once cached NS expire) and retire `deployment/dns/route53-tiffingrab.yaml`.
+
 ## a6n.ai
 
 - Registrar Namecheap, nameservers `kia.ns.cloudflare.com` / `zac.ns.cloudflare.com` since 2026-10-23 (was Route53 `Z05881901LHJHX7AHKCFJ`).
