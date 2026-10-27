@@ -25,6 +25,7 @@
         "apps/tiffin-grab/components/analytics/recharts.tsx",
         "apps/tiffin-grab/components/dashboard/date-fields.tsx",
         "apps/tiffin-grab/components/analytics/skeletons.tsx",
+        "apps/tiffin-grab/components/customer/skeleton-parts.tsx",
         "apps/tiffin-grab/components/illustrations/delivery-status.tsx",
         "apps/tiffin-grab/components/illustrations/dish-categories.tsx",
         "apps/tiffin-grab/components/auth/auth-kit.tsx",
