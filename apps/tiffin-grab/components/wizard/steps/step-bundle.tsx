@@ -60,8 +60,7 @@ export function StepBundle({
     <div className="space-y-4">
       {currentPlan ? (
         <CurrentPlanHint>
-          You&apos;re on <strong>{currentPlan.planName}</strong> · {currentPlan.mealSizeName} ·{" "}
-          {currentPlan.daysPerWeek} delivery days/wk. Choose a meal size for the <strong>new</strong> plan.
+          Now on {currentPlan.mealSizeName}, {currentPlan.daysPerWeek} days a week.
         </CurrentPlanHint>
       ) : null}
       {top.length > 0 && (
@@ -146,7 +145,7 @@ function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; act
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance sm:text-[20px] sm:tracking-[-0.025em]">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-1">
-            {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+            {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit !text-[color-mix(in_srgb,var(--foreground)_80%,transparent)]">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
             <MealDays meal={meal} />
           </span>
         </span>
@@ -204,7 +203,7 @@ function MealOption({
           {/* Always on its own line under the name, on every card, so long names and short ones line up; the days a
               limited size is made on follow the kcal. */}
           <span className="flex flex-wrap items-center gap-1">
-            {meal.kcalMax > 0 && <Pill tone="soft" size="sm">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+            {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="!text-[color-mix(in_srgb,var(--foreground)_80%,transparent)]">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
             <MealDays meal={meal} />
           </span>
         </span>

@@ -1,7 +1,6 @@
 "use client";
 
 import type { ClientMealSizeView } from "@/lib/catalog/types";
-import { mealChipLabel } from "@/lib/menu/format-tu";
 
 type Item = ClientMealSizeView["items"][number];
 
@@ -28,13 +27,20 @@ export function MealSizeItems({
     else groups.set(key, { category: item.category, portion: item.portion, count: 1 });
   }
 
+  // One plain line ("Sabzi 12oz · Daal 12oz · 2× Roti 4 roti"), legible at 13px, instead of a wall of tiny chips.
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {[...groups].map(([key, g]) => (
-        <span key={key} className="bg-muted rounded-full px-2 py-0.5 text-xs">
-          {mealChipLabel(g.count, label(g.category), g.portion)}
+    <p className="text-[13px] leading-snug text-pretty text-[color-mix(in_srgb,var(--foreground)_72%,transparent)]">
+      {[...groups].map(([key, g], i) => (
+        <span key={key}>
+          {i > 0 && <span aria-hidden className="text-muted-foreground"> · </span>}
+          <span className="whitespace-nowrap">{itemLabel(g.count, label(g.category), g.portion)}</span>
         </span>
       ))}
-    </div>
+    </p>
   );
+}
+
+/** "Sabzi 12oz", "2× Roti 4 roti": the count only when more than one, the portion right after the name. */
+function itemLabel(count: number, name: string, portion: string | null | undefined): string {
+  return `${count > 1 ? `${count}× ` : ""}${name}${portion ? ` ${portion}` : ""}`;
 }

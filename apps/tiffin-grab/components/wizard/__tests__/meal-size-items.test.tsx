@@ -18,7 +18,7 @@ describe("MealSizeItems", () => {
       />,
     );
     expect(screen.getByText("3× Bread")).toBeDefined();
-    expect(screen.getByText("Sabzi · 12oz")).toBeDefined();
+    expect(screen.getByText("Sabzi 12oz")).toBeDefined();
   });
 
   it("keeps a 12oz main and an 8oz side of one category as separate chips (Sabzi Only — Large)", () => {
@@ -32,9 +32,9 @@ describe("MealSizeItems", () => {
         categoryLabels={{ sabzi: "Sabzi", daal: "Daal" }}
       />,
     );
-    expect(screen.getByText("Sabzi · 12oz")).toBeDefined();
-    expect(screen.getByText("Daal · 12oz")).toBeDefined();
-    expect(screen.getByText("Sabzi · 8oz")).toBeDefined();
+    expect(screen.getByText("Sabzi 12oz")).toBeDefined();
+    expect(screen.getByText("Daal 12oz")).toBeDefined();
+    expect(screen.getByText("Sabzi 8oz")).toBeDefined();
     expect(screen.queryByText(/2× Sabzi/)).toBeNull();
   });
 
@@ -55,7 +55,7 @@ describe("MealSizeItems", () => {
       />,
     );
     expect(screen.getByText("2× Roti")).toBeDefined();
-    expect(screen.getByText("Sabzi · 8oz")).toBeDefined();
+    expect(screen.getByText("Sabzi 8oz")).toBeDefined();
   });
 
   it("falls back to the raw category key when no categoryLabels are given", () => {
