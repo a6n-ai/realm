@@ -8,7 +8,7 @@ import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, Refre
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
+import { AnimatedIcon, CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
@@ -295,23 +295,23 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
             style={{ transform: `translateX(${Math.max(litAt, 0) * 100}%)` }}
           />
           <Link href="/me" onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>
-            <CalendarDays aria-hidden className="size-6" /><span className={label}>Deliveries</span>
+            <AnimatedIcon active={lit === "deliveries"} gesture="pop"><CalendarDays aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Deliveries</span>
           </Link>
           <Link href="/me/support" onClick={() => setTapped("support")} aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "support", compact))}>
             <span className="relative">
-              <LifeBuoy aria-hidden className="size-6" />
+              <AnimatedIcon active={lit === "support"} gesture="spin"><LifeBuoy aria-hidden className="size-6" /></AnimatedIcon>
               <UnreadBadge count={unread} className="absolute -right-2.5 -top-1.5" />
             </span>
             <span className={label}>Support</span>
           </Link>
           <Link href="/me/refer" onClick={() => setTapped("refer")} aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "refer", compact))}>
-            <Gift aria-hidden className="size-6" /><span className={label}>Refer</span>
+            <AnimatedIcon active={lit === "refer"} gesture="wiggle"><Gift aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Refer</span>
           </Link>
           <Link href="/me/account" onClick={() => setTapped("account")} aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "account", compact))}>
-            <User aria-hidden className="size-6" /><span className={label}>Account</span>
+            <AnimatedIcon active={lit === "account"} gesture="pop"><User aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Account</span>
           </Link>
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(lit === "menu", compact)}>
-            <Ellipsis aria-hidden className="size-6" /><span className={label}>More</span>
+            <AnimatedIcon active={lit === "menu" || open} gesture="bounce"><Ellipsis aria-hidden className="size-6" /></AnimatedIcon><span className={label}>More</span>
           </MenuButton>
         </div>
       </nav>}

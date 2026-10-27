@@ -22,6 +22,7 @@ export { MenuSection } from "./menu-sheet";
 export { CoinChip, NavPill } from "./nav-pill";
 export { PageHeader } from "./page-header";
 export { Choice, ChoiceGroup, OptionCard, PillToggle, SelectableCard } from "./selectable-card";
+export { AnimatedIcon, type IconGesture } from "./animated-icon";
 export { IconTile, type IconTint } from "./icon-tile";
 export { StepList, type Step } from "./step-list";
 export { StatGroup, StatTile } from "./stat-tile";
