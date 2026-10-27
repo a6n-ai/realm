@@ -7,6 +7,7 @@ import { MonthGrid } from "./dates";
 import { IconButton } from "./icon-button";
 import { Label } from "./field";
 import { Sheet } from "./sheet";
+import { Segmented } from "./tabs";
 import { cn, FONT } from "./cn";
 import { useSwipePages } from "./use-swipe-pages";
 
@@ -81,15 +82,19 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
   const firstMonth = monthOf(min);
   const lastMonth = max ? monthOf(max) : null;
   const monthKey = (y: number, i: number) => `${y}-${String(i + 1).padStart(2, "0")}`;
+  const clamp = (k: string) => (k < firstMonth ? firstMonth : lastMonth && k > lastMonth ? lastMonth : k);
+  // A start date is weeks away, not years: offer the years it can fall in (the first and the next, or up to max).
+  const lastYear = lastMonth ? +lastMonth.slice(0, 4) : +firstMonth.slice(0, 4) + 1;
+  const years = Array.from({ length: lastYear - +firstMonth.slice(0, 4) + 1 }, (_, i) => +firstMonth.slice(0, 4) + i);
   const picker = (
     <>
         <div className="flex items-center justify-between pb-3">
           <IconButton
             bare
-            aria-label={jump ? "Previous year" : "Previous month"}
-            disabled={jump ? year <= +firstMonth.slice(0, 4) : !canPrev}
-            className="disabled:opacity-35"
-            onClick={() => (jump ? setMonth(monthKey(year - 1, +month.slice(5) - 1) < firstMonth ? firstMonth : monthKey(year - 1, +month.slice(5) - 1)) : canPrev && go(-1))}
+            aria-label="Previous month"
+            disabled={!canPrev}
+            className={cn("disabled:opacity-35", jump && "invisible")}
+            onClick={() => canPrev && go(-1)}
           >
             <ChevronLeft aria-hidden className="size-5" />
           </IconButton>
@@ -100,22 +105,33 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
             onClick={() => setJump(!jump)}
             className="flex min-h-11 items-center gap-1 rounded-full px-3 text-[15px] font-semibold transition-colors hover:bg-[var(--muted)]"
           >
-            {jump ? year : TITLE.format(new Date(`${month}-01T00:00:00Z`))}
+            {TITLE.format(new Date(`${month}-01T00:00:00Z`))}
             <ChevronDown aria-hidden className={cn("size-4 text-[var(--muted-foreground)] transition-transform duration-200", jump && "rotate-180")} />
           </button>
           <IconButton
             bare
-            aria-label={jump ? "Next year" : "Next month"}
-            disabled={jump ? !!lastMonth && year >= +lastMonth.slice(0, 4) : !canNext}
-            className="disabled:opacity-35"
-            onClick={() => (jump ? setMonth(lastMonth && monthKey(year + 1, +month.slice(5) - 1) > lastMonth ? lastMonth : monthKey(year + 1, +month.slice(5) - 1)) : canNext && go(1))}
+            aria-label="Next month"
+            disabled={!canNext}
+            className={cn("disabled:opacity-35", jump && "invisible")}
+            onClick={() => canNext && go(1)}
           >
             <ChevronRight aria-hidden className="size-5" />
           </IconButton>
         </div>
         {jump ? (
           // Same height as the six-row day grid, so the sheet does not resize between the two views.
-          <div role="group" aria-label={`Months in ${year}`} className="grid h-[276px] grid-cols-3 grid-rows-4 gap-2 pb-4">
+          <div className="flex h-[276px] flex-col gap-3 pb-4">
+          {years.length > 1 && (
+            <Segmented
+              label="Year"
+              idPrefix="date-year"
+              className="mx-auto !w-fit"
+              items={years.map((y) => ({ id: String(y), label: String(y) }))}
+              value={String(year)}
+              onChange={(y) => setMonth(clamp(monthKey(+y, +month.slice(5) - 1)))}
+            />
+          )}
+          <div role="group" aria-label={`Months in ${year}`} className="grid flex-1 grid-cols-3 grid-rows-4 gap-2">
             {MONTHS.map((name, i) => {
               const key = monthKey(year, i);
               const off = key < firstMonth || (!!lastMonth && key > lastMonth);
@@ -136,6 +152,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
                 </button>
               );
             })}
+          </div>
           </div>
         ) : (
         <div ref={swipe} {...bind} className="pb-4 [touch-action:pan-y] motion-reduce:!transform-none">
