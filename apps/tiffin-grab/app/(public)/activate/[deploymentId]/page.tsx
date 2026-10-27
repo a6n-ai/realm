@@ -10,7 +10,7 @@ import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/landing";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { getClaimPaymentContext } from "@/lib/services/orders.service";
+import { getClaimPaymentContext, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 
 // Looks up an order by deploymentId — render per request, never prerender.
@@ -45,8 +45,13 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
       .limit(1);
     ownsOrder = u?.publicId === session.user.id;
   }
-  // Someone else's order reads as missing, so ids can't be probed.
-  if (!ownsOrder && !isStaffRole(session.user.role)) notFound();
+  // Someone else's order reads as missing, so ids can't be probed. Staff see orders in their
+  // own organizations only, like the admin order pages and receipts.
+  if (!ownsOrder) {
+    if (!isStaffRole(session.user.role)) notFound();
+    const visible = await resolveSessionVisibleOrgIds(session);
+    if (visible !== "all" && (sub.organizationId == null || !visible.includes(sub.organizationId))) notFound();
+  }
 
   const { currency } = await getAppSettings();
   const claimCtx =
