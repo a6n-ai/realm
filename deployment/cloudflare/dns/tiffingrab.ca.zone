@@ -1,0 +1,29 @@
+;; tiffingrab.ca for Cloudflare, copied from live Route53 zone Z0983728P9WL0KVAG4E2 (2026-10-27).
+;; Import: cf dns records import -z tiffingrab.ca --file deployment/cloudflare/dns/tiffingrab.ca.zone
+;; Once the zone is active, replace this file with: cf dns records export -z tiffingrab.ca
+;; Everything is DNS only (grey cloud) so the cutover changes nothing but the nameservers.
+;; Proxying app/apex is a separate step (Caddy TLS + client-IP handling).
+;; A Records
+tiffingrab.ca.	300	IN	A	52.73.226.216 ; cf_tags=cf-proxied:false
+app.tiffingrab.ca.	3600	IN	A	52.73.226.216 ; cf_tags=cf-proxied:false
+ftp.tiffingrab.ca.	1800	IN	A	82.180.129.236 ; cf_tags=cf-proxied:false
+;; CNAME Records
+www.tiffingrab.ca.	300	IN	CNAME	tiffingrab.ca. ; cf_tags=cf-proxied:false
+sor35gqoewzgywsllpbzakykt3pqyajy._domainkey.tiffingrab.ca.	14400	IN	CNAME	sor35gqoewzgywsllpbzakykt3pqyajy.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+pa6mtp44zgjhl2pdp3xyyyudcs4dksvr._domainkey.tiffingrab.ca.	14400	IN	CNAME	pa6mtp44zgjhl2pdp3xyyyudcs4dksvr.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+5gbh2fe32u6t5gvlgz5ctapoftrc4dyk._domainkey.tiffingrab.ca.	14400	IN	CNAME	5gbh2fe32u6t5gvlgz5ctapoftrc4dyk.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+rgpvcdn5tikweaxpji57ka7orksxmhys._domainkey.notify.tiffingrab.ca.	14400	IN	CNAME	rgpvcdn5tikweaxpji57ka7orksxmhys.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+cay7flp6yp2hdbyj66sz5shhvgi6lw6g._domainkey.notify.tiffingrab.ca.	14400	IN	CNAME	cay7flp6yp2hdbyj66sz5shhvgi6lw6g.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+zno5whc35fwyjnq5lvwcpks3z6khdxy2._domainkey.notify.tiffingrab.ca.	14400	IN	CNAME	zno5whc35fwyjnq5lvwcpks3z6khdxy2.dkim.amazonses.com. ; cf_tags=cf-proxied:false
+;; MX Records
+tiffingrab.ca.	3600	IN	MX	10 mx1.titan.email.
+tiffingrab.ca.	3600	IN	MX	20 mx2.titan.email.
+mail.tiffingrab.ca.	14400	IN	MX	10 feedback-smtp.us-east-1.amazonses.com.
+mail.notify.tiffingrab.ca.	14400	IN	MX	10 feedback-smtp.us-east-1.amazonses.com.
+;; TXT Records
+tiffingrab.ca.	14400	IN	TXT	"v=spf1 include:spf.titan.email ~all"
+_dmarc.tiffingrab.ca.	3600	IN	TXT	"v=DMARC1; p=reject; sp=reject; rua=mailto:info@tiffingrab.ca"
+default._bimi.tiffingrab.ca.	3600	IN	TXT	"v=BIMI1; l=https://app.tiffingrab.ca/brand/bimi.svg; a=; avp=brand;"
+titan1._domainkey.tiffingrab.ca.	300	IN	TXT	"v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCQ88svj2uPHmAFpFZRrLyS1l04ps4VVt4BWcF/rqaldaolitH+2AbbgjG9qRI6QxHNPWvN4UGZOEeS7gnU3mqqtVN9bIXT9FC5dVmm8UprC2SL7oP1caI/kTV1eEmBwe3QubnXtc2xLfMM6inDVWZdETejB5tH+G8DZNB4HRmv5QIDAQAB"
+mail.tiffingrab.ca.	14400	IN	TXT	"v=spf1 include:amazonses.com ~all"
+mail.notify.tiffingrab.ca.	14400	IN	TXT	"v=spf1 include:amazonses.com ~all"
