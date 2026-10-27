@@ -42,8 +42,12 @@ export function TripTimeline({
   dayColor,
   pick,
   legend,
+  compact = false,
 }: {
   trips: Trip[];
+  /** Week strip at every width (the row list stays for screen readers): for a plan where each tiffin
+   *  arrives on its own eating day, the rows would only repeat "Eaten the same day". */
+  compact?: boolean;
   /** Monday ISO: label each day with its real date. */
   weekStart?: string;
   /** Ring colour of an eaten day when it differs from its trip (one held day inside a delivered trip). */
@@ -69,7 +73,7 @@ export function TripTimeline({
     <div className="mt-5">
       {/* Phone: vertical rail. Kept for screen readers on wider screens too. */}
       {!pick && (
-      <ol aria-label="Delivery preview" className="relative sm:sr-only">
+      <ol aria-label="Delivery preview" className={compact ? "sr-only" : "relative sm:sr-only"}>
         <AnimatePresence initial={false} mode="popLayout">
           {trips.map((t, i) => (
             <m.li
@@ -104,7 +108,7 @@ export function TripTimeline({
       )}
 
       {/* Wider screens (or pick mode): the whole week on one rail. */}
-      <div aria-hidden={pick ? undefined : true} role={pick ? "group" : undefined} aria-label={pick ? "Delivery days" : undefined} className={pick ? "block" : "hidden sm:block"}>
+      <div aria-hidden={pick ? undefined : true} role={pick ? "group" : undefined} aria-label={pick ? "Delivery days" : undefined} className={pick || compact ? "block" : "hidden sm:block"}>
         <div className="grid grid-cols-7">
           {DAYS.map((d, i) => {
             const trip = tripOf.get(d);

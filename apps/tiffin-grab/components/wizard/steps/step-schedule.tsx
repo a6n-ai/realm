@@ -28,6 +28,8 @@ export function StepSchedule({
   const allowed = mealAllowedDays(catalog, selections);
   // Display order only: the default selection below still follows catalog order.
   const frequencies = [...catalogFrequencies].sort((a, b) => (a.weekdays?.length ?? 0) - (b.weekdays?.length ?? 0));
+  // The suggestion lives on the card it's about (the old top banner duplicated it): biggest saving reads "Best value".
+  const bestSave = Math.max(0, ...frequencies.map((f) => savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct)));
   const bounds = tiffinBounds(catalog);
   const row = frequencies.find((f) => f.key === selections.frequencyKey);
   const deliveryDays = (row?.weekdays ?? []) as DayOfWeek[];
@@ -63,10 +65,7 @@ export function StepSchedule({
   return (
     <div className="space-y-8">
       {currentPlan ? (
-        <CurrentPlanHint>
-          Your current plan runs <strong>{currentPlan.daysPerWeek} delivery days/wk</strong>. Set the
-          schedule for this new subscription independently.
-        </CurrentPlanHint>
+        <CurrentPlanHint>Now {currentPlan.daysPerWeek} days a week.</CurrentPlanHint>
       ) : null}
 
       <section aria-labelledby="sched-eating">
@@ -120,7 +119,7 @@ export function StepSchedule({
                 <span className="flex w-full items-center justify-between gap-2">
                   <span className="text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
-                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>Save {save}%</Pill>}
+                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>{save === bestSave ? `Best value · Save ${save}%` : `Save ${save}%`}</Pill>}
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {(f.weekdays as DayOfWeek[]).map((d) => (
@@ -134,14 +133,9 @@ export function StepSchedule({
       </section>
 
       <section aria-labelledby="sched-preview" className="c-surface bg-card rounded-[20px] p-5">
-        <div className="flex items-end justify-between gap-3">
-          <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
-          <p className="text-right leading-none">
-            <span className="text-primary text-[40px] font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
-            <span className="text-muted-foreground ml-1.5 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
-          </p>
-        </div>
-        {trips ? <TripTimeline trips={trips} /> : null}
+        {/* The tiffin count already sits under the day pills; this card only shows how they arrive. */}
+        <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
+        {trips ? <TripTimeline trips={trips} compact={trips.every((t) => t.days.length === 1)} /> : null}
       </section>
     </div>
   );

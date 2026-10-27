@@ -83,7 +83,7 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
           </div>
         )}
       </div>
-      <TripTimeline trips={w.trips} weekStart={w.weekStart} />
+      <TripTimeline trips={w.trips} weekStart={w.weekStart} compact={w.trips.every((t) => t.days.length === 1)} />
       {last && shifted && weeks.length > 1 && (
         <p className="text-muted-foreground mt-3 text-xs text-pretty">
           Days in your first week before your start date are added here, so you still get every tiffin.
