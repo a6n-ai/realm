@@ -1110,7 +1110,7 @@ export function Checkout({
               <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
             )}
             {step === 0 && plan ? (
-              <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!plan.canContinue} pending={plan.pending} onClick={continuePlan}>Continue</Button>
+              <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!plan.canContinue} pending={plan.pending} onClick={continuePlan}>Continue to checkout</Button>
             ) : step === 1 ? (
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
                 setStep(2);

@@ -58,7 +58,7 @@ afterEach(() => { vi.useRealTimers(); cleanup(); });
 const ui = () => <RenewCheckout data={data} checkout={checkout} />;
 const current = () => screen.getByRole("navigation", { name: "Progress" }).querySelector('[aria-current="step"]')!.textContent ?? "";
 const cont = async () => {
-  const btn = await screen.findByRole("button", { name: "Continue" });
+  const btn = await screen.findByRole("button", { name: "Continue to checkout" });
   await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(btn);
 };
@@ -69,7 +69,7 @@ describe("RenewCheckout", () => {
     expect(screen.getByTestId("plan-card")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Renew your plan." })).toBeTruthy();
     expect(current()).toContain("Plan");
-    expect(screen.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Continue to checkout" })).toHaveLength(1);
     await screen.findAllByText("$123.45");
   });
 

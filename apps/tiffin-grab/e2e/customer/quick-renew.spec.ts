@@ -13,7 +13,7 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["pho
     test.skip(!process.env.E2E_RENEW_READY, "set E2E_RENEW_READY=1 when the e2e customer has a non-trial plan to renew");
     await page.setViewportSize(viewport);
     await page.goto("/me/renew");
-    const next = page.getByRole("button", { name: "Continue", exact: true });
+    const next = page.getByRole("button", { name: "Continue to checkout", exact: true });
     await expect(next, "quick renew screen did not render (stepper or error instead?)").toBeVisible({ timeout: 45_000 });
 
     await expect(page.getByTestId("plan-card")).toBeVisible();

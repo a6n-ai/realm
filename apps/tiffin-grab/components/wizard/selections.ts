@@ -321,5 +321,6 @@ export function quoteQuery(params: QuoteParams | URLSearchParams): string {
 export function mealNote(catalog: ClientCatalogSnapshot | null | undefined, s: Pick<WizardSelections, "mealSizeId">): string | undefined {
   const m = catalog?.mealSizes.find((x) => x.publicId === s.mealSizeId);
   if (!m) return undefined;
-  return `${m.name} · $${(m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m)).toFixed(2)}/tiffin`;
+  const price = m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m);
+  return Number.isFinite(price) ? `${m.name} · $${price.toFixed(2)}/tiffin` : m.name;
 }
