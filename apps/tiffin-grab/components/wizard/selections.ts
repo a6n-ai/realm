@@ -1,4 +1,4 @@
-import type { PricingSelections } from "@/lib/pricing";
+import { effectivePrice, type PricingSelections } from "@/lib/pricing";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { eatingDaysError, frequencyFits, planDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
@@ -315,4 +315,11 @@ export function quoteQuery(params: QuoteParams | URLSearchParams): string {
   }
   const s = out.toString();
   return s ? `?${s}` : "";
+}
+
+/** "5 Item Thali — Regular · $11.00/tiffin": the bottom bar's note from the bundle step until payment, so the pick stays in view. */
+export function mealNote(catalog: ClientCatalogSnapshot | null | undefined, s: Pick<WizardSelections, "mealSizeId">): string | undefined {
+  const m = catalog?.mealSizes.find((x) => x.publicId === s.mealSizeId);
+  if (!m) return undefined;
+  return `${m.name} · $${(m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m)).toFixed(2)}/tiffin`;
 }

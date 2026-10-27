@@ -184,11 +184,11 @@ export function TripTimeline({
         <p className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
           <span className="inline-flex items-center gap-1.5">
             <span className="bg-primary text-primary-foreground grid size-4 place-items-center rounded-full"><Truck className="size-2.5" /></span>
-            Delivery
+            Delivery day
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="border-primary size-3 rounded-full border-[3px]" />
-            Eaten from that delivery
+            Tiffin comes in an earlier delivery
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="bg-border size-2 rounded-full" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./button";
 import { MonthGrid } from "./dates";
@@ -8,6 +8,7 @@ import { IconButton } from "./icon-button";
 import { Label } from "./field";
 import { Sheet } from "./sheet";
 import { cn, FONT } from "./cn";
+import { useSwipePages } from "./use-swipe-pages";
 
 const monthOf = (iso: string) => iso.slice(0, 7);
 const shift = (month: string, n: number) => {
@@ -28,6 +29,7 @@ function useWide() {
   return wide;
 }
 const TITLE = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
+const MONTHS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, i, 1))));
 
 interface DatePickerProps {
   id: string;
@@ -49,6 +51,8 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(monthOf(value || min));
   const [above, setAbove] = useState(false);
+  // Tapping the title swaps the day grid for a month/year grid, so a far date is two taps, not many swipes.
+  const [jump, setJump] = useState(false);
   const days: Record<string, { disabledReason?: string }> = {};
   const count = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5), 0)).getUTCDate();
   for (let i = 1; i <= count; i++) {
@@ -71,20 +75,70 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
   }, [open, wide]);
   const canPrev = month > monthOf(min);
   const canNext = !max || month < monthOf(max);
+  // Swipe months like the deliveries calendar; the chevrons slide the same way.
+  const { ref: swipe, bind, go } = useSwipePages({ page: month, canPrev, canNext, step: (dir) => setMonth((m) => shift(m, dir)) });
+  const year = +month.slice(0, 4);
+  const firstMonth = monthOf(min);
+  const lastMonth = max ? monthOf(max) : null;
+  const monthKey = (y: number, i: number) => `${y}-${String(i + 1).padStart(2, "0")}`;
   const picker = (
     <>
         <div className="flex items-center justify-between pb-3">
-          <IconButton bare aria-label="Previous month" disabled={!canPrev} className="disabled:opacity-35" onClick={() => canPrev && setMonth(shift(month, -1))}>
+          <IconButton
+            bare
+            aria-label={jump ? "Previous year" : "Previous month"}
+            disabled={jump ? year <= +firstMonth.slice(0, 4) : !canPrev}
+            className="disabled:opacity-35"
+            onClick={() => (jump ? setMonth(monthKey(year - 1, +month.slice(5) - 1) < firstMonth ? firstMonth : monthKey(year - 1, +month.slice(5) - 1)) : canPrev && go(-1))}
+          >
             <ChevronLeft aria-hidden className="size-5" />
           </IconButton>
-          <span aria-live="polite" className="text-[15px] font-semibold">
-            {TITLE.format(new Date(`${month}-01T00:00:00Z`))}
-          </span>
-          <IconButton bare aria-label="Next month" disabled={!canNext} className="disabled:opacity-35" onClick={() => canNext && setMonth(shift(month, 1))}>
+          <button
+            type="button"
+            aria-expanded={jump}
+            aria-live="polite"
+            onClick={() => setJump(!jump)}
+            className="flex min-h-11 items-center gap-1 rounded-full px-3 text-[15px] font-semibold transition-colors hover:bg-[var(--muted)]"
+          >
+            {jump ? year : TITLE.format(new Date(`${month}-01T00:00:00Z`))}
+            <ChevronDown aria-hidden className={cn("size-4 text-[var(--muted-foreground)] transition-transform duration-200", jump && "rotate-180")} />
+          </button>
+          <IconButton
+            bare
+            aria-label={jump ? "Next year" : "Next month"}
+            disabled={jump ? !!lastMonth && year >= +lastMonth.slice(0, 4) : !canNext}
+            className="disabled:opacity-35"
+            onClick={() => (jump ? setMonth(lastMonth && monthKey(year + 1, +month.slice(5) - 1) > lastMonth ? lastMonth : monthKey(year + 1, +month.slice(5) - 1)) : canNext && go(1))}
+          >
             <ChevronRight aria-hidden className="size-5" />
           </IconButton>
         </div>
-        <div className="pb-4">
+        {jump ? (
+          // Same height as the six-row day grid, so the sheet does not resize between the two views.
+          <div role="group" aria-label={`Months in ${year}`} className="grid h-[276px] grid-cols-3 grid-rows-4 gap-2 pb-4">
+            {MONTHS.map((name, i) => {
+              const key = monthKey(year, i);
+              const off = key < firstMonth || (!!lastMonth && key > lastMonth);
+              const on = key === month;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={off}
+                  aria-pressed={on}
+                  onClick={() => (setMonth(key), setJump(false))}
+                  className={cn(
+                    "rounded-2xl text-[15px] font-semibold transition-colors disabled:opacity-35",
+                    on ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[var(--muted)] text-[var(--foreground)]",
+                  )}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+        <div ref={swipe} {...bind} className="pb-4 [touch-action:pan-y] motion-reduce:!transform-none">
           <MonthGrid
             key={month}
             month={month}
@@ -96,6 +150,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
             }}
           />
         </div>
+        )}
     </>
   );
   return (
@@ -111,6 +166,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
         className="!min-h-12 w-full justify-start !rounded-2xl !border font-normal tabular-nums"
         onClick={() => {
           setMonth(monthOf(value || min));
+          setJump(false);
           const r = box.current?.getBoundingClientRect();
           setAbove(!!r && innerHeight - r.bottom < 380 && r.top > 380);
           setOpen(true);

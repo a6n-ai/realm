@@ -14,7 +14,7 @@ import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -27,7 +27,6 @@ import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
 import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
-import { effectivePrice } from "@/lib/pricing";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
 const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;
@@ -134,11 +133,8 @@ export function Wizard({
   }, [selections, trial, catalog]);
 
   const blocked = nextBlockedReason(step, catalog, selections);
-  // Bundle step: the bar says what's picked, so nobody scrolls back up to check before Next.
-  const pickedSize = step === 1 ? catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId) : undefined;
-  const pickedNote = pickedSize
-    ? `${pickedSize.name} · $${(pickedSize.discountType === "none" ? pickedSize.basePrice : effectivePrice(pickedSize.basePrice, pickedSize)).toFixed(2)}/tiffin`
-    : undefined;
+  // From the bundle step on, the bar says what's picked, so nobody scrolls back up to check.
+  const pickedNote = step >= 1 ? mealNote(catalog, selections) : undefined;
   const canNext = blocked === null;
 
   const [atCheckout, setAtCheckout] = useState(false);

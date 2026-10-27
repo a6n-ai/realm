@@ -138,7 +138,8 @@ export function MonthGrid({ month, days = {}, selected, onSelect }: GridProps) {
   };
 
   const cells: (string | null)[] = [...Array(offset).fill(null), ...all];
-  while (cells.length % 7) cells.push(null);
+  // Always six rows, so paging months never resizes the sheet around the grid.
+  while (cells.length < 42) cells.push(null);
   const rows = Array.from({ length: cells.length / 7 }, (_, r) => cells.slice(r * 7, r * 7 + 7));
 
   return (

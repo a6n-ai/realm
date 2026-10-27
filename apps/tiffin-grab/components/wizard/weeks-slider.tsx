@@ -48,8 +48,8 @@ export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { week
       />
       <div aria-hidden className="relative mx-3.5 h-4">
         {stops.map((w, i) => (
-          <span key={w} className={cn("absolute top-0 -translate-x-1/2 text-xs font-semibold tabular-nums", i === at ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]")} style={{ left: pos(i) }}>
-            {w}
+          <span key={w} className={cn("absolute top-0 text-xs font-semibold whitespace-nowrap tabular-nums", i === 0 ? "" : i === stops.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i === at ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]")} style={{ left: pos(i) }}>
+            {w} wk
           </span>
         ))}
       </div>

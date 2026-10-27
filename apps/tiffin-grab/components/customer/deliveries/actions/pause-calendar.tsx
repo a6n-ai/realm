@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { IconButton } from "../../kit/icon-button";
-import { useSwipePages } from "../use-swipe-pages";
+import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { humanDate } from "@/lib/deliveries-view";
 import type { PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
 

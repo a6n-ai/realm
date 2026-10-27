@@ -6,7 +6,7 @@ import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, mondayOf, weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { ARROW, Legend } from "./week-timeline";
-import { useSwipePages } from "./use-swipe-pages";
+import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });

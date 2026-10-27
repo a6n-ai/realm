@@ -34,7 +34,7 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, mealNote, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
@@ -1094,7 +1094,7 @@ export function Checkout({
           {/* Card step: wallet and card action live here at every width, like Continue on the Delivery step. */}
           <BottomBar
             alignEnd
-            note={step === 2 && payWithCard && phone && result ? undefined : (actionReason ?? undefined)}
+            note={step === 2 ? (payWithCard && phone && result ? undefined : (actionReason ?? undefined)) : (actionReason ?? mealNote(catalog, selections))}
             className="sm:sticky sm:mt-8 sm:px-0"
           >
             {step === 2 && payWithCard ? (

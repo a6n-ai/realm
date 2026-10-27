@@ -7,6 +7,7 @@ import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/deliv
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { TripTimeline } from "./trip-timeline";
+import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 
 /** Every delivery a new order would get, trial or weekly, from the same date walks the server runs. Null while incomplete or invalid. */
 export function plannedSchedule(
@@ -55,6 +56,8 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
   const i = Math.min(page, weeks.length - 1);
   const w = weeks[i]!;
   const last = i === weeks.length - 1;
+  // Swipe weeks like the deliveries calendar; the chevrons slide the same way.
+  const { ref, bind, go } = useSwipePages({ page: w.weekStart, canPrev: i > 0, canNext: !last, step: (dir) => setPage(i + dir) });
   const short = (iso: string) => formatDateOnly(iso, { mode: "short" });
   const navBtn = "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40 disabled:hover:text-[var(--muted-foreground)]";
   return (
@@ -74,16 +77,18 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
         </p>
         {weeks.length > 1 && (
           <div className="-my-2 -mr-3 flex">
-            <button type="button" className={navBtn} disabled={i === 0} onClick={() => setPage(i - 1)} aria-label="Previous week">
+            <button type="button" className={navBtn} disabled={i === 0} onClick={() => go(-1)} aria-label="Previous week">
               <ChevronLeft className="size-5" />
             </button>
-            <button type="button" className={navBtn} disabled={last} onClick={() => setPage(i + 1)} aria-label="Next week">
+            <button type="button" className={navBtn} disabled={last} onClick={() => go(1)} aria-label="Next week">
               <ChevronRight className="size-5" />
             </button>
           </div>
         )}
       </div>
-      <TripTimeline trips={w.trips} weekStart={w.weekStart} compact />
+      <div ref={ref} {...bind} className="[touch-action:pan-y] motion-reduce:!transform-none">
+        <TripTimeline trips={w.trips} weekStart={w.weekStart} compact />
+      </div>
       {last && shifted && weeks.length > 1 && (
         <p className="text-muted-foreground mt-3 text-xs text-pretty">
           Days in your first week before your start date are added here, so you still get every tiffin.

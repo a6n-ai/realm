@@ -50,7 +50,11 @@ export function StepDuration({
   // A multi-day trial picks its days; a one-day trial just picks a start date on a send day.
   const multiDay = !!trial && trial.maxDays > 1;
   const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
-  const allowed = trial ? (picks.length ? picks : trial.weekdays) : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
+  const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
+  // A weekly plan starts on one of its delivery days: starting Thu on Mon/Wed/Fri would first deliver Fri.
+  const startDays = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
+  const onDelivery = startDays.filter((d) => freq?.weekdays?.includes(d as never));
+  const allowed = trial ? (picks.length ? picks : trial.weekdays) : onDelivery.length ? onDelivery : startDays;
   const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
@@ -60,7 +64,6 @@ export function StepDuration({
   const runsThrough = lastTiffin ?? (minStartDate ? dayBefore(minStartDate) : null);
   // First day on/after minDate that the plan actually delivers on.
   const earliest = firstStartOnOrAfter(minDate, allowed, closed);
-  const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
   const schedule = plannedSchedule(
     trial
       ? { kind: "trial", startDate: selections.startDate, picks: multiDay ? picks : selections.startDate ? [weekdayKey(parseIsoDateUtc(selections.startDate))] : [] }
@@ -131,8 +134,7 @@ export function StepDuration({
     <div className="space-y-6">
       {currentPlan && overlapBound ? (
         <CurrentPlanHint>
-          Current plan ends <strong>{formatDateOnly(runsThrough!, { mode: "short" })}</strong>, so this one starts{" "}
-          <strong>{formatDateOnly(earliest, { mode: "short" })}</strong>.
+          Current plan ends <strong>{formatDateOnly(runsThrough!, { mode: "short" })}</strong>.
           {selections.startDate !== earliest ? (
             <>
               {" "}
@@ -164,7 +166,8 @@ export function StepDuration({
           closedDates={holidayDates}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          {trial ? "Sent on" : "Deliveries start on a weekday"} ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {formatDateOnly(earliest, { mode: "short" })}.
+          {trial ? "Sent " : ""}
+          {allowed.join() === "mon,tue,wed,thu,fri" ? "Weekdays only" : allowed.map((d) => dayLabel[d] ?? d).join(", ")} · earliest {formatDateOnly(earliest, { mode: "short" })}
         </p>
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
         {sameWeekConflict && !startDateError ? (
