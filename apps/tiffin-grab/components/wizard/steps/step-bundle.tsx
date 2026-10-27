@@ -140,14 +140,22 @@ function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; classNam
 /** Compact card for the Most popular row: name, kcal and price, sized for half a phone's width. */
 function PopularOption({ meal, active, onPick }: { meal: ClientMealSizeView; active: boolean; onPick: () => void }) {
   return (
-    <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5">
+    <OptionCard badge selected={active} onClick={onPick} className="flex min-w-0 flex-col gap-2 p-3.5 sm:p-4">
       <Pill tone="brand" size="sm" className="w-fit">Popular</Pill>
-      <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance">{meal.name}</span>
-      <span className="flex flex-wrap items-center gap-1">
-        {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
-        <MealDays meal={meal} />
-      </span>
-      <span className="mt-auto pt-1">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 flex-col items-start gap-1">
+          <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em] text-balance sm:text-[20px] sm:tracking-[-0.025em]">{meal.name}</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+            <MealDays meal={meal} />
+          </span>
+        </span>
+        {/* Desktop: the price sits top-right like the list cards. Phones keep it below, the cards are half-width. */}
+        <span className="hidden sm:block">
+          <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        </span>
+      </div>
+      <span className="mt-auto pt-1 sm:hidden">
         <MealSizePrice meal={meal} perTiffin priceClassName="text-primary text-[22px] font-bold tracking-[-0.03em]" />
       </span>
     </OptionCard>
