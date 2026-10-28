@@ -4,7 +4,10 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
-import { auditLog, customerAddresses, orderActivities } from "@/db/schema";
+import { auditLog, customerAddresses, orderActivities, walletLedger } from "@/db/schema";
+import { alias } from "drizzle-orm/pg-core";
+import { unexpired } from "@foundry/wallet";
+import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@/lib/list/sort";
@@ -489,6 +492,28 @@ export function addressEventLabel(e: AddressAudit): string {
   return `${what} · by ${e.byCustomer ? "customer" : e.actor ?? "system"}`;
 }
 
+const walletActor = alias(users, "wallet_actor");
+const STAFF_WALLET_SOURCES = new Set(["manual_broadcast", "adjustment"]);
+
+/** Coin credits/debits for the staff timeline. Lapsed checkout holds never moved coins, so they are left out. */
+async function walletTimeline(userId: bigint) {
+  const rows = await db
+    .select({ publicId: walletLedger.publicId, direction: walletLedger.direction, coins: walletLedger.coins, sourceType: walletLedger.sourceType, memo: walletLedger.memo, at: walletLedger.createdAt, actor: walletActor.name })
+    .from(walletLedger)
+    .leftJoin(walletActor, eq(walletActor.id, walletLedger.createdBy))
+    .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));
+  return rows.map((r) => {
+    // Give coins grants saved before 2026-10-28 have no created_by.
+    const by = r.actor ?? (STAFF_WALLET_SOURCES.has(r.sourceType) ? "staff (not recorded)" : null);
+    const label = [
+      `${r.direction === "credit" ? "+" : "−"}${r.coins} coins · ${walletEntryLabel(r.sourceType)}`,
+      r.memo ? `"${r.memo}"` : null,
+      by ? `by ${by}` : null,
+    ].filter(Boolean).join(" · ");
+    return { id: `wallet:${r.publicId}`, kind: "wallet" as const, label, at: r.at };
+  });
+}
+
 /** Address-book changes (staff or customer) from the audit log, archived addresses included. */
 async function addressTimeline(userId: bigint) {
   const book = await db.select({ publicId: customerAddresses.publicId, label: customerAddresses.label })
@@ -631,6 +656,7 @@ export async function getCustomer360(userPublicId: string) {
     ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
     ...(await addressTimeline(user.id)),
     ...(await planAddressTimeline(user.id, orderRows)),
+    ...(await walletTimeline(user.id)),
   ].sort((a, b) => b.at - a.at);
 
   return {

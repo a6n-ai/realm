@@ -101,7 +101,8 @@ export async function listPayoutCandidates(filters: PayoutCandidateFilters): Pro
 export async function awardCustomerBroadcast(
   userIds: bigint[],
   coins: number,
-  memo?: string,
+  memo: string | undefined,
+  actorId: bigint | null,
 ): Promise<{ awarded: number; coinsPerCustomer: number; capped: number }> {
   if (coins <= 0 || userIds.length === 0) return { awarded: 0, coinsPerCustomer: coins, capped: 0 };
 
@@ -119,6 +120,7 @@ export async function awardCustomerBroadcast(
       sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
       coins,
       memo: memo?.trim() || "Manual customer payout",
+      createdBy: actorId,
     })),
   );
 

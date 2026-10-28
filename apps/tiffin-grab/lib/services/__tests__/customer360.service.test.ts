@@ -4,10 +4,12 @@ import { eq, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { users, inquiries, leadSources, orders, payments, orderActivities, inquiryActivities } = await import("@/db/schema");
+const { users, inquiries, leadSources, orders, payments, orderActivities, inquiryActivities, walletLedger } = await import("@/db/schema");
+const { awardCustomerBroadcast } = await import("../customer-payouts.service");
 const { getCustomer360 } = await import("../customers.service");
 
 async function reset() {
+  await db.delete(walletLedger);
   await db.delete(orderActivities);
   await db.delete(inquiryActivities);
   await db.delete(payments);
@@ -33,5 +35,15 @@ describe("getCustomer360 (integration)", () => {
     expect(result.profile.email).toBe("match@example.com");
     const names = result.inquiries.map((i) => i.fullName).sort();
     expect(names).toEqual(["Email Match", "Match Person"]);
+  });
+
+  it("shows Give coins grants in the timeline with who gave them", async () => {
+    const [u] = await db.insert(users).values({ email: "coins@example.com", role: "user" }).returning({ id: users.id, publicId: users.publicId });
+    const [staff] = await db.insert(users).values({ email: "staff@example.com", name: "Priya Staff", role: "admin" }).returning({ id: users.id });
+    await awardCustomerBroadcast([u.id], 40, "Diwali thank-you", staff.id);
+
+    const { timeline } = await getCustomer360(u.publicId);
+    const wallet = timeline.filter((e) => e.kind === "wallet");
+    expect(wallet.map((e) => e.label)).toEqual(['+40 coins · Staff grant · "Diwali thank-you" · by Priya Staff']);
   });
 });
