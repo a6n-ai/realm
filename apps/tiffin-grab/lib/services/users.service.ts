@@ -474,14 +474,21 @@ class UsersService extends SessionUpdatableService<typeof users> {
   private async assertFree(userId: string, field: "phone" | "email", value: string, nameClash = false) {
     const col = field === "phone" ? users.phone : users.email;
     const [clash] = await db
-      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, role: users.role })
       .from(users)
       .where(and(eq(col, value), ne(users.publicId, userId)))
       .limit(1);
     if (!clash) return;
     if (!nameClash) throw new ValidationError(`That ${field} is already in use`);
     const who = [clash.name, clash.email ?? clash.phone, clash.publicId].filter(Boolean).join(" · ");
-    throw new ValidationError(`That ${field} is already in use by ${who}`);
+    throw new ContactTakenError(`That ${field} is already in use by ${who}`, { publicId: clash.publicId, role: clash.role });
+  }
+}
+
+// Carries the holder so the admin UI can link to their page.
+export class ContactTakenError extends ValidationError {
+  constructor(message: string, readonly holder: { publicId: string; role: string }) {
+    super(message);
   }
 }
 

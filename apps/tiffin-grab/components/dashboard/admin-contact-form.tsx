@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -13,6 +14,7 @@ import { adminUpdateContact } from "@/app/(dashboard)/dashboard/organization/mem
 export function AdminContactForm({ userId, email, phone }: { userId: string; email: string; phone: string }) {
   const [value, setValue] = useState({ email, phone });
   const [pending, start] = useTransition();
+  const router = useRouter();
   const dirty = value.email !== email || value.phone !== phone;
 
   return (
@@ -32,7 +34,10 @@ export function AdminContactForm({ userId, email, phone }: { userId: string; ema
           start(async () => {
             try {
               const res = await adminUpdateContact(userId, { email: value.email, phone: value.phone });
-              if (res.error) return void toast.error(res.error);
+              if (res.error) {
+                const href = res.holderHref;
+                return void toast.error(res.error, href ? { action: { label: "Open account", onClick: () => router.push(href) } } : undefined);
+              }
               toast.success(value.email !== email ? "Contact updated. The new email needs verifying at next sign-in." : "Contact updated.");
             } catch {
               toast.error("Could not update — check the email/phone are valid and free.");

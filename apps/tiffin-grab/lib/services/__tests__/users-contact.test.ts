@@ -8,7 +8,7 @@ import { users } from "@/db/schema";
 // load `next/server` under vitest's node env. Stub the session lookup.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const { usersService } = await import("../users.service");
+const { usersService, ContactTakenError } = await import("../users.service");
 
 let custId: string;
 async function reset() {
@@ -40,6 +40,8 @@ describe("usersService.updateContact", () => {
       .rejects.toThrow(/^That phone is already in use$/);
     await expect(usersService.updateContact(custId, { phone: "+16475550200" }, { nameClash: true }))
       .rejects.toThrow(/already in use by .*usr_/);
+    await expect(usersService.updateContact(custId, { phone: "+16475550200" }, { nameClash: true }))
+      .rejects.toSatisfy((e) => e instanceof ContactTakenError && e.holder.role === "user" && e.holder.publicId.startsWith("usr_"));
   });
   it("rejects clearing the customer's required phone", async () => {
     await expect(usersService.updateContact(custId, { phone: "" }))

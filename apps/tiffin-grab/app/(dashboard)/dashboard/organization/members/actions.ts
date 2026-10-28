@@ -2,7 +2,7 @@
 
 import { StaffInviteError } from "@foundry/auth";
 import type { RoleValue } from "@foundry/commons";
-import { ValidationError } from "@foundry/commons";
+import { Role, ValidationError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -14,7 +14,7 @@ import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links
 import { getSession } from "@/lib/auth/session";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
-import { usersService } from "@/lib/services/users.service";
+import { ContactTakenError, usersService } from "@/lib/services/users.service";
 import { inviteUser } from "@/lib/services/users-invite";
 
 export type UserStatusValue = "active" | "inactive" | "suspended" | "deleted";
@@ -45,11 +45,16 @@ export async function setUserRole(userId: string, role: RoleValue) {
 export async function adminUpdateContact(
   userId: string,
   input: { email?: string; phone?: string },
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; holderHref?: string }> {
   await requireAdmin();
   try {
     await usersService.updateContact(userId, input, { nameClash: true });
   } catch (e) {
+    if (e instanceof ContactTakenError) {
+      const { publicId, role } = e.holder;
+      const base = role === Role.USER ? "/dashboard/customers" : "/dashboard/organization/members";
+      return { error: e.message, holderHref: `${base}/${publicId}` };
+    }
     if (e instanceof ValidationError) return { error: e.message };
     throw e;
   }
