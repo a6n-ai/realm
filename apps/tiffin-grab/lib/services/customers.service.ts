@@ -238,11 +238,12 @@ export async function findExistingByContact(phone: string, email?: string | null
 export async function searchCustomers(query: string) {
   const q = query.trim();
   if (q.length < 2) return [];
-  const like = `%${q}%`;
+  // Per word, any order, so "kumar ram" and "ram  kumar" both find "Ram Kumar".
+  const words = q.split(/\s+/).map((w) => `%${w}%`);
   return db
     .select({ publicId: users.publicId, fullName: users.name, phone: users.phone, email: users.email })
     .from(users)
-    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like), ilike(users.email, like))))
+    .where(and(eq(users.role, "user"), ...words.map((like) => or(ilike(users.name, like), ilike(users.phone, like), ilike(users.email, like)))))
     .orderBy(users.name)
     .limit(8);
 }
