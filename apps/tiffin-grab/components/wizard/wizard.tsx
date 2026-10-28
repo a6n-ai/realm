@@ -14,7 +14,7 @@ import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -50,7 +50,7 @@ export function Wizard({
   /** Present: the last step opens Delivery and Payment in place instead of navigating to /checkout. */
   checkout?: CheckoutProps;
   /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
-  quote?: { picks: WizardSelections; codes: string[] } | null;
+  quote?: { picks: WizardSelections; codes: string[]; coins?: number } | null;
   catalog: ClientCatalogSnapshot;
   closeHref: string;
   existingStartDates?: string[];
@@ -144,6 +144,7 @@ export function Wizard({
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
     sessionStorage.setItem(WIZARD_PLAN_STEPS_KEY, JSON.stringify(stepLabels));
     if (quote?.codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(quote.codes));
+    if (quote?.coins) sessionStorage.setItem(QUOTE_COINS_KEY, String(quote.coins));
     if (checkout) {
       setAtCheckout(true);
       window.scrollTo({ top: 0 });
@@ -317,6 +318,7 @@ export function Wizard({
         origin,
         planSteps: [...stepLabels],
         quoteCodes: quote?.codes,
+        quoteCoins: quote?.coins,
         onEditPlan: () => { setAtCheckout(false); window.scrollTo({ top: 0 }); },
       }}
     />

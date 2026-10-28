@@ -34,7 +34,7 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, mealNote, pickedAddons, QUOTE_CODES_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, mealNote, pickedAddons, QUOTE_CODES_KEY, QUOTE_COINS_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
@@ -147,6 +147,8 @@ export type CheckoutHandoff = {
   origin: WizardOrigin;
   planSteps: string[];
   quoteCodes?: string[];
+  /** Coins the customer agreed to on a staff estimate. */
+  quoteCoins?: number;
   onEditPlan: () => void;
 };
 
@@ -364,9 +366,11 @@ export function Checkout({
     // Quick renew and the wizard's in-place handoff carry the plan in props: no wizard storage, nothing to redirect for or restore.
     let s: WizardSelections;
     let quoted: string[] = [];
+    let quotedCoins = 0;
     if (plan || handoff) {
       s = selections!;
       quoted = handoff?.quoteCodes ?? [];
+      quotedCoins = handoff?.quoteCoins ?? 0;
     } else {
       const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
       if (!raw) { router.replace("/subscribe"); return; }
@@ -391,14 +395,27 @@ export function Checkout({
       // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
       // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
       try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
+      quotedCoins = Math.max(0, Math.floor(Number(sessionStorage.getItem(QUOTE_COINS_KEY)) || 0));
     }
-    refreshPrice(s, quoted, null).then(
+    // Coins the customer agreed to on the estimate: tried with the first price, dropped if refused.
+    refreshPrice(s, quoted, null, quotedCoins || undefined).then(
       async (r) => {
         sessionStorage.removeItem(PRICE_RELOAD_KEY);
-        if (!quoted.length) return;
+        let coins = quotedCoins;
+        if (coins) {
+          sessionStorage.removeItem(QUOTE_COINS_KEY);
+          coins = r.coinsError ? 0 : (r.coinsApplied?.coins ?? 0);
+          setAppliedCoins(coins);
+          setCoinsInput(coins ? String(coins) : "");
+          setCoinsState(coins ? { status: "applied", message: "Your estimate's coins are applied" } : { status: "error", message: r.coinsError ?? "Your estimate's coins couldn't be applied" });
+        }
+        if (!quoted.length) {
+          if (coins !== quotedCoins) await refreshPrice(s, quoted, null, undefined).catch(() => undefined);
+          return;
+        }
         sessionStorage.removeItem(QUOTE_CODES_KEY);
         const kept = quoted.filter((c) => r.appliedCoupons.some((a) => a.code.toUpperCase() === c));
-        if (kept.length !== quoted.length) await refreshPrice(s, kept, null).catch(() => undefined);
+        if (kept.length !== quoted.length || coins !== quotedCoins) await refreshPrice(s, kept, null, coins || undefined).catch(() => undefined);
         setAppliedCodes(kept);
         const dropped = quoted.filter((c) => !kept.includes(c));
         setCouponState(dropped.length

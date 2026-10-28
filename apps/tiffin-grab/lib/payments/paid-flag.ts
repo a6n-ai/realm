@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
+import { QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
 
 export const PAID_KEY = "tg:paid";
 const SEEN = "tgSeen";
@@ -18,7 +18,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  */
 export function markPaid(deploymentId: string) {
   try {
-    for (const k of [WIZARD_STORAGE_KEY, WIZARD_STEP_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, QUOTE_CODES_KEY]) sessionStorage.removeItem(k);
+    for (const k of [WIZARD_STORAGE_KEY, WIZARD_STEP_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, QUOTE_CODES_KEY, QUOTE_COINS_KEY]) sessionStorage.removeItem(k);
     sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId, at: Date.now() }));
   } catch { /* storage unavailable: the cleared wizard still redirects to /subscribe */ }
 }

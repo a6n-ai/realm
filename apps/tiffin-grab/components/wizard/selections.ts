@@ -249,20 +249,23 @@ export function selectionsFromPriorOrder(
  * re-checked against the live catalog, so an edited or stale link only drops what no longer exists;
  * the customer re-picks it on that step.
  */
-export const QUOTE_PARAMS = ["p", "m", "f", "d", "w", "a", "c"] as const;
+export const QUOTE_PARAMS = ["p", "m", "f", "d", "w", "a", "c", "k"] as const;
 export type QuoteParams = Partial<Record<(typeof QUOTE_PARAMS)[number], string>>;
 
 /** Coupon codes from the quote, handed from the stepper to checkout, which tries them on its first price. */
 export const QUOTE_CODES_KEY = "tiffin.quote.codes";
+/** Coins the customer agreed to use (`k`), handed to checkout the same way; its server price clamps them. */
+export const QUOTE_COINS_KEY = "tiffin.quote.coins";
 
 /** The link's query for these picks (no leading "?"). */
-export function quoteLinkQuery(s: { planKey: string; mealSizeId: string; frequencyKey: string; eatingDays: string[]; durationWeeks: number; addonSelections?: { key: string; qty: number }[]; codes: string[] }): string {
+export function quoteLinkQuery(s: { planKey: string; mealSizeId: string; frequencyKey: string; eatingDays: string[]; durationWeeks: number; addonSelections?: { key: string; qty: number }[]; codes: string[]; coins?: number }): string {
   const q = new URLSearchParams({ p: s.planKey, m: s.mealSizeId, f: s.frequencyKey });
   const days = WEEK_DAYS.filter((d) => s.eatingDays.includes(d));
   if (days.join() !== DEFAULT_EATING_DAYS.join()) q.set("d", days.map((d) => WEEK_DAYS.indexOf(d) + 1).join(""));
   if (s.durationWeeks !== 1) q.set("w", String(s.durationWeeks));
   if (s.addonSelections?.length) q.set("a", s.addonSelections.map((a) => `${a.key}:${a.qty}`).join(","));
   if (s.codes.length) q.set("c", s.codes.join(","));
+  if (s.coins && s.coins > 0) q.set("k", String(s.coins));
   // Commas and colons read fine in a link; keep them literal so the WhatsApp text stays short.
   return q.toString().replace(/%2C/g, ",").replace(/%3A/g, ":");
 }
@@ -297,6 +300,11 @@ export function selectionsFromQuote(catalog: ClientCatalogSnapshot, q: QuotePara
 export function quoteCodes(q: QuoteParams): string[] {
   const codes = (q.c ?? "").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z0-9-]{2,40}$/.test(c));
   return [...new Set(codes)].slice(0, 5);
+}
+
+export function quoteCoins(q: QuoteParams): number {
+  const n = Number(q.k);
+  return Number.isInteger(n) && n > 0 ? n : 0;
 }
 
 /** The quote params alone, for forwarding through sign-in; "" when the URL carries none. */
