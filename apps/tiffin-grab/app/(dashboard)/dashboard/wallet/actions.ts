@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate, users } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
+import { currentUserId } from "@/lib/services/session-service";
 import {
   awardCustomerBroadcast,
   listOrderCities,
@@ -71,5 +72,7 @@ export async function broadcastCustomerPayout(input: unknown): Promise<CustomerB
   await requireAdmin();
   const data = broadcastSchema.parse(input);
   const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
-  return awardCustomerBroadcast(rows.map((r) => r.id), data.coins, data.memo);
+  const result = await awardCustomerBroadcast(rows.map((r) => r.id), data.coins, data.memo, await currentUserId());
+  revalidatePath(PATH, "layout");
+  return result;
 }

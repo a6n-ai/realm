@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
@@ -108,8 +109,12 @@ async function WalletStatsData() {
  * not show as a debit here while the balance ignores it (it reads as a second
  * debit next to the re-collect row).
  */
-export async function walletLedgerRows({ q, sort, page }: {
+const actor = alias(users, "actor");
+
+export async function walletLedgerRows({ q, sourceType, sort, page }: {
   q?: string;
+  /** Narrows to one source, e.g. the Give coins history (`manual_broadcast`). */
+  sourceType?: string;
   sort: SortState<WalletSortColumn>;
   page: { page: number; size: number };
 }) {
@@ -122,8 +127,11 @@ export async function walletLedgerRows({ q, sort, page }: {
         ilike(orders.publicId, `%${q}%`),
       )
     : undefined;
-  const live = unexpired(walletLedger, Date.now());
-  const where = search ? and(live, search) : live;
+  const where = and(
+    unexpired(walletLedger, Date.now()),
+    search,
+    sourceType ? eq(walletLedger.sourceType, sourceType) : undefined,
+  );
 
   const [rows, [{ total }]] = await Promise.all([
     db
@@ -137,10 +145,12 @@ export async function walletLedgerRows({ q, sort, page }: {
         memo: walletLedger.memo,
         email: users.email,
         orderPublicId: orders.publicId,
+        actorName: actor.name,
       })
       .from(walletLedger)
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .leftJoin(actor, eq(actor.id, walletLedger.createdBy))
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], walletLedger.id))
       .limit(page.size)

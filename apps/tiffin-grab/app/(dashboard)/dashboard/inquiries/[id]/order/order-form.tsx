@@ -37,7 +37,7 @@ import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
+import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCoinPreview, type StaffCouponPreview } from "./actions";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { quoteLinkQuery } from "@/components/wizard/selections";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
@@ -141,6 +141,10 @@ export type EstimateState = {
   /** The long subscribe link inside copyText, so the panel can swap in a short /q/ link. */
   link: string | null;
   coupons: StaffCouponPreview | null;
+  /** The matched customer's coins on this quote; null for a new customer. */
+  coins: StaffCoinPreview | null;
+  /** How many coins the customer wants to use; "max" (the default) takes all this order allows. */
+  setCoins: (coins: number | "max") => void;
   codes: string[];
   apply: (code: string) => void;
   remove: (code: string) => void;
@@ -208,6 +212,8 @@ export function OrderForm({
   const [couponCodes, setCouponCodes] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState("");
   const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
+  const [coinsWanted, setCoinsWanted] = useState<number | "max">("max");
+  const [coinPreview, setCoinPreview] = useState<StaffCoinPreview | null>(null);
   const removeCoupon = (code: string) => setCouponCodes((cs) => cs.filter((c) => c !== code.toUpperCase()));
   const applyCoupon = (code: string) => {
     const next = code.trim().toUpperCase();
@@ -502,11 +508,13 @@ export function OrderForm({
       }),
       repCode,
       discount > 0 ? discount : undefined,
+      estimateOnly ? coinsWanted : undefined,
     )
       .then((r) => {
         if (cancelled) return;
         setPreview("error" in r ? null : r.preview);
         setCoupons("error" in r ? null : r.coupons);
+        setCoinPreview("error" in r ? null : r.coins);
         const bulk = bulkCodes.current;
         if (bulk && !("error" in r)) {
           bulkCodes.current = null;
@@ -527,7 +535,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase(), coinsWanted]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -585,7 +593,7 @@ export function OrderForm({
     const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
     const firstName = contact.fullName.trim().split(/\s+/)[0];
     // Opens the customer's subscribe stepper on these picks, codes ready at checkout (see selectionsFromQuote).
-    const link = `${window.location.origin}/subscribe?${quoteLinkQuery({ planKey, mealSizeId, frequencyKey, eatingDays, durationWeeks: Number(durationWeeks), addonSelections, codes: toType })}`;
+    const link = `${window.location.origin}/subscribe?${quoteLinkQuery({ planKey, mealSizeId, frequencyKey, eatingDays, durationWeeks: Number(durationWeeks), addonSelections, codes: toType, coins: coinPreview?.used })}`;
     const copyText = shownPreview
       ? [
           `Hi${firstName ? ` ${firstName}` : ""}! Here is your Tiffin Grab estimate:`,
@@ -602,6 +610,7 @@ export function OrderForm({
             // One code per line in monospace, so it can be long-pressed and copied on its own.
             ? ["", `*Coupon code${toType.length > 1 ? "s" : ""} to enter at checkout:*`, ...toType.map((c) => "```" + c + "```")]
             : []),
+          ...(coinPreview?.used ? ["", `*Coins to use at checkout:* ${coinPreview.used}`] : []),
           "",
           `Order here: ${link}`,
         ].join("\n")
@@ -612,6 +621,8 @@ export function OrderForm({
       copyText,
       link: shownPreview ? link : null,
       coupons,
+      coins: coinPreview,
+      setCoins: setCoinsWanted,
       codes: couponCodes,
       apply: applyCoupon,
       remove: removeCoupon,
@@ -619,7 +630,7 @@ export function OrderForm({
     });
     // Every input to the text also reprices, so the preview alone is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownPreview, previewError, coupons, couponCodes.join()]);
+  }, [shownPreview, previewError, coupons, couponCodes.join(), coinPreview]);
 
   const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
   async function continueToPayment() {

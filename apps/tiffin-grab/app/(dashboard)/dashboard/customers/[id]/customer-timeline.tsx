@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ClipboardListIcon, HistoryIcon, MapPinIcon, PackageIcon } from "lucide-react";
+import { ClipboardListIcon, CoinsIcon, HistoryIcon, MapPinIcon, PackageIcon } from "lucide-react";
 import { DataTable, SearchInput, type Column } from "@/components/ds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
@@ -11,13 +11,14 @@ import type { getCustomer360 } from "@/lib/services/customers.service";
 
 type TimelineEntry = Awaited<ReturnType<typeof getCustomer360>>["timeline"][number];
 
-const KIND_ICON = { order: PackageIcon, inquiry: ClipboardListIcon, address: MapPinIcon } as const;
-const KIND_LABEL = { order: "Order", inquiry: "Inquiry", address: "Address" } as const;
+const KIND_ICON = { order: PackageIcon, inquiry: ClipboardListIcon, address: MapPinIcon, wallet: CoinsIcon } as const;
+const KIND_LABEL = { order: "Order", inquiry: "Inquiry", address: "Address", wallet: "Coins" } as const;
 
 function entryHref(e: TimelineEntry): string {
   const id = e.id.slice(e.id.indexOf(":") + 1);
   if (e.id.startsWith("plan-address:")) return `/dashboard/orders/${id.split(":")[0]}`;
   if (e.kind === "address") return "#addresses";
+  if (e.kind === "wallet") return "/dashboard/wallet/ledger";
   return e.kind === "order" ? `/dashboard/orders/${id}` : `/dashboard/inquiries/${id}`;
 }
 

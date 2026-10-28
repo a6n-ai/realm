@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { QUOTE_COINS_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
@@ -48,6 +48,7 @@ const reprice = vi.fn(async (...args: unknown[]) => {
     paymentMethods: [],
     coinBalance,
     coinsToEarn,
+    coinsApplied: coins ? { coins, amount: coins } : undefined,
   };
 });
 const validatePostal = vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
@@ -141,7 +142,7 @@ describe("Checkout coins control", () => {
     // The Invoice renders result.adjustments — reprice already folds the coin
     // discount line into pricing, same as a coupon adjustment.
     expect(await screen.findByText(/coins \(30\)/i)).toBeTruthy();
-    expect(screen.getByText(/−\$30\.00/)).toBeTruthy();
+    expect(screen.getAllByText(/−\$30\.00/).length).toBeGreaterThan(0);
   });
 
   it("asking for more coins than the balance surfaces an error instead of silently applying", async () => {
@@ -155,5 +156,25 @@ describe("Checkout coins control", () => {
 
     expect(await screen.findByText(/don.t have that many coins/i)).toBeTruthy();
     expect(screen.queryByText(/coins \(200\)/i)).toBeNull();
+  });
+
+  it("applies the coins from a staff estimate link on the first price", async () => {
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(QUOTE_COINS_KEY, "30");
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await waitFor(() => expect(reprice.mock.calls[0]?.[4]).toBe(30));
+    await toPayment();
+    expect(await screen.findByText(/estimate's coins are applied/i)).toBeTruthy();
+    expect(reprice.mock.calls.at(-1)?.[4]).toBe(30);
+    expect(sessionStorage.getItem(QUOTE_COINS_KEY)).toBeNull();
+  });
+
+  it("drops estimate coins the wallet can't cover and says why", async () => {
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(QUOTE_COINS_KEY, "500");
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
+    expect(await screen.findByText(/don't have that many coins/i)).toBeTruthy();
+    expect(reprice.mock.calls.at(-1)?.[4]).toBeUndefined();
   });
 });

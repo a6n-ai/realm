@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { quoteCodes, quoteLinkQuery, quoteQuery, selectionsFromQuote } from "../selections";
+import { quoteCodes, quoteCoins, quoteLinkQuery, quoteQuery, selectionsFromQuote } from "../selections";
 
 const catalog = {
   plans: [{ publicId: "pln_veg", key: "veg", name: "Veg", description: "", planType: "tiffin", offeredSlots: ["lunch"], allowedStartDays: ["mon"] }],
@@ -52,5 +52,21 @@ describe("quote codes and forwarding", () => {
   it("forwards quote params alone", () => {
     expect(quoteQuery(new URLSearchParams("p=veg&error=x&c=A1"))).toBe("?p=veg&c=A1");
     expect(quoteQuery({})).toBe("");
+  });
+});
+
+describe("quote coins (k)", () => {
+  it("round-trips through the link and survives quoteQuery forwarding", () => {
+    const q = quoteLinkQuery({ planKey: "veg", mealSizeId: "msz_small", frequencyKey: "mwf", eatingDays: ["mon"], durationWeeks: 1, codes: [], coins: 40 });
+    const params = Object.fromEntries(new URLSearchParams(q));
+    expect(quoteCoins(params)).toBe(40);
+    expect(quoteQuery(new URLSearchParams(q))).toContain("k=40");
+  });
+
+  it("leaves k out at 0 and ignores junk", () => {
+    expect(quoteLinkQuery({ planKey: "veg", mealSizeId: "m", frequencyKey: "f", eatingDays: [], durationWeeks: 1, codes: [], coins: 0 })).not.toContain("k=");
+    expect(quoteCoins({ k: "-3" })).toBe(0);
+    expect(quoteCoins({ k: "2.5" })).toBe(0);
+    expect(quoteCoins({})).toBe(0);
   });
 });

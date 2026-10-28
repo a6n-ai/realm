@@ -169,6 +169,8 @@ export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
             {estimate && <CouponsField estimate={estimate} />}
 
+            {estimate?.coins && <CoinsField coins={estimate.coins} setCoins={estimate.setCoins} />}
+
             <CustomerCodeField
               subtotal={estimate?.preview?.subtotal ?? 0}
               apply={estimate?.apply}
@@ -182,6 +184,50 @@ export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// The existing customer's wallet: every coin this order allows is applied by default; staff lower
+// it when the customer wants to keep some. The server clamps whatever is typed to that maximum.
+function CoinsField({ coins, setCoins }: { coins: NonNullable<EstimateState["coins"]>; setCoins: EstimateState["setCoins"] }) {
+  const [draft, setDraft] = useState(String(coins.used));
+  useEffect(() => setDraft(String(coins.used)), [coins.used]);
+  const submit = () => {
+    const n = Number(draft);
+    if (Number.isInteger(n) && n >= 0) setCoins(n);
+    else setDraft(String(coins.used));
+  };
+
+  return (
+    <section className="grid gap-3">
+      <Label htmlFor="estimate-coins">Coins</Label>
+      {coins.balance > 0 ? (
+        <div className="grid gap-2">
+          <div className="flex gap-2">
+            <Input
+              id="estimate-coins"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={coins.maxCoins}
+              step={1}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={submit}
+              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            />
+            <Button type="button" variant="outline" disabled={coins.maxCoins <= 0} onClick={() => setCoins("max")}>Max</Button>
+          </div>
+          <p className="text-muted-foreground text-xs tabular-nums">
+            {coins.balance} in wallet · up to {coins.maxCoins} on this order
+            {coins.used > 0 ? ` · ${coins.used} used, −$${coins.value.toFixed(2)}` : ""}
+          </p>
+          {coins.message && <p className="text-muted-foreground text-xs">{coins.message}</p>}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">No coins in this customer&apos;s wallet.</p>
+      )}
+    </section>
   );
 }
 

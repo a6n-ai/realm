@@ -20,7 +20,7 @@ import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
 import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
 import { renewPageMode } from "@/components/renew/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
-import { quoteCodes, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
+import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
@@ -128,7 +128,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           origin={full ? "subscribe" : "renew"}
           initial={initial}
           checkout={checkout ?? undefined}
-          quote={quoted ? { picks: initial, codes: quoteCodes(params) } : null}
+          quote={quoted ? { picks: initial, codes: quoteCodes(params), coins: quoteCoins(params) } : null}
           currentPlan={current}
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}

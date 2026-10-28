@@ -14,7 +14,10 @@ import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/servic
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
-import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { capRedemption } from "@foundry/wallet";
+import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { walletService } from "@/lib/services/wallet.service";
 import { repAllowanceZone } from "@/lib/services/rep-allowance";
 import { findMethod } from "@foundry/payments";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
@@ -176,8 +179,9 @@ export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
+  coins?: number | "max",
 ): Promise<ActionResult<StaffPricePreview>> {
-  return runAction(() => quotePrice(input, couponCode, requestedAmount));
+  return runAction(() => quotePrice(input, couponCode, requestedAmount, coins));
 }
 
 // The customer coupon lane as createOrder will resolve it: what landed on the price, why the
@@ -191,7 +195,9 @@ export type StaffCouponPreview = {
   notApplied: { code: string; reason: string }[];
   available: AvailableCoupon[];
 };
-export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview };
+/** The matched customer's wallet on this quote: what they hold, the most this order takes, and what is applied. */
+export type StaffCoinPreview = { balance: number; maxCoins: number; used: number; value: number; message: string | null };
+export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview; coins: StaffCoinPreview | null };
 
 // The account createOrder would bill, when the contact matches exactly one. Usage-capped and
 // first-order coupons are judged against it; no match leaves those gates to createOrder. An
@@ -206,6 +212,7 @@ async function quotePrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
+  coins?: number | "max",
 ): Promise<StaffPricePreview> {
   await requireStaff();
   const snap = await loadCatalogSnapshot();
@@ -279,8 +286,31 @@ async function quotePrice(
     }
   }
 
+  // Coins last, against what the coupons left, with the cap and clamp checkout and createOrder
+  // use. Only a matched account has a wallet; unset `coins` (the order create forms) skips them.
+  let coinPreview: StaffCoinPreview | null = null;
+  if (coins != null && customerId != null) {
+    const balance = await walletService.balance(customerId);
+    const remaining = postCatalogSubtotal(postCatalog, lines);
+    const [{ currency }, maxPct, maxRedeemPctOfBalance] = await Promise.all([getAppSettings(), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
+    const rate = await walletService.activeRate(currency);
+    const cap = quoteCoinCap({ subtotal: postCatalog, remaining, balance, rate, maxPct, maxRedeemPctOfBalance });
+    const want = Math.max(0, Math.min(coins === "max" ? cap.maxCoins : Math.floor(coins), cap.maxCoins));
+    const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+    const redemption = want > 0 ? capRedemption(want, rate, Math.min(remaining, pctCap)) : { coinsSpent: 0, currencyValue: 0 };
+    if (redemption.currencyValue > 0) lines.push({ label: `Coins (${redemption.coinsSpent})`, amount: redemption.currencyValue });
+    coinPreview = {
+      balance,
+      maxCoins: cap.maxCoins,
+      used: redemption.currencyValue > 0 ? redemption.coinsSpent : 0,
+      value: redemption.currencyValue,
+      message: coinCapMessage(cap, { balance, maxPct, maxRedeemPctOfBalance }),
+    };
+  }
+
   return {
     preview: lines.length > 0 ? await quote(lines) : base,
+    coins: coinPreview,
     coupons: {
       applied,
       error,

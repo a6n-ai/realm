@@ -6,6 +6,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 // Anonymous checkout: no wallet, so the preview and the order differ only by tax.
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
+// Staff who see every org, so the estimate can match the customer's account and read their wallet.
+vi.mock("@/lib/services/orders.service", async (orig) => ({ ...(await orig<typeof import("@/lib/services/orders.service")>()), resolveSessionVisibleOrgIds: async () => "all" as const }));
 vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/guards")>()), requireStaff: async () => undefined }));
 
 const { previewPrice } = await import("@/app/(dashboard)/dashboard/inquiries/[id]/order/actions");
@@ -164,5 +166,30 @@ describe("coupons apply after catalog discounts", () => {
     await createOrder(input, {});
     const [order] = await db.select().from(orders).where(ne(orders.deploymentId, ""));
     expect(Number(order!.total)).toBeCloseTo(r.preview.total, 2);
+  });
+
+  it("the estimate applies the customer's max coins by default, a lower count on request, and matches the order", async () => {
+    const { coinRate } = await import("@/db/schema");
+    await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" });
+    const input = await inputFor("M5V 2T6");
+    const [u] = await db.insert(users).values({ email: input.contact.email, role: "user" }).returning({ id: users.id });
+    await db.insert(walletLedger).values({ userId: u!.id, direction: "credit", sourceType: "seed", sourceId: "estimate-coins", coins: 40 });
+
+    const max = await previewPrice(input, undefined, undefined, "max");
+    if ("error" in max) throw new Error(max.error);
+    expect(max.coins).toMatchObject({ balance: 40, maxCoins: 40, used: 40, value: 10 });
+    expect(max.preview.adjustments.at(-1)).toMatchObject({ label: "Coins (40)", amount: 10 });
+
+    const some = await previewPrice(input, undefined, undefined, 12);
+    if ("error" in some) throw new Error(some.error);
+    expect(some.coins).toMatchObject({ used: 12, value: 3 });
+
+    const none = await previewPrice(input);
+    if ("error" in none) throw new Error(none.error);
+    expect(none.coins).toBeNull();
+
+    await createOrder({ ...input, coins: 12 }, {});
+    const [order] = await db.select().from(orders).where(ne(orders.deploymentId, ""));
+    expect(Number(order!.total)).toBeCloseTo(some.preview.total, 2);
   });
 });
