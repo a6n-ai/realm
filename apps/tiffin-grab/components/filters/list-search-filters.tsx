@@ -33,7 +33,11 @@ export function ListSearchFilters({
   // Mirrors DataTable's own internal search-query hook: merge q, and drop page
   // so a search typed while on page 2 doesn't land on an empty filtered page.
   const setQ = useCallback(
-    (v: string) => {
+    (raw: string) => {
+      // Server search ignores spacing, so a typed space or doubled gap would
+      // only refetch the same rows.
+      const v = raw.trim().replace(/\s+/g, " ");
+      if (v === q) return;
       const sp = new URLSearchParams(params.toString());
       if (v) sp.set("q", v);
       else sp.delete("q");
@@ -41,7 +45,7 @@ export function ListSearchFilters({
       const qs = sp.toString();
       nav(qs ? `${pathname}?${qs}` : pathname);
     },
-    [params, pathname, nav],
+    [params, pathname, nav, q],
   );
 
   const hasDate = spec.some((f) => f.kind === "dateRange");
@@ -55,7 +59,7 @@ export function ListSearchFilters({
           onChange={setQ}
           placeholder={placeholder}
           shortPlaceholder={shortPlaceholder}
-          debounceMs={300}
+          debounceMs={500}
         />
       )}
       <ReuiFacetFilters spec={spec} hideDate={dateControl !== "menu" && hasDate} />

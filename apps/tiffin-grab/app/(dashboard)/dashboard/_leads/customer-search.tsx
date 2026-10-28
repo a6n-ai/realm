@@ -16,7 +16,7 @@ export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void })
   // Results carry the query they belong to, so "no results yet" is derived rather
   // than written synchronously in the effect — and a stale list can never show.
   const [found, setFound] = useState<{ q: string; items: CustomerHit[] }>({ q: "", items: [] });
-  const term = q.trim();
+  const term = q.trim().replace(/\s+/g, " ");
   const hits = found.q === term ? found.items : [];
 
   useEffect(() => {
