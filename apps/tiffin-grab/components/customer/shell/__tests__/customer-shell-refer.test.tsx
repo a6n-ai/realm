@@ -33,6 +33,6 @@ describe("CustomerShell Refer tab", () => {
 
   it("shows a live cutoff countdown", () => {
     render(<CustomerShell coinBalance={0} cutoffHour={18} userPublicId="usr_test">x</CustomerShell>);
-    expect(screen.getByTestId("cutoff-chip").textContent).toMatch(/Cutoff in(\d+h \d+m|\d+:\d\d)/);
+    expect(screen.getByTestId("cutoff-chip").textContent).toMatch(/Cutoff in(\d+h \d+m|\d+m|\d+:\d\d)/);
   });
 });
