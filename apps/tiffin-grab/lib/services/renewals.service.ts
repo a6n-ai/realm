@@ -172,7 +172,7 @@ export async function listRenewedCustomers(
           .select({ userId: orders.userId, mealSize: mealSizes.name, lastTiffin: sql<string | null>`${lastTiffinSql}` })
           .from(orders)
           .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-          .where(and(inArray(orders.userId, userIds), running))
+          .where(and(inArray(orders.userId, userIds), running, visibleOrgWhere(visible)))
           .orderBy(desc(orders.startDate))
       : Promise.resolve([]),
     renewalMoney(rows.map((r) => ({ id: r.userId, userId: r.userId }))),
@@ -267,10 +267,14 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     renewalMoney([{ id: rows[rows.length - 1].id, userId: user.id }]),
   ]);
   // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft>:<channel>.
-  const reminders = reminderRows.map((r) => {
-    const [, orderPublicId, , days] = (r.key ?? "").split(":");
-    return { sentAt: Number(r.sentAt), status: r.status, daysLeft: days ? Number(days) : null, orderPublicId: orderPublicId ?? null };
-  });
+  // Only reminders for plans this staff member can see: another franchise's plans stay hidden.
+  const visiblePlans = new Set(rows.map((r) => r.orderPublicId));
+  const reminders = reminderRows
+    .map((r) => {
+      const [, orderPublicId, , days] = (r.key ?? "").split(":");
+      return { sentAt: Number(r.sentAt), status: r.status, daysLeft: days ? Number(days) : null, orderPublicId: orderPublicId ?? null };
+    })
+    .filter((r) => r.orderPublicId != null && visiblePlans.has(r.orderPublicId));
 
   return {
     customer: { publicId: user.publicId, name: user.name ?? "", phone: user.phone, email: user.email },

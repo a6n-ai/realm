@@ -144,6 +144,9 @@ describe("renewals service (integration)", () => {
     const r = await getCustomerRenewal("all", first.customerPublicId);
     expect(r?.plans.map((p) => [p.orderPublicId, p.next, p.gapDays])).toEqual([[first.publicId, "renewed", 3], [second.publicId, "none", null]]);
     expect(r?.reminders).toMatchObject([{ orderPublicId: first.publicId, daysLeft: 5 }]);
+    // A reminder for a plan this staff member cannot see (another franchise) is left out.
+    await db.insert(notificationOutbox).values({ recipientId: first.userId, channel: "email", event: "order_renewal_reminder", payload: {}, dedupeKey: "renewal:ord_elsewhere:2026-01-01:1:email" });
+    expect((await getCustomerRenewal("all", first.customerPublicId))?.reminders.map((x) => x.orderPublicId)).toEqual([first.publicId]);
     expect(await getCustomerRenewal(["no-such-org"], first.customerPublicId)).toBeNull();
     expect(await getCustomerRenewal("all", "usr_missing")).toBeNull();
   });
