@@ -103,6 +103,16 @@ describe("adminSetDeliveryStatus", () => {
     expect(updated.status).toBe("scheduled");
   });
 
+  it("refuses to change a delivery OptimoRoute confirmed on its route", async () => {
+    const order = await makeOrder();
+    const row = await seedDelivery(order.id, { routeSyncedAt: 1, optimoCompletionStatus: "success", optimoCompletedAt: 1 });
+    await expect(adminSetDeliveryStatus(row.publicId, "not_delivered", 1n)).rejects.toThrow(/complimentary/);
+    await expect(adminSetDeliveryStatus(row.publicId, "upcoming", 1n)).rejects.toThrow(/complimentary/);
+    const [kept] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect(kept).toMatchObject({ status: "scheduled", optimoCompletionStatus: "success" });
+    expect(deleteOrder).not.toHaveBeenCalledWith(row.publicId);
+  });
+
   it("refuses Delivered before the delivery's day", async () => {
     const order = await makeOrder();
     const row = await seedDelivery(order.id, { cutoffAt: Date.now() + 1e9, deliveryDate: "2030-06-02" });

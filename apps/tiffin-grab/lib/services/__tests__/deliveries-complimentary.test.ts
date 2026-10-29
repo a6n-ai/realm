@@ -47,6 +47,15 @@ describe("grantComplimentaryTiffin", () => {
     await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "  ", notify: false }, null)).rejects.toThrow(/reason/);
   });
 
+  it("gives a trial a free tiffin on its own send days, not the frequency's", async () => {
+    const { order } = await makeTripOrder(DEP, PREFIX);
+    await db.update(orders).set({ trialLength: 1, trialWeekdays: ["tue"] }).where(eq(orders.id, order.id));
+    await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false }, null)).rejects.toThrow(/delivery days/);
+    await grantComplimentaryTiffin(order.publicId, { date: "2030-01-15", note: "Wrong meal", notify: false }, null);
+    const [o] = await db.select({ complimentaryTiffins: orders.complimentaryTiffins }).from(orders).where(eq(orders.id, order.id));
+    expect(o!.complimentaryTiffins).toBe(1);
+  });
+
   it("reopens a plan that is over, and complete-plans closes it again once the day is past", async () => {
     const { order } = await makeTripOrder(DEP, PREFIX);
     await db.update(orders).set({ status: "completed" }).where(eq(orders.id, order.id));

@@ -328,8 +328,8 @@ async function OrderDetail({
     .filter((r) => r.deliveryDate <= settingsToday && r.status !== "cancelled" && r.mergedIntoDeliveryId == null && !compensated.has(String(r.id)))
     .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
     .map((r) => ({ publicId: r.publicId, label: `${humanDate(r.deliveryDate)} · ${deliveryState(r)}` }));
-  // Admin only; a trial, a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
-  const canGiveFree = session?.user?.role === "admin" && order.trialLength == null
+  // Admin only; a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
+  const canGiveFree = session?.user?.role === "admin"
     && complimentaryBlocker(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status)) == null;
   const headerActions = (
     <>
@@ -362,7 +362,7 @@ async function OrderDetail({
           orderId={order.publicId}
           ended={order.status === "completed"}
           minDate={nextWeekday(startToday).toISOString().slice(0, 10)}
-          allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun" && dayAllowed(d as DayOfWeek, counts?.mealDays))}
+          allowedDays={((order.trialLength != null && order.trialWeekdays?.length ? order.trialWeekdays : counts?.deliveryWeekdays) ?? []).filter((d) => d !== "sat" && d !== "sun" && dayAllowed(d as DayOfWeek, counts?.mealDays))}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
           initialForId={free ?? null}

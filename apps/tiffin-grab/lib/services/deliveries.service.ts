@@ -430,6 +430,12 @@ export async function adminSetDeliveryStatus(
       : row.optimoCompletionStatus === "success" ? "delivered"
       : "upcoming";
     if (current === status) return;
+    // A delivered stop that went out on the route is OptimoRoute's to call: the next pull would
+    // flip a staff change straight back. A driver's mistake is fixed in OptimoRoute, a goodwill
+    // meal is a complimentary tiffin.
+    if (current === "delivered" && row.routeSyncedAt != null) {
+      throw new ValidationError("OptimoRoute confirmed this delivered. Give a complimentary tiffin instead, or fix the stop in OptimoRoute.");
+    }
     // A staff hold is final for that day: the stop was pulled and the kitchen planned without it.
     // The tiffin gets a new day via Move. An OptimoRoute failure can still be corrected.
     if (row.status === "skipped" && row.optimoCompletionStatus !== "failed") {
@@ -625,6 +631,17 @@ export async function orderDeliveryDaySet(tx: Tx, order: Order): Promise<Set<str
   const allowed = await mealSizeAllowedDays(order.mealSizeId, tx);
   const kept = days.filter((d) => dayAllowed(d, allowed));
   return new Set(kept.length > 0 ? kept : days);
+}
+
+/**
+ * The days this order may get a tiffin on. A trial rides the Trial settings frequency, so it uses its own
+ * send days (already limited to the meal size's allowed days), the same rule holiday extras use
+ * (holiday-apply.ts planWeekdays).
+ */
+async function planDaySet(tx: Tx, order: Order): Promise<Set<string>> {
+  return order.trialLength != null && order.trialWeekdays?.length
+    ? new Set(order.trialWeekdays)
+    : orderDeliveryDaySet(tx, order);
 }
 
 /** Extras follow the trip; a single-day trip re-dated to the picked eat day carries them there. */
@@ -884,11 +901,7 @@ export async function shiftMissedDeliveries(
   )).orderBy(asc(deliveries.deliveryDate));
   if (missed.length === 0) return [];
 
-  // A trial rides the Trial settings frequency; its make-ups land on its own send days (already limited to the
-  // meal size's allowed days), the same rule holiday extras use (holiday-apply.ts planWeekdays).
-  const planDays = order.trialLength != null && order.trialWeekdays?.length
-    ? new Set(order.trialWeekdays as DayOfWeek[])
-    : await orderDeliveryDaySet(tx, order);
+  const planDays = await planDaySet(tx, order);
   const weekdays = new Set([...planDays].filter((d) => d !== "sat" && d !== "sun"));
   const yesterday = parseIsoDateUtc(today);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
@@ -1237,7 +1250,6 @@ export async function grantComplimentaryTiffin(
     await tx.execute(sql`select pg_advisory_xact_lock(${found.id})`);
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
     if (!order) throw new ValidationError("Order not found");
-    if (order.trialLength != null) throw new ValidationError("A trial can't get complimentary tiffins");
     const pays = await tx.select({ status: payments.status }).from(payments).where(and(eq(payments.orderId, order.id), isNull(payments.addonRequest)));
     const blocked = complimentaryBlocker(order.status, pays.map((p) => p.status));
     if (blocked) throw new ValidationError(blocked);
@@ -1246,7 +1258,7 @@ export async function grantComplimentaryTiffin(
     const day = weekdayKey(parseIsoDateUtc(input.date));
     const allowedErr = allowedDaysError([day as DayOfWeek], await mealSizeAllowedDays(order.mealSizeId, tx));
     if (allowedErr) throw new ValidationError(allowedErr);
-    if (WEEKEND.has(day) || !(await orderDeliveryDaySet(tx, order)).has(day)) {
+    if (WEEKEND.has(day) || !(await planDaySet(tx, order)).has(day)) {
       throw new ValidationError("Pick one of this plan's delivery days");
     }
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);
