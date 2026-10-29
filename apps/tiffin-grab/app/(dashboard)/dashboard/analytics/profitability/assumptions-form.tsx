@@ -2,11 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { CalculatorIcon } from "lucide-react";
 import { toast } from "sonner";
-import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "@/app/(dashboard)/dashboard/discounts/controls";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
+import {
+  AnalyticsBadge,
+  AnalyticsEyebrow,
+  AnalyticsPanel,
+} from "@/components/analytics/analytics-panel";
 import { saveAssumptionsAction } from "./actions";
 
 const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
@@ -59,28 +64,48 @@ export function AssumptionsForm({ current }: { current: ProfitabilityAssumptions
   }
 
   return (
-    <SectionCard
-      title="Cost assumptions"
-      subtitle="Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every day of that month, including days with no deliveries."
-    >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {FIELDS.map((f) => (
-          <NumberField
-            key={f.key}
-            id={f.key}
-            label={f.label}
-            prefix="$"
-            min={0}
-            step={0.01}
-            value={fields[f.key]}
-            onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
-            placeholder="0"
-          />
-        ))}
+    <AnalyticsPanel padding="lg" className="flex h-full flex-col justify-between gap-5">
+      <div className="flex flex-col gap-4">
+        <div>
+          <div className="flex items-center justify-between gap-2 pb-1">
+            <h3 className="text-foreground text-lg font-semibold tracking-tight">Cost assumptions</h3>
+            <AnalyticsBadge tone="brand">Editable</AnalyticsBadge>
+          </div>
+          <p className="text-muted-foreground text-xs text-pretty">
+            Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every
+            day of that month, including days with no deliveries.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {FIELDS.map((f) => (
+            <NumberField
+              key={f.key}
+              id={f.key}
+              label={f.label}
+              prefix="$"
+              min={0}
+              step={0.01}
+              value={fields[f.key]}
+              onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
+              placeholder="0"
+            />
+          ))}
+        </div>
+
+        <div className="bg-muted/60 flex flex-col gap-1 rounded-xl p-3">
+          <AnalyticsEyebrow>How these feed profit</AnalyticsEyebrow>
+          <p className="text-muted-foreground text-xs text-pretty">
+            Saving recalculates net profit, margin, and average profit per tiffin for the selected
+            period.
+          </p>
+        </div>
       </div>
-      <Button onClick={save} disabled={pending} className="mt-4 w-fit">
-        Save assumptions
+
+      <Button onClick={save} disabled={pending} className="w-full gap-1.5">
+        <CalculatorIcon className="size-4" aria-hidden />
+        {pending ? "Saving…" : "Save assumptions"}
       </Button>
-    </SectionCard>
+    </AnalyticsPanel>
   );
 }

@@ -32,31 +32,45 @@ function pct(n: number | null) {
 
 export function ProfitTable({ rows, grain }: { rows: ProfitRow[]; grain: Grain }) {
   return (
-    <DataTable
-      pagination="client"
-      serial={false}
-      columns={COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.date}
-      emptyIcon={BanknoteIcon}
-      emptyMessage="No days in this range."
-      renderRow={(r) => (
-        <>
-          <TableCell className="whitespace-nowrap">{periodLabel(r.date, grain)}</TableCell>
-          <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.cashCollected)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.kitchen)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.driver)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.marketing)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.salaries)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.other)}</TableCell>
-          <TableCell className={cn("text-right font-medium tabular-nums", r.profit < 0 && "text-destructive")}>
-            {money(r.profit)}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">{pct(r.marginPct)}</TableCell>
-        </>
-      )}
-    />
+    <div className="overflow-x-auto">
+      <DataTable
+        pagination="client"
+        serial={false}
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.date}
+        emptyIcon={BanknoteIcon}
+        emptyMessage="No days in this range."
+        renderRow={(r) => (
+          <>
+            <TableCell className="whitespace-nowrap font-medium">{periodLabel(r.date, grain)}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.cashCollected)}</TableCell>
+            <TableCell className="text-right font-semibold tabular-nums">{money(r.revenue)}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.kitchen)}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.driver)}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.marketing)}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.salaries)}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.other)}</TableCell>
+            <TableCell
+              className={cn(
+                "text-right font-semibold tabular-nums",
+                r.profit < 0 ? "text-destructive" : "text-[var(--accent-badge)]",
+              )}
+            >
+              {money(r.profit)}
+            </TableCell>
+            <TableCell
+              className={cn(
+                "text-right font-semibold tabular-nums",
+                r.marginPct != null && r.marginPct < 0 && "text-destructive",
+              )}
+            >
+              {pct(r.marginPct)}
+            </TableCell>
+          </>
+        )}
+      />
+    </div>
   );
 }

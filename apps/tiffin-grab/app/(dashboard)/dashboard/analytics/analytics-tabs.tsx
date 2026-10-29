@@ -13,7 +13,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { cn } from "@foundry/ui/cn";
 import { ANALYTICS_FILTER_PARAMS } from "@/lib/services/analytics/shared-filter-params";
 
 const SUBTABS = [
@@ -46,20 +46,31 @@ export function AnalyticsTabs() {
     SUBTABS.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? SUBTABS[0]?.href;
 
   return (
-    <Tabs value={active}>
-      <TabsList variant="line" aria-label="Analytics sections" className="h-auto flex-wrap">
-        {SUBTABS.map((t) => {
-          const href = qs ? `${t.href}?${qs}` : t.href;
-          return (
-            <TabsTrigger key={t.href} value={t.href} asChild>
-              <Link href={href} prefetch={false}>
-                <t.icon />
-                {t.label}
-              </Link>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-    </Tabs>
+    <nav
+      aria-label="Analytics sections"
+      className="bg-card -mx-1 flex gap-1 overflow-x-auto rounded-xl p-1.5 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"
+    >
+      {SUBTABS.map((t) => {
+        const href = qs ? `${t.href}?${qs}` : t.href;
+        const isActive = t.href === active;
+        return (
+          <Link
+            key={t.href}
+            href={href}
+            prefetch={false}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors",
+              isActive
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <t.icon className="size-[18px] shrink-0" aria-hidden />
+            <span className="whitespace-nowrap">{t.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

@@ -1,19 +1,28 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
+import {
+  AnalyticsBadge,
+  AnalyticsEyebrow,
+  AnalyticsPanel,
+} from "@/components/analytics/analytics-panel";
 
 export type MetricTile = {
   label: string;
   value: string | number;
   hint?: string;
   href?: string;
-  tone?: "default" | "warn" | "bad";
+  tone?: "default" | "warn" | "bad" | "ok";
+  badge?: string;
+  badgeTone?: "neutral" | "ok" | "warn" | "brand" | "primary";
+  footer?: ReactNode;
 };
 
-const TONE: Record<NonNullable<MetricTile["tone"]>, string> = {
-  default: "",
+const VALUE_TONE: Record<NonNullable<MetricTile["tone"]>, string> = {
+  default: "text-foreground",
   warn: "text-warn",
   bad: "text-bad",
+  ok: "text-[var(--accent-badge)]",
 };
 
 /**
@@ -27,25 +36,41 @@ export function MetricTiles({ items, cols = 3 }: { items: MetricTile[]; cols?: 3
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-3 sm:gap-4",
+        "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4",
         cols === 4 ? "lg:grid-cols-4" : "md:grid-cols-3",
       )}
     >
       {items.map((it) => {
         const body = (
-          <Card className="h-full p-4">
-            <p className="text-muted-foreground text-xs font-medium">{it.label}</p>
-            <p className={cn("nums mt-1 text-2xl font-semibold tabular-nums", TONE[it.tone ?? "default"])}>
-              {it.value}
-            </p>
-            {it.hint ? <p className="text-muted-foreground mt-0.5 text-xs text-pretty">{it.hint}</p> : null}
-          </Card>
+          <AnalyticsPanel
+            padding="lg"
+            className="hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex h-full flex-col justify-between transition-shadow"
+          >
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <AnalyticsEyebrow>{it.label}</AnalyticsEyebrow>
+                {it.badge ? <AnalyticsBadge tone={it.badgeTone ?? "neutral"}>{it.badge}</AnalyticsBadge> : null}
+              </div>
+              <p
+                className={cn(
+                  "nums text-[1.75rem] leading-9 font-bold tracking-tight tabular-nums sm:text-[2rem] sm:leading-10",
+                  VALUE_TONE[it.tone ?? "default"],
+                )}
+              >
+                {it.value}
+              </p>
+              {it.hint ? (
+                <p className="text-muted-foreground mt-1.5 text-xs text-pretty">{it.hint}</p>
+              ) : null}
+            </div>
+            {it.footer ? <div className="mt-4">{it.footer}</div> : null}
+          </AnalyticsPanel>
         );
         return it.href ? (
           <Link
             key={it.label}
             href={it.href}
-            className="hover-lift focus-visible:ring-ring block rounded-xl transition-transform outline-none focus-visible:ring-2"
+            className="hover-lift focus-visible:ring-ring block rounded-xl outline-none transition-transform focus-visible:ring-2"
           >
             {body}
           </Link>
