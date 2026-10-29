@@ -7,6 +7,7 @@ import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Textarea } from "@foundry/ui/textarea";
 import { PriceTableEditor } from "@/components/dashboard/price-table-editor";
+import { colorVar } from "@/lib/sessions/calendar-events";
 import { ATTENDANCE_LABELS, CATEGORY_LABELS, CLASS_COLORS } from "@/lib/sessions/format";
 import { ATTENDANCE_MODES, SESSION_CATEGORIES } from "@/db/schema/studio";
 import { offeredLengths } from "@/lib/pricing/resolve";
@@ -65,16 +66,6 @@ const empty: ClassFormValues = {
   pricing: EMPTY_PRICING,
   prices: {},
   pattern: null,
-};
-
-const SWATCH: Record<(typeof CLASS_COLORS)[number], string> = {
-  pink: "bg-pink-400",
-  sky: "bg-sky-400",
-  blue: "bg-blue-500",
-  purple: "bg-purple-500",
-  orange: "bg-orange-400",
-  green: "bg-green-500",
-  yellow: "bg-yellow-400",
 };
 
 const WEEKDAYS = [
@@ -273,7 +264,8 @@ export function ClassForm({
                 aria-label={name}
                 disabled={readOnly}
                 onClick={() => setColor(name)}
-                className={`${SWATCH[name]} size-7 rounded-full transition-colors ${
+                style={{ backgroundColor: colorVar(name) }}
+                className={`size-7 rounded-full transition-colors ${
                   color === name ? "ring-foreground ring-2 ring-offset-2" : ""
                 }`}
               />

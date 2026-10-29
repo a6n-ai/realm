@@ -14,16 +14,16 @@ export type CalendarSession = {
   cancelled: boolean;
 };
 
-// Tailwind 500 shades as literals: the calendar takes a css colour, and Tailwind only emits
-// --color-* vars it sees used in class names, so var() references would resolve to nothing.
+// The brand --prog-* hexes (app/marketing.css) as literals, so calendars, swatches and class cards match.
+// Literals because the calendar takes a css colour and those vars are only defined on marketing pages.
 const COLOR_HEX: Record<ClassColor, string> = {
-  pink: "#ec4899",
-  sky: "#0ea5e9",
-  blue: "#3b82f6",
-  purple: "#a855f7",
-  orange: "#f97316",
-  green: "#22c55e",
-  yellow: "#eab308",
+  pink: "#ef3f8c",
+  sky: "#3fb6ea",
+  blue: "#3b5bd6",
+  purple: "#a25ddc",
+  orange: "#f28a2e",
+  green: "#2f9e5e",
+  yellow: "#e0b31c",
 };
 
 export function colorVar(color: string): string {

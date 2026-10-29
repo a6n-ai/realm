@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { assertCanBook, remainingSeats } from "../booking-policy";
+import { assertCanBook, bestRemaining, remainingSeats, seatsDuring } from "../booking-policy";
+
+const at = (hhmm: string) => new Date(`2026-11-02T${hhmm}:00+08:00`);
+
+describe("per-slot capacity", () => {
+  const nine = { startsAt: at("09:00"), endsAt: at("10:30"), seats: 1 };
+
+  it("counts only bookings that overlap the slot", () => {
+    expect(seatsDuring([nine], at("09:00"), at("10:30"))).toBe(1);
+    expect(seatsDuring([nine], at("10:30"), at("12:00"))).toBe(0);
+    expect(seatsDuring([nine], at("10:00"), at("11:30"))).toBe(1);
+  });
+
+  it("a capacity-1 day stays open while another slot is free", () => {
+    expect(bestRemaining(1, at("09:00"), at("20:30"), [nine])).toBe(1);
+    expect(bestRemaining(1, at("09:00"), at("10:30"), [nine])).toBe(0);
+    expect(bestRemaining(6, at("09:00"), at("10:30"), [])).toBe(6);
+  });
+});
 
 const future = new Date("2026-10-01T10:00:00.000Z");
 const now = new Date("2026-09-16T10:00:00.000Z");

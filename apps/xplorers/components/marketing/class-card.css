@@ -25,6 +25,7 @@
   --card-action-hover: #a6d8f8;
   --card-action-border: #8fcdf3;
 
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -35,6 +36,7 @@
   color: var(--card-ink);
   font-family: var(--font-body, system-ui, sans-serif);
   line-height: 1.6;
+  transition: border-color 150ms ease;
 }
 
 .xl-card[data-programme="explore"] { --p: var(--prog-explore); --pt: var(--prog-explore-tint); }
@@ -102,12 +104,45 @@
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--card-ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.3em;
+}
+
+/* The title link covers the card, so a tap anywhere opens the full class page. */
+.xl-card .xl-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.xl-card .xl-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.xl-card:has(.xl-card-link:focus-visible) {
+  outline: 2px solid #e8177a;
+  outline-offset: 2px;
+}
+
+.xl-card .xl-card-link:focus-visible {
+  outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .xl-card:has(.xl-card-link:hover) {
+    border-color: var(--p);
+  }
 }
 
 .xl-card .xl-card-when {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.45;
+  min-height: calc(2 * 1.45em);
 }
 
 .xl-card .xl-card-when span {
@@ -120,7 +155,13 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--card-body);
-  text-wrap: pretty;
+  text-align: justify;
+  hyphens: auto;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  min-height: calc(3 * 1.6em);
 }
 
 .xl-card .xl-card-foot {
@@ -138,6 +179,8 @@
 }
 
 .xl-card .xl-card-btn {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,13 +218,6 @@
   .xl-card .xl-card-btn:hover {
     background: var(--card-action-hover);
   }
-}
-
-.xl-card[data-compact] .xl-card-desc {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
 }
 
 /* Inside the dark app shells the card follows the theme; the public site is always light. */

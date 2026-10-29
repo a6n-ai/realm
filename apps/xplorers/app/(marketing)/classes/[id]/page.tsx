@@ -43,7 +43,7 @@ export default async function ClassPage({ params }: { params: Params }) {
             {item.title}
           </h1>
           {item.summary ? (
-            <p className="xl-lede" style={stagger(2)}>
+            <p className="xl-lede xl-justify" style={stagger(2)}>
               {item.summary}
             </p>
           ) : null}
@@ -69,7 +69,7 @@ export default async function ClassPage({ params }: { params: Params }) {
         {item.included ? (
           <div className="xl-panel xl-stack">
             <h2 className="xl-day-label">What&rsquo;s included</h2>
-            <p className="xl-body">{item.included}</p>
+            <p className="xl-body xl-justify">{item.included}</p>
           </div>
         ) : null}
         <div className="xl-panel">

@@ -1,13 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  FlaskConical,
-  Sparkle,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { ProgrammeKey } from "@/lib/marketing/content";
+import { PHOTOS } from "@/lib/marketing/photos";
 
 /** Stagger index for the CSS load sequence (`--i`). */
 export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
@@ -187,31 +183,9 @@ export function HeroCollage() {
     <div className="xl-collage" aria-hidden>
       <div className="xl-collage-plate" />
       <div className="xl-collage-card">
+        <Image src={PHOTOS.hero} alt="" fill priority sizes="(max-width: 960px) 100vw, 50vw" />
         <div className="xl-collage-sticker" style={stagger(0)}>
           a little wonder, every day
-        </div>
-        <Sparkle className="xl-collage-spark" size={40} strokeWidth={1.6} style={stagger(4)} />
-        <div className="xl-collage-flask" style={stagger(1)}>
-          <FlaskConical strokeWidth={1.6} />
-          <span>what happens if…?</span>
-        </div>
-        <div className="xl-collage-blocks" style={stagger(2)}>
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="xl-collage-words" style={stagger(3)}>
-          <span>Try it.</span>
-          <span>Make it.</span>
-          <span className="xl-emph-deep">Make it yours.</span>
-        </div>
-        <div className="xl-collage-badge" style={stagger(5)}>
-          <b>100%</b>
-          <small>HANDS-ON</small>
-        </div>
-        <div className="xl-collage-foot" style={stagger(6)}>
-          EXPERIMENTS IN POSSIBILITY ↗
         </div>
       </div>
     </div>

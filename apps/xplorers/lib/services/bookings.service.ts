@@ -18,7 +18,7 @@ import { ageOn, checkAge } from "@/lib/children/age";
 import { quoteBooking } from "@/lib/pricing/quote";
 import type { BookingChoice, Quote } from "@/lib/pricing/types";
 import { getAppClock, getDefaultPrices, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
-import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
+import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES, seatsDuring } from "./booking-policy";
 import { discountsService, type Tx } from "./discounts.service";
 import { ledgerService } from "./ledger.service";
 import { lockedBalance, spendBookingCoins, takeBackBookingCoins, walletService } from "./wallet.service";
@@ -107,21 +107,6 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       .limit(1);
     if (existing) throw new ValidationError("You've already booked this class on that day.");
 
-    const [sum] = await tx
-      .select({ seats: sql<number>`coalesce(sum(${bookings.seats}), 0)` })
-      .from(bookings)
-      .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
-
-    const now = new Date();
-    assertCanBook({
-      published: session.published,
-      archived: session.archived,
-      startsAt: occurrence.startsAt,
-      now,
-      remaining: remainingSeats(occurrence.capacity, Number(sum?.seats ?? 0)),
-      seats: kids.length,
-    });
-
     const price: Quote = quoteBooking({
       pricing: session.pricing,
       layers: [occurrence.prices, session.prices, globalTable],
@@ -134,6 +119,22 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       extensionSteps: input.extensionSteps,
       children: kids.length,
       adults: input.adults,
+    });
+
+    // Seats are checked against the chosen time, under the occurrence lock taken above.
+    const reserved = await tx
+      .select({ startsAt: bookings.startsAt, endsAt: bookings.endsAt, seats: bookings.seats })
+      .from(bookings)
+      .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
+
+    const now = new Date();
+    assertCanBook({
+      published: session.published,
+      archived: session.archived,
+      startsAt,
+      now,
+      remaining: remainingSeats(occurrence.capacity, seatsDuring(reserved, startsAt, price.endsAt)),
+      seats: kids.length,
     });
 
     const pricedClass = price.subtotal > 0;

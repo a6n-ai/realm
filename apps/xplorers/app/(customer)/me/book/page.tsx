@@ -10,6 +10,7 @@ import { getAppClock, getDefaultPrices } from "@/lib/services/app-settings.servi
 import { childrenService } from "@/lib/services/children.service";
 import { paymentsService } from "@/lib/services/payments.service";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { seatsDuring } from "@/lib/services/booking-policy";
 import { walletService } from "@/lib/services/wallet.service";
 import { monthGrid } from "@/lib/sessions/calendar";
 import { isRealDay, MAX_RANGE_DAYS, parseRange, toCalendarSessions } from "@/lib/sessions/calendar-events";
@@ -56,8 +57,18 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
     if (lengths.length === 0) {
       return <Notice title="Online booking isn't available for this session">Prices for it aren&apos;t set yet. Ask us and we&apos;ll help.</Notice>;
     }
-    const [kids, rails, rate] = await Promise.all([childrenService.listMine(), paymentsService.enabledRails(), walletService.walletRate()]);
+    const [kids, rails, rate, reserved] = await Promise.all([
+      childrenService.listMine(),
+      paymentsService.enabledRails(),
+      walletService.walletRate(),
+      studioSessionsService.reservedTimes(occ.occurrencePublicId),
+    ]);
     const pricing = occ.pricing;
+    const now = Date.now();
+    const openStarts = startTimes(occ.startsAt, occ.endsAt, lengths[0]!).filter(
+      (d) => d.getTime() > now && seatsDuring(reserved, d, new Date(d.getTime() + lengths[0]! * 60_000)) < occ.capacity,
+    );
+    if (openStarts.length === 0) return <Notice title="This day is fully booked">Every time on this day is taken. Pick another day.</Notice>;
     return (
       <BookingWizard
         key={occ.occurrencePublicId}
@@ -81,7 +92,7 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
           extension: pricing.extension ? { stepMinutes: pricing.extension.stepMinutes } : null,
           adultsFree: pricing.adults.free,
           extraAdults: pricing.adults.extraPrice !== null,
-          startTimes: startTimes(occ.startsAt, occ.endsAt, lengths[0]!).map((d) => d.toISOString()),
+          startTimes: openStarts.map((d) => d.toISOString()),
         }}
         initialChildren={kids.map((k) => ({ publicId: k.publicId, name: k.name, dateOfBirth: k.dateOfBirth }))}
         timeZone={timeZone}
@@ -104,9 +115,9 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
         {classes.length === 0 ? (
           <p className="text-muted-foreground text-sm">No classes are open for booking right now. Check back soon.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2">
             {classes.map((c) => (
-              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} compact />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
             ))}
           </div>
         )}

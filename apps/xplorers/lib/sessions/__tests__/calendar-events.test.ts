@@ -46,7 +46,7 @@ describe("toCalendarSessions", () => {
 
 describe("colorVar", () => {
   it("maps class colours to palette hex and falls back to primary", () => {
-    expect(colorVar("pink")).toBe("#ec4899");
+    expect(colorVar("pink")).toBe("#ef3f8c");
     expect(colorVar("nope")).toBe("var(--color-primary)");
   });
 });

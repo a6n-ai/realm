@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Check, Hammer, Heart, MapPin, Sparkle, Users } from "lucide-react";
 import { SITE_NAME, SITE_PITCH, SITE_TAGLINE } from "@/lib/brand";
 import { buildMetadata } from "@/lib/seo";
-import { CONTACT, QUOTES } from "@/lib/marketing/content";
+import { CONTACT, FOUNDER, QUOTES } from "@/lib/marketing/content";
 import { PHOTOS } from "@/lib/marketing/photos";
 import {
   Button,
@@ -47,14 +47,13 @@ export default async function HomePage({
             A little space for big discoveries
           </Eyebrow>
           <h1 className="xl-display" style={stagger(1)}>
-            Make room
+            A space to <span className="xl-highlight whitespace-nowrap">be you</span>.
             <br />
-            for <span className="xl-highlight">curiosity</span>.
+            A place to grow.
             <Sparkle className="xl-hero-sparkle" size={34} strokeWidth={1.8} aria-hidden />
           </h1>
           <p className="xl-lede" style={stagger(2)}>
-            For the makers, the wonderers and the &ldquo;what if?&rdquo; thinkers. Hands-on experiences that grow
-            confidence, creativity and connection.
+            Your child doesn&rsquo;t have to fit into a class. We create an experience that fits your child.
           </p>
           <div className="xl-row" style={stagger(3)}>
             <Button href="/classes" icon="arrow-right">
@@ -144,6 +143,39 @@ export default async function HomePage({
               fill
               sizes="(min-width: 900px) 50vw, 100vw"
             />
+          </div>
+        </div>
+      </section>
+
+      <section id="founder" className="xl-wrap xl-section" style={pad(72, 24)}>
+        <div className="xl-founder">
+          <div className="xl-founder-photo">
+            <Image src={FOUNDER.photo} alt={`${FOUNDER.name}, founder of ${SITE_NAME}`} fill sizes="(min-width: 900px) 40vw, 100vw" />
+          </div>
+          <div className="xl-founder-copy">
+            <Eyebrow tone="ink">Meet the educator</Eyebrow>
+            <h2 className="xl-h2">
+              Hi, I&rsquo;m {FOUNDER.name} <span className="xl-founder-aka">({FOUNDER.short})</span>
+            </h2>
+            <p className="xl-founder-role">{FOUNDER.role}</p>
+            {FOUNDER.story.map((p) => (
+              <p key={p} className="xl-body xl-justify">
+                {p}
+              </p>
+            ))}
+            <p className="xl-founder-credential">{FOUNDER.credential}</p>
+            <ul className="xl-founder-approach">
+              {FOUNDER.approach.map((a) => (
+                <li key={a.title}>
+                  <b>{a.title}</b>
+                  <span>{a.body}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="xl-founder-motto">Connection first. Growth follows.</p>
+            <Button href="/contact" variant="secondary">
+              Talk to {FOUNDER.short}
+            </Button>
           </div>
         </div>
       </section>

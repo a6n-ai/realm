@@ -1,4 +1,5 @@
 export const PHOTOS = {
+  hero: "/studio/hero-mentor-child.jpg",
   kids: "/studio/kids-sunday-social.jpg",
   schools: "/studio/schools-anderson.jpg",
   tubes: "/studio/bench-tubes.jpg",

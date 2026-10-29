@@ -70,9 +70,9 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
           <h2 id="book-a-class" className="text-base font-semibold">
             Book a class
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {classes.map((c) => (
-              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} compact />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
             ))}
           </div>
         </section>

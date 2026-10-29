@@ -16,14 +16,15 @@ const COLOR_TONE: Record<string, string> = {
 
 /**
  * One card for the public site, /me and the dashboard; `href` is where Book goes (enquire-only classes always go to contact).
- * `compact` clamps the copy for grids inside the app; the full text stays on the public class page.
+ * Every card is the same height: copy is clamped and the whole card opens the class page, where the full text lives.
  */
-export function ClassCard({ item, href, compact = false }: { item: PublicClass; href?: string; compact?: boolean }) {
+export function ClassCard({ item, href }: { item: PublicClass; href?: string }) {
+  const details = `/classes/${item.publicId}`;
   const enquire = item.bookingType === "enquire_only";
-  const to = enquire ? `/contact?class=${encodeURIComponent(item.title)}` : (href ?? `/classes/${item.publicId}`);
+  const to = enquire ? `/contact?class=${encodeURIComponent(item.title)}` : (href ?? details);
   const meta = [item.audience, item.groupSize].filter(Boolean).join(" · ");
   return (
-    <article className="xl-card" data-programme={COLOR_TONE[item.color] ?? "private"} data-compact={compact || undefined}>
+    <article className="xl-card" data-programme={COLOR_TONE[item.color] ?? "private"}>
       {item.photos[0] ? (
         // Uploaded class photos, not the static marketing set.
         // eslint-disable-next-line @next/next/no-img-element
@@ -34,7 +35,11 @@ export function ClassCard({ item, href, compact = false }: { item: PublicClass; 
         {item.nextDate ? <span className="xl-card-next">Next: {item.nextDate}</span> : null}
       </div>
       <div className="xl-card-body">
-        <h3 className="xl-card-title">{item.title}</h3>
+        <h3 className="xl-card-title">
+          <Link href={details} className="xl-card-link">
+            {item.title}
+          </Link>
+        </h3>
         {item.scheduleLine || meta ? (
           <p className="xl-card-when">
             {item.scheduleLine}
@@ -42,7 +47,6 @@ export function ClassCard({ item, href, compact = false }: { item: PublicClass; 
           </p>
         ) : null}
         {item.summary ? <p className="xl-card-desc">{item.summary}</p> : null}
-        {item.included && !compact ? <p className="xl-card-desc">{item.included}</p> : null}
         <div className="xl-card-foot">
           <p className="xl-card-price">{item.priceLine}</p>
           <Link className="xl-card-btn" href={to}>

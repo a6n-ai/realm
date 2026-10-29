@@ -18,7 +18,7 @@ import { offeredLengths } from "@/lib/pricing/resolve";
 import type { ClassPricing, PriceCell, PriceTable } from "@/lib/pricing/types";
 import { getAppClock, getDefaultPrices } from "./app-settings.service";
 import { bookingsService } from "./bookings.service";
-import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
+import { bestRemaining, isPubliclyListed, RESERVED_BOOKING_STATUSES, type Reserved } from "./booking-policy";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 import { studioSessionsRepository, type StudioSessionRow } from "./studio-sessions.repository";
 
@@ -77,16 +77,6 @@ const SESSION_SORT = {
 } as const;
 
 const HORIZON_DAYS = 92;
-
-const confirmedAgg = db
-  .select({
-    occurrenceId: bookings.occurrenceId,
-    seats: sql<number>`coalesce(sum(${bookings.seats}), 0)`.as("seats"),
-  })
-  .from(bookings)
-  .where(inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]))
-  .groupBy(bookings.occurrenceId)
-  .as("confirmed_seats");
 
 const sessionCountAgg = db
   .select({
@@ -208,11 +198,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         .select({
           session: studioSessions,
           occurrence: studioSessionOccurrences,
-          confirmed: confirmedAgg.seats,
         })
         .from(studioSessionOccurrences)
         .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
-        .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
         .where(where)
         .orderBy(order[0], asc(studioSessionOccurrences.startsAt), order[1])
         .limit(page.size)
@@ -224,8 +212,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         .where(where),
     ]);
 
+    const left = await remainingByOccurrence(items.map((row) => row.occurrence));
     return {
-      items: items.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed)),
+      items: items.map((row) => toAdminOccurrence(row.session, row.occurrence, left)),
       page: page.page,
       size: page.size,
       total: count,
@@ -239,11 +228,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .select({
         session: studioSessions,
         occurrence: studioSessionOccurrences,
-        confirmed: confirmedAgg.seats,
       })
       .from(studioSessionOccurrences)
       .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
-      .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
       .where(
         and(
           eq(studioSessions.archived, false),
@@ -259,7 +246,8 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         ),
       )
       .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessionOccurrences.startsAt));
-    return rows.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed));
+    const left = await remainingByOccurrence(rows.map((row) => row.occurrence));
+    return rows.map((row) => toAdminOccurrence(row.session, row.occurrence, left));
   }
 
   async listClassOptions(): Promise<ClassOption[]> {
@@ -282,15 +270,13 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .select({
         session: studioSessions,
         occurrence: studioSessionOccurrences,
-        confirmed: confirmedAgg.seats,
       })
       .from(studioSessionOccurrences)
       .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
-      .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
       .where(eq(studioSessionOccurrences.publicId, publicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
-    return toAdminOccurrence(row.session, row.occurrence, row.confirmed);
+    return toAdminOccurrence(row.session, row.occurrence, await remainingByOccurrence([row.occurrence]));
   }
 
   async scheduleSession(classPublicId: string, occursOn: string): Promise<{ publicId: string; occursOn: string }> {
@@ -634,11 +620,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .select({
         session: studioSessions,
         occurrence: studioSessionOccurrences,
-        confirmed: confirmedAgg.seats,
       })
       .from(studioSessionOccurrences)
       .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
-      .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
       .where(
         and(
           eq(studioSessions.published, true),
@@ -648,8 +632,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         ),
       )
       .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessionOccurrences.startsAt));
+    const left = await remainingByOccurrence(rows.map((row) => row.occurrence));
     return rows
-      .map(({ session, occurrence, confirmed }) => toPublicSession(session, occurrence, confirmed))
+      .map(({ session, occurrence }) => toPublicSession(session, occurrence, left))
       .filter((session) => isPubliclyListed(session, now));
   }
 
@@ -662,22 +647,34 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .orderBy(asc(studioSessions.sortOrder), asc(studioSessions.title));
   }
 
+  /** Live bookings on one occurrence, so the booking form can hide start times that are full. */
+  async reservedTimes(occurrencePublicId: string): Promise<Reserved[]> {
+    return db
+      .select({ startsAt: bookings.startsAt, endsAt: bookings.endsAt, seats: bookings.seats })
+      .from(bookings)
+      .innerJoin(studioSessionOccurrences, eq(studioSessionOccurrences.id, bookings.occurrenceId))
+      .where(
+        and(
+          eq(studioSessionOccurrences.publicId, occurrencePublicId),
+          inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]),
+        ),
+      );
+  }
+
   async getPublished(occurrencePublicId: string, now = new Date()): Promise<PublicSession> {
     const timeZone = await this.timezone();
     const [row] = await db
       .select({
         session: studioSessions,
         occurrence: studioSessionOccurrences,
-        confirmed: confirmedAgg.seats,
       })
       .from(studioSessionOccurrences)
       .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
-      .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
     if (row.occurrence.status !== "scheduled") throw new ValidationError("This session is not open for booking.");
-    const listed = toPublicSession(row.session, row.occurrence, row.confirmed);
+    const listed = toPublicSession(row.session, row.occurrence, await remainingByOccurrence([row.occurrence]));
     if (!isPubliclyListed(listed, now)) throw new ValidationError("This session is not open for booking.");
     return listed;
   }
@@ -690,12 +687,36 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
 
 export const studioSessionsService = new StudioSessionsService(studioSessionsRepository);
 
-type OccurrenceFields = { publicId: string; occursOn: string; startsAt: Date; endsAt: Date; capacity: number; status: "scheduled" | "cancelled" };
+type OccurrenceFields = { id: bigint; publicId: string; occursOn: string; startsAt: Date; endsAt: Date; capacity: number; status: "scheduled" | "cancelled" };
+
+/** Places left per occurrence at the quietest half hour of its window, from one bookings read. */
+async function remainingByOccurrence(occurrences: OccurrenceFields[]): Promise<Map<bigint, number>> {
+  const left = new Map<bigint, number>();
+  if (occurrences.length === 0) return left;
+  const rows = await db
+    .select({ occurrenceId: bookings.occurrenceId, startsAt: bookings.startsAt, endsAt: bookings.endsAt, seats: bookings.seats })
+    .from(bookings)
+    .where(
+      and(
+        inArray(bookings.occurrenceId, occurrences.map((o) => o.id)),
+        inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]),
+      ),
+    );
+  const byOccurrence = new Map<bigint, Reserved[]>();
+  for (const r of rows) {
+    if (r.occurrenceId == null) continue;
+    const list = byOccurrence.get(r.occurrenceId) ?? [];
+    list.push(r);
+    byOccurrence.set(r.occurrenceId, list);
+  }
+  for (const o of occurrences) left.set(o.id, bestRemaining(o.capacity, o.startsAt, o.endsAt, byOccurrence.get(o.id) ?? []));
+  return left;
+}
 
 function toPublicSession(
   session: StudioSessionRow,
   occurrence: OccurrenceFields,
-  confirmed: number | null,
+  left: Map<bigint, number>,
 ): PublicSession {
   return {
     ...session,
@@ -704,14 +725,14 @@ function toPublicSession(
     startsAt: occurrence.startsAt,
     endsAt: occurrence.endsAt,
     capacity: occurrence.capacity,
-    remaining: remainingSeats(occurrence.capacity, Number(confirmed ?? 0)),
+    remaining: left.get(occurrence.id) ?? occurrence.capacity,
   };
 }
 
 function toAdminOccurrence(
   session: StudioSessionRow,
   occurrence: OccurrenceFields,
-  confirmed: number | null,
+  left: Map<bigint, number>,
 ): AdminOccurrence {
   return {
     publicId: occurrence.publicId,
@@ -722,7 +743,7 @@ function toAdminOccurrence(
     startsAt: occurrence.startsAt,
     endsAt: occurrence.endsAt,
     capacity: occurrence.capacity,
-    remaining: remainingSeats(occurrence.capacity, Number(confirmed ?? 0)),
+    remaining: left.get(occurrence.id) ?? occurrence.capacity,
     published: session.published,
     location: session.location,
     archived: session.archived,
