@@ -8,8 +8,8 @@ import { getSession } from "@/lib/auth/session";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countEndingOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds, type EndingWindow } from "@/lib/services/orders.service";
-import { addDays } from "@/lib/deliveries-view/week";
+import { countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { redirect } from "next/navigation";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -47,6 +47,8 @@ export default async function OrdersPage({
   searchParams: SearchParams;
 }) {
   const raw = await searchParams;
+  // Ending soon moved to Renewals; keep old bookmarks working.
+  if (raw.view === "ending") redirect("/dashboard/renewals?ending=2");
   return (
     <PageShell>
       <PageHeader
@@ -77,7 +79,7 @@ export default async function OrdersPage({
         <OrdersViews />
       </Suspense>
       <SectionCard title="Orders">
-        <Suspense fallback={<OrdersListSkeleton endingView={raw.view === "ending"} />}>
+        <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
@@ -92,24 +94,15 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
-/** Today through two days out, in the app timezone: plans whose last tiffin lands here are up for renewal. */
-async function endingWindow(): Promise<EndingWindow> {
-  const { timezone } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
-  return { from: today, to: addDays(today, 2) };
-}
-
 async function OrdersViews() {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const [lookOutCount, missedCount, endingCount, paymentReviewCount] = await Promise.all([
+  const [lookOutCount, missedCount, paymentReviewCount] = await Promise.all([
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
-    endingWindow().then((w) => countEndingOrders(visible, w)),
     countPaymentReviewOrders(visible),
   ]);
-  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} endingCount={endingCount} paymentReviewCount={paymentReviewCount} />;
+  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} />;
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -172,11 +165,10 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={session?.user?.role === "admin"} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
-  const ending = raw.view === "ending" ? await endingWindow() : undefined;
   const paymentReview = raw.view === "payment";
-  // A flagged, ending, unpaid or missed-day order stays on its tab however old it is. The date picker
+  // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
-  const sp = lookOutOnly || ending || paymentReview || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const sp = lookOutOnly || paymentReview || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -231,7 +223,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const [result, reassignAllowed] = await Promise.all([
     listOrdersPage(finalCondition, page, sort, visible, {
       lookOutOnly,
-      ending,
       paymentReview,
       missedAsOf,
     }),
@@ -250,7 +241,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       canReassign={reassignAllowed}
       staff={staff}
       lookOutView={lookOutOnly}
-      endingView={ending != null}
       paymentReviewView={paymentReview}
     />
   );

@@ -22,8 +22,8 @@ vi.mock("@/lib/notifications/enqueue", async (orig) => {
 });
 
 const { db } = await import("@/db/client");
-const { deliveries, orders, payments } = await import("@/db/schema");
-const { cancelOrder, createOrder, listOrdersPage, verifyPayment } = await import("../orders.service");
+const { orders, payments } = await import("@/db/schema");
+const { cancelOrder, createOrder, renewalStatusSql, verifyPayment } = await import("../orders.service");
 const { sendPaymentReminder } = await import("../payment-reminder");
 const { myBillsPage } = await import("../customer-finances.service");
 const { orderActivities } = await import("@/db/schema");
@@ -156,22 +156,20 @@ describe("unpaid Stripe orders expire", () => {
     expect((await load(second.publicId)).order.status).toBe("pending");
   });
 
-  it("does not count an unpaid Stripe order as a renewal", async () => {
+  it("an unpaid Stripe renewal reads Renewed: unpaid until the card payment settles", async () => {
     const input = await baseInput({ paymentMethodId: "etransfer" });
     const a = await createOrder(input);
-    const aRow = await load(a.publicId);
-    const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries).where(eq(deliveries.orderId, aRow.order.id));
     const start = new Date(`${input.selections.startDate}T00:00:00Z`);
     start.setUTCDate(start.getUTCDate() + 14);
     const b = await createOrder({ ...input, paymentMethodId: "stripe", selections: { ...input.selections, startDate: start.toISOString().slice(0, 10) } });
-    const ending = async () => (await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } })).items.find((r) => r.publicId === a.publicId)!;
-    expect((await ending()).renewed).toBe(false);
+    const renewal = async () => (await db.select({ s: renewalStatusSql() }).from(orders).where(eq(orders.publicId, a.publicId)))[0].s;
+    expect(await renewal()).toBe("unpaid");
 
     const bRow = await load(b.publicId);
     await db.update(payments).set({ providerRef: "pi_1" }).where(eq(payments.id, bRow.pay.id));
     status.mockResolvedValue({ piId: "pi_1", status: "succeeded", amountReceivedCents: Math.round(Number(bRow.pay.amount) * 100), currency: "cad", paymentRef: bRow.pay.publicId, created: 1 });
     expect(await settleStripePayment({ paymentRef: bRow.pay.publicId }, "webhook", "evt_1")).toBe("paid");
-    expect((await ending()).renewed).toBe(true);
+    expect(await renewal()).toBe("renewed");
   });
 
   it("refuses to pay an expired link", async () => {

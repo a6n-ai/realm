@@ -18,7 +18,8 @@ import { OrderForm, type EstimateState } from "../inquiries/[id]/order/order-for
 import { OrderPricingBreakdown } from "../orders/[id]/order-pricing-breakdown";
 import { CustomerSearch } from "../_leads/customer-search";
 import type { CustomerHit } from "../_leads/match-actions";
-import { createQuoteLink, estimateFormData } from "./estimate-actions";
+import type { OrderFormInput } from "../inquiries/[id]/order-schema";
+import { createQuoteLink, estimateFormData, estimatePrefill } from "./estimate-actions";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "./rep-code-actions";
 
 type FormData = Awaited<ReturnType<typeof estimateFormData>>;
@@ -37,23 +38,37 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 // prices with (catalog discounts, auto/typed coupons, method + province tax). Pricing reads
 // coupons and never redeems them; only an order the customer places uses one. A staff code is
 // issued from here only, so it is always sized against a real order.
-export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+/** `fromOrder`: open on the Plan step for that order's customer, the form filled from that plan (Renewals). */
+export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolean; onOpenChange: (o: boolean) => void; fromOrder?: string }) {
   const [data, setData] = useState<FormData | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [existing, setExisting] = useState(false);
+  const [existing, setExisting] = useState(fromOrder != null);
   const [customer, setCustomer] = useState<CustomerHit | null>(null);
   const [estimate, setEstimate] = useState<EstimateState | null>(null);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(fromOrder ? 2 : 1);
+  const [prefill, setPrefill] = useState<Partial<OrderFormInput> | null>(null);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
   // A new customer has no account, so the preview judges first-order coupons as eligible.
   const who = existing && customer ? customer : null;
 
   const fetchData = () => estimateFormData().then(setData).catch(() => setLoadError(true));
+  const fetchPrefill = (orderPublicId: string) =>
+    estimatePrefill(orderPublicId)
+      .then((r) => {
+        if ("error" in r) return setPrefillError(r.error);
+        setCustomer(r.customer);
+        setPrefill(r.prefill);
+      })
+      .catch(() => setPrefillError("Couldn't load this plan."));
   const retry = () => {
     setLoadError(false);
-    void fetchData();
+    setPrefillError(null);
+    if (!data) void fetchData();
+    if (fromOrder && !prefill) void fetchPrefill(fromOrder);
   };
   useEffect(() => {
     if (open && !data) void fetchData();
+    if (open && fromOrder && !prefill) void fetchPrefill(fromOrder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -126,12 +141,12 @@ export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               ))}
               <Button type="button" className="justify-self-end" disabled={existing && !customer} onClick={() => setStep(2)}>Continue</Button>
               </section>
-            {loadError ? (
+            {loadError || prefillError ? (
               <div className="flex items-center justify-between gap-3">
-                <p role="alert" className="text-destructive text-sm">Couldn&apos;t load the plans.</p>
+                <p role="alert" className="text-destructive text-sm">{prefillError ?? "Couldn't load the plans."}</p>
                 <Button type="button" variant="outline" size="sm" onClick={retry}>Retry</Button>
               </div>
-            ) : !data ? (
+            ) : !data || (fromOrder && !prefill) ? (
               <div className={step === 1 ? "hidden" : "grid gap-3"}>
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-9 w-full" />
@@ -149,6 +164,7 @@ export function EstimateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 catalog={data.catalog}
                 enabledSlots={data.enabledSlots}
                 onEstimate={setEstimate}
+                prefill={prefill ?? undefined}
               />
               </div>
             )}

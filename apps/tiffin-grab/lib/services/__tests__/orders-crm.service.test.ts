@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, n
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
 const { ledgerService } = await import("../ledger.service");
@@ -49,31 +49,6 @@ const baseInput = (mealSizePublicId: string, planKey: string, fullName = "Jane C
 describe("order CRM queries (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
-
-  it("ending soon: lists running plans whose last tiffin falls in the window, with that date", async () => {
-    const snap = await loadCatalogSnapshot();
-    const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
-    await db.update(orders).set({ status: "active" }).where(eq(orders.publicId, o.publicId));
-    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries)
-      .innerJoin(orders, eq(orders.id, schema.deliveries.orderId)).where(eq(orders.publicId, o.publicId));
-    expect(last).toBeTruthy();
-
-    const hit = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
-    expect(hit.items.map((r) => [r.publicId, r.lastTiffin])).toEqual([[o.publicId, last]]);
-    expect(await countEndingOrders("all", { from: last, to: last })).toBe(1);
-    expect(await countEndingOrders("all", { from: "1999-01-01", to: "1999-01-03" })).toBe(0);
-    expect(hit.items[0].renewed).toBe(false);
-
-    // A later plan for the same customer marks the ending one Renewed.
-    const next = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
-    const [first] = await db.select({ userId: orders.userId, startDate: orders.startDate }).from(orders).where(eq(orders.publicId, o.publicId));
-    await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
-    const renewed = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
-    expect(renewed.items[0].renewed).toBe(true);
-
-    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, o.publicId));
-    expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
-  });
 
   it("renewed rule: any later plan counts, unpaid and waitlisted included; status ranks renewed > unpaid > waitlisted", async () => {
     const snap = await loadCatalogSnapshot();
@@ -122,59 +97,6 @@ describe("order CRM queries (integration)", () => {
     const running = await later("2099-02-02");
     await db.update(orders).set({ status: "active" }).where(eq(orders.id, running));
     expect(await of()).toEqual({ later: true, laterPaid: true, status: "renewed", paidOnly: "renewed" });
-  });
-
-  it("ending soon: attaches wallet coins, lifetime spend, and previous plan total", async () => {
-    const snap = await loadCatalogSnapshot();
-    // Older plan (previous) — finished; total is what Ending soon should surface as Prev.
-    const prev = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550333"));
-    const [prevRow] = await db.select({ id: orders.id, userId: orders.userId, total: orders.total, createdAt: orders.createdAt })
-      .from(orders).where(eq(orders.publicId, prev.publicId));
-    await db.update(orders).set({ status: "completed", total: "88.00", createdAt: prevRow.createdAt - 10_000 })
-      .where(eq(orders.id, prevRow.id));
-
-    const ending = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550444"));
-    const [endRow] = await db.select({ id: orders.id, userId: orders.userId }).from(orders).where(eq(orders.publicId, ending.publicId));
-    await db.update(orders).set({ userId: prevRow.userId, status: "active" }).where(eq(orders.id, endRow.id));
-
-    // Future renewal must NOT become "previous".
-    const next = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550555"));
-    await db.update(orders).set({ userId: prevRow.userId, startDate: "2099-01-05", status: "pending", createdAt: Date.now() + 60_000 })
-      .where(eq(orders.publicId, next.publicId));
-
-    // Extra ledger activity on top of whatever createOrder already recorded.
-    await db.transaction(async (tx) => {
-      await ledgerService.record(tx, { userId: prevRow.userId!, direction: "credit", type: "payment", amount: 120 });
-      await ledgerService.record(tx, { userId: prevRow.userId!, direction: "debit", type: "refund", amount: 8 });
-    });
-    const expectedSpent = await ledgerService.totalSpent(prevRow.userId!);
-    await db.insert(walletLedger).values({
-      userId: prevRow.userId!,
-      direction: "credit",
-      eventType: "order_activated",
-      sourceType: "order",
-      sourceId: `ending-wallet-${endRow.id}`,
-      coins: 42,
-      orderId: endRow.id,
-    });
-
-    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries)
-      .where(eq(schema.deliveries.orderId, endRow.id));
-    const page = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
-    const row = page.items.find((r) => r.publicId === ending.publicId);
-    expect(row).toMatchObject({
-      walletCoins: 42,
-      totalSpent: expectedSpent,
-      prevOrderTotal: "88.00",
-    });
-
-    // Other views skip the money enrichment.
-    const all = await listOrdersPage(undefined, { page: 0, size: 50 }, undefined, "all");
-    expect(all.items.find((r) => r.publicId === ending.publicId)).toMatchObject({
-      walletCoins: null,
-      totalSpent: null,
-      prevOrderTotal: null,
-    });
   });
 
   it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {

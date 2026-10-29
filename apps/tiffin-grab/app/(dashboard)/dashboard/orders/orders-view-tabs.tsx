@@ -5,10 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 
-const VIEWS = ["lookout", "payment", "ending", "missed"] as const;
+const VIEWS = ["lookout", "payment", "missed"] as const;
 
-/** All orders, the ones a team member marked "Look out for", payments waiting on review, plans ending in the next two days, or past days nobody confirmed went out. Switching drops the other tab's filters. */
-export function OrdersViewTabs({ lookOutCount, missedCount, endingCount, paymentReviewCount }: { lookOutCount: number; missedCount: number; endingCount: number; paymentReviewCount: number }) {
+/** All orders, the ones a team member marked "Look out for", payments waiting on review, or past days nobody confirmed went out. Switching drops the other tab's filters. */
+export function OrdersViewTabs({ lookOutCount, missedCount, paymentReviewCount }: { lookOutCount: number; missedCount: number; paymentReviewCount: number }) {
   const raw = useSearchParams().get("view");
   const view = VIEWS.find((v) => v === raw) ?? "all";
   return (
@@ -27,12 +27,6 @@ export function OrdersViewTabs({ lookOutCount, missedCount, endingCount, payment
           <Link href="/dashboard/orders?view=payment" prefetch={false}>
             Payment review
             {paymentReviewCount > 0 && <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">{paymentReviewCount}</Badge>}
-          </Link>
-        </TabsTrigger>
-        <TabsTrigger value="ending" asChild className="gap-1.5">
-          <Link href="/dashboard/orders?view=ending" prefetch={false}>
-            Ending soon
-            {endingCount > 0 && <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">{endingCount}</Badge>}
           </Link>
         </TabsTrigger>
         <TabsTrigger value="missed" asChild className="gap-1.5">

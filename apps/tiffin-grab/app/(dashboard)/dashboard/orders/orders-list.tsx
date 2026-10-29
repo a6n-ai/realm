@@ -19,15 +19,13 @@ import { RowTag } from "./row-tags";
 // server page maps over it; re-exporting it here would hand the RSC graph a
 // client reference instead of the array.
 
-type ListColumn = OrderSortColumn | "deployment" | "city" | "owner" | "wallet" | "spent";
+type ListColumn = OrderSortColumn | "deployment" | "city" | "owner";
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. "deployment" isn't a server sort key (see
 // OrderSortColumn), so it's a plain non-sortable column here.
-// Wallet + Spent only on Ending soon (renewal outreach).
-function orderColumns(endingView: boolean): readonly Column<ListColumn>[] {
-  return [
+const COLUMNS: readonly Column<ListColumn>[] = [
     { key: "name", label: "Name", sortable: true },
     { key: "deployment", label: "Deployment", sortable: false },
     { key: "city", label: "City" },
@@ -35,15 +33,8 @@ function orderColumns(endingView: boolean): readonly Column<ListColumn>[] {
     { key: "owner", label: "Owner", sortable: false },
     { key: "start", label: "Start", sortable: true, align: "right" },
     { key: "total", label: "Total", sortable: true, align: "right" },
-    ...(endingView
-      ? [
-          { key: "wallet" as const, label: "Wallet", sortable: false, align: "right" as const },
-          { key: "spent" as const, label: "Spent", sortable: false, align: "right" as const },
-        ]
-      : []),
     { key: "created", label: "Created", sortable: true, align: "right" },
-  ];
-}
+];
 
 export function OrdersList({
   spec,
@@ -55,7 +46,6 @@ export function OrdersList({
   canReassign,
   staff,
   lookOutView = false,
-  endingView = false,
   paymentReviewView = false,
 }: {
   spec: FacetDef[];
@@ -68,17 +58,14 @@ export function OrdersList({
   staff: { publicId: string; name: string }[];
   /** The Look out for tab: each row shows why it was flagged. */
   lookOutView?: boolean;
-  /** The Ending soon tab: each row shows its last tiffin date. */
-  endingView?: boolean;
   paymentReviewView?: boolean;
 }) {
   const tz = useTimezone();
-  const columns = orderColumns(endingView);
   return (
     <div className="space-y-4">
     <DataTable
       serialOffset={page * size}
-      columns={columns}
+      columns={COLUMNS}
       rows={rows}
       rowKey={(o) => o.publicId}
       sort={sort}
@@ -87,7 +74,7 @@ export function OrdersList({
       rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
-      emptyMessage={lookOutView ? "No orders are marked look out for." : endingView ? "No plans end in the next two days." : paymentReviewView ? "No payments are waiting for review." : "No orders yet."}
+      emptyMessage={lookOutView ? "No orders are marked look out for." : paymentReviewView ? "No payments are waiting for review." : "No orders yet."}
       emptySearchMessage="No orders match your search."
       renderRow={(o) => (
         <>
@@ -97,9 +84,7 @@ export function OrdersList({
             </Link>
             {o.trial && <RowTag tag="trial" />}
             {o.lookOut && !lookOutView && <RowTag tag="lookOut" title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : undefined} />}
-            {endingView && o.renewed && <RowTag tag="renewed" title="Renewed: next plan already booked" />}
             {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
-            {endingView && o.lastTiffin && <p className="text-muted-foreground text-xs font-normal tabular-nums">Last tiffin {o.lastTiffin}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>
@@ -120,20 +105,6 @@ export function OrdersList({
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
-          {endingView && (
-            <>
-              <TableCell className="text-right tabular-nums">
-                <span className="font-medium">{o.walletCoins ?? 0}</span>
-                <p className="text-muted-foreground text-xs font-normal">coins</p>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                <span className="font-medium">{fmt(Number(o.totalSpent ?? 0))}</span>
-                <p className="text-muted-foreground text-xs font-normal">
-                  {o.prevOrderTotal != null ? `Prev ${fmt(Number(o.prevOrderTotal))}` : "No prev plan"}
-                </p>
-              </TableCell>
-            </>
-          )}
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
@@ -146,6 +117,6 @@ export function OrdersList({
 }
 
 // Loading twin is now owned by DataTable — same COLUMNS + lead columns, zero drift.
-export function OrdersListSkeleton({ endingView = false }: { endingView?: boolean }) {
-  return <DataTable.Skeleton columns={orderColumns(endingView)} hasId />;
+export function OrdersListSkeleton() {
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

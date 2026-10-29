@@ -1411,13 +1411,8 @@ export function renewalStatusSql(paidPlansOnly = false) {
     else 'none' end`;
 }
 
-/** ISO dates, both inclusive, in the app timezone. */
-export type EndingWindow = { from: string; to: string };
-
-/** Running plans whose last tiffin falls inside the window: the ones up for renewal. */
-function endingWhere(w: EndingWindow) {
-  return and(inArray(orders.status, ["active", "paused"]), sql`${lastTiffinSql} between ${w.from} and ${w.to}`);
-}
+/** Orders in the organizations a session may see (`resolveSessionVisibleOrgIds`). */
+export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all" ? undefined : inArray(orders.organizationId, visible));
 
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
 function paymentReviewWhere() {
@@ -1437,7 +1432,6 @@ async function countVisibleOrders(where: SQL | undefined, visible: "all" | strin
 }
 
 /** Running plans ending inside the window, for the Ending soon tab badge. */
-export const countEndingOrders = (visible: "all" | string[], window: EndingWindow) => countVisibleOrders(endingWhere(window), visible);
 
 /** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
 export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
@@ -1523,16 +1517,6 @@ export type OrderListRow = {
   trial: boolean;
   lookOut: boolean;
   lookOutNote: string | null;
-  /** Set only on the Ending soon view. */
-  lastTiffin: string | null;
-  /** Ending soon view only: a later plan for the same customer already exists. */
-  renewed: boolean;
-  /** Ending soon only: customer coin balance (null on other views). */
-  walletCoins: number | null;
-  /** Ending soon only: ledger net spend (payments − refunds). */
-  totalSpent: string | null;
-  /** Ending soon only: most recent prior plan total for this customer. */
-  prevOrderTotal: string | null;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
@@ -1638,12 +1622,11 @@ export async function listOrdersPage(
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
   /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
-  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean; missedAsOf?: string } = {},
+  opts: { lookOutOnly?: boolean; paymentReview?: boolean; missedAsOf?: string } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
-    opts.ending ? endingWhere(opts.ending) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
@@ -1679,15 +1662,12 @@ export async function listOrdersPage(
         trialLength: orders.trialLength,
         lookOutAt: orders.lookOutAt,
         lookOutNote: orders.lookOutNote,
-        lastTiffin: opts.ending ? lastTiffinSql : sql<null>`null`,
-        renewed: opts.ending ? laterOrderSql : sql<boolean>`false`,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
       .leftJoin(users, eq(orders.currentOwner, users.id))
       .where(where)
-      // Soonest-ending first, so today's last tiffins top the renewal list.
-      .orderBy(...(opts.ending ? [asc(lastTiffinSql), asc(orders.id)] : pageOrder(sort.dir, col, orders.id)))
+      .orderBy(...pageOrder(sort.dir, col, orders.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db
@@ -1711,13 +1691,7 @@ export async function listOrdersPage(
     }
   }
 
-  // Ending soon: batch wallet + lifetime spend + previous plan for renewal outreach.
-  const money = opts.ending && rows.length > 0
-    ? await endingSoonMoney(rows.map((r) => ({ id: r.id, userId: r.userId })))
-    : null;
-
   const items: OrderListRow[] = rows.map((r) => {
-    const uid = r.userId?.toString() ?? null;
     return {
       publicId: r.publicId,
       deploymentId: r.deploymentId,
@@ -1734,18 +1708,13 @@ export async function listOrdersPage(
       trial: r.trialLength != null,
       lookOut: r.lookOutAt != null,
       lookOutNote: r.lookOutNote,
-      lastTiffin: r.lastTiffin,
-      renewed: r.renewed,
-      walletCoins: money ? (uid ? (money.walletByUser.get(uid) ?? 0) : 0) : null,
-      totalSpent: money ? (uid ? (money.spentByUser.get(uid) ?? "0.00") : "0.00") : null,
-      prevOrderTotal: money ? (money.prevTotalByOrder.get(r.id.toString()) ?? null) : null,
     };
   });
   return { items, page: page.page, size: page.size, total: count };
 }
 
-/** Batch wallet / lifetime spend / previous-plan total for Ending soon rows. */
-async function endingSoonMoney(
+/** Batch wallet / lifetime spend / previous-plan total for Renewals rows. */
+export async function renewalMoney(
   rows: { id: bigint; userId: bigint | null }[],
 ): Promise<{
   walletByUser: Map<string, number>;
