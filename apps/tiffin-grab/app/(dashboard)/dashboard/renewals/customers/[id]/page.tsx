@@ -13,6 +13,8 @@ import { EstimateButton } from "../../estimate-button";
 import { RenewControl } from "../../../orders/[id]/renew-control";
 import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-actions";
 import { PlanHistory, RenewalReminders } from "./renewal-history";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
+import { formatEpoch } from "@/lib/format/datetime";
 
 /** One customer's renewals only: how often and how fast they renew, each plan and what followed it, and the reminders sent. */
 export default async function CustomerRenewalPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +48,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ContactButtons name={customer.name} phone={customer.phone} renewUrl={renewUrl} />
-            {current && current.next === "none" && <SendReminderButton orderPublicId={current.orderPublicId} customerPublicId={customer.publicId} />}
+            {current && current.next === "none" && !data.emailBlock && <SendReminderButton orderPublicId={current.orderPublicId} customerPublicId={customer.publicId} />}
             {session?.user?.role === "admin" && <GiveCoinsButton customerPublicId={customer.publicId} />}
             <EstimateButton orderPublicId={latest.orderPublicId} />
             {renewFrom && <RenewControl orderId={renewFrom.orderPublicId} canRenew={renewFrom.next === "none"} />}
@@ -76,8 +78,18 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
       <SectionCard title="Plan history" subtitle="Oldest first. Each plan shows what came after it.">
         <PlanHistory plans={plans} today={today} />
       </SectionCard>
-      <SectionCard title="Renewal reminders" subtitle="Emails sent 5 days and 1 day before a plan's last tiffin.">
-        <RenewalReminders reminders={reminders} plans={plans} />
+      <SectionCard title="Renewal reminders" subtitle="Emails sent 5 days and 1 day before a plan's last tiffin. Status comes from AWS; hover it for details.">
+        <div className="flex flex-col gap-4">
+          {data.emailBlock && (
+            <Alert variant="destructive">
+              <AlertTitle>{data.emailBlock.reason === "complaint" ? "Customer marked our email as spam" : "Customer's email address bounces"}</AlertTitle>
+              <AlertDescription>
+                Since {formatEpoch(data.emailBlock.since, { mode: "date", timeZone: timezone })} no email reaches {customer.email}, renewal reminders included. Call or WhatsApp instead.
+              </AlertDescription>
+            </Alert>
+          )}
+          <RenewalReminders reminders={reminders} plans={plans} />
+        </div>
       </SectionCard>
     </PageShell>
   );

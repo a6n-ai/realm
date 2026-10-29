@@ -11,7 +11,7 @@ import { DataTable, type Column } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";
+import type { ReminderDelivery, RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";
 import { rowStatus, statusLabel } from "@/lib/renewals/filters";
 import { UnpaidPlanActions } from "./renewal-actions";
 
@@ -75,7 +75,14 @@ const REMINDER_COLUMNS: readonly Column<"sent" | "plan" | "when" | "status">[] =
   { key: "status", label: "Delivery" },
 ];
 
-const DELIVERY_VARIANT = { sent: "success-light", pending: "secondary", processing: "info-light", failed: "destructive-light" } as const;
+const DELIVERY: Record<ReminderDelivery, { label: string; hint: string; variant: "success-light" | "secondary" | "info-light" | "warning-light" | "destructive-light" }> = {
+  queued: { label: "Queued", hint: "Waiting to be sent", variant: "secondary" },
+  sent: { label: "Sent", hint: "Handed to AWS; no delivery report yet", variant: "info-light" },
+  delivered: { label: "Delivered", hint: "Reached the customer's mail server (AWS cannot see spam folders or opens)", variant: "success-light" },
+  bounced: { label: "Bounced", hint: "The address rejected it; emails to it are now blocked", variant: "destructive-light" },
+  spam: { label: "Marked spam", hint: "The customer reported it as spam; emails to them are now blocked", variant: "destructive-light" },
+  failed: { label: "Failed", hint: "Could not be sent", variant: "destructive-light" },
+};
 
 export function RenewalReminders({ reminders, plans }: { reminders: RenewalReminder[]; plans: RenewalPlan[] }) {
   const tz = useTimezone();
@@ -92,8 +99,14 @@ export function RenewalReminders({ reminders, plans }: { reminders: RenewalRemin
           <TableCell className="tabular-nums">{formatEpoch(r.sentAt, { mode: "date", timeZone: tz })}</TableCell>
           <TableCell>{(r.orderPublicId && codeOf.get(r.orderPublicId)) ?? "—"}</TableCell>
           <TableCell>{r.byStaff ? "Sent by staff" : r.daysLeft == null ? "—" : r.daysLeft === 1 ? "1 day before the end" : `${r.daysLeft} days before the end`}</TableCell>
-          <TableCell>
-            <Badge variant={DELIVERY_VARIANT[r.status as keyof typeof DELIVERY_VARIANT] ?? "secondary"}>{r.status}</Badge>
+          <TableCell
+            title={[
+              DELIVERY[r.delivery].hint,
+              r.deliveredAt ? `Delivered ${formatEpoch(r.deliveredAt, { timeZone: tz })}` : null,
+              r.error,
+            ].filter(Boolean).join(" · ")}
+          >
+            <Badge variant={DELIVERY[r.delivery].variant}>{DELIVERY[r.delivery].label}</Badge>
           </TableCell>
         </>
       )}

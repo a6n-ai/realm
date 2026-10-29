@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
+import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
 import type { RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
@@ -231,16 +231,46 @@ export type RenewalPlan = {
   unpaidPaymentPublicId: string | null;
 };
 
+/**
+ * What AWS SES told us about one reminder. SES reports delivery, bounces and spam complaints; it never
+ * says whether mail landed in a spam folder, and opens are not tracked on transactional mail (spam risk).
+ */
+export type ReminderDelivery = "queued" | "sent" | "delivered" | "bounced" | "spam" | "failed";
+
 /** `daysLeft` is 5 or 1 for the automatic reminder; null when staff sent it by hand. */
-export type RenewalReminder = { sentAt: number; status: string; daysLeft: number | null; byStaff: boolean; orderPublicId: string | null };
+export type RenewalReminder = {
+  sentAt: number;
+  daysLeft: number | null;
+  byStaff: boolean;
+  orderPublicId: string | null;
+  delivery: ReminderDelivery;
+  deliveredAt: number | null;
+  error: string | null;
+};
+
+/** The customer's address is blocked after a hard bounce or spam complaint: no email reaches them. */
+export type EmailBlock = { reason: "bounce" | "complaint" | "other"; since: number };
 
 export type CustomerRenewal = {
   customer: { publicId: string; name: string; phone: string | null; email: string | null };
   plans: RenewalPlan[];
   reminders: RenewalReminder[];
+  emailBlock: EmailBlock | null;
   walletCoins: number;
   totalSpent: string;
 };
+
+/**
+ * One reminder's outcome. A block that started after the send is what that send ran into: a complaint
+ * after delivery means the customer marked it spam; a bounce on an undelivered send means it bounced.
+ */
+export function reminderDelivery(status: string, deliveredAt: number | null, sentAt: number, block: EmailBlock | null): ReminderDelivery {
+  if (status === "failed") return "failed";
+  if (status === "pending" || status === "processing") return "queued";
+  const after = block != null && block.since >= sentAt;
+  if (deliveredAt != null) return after && block.reason === "complaint" ? "spam" : "delivered";
+  return after && block.reason === "bounce" ? "bounced" : "sent";
+}
 
 const dayDiff = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 
@@ -297,13 +327,30 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
 
   const [reminderRows, money] = await Promise.all([
     db
-      .select({ sentAt: notificationOutbox.createdAt, status: notificationOutbox.status, key: notificationOutbox.dedupeKey })
+      .select({
+        sentAt: notificationOutbox.createdAt,
+        status: notificationOutbox.status,
+        key: notificationOutbox.dedupeKey,
+        deliveredAt: notificationOutbox.deliveredAt,
+        error: notificationOutbox.lastError,
+      })
       .from(notificationOutbox)
       .where(and(eq(notificationOutbox.recipientId, user.id), like(notificationOutbox.dedupeKey, "renewal:%")))
       .orderBy(desc(notificationOutbox.createdAt))
       .limit(50),
     renewalMoney([{ id: rows[rows.length - 1].id, userId: user.id }]),
   ]);
+  // Bounces and complaints are kept per address (all channels' "all" scope), not per message.
+  const [block] = user.email
+    ? await db
+        .select({ reason: messageSuppression.reason, since: messageSuppression.createdAt })
+        .from(messageSuppression)
+        .where(and(eq(messageSuppression.address, user.email.trim().toLowerCase()), eq(messageSuppression.channel, "email"), eq(messageSuppression.scope, "all")))
+        .limit(1)
+    : [];
+  const emailBlock: EmailBlock | null = block
+    ? { reason: /complaint/i.test(block.reason) ? "complaint" : /bounce/i.test(block.reason) ? "bounce" : "other", since: Number(block.since) }
+    : null;
   // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft | staff-<date>>:<channel>.
   // Only reminders for plans this staff member can see: another franchise's plans stay hidden.
   const visiblePlans = new Set(rows.map((r) => r.orderPublicId));
@@ -311,7 +358,16 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     .map((r) => {
       const [, orderPublicId, , days] = (r.key ?? "").split(":");
       const byStaff = days?.startsWith("staff") ?? false;
-      return { sentAt: Number(r.sentAt), status: r.status, daysLeft: !byStaff && days ? Number(days) : null, byStaff, orderPublicId: orderPublicId ?? null };
+      const sentAt = Number(r.sentAt);
+      return {
+        sentAt,
+        daysLeft: !byStaff && days ? Number(days) : null,
+        byStaff,
+        orderPublicId: orderPublicId ?? null,
+        delivery: reminderDelivery(r.status, r.deliveredAt, sentAt, emailBlock),
+        deliveredAt: r.deliveredAt == null ? null : Number(r.deliveredAt),
+        error: r.error ?? null,
+      };
     })
     .filter((r) => r.orderPublicId != null && visiblePlans.has(r.orderPublicId));
 
@@ -319,6 +375,7 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     customer: { publicId: user.publicId, name: user.name ?? "", phone: user.phone, email: user.email },
     plans,
     reminders,
+    emailBlock,
     walletCoins: money.walletByUser.get(user.id.toString()) ?? 0,
     totalSpent: money.spentByUser.get(user.id.toString()) ?? "0.00",
   };

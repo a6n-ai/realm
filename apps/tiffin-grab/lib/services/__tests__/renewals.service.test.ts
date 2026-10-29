@@ -8,7 +8,8 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { countRenewals, getCustomerRenewal, listRenewals, listRenewedCustomers } = await import("../renewals.service");
+const { countRenewals, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
+const { messageSuppression } = await import("@/db/schema");
 const { addDays } = await import("@/lib/deliveries-view/week");
 
 async function reset() {
@@ -149,11 +150,34 @@ describe("renewals service (integration)", () => {
 
     const r = await getCustomerRenewal("all", first.customerPublicId);
     expect(r?.plans.map((p) => [p.orderPublicId, p.next, p.gapDays])).toEqual([[first.publicId, "renewed", 3], [second.publicId, "none", null]]);
-    expect(r?.reminders).toMatchObject([{ orderPublicId: first.publicId, daysLeft: 5 }]);
+    expect(r?.reminders).toMatchObject([{ orderPublicId: first.publicId, daysLeft: 5, delivery: "queued" }]);
+    expect(r?.emailBlock).toBeNull();
+
+    // AWS reports delivery, then the customer reports it as spam: the reminder reads Marked spam and the address is blocked.
+    await db.update(notificationOutbox).set({ status: "sent", deliveredAt: Date.now() }).where(eq(notificationOutbox.recipientId, first.userId));
+    expect((await getCustomerRenewal("all", first.customerPublicId))?.reminders[0].delivery).toBe("delivered");
+    const [u] = await db.select({ email: users.email }).from(users).where(eq(users.id, first.userId));
+    await db.insert(messageSuppression).values({ address: u.email!.toLowerCase(), channel: "email", scope: "all", reason: "SES complaint", createdAt: Date.now() + 1000 });
+    const blocked = await getCustomerRenewal("all", first.customerPublicId);
+    expect(blocked?.reminders[0].delivery).toBe("spam");
+    expect(blocked?.emailBlock?.reason).toBe("complaint");
+    await db.delete(messageSuppression).where(eq(messageSuppression.address, u.email!.toLowerCase()));
     // A reminder for a plan this staff member cannot see (another franchise) is left out.
     await db.insert(notificationOutbox).values({ recipientId: first.userId, channel: "email", event: "order_renewal_reminder", payload: {}, dedupeKey: "renewal:ord_elsewhere:2026-01-01:1:email" });
     expect((await getCustomerRenewal("all", first.customerPublicId))?.reminders.map((x) => x.orderPublicId)).toEqual([first.publicId]);
     expect(await getCustomerRenewal(["no-such-org"], first.customerPublicId)).toBeNull();
     expect(await getCustomerRenewal("all", "usr_missing")).toBeNull();
+  });
+
+  it("reminder delivery: failed, queued, sent, delivered, bounced and spam from the outbox row and the address block", () => {
+    const at = 1_000;
+    expect(reminderDelivery("failed", null, at, null)).toBe("failed");
+    expect(reminderDelivery("processing", null, at, null)).toBe("queued");
+    expect(reminderDelivery("sent", null, at, null)).toBe("sent");
+    expect(reminderDelivery("sent", 2_000, at, null)).toBe("delivered");
+    expect(reminderDelivery("sent", null, at, { reason: "bounce", since: 1_500 })).toBe("bounced");
+    expect(reminderDelivery("sent", 2_000, at, { reason: "complaint", since: 3_000 })).toBe("spam");
+    // A block from before this send is not what this send ran into.
+    expect(reminderDelivery("sent", 2_000, at, { reason: "complaint", since: 500 })).toBe("delivered");
   });
 });
