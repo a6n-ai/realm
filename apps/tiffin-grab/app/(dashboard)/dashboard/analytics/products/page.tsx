@@ -25,11 +25,18 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <ChartCard title="Most-picked dishes">
-        <Suspense fallback={<ChartSkeleton />}>
-          <TopDishesChart searchParams={searchParams} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title="Most-picked dishes">
+          <Suspense fallback={<ChartSkeleton />}>
+            <TopDishesChart searchParams={searchParams} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Paid by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <TierBarChart searchParams={searchParams} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
@@ -39,7 +46,7 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
         </ChartCard>
         <ChartCard title="Paid orders by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
           <Suspense fallback={<ChartSkeleton />}>
-            <TierChart searchParams={searchParams} />
+            <TierList searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
@@ -66,6 +73,19 @@ async function TopDishesChart({ searchParams }: { searchParams: SearchParams }) 
   return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
 }
 
+async function TierBarChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
+  return (
+    <BreakdownBarChart
+      data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
+      xKey="tier"
+      yKey="paid"
+      format="currency"
+      height={280}
+    />
+  );
+}
+
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
@@ -86,7 +106,7 @@ async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function TierChart({ searchParams }: { searchParams: SearchParams }) {
+async function TierList({ searchParams }: { searchParams: SearchParams }) {
   const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
@@ -101,3 +121,4 @@ async function TierChart({ searchParams }: { searchParams: SearchParams }) {
     />
   );
 }
+
