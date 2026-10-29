@@ -71,19 +71,19 @@ export function LiveRefresh({ updatedLabel, refreshAt }: { updatedLabel: string;
 
   return (
     <span
-      className="text-muted-foreground inline-flex items-center gap-1.5 text-xs tabular-nums"
+      className="bg-[color-mix(in_oklab,var(--accent-badge)_14%,transparent)] text-[var(--accent-badge)] inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums"
       aria-live="polite"
     >
       <span className="relative flex size-2">
         <span
           className={cn(
-            "absolute inline-flex size-full rounded-full bg-emerald-500 opacity-60",
+            "absolute inline-flex size-full rounded-full bg-[var(--accent-badge)] opacity-60",
             !pending && "animate-ping",
           )}
         />
-        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        <span className="relative inline-flex size-2 rounded-full bg-[var(--accent-badge)]" />
       </span>
-      {pending ? "Updating…" : `Live · updated ${updatedLabel}`}
+      {pending ? "Updating…" : `Live · ${updatedLabel}`}
     </span>
   );
 }

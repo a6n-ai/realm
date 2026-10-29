@@ -1,24 +1,22 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ds";
+import { AnalyticsPanel, AnalyticsPanelHeader } from "@/components/analytics/analytics-panel";
 
-// Shared "titled panel around a chart or list" wrapper so every analytics
-// tab's sections line up the same way.
+/** Shared titled panel around a chart or list so every analytics tab lines up. */
 export function ChartCard({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle?: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {subtitle && <p className="text-muted-foreground text-xs">{subtitle}</p>}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <AnalyticsPanel padding="lg" className="flex flex-col gap-4">
+      <AnalyticsPanelHeader title={title} subtitle={subtitle} action={action} />
+      <div className="min-w-0">{children}</div>
+    </AnalyticsPanel>
   );
 }

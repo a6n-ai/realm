@@ -28,12 +28,12 @@ type SearchParams = Promise<AnalyticsSearchParams>;
 
 export default function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <Suspense fallback={<SkeletonStatCards count={7} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Net sales" subtitle="Settled payments excluding tax, by day">
           <Suspense fallback={<ChartSkeleton />}>
             <RevenueChart searchParams={searchParams} />
