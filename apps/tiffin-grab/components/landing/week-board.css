@@ -6,6 +6,8 @@
 .tg-board__row > * { padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .tg-board__row:last-child > * { border-bottom: 0; }
 .tg-board__row--head > * { position: sticky; top: 64px; z-index: 1; background: var(--card); padding-block: 18px; border-bottom: 1px solid var(--border); }
+/* Public marketing shell sticks the announce strip + header above the board. */
+.tg-land .tg-board__row--head > * { top: calc(var(--tg-announce-h, 36px) + var(--tg-header-h, 64px)); }
 .tg-board__day { display: flex; flex-direction: column; gap: 2px; }
 .tg-board__day strong { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
 .tg-board__day span { font-size: 12px; font-weight: 600; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }

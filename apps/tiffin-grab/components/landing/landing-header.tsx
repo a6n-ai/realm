@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/customer/kit/theme-toggle";
+import { AnnouncementBar } from "@/components/landing/announcement-bar";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
@@ -39,6 +40,7 @@ export function LandingHeader() {
   return (
     <>
       <a href="#main" className="tg-skip">Skip to content</a>
+      <AnnouncementBar />
       <header className="tg-header c-glass" style={{ viewTransitionName: "site-header" }}>
         <div className="tg-wrap tg-header__in">
           <Link href="/" className="tg-header__brand" aria-label="TiffinGrab home">
