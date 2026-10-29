@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RefreshCwIcon, UsersIcon } from "lucide-react";
 import { FactTag } from "./fact-tags";
 import { formatMoney as fmt } from "@foundry/commons";
@@ -54,7 +55,8 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         rows={rows}
         rowKey={(r) => r.orderPublicId}
         idAccessor={(r) => r.code}
-        idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+        // Row click opens the customer's renewal page; each plan there links to its order.
+        idHref={renewalHref}
         idLabel="Order"
         rowClassName={() => "group"}
         filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
@@ -105,6 +107,7 @@ const CUSTOMER_COLUMNS: readonly Column<"customer" | "renewals" | "lastRenewed" 
 /** Every customer who has renewed at least once, newest renewal first. */
 export function RenewedCustomersList({ rows, total, page, size, today, spec }: { rows: RenewedCustomerRow[]; total: number; page: number; size: number; today: string; spec: FacetDef[] }) {
   const tz = useTimezone();
+  const router = useRouter();
   return (
     <div className="flex flex-col gap-4">
       <DataTable
@@ -112,6 +115,7 @@ export function RenewedCustomersList({ rows, total, page, size, today, spec }: {
         columns={CUSTOMER_COLUMNS}
         rows={rows}
         rowKey={(r) => r.customerPublicId}
+        onRowClick={(r) => router.push(`/dashboard/renewals/customers/${r.customerPublicId}`)}
         rowClassName={() => "group"}
         filters={<ListSearchFilters spec={spec} placeholder="Search name, phone or email…" shortPlaceholder="Search…" />}
         emptyIcon={UsersIcon}
