@@ -46,7 +46,6 @@ export const roles = {
     subscription: ["read", "write", "pause"],
     menu: ["read"],
     finance: ["read"],
-    holiday: ["read", "write"],
   }),
   user: ac.newRole({}),
 };

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   BanknoteIcon,
+  CalendarOffIcon,
   ClockIcon,
   CreditCardIcon,
   HelpCircleIcon,
@@ -57,6 +58,13 @@ export default async function SettingsPage() {
       description: "Customer and staff activity — meals, address, moved tiffins, and more.",
       icon: ScrollTextIcon,
       href: "/dashboard/settings/logs",
+    },
+    {
+      key: "holidays",
+      label: "Holidays",
+      description: "Days the kitchen is closed and how affected deliveries are placed.",
+      icon: CalendarOffIcon,
+      href: "/dashboard/settings/holidays",
     },
     {
       key: "lead-sources",

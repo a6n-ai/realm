@@ -47,7 +47,7 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
 
   return (
     <>
-      <RowActionTooltipButton icon={SquareArrowOutUpRightIcon} label="Open" hint="Open: details and what needs doing" onClick={() => router.push(`/dashboard/holidays/${publicId}`)} />
+      <RowActionTooltipButton icon={SquareArrowOutUpRightIcon} label="Open" hint="Open: details and what needs doing" onClick={() => router.push(`/dashboard/settings/holidays/${publicId}`)} />
       {canReapply && <RowActionTooltipButton icon={RotateCwIcon} label="Re-apply" hint="Re-apply: close any delivery this holiday missed" disabled={pending} onClick={reapply} />}
       <RowActionTooltipButton icon={PencilIcon} label="Rename" onClick={() => { setName(current); setError(null); setRenameOpen(true); }} />
       {canRemove && <RowActionTooltipButton icon={Trash2Icon} label="Remove" tone="text-destructive" onClick={() => { setError(null); setRemoveOpen(true); }} />}

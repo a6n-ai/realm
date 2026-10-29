@@ -58,7 +58,7 @@ test("declare a holiday: kitchen closed for staff, closed day with its extra day
   const tiffinsLeft = async () => (await customer.getByText(/\d+ of \d+ tiffins left/).first().innerText()).match(/\d+ of \d+ tiffins left/)![0];
 
   const remove = async () => {
-    await page.goto("/dashboard/holidays");
+    await page.goto("/dashboard/settings/holidays");
     const row = page.getByRole("row").filter({ hasText: /E2E Holiday \d+/ }).first();
     await expect(row).toBeVisible({ timeout: 30_000 });
     await row.getByRole("button", { name: "Remove" }).click();
@@ -75,10 +75,10 @@ test("declare a holiday: kitchen closed for staff, closed day with its extra day
     await customer.goto(`/me?week=${monday}&trip=${date}`);
     const before = await tiffinsLeft();
 
-    // 1. Staff reach the page from the sidebar and declare.
-    await page.goto("/dashboard");
-    await page.getByRole("link", { name: "Holidays" }).first().click();
-    await expect(page).toHaveURL(/\/dashboard\/holidays/);
+    // 1. Admins reach the page from Settings and declare.
+    await page.goto("/dashboard/settings");
+    await page.getByRole("link", { name: /Holidays/ }).first().click();
+    await expect(page).toHaveURL(/\/dashboard\/settings\/holidays/);
     await page.getByRole("button", { name: "Declare holiday" }).first().click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Date").fill(date);
@@ -131,7 +131,7 @@ test("declare a holiday: kitchen closed for staff, closed day with its extra day
     await customer.keyboard.press("Escape");
 
     // 5. Rename: the customer sees the new name.
-    await page.goto("/dashboard/holidays");
+    await page.goto("/dashboard/settings/holidays");
     await page.getByRole("row").filter({ hasText: NAME }).getByRole("button", { name: "Rename" }).click();
     const renameDialog = page.getByRole("dialog");
     await renameDialog.getByLabel("Name").fill(RENAMED);

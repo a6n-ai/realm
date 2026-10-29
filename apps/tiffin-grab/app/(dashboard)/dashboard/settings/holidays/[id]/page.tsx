@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CalendarCheckIcon, CalendarOffIcon, CircleSlashIcon, HourglassIcon, UsersIcon } from "lucide-react";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
 import { formatEpoch } from "@/lib/format/datetime";
-import { PageShell, PageHeader, SectionCard, StatGrid, TonePill } from "@/components/ds";
+import { PageHeader, SectionCard, StatGrid, TonePill } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries-view";
@@ -31,7 +31,7 @@ export default async function HolidayPage({ params }: { params: Promise<{ id: st
   const mine = waiting.filter((w) => w.holidayPublicId === holiday.publicId);
 
   return (
-    <PageShell>
+    <div className="grid gap-6">
       <PageHeader
         icon={CalendarOffIcon}
         title={`${holiday.name} · ${humanDate(holiday.date)}`}
@@ -40,7 +40,7 @@ export default async function HolidayPage({ params }: { params: Promise<{ id: st
           holiday.declaredBy ? `declared by ${holiday.declaredBy}` : "recorded by staff",
           holiday.notifiedAt ? `customers notified ${formatEpoch(holiday.notifiedAt, { mode: "date", timeZone: timezone })}` : "customers not notified",
         ].join(" · ")}
-        actions={<div className="flex items-center gap-2"><TonePill tone={when === "Past" ? "neutral" : "brand"}>{when}</TonePill><Link className="text-sm hover:underline" href="/dashboard/holidays">All holidays</Link></div>}
+        actions={<div className="flex items-center gap-2"><TonePill tone={when === "Past" ? "neutral" : "brand"}>{when}</TonePill><Link className="text-sm hover:underline" href="/dashboard/settings/holidays">All holidays</Link></div>}
       />
       <StatGrid
         cols={4}
@@ -67,6 +67,6 @@ export default async function HolidayPage({ params }: { params: Promise<{ id: st
         <p className="text-muted-foreground mb-3 flex items-center gap-2 text-sm"><UsersIcon className="size-4" /> Every delivery this holiday closed, and where its tiffin went.</p>
         <ClosedDaysTable rows={rows} />
       </SectionCard>
-    </PageShell>
+    </div>
   );
 }

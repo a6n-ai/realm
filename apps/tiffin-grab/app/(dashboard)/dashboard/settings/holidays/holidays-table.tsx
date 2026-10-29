@@ -86,7 +86,7 @@ export function HolidaysTable({ rows, today }: { rows: HolidayListRow[]; today: 
         return (
           <>
             <TableCell className="whitespace-nowrap tabular-nums">{humanDate(r.date)}</TableCell>
-            <TableCell className="font-medium" title={r.name}><Link className="hover:underline" href={`/dashboard/holidays/${r.publicId}`}>{r.name}</Link></TableCell>
+            <TableCell className="font-medium" title={r.name}><Link className="hover:underline" href={`/dashboard/settings/holidays/${r.publicId}`}>{r.name}</Link></TableCell>
             <TableCell className="text-muted-foreground">{r.organizationName}</TableCell>
             <TableCell><TonePill tone={when === "past" ? "neutral" : when === "today" ? "warn" : "brand"}>{WHEN[when]}</TonePill></TableCell>
             <TableCell className="text-right tabular-nums">{r.closed}</TableCell>

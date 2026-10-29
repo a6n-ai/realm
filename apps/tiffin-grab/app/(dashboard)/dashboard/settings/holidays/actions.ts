@@ -27,7 +27,7 @@ function runLine(lead: string, run: HolidayRun): string {
 }
 
 async function refreshing<T extends ActionResult<Record<string, unknown>>>(res: T): Promise<T> {
-  if ("ok" in res) revalidatePath("/dashboard/holidays", "layout");
+  if ("ok" in res) revalidatePath("/dashboard/settings/holidays", "layout");
   return res;
 }
 

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { CalendarOffIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { PageHeader, SectionCard } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -22,7 +22,7 @@ export default async function HolidaysPage() {
   for (const w of waiting) waitingBy.set(w.holidayPublicId, (waitingBy.get(w.holidayPublicId) ?? 0) + 1);
 
   return (
-    <PageShell>
+    <div className="grid gap-6">
       <PageHeader
         icon={CalendarOffIcon}
         title="Holidays"
@@ -42,6 +42,6 @@ export default async function HolidaysPage() {
           <HolidaysTable rows={rows.map((r) => ({ ...r, needsPlacing: waitingBy.get(r.publicId) ?? 0 }))} today={today} />
         </Suspense>
       </SectionCard>
-    </PageShell>
+    </div>
   );
 }
