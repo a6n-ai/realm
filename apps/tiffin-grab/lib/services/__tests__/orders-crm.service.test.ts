@@ -6,23 +6,28 @@ const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { db } = await import("@/db/client");
-const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notifications, notificationOutbox } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
 const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
+const { ledgerService } = await import("../ledger.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
-const { eq } = await import("drizzle-orm");
+const { eq, inArray } = await import("drizzle-orm");
 
 async function reset() {
+  await db.delete(walletLedger);
   await db.delete(ledgerEntries);
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
+  const customerIds = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, customerIds));
+  await db.delete(notifications).where(inArray(notifications.userId, customerIds));
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
@@ -68,6 +73,59 @@ describe("order CRM queries (integration)", () => {
 
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, o.publicId));
     expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
+  });
+
+  it("ending soon: attaches wallet coins, lifetime spend, and previous plan total", async () => {
+    const snap = await loadCatalogSnapshot();
+    // Older plan (previous) — finished; total is what Ending soon should surface as Prev.
+    const prev = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550333"));
+    const [prevRow] = await db.select({ id: orders.id, userId: orders.userId, total: orders.total, createdAt: orders.createdAt })
+      .from(orders).where(eq(orders.publicId, prev.publicId));
+    await db.update(orders).set({ status: "completed", total: "88.00", createdAt: prevRow.createdAt - 10_000 })
+      .where(eq(orders.id, prevRow.id));
+
+    const ending = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550444"));
+    const [endRow] = await db.select({ id: orders.id, userId: orders.userId }).from(orders).where(eq(orders.publicId, ending.publicId));
+    await db.update(orders).set({ userId: prevRow.userId, status: "active" }).where(eq(orders.id, endRow.id));
+
+    // Future renewal must NOT become "previous".
+    const next = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Ann Ending", "+16475550555"));
+    await db.update(orders).set({ userId: prevRow.userId, startDate: "2099-01-05", status: "pending", createdAt: Date.now() + 60_000 })
+      .where(eq(orders.publicId, next.publicId));
+
+    // Extra ledger activity on top of whatever createOrder already recorded.
+    await db.transaction(async (tx) => {
+      await ledgerService.record(tx, { userId: prevRow.userId!, direction: "credit", type: "payment", amount: 120 });
+      await ledgerService.record(tx, { userId: prevRow.userId!, direction: "debit", type: "refund", amount: 8 });
+    });
+    const expectedSpent = await ledgerService.totalSpent(prevRow.userId!);
+    await db.insert(walletLedger).values({
+      userId: prevRow.userId!,
+      direction: "credit",
+      eventType: "order_activated",
+      sourceType: "order",
+      sourceId: `ending-wallet-${endRow.id}`,
+      coins: 42,
+      orderId: endRow.id,
+    });
+
+    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries)
+      .where(eq(schema.deliveries.orderId, endRow.id));
+    const page = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
+    const row = page.items.find((r) => r.publicId === ending.publicId);
+    expect(row).toMatchObject({
+      walletCoins: 42,
+      totalSpent: expectedSpent,
+      prevOrderTotal: "88.00",
+    });
+
+    // Other views skip the money enrichment.
+    const all = await listOrdersPage(undefined, { page: 0, size: 50 }, undefined, "all");
+    expect(all.items.find((r) => r.publicId === ending.publicId)).toMatchObject({
+      walletCoins: null,
+      totalSpent: null,
+      prevOrderTotal: null,
+    });
   });
 
   it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {

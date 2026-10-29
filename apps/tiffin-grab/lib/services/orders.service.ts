@@ -9,6 +9,7 @@ import { stripeRuntime } from "@/lib/payments/stripe";
 import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { unexpired } from "@foundry/wallet";
 import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -22,6 +23,7 @@ import {
   deliveryMoves,
   mealSelections,
   deliveryFrequencies,
+  ledgerEntries,
   member,
   mealSizes,
   orderActivities,
@@ -33,6 +35,7 @@ import {
   subscriptionPauses,
   tickets,
   users,
+  walletLedger,
   type AddonRequest,
   type PaymentProof,
 } from "@/db/schema";
@@ -1499,6 +1502,12 @@ export type OrderListRow = {
   lastTiffin: string | null;
   /** Ending soon view only: a later plan for the same customer already exists. */
   renewed: boolean;
+  /** Ending soon only: customer coin balance (null on other views). */
+  walletCoins: number | null;
+  /** Ending soon only: ledger net spend (payments − refunds). */
+  totalSpent: string | null;
+  /** Ending soon only: most recent prior plan total for this customer. */
+  prevOrderTotal: string | null;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
@@ -1630,6 +1639,7 @@ export async function listOrdersPage(
     db
       .select({
         id: orders.id,
+        userId: orders.userId,
         publicId: orders.publicId,
         deploymentId: orders.deploymentId,
         fullName: orders.fullName,
@@ -1676,26 +1686,107 @@ export async function listOrdersPage(
     }
   }
 
-  const items: OrderListRow[] = rows.map((r) => ({
-    publicId: r.publicId,
-    deploymentId: r.deploymentId,
-    fullName: r.fullName,
-    city: r.city,
-    planKey: r.planKey,
-    status: r.status,
-    paymentStatus: paymentByOrder.get(r.id.toString()) ?? null,
-    startDate: r.startDate,
-    total: r.total,
-    createdAt: r.createdAt,
-    ownerId: r.ownerId ?? null,
-    ownerName: r.ownerName ?? null,
-    trial: r.trialLength != null,
-    lookOut: r.lookOutAt != null,
-    lookOutNote: r.lookOutNote,
-    lastTiffin: r.lastTiffin,
-    renewed: r.renewed,
-  }));
+  // Ending soon: batch wallet + lifetime spend + previous plan for renewal outreach.
+  const money = opts.ending && rows.length > 0
+    ? await endingSoonMoney(rows.map((r) => ({ id: r.id, userId: r.userId })))
+    : null;
+
+  const items: OrderListRow[] = rows.map((r) => {
+    const uid = r.userId?.toString() ?? null;
+    return {
+      publicId: r.publicId,
+      deploymentId: r.deploymentId,
+      fullName: r.fullName,
+      city: r.city,
+      planKey: r.planKey,
+      status: r.status,
+      paymentStatus: paymentByOrder.get(r.id.toString()) ?? null,
+      startDate: r.startDate,
+      total: r.total,
+      createdAt: r.createdAt,
+      ownerId: r.ownerId ?? null,
+      ownerName: r.ownerName ?? null,
+      trial: r.trialLength != null,
+      lookOut: r.lookOutAt != null,
+      lookOutNote: r.lookOutNote,
+      lastTiffin: r.lastTiffin,
+      renewed: r.renewed,
+      walletCoins: money ? (uid ? (money.walletByUser.get(uid) ?? 0) : 0) : null,
+      totalSpent: money ? (uid ? (money.spentByUser.get(uid) ?? "0.00") : "0.00") : null,
+      prevOrderTotal: money ? (money.prevTotalByOrder.get(r.id.toString()) ?? null) : null,
+    };
+  });
   return { items, page: page.page, size: page.size, total: count };
+}
+
+/** Batch wallet / lifetime spend / previous-plan total for Ending soon rows. */
+async function endingSoonMoney(
+  rows: { id: bigint; userId: bigint | null }[],
+): Promise<{
+  walletByUser: Map<string, number>;
+  spentByUser: Map<string, string>;
+  prevTotalByOrder: Map<string, string | null>;
+}> {
+  const walletByUser = new Map<string, number>();
+  const spentByUser = new Map<string, string>();
+  const prevTotalByOrder = new Map<string, string | null>();
+
+  const userIds = [...new Set(rows.map((r) => r.userId).filter((id): id is bigint => id != null))];
+  if (userIds.length === 0) {
+    for (const r of rows) prevTotalByOrder.set(r.id.toString(), null);
+    return { walletByUser, spentByUser, prevTotalByOrder };
+  }
+
+  const now = Date.now();
+  const [wallets, spends, history] = await Promise.all([
+    db
+      .select({
+        userId: walletLedger.userId,
+        balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`,
+      })
+      .from(walletLedger)
+      .where(and(inArray(walletLedger.userId, userIds), unexpired(walletLedger, now)))
+      .groupBy(walletLedger.userId),
+    db
+      .select({
+        userId: ledgerEntries.userId,
+        // Same formula as ledgerService.totalSpent — payment credits minus refund debits.
+        spent: sql<string>`(coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0))::text`,
+      })
+      .from(ledgerEntries)
+      .where(inArray(ledgerEntries.userId, userIds))
+      .groupBy(ledgerEntries.userId),
+    db
+      .select({
+        id: orders.id,
+        userId: orders.userId,
+        total: orders.total,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(inArray(orders.userId, userIds))
+      .orderBy(asc(orders.userId), asc(orders.createdAt), asc(orders.id)),
+  ]);
+
+  for (const w of wallets) walletByUser.set(w.userId.toString(), Number(w.balance) || 0);
+  for (const s of spends) spentByUser.set(s.userId.toString(), Number(s.spent).toFixed(2));
+
+  // Walk each customer's plans in created order; lag(total) is the previous plan.
+  let lastUser: string | null = null;
+  let lastTotal: string | null = null;
+  const prevById = new Map<string, string | null>();
+  for (const h of history) {
+    const uid = h.userId!.toString();
+    if (uid !== lastUser) {
+      lastUser = uid;
+      lastTotal = null;
+    }
+    prevById.set(h.id.toString(), lastTotal);
+    lastTotal = h.total;
+  }
+  for (const r of rows) prevTotalByOrder.set(r.id.toString(), prevById.get(r.id.toString()) ?? null);
+
+  return { walletByUser, spentByUser, prevTotalByOrder };
 }
 
 export type OrderPaymentDetail = {

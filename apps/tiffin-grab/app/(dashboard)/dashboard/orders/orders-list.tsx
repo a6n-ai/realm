@@ -19,20 +19,31 @@ import { RowTag } from "./row-tags";
 // server page maps over it; re-exporting it here would hand the RSC graph a
 // client reference instead of the array.
 
+type ListColumn = OrderSortColumn | "deployment" | "city" | "owner" | "wallet" | "spent";
+
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. "deployment" isn't a server sort key (see
 // OrderSortColumn), so it's a plain non-sortable column here.
-const COLUMNS: readonly Column<OrderSortColumn | "deployment" | "city" | "owner">[] = [
-  { key: "name", label: "Name", sortable: true },
-  { key: "deployment", label: "Deployment", sortable: false },
-  { key: "city", label: "City" },
-  { key: "status", label: "Status", sortable: true },
-  { key: "owner", label: "Owner", sortable: false },
-  { key: "start", label: "Start", sortable: true, align: "right" },
-  { key: "total", label: "Total", sortable: true, align: "right" },
-  { key: "created", label: "Created", sortable: true, align: "right" },
-];
+// Wallet + Spent only on Ending soon (renewal outreach).
+function orderColumns(endingView: boolean): readonly Column<ListColumn>[] {
+  return [
+    { key: "name", label: "Name", sortable: true },
+    { key: "deployment", label: "Deployment", sortable: false },
+    { key: "city", label: "City" },
+    { key: "status", label: "Status", sortable: true },
+    { key: "owner", label: "Owner", sortable: false },
+    { key: "start", label: "Start", sortable: true, align: "right" },
+    { key: "total", label: "Total", sortable: true, align: "right" },
+    ...(endingView
+      ? [
+          { key: "wallet" as const, label: "Wallet", sortable: false, align: "right" as const },
+          { key: "spent" as const, label: "Spent", sortable: false, align: "right" as const },
+        ]
+      : []),
+    { key: "created", label: "Created", sortable: true, align: "right" },
+  ];
+}
 
 export function OrdersList({
   spec,
@@ -62,11 +73,12 @@ export function OrdersList({
   paymentReviewView?: boolean;
 }) {
   const tz = useTimezone();
+  const columns = orderColumns(endingView);
   return (
     <div className="space-y-4">
     <DataTable
       serialOffset={page * size}
-      columns={COLUMNS}
+      columns={columns}
       rows={rows}
       rowKey={(o) => o.publicId}
       sort={sort}
@@ -108,6 +120,20 @@ export function OrdersList({
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          {endingView && (
+            <>
+              <TableCell className="text-right tabular-nums">
+                <span className="font-medium">{o.walletCoins ?? 0}</span>
+                <p className="text-muted-foreground text-xs font-normal">coins</p>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                <span className="font-medium">{fmt(Number(o.totalSpent ?? 0))}</span>
+                <p className="text-muted-foreground text-xs font-normal">
+                  {o.prevOrderTotal != null ? `Prev ${fmt(Number(o.prevOrderTotal))}` : "No prev plan"}
+                </p>
+              </TableCell>
+            </>
+          )}
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
@@ -120,6 +146,6 @@ export function OrdersList({
 }
 
 // Loading twin is now owned by DataTable — same COLUMNS + lead columns, zero drift.
-export function OrdersListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+export function OrdersListSkeleton({ endingView = false }: { endingView?: boolean }) {
+  return <DataTable.Skeleton columns={orderColumns(endingView)} hasId />;
 }

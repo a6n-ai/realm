@@ -41,11 +41,12 @@ import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function OrdersPage({
+export default async function OrdersPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
+  const raw = await searchParams;
   return (
     <PageShell>
       <PageHeader
@@ -76,7 +77,7 @@ export default function OrdersPage({
         <OrdersViews />
       </Suspense>
       <SectionCard title="Orders">
-        <Suspense fallback={<OrdersListSkeleton />}>
+        <Suspense fallback={<OrdersListSkeleton endingView={raw.view === "ending"} />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
