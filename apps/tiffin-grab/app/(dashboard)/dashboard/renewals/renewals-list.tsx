@@ -15,13 +15,12 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import type { RenewalStatus } from "@/lib/services/orders.service";
 import { EstimateButton } from "./estimate-button";
 
-const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "wallet" | "spent" | "actions">[] = [
+const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "money" | "actions">[] = [
   { key: "customer", label: "Customer" },
   { key: "plan", label: "Meal size" },
   { key: "last", label: "Last tiffin" },
   { key: "status", label: "Next plan" },
-  { key: "wallet", label: "Wallet", align: "right" },
-  { key: "spent", label: "Spent", align: "right" },
+  { key: "money", label: "Wallet · spent", align: "right" },
   { key: "actions", label: "", align: "right" },
 ];
 
@@ -85,9 +84,8 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
             <TableCell>
               <Badge variant={STATUS_VARIANT[r.status]}>{statusLabel(r.status, tab)}</Badge>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.walletCoins} coins</TableCell>
             <TableCell className="text-right tabular-nums" title={r.prevOrderTotal != null ? `Previous plan ${fmt(Number(r.prevOrderTotal))}` : "No previous plan"}>
-              {fmt(Number(r.totalSpent))}
+              {r.walletCoins} coins <span className="text-muted-foreground">· {fmt(Number(r.totalSpent))}</span>
             </TableCell>
             <TableCell className="text-right">
               <EstimateButton orderPublicId={r.orderPublicId} />
