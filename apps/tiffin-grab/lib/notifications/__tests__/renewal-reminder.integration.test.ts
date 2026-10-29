@@ -62,6 +62,12 @@ describe("renewal reminders (integration)", () => {
     const [first] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, o.publicId));
     await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
     expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 0 });
+    // So does a waitlisted one.
+    await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.publicId, next.publicId));
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 0 });
+    // A cancelled one does not.
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, next.publicId));
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 1 });
   });
 
   it("never reminds a trial", async () => {

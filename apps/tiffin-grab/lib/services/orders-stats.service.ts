@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { orderActivities, orders } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
 import { getAppSettings } from "./app-settings.service";
-import { lastTiffinSql, renewedSql } from "./orders.service";
+import { lastTiffinSql, laterOrderSql } from "./orders.service";
 
 export type OrdersOverview = {
   newOrders: { count: number; prevCount: number; returning: number };
@@ -70,7 +70,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
       : db
           .select({
             ended: sql<number>`count(*)`,
-            renewed: sql<number>`count(*) filter (where ${renewedSql})`,
+            renewed: sql<number>`count(*) filter (where ${laterOrderSql})`,
           })
           .from(orders)
           .where(and(

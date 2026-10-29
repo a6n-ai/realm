@@ -1383,8 +1383,33 @@ export async function countLookOutOrders(visible: "all" | string[]): Promise<num
 /** An order's last tiffin: its latest non-cancelled delivery row (the same rule `reservedEndDatesExclusive` uses). */
 export const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
 
-/** The customer already has a later plan (pending, running or finished) starting after this one. */
-export const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate} and not (next_order.status = 'pending' and exists (select 1 from ${payments} as np where np.order_id = next_order.id and np.method = 'stripe' and np.status in ('awaiting_payment', 'rejected'))))`;
+// One rule for "renewed", shared by the renewal reminder, the Orders renewal-rate card and Renewals:
+// any later plan by the same customer counts, unpaid and waitlisted included, so staff chase the
+// payment instead of selling the customer a second plan. Cancelled never counts.
+const laterOrderWhere = sql`next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate}`;
+const laterOrder = (extra?: SQL) => sql`exists (select 1 from ${orders} as next_order where ${laterOrderWhere}${extra ? sql` and ${extra}` : sql``})`;
+
+/** The customer already has a later plan (any start date, unpaid and waitlisted included). */
+export const laterOrderSql = sql<boolean>`${laterOrder()}`;
+
+/** Trial conversion: a later plan that is not itself a trial. */
+export const laterPaidOrderSql = sql<boolean>`${laterOrder(sql`next_order.trial_length is null`)}`;
+
+export type RenewalStatus = "renewed" | "unpaid" | "waitlisted" | "none";
+
+/**
+ * Where the renewal stands, best later plan first: one running, finished or paid wins over an
+ * unpaid one, which wins over a waitlisted one. `paidPlansOnly` ignores later trials (Trial conversion).
+ */
+export function renewalStatusSql(paidPlansOnly = false) {
+  const plan = (extra: SQL) => laterOrder(paidPlansOnly ? sql`next_order.trial_length is null and ${extra}` : extra);
+  const paid = sql`exists (select 1 from ${payments} as np where np.order_id = next_order.id and np.status in ('paid', 'simulated_paid'))`;
+  return sql<RenewalStatus>`case
+    when ${plan(sql`(next_order.status in ('active', 'paused', 'completed') or ${paid})`)} then 'renewed'
+    when ${plan(sql`next_order.status = 'pending'`)} then 'unpaid'
+    when ${plan(sql`next_order.status = 'waitlisted'`)} then 'waitlisted'
+    else 'none' end`;
+}
 
 /** ISO dates, both inclusive, in the app timezone. */
 export type EndingWindow = { from: string; to: string };
@@ -1655,7 +1680,7 @@ export async function listOrdersPage(
         lookOutAt: orders.lookOutAt,
         lookOutNote: orders.lookOutNote,
         lastTiffin: opts.ending ? lastTiffinSql : sql<null>`null`,
-        renewed: opts.ending ? renewedSql : sql<boolean>`false`,
+        renewed: opts.ending ? laterOrderSql : sql<boolean>`false`,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))

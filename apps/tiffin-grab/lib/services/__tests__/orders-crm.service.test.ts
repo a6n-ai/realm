@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, n
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
 const { ledgerService } = await import("../ledger.service");
@@ -73,6 +73,55 @@ describe("order CRM queries (integration)", () => {
 
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, o.publicId));
     expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
+  });
+
+  it("renewed rule: any later plan counts, unpaid and waitlisted included; status ranks renewed > unpaid > waitlisted", async () => {
+    const snap = await loadCatalogSnapshot();
+    // A fresh phone per plan: createOrder would reject a second overlapping plan for one customer.
+    let phone = 600;
+    const plan = () => createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Rae Renew", `+16475550${phone++}`));
+    const o = await plan();
+    await db.update(orders).set({ status: "active" }).where(eq(orders.publicId, o.publicId));
+    const [first] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, o.publicId));
+    const of = async () => (await db.select({ later: laterOrderSql, laterPaid: laterPaidOrderSql, status: renewalStatusSql(), paidOnly: renewalStatusSql(true) })
+      .from(orders).where(eq(orders.publicId, o.publicId)))[0];
+    const later = async (startDate: string) => {
+      const n = await plan();
+      const [row] = await db.update(orders).set({ userId: first.userId, startDate, status: "pending" }).where(eq(orders.publicId, n.publicId)).returning({ id: orders.id });
+      return row.id;
+    };
+    const setPayments = async (orderId: bigint, status: "paid" | "awaiting_payment" | "pending") => {
+      const rows = await db.update(payments).set({ status }).where(eq(payments.orderId, orderId)).returning({ id: payments.id });
+      expect(rows.length).toBeGreaterThan(0);
+    };
+
+    expect(await of()).toEqual({ later: false, laterPaid: false, status: "none", paidOnly: "none" });
+
+    const next = await later("2099-01-05");
+    await setPayments(next, "awaiting_payment");
+    expect(await of()).toMatchObject({ later: true, status: "unpaid" });
+
+    await setPayments(next, "paid");
+    expect(await of()).toMatchObject({ later: true, status: "renewed" });
+
+    await setPayments(next, "pending");
+    await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.id, next));
+    expect(await of()).toMatchObject({ later: true, status: "waitlisted" });
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, next));
+    expect(await of()).toMatchObject({ later: false, status: "none" });
+
+    // A later trial counts as a later plan, but not as a trial conversion.
+    await db.update(orders).set({ status: "active", trialLength: 3 }).where(eq(orders.id, next));
+    expect(await of()).toEqual({ later: true, laterPaid: false, status: "renewed", paidOnly: "none" });
+
+    // An unpaid next plan with a running one after it reads Renewed, not Unpaid.
+    await db.update(orders).set({ status: "cancelled", trialLength: null }).where(eq(orders.id, next));
+    const unpaid = await later("2099-01-05");
+    await setPayments(unpaid, "awaiting_payment");
+    const running = await later("2099-02-02");
+    await db.update(orders).set({ status: "active" }).where(eq(orders.id, running));
+    expect(await of()).toEqual({ later: true, laterPaid: true, status: "renewed", paidOnly: "renewed" });
   });
 
   it("ending soon: attaches wallet coins, lifetime spend, and previous plan total", async () => {

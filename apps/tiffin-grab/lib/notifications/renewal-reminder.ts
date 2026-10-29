@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { mealSizes, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { lastTiffinSql } from "@/lib/services/orders.service";
+import { lastTiffinSql, laterOrderSql } from "@/lib/services/orders.service";
 import { enqueueNotification } from "./enqueue";
 
 /** Days before the last tiffin that a reminder goes out. */
@@ -40,7 +40,7 @@ export function renewalReminderMessage(c: RenewalCandidate, daysLeft: number) {
 }
 
 /**
- * Weekly plans whose last tiffin is exactly `lastTiffin`, for customers with no later plan of any kind:
+ * Non-trial plans whose last tiffin is exactly `lastTiffin`, for customers with no later plan of any kind:
  * a running or finished renewal means they already renewed, and an unpaid or waitlisted one gets the
  * payment reminder instead.
  */
@@ -62,7 +62,7 @@ async function candidates(lastTiffin: string): Promise<RenewalCandidate[]> {
       isNotNull(orders.userId),
       eq(users.status, "active"),
       sql`${lastTiffinSql} = ${lastTiffin}`,
-      sql`not exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate})`,
+      sql`not ${laterOrderSql}`,
     ));
   return rows.map((r) => ({ ...r, userId: r.userId!, lastTiffin }));
 }
