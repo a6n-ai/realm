@@ -38,6 +38,9 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   return (
     <PageShell>
       <PageHeader icon={RefreshCwIcon} title="Renewals" subtitle="Plans ending soon or lapsed, and who already booked again." />
+      <Suspense key={`${f.tab}:${f.ended}`} fallback={<StatCardsSkeleton count={5} />}>
+        <RenewalsCards f={f} />
+      </Suspense>
       <Tabs value={f.tab}>
         <TabsList variant="line" aria-label="Renewal lists">
           <TabsTrigger value="renewals" asChild>
@@ -51,9 +54,6 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <Suspense key={`${f.tab}:${f.ended}`} fallback={<StatCardsSkeleton count={5} />}>
-        <RenewalsCards f={f} />
-      </Suspense>
       <SectionCard title={f.tab === "customers" ? "Customers who renewed" : f.tab === "trials" ? "Trials" : "Plans"}>
         <Suspense
           key={`${renewalsQuery(f)}:${page.page}:${page.size}`}
@@ -75,13 +75,15 @@ function facetSpec(f: RenewalsFilter): FacetDef[] {
   if (f.tab === "customers") {
     return [
       { kind: "select", field: "renewed", label: "Renewed in last", options: RENEWED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
+      { kind: "dateRange", field: "createdAt", label: "Renewal ordered" },
       { kind: "search", fields: ["name", "phone", "email"] },
     ];
   }
   return [
     { kind: "select", field: "ending", label: "Ending within", options: ENDING_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `${d} ${d === 1 ? "day" : "days"}` })) },
     { kind: "select", field: "ended", label: "Ended in last", options: ENDED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
-    { kind: "pills", field: "status", label: "Next plan", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, f.tab) })) },
+    { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, f.tab) })) },
+    { kind: "dateRange", field: "createdAt", label: "Ordered" },
     { kind: "search", fields: ["fullName", "deploymentId", "phone"] },
   ];
 }
@@ -120,6 +122,6 @@ async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: 
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
   const { visible, today } = await scope();
-  const result = await listRenewedCustomers(visible, { renewedWithin: f.renewed, q: f.q }, { page, size });
+  const result = await listRenewedCustomers(visible, { renewedWithin: f.renewed, q: f.q, from: f.from, to: f.to }, { page, size });
   return <RenewedCustomersList rows={result.items} total={result.total} page={page} size={size} today={today} spec={spec} />;
 }

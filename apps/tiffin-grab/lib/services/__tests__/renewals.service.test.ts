@@ -55,7 +55,7 @@ describe("renewals service (integration)", () => {
 
   it("ending window: today through N days out, both ends included", async () => {
     const p = await plan();
-    const f = (ending: number) => ({ tab: "renewals" as const, ending, ended: null, status: null, renewed: null, q: "" });
+    const f = (ending: number) => ({ tab: "renewals" as const, ending, ended: null, status: null, renewed: null, from: null, to: null, q: "" });
     expect(ids(await listRenewals("all", f(0), p.last, page))).toEqual([p.publicId]);
     expect(ids(await listRenewals("all", f(2), addDays(p.last, -2), page))).toEqual([p.publicId]);
     expect(ids(await listRenewals("all", f(1), addDays(p.last, -2), page))).toEqual([]);
@@ -67,10 +67,16 @@ describe("renewals service (integration)", () => {
     const running = await plan();
     const done = await plan("completed");
     const today = addDays(running.last, 3);
-    const lapsed = { tab: "renewals" as const, ending: null, ended: 7, status: null, renewed: null, q: "" };
+    const lapsed = { tab: "renewals" as const, ending: null, ended: 7, status: null, renewed: null, from: null, to: null, q: "" };
     const listed = await listRenewals("all", lapsed, today, page);
     expect(new Set(ids(listed))).toEqual(new Set([running.publicId, done.publicId]));
     expect(listed.items.every((r) => r.status === "none")).toBe(true);
+
+    // Status: Lapsed keeps the ended ones; Not renewed wants a running plan, so none here.
+    expect(new Set(ids(await listRenewals("all", { ...lapsed, status: "lapsed" }, today, page)))).toEqual(new Set([running.publicId, done.publicId]));
+    expect(ids(await listRenewals("all", { ...lapsed, status: "not_renewed" }, today, page))).toEqual([]);
+    // Order date: a range that ends before these were ordered empties the list.
+    expect(ids(await listRenewals("all", { ...lapsed, to: 1 }, today, page))).toEqual([]);
 
     // A later plan (even unpaid) takes it off the lapsed list.
     const next = await plan();
@@ -82,7 +88,7 @@ describe("renewals service (integration)", () => {
     const paid = await plan();
     const trial = await plan();
     await db.update(orders).set({ trialLength: 3 }).where(eq(orders.id, trial.id));
-    const f = (tab: "renewals" | "trials") => ({ tab, ending: 7, ended: null, status: null, renewed: null, q: "" });
+    const f = (tab: "renewals" | "trials") => ({ tab, ending: 7, ended: null, status: null, renewed: null, from: null, to: null, q: "" });
     const today = addDays(paid.last, -1);
     expect(ids(await listRenewals("all", f("renewals"), today, page))).toEqual([paid.publicId]);
     expect(ids(await listRenewals("all", f("trials"), today, page))).toEqual([trial.publicId]);
@@ -100,7 +106,7 @@ describe("renewals service (integration)", () => {
     await db.insert(walletLedger).values({ userId: before.userId, direction: "credit", eventType: "order_activated", sourceType: "order", sourceId: `renewals-${p.id}`, coins: 42, orderId: p.id });
 
     const today = addDays(p.last, -1);
-    const list = await listRenewals("all", { tab: "renewals", ending: 7, ended: null, status: null, renewed: null, q: "" }, today, page);
+    const list = await listRenewals("all", { tab: "renewals", ending: 7, ended: null, status: null, renewed: null, from: null, to: null, q: "" }, today, page);
     expect(list.items.find((r) => r.orderPublicId === p.publicId)).toMatchObject({ priorPlans: 1, holds: 1, openTickets: 0, walletCoins: 42, prevOrderTotal: "88.00", status: "none" });
 
     const cards = await countRenewals("all", "renewals", today, 30);
@@ -110,8 +116,8 @@ describe("renewals service (integration)", () => {
     expect(cards.renewed).toBe(1);
 
     // Status and search narrow the list; search matches name, code or phone.
-    const f = { tab: "renewals" as const, ending: 7, ended: null, renewed: null, q: "" };
-    expect(ids(await listRenewals("all", { ...f, status: "none" }, today, page))).toContain(p.publicId);
+    const f = { tab: "renewals" as const, ending: 7, ended: null, renewed: null, from: null, to: null, q: "" };
+    expect(ids(await listRenewals("all", { ...f, status: "not_renewed" }, today, page))).toContain(p.publicId);
     expect(ids(await listRenewals("all", { ...f, status: "renewed" }, today, page))).toEqual([]);
     expect(ids(await listRenewals("all", { ...f, status: null, q: "nia renew" }, today, page))).toContain(p.publicId);
     expect(ids(await listRenewals("all", { ...f, status: null, q: "nobody-like-this" }, today, page))).toEqual([]);

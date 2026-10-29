@@ -12,10 +12,10 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";
-import { statusLabel } from "@/lib/renewals/filters";
+import { rowStatus, statusLabel } from "@/lib/renewals/filters";
 import { UnpaidPlanActions } from "./renewal-actions";
 
-const NEXT_VARIANT = { renewed: "success-light", unpaid: "warning-light", waitlisted: "info-light", none: "secondary" } as const;
+const NEXT_VARIANT = { renewed: "success-light", unpaid: "warning-light", waitlisted: "info-light", not_renewed: "secondary", lapsed: "destructive-light" } as const;
 
 function gapLabel(days: number) {
   if (days < 0) return `Booked ${-days} ${days === -1 ? "day" : "days"} before it ended`;
@@ -52,7 +52,7 @@ export function PlanHistory({ plans, today }: { plans: RenewalPlan[]; today: str
             <TimelineContent>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground tabular-nums">{fmt(Number(p.total))}</span>
-                <Badge variant={NEXT_VARIANT[p.next]}>{statusLabel(p.next, p.trial ? "trials" : "renewals")}</Badge>
+                <Badge variant={NEXT_VARIANT[rowStatus(p.next, p.lastTiffin, today)]}>{statusLabel(rowStatus(p.next, p.lastTiffin, today), p.trial ? "trials" : "renewals")}</Badge>
                 {p.gapDays != null && <span className="text-muted-foreground text-xs">{gapLabel(p.gapDays)}</span>}
               </div>
               {(p.status === "pending" || p.status === "waitlisted") && (

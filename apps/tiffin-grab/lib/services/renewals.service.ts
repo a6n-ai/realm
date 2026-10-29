@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
@@ -40,6 +40,15 @@ const endingWhere = (today: string, days: number) => and(running, sql`${lastTiff
 const lapsedWhere = (tab: RenewalsTab, today: string, days: number) =>
   and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`, sql`${renewalStatusSql(tab === "trials")} = 'none'`);
 
+/** Status filter: Not renewed and Lapsed are both "no later plan", split on whether the last tiffin has passed. */
+function statusWhere(f: RenewalsFilter, today: string) {
+  if (!f.status) return undefined;
+  const status = renewalStatusSql(f.tab === "trials");
+  if (f.status === "not_renewed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} >= ${today}`);
+  if (f.status === "lapsed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} < ${today}`);
+  return sql`${status} = ${f.status}`;
+}
+
 /** Every word must hit the name, order code or phone, in any order (same rule as the other list searches). */
 const searchWhere = (q: string) =>
   and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
@@ -50,7 +59,10 @@ export async function listRenewals(visible: "all" | string[], f: RenewalsFilter,
     tabWhere(f.tab),
     visibleOrgWhere(visible),
     or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? lapsedWhere(f.tab, today, f.ended) : undefined),
-    f.status ? sql`${renewalStatusSql(f.tab === "trials")} = ${f.status}` : undefined,
+    // Order date: when the ending plan was ordered.
+    f.from != null ? gte(orders.createdAt, f.from) : undefined,
+    f.to != null ? lte(orders.createdAt, f.to) : undefined,
+    statusWhere(f, today),
     f.q ? searchWhere(f.q) : undefined,
   );
 
@@ -136,7 +148,8 @@ export type RenewedCustomerRow = {
 /** Every customer with at least one renewal, newest renewal first; `renewedWithin` keeps those who renewed in the last N days. */
 export async function listRenewedCustomers(
   visible: "all" | string[],
-  opts: { renewedWithin: number | null; q: string; now?: number },
+  /** `from`/`to`: epoch-ms bounds on the last renewal's order date (the date facet). */
+  opts: { renewedWithin: number | null; q: string; from?: number | null; to?: number | null; now?: number },
   page: PageRequest,
 ): Promise<Page<RenewedCustomerRow>> {
   if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
@@ -157,7 +170,12 @@ export async function listRenewedCustomers(
     .innerJoin(users, eq(orders.userId, users.id))
     .where(and(visibleOrgWhere(visible), opts.q ? and(...opts.q.split(" ").map((w) => or(ilike(users.name, `%${w}%`), ilike(users.phone, `%${w}%`), ilike(users.email, `%${w}%`)))) : undefined))
     .groupBy(users.id)
-    .having(and(sql`${renewals} > 0`, since != null ? sql`${lastRenewedAt} >= ${since}` : undefined))
+    .having(and(
+      sql`${renewals} > 0`,
+      since != null ? sql`${lastRenewedAt} >= ${since}` : undefined,
+      opts.from != null ? sql`${lastRenewedAt} >= ${opts.from}` : undefined,
+      opts.to != null ? sql`${lastRenewedAt} <= ${opts.to}` : undefined,
+    ))
     .as("renewed_customers");
 
   const [rows, [{ count }]] = await Promise.all([

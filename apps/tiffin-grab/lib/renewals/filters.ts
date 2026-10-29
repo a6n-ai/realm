@@ -11,14 +11,29 @@ export const ENDED_DAYS = [7, 14, 30, 60, 90] as const;
 export const DEFAULT_ENDING = 7;
 /** Renewed customers tab: "Renewed in the last N days" choices. */
 export const RENEWED_DAYS = [7, 14, 30, 90] as const;
-export const RENEWAL_STATUSES: readonly RenewalStatus[] = ["renewed", "unpaid", "waitlisted", "none"];
+/** The Status filter: the renewal status, with "none" split by whether the plan is still running. */
+export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed" | "lapsed";
+export const RENEWAL_STATUSES: readonly RenewalStatusFilter[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
 
-export type RenewalsFilter = { tab: RenewalsTab; ending: number | null; ended: number | null; status: RenewalStatus | null; renewed: number | null; q: string };
+/** `from`/`to`: the order-date facet's epoch-ms bounds (the plan's order date; on the customers tab, the renewal's). */
+export type RenewalsFilter = {
+  tab: RenewalsTab;
+  ending: number | null;
+  ended: number | null;
+  status: RenewalStatusFilter | null;
+  renewed: number | null;
+  from: number | null;
+  to: number | null;
+  q: string;
+};
 
 const pick = (v: string | undefined, allowed: readonly number[]) => {
   const n = Number(v);
   return v != null && v !== "" && allowed.includes(n) ? n : null;
 };
+
+/** No window in the URL: the page redirects to the default so the filter bar shows what is applied. */
+const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : null);
 
 /** No window in the URL: the page redirects to the default so the filter bar shows what is applied. */
 export const missingWindow = (sp: Record<string, string | undefined>) => sp.tab !== "customers" && !sp.ending && !sp.ended;
@@ -27,11 +42,13 @@ export const missingWindow = (sp: Record<string, string | undefined>) => sp.tab 
 export function parseRenewalsFilter(sp: Record<string, string | undefined>): RenewalsFilter {
   const tab = sp.tab === "trials" || sp.tab === "customers" ? sp.tab : "renewals";
   const q = sp.q?.trim().replace(/\s+/g, " ") ?? "";
-  if (tab === "customers") return { tab, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), q };
+  const from = ms(sp.from);
+  const to = ms(sp.to);
+  if (tab === "customers") return { tab, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
   const ended = pick(sp.ended, ENDED_DAYS);
   const ending = pick(sp.ending, ENDING_DAYS) ?? (ended == null ? DEFAULT_ENDING : null);
   const status = RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
-  return { tab, ending, ended, status, renewed: null, q };
+  return { tab, ending, ended, status, renewed: null, from, to, q };
 }
 
 /** The query string for a filter. */
@@ -42,21 +59,28 @@ export function renewalsQuery(f: RenewalsFilter): string {
   if (f.ended != null) sp.set("ended", String(f.ended));
   if (f.status) sp.set("status", f.status);
   if (f.renewed != null) sp.set("renewed", String(f.renewed));
+  if (f.from != null) sp.set("from", String(f.from));
+  if (f.to != null) sp.set("to", String(f.to));
   if (f.q) sp.set("q", f.q);
   const qs = sp.toString();
   return qs ? `?${qs}` : "";
 }
 
-const STATUS_LABEL: Record<RenewalStatus, string> = {
+const STATUS_LABEL: Record<RenewalStatusFilter, string> = {
   renewed: "Renewed",
   unpaid: "Renewed: unpaid",
   waitlisted: "Renewed: waitlisted",
-  none: "Not renewed",
+  not_renewed: "Not renewed",
+  lapsed: "Lapsed",
 };
 
-/** Next-plan status label; on trials it reads Converted / Not converted. Here, not in a client file: the server page builds the filter options from it. */
-export function statusLabel(s: RenewalStatus, tab: RenewalsTab): string {
+/** A row's status: "none" reads Not renewed while the plan runs and Lapsed once its last tiffin has passed. */
+export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalStatusFilter =>
+  s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";
+
+/** Status label; trials read Converted / Not converted / Lapsed. Here, not in a client file: the server page builds the filter options from it. */
+export function statusLabel(s: RenewalStatusFilter, tab: RenewalsTab): string {
   if (tab === "trials" && s === "renewed") return "Converted";
-  if (tab === "trials" && s === "none") return "Not converted";
+  if (tab === "trials" && s === "not_renewed") return "Not converted";
   return STATUS_LABEL[s];
 }

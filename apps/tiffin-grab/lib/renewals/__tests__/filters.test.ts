@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { missingWindow, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "../filters";
 
-const base: RenewalsFilter = { tab: "renewals", ending: 7, ended: null, status: null, renewed: null, q: "" };
+const base: RenewalsFilter = { tab: "renewals", ending: 7, ended: null, status: null, renewed: null, from: null, to: null, q: "" };
 
 describe("renewals filter", () => {
   it("defaults to plans ending within 7 days on the Renewals tab", () => {
@@ -10,11 +10,13 @@ describe("renewals filter", () => {
     expect(missingWindow({ ended: "30" })).toBe(false);
     // The renewed-customers tab has no ending window.
     expect(missingWindow({ tab: "customers" })).toBe(false);
+    // The order-date range narrows the window, it does not replace it.
+    expect(parseRenewalsFilter({ from: "1", to: "2", ending: "3" })).toEqual({ ...base, ending: 3, from: 1, to: 2 });
   });
 
   it("reads the tab, both windows, status and search, ignoring values off the menu", () => {
     expect(parseRenewalsFilter({ tab: "trials", ending: "2", ended: "30", status: "unpaid", q: "  asha   k " }))
-      .toEqual({ tab: "trials", ending: 2, ended: 30, status: "unpaid", renewed: null, q: "asha k" });
+      .toEqual({ tab: "trials", ending: 2, ended: 30, status: "unpaid", renewed: null, from: null, to: null, q: "asha k" });
     expect(parseRenewalsFilter({ ending: "5", status: "maybe" })).toEqual(base);
   });
 
@@ -27,9 +29,10 @@ describe("renewals filter", () => {
       base,
       { ...base, tab: "trials", ending: 0 },
       { ...base, ending: null, ended: 30 },
-      { ...base, ended: 30, status: "none", q: "ram" },
-      { tab: "customers", ending: null, ended: null, status: null, renewed: 30, q: "" },
-      { tab: "customers", ending: null, ended: null, status: null, renewed: null, q: "ram" },
+      { ...base, ended: 30, status: "lapsed", q: "ram" },
+      { tab: "customers", ending: null, ended: null, status: null, renewed: 30, from: null, to: null, q: "" },
+      { tab: "customers", ending: null, ended: null, status: null, renewed: null, from: 1, to: 2, q: "ram" },
+      { ...base, from: 1_790_000_000_000, to: 1_791_000_000_000 },
     ] satisfies RenewalsFilter[]) {
       expect(parseRenewalsFilter(Object.fromEntries(new URLSearchParams(renewalsQuery(f))))).toEqual(f);
     }

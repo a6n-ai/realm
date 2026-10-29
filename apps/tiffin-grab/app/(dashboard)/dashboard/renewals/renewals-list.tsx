@@ -8,27 +8,27 @@ import { Badge } from "@/components/reui/badge";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { humanDate } from "@/lib/deliveries-view";
-import { statusLabel, type RenewalsTab } from "@/lib/renewals/filters";
+import { rowStatus, statusLabel, type RenewalStatusFilter, type RenewalsTab } from "@/lib/renewals/filters";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import type { RenewalStatus } from "@/lib/services/orders.service";
 import { EstimateButton } from "./estimate-button";
 
 const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "money" | "actions">[] = [
   { key: "customer", label: "Customer" },
   { key: "plan", label: "Meal size" },
   { key: "last", label: "Last tiffin" },
-  { key: "status", label: "Next plan" },
-  { key: "money", label: "Wallet · spent", align: "right" },
-  { key: "actions", label: "", align: "right" },
+  { key: "status", label: "Status", width: "w-36" },
+  { key: "money", label: "Wallet · spent", align: "right", width: "w-36" },
+  { key: "actions", label: "Actions", align: "right", width: "w-20" },
 ];
 
-const STATUS_VARIANT: Record<RenewalStatus, "success-light" | "warning-light" | "info-light" | "secondary"> = {
+const STATUS_VARIANT: Record<RenewalStatusFilter, "success-light" | "warning-light" | "info-light" | "secondary" | "destructive-light"> = {
   renewed: "success-light",
   unpaid: "warning-light",
   waitlisted: "info-light",
-  none: "secondary",
+  not_renewed: "secondary",
+  lapsed: "destructive-light",
 };
 
 function whenLabel(lastTiffin: string, today: string) {
@@ -63,7 +63,8 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         rows={rows}
         rowKey={(r) => r.orderPublicId}
         idAccessor={(r) => r.code}
-        idHref={renewalHref}
+        idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+        idLabel="Order"
         rowClassName={() => "group"}
         filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
         emptyIcon={RefreshCwIcon}
@@ -82,7 +83,7 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
               {humanDate(r.lastTiffin)} <span className="text-muted-foreground">· {whenLabel(r.lastTiffin, today)}</span>
             </TableCell>
             <TableCell>
-              <Badge variant={STATUS_VARIANT[r.status]}>{statusLabel(r.status, tab)}</Badge>
+              <Badge variant={STATUS_VARIANT[rowStatus(r.status, r.lastTiffin, today)]}>{statusLabel(rowStatus(r.status, r.lastTiffin, today), tab)}</Badge>
             </TableCell>
             <TableCell className="text-right tabular-nums" title={r.prevOrderTotal != null ? `Previous plan ${fmt(Number(r.prevOrderTotal))}` : "No previous plan"}>
               {r.walletCoins} coins <span className="text-muted-foreground">· {fmt(Number(r.totalSpent))}</span>
