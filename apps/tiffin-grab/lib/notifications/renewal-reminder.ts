@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { zonedDateIso } from "@foundry/commons";
+import { and, eq, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
+import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { mealSizes, orders, users } from "@/db/schema";
+import { mealSizes, notificationOutbox, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/services/orders.service";
@@ -90,4 +90,51 @@ export async function sendRenewalReminders(now = Date.now()) {
     summary[`days${daysLeft}`] = plans.length;
   }
   return summary;
+}
+
+/**
+ * Staff "Send reminder now" from the Renewals page: the same email, for a running plan with no later plan
+ * (trials included, as a conversion nudge), at most once a day per plan. Its key reads `staff-<date>` where
+ * the daily job writes days-left, so the Renewals page can tell the two apart.
+ */
+export async function sendRenewalReminderNow(orderPublicId: string, now = Date.now()): Promise<"sent" | "already-sent"> {
+  const today = zonedDateIso(now, (await getAppSettings()).timezone);
+  const [c] = await db
+    .select({
+      orderPublicId: orders.publicId,
+      code: orders.deploymentId,
+      userId: orders.userId,
+      status: orders.status,
+      customerName: users.name,
+      mealSize: mealSizes.name,
+      lastTiffin: sql<string | null>`${lastTiffinSql}`,
+      later: laterOrderSql,
+    })
+    .from(orders)
+    .innerJoin(users, eq(users.id, orders.userId))
+    .leftJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!c?.userId) throw new NotFoundError("Order not found");
+  if (!["active", "paused"].includes(c.status) || c.later || !c.lastTiffin || c.lastTiffin < today) {
+    throw new ValidationError("Only a running plan with no next plan booked gets a renewal reminder");
+  }
+  const dedupeKey = `renewal:${c.orderPublicId}:${c.lastTiffin}:staff-${today}`;
+  // The engine suffixes the channel onto the key, so match by prefix.
+  const [sent] = await db.select({ id: notificationOutbox.id }).from(notificationOutbox).where(like(notificationOutbox.dedupeKey, `${dedupeKey}%`)).limit(1);
+  if (sent) return "already-sent";
+  const daysLeft = Math.round((Date.parse(c.lastTiffin) - Date.parse(today)) / 86_400_000);
+  const m = renewalReminderMessage({ ...c, userId: c.userId, lastTiffin: c.lastTiffin }, daysLeft);
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "order_renewal_reminder",
+      recipientId: c.userId!,
+      title: m.title,
+      body: m.body,
+      href: "/me/renew",
+      data: { order: m.order },
+      dedupeKey,
+    }),
+  );
+  return "sent";
 }

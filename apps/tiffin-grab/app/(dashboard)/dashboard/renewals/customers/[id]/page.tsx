@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarClockIcon, CoinsIcon, HourglassIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
 import { formatMoney as fmt, zonedDateIso } from "@foundry/commons";
@@ -11,13 +10,16 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { getCustomerRenewal } from "@/lib/services/renewals.service";
 import { EstimateButton } from "../../estimate-button";
+import { RenewControl } from "../../../orders/[id]/renew-control";
+import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-actions";
 import { PlanHistory, RenewalReminders } from "./renewal-history";
 
 /** One customer's renewals only: how often and how fast they renew, each plan and what followed it, and the reminders sent. */
 export default async function CustomerRenewalPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ order: ["read"] });
   const { id } = await params;
-  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(await getSession()), getAppSettings()]);
+  const session = await getSession();
+  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const data = await getCustomerRenewal(visible, id);
   if (!data) notFound();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
@@ -30,6 +32,9 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
   const avgGap = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : null;
   const current = [...plans].reverse().find((p) => p.status === "active" || p.status === "paused");
   const latest = plans[plans.length - 1];
+  // Same rule as the order page's Renew: the newest paid plan, if nothing follows it yet.
+  const renewFrom = [...plans].reverse().find((p) => !p.trial && ["active", "paused", "completed"].includes(p.status));
+  const renewUrl = `${(process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "")}/me/renew`;
 
   return (
     <PageShell>
@@ -38,9 +43,12 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         title={customer.name || "Unnamed customer"}
         subtitle={[customer.phone, customer.email].filter(Boolean).join(" · ") || undefined}
         actions={
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard/renewals?tab=customers" className="text-muted-foreground text-sm hover:underline">All renewals</Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <ContactButtons name={customer.name} phone={customer.phone} renewUrl={renewUrl} />
+            {current && current.next === "none" && <SendReminderButton orderPublicId={current.orderPublicId} customerPublicId={customer.publicId} />}
+            {session?.user?.role === "admin" && <GiveCoinsButton customerPublicId={customer.publicId} />}
             <EstimateButton orderPublicId={latest.orderPublicId} />
+            {renewFrom && <RenewControl orderId={renewFrom.orderPublicId} canRenew={renewFrom.next === "none"} />}
           </div>
         }
       />

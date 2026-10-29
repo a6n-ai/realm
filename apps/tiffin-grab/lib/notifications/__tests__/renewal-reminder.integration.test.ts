@@ -8,7 +8,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, deliveries, not
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("@/lib/services/orders.service");
-const { sendRenewalReminders } = await import("../renewal-reminder");
+const { sendRenewalReminders, sendRenewalReminderNow } = await import("../renewal-reminder");
 
 async function reset() {
   await db.delete(notificationOutbox).where(like(notificationOutbox.dedupeKey, "renewal:%"));
@@ -77,5 +77,24 @@ describe("renewal reminders (integration)", () => {
     const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
       .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, o.publicId));
     expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toEqual({ days5: 0, days1: 0 });
+  });
+
+  it("staff send now: once a day per plan, only while the plan runs with nothing booked after it", async () => {
+    const snap = await loadCatalogSnapshot();
+    const o = await createOrder(input(snap.mealSizes[0].publicId, snap.plans[0].key, "+16475550666"));
+    await db.update(orders).set({ status: "active" }).where(eq(orders.publicId, o.publicId));
+    const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
+      .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, o.publicId));
+    const day = noonOn(minusDays(last, 3));
+
+    expect(await sendRenewalReminderNow(o.publicId, day)).toBe("sent");
+    expect(await sendRenewalReminderNow(o.publicId, day)).toBe("already-sent");
+    expect((await reminders()).map((r) => r.key)).toEqual([`renewal:${o.publicId}:${last}:staff-${minusDays(last, 3)}:email`]);
+
+    // A later plan means nothing to remind.
+    const next = await createOrder(input(snap.mealSizes[0].publicId, snap.plans[0].key, "+16475550777"));
+    const [first] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, o.publicId));
+    await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
+    await expect(sendRenewalReminderNow(o.publicId, noonOn(minusDays(last, 2)))).rejects.toThrow(/no next plan/);
   });
 });

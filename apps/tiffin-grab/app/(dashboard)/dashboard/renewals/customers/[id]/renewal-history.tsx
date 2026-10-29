@@ -13,6 +13,7 @@ import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";
 import { statusLabel } from "@/lib/renewals/filters";
+import { UnpaidPlanActions } from "./renewal-actions";
 
 const NEXT_VARIANT = { renewed: "success-light", unpaid: "warning-light", waitlisted: "info-light", none: "secondary" } as const;
 
@@ -54,6 +55,11 @@ export function PlanHistory({ plans, today }: { plans: RenewalPlan[]; today: str
                 <Badge variant={NEXT_VARIANT[p.next]}>{statusLabel(p.next, p.trial ? "trials" : "renewals")}</Badge>
                 {p.gapDays != null && <span className="text-muted-foreground text-xs">{gapLabel(p.gapDays)}</span>}
               </div>
+              {(p.status === "pending" || p.status === "waitlisted") && (
+                <div className="mt-2">
+                  <UnpaidPlanActions orderPublicId={p.orderPublicId} paymentPublicId={p.unpaidPaymentPublicId} />
+                </div>
+              )}
             </TimelineContent>
           </TimelineItem>
         );
@@ -85,7 +91,7 @@ export function RenewalReminders({ reminders, plans }: { reminders: RenewalRemin
         <>
           <TableCell className="tabular-nums">{formatEpoch(r.sentAt, { mode: "date", timeZone: tz })}</TableCell>
           <TableCell>{(r.orderPublicId && codeOf.get(r.orderPublicId)) ?? "—"}</TableCell>
-          <TableCell>{r.daysLeft == null ? "—" : r.daysLeft === 1 ? "1 day before the end" : `${r.daysLeft} days before the end`}</TableCell>
+          <TableCell>{r.byStaff ? "Sent by staff" : r.daysLeft == null ? "—" : r.daysLeft === 1 ? "1 day before the end" : `${r.daysLeft} days before the end`}</TableCell>
           <TableCell>
             <Badge variant={DELIVERY_VARIANT[r.status as keyof typeof DELIVERY_VARIANT] ?? "secondary"}>{r.status}</Badge>
           </TableCell>

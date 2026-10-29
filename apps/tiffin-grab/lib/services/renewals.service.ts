@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, like, or, sql } from "drizzle-orm";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, notificationOutbox, orders, plans, tickets, users } from "@/db/schema";
+import { deliveries, mealSizes, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
 import type { RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
@@ -208,9 +208,12 @@ export type RenewalPlan = {
   next: RenewalStatus;
   /** Days from this plan's last tiffin to the next plan's start; negative means booked to overlap the end. */
   gapDays: number | null;
+  /** An unpaid plan's newest unpaid or rejected payment: what "Send payment reminder" reminds. */
+  unpaidPaymentPublicId: string | null;
 };
 
-export type RenewalReminder = { sentAt: number; status: string; daysLeft: number | null; orderPublicId: string | null };
+/** `daysLeft` is 5 or 1 for the automatic reminder; null when staff sent it by hand. */
+export type RenewalReminder = { sentAt: number; status: string; daysLeft: number | null; byStaff: boolean; orderPublicId: string | null };
 
 export type CustomerRenewal = {
   customer: { publicId: string; name: string; phone: string | null; email: string | null };
@@ -252,9 +255,25 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     .orderBy(asc(orders.startDate), asc(orders.id));
   if (rows.length === 0) return null;
 
+  const pendingIds = rows.filter((r) => r.status === "pending").map((r) => r.id);
+  const unpaid = new Map<string, string>();
+  if (pendingIds.length) {
+    const pays = await db
+      .select({ orderId: payments.orderId, publicId: payments.publicId })
+      .from(payments)
+      .where(and(inArray(payments.orderId, pendingIds), isNull(payments.addonRequest), inArray(payments.status, ["awaiting_payment", "rejected"])))
+      .orderBy(desc(payments.createdAt));
+    for (const p of pays) if (!unpaid.has(p.orderId.toString())) unpaid.set(p.orderId.toString(), p.publicId);
+  }
+
   const plans = rows.map(({ id, trialLength, ...r }, i) => {
     const after = rows[i + 1];
-    return { ...r, trial: trialLength != null, gapDays: after && r.lastTiffin ? dayDiff(r.lastTiffin, after.startDate) : null };
+    return {
+      ...r,
+      trial: trialLength != null,
+      gapDays: after && r.lastTiffin ? dayDiff(r.lastTiffin, after.startDate) : null,
+      unpaidPaymentPublicId: unpaid.get(id.toString()) ?? null,
+    };
   });
 
   const [reminderRows, money] = await Promise.all([
@@ -266,13 +285,14 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
       .limit(50),
     renewalMoney([{ id: rows[rows.length - 1].id, userId: user.id }]),
   ]);
-  // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft>:<channel>.
+  // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft | staff-<date>>:<channel>.
   // Only reminders for plans this staff member can see: another franchise's plans stay hidden.
   const visiblePlans = new Set(rows.map((r) => r.orderPublicId));
   const reminders = reminderRows
     .map((r) => {
       const [, orderPublicId, , days] = (r.key ?? "").split(":");
-      return { sentAt: Number(r.sentAt), status: r.status, daysLeft: days ? Number(days) : null, orderPublicId: orderPublicId ?? null };
+      const byStaff = days?.startsWith("staff") ?? false;
+      return { sentAt: Number(r.sentAt), status: r.status, daysLeft: !byStaff && days ? Number(days) : null, byStaff, orderPublicId: orderPublicId ?? null };
     })
     .filter((r) => r.orderPublicId != null && visiblePlans.has(r.orderPublicId));
 
