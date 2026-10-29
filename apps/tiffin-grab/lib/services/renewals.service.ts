@@ -129,7 +129,8 @@ export async function countRenewals(visible: "all" | string[], tab: RenewalsTab,
 // ── Renewed customers ────────────────────────────────────────────────────────
 
 /** A plan that follows an earlier running or finished plan of the same customer: a renewal. */
-const isRenewalSql = sql`exists (select 1 from ${orders} as prior where prior.user_id = ${orders.userId} and prior.id <> ${orders.id} and prior.status in ('active', 'paused', 'completed') and prior.start_date < ${orders.startDate})`;
+// The mirror of laterOrderSql: an earlier plan that this one outlasts (a parallel plan that ends first is not one).
+const isRenewalSql = sql`exists (select 1 from ${orders} as prior where prior.user_id = ${orders.userId} and prior.id <> ${orders.id} and prior.status in ('active', 'paused', 'completed') and prior.start_date < ${orders.startDate} and coalesce((select max(pd.delivery_date) from ${deliveries} as pd where pd.order_id = prior.id and pd.status <> 'cancelled'), '9999-12-31') <= coalesce(${lastTiffinSql}, '9999-12-31'))`;
 const notCancelled = sql`${orders.status} <> 'cancelled'`;
 
 export type RenewedCustomerRow = {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { LifeBuoyIcon, PauseCircleIcon, RefreshCwIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { RefreshCwIcon, UsersIcon } from "lucide-react";
+import { FactTag } from "./fact-tags";
 import { formatMoney as fmt } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@/components/reui/badge";
@@ -39,16 +40,6 @@ function whenLabel(lastTiffin: string, today: string) {
   return d > 0 ? `in ${d} days` : `${-d} days ago`;
 }
 
-/** One small icon + count after the name, like the Orders row tags; hover says what it counts. */
-function Fact({ icon: Icon, n, title }: { icon: LucideIcon; n: number; title: string }) {
-  if (n <= 0) return null;
-  return (
-    <span title={title} className="text-muted-foreground ml-2 inline-flex items-center gap-0.5 align-middle text-xs tabular-nums">
-      <Icon className="size-3.5" aria-label={title} />
-      {n}
-    </span>
-  );
-}
 
 /** Rows open the customer's renewal page; an order with no account falls back to the order. */
 const renewalHref = (r: { customerPublicId: string | null; orderPublicId: string }) =>
@@ -74,9 +65,9 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
           <>
             <TableCell className="font-medium">
               <Link href={renewalHref(r)} className="group-hover:underline">{r.customerName}</Link>
-              <Fact icon={RefreshCwIcon} n={r.priorPlans} title={`Renewed ${r.priorPlans}× before`} />
-              <Fact icon={PauseCircleIcon} n={r.holds} title={`${r.holds} ${r.holds === 1 ? "day" : "days"} held or paused on this plan`} />
-              <Fact icon={LifeBuoyIcon} n={r.openTickets} title={`${r.openTickets} open ${r.openTickets === 1 ? "ticket" : "tickets"}`} />
+              <FactTag fact="priorPlans" n={r.priorPlans} title={`Renewed ${r.priorPlans}× before`} />
+              <FactTag fact="holds" n={r.holds} title={`${r.holds} ${r.holds === 1 ? "day" : "days"} held or paused on this plan`} />
+              <FactTag fact="openTickets" n={r.openTickets} title={`${r.openTickets} open ${r.openTickets === 1 ? "ticket" : "tickets"}`} />
             </TableCell>
             <TableCell>{r.mealSize}</TableCell>
             <TableCell className="tabular-nums" title={humanDate(r.lastTiffin)}>

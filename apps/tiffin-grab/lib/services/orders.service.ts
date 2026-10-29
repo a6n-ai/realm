@@ -1386,7 +1386,9 @@ export const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliver
 // One rule for "renewed", shared by the renewal reminder, the Orders renewal-rate card and Renewals:
 // any later plan by the same customer counts, unpaid and waitlisted included, so staff chase the
 // payment instead of selling the customer a second plan. Cancelled never counts.
-const laterOrderWhere = sql`next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate}`;
+// "Later" means it starts after this plan AND runs at least as long: a parallel plan that ends first
+// (two plans booked side by side) is not a renewal. A plan with no tiffins yet still counts.
+const laterOrderWhere = sql`next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate} and coalesce((select max(nd.delivery_date) from ${deliveries} as nd where nd.order_id = next_order.id and nd.status <> 'cancelled'), '9999-12-31') >= coalesce(${lastTiffinSql}, '0001-01-01')`;
 const laterOrder = (extra?: SQL) => sql`exists (select 1 from ${orders} as next_order where ${laterOrderWhere}${extra ? sql` and ${extra}` : sql``})`;
 
 /** The customer already has a later plan (any start date, unpaid and waitlisted included). */

@@ -12,6 +12,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { countRenewals, listRenewals, listRenewedCustomers } from "@/lib/services/renewals.service";
 import { DEFAULT_ENDING, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, missingWindow, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
+import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -54,7 +55,10 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <SectionCard title={f.tab === "customers" ? "Customers who renewed" : f.tab === "trials" ? "Trials" : "Plans"}>
+      <SectionCard
+        title={f.tab === "customers" ? "Customers who renewed" : f.tab === "trials" ? "Trials" : "Plans"}
+        action={f.tab === "customers" ? undefined : <RenewalFactsLegend />}
+      >
         <Suspense
           key={`${renewalsQuery(f)}:${page.page}:${page.size}`}
           fallback={f.tab === "customers" ? <RenewedCustomersListSkeleton /> : <RenewalsListSkeleton />}

@@ -17,7 +17,7 @@ const { ledgerService } = await import("../ledger.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
-const { eq, inArray } = await import("drizzle-orm");
+const { and, eq, inArray } = await import("drizzle-orm");
 
 async function reset() {
   await db.delete(walletLedger);
@@ -97,6 +97,14 @@ describe("order CRM queries (integration)", () => {
     const running = await later("2099-02-02");
     await db.update(orders).set({ status: "active" }).where(eq(orders.id, running));
     expect(await of()).toEqual({ later: true, laterPaid: true, status: "renewed", paidOnly: "renewed" });
+
+    // A parallel plan that starts later but ends first is not a renewal.
+    await db.update(orders).set({ status: "cancelled" }).where(inArray(orders.id, [unpaid, running]));
+    const parallel = await later("2099-01-05");
+    await db.update(orders).set({ status: "active" }).where(eq(orders.id, parallel));
+    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries).innerJoin(orders, eq(orders.id, schema.deliveries.orderId)).where(eq(orders.publicId, o.publicId));
+    await db.delete(schema.deliveries).where(and(eq(schema.deliveries.orderId, parallel), eq(schema.deliveries.deliveryDate, last)));
+    expect(await of()).toMatchObject({ later: false, status: "none" });
   });
 
   it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {

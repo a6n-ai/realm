@@ -27,7 +27,8 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
 
   const { customer, plans, reminders } = data;
   const paid = plans.filter((p) => !p.trial);
-  const renewals = plans.filter((_, i) => i > 0 && plans.slice(0, i).some((p) => p.status !== "pending" && p.status !== "waitlisted")).length;
+  // One renewal per plan that something followed: the same rule as the Next plan badge.
+  const renewals = plans.filter((p) => p.next !== "none").length;
   const gaps = plans.map((p) => p.gapDays).filter((g): g is number => g != null);
   const avgGap = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : null;
   const current = [...plans].reverse().find((p) => p.status === "active" || p.status === "paused");
