@@ -84,9 +84,9 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
         </Button>
       </div>
 
-      {/* What friends see: the same card is the link's preview in WhatsApp, Messages and Facebook. */}
+      {/* What friends get with "With image"; links preview as the landscape version of the same card. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- generated per code; next/image's localPatterns fence /api/files only */}
-      <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1200} height={630} loading="lazy" className="aspect-[1200/630] h-auto w-full rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)]" />
+      <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1080} height={1350} loading="lazy" className="mx-auto aspect-[4/5] h-auto w-full max-w-[280px] rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] shadow-sm" />
       <p className="c-caption truncate text-center">{link}</p>
 
       <a href={`https://wa.me/?text=${enc(text)}`} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "primary", className: "w-full" })}>

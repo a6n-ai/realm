@@ -42,15 +42,22 @@ export async function getOrCreateReferralCode(userId: bigint): Promise<string> {
 }
 
 /** Only an active customer account can refer; staff codes don't exist for this. */
-export async function findReferrerByCode(raw: string): Promise<{ id: bigint; publicId: string } | null> {
+export async function findReferrerByCode(raw: string): Promise<{ id: bigint; publicId: string; firstName: string | null } | null> {
   const code = normalizeReferralCode(raw);
   if (!code) return null;
   const [row] = await db
-    .select({ id: users.id, publicId: users.publicId })
+    .select({ id: users.id, publicId: users.publicId, name: users.name })
     .from(users)
     .where(and(eq(users.referralCode, code), eq(users.role, "user"), eq(users.status, "active")))
     .limit(1);
-  return row ?? null;
+  return row ? { id: row.id, publicId: row.publicId, firstName: publicFirstName(row.name) } : null;
+}
+
+/** First name only: it goes on the public share card and link preview. */
+function publicFirstName(name: string | null): string | null {
+  const first = (name ?? "").trim().split(/\s+/)[0] ?? "";
+  if (!first || first.length > 16) return null;
+  return first[0].toUpperCase() + first.slice(1);
 }
 
 /** Not new: ever paid (a refund doesn't make them new again), or a migrated

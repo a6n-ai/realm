@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { friendOffer, shareMessage } from "../share";
+import { friendOffer, friendOfferParts, shareMessage } from "../share";
 
 const flat = { mode: "flat" as const, referrerValue: 60, friendValue: 60, maxPerReferrer: null };
 
@@ -21,5 +21,13 @@ describe("shareMessage", () => {
     expect(msg).toContain("Get 60 coins on your first plan with my code ABC234.");
     expect(msg.split("\n").at(-1)).toBe("https://x/subscribe?ref=ABC234");
     expect(shareMessage("ABC234", "l", null)).toContain("Use my code ABC234");
+  });
+});
+
+describe("friendOfferParts", () => {
+  it("leads with money when a rate is set, else coins", () => {
+    expect(friendOfferParts(flat, { perCoin: 0.25, currency: "CAD" })).toEqual({ big: "$15.00", small: "60 coins in your wallet" });
+    expect(friendOfferParts(flat, null)).toEqual({ big: "60 coins", small: "in your wallet" });
+    expect(friendOfferParts({ ...flat, friendValue: 0 }, null)).toBeNull();
   });
 });
