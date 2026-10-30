@@ -96,11 +96,15 @@ describe("customer analytics", () => {
     await makeOrder(runningFromBefore.id, { createdAt: at("2026-03-28T15:00:00Z"), startDate: "2026-03-30", lastDelivery: "2026-04-17" });
     await makeOrder(finishedBefore.id, { createdAt: at("2026-03-01T15:00:00Z"), startDate: "2026-03-02", lastDelivery: "2026-03-06" });
     const s = await getCustomerStats(scope(), NOW);
-    expect(s).toMatchObject({ customers: 1, cancelledCustomers: 1, activeCustomers: 1 });
+    expect(s).toMatchObject({ customers: 1, cancelledOrders: 1, activeCustomers: 1 });
+    const { listOrdersPage } = await import("@/lib/services/orders.service");
+    const { scopeToOrdersCondition } = await import("../metrics/orders");
+    const listed = await listOrdersPage(scopeToOrdersCondition(scope(), { status: ["cancelled"] }), { page: 1, pageSize: 10 } as never, undefined, "all");
+    expect(s.cancelledOrders).toBe(listed.total);
     // Narrow the range to a day after everything has finished.
     const day = at("2026-04-20T15:00:00Z");
     const narrow = await getCustomerStats(scope({ fromMs: day, toMs: day + 3600_000 }), NOW);
-    expect(narrow).toMatchObject({ customers: 0, cancelledCustomers: 0, activeCustomers: 0 });
+    expect(narrow).toMatchObject({ customers: 0, cancelledOrders: 0, activeCustomers: 0 });
   });
 
   it("counts paused customers by a paused delivery today on an active order", async () => {

@@ -7,6 +7,8 @@ import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
@@ -38,7 +40,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
         <StatsData scope={scope} />
       </Suspense>
 
-      <ChartCard title="Signups over time" subtitle="New customer accounts created in this range, by local day.">
+      <ChartCard title="Signups over time" subtitle="New customer accounts created in this range, by local day. With a franchise or filter selected, only accounts with an order in scope are counted.">
         <Suspense fallback={<ChartSkeleton />}>
           <SignupChart scope={scope} />
         </Suspense>
@@ -61,7 +63,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
 }
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
-  const s = await getCustomerStats(scope);
+  const [s, visible] = await Promise.all([getCustomerStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
     <MetricTiles
       cols={4}
@@ -89,9 +91,10 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           badgeTone: s.pausedToday > 0 ? "warn" : "neutral",
         },
         {
-          label: "Cancelled",
-          value: s.cancelledCustomers,
-          hint: `With a cancelled order · ${DATE_BASIS_LABEL.orders}`,
+          label: "Cancelled orders",
+          value: s.cancelledOrders,
+          hint: DATE_BASIS_LABEL.orders,
+          href: ordersDrillHref(scope, { status: ["cancelled"] }, visible),
           badge: "Cancelled",
           badgeTone: "neutral",
         },

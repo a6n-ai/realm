@@ -152,7 +152,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
               ? trialConv.open > 0
                 ? `${trialConv.open} still open`
                 : "No trials ended in range"
-              : `${trialConv.windowDays}-day window after the trial ends${trialConv.open > 0 ? ` · ${trialConv.open} still open` : ""}`,
+              : `Trials that ended ${trialConv.windowDays}+ days ago; converted = any later plan (same rule as Renewals)${trialConv.open > 0 ? ` · ${trialConv.open} still open` : ""}`,
           href: analyticsHref("/dashboard/analytics/customers", sp),
           badge: "Conversion",
           badgeTone: "brand",

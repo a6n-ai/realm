@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { lastTiffinSql, ordersListWhere } from "@/lib/services/orders.service";
-import { countCustomers, scopeToOrdersCondition } from "./metrics/orders";
+import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
@@ -16,25 +16,24 @@ export type CustomerStats = {
   activeCustomers: number;
   /** Distinct customers whose active order has a paused delivery today. Not range-dependent. */
   pausedToday: number;
-  /** Distinct customers with a cancelled order created in range. */
-  cancelledCustomers: number;
+  /** Cancelled orders created in range (countOrders, equals the Orders listing). */
+  cancelledOrders: number;
 };
 
 /** Orders matching the Orders listing for this scope, so these counts equal what the list shows. */
-const listingWhere = (scope: AnalyticsScope, status?: string) =>
-  ordersListWhere(scopeToOrdersCondition(scope, status ? { status: [status] } : {}), scope.orgIds);
+const listingWhere = (scope: AnalyticsScope) => ordersListWhere(scopeToOrdersCondition(scope), scope.orgIds);
 
 const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
 export async function getCustomerStats(scope: AnalyticsScope, now = Date.now()): Promise<CustomerStats> {
-  if (noOrgs(scope)) return { customers: 0, activeCustomers: 0, pausedToday: 0, cancelledCustomers: 0 };
+  if (noOrgs(scope)) return { customers: 0, activeCustomers: 0, pausedToday: 0, cancelledOrders: 0 };
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
   const today = isoDateInZone(now, scope.tz);
 
   // Not expressible as a listing condition (running-in-range and paused-today), so computed here
   // over the same org/facet scope; their tiles carry no drill link.
-  const [[{ n: activeCustomers }], [{ n: pausedToday }], customers, [{ n: cancelledCustomers }]] = await Promise.all([
+  const [[{ n: activeCustomers }], [{ n: pausedToday }], customers, cancelledOrders] = await Promise.all([
     db
       .select({ n: distinctUsers })
       .from(orders)
@@ -59,9 +58,9 @@ export async function getCustomerStats(scope: AnalyticsScope, now = Date.now()):
         ),
       ),
     countCustomers(scope),
-    db.select({ n: distinctUsers }).from(orders).where(listingWhere(scope, "cancelled")),
+    countOrders(scope, { status: ["cancelled"] }),
   ]);
-  return { customers, activeCustomers, pausedToday, cancelledCustomers };
+  return { customers, activeCustomers, pausedToday, cancelledOrders };
 }
 
 /** Accounts created per local day. With franchise or facet filters, only accounts holding an order in scope. */
