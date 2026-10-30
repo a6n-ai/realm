@@ -108,6 +108,59 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
   );
 }
 
+/** The week's Popular dishes up front, as an App Store-style shelf of glass cards over a soft saffron glow, each with
+ *  the day it is served; a tap opens that day below. */
+function PopularWeek({ days, today, onPick }: { days: MenuDay[]; today: string; onPick: (date: string) => void }) {
+  // One card per dish, listing every day it is on; a tap opens the next of those days (or the first, once all are past).
+  const byName = new Map<string, MenuDay["groups"][number]["dishes"][number] & { dates: string[]; yours: string[] }>();
+  for (const d of days)
+    for (const x of d.groups.flatMap((g) => g.dishes.filter((dish) => dish.popular))) {
+      const row = byName.get(x.name) ?? { ...x, dates: [], yours: [] };
+      row.dates.push(d.date);
+      if (d.mine === "pick" || d.mine === "locked") row.yours.push(d.date);
+      byName.set(x.name, row);
+    }
+  const rows = [...byName.values()].map((r) => ({ ...r, date: r.dates.find((d) => d >= today) ?? r.dates[0]! }));
+  if (rows.length === 0) return null;
+  return (
+    <section aria-labelledby="menu-popular" className="relative isolate flex flex-col gap-3">
+      <div aria-hidden className="pointer-events-none absolute inset-x-6 top-10 -z-10 h-28 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--primary)_38%,transparent),transparent)] blur-2xl" />
+      <header className="flex items-center gap-3 px-1">
+        <IconTile tint="pink"><Heart className="fill-current" /></IconTile>
+        <div className="min-w-0 flex-1">
+          <h2 id="menu-popular" className="text-[20px] font-bold leading-tight tracking-[-0.02em]">Popular this week</h2>
+          <p className="c-caption">What customers pick most, and when it&apos;s on</p>
+        </div>
+      </header>
+      <ul className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {rows.map((r) => (
+          <li key={r.name} className="flex w-[13.5rem] shrink-0 snap-start">
+            <button
+              type="button"
+              onClick={() => onPick(r.date)}
+              aria-label={`${r.name}, on ${r.dates.map((d) => WEEKDAY.format(at(d))).join(", ")}${r.yours.length ? ", in your delivery" : ""}. Show ${WEEKDAY.format(at(r.date))}`}
+              className={cn(
+                FOCUS,
+                "c-liquid flex w-full flex-col items-start gap-3 rounded-[26px] p-4 text-left [touch-action:manipulation] transition-transform duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[.96] motion-reduce:transition-none motion-reduce:active:scale-100",
+              )}
+            >
+              <span className="c-label tabular-nums">{r.dates.map((d) => (d === today ? "Today" : SHORT.format(at(d)).slice(0, 3))).join(" · ")}</span>
+              <span className="flex min-w-0 items-start gap-2.5">
+                <span className="mt-1"><DietMark color={r.color} /></span>
+                <span className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{r.name}</span>
+              </span>
+              <span className="mt-auto flex w-full flex-wrap items-center justify-between gap-2">
+                <span className="c-caption tabular-nums">{r.dates.length === 1 ? DATE.format(at(r.date)) : `${r.dates.length} days this week`}</span>
+                {r.yours.length > 0 && <Pill tone="brand" size="sm">Your delivery</Pill>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** The released week: a glass week bar marked with this customer's delivery days, and the chosen day's dishes as inset-grouped lists. */
 export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days: MenuDay[]; plan: { name: string; days: MenuDay[] } | null; legend: { label: string; color: string }[]; initial: string; today: string }) {
   const tz = useTimezone();
@@ -128,6 +181,7 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
 
   return (
     <div className="flex flex-col gap-4">
+      <PopularWeek days={days} today={today} onPick={setSelected} />
       {(plan || legend.length > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           {plan && (
