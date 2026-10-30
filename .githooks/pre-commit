@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Wired by the root package.json "prepare" script (core.hooksPath=.githooks).
+# Blocks a commit that still holds <<<<<<< / >>>>>>> from a merge or stash pop.
+exec bash "$(git rev-parse --show-toplevel)/scripts/check-conflict-markers.sh" --cached

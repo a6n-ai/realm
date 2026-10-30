@@ -3,7 +3,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
-import type { RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
+import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
 
 export type RenewalRow = {
@@ -16,6 +16,8 @@ export type RenewalRow = {
   planName: string;
   mealSize: string;
   lastTiffin: string;
+  /** This plan's total: the "Last spent" column. */
+  planTotal: string;
   status: RenewalStatus;
   /** Facts, not predictions: earlier paid plans, held or paused days on this plan, unresolved tickets. */
   priorPlans: number;
@@ -26,7 +28,10 @@ export type RenewalRow = {
   prevOrderTotal: string | null;
 };
 
-export type RenewalCounts = { endingToday: number; endingWithin7: number; renewed: number; renewedNotPaid: number; lapsed: number };
+export type RenewalCounts = { plans: number; renewed: number; renewedNotPaid: number; notRenewed: number; lapsed: number };
+
+/** The top date range, resolved by the page: ISO dates in the app timezone for date columns, epoch ms for created_at. */
+export type RenewalRange = { by: DateBy; fromIso: string | null; toIso: string | null; fromMs: number | null; toMs: number | null };
 
 const tabWhere = (tab: RenewalsTab) => (tab === "trials" ? isNotNull(orders.trialLength) : isNull(orders.trialLength));
 const running = sql`${orders.status} in ('active', 'paused')`;
@@ -36,9 +41,15 @@ const runningOrDone = sql`${orders.status} in ('active', 'paused', 'completed')`
 /** Running plans whose last tiffin is today through `days` out. */
 const endingWhere = (today: string, days: number) => and(running, sql`${lastTiffinSql} between ${today} and ${addDays(today, days)}`);
 
-/** Plans whose last tiffin was in the last `days` days and that have no later plan: the ones that lapsed. */
-const lapsedWhere = (tab: RenewalsTab, today: string, days: number) =>
-  and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`, sql`${renewalStatusSql(tab === "trials")} = 'none'`);
+/** Plans whose last tiffin was in the last `days` days (over, renewed or not; Status narrows to the lapsed ones). */
+const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`);
+
+/** The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start. */
+function rangeWhere(r: RenewalRange) {
+  if (r.by === "ordered") return and(r.fromMs != null ? gte(orders.createdAt, r.fromMs) : undefined, r.toMs != null ? lte(orders.createdAt, r.toMs) : undefined);
+  if (r.by === "running") return and(r.toIso ? sql`${orders.startDate} <= ${r.toIso}` : undefined, r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined);
+  return and(r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined, r.toIso ? sql`${lastTiffinSql} <= ${r.toIso}` : undefined);
+}
 
 /** Status filter: Not renewed and Lapsed are both "no later plan", split on whether the last tiffin has passed. */
 function statusWhere(f: RenewalsFilter, today: string) {
@@ -53,37 +64,76 @@ function statusWhere(f: RenewalsFilter, today: string) {
 const searchWhere = (q: string) =>
   and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
 
-export async function listRenewals(visible: "all" | string[], f: RenewalsFilter, today: string, page: PageRequest): Promise<Page<RenewalRow>> {
-  if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
-  const where = and(
+function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange) {
+  return and(
     tabWhere(f.tab),
     visibleOrgWhere(visible),
-    or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? lapsedWhere(f.tab, today, f.ended) : undefined),
-    // Order date: when the ending plan was ordered.
-    f.from != null ? gte(orders.createdAt, f.from) : undefined,
-    f.to != null ? lte(orders.createdAt, f.to) : undefined,
+    runningOrDone,
+    rangeWhere(range),
+    f.ending != null || f.ended != null
+      ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
+      : undefined,
     statusWhere(f, today),
     f.q ? searchWhere(f.q) : undefined,
   );
+}
+
+const renewalSelect = {
+  id: orders.id,
+  userId: orders.userId,
+  orderPublicId: orders.publicId,
+  customerPublicId: users.publicId,
+  code: orders.deploymentId,
+  customerName: orders.fullName,
+  phone: users.phone,
+  planName: plans.name,
+  mealSize: mealSizes.name,
+  lastTiffin: sql<string>`${lastTiffinSql}`,
+  planTotal: orders.total,
+  priorPlans: sql<number>`(select cast(count(*) as int) from ${orders} as prior where prior.user_id = ${orders.userId} and prior.id <> ${orders.id} and prior.trial_length is null and prior.status in ('active', 'paused', 'completed') and prior.start_date < ${orders.startDate})`,
+  holds: sql<number>`(select cast(count(*) as int) from ${deliveries} as d where d.order_id = ${orders.id} and d.status in ('skipped', 'paused'))`,
+  openTickets: sql<number>`(select cast(count(*) as int) from ${tickets} as t where t.raised_by = ${orders.userId} and t.status not in ('resolved', 'closed'))`,
+};
+
+async function hydrateRenewalRows(
+  rows: {
+    id: bigint;
+    userId: bigint | null;
+    orderPublicId: string;
+    customerPublicId: string | null;
+    code: string;
+    customerName: string;
+    phone: string | null;
+    planName: string;
+    mealSize: string;
+    lastTiffin: string;
+    planTotal: string;
+    status: RenewalStatus;
+    priorPlans: number;
+    holds: number;
+    openTickets: number;
+  }[],
+): Promise<RenewalRow[]> {
+  const money = await renewalMoney(rows.map((r) => ({ id: r.id, userId: r.userId })));
+  return rows.map(({ id, userId, ...r }) => {
+    const uid = userId?.toString();
+    return {
+      ...r,
+      walletCoins: uid ? (money.walletByUser.get(uid) ?? 0) : 0,
+      totalSpent: uid ? (money.spentByUser.get(uid) ?? "0.00") : "0.00",
+      prevOrderTotal: money.prevTotalByOrder.get(id.toString()) ?? null,
+    };
+  });
+}
+
+/** Plans that ran (running or finished) in the top date range, narrowed by the optional Ending / Ended windows, Status and search. */
+export async function listRenewals(visible: "all" | string[], f: RenewalsFilter, today: string, page: PageRequest, range: RenewalRange): Promise<Page<RenewalRow>> {
+  if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
+  const where = renewalsWhere(visible, f, today, range);
 
   const [rows, [{ count }]] = await Promise.all([
     db
-      .select({
-        id: orders.id,
-        userId: orders.userId,
-        orderPublicId: orders.publicId,
-        customerPublicId: users.publicId,
-        code: orders.deploymentId,
-        customerName: orders.fullName,
-        phone: users.phone,
-        planName: plans.name,
-        mealSize: mealSizes.name,
-        lastTiffin: sql<string>`${lastTiffinSql}`,
-        status: renewalStatusSql(f.tab === "trials"),
-        priorPlans: sql<number>`(select cast(count(*) as int) from ${orders} as prior where prior.user_id = ${orders.userId} and prior.id <> ${orders.id} and prior.trial_length is null and prior.status in ('active', 'paused', 'completed') and prior.start_date < ${orders.startDate})`,
-        holds: sql<number>`(select cast(count(*) as int) from ${deliveries} as d where d.order_id = ${orders.id} and d.status in ('skipped', 'paused'))`,
-        openTickets: sql<number>`(select cast(count(*) as int) from ${tickets} as t where t.raised_by = ${orders.userId} and t.status not in ('resolved', 'closed'))`,
-      })
+      .select({ ...renewalSelect, status: renewalStatusSql(f.tab === "trials") })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
       .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
@@ -96,33 +146,38 @@ export async function listRenewals(visible: "all" | string[], f: RenewalsFilter,
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(orders).leftJoin(users, eq(orders.userId, users.id)).where(where),
   ]);
 
-  const money = await renewalMoney(rows.map((r) => ({ id: r.id, userId: r.userId })));
-  const items = rows.map(({ id, userId, ...r }) => {
-    const uid = userId?.toString();
-    return {
-      ...r,
-      walletCoins: uid ? (money.walletByUser.get(uid) ?? 0) : 0,
-      totalSpent: uid ? (money.spentByUser.get(uid) ?? "0.00") : "0.00",
-      prevOrderTotal: money.prevTotalByOrder.get(id.toString()) ?? null,
-    };
-  });
-  return { items, page: page.page, size: page.size, total: count };
+  return { items: await hydrateRenewalRows(rows), page: page.page, size: page.size, total: count };
 }
 
-/** The cards above the list: one pass over plans ending within 7 days or lapsed within `lapsedDays`. */
-export async function countRenewals(visible: "all" | string[], tab: RenewalsTab, today: string, lapsedDays: number): Promise<RenewalCounts> {
-  if (visible !== "all" && visible.length === 0) return { endingToday: 0, endingWithin7: 0, renewed: 0, renewedNotPaid: 0, lapsed: 0 };
+/** Full (unpaginated) matching set for the Excel export — same filters as the on-screen list. */
+export async function listRenewalsForExport(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange): Promise<RenewalRow[]> {
+  if (visible !== "all" && visible.length === 0) return [];
+  const where = renewalsWhere(visible, f, today, range);
+  const rows = await db
+    .select({ ...renewalSelect, status: renewalStatusSql(f.tab === "trials") })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(where)
+    .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id));
+  return hydrateRenewalRows(rows);
+}
+
+/** The five cards: plans in the top date range, split by where their renewal stands. */
+export async function countRenewals(visible: "all" | string[], tab: RenewalsTab, today: string, range: RenewalRange): Promise<RenewalCounts> {
+  if (visible !== "all" && visible.length === 0) return { plans: 0, renewed: 0, renewedNotPaid: 0, notRenewed: 0, lapsed: 0 };
   const status = renewalStatusSql(tab === "trials");
   const [r] = await db
     .select({
-      endingToday: sql<number>`cast(count(*) filter (where ${running} and ${lastTiffinSql} = ${today}) as int)`,
-      endingWithin7: sql<number>`cast(count(*) filter (where ${endingWhere(today, 7)}) as int)`,
+      plans: sql<number>`cast(count(*) as int)`,
       renewed: sql<number>`cast(count(*) filter (where ${status} = 'renewed') as int)`,
       renewedNotPaid: sql<number>`cast(count(*) filter (where ${status} in ('unpaid', 'waitlisted')) as int)`,
-      lapsed: sql<number>`cast(count(*) filter (where ${lastTiffinSql} < ${today} and ${status} = 'none') as int)`,
+      notRenewed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} >= ${today}) as int)`,
+      lapsed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} < ${today}) as int)`,
     })
     .from(orders)
-    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -lapsedDays)} and ${addDays(today, 7)}`));
+    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, rangeWhere(range)));
   return r;
 }
 
@@ -146,18 +201,13 @@ export type RenewedCustomerRow = {
   totalSpent: string;
 };
 
-/** Every customer with at least one renewal, newest renewal first; `renewedWithin` keeps those who renewed in the last N days. */
-export async function listRenewedCustomers(
-  visible: "all" | string[],
-  /** `from`/`to`: epoch-ms bounds on the last renewal's order date (the date facet). */
-  opts: { renewedWithin: number | null; q: string; from?: number | null; to?: number | null; now?: number },
-  page: PageRequest,
-): Promise<Page<RenewedCustomerRow>> {
-  if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
+type RenewedCustomersOpts = { renewedWithin: number | null; q: string; from?: number | null; to?: number | null; now?: number };
+
+function renewedCustomersGrouped(visible: "all" | string[], opts: RenewedCustomersOpts) {
   const renewals = sql<number>`cast(count(*) filter (where ${notCancelled} and ${isRenewalSql}) as int)`;
   const lastRenewedAt = sql<number>`max(${orders.createdAt}) filter (where ${notCancelled} and ${isRenewalSql})`;
   const since = opts.renewedWithin != null ? (opts.now ?? Date.now()) - opts.renewedWithin * 86_400_000 : null;
-  const grouped = db
+  return db
     .select({
       userId: users.id,
       customerPublicId: users.publicId,
@@ -178,12 +228,12 @@ export async function listRenewedCustomers(
       opts.to != null ? sql`${lastRenewedAt} <= ${opts.to}` : undefined,
     ))
     .as("renewed_customers");
+}
 
-  const [rows, [{ count }]] = await Promise.all([
-    db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId)).limit(page.size).offset(page.page * page.size),
-    db.select({ count: sql<number>`cast(count(*) as int)` }).from(grouped),
-  ]);
-
+async function hydrateRenewedCustomers(
+  visible: "all" | string[],
+  rows: { userId: bigint; customerPublicId: string; customerName: string; phone: string | null; plans: number; renewals: number; lastRenewedAt: number }[],
+): Promise<RenewedCustomerRow[]> {
   const userIds = rows.map((r) => r.userId);
   const [current, money] = await Promise.all([
     userIds.length
@@ -199,7 +249,7 @@ export async function listRenewedCustomers(
   const currentBy = new Map<string, { mealSize: string; lastTiffin: string | null }>();
   for (const c of current) if (c.userId && !currentBy.has(c.userId.toString())) currentBy.set(c.userId.toString(), c);
 
-  const items = rows.map(({ userId, ...r }) => {
+  return rows.map(({ userId, ...r }) => {
     const cur = currentBy.get(userId.toString());
     return {
       ...r,
@@ -209,7 +259,32 @@ export async function listRenewedCustomers(
       totalSpent: money.spentByUser.get(userId.toString()) ?? "0.00",
     };
   });
-  return { items, page: page.page, size: page.size, total: count };
+}
+
+/** Every customer with at least one renewal, newest renewal first; `renewedWithin` keeps those who renewed in the last N days. */
+export async function listRenewedCustomers(
+  visible: "all" | string[],
+  /** `from`/`to`: epoch-ms bounds on the last renewal's order date (the date facet). */
+  opts: RenewedCustomersOpts,
+  page: PageRequest,
+): Promise<Page<RenewedCustomerRow>> {
+  if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
+  const grouped = renewedCustomersGrouped(visible, opts);
+
+  const [rows, [{ count }]] = await Promise.all([
+    db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId)).limit(page.size).offset(page.page * page.size),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(grouped),
+  ]);
+
+  return { items: await hydrateRenewedCustomers(visible, rows), page: page.page, size: page.size, total: count };
+}
+
+/** Full (unpaginated) matching set for the Excel export — same filters as the on-screen list. */
+export async function listRenewedCustomersForExport(visible: "all" | string[], opts: RenewedCustomersOpts): Promise<RenewedCustomerRow[]> {
+  if (visible !== "all" && visible.length === 0) return [];
+  const grouped = renewedCustomersGrouped(visible, opts);
+  const rows = await db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId));
+  return hydrateRenewedCustomers(visible, rows);
 }
 
 // ── One customer's renewal history ───────────────────────────────────────────

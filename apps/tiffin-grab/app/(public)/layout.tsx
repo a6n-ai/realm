@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion/motion-provider";
-import { WhatsAppChat } from "@/components/landing/whatsapp-chat";
+import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 
 // Subscribe and checkout animate with motion; the landing and marketing pages don't, so
 // the provider lives here and in the app areas rather than in the root layout.

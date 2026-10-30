@@ -6,20 +6,29 @@ export type RenewalsTab = "renewals" | "trials" | "customers";
 
 /** "Ending within N days" choices; 0 is today only. */
 export const ENDING_DAYS = [0, 1, 2, 3, 7] as const;
-/** "Ended in the last N days" choices, for plans that lapsed with no later plan. */
+/** "Ended in the last N days" choices: plans whose last tiffin has passed. */
 export const ENDED_DAYS = [7, 14, 30, 60, 90] as const;
-export const DEFAULT_ENDING = 7;
-/** Explicit clear of the Ending within facet (`?ending=off`); keeps the redirect from re-applying the default. */
-export const ENDING_OFF = "off";
 /** Renewed customers tab: "Renewed in the last N days" choices. */
 export const RENEWED_DAYS = [7, 14, 30, 90] as const;
 /** The Status filter: the renewal status, with "none" split by whether the plan is still running. */
 export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed" | "lapsed";
 export const RENEWAL_STATUSES: readonly RenewalStatusFilter[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
 
-/** `from`/`to`: the order-date facet's epoch-ms bounds (the plan's order date; on the customers tab, the renewal's). */
+/** What the top date range filters on: the plan's last tiffin (default), its order date, or any delivery in range. */
+export type DateBy = "last" | "ordered" | "running";
+export const DATE_BY: readonly { value: DateBy; label: string }[] = [
+  { value: "last", label: "Last tiffin in range" },
+  { value: "ordered", label: "Ordered in range" },
+  { value: "running", label: "Running in range" },
+];
+
+/**
+ * `from`/`to`: the top date range, epoch ms (the page fills this month when absent). On the plan tabs
+ * `dateBy` says which date it filters; on the customers tab it is the renewal's order date.
+ */
 export type RenewalsFilter = {
   tab: RenewalsTab;
+  dateBy: DateBy;
   ending: number | null;
   ended: number | null;
   status: RenewalStatusFilter | null;
@@ -36,27 +45,23 @@ const pick = (v: string | undefined, allowed: readonly number[]) => {
 
 const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : null);
 
-/** Bare plans URL (no ending/ended): the page redirects to `ending=7`. `ending=off` is an explicit clear and must not redirect. */
-export const missingWindow = (sp: Record<string, string | undefined>) => sp.tab !== "customers" && !sp.ending && !sp.ended;
-
-/** `?tab=trials|customers`, `?ending=<days>|off`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?q=`. */
+/** `?tab=`, `?dateBy=`, `?from=&to=`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?q=`. */
 export function parseRenewalsFilter(sp: Record<string, string | undefined>): RenewalsFilter {
   const tab = sp.tab === "trials" || sp.tab === "customers" ? sp.tab : "renewals";
+  const dateBy = DATE_BY.find((d) => d.value === sp.dateBy)?.value ?? "last";
   const q = sp.q?.trim().replace(/\s+/g, " ") ?? "";
   const from = ms(sp.from);
   const to = ms(sp.to);
-  if (tab === "customers") return { tab, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
-  const ended = pick(sp.ended, ENDED_DAYS);
-  // `ending=off` clears the window without falling back to the 7-day default (so Ended / Status can stand alone).
-  const ending = sp.ending === ENDING_OFF ? null : pick(sp.ending, ENDING_DAYS) ?? (ended == null ? DEFAULT_ENDING : null);
+  if (tab === "customers") return { tab, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
   const status = RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
-  return { tab, ending, ended, status, renewed: null, from, to, q };
+  return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, from, to, q };
 }
 
-/** The query string for a filter. Chip-cleared `ending=off` is written by the facet bar, not here. */
+/** The query string for a filter. */
 export function renewalsQuery(f: RenewalsFilter): string {
   const sp = new URLSearchParams();
   if (f.tab !== "renewals") sp.set("tab", f.tab);
+  if (f.dateBy !== "last") sp.set("dateBy", f.dateBy);
   if (f.ending != null) sp.set("ending", String(f.ending));
   if (f.ended != null) sp.set("ended", String(f.ended));
   if (f.status) sp.set("status", f.status);
