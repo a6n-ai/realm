@@ -47,6 +47,10 @@ describe("usersService.updateContact", () => {
     await expect(usersService.updateContact(custId, { phone: "" }))
       .rejects.toBeInstanceOf(ValidationError);
   });
+  it("removes the customer's phone when the admin Remove button asks", async () => {
+    const u = await usersService.updateContact(custId, { phone: "" }, { removePhone: true });
+    expect(u.phone).toBeNull();
+  });
   it("rejects a malformed phone", async () => {
     await expect(usersService.updateContact(custId, { phone: "12" }))
       .rejects.toBeInstanceOf(ValidationError);
