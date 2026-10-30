@@ -87,7 +87,7 @@ export function OrdersList({
             </Link>
             {o.trial && <RowTag tag="trial" />}
             {o.lookOut && !lookOutView && <RowTag tag="lookOut" title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : undefined} />}
-            {o.freeTiffins > 0 && <RowTag tag="free" title={`${o.freeTiffins} free ${o.freeTiffins === 1 ? "tiffin" : "tiffins"} given`} />}
+            {o.freeTiffins > 0 && <RowTag tag="free" count={o.freeTiffins} title={`${o.freeTiffins} free ${o.freeTiffins === 1 ? "tiffin" : "tiffins"} given`} />}
             {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
