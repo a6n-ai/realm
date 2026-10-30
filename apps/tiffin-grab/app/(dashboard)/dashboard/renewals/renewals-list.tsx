@@ -10,7 +10,7 @@ import { Badge } from "@/components/reui/badge";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { humanDate } from "@/lib/deliveries-view";
-import { rowStatus, statusLabel, type RenewalStatusFilter, type RenewalsTab } from "@/lib/renewals/filters";
+import { ENDING_OFF, rowStatus, statusLabel, type RenewalStatusFilter, type RenewalsTab } from "@/lib/renewals/filters";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -59,7 +59,15 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         idHref={renewalHref}
         idLabel="Order"
         rowClassName={() => "group"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
+        filters={
+          <ListSearchFilters
+            spec={spec}
+            placeholder="Search name, order or phone…"
+            shortPlaceholder="Search…"
+            // Clearing "Ending within" must stick as `ending=off` so the page default redirect does not put 7 days back.
+            clearValues={{ ending: ENDING_OFF }}
+          />
+        }
         emptyIcon={RefreshCwIcon}
         emptyMessage={tab === "trials" ? "No trials in this window. Try a wider Ending or Ended range." : "No plans in this window. Try a wider Ending or Ended range."}
         emptySearchMessage="No plans match your search."
