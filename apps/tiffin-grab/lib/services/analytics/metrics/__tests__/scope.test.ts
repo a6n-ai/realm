@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { PgDialect } from "drizzle-orm/pg-core";
+import { parseAnalyticsFilters } from "../../shared-filters";
 import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
 
 const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
@@ -90,5 +91,21 @@ describe("resolveAnalyticsScope", () => {
     expect((await resolveAnalyticsScope({ org: "A,B" }, session)).orgIds).toEqual(["A"]);
     visibleMock.mockResolvedValue("all");
     expect((await resolveAnalyticsScope({}, session)).orgIds).toBe("all");
+  });
+});
+
+describe("parseAnalyticsFilters (session required)", () => {
+  const session = { user: { id: "u" } };
+  it("scopes to the single visible org", async () => {
+    visibleMock.mockResolvedValue(["A"]);
+    expect((await parseAnalyticsFilters({}, session)).orgIds).toEqual(["A"]);
+  });
+  it("throws org_not_visible for another org's param", async () => {
+    visibleMock.mockResolvedValue(["A"]);
+    await expect(parseAnalyticsFilters({ org: "B" }, session)).rejects.toMatchObject({ reason: "org_not_visible" });
+  });
+  it("throws no_visible_orgs for a null session", async () => {
+    visibleMock.mockResolvedValue([]);
+    await expect(parseAnalyticsFilters({}, null)).rejects.toMatchObject({ reason: "no_visible_orgs" });
   });
 });

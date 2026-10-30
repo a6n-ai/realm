@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -51,7 +52,7 @@ export default function OperationsAnalyticsPage({ searchParams }: { searchParams
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getOperationsStats(await parseAnalyticsFilters(await searchParams));
+  const s = await getOperationsStats(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <MetricTiles
       cols={4}
@@ -78,11 +79,11 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getDeliveryStatusMix(await parseAnalyticsFilters(await searchParams));
+  const rows = await getDeliveryStatusMix(await parseAnalyticsFilters(await searchParams, await getSession()));
   return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
 }
 
 async function DriverChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getRouteLoadByDriver(10, await parseAnalyticsFilters(await searchParams));
+  const rows = await getRouteLoadByDriver(10, await parseAnalyticsFilters(await searchParams, await getSession()));
   return <BreakdownBarChart data={rows} xKey="driver" yKey="n" />;
 }

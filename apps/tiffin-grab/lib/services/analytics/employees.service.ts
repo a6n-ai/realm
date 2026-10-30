@@ -43,7 +43,7 @@ function leadWhere(filters: AnalyticsFilters): SQL | undefined {
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
 export async function getEmployeeRollup(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" },
+  filters: AnalyticsFilters,
 ): Promise<EmployeeRow[]> {
   const [leadRows, ticketRows, couponRows, staff] = await Promise.all([
     db

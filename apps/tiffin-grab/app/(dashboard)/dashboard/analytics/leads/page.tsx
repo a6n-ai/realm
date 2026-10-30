@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -60,7 +61,7 @@ export default function LeadsAnalyticsPage({ searchParams }: { searchParams: Sea
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getLeadStats(await parseAnalyticsFilters(await searchParams));
+  const s = await getLeadStats(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <MetricTiles
       cols={4}
@@ -104,7 +105,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function StageChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLeadsByStage(await parseAnalyticsFilters(await searchParams));
+  const rows = await getLeadsByStage(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownList
       rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref({ stage: r.key }) }))}
@@ -114,12 +115,12 @@ async function StageChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function LostReasonChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLostReasonBreakdown(await parseAnalyticsFilters(await searchParams));
+  const rows = await getLostReasonBreakdown(await parseAnalyticsFilters(await searchParams, await getSession()));
   return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
 }
 
 async function SourceTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSourcePerformance(await parseAnalyticsFilters(await searchParams));
+  const rows = await getSourcePerformance(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownList
       rows={rows.map((r) => ({

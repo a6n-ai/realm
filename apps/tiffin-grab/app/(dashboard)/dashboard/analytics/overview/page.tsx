@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -76,8 +77,8 @@ function analyticsHref(path: string, sp: AnalyticsSearchParams): string {
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const filters = await parseAnalyticsFilters(sp);
-  const revenueFilters = parseRevenueFilters(sp);
+  const filters = await parseAnalyticsFilters(sp, await getSession());
+  const revenueFilters = await parseRevenueFilters(sp, await getSession());
   const { timezone } = await getAppSettings();
   const [revenue, customers, complaints, profit, trialConv] = await Promise.all([
     getRevenueReport(revenueFilters),
@@ -182,12 +183,12 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function RevenueChart({ searchParams }: { searchParams: SearchParams }) {
-  const report = await getRevenueReport(parseRevenueFilters(await searchParams));
+  const report = await getRevenueReport(await parseRevenueFilters(await searchParams, await getSession()));
   return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" format="currency" />;
 }
 
 async function CohortChart({ searchParams }: { searchParams: SearchParams }) {
-  const { slices } = await getRevenueCohortMix(parseRevenueFilters(await searchParams));
+  const { slices } = await getRevenueCohortMix(await parseRevenueFilters(await searchParams, await getSession()));
   const chartRows = slices.filter((s) => s.amount > 0);
   return (
     <div className="space-y-3">

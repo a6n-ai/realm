@@ -16,6 +16,7 @@ import {
   summarizeRevenueCohorts,
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
+import { resolveAnalyticsScope } from "./metrics/scope";
 import { ordersMatchFilters, parseAnalyticsFiltersSync } from "./shared-filters";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
@@ -29,6 +30,7 @@ export type RevenueFilters = {
   plans: string[];
   mealSizes: string[];
   zones: string[];
+  orgIds: "all" | string[];
 };
 
 const PAYMENT_METHODS = payments.method.enumValues;
@@ -36,14 +38,18 @@ type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function parseRevenueFilters(sp: {
+export async function parseRevenueFilters(
+  sp: {
   from?: string;
   to?: string;
   method?: string;
   plan?: string;
   mealSize?: string;
   zone?: string;
-}): RevenueFilters {
+  org?: string;
+  },
+  session: Parameters<typeof resolveAnalyticsScope>[1],
+): Promise<RevenueFilters> {
   const bound = (raw: string | undefined) => {
     if (!raw) return undefined;
     if (ISO_DATE.test(raw)) return raw;
@@ -55,6 +61,7 @@ export function parseRevenueFilters(sp: {
     .map((s) => s.trim())
     .filter((m): m is PaymentMethod => (PAYMENT_METHODS as readonly string[]).includes(m));
   const dims = parseAnalyticsFiltersSync(sp);
+  const { orgIds } = await resolveAnalyticsScope(sp, session);
   return {
     from: bound(sp.from),
     to: bound(sp.to),
@@ -62,6 +69,7 @@ export function parseRevenueFilters(sp: {
     plans: dims.plans,
     mealSizes: dims.mealSizes,
     zones: dims.zones,
+    orgIds,
   };
 }
 
@@ -72,7 +80,7 @@ function dimensionWhere(filters: RevenueFilters) {
     plans: filters.plans,
     mealSizes: filters.mealSizes,
     zones: filters.zones,
-    orgIds: "all",
+    orgIds: filters.orgIds,
   });
 }
 

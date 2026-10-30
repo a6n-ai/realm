@@ -22,19 +22,13 @@ export {
 } from "./shared-filter-params";
 
 /**
- * Parse URL filters, defaulting a missing date range to the current business month.
- * With a session the result goes through `resolveAnalyticsScope`, so `orgIds` is the
- * visible-org intersection. Without one the `org` param is ignored and orgIds is "all":
- * safe only because today's callers sit behind requireAdmin. Later tasks must pass the session.
+ * Parse URL filters through `resolveAnalyticsScope`: dates default to the current business month and
+ * `orgIds` is the session's visible orgs narrowed by `org` (throws NoFranchiseAccessError otherwise).
  */
 export async function parseAnalyticsFilters(
   sp: AnalyticsSearchParams,
-  session?: Parameters<typeof resolveAnalyticsScope>[1],
+  session: Parameters<typeof resolveAnalyticsScope>[1],
 ): Promise<AnalyticsFilters> {
-  if (session === undefined) {
-    const { timezone } = await getAppSettings();
-    return parseAnalyticsFiltersSync(sp, { timezone });
-  }
   const scope = await resolveAnalyticsScope(sp, session);
   return {
     from: scope.fromMs,

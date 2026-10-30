@@ -26,6 +26,8 @@ export type AnalyticsFilters = {
   orgIds: "all" | string[];
 };
 
+export type DimensionFilters = Omit<AnalyticsFilters, "orgIds">;
+
 export const list = (raw: string | undefined): string[] =>
   (raw ?? "")
     .split(",")
@@ -49,10 +51,11 @@ export function currentMonthEpochRange(timezone: string, now = Date.now()): { fr
   return zonedRangeMs(bounds.from, bounds.to, timezone);
 }
 
+/** Dimension + date parse only; orgIds is deliberately absent. It must come from `resolveAnalyticsScope`, which checks the session. */
 export function parseAnalyticsFilters(
   sp: AnalyticsSearchParams,
   opts?: { timezone?: string; now?: number },
-): AnalyticsFilters {
+): DimensionFilters {
   let from = epoch(sp.from);
   let to = epoch(sp.to);
   // Analytics always scopes to a date range; missing params mean the current month.
@@ -67,8 +70,6 @@ export function parseAnalyticsFilters(
     plans: list(sp.plan),
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
-    // The org URL value is only honoured by resolveAnalyticsScope, which checks it against the session.
-    orgIds: "all",
   };
 }
 

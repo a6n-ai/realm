@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -60,7 +61,7 @@ export default function CustomersAnalyticsPage({ searchParams }: { searchParams:
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getCustomerStats(await parseAnalyticsFilters(await searchParams));
+  const s = await getCustomerStats(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <MetricTiles
       cols={4}
@@ -101,12 +102,12 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function SignupChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSignupTrend(await parseAnalyticsFilters(await searchParams));
+  const rows = await getSignupTrend(await parseAnalyticsFilters(await searchParams, await getSession()));
   return <TrendLineChart data={rows} xKey="day" yKey="n" />;
 }
 
 async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSubscriptionMix(await parseAnalyticsFilters(await searchParams));
+  const rows = await getSubscriptionMix(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -120,6 +121,6 @@ async function MixChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function CitiesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopCities(8, await parseAnalyticsFilters(await searchParams));
+  const rows = await getTopCities(8, await parseAnalyticsFilters(await searchParams, await getSession()));
   return <BreakdownBarChart data={rows} xKey="city" yKey="n" />;
 }

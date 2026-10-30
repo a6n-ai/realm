@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/purity */
+import { getSession } from "@/lib/auth/session";
 import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
@@ -40,8 +41,8 @@ type SearchParams = Promise<{
 }>;
 
 const loadReport = cache(
-  (from: string, to: string, method: string, plan: string, mealSize: string, zone: string) =>
-    getRevenueReport(parseRevenueFilters({ from, to, method, plan, mealSize, zone })),
+  async (from: string, to: string, method: string, plan: string, mealSize: string, zone: string) =>
+    getRevenueReport(await parseRevenueFilters({ from, to, method, plan, mealSize, zone }, await getSession())),
 );
 
 async function reportFrom(searchParams: SearchParams): Promise<RevenueReport> {
@@ -120,7 +121,7 @@ async function RangeAndLive({ searchParams }: { searchParams: SearchParams }) {
 async function rangeFor(searchParams: SearchParams) {
   const sp = await searchParams;
   const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
-  const filters = parseRevenueFilters(sp);
+  const filters = await parseRevenueFilters(sp, await getSession());
   const range = zonedRangeMs(report.from, report.to, timezone);
   const settled = (extra: { statuses?: readonly string[] } = {}) =>
     paymentsHref({

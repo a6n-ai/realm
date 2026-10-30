@@ -13,8 +13,6 @@ const SETTLED = ["paid", "simulated_paid"] as const;
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
-const EMPTY: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" };
-
 export type ProductStats = {
   totalSelections: number;
   distinctDishes: number;
@@ -28,7 +26,7 @@ function matchingOrderIds(filters: AnalyticsFilters) {
   )`;
 }
 
-export async function getProductStats(filters: AnalyticsFilters = EMPTY): Promise<ProductStats> {
+export async function getProductStats(filters: AnalyticsFilters): Promise<ProductStats> {
   const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
   const selectionWhere = narrowed ? matchingOrderIds(filters) : undefined;
   const [[{ n: totalSelections }], [{ n: distinctDishes }], top] = await Promise.all([
@@ -49,7 +47,7 @@ export async function getProductStats(filters: AnalyticsFilters = EMPTY): Promis
   return { totalSelections, distinctDishes, topDish: top[0]?.name ?? null };
 }
 
-export async function getTopDishes(limit = 8, filters: AnalyticsFilters = EMPTY) {
+export async function getTopDishes(limit = 8, filters: AnalyticsFilters) {
   const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
   return db
     .select({ dish: dishes.name, n: intCount })
@@ -64,7 +62,7 @@ export async function getTopDishes(limit = 8, filters: AnalyticsFilters = EMPTY)
 export type PaidPlanRow = { plan: string; key: string; orders: number; paid: number };
 
 /** Orders that have a settled payment, with the money those payments brought in. */
-export async function getOrdersByPlan(filters: AnalyticsFilters = EMPTY): Promise<PaidPlanRow[]> {
+export async function getOrdersByPlan(filters: AnalyticsFilters): Promise<PaidPlanRow[]> {
   const rows = await db
     .select({
       plan: plans.name,
@@ -91,7 +89,7 @@ const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium"
 
 export type PaidTierRow = { tier: string; key: string; orders: number; paid: number };
 
-export async function getOrdersByTier(filters: AnalyticsFilters = EMPTY): Promise<PaidTierRow[]> {
+export async function getOrdersByTier(filters: AnalyticsFilters): Promise<PaidTierRow[]> {
   const rows = await db
     .select({
       tier: mealSizes.tier,
@@ -128,7 +126,7 @@ export type PaidMealTypeRow = {
 };
 
 /** Settled payments grouped by catalog meal size (Maharaja Thali, 4 Item Thali, …). */
-export async function getOrdersByMealType(filters: AnalyticsFilters = EMPTY): Promise<PaidMealTypeRow[]> {
+export async function getOrdersByMealType(filters: AnalyticsFilters): Promise<PaidMealTypeRow[]> {
   const rows = await db
     .select({
       mealType: mealSizes.name,

@@ -16,6 +16,7 @@ describe("currentMonthEpochRange", () => {
   });
 });
 
+// orgIds is intentionally absent from the sync parser; see scope.test.ts for the session-checked path.
 describe("parseAnalyticsFilters", () => {
   it("defaults missing dates to the current month when timezone is provided", () => {
     const f = parseAnalyticsFilters({}, { timezone: TZ, now });
@@ -33,9 +34,5 @@ describe("parseAnalyticsFilters", () => {
     const f = parseAnalyticsFilters({});
     expect(f.from).toBeUndefined();
     expect(f.to).toBeUndefined();
-  });
-
-  it("ignores the org param (only resolveAnalyticsScope may honour it)", () => {
-    expect(parseAnalyticsFilters({ org: "a" }).orgIds).toBe("all");
   });
 });

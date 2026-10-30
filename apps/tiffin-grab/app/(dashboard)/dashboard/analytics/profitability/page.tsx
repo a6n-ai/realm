@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/purity */
+import { getSession } from "@/lib/auth/session";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
@@ -108,7 +109,7 @@ const loadReport = cache(
     getProfitabilityReport({
       month,
       grain,
-      filters: await parseAnalyticsFilters({ from, to, plan, mealSize, zone }),
+      filters: await parseAnalyticsFilters({ from, to, plan, mealSize, zone }, await getSession()),
     }),
 );
 

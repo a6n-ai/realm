@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AnalyticsFilters } from "../shared-filter-params";
 import { inArray } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -87,6 +88,8 @@ async function makePayment(
   });
 }
 
+const ALL_ORGS: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" };
+
 describe("profitability report", () => {
   beforeEach(reset);
   afterAll(reset);
@@ -102,7 +105,7 @@ describe("profitability report", () => {
       await makeDelivery(order.id, `2035-02-${String(d).padStart(2, "0")}`);
     }
 
-    const report = await getProfitabilityReport({ month: "2035-02", grain: "monthly", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-02", grain: "monthly", now: NOW, filters: ALL_ORGS });
     const jan = report.rows.find((r) => r.date === "2035-01");
     const feb = report.rows.find((r) => r.date === "2035-02");
 
@@ -122,7 +125,7 @@ describe("profitability report", () => {
     await makeDelivery(order.id, "2035-01-06", { status: "skipped" });
     await makeDelivery(order.id, "2035-01-07");
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     const byDate = Object.fromEntries(report.rows.map((r) => [r.date, r]));
     expect(byDate["2035-01-05"]?.revenue).toBe(10);
     expect(byDate["2035-01-06"]?.revenue).toBe(0);
@@ -142,7 +145,7 @@ describe("profitability report", () => {
     await makePayment(order.id, "20.00", Date.parse("2034-12-20T15:00:00Z"));
     await makeDelivery(order.id, "2035-01-05", { tiffinUnits: 2 });
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     const day = report.rows.find((r) => r.date === "2035-01-05");
     expect(day?.kitchen).toBe(8);
     expect(day?.driver).toBe(2);
@@ -161,7 +164,7 @@ describe("profitability report", () => {
     await makePayment(order.id, "113.00", Date.parse("2035-01-02T15:00:00Z"));
     await makeDelivery(order.id, "2035-01-05");
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     expect(report.rows.find((r) => r.date === "2035-01-05")?.revenue).toBe(10);
     expect(report.kpis.cashCollected).toBe(113);
   });
@@ -172,7 +175,7 @@ describe("profitability report", () => {
     await makePayment(order.id, "50.00", Date.parse("2035-01-02T15:00:00Z"), "awaiting_payment");
     await makeDelivery(order.id, "2035-01-05");
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     const day = report.rows.find((r) => r.date === "2035-01-05");
     expect(day?.revenue).toBe(0);
     expect(day?.unpaidRevenue).toBe(10);
@@ -185,7 +188,7 @@ describe("profitability report", () => {
     await makePayment(order.id, "50.00", Date.parse("2035-01-02T15:00:00Z"), "refunded");
     await makeDelivery(order.id, "2035-01-05");
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     const day = report.rows.find((r) => r.date === "2035-01-05");
     expect(day?.revenue).toBe(0);
     expect(day?.unpaidRevenue).toBe(0);
@@ -202,7 +205,7 @@ describe("profitability report", () => {
       tiffinUnits: 1,
     });
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     expect(report.nextCutoffAt).toBe(NOW + 60_000);
     expect(report.rows.find((r) => r.date === "2035-01-20")?.tiffins).toBe(0);
   });
@@ -219,7 +222,7 @@ describe("profitability report", () => {
       optimoCompletionStatus: "success",
     });
 
-    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, filters: ALL_ORGS });
     const day = report.rows.find((r) => r.date === "2035-01-20");
     expect(day?.tiffins).toBe(1);
     expect(day?.revenue).toBe(10);

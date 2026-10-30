@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -49,7 +50,7 @@ export default function EmployeesAnalyticsPage({ searchParams }: { searchParams:
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams));
+  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
   const activeReps = rows.length;
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
@@ -78,13 +79,13 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function LeadsChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams));
+  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
   const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
   return <BreakdownBarChart data={data} xKey="name" yKey="n" />;
 }
 
 async function RollupTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams));
+  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
   return <EmployeeRollupTable rows={rows} />;
 }
 

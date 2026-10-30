@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -72,7 +73,7 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getProductStats(await parseAnalyticsFilters(await searchParams));
+  const s = await getProductStats(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <MetricTiles
       cols={3}
@@ -92,12 +93,12 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function TopDishesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopDishes(8, await parseAnalyticsFilters(await searchParams));
+  const rows = await getTopDishes(8, await parseAnalyticsFilters(await searchParams, await getSession()));
   return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
 }
 
 async function TierBarChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
+  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownBarChart
       data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
@@ -114,7 +115,7 @@ function money(n: number) {
 }
 
 async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByPlan(await parseAnalyticsFilters(await searchParams));
+  const rows = await getOrdersByPlan(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -130,7 +131,7 @@ async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function MealTypeList({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams));
+  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams, await getSession()));
   return (
     <BreakdownList
       rows={rows.map((r) => ({

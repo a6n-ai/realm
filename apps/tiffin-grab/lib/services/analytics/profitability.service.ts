@@ -76,12 +76,12 @@ export async function getProfitabilityReport(opts: {
   month: string;
   grain: Grain;
   now?: number;
-  filters?: AnalyticsFilters;
+  filters: AnalyticsFilters;
 }): Promise<ProfitabilityReport> {
   const now = opts.now ?? Date.now();
   const grain = opts.grain;
   const month = opts.month;
-  const dims = opts.filters ?? { plans: [], mealSizes: [], zones: [], orgIds: "all" };
+  const dims = opts.filters;
   const [{ timezone }, assumptions] = await Promise.all([getAppSettings(), getProfitabilityAssumptions()]);
   // Shared date filter wins over the month/grain nav when set.
   const bounds = hasDateFilter(dims)
