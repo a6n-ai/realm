@@ -61,7 +61,7 @@ export function DeliveriesSkeleton() {
           </div>
         </div>
       </div>
-      <div aria-hidden className="c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex gap-1 rounded-full p-1 lg:hidden">
+      <div aria-hidden className="c-liquid fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex gap-1 rounded-full p-1 lg:hidden">
         {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-[50px] flex-1 rounded-full" />)}
       </div>
     </div>
