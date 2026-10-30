@@ -37,7 +37,7 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const image = referCardPath(code);
   const [link, setLink] = useState(referPath(code));
   const [file, setFile] = useState<File | null>(null);
-  const [copied, setCopied] = useState<"link" | "code" | null>(null);
+  const [copied, setCopied] = useState<"link" | "code" | "text" | null>(null);
 
   // Origin and file sharing exist only in the browser; render the relative link until then.
   useEffect(() => {
@@ -61,9 +61,9 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const text = shareMessage(code, link, offer);
   const enc = encodeURIComponent;
 
-  const copy = async (what: "link" | "code") => {
+  const copy = async (what: "link" | "code" | "text") => {
     try {
-      await navigator.clipboard.writeText(what === "link" ? link : code);
+      await navigator.clipboard.writeText({ link, code, text }[what]);
       setCopied(what);
       setTimeout(() => setCopied(null), 2000);
     } catch {
@@ -106,16 +106,10 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
       <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1080} height={1350} loading="lazy" className="mx-auto aspect-[4/5] h-auto w-full max-w-[280px] rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] shadow-sm" />
 
       {file ? (
-        <div className="space-y-2">
-          <Button variant="primary" className={`w-full ${WHATSAPP}`} onClick={shareWithImage}>
-            <WhatsAppGlyph />
-            Share on WhatsApp
-          </Button>
-          <p className="c-caption text-center text-pretty">
-            Pick WhatsApp to send the image with your message. If only the image arrives, paste: the message is copied.{" "}
-            <a href={waText} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Send text only</a>
-          </p>
-        </div>
+        <Button variant="primary" className={`w-full ${WHATSAPP}`} onClick={shareWithImage}>
+          <WhatsAppGlyph />
+          Share on WhatsApp
+        </Button>
       ) : (
         // No file sharing here (most desktops): text with the link, which WhatsApp previews as the card.
         <a href={waText} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "primary", className: `w-full ${WHATSAPP}` })}>
@@ -123,6 +117,13 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
           Share on WhatsApp
         </a>
       )}
+      {/* For when WhatsApp drops the caption under the image: paste it in. */}
+      <div className="-mt-2 flex justify-center">
+        <Button variant="ghost" size="md" className="!min-h-9 !px-3 !text-[13px]" onClick={() => copy("text")}>
+          {copied === "text" ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
+          <span role="status">{copied === "text" ? "Text copied" : "Copy text only"}</span>
+        </Button>
+      </div>
 
       <div className="grid grid-cols-5 gap-1">
         <Target tint="blue" icon={<Download />} label="Save image" href={image} download={`tiffingrab-${code}.png`} />
