@@ -98,13 +98,17 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
     onDone(lines.join(" "));
   });
 
-  const flip = (on: boolean) => start(async () => {
+  // Optimistic flip outside the transition so the switch isn't deferred under
+  // load (CI was failing aria-checked while the transition update lagged).
+  const flip = (on: boolean) => {
     setError(null);
     setAutoMove(on);
-    const res = await setMyAutoMovePaused(plan.orderId, on);
-    if ("error" in res) { setAutoMove(!on); return setError(res.error); }
-    if (res.moved > 0) onDone(`Moved ${res.moved} paused ${res.moved === 1 ? "day" : "days"} to the end of your plan.`);
-  });
+    start(async () => {
+      const res = await setMyAutoMovePaused(plan.orderId, on);
+      if ("error" in res) { setAutoMove(!on); return setError(res.error); }
+      if (res.moved > 0) onDone(`Moved ${res.moved} paused ${res.moved === 1 ? "day" : "days"} to the end of your plan.`);
+    });
+  };
 
   const release = (dates: string[] | "all") => start(async () => {
     setError(null);
