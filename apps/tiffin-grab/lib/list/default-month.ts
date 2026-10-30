@@ -32,7 +32,8 @@ export async function withListDates<T extends Dated & { q?: string }>(sp: T): Pr
 }
 
 /** Inclusive epoch window. Either end may be open. */
-export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
+export function epochBoundsWhere(column: AnyColumn | SQL, sp: Dated): SQL | undefined {
+  const col = column as AnyColumn; // drizzle comparators accept SQL expressions too; only the typings are narrow
   const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
   const a = n(sp.from);
   const b = n(sp.to);

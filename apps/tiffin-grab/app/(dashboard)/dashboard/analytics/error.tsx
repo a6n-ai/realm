@@ -7,7 +7,7 @@ export default function AnalyticsError({ reset }: { error: Error & { digest?: st
   return (
     <Alert variant="destructive">
       <AlertTitle>Analytics unavailable</AlertTitle>
-      <AlertDescription>
+      <AlertDescription className="flex flex-col gap-2">
         <p>Something went wrong loading this tab.</p>
         <Button variant="outline" size="sm" onClick={reset}>
           Retry

@@ -52,11 +52,12 @@ function moneyRows(scope: AnalyticsScope, payKey: SQL, refKey: SQL): SQL {
   return sql`
     select ${payKey} as key, ${payments.amount} as gross, ${netExTax()} as net, ${payments.surchargeAmount} as surcharge,
       0::numeric as refunds, 0::numeric as refund_ex_sur, 0::numeric as refund_ex, 1 as pay_cnt,
+      (case when ${inArray(payments.status, [...SETTLED])} then 1 else 0 end) as settled_cnt,
       (case when ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund') then 1 else 0 end) as legacy
     from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
     where ${and(ordersScope(scope), methodWhere(scope), inArray(payments.status, CAPTURED), dateWhere(moneyDate, scope)) ?? sql`true`}
     union all
-    select ${refKey}, 0::numeric, 0::numeric, 0::numeric, ${ledgerEntries.amount}, ${refundExSurcharge}, ${refundExTax}, 0, 0
+    select ${refKey}, 0::numeric, 0::numeric, 0::numeric, ${ledgerEntries.amount}, ${refundExSurcharge}, ${refundExTax}, 0, 0, 0
     from ${ledgerEntries} inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId} inner join ${orders} on ${orders.id} = ${payments.orderId}
     where ${and(ordersScope(scope), methodWhere(scope), sql`${ledgerEntries.type} = 'refund'`, dateWhere(ledgerEntries.createdAt, scope)) ?? sql`true`}`;
 }
@@ -68,6 +69,8 @@ export type RevenueTotals = {
   net: number;
   refunds: number;
   refundsExTax: number;
+  /** Refunds on the paid basis (surcharge removed, tax kept): gross minus this is net collected. */
+  refundsExSurcharge: number;
   surcharge: number;
   payments: number;
   /** Refund ledger rows in the window that cannot be tied to a payment, scoped through their order when they have one. */
@@ -76,7 +79,7 @@ export type RevenueTotals = {
   refundedWithoutLedger: number;
 };
 
-const ZERO: RevenueTotals = { gross: 0, tax: 0, net: 0, refunds: 0, refundsExTax: 0, surcharge: 0, payments: 0, unlinkedRefunds: 0, refundedWithoutLedger: 0 };
+const ZERO: RevenueTotals = { gross: 0, tax: 0, net: 0, refunds: 0, refundsExTax: 0, refundsExSurcharge: 0, surcharge: 0, payments: 0, unlinkedRefunds: 0, refundedWithoutLedger: 0 };
 
 export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotals> {
   if (noOrgs(scope)) return ZERO;
@@ -90,6 +93,7 @@ export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotal
         round(coalesce((sum(gross) - sum(refund_ex_sur)) - (sum(net) - sum(refund_ex)), 0), 2)::text as tax,
         round(coalesce(sum(refunds), 0), 2)::text as refunds,
         round(coalesce(sum(refund_ex), 0), 2)::text as refunds_ex_tax,
+        round(coalesce(sum(refund_ex_sur), 0), 2)::text as refunds_ex_sur,
         round(coalesce(sum(surcharge), 0), 2)::text as surcharge,
         coalesce(sum(pay_cnt), 0)::int::text as payments,
         coalesce(sum(legacy), 0)::int::text as legacy
@@ -106,6 +110,7 @@ export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotal
     net: n2(t.net),
     refunds: n2(t.refunds),
     refundsExTax: n2(t.refunds_ex_tax),
+    refundsExSurcharge: n2(t.refunds_ex_sur),
     surcharge: n2(t.surcharge),
     payments: n2(t.payments),
     unlinkedRefunds: n2(rowsOf(unlinked)[0].n),
@@ -114,11 +119,11 @@ export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotal
 }
 
 export type RevenueDim = "day" | "method" | "plan" | "mealSize" | "cohort";
-export type RevenueBucket = { key: string; gross: number; net: number; refundsExTax: number; payments: number };
+export type RevenueBucket = { key: string; gross: number; net: number; refundsExTax: number; payments: number; settledPayments: number };
 
-// Cohort: trial wins; otherwise renewal when the customer had an earlier non-cancelled order
-// (same status set as laterOrderSql); otherwise new.
-const cohortSql = sql`(case when ${orders.trialLength} is not null then 'trial' when exists (select 1 from ${orders} as prev_order where prev_order.user_id = ${orders.userId} and prev_order.id <> ${orders.id} and prev_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and (prev_order.created_at < ${orders.createdAt} or (prev_order.created_at = ${orders.createdAt} and prev_order.id < ${orders.id}))) then 'renewal' else 'new' end)`;
+// Cohort: trial wins; otherwise renewal when the customer had an earlier non-cancelled, non-trial order
+// (a trial customer's first plan is still new); otherwise new.
+const cohortSql = sql`(case when ${orders.trialLength} is not null then 'trial' when exists (select 1 from ${orders} as prev_order where prev_order.user_id = ${orders.userId} and prev_order.id <> ${orders.id} and prev_order.trial_length is null and prev_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and (prev_order.created_at < ${orders.createdAt} or (prev_order.created_at = ${orders.createdAt} and prev_order.id < ${orders.id}))) then 'renewal' else 'new' end)`;
 
 function bucketKey(dim: RevenueDim, tz: string, dateCol: SQL | typeof ledgerEntries.createdAt): SQL {
   switch (dim) {
@@ -142,10 +147,10 @@ export async function revenueBy(scope: AnalyticsScope, dim: RevenueDim): Promise
     await db.execute(sql`
       with u as (${moneyRows(scope, bucketKey(dim, scope.tz, moneyDate), bucketKey(dim, scope.tz, ledgerEntries.createdAt))})
       select coalesce(key, 'unknown') as key, round(sum(gross), 2)::text as gross, round(sum(net) - sum(refund_ex), 2)::text as net,
-        round(sum(refund_ex), 2)::text as refunds_ex_tax, sum(pay_cnt)::int::text as payments
+        round(sum(refund_ex), 2)::text as refunds_ex_tax, sum(pay_cnt)::int::text as payments, sum(settled_cnt)::int::text as settled_payments
       from u group by key order by key`),
   );
-  return rows.map((r) => ({ key: String(r.key), gross: n2(r.gross), net: n2(r.net), refundsExTax: n2(r.refunds_ex_tax), payments: n2(r.payments) }));
+  return rows.map((r) => ({ key: String(r.key), gross: n2(r.gross), net: n2(r.net), refundsExTax: n2(r.refunds_ex_tax), payments: n2(r.payments), settledPayments: n2(r.settled_payments) }));
 }
 
 export type PaymentStatusRow = { status: string; count: number; amount: number };

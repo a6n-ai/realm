@@ -97,7 +97,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
     }),
     getTrialToPlanConversion(filters),
   ]);
-  const paid = paymentsHref({ statuses: SETTLED_STATUSES, methods: scope.extra.method, fromMs: scope.fromMs, toMs: scope.toMs });
+  const paid = paymentsHref({ statuses: SETTLED_STATUSES, methods: scope.extra.method, fromMs: scope.fromMs, toMs: scope.toMs, basis: "money" });
   const complaintFilters = parseComplaintFilters(sp);
 
   return (

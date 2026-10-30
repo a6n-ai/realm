@@ -18,6 +18,7 @@ const { buildAnalyticsScope } = await import("../scope");
 const { revenueTotals, revenueBy, paymentsByStatus } = await import("../money");
 const { countOrders, countCustomers, scopeToOrdersCondition, ordersDrillHref } = await import("../orders");
 const { needsReviewRows } = await import("../needs-review");
+const { getRevenueReport } = await import("../../revenue.service");
 const { recordStripeRefund } = await import("@/lib/services/payment-stripe");
 const { buildOrdersSpec } = await import("@/app/(dashboard)/dashboard/orders/orders-spec");
 const { parseFilterState } = await import("@/components/ds");
@@ -230,6 +231,19 @@ describe("analytics reconciliation (integration)", () => {
     expect(cohort.trial).toBe(79.65);
     // The add-on order (a repeat customer): plan 100 at 13% stays 100 after the add-on, plus 19 for the 5% add-on.
     expect(cohort.renewal).toBe(119);
+  });
+
+  it("getRevenueReport kpis equal the totals; netCollected is on the paid basis; trend sums to net revenue", async () => {
+    const s = scopeA(MARCH_NOW);
+    const t = await revenueTotals(s);
+    const r = await getRevenueReport(s);
+    expect(r.kpis).toMatchObject({ netRevenue: t.net, tax: t.tax, gross: t.gross, surcharge: 6, payments: t.payments, pendingCount: 1, pendingAmount: 113 });
+    // Stripe partial refund of 58.00 on a surcharged payment is 56.50 on the paid basis, not 58.
+    expect(r.kpis.refundsExSurcharge).toBe(t.refundsExSurcharge);
+    expect(r.kpis.refundsExSurcharge).toBeLessThan(t.refunds);
+    expect(r.kpis.netCollected).toBe(Math.round((t.gross - t.refundsExSurcharge) * 100) / 100);
+    expect(r.kpis.orders).toBeGreaterThan(0);
+    expect(Math.round(r.trend.reduce((a, p) => a + p.netSales, 0) * 100) / 100).toBe(t.net);
   });
 
   it("paymentsByStatus uses the money date and covers every status", async () => {

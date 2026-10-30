@@ -26,10 +26,10 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
-export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
+export function dateRangeWhere(col: AnyColumn | SQL, sp: { from?: string; to?: string }): SQL | undefined {
   return epochBoundsWhere(col, sp);
 }
 
@@ -145,7 +145,8 @@ export async function listPayments(
     opts.where,
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
-    dateRangeWhere(payments.createdAt, dated),
+    // basis=money is the analytics drill: dated by when the money moved, like the revenue tiles.
+    dateRangeWhere(dated.basis === "money" ? sql`coalesce(${payments.capturedAt}, ${payments.createdAt})` : payments.createdAt, dated),
     attentionWhere(attention),
     q
       ? or(

@@ -82,8 +82,10 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
       netRevenue: totals.net,
       tax: totals.tax,
       refunds: totals.refunds,
+      refundsExSurcharge: totals.refundsExSurcharge,
+      unlinkedRefunds: totals.unlinkedRefunds,
       surcharge: totals.surcharge,
-      netCollected: round2(totals.gross - totals.refunds),
+      netCollected: round2(totals.gross - totals.refundsExSurcharge),
       payments: totals.payments,
       orders: disc.orders,
       avgOrderValue: disc.orders > 0 ? round2(totals.net / disc.orders) : null,
@@ -118,7 +120,7 @@ export async function getRevenueCohortMix(
       key,
       label: REVENUE_COHORT_LABEL[key],
       amount: round2(mine.reduce((s, r) => s + r.net, 0)),
-      count: mine.reduce((s, r) => s + r.payments, 0),
+      count: mine.reduce((s, r) => s + r.settledPayments, 0),
       color: REVENUE_COHORT_COLOR[key],
     };
   });

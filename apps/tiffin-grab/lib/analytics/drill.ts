@@ -54,8 +54,11 @@ export function paymentsHref(opts: {
   methods?: readonly string[];
   fromMs?: number;
   toMs?: number;
+  /** "money": date the list by when the money moved (capture), like the revenue tiles. */
+  basis?: "money";
 } = {}): string {
   const qs = new URLSearchParams();
+  if (opts.basis) qs.set("basis", opts.basis);
   if (opts.statuses?.length) qs.set("status", opts.statuses.join(","));
   if (opts.methods?.length) qs.set("method", opts.methods.join(","));
   if (opts.fromMs != null) qs.set("from", String(opts.fromMs));

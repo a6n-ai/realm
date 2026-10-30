@@ -69,6 +69,9 @@ export type RevenueKpis = {
   /** Tax still held on the net-of-refunds amount. */
   tax: number;
   refunds: number;
+  /** Refunds on the paid basis; netCollected = gross - this. */
+  refundsExSurcharge: number;
+  unlinkedRefunds: number;
   surcharge: number;
   /** gross minus refunds. */
   netCollected: number;
