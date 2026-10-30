@@ -72,6 +72,7 @@ function dimensionWhere(filters: RevenueFilters) {
     plans: filters.plans,
     mealSizes: filters.mealSizes,
     zones: filters.zones,
+    orgs: [],
   });
 }
 

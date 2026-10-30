@@ -1,9 +1,9 @@
-import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
+import { deliveryZones, mealSizes, organization, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { isoDateInZone } from "@/lib/analytics/profitability";
+import { dateWhere, dateWhereCalendar, facetsWhere, resolveAnalyticsScope } from "./metrics/scope";
 import {
   parseAnalyticsFilters as parseAnalyticsFiltersSync,
   type AnalyticsFilterOptions,
@@ -21,10 +21,28 @@ export {
   type AnalyticsFilterOptions,
 } from "./shared-filter-params";
 
-/** Parse URL filters, defaulting a missing date range to the current business month. */
-export async function parseAnalyticsFilters(sp: AnalyticsSearchParams): Promise<AnalyticsFilters> {
-  const { timezone } = await getAppSettings();
-  return parseAnalyticsFiltersSync(sp, { timezone });
+/**
+ * Parse URL filters, defaulting a missing date range to the current business month.
+ * With a session the result goes through `resolveAnalyticsScope`, so `orgs` is the
+ * visible-org intersection; without one it is the raw `org` param (Stage 1 pages).
+ */
+export async function parseAnalyticsFilters(
+  sp: AnalyticsSearchParams,
+  session?: Parameters<typeof resolveAnalyticsScope>[1],
+): Promise<AnalyticsFilters> {
+  if (session === undefined) {
+    const { timezone } = await getAppSettings();
+    return parseAnalyticsFiltersSync(sp, { timezone });
+  }
+  const scope = await resolveAnalyticsScope(sp, session);
+  return {
+    from: scope.fromMs,
+    to: scope.toMs,
+    plans: scope.plans,
+    mealSizes: scope.mealSizes,
+    zones: scope.zones,
+    orgs: scope.orgIds === "all" ? [] : scope.orgIds,
+  };
 }
 
 /** Dimension-only parse (no date default). Prefer `parseAnalyticsFilters` for pages. */
@@ -32,10 +50,7 @@ export { parseAnalyticsFiltersSync };
 
 /** Epoch `createdAt`/`capturedAt`-style columns. */
 export function epochRangeWhere(col: AnyColumn, f: AnalyticsFilters): SQL | undefined {
-  const parts: SQL[] = [];
-  if (f.from != null) parts.push(gte(col, f.from));
-  if (f.to != null) parts.push(lte(col, f.to));
-  return parts.length ? and(...parts) : undefined;
+  return dateWhere(col, { fromMs: f.from, toMs: f.to });
 }
 
 /**
@@ -45,38 +60,19 @@ export function epochRangeWhere(col: AnyColumn, f: AnalyticsFilters): SQL | unde
 export async function calendarDateWhere(col: AnyColumn, f: AnalyticsFilters): Promise<SQL | undefined> {
   if (f.from == null && f.to == null) return undefined;
   const { timezone } = await getAppSettings();
-  const parts: SQL[] = [];
-  if (f.from != null) parts.push(gte(col, isoDateInZone(f.from, timezone)));
-  if (f.to != null) parts.push(lte(col, isoDateInZone(f.to, timezone)));
-  return parts.length ? and(...parts) : undefined;
+  return dateWhereCalendar(col, { fromMs: f.from, toMs: f.to, tz: timezone });
 }
 
-/**
- * Restricts to orders matching plan / meal size / zone. Uses subqueries so
- * callers do not need extra joins on every query.
- */
+/** Restricts to orders matching plan / meal size / zone. */
 export function ordersMatchFilters(f: AnalyticsFilters): SQL | undefined {
-  const parts: SQL[] = [];
-  if (f.plans.length) {
-    parts.push(
-      sql`${orders.planId} in (select ${plans.id} from ${plans} where ${inArray(plans.key, f.plans)})`,
-    );
-  }
-  if (f.mealSizes.length) {
-    parts.push(
-      sql`${orders.mealSizeId} in (select ${mealSizes.id} from ${mealSizes} where ${inArray(mealSizes.key, f.mealSizes)})`,
-    );
-  }
-  if (f.zones.length) {
-    parts.push(
-      sql`${orders.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, f.zones)})`,
-    );
-  }
-  return parts.length ? and(...parts) : undefined;
+  return facetsWhere(f);
 }
 
-export async function getAnalyticsFilterOptions(): Promise<AnalyticsFilterOptions> {
-  const [planRows, sizeRows, zoneRows] = await Promise.all([
+/** `visibleOrgIds` limits the franchise list; omitted means none are listed (facet hidden). */
+export async function getAnalyticsFilterOptions(
+  visibleOrgIds: "all" | string[] = [],
+): Promise<AnalyticsFilterOptions> {
+  const [planRows, sizeRows, zoneRows, orgRows] = await Promise.all([
     db
       .select({ value: plans.key, label: plans.name })
       .from(plans)
@@ -93,6 +89,13 @@ export async function getAnalyticsFilterOptions(): Promise<AnalyticsFilterOption
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true))
       .orderBy(asc(deliveryZones.name)),
+    visibleOrgIds !== "all" && visibleOrgIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({ value: organization.id, label: organization.name })
+          .from(organization)
+          .where(visibleOrgIds === "all" ? undefined : inArray(organization.id, visibleOrgIds))
+          .orderBy(asc(organization.name)),
   ]);
-  return { plans: planRows, mealSizes: sizeRows, zones: zoneRows };
+  return { plans: planRows, mealSizes: sizeRows, zones: zoneRows, orgs: orgRows };
 }

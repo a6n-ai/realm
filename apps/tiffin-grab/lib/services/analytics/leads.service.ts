@@ -28,7 +28,7 @@ function leadWhere(filters: AnalyticsFilters): SQL | undefined {
 }
 
 export async function getLeadStats(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
 ): Promise<LeadStats> {
   const scope = leadWhere(filters);
   const [[{ n: total }], [{ n: converted }], [{ n: lost }]] = await Promise.all([
@@ -53,7 +53,7 @@ const STAGE_LABELS: Record<string, string> = {
   lost: "Lost",
 };
 
-export async function getLeadsByStage(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] }) {
+export async function getLeadsByStage(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] }) {
   const rows = await db
     .select({ stage: inquiries.stage, n: intCount })
     .from(inquiries)
@@ -72,7 +72,7 @@ const LOST_REASON_LABELS: Record<string, string> = {
 };
 
 export async function getLostReasonBreakdown(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
 ) {
   const rows = await db
     .select({ reason: inquiries.lostReason, n: intCount })
@@ -87,7 +87,7 @@ export async function getLostReasonBreakdown(
 export type SourcePerf = { key: string; source: string; total: number; converted: number; conversionRatePct: number };
 
 export async function getSourcePerformance(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
 ): Promise<SourcePerf[]> {
   const rows = await db
     .select({

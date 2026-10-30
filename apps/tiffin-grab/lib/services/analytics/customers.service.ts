@@ -17,7 +17,7 @@ export type CustomerStats = {
 };
 
 export async function getCustomerStats(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
 ): Promise<CustomerStats> {
   const orderDim = ordersMatchFilters(filters);
   const signupRange = epochRangeWhere(users.createdAt, filters);
@@ -39,7 +39,7 @@ export async function getCustomerStats(
 
 const dayTrunc = sql<Date>`date_trunc('day', to_timestamp(${users.createdAt} / 1000.0))`;
 
-export async function getSignupTrend(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] }) {
+export async function getSignupTrend(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] }) {
   return db
     .select({ day: sql<string>`to_char(${dayTrunc}, 'Mon DD')`, n: intCount })
     .from(users)
@@ -57,7 +57,7 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   completed: "Over",
 };
 
-export async function getSubscriptionMix(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] }) {
+export async function getSubscriptionMix(filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] }) {
   const rows = await db
     .select({ status: orders.status, n: intCount })
     .from(orders)
@@ -72,7 +72,7 @@ export async function getSubscriptionMix(filters: AnalyticsFilters = { plans: []
 
 export async function getTopCities(
   limit = 8,
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
 ) {
   const orderDim = ordersMatchFilters(filters);
   // When plan/size/zone are set, cities come from customers who hold matching orders.

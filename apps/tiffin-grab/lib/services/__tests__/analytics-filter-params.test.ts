@@ -34,4 +34,9 @@ describe("parseAnalyticsFilters", () => {
     expect(f.from).toBeUndefined();
     expect(f.to).toBeUndefined();
   });
+
+  it("parses the org facet as a list", () => {
+    expect(parseAnalyticsFilters({ org: "a, b" }).orgs).toEqual(["a", "b"]);
+    expect(parseAnalyticsFilters({}).orgs).toEqual([]);
+  });
 });

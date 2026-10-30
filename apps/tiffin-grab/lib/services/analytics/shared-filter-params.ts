@@ -7,7 +7,7 @@
 import { zonedRangeMs } from "@/lib/analytics/drill";
 import { currentMonth, monthBounds } from "@/lib/analytics/profitability";
 
-export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone"] as const;
+export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone", "org"] as const;
 
 export type AnalyticsSearchParams = Partial<Record<(typeof ANALYTICS_FILTER_PARAMS)[number], string>>;
 
@@ -22,6 +22,8 @@ export type AnalyticsFilters = {
   mealSizes: string[];
   /** Delivery zone names. */
   zones: string[];
+  /** Organization ids from the `org` facet (unchecked against what the viewer may see). */
+  orgs: string[];
 };
 
 const list = (raw: string | undefined): string[] =>
@@ -65,6 +67,7 @@ export function parseAnalyticsFilters(
     plans: list(sp.plan),
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
+    orgs: list(sp.org),
   };
 }
 
@@ -80,4 +83,5 @@ export type AnalyticsFilterOptions = {
   plans: { value: string; label: string }[];
   mealSizes: { value: string; label: string; parent: string }[];
   zones: { value: string; label: string }[];
+  orgs: { value: string; label: string }[];
 };
