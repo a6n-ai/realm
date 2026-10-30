@@ -245,36 +245,23 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 
 async function Discounts({ searchParams }: { searchParams: SearchParams }) {
   const { discounts, kpis } = await reportFrom(searchParams);
-  if (discounts.length === 0) {
-    return <p className="text-muted-foreground py-6 text-center text-sm">No discounts in this range.</p>;
-  }
-  const max = Math.max(...discounts.map((d) => d.amount), 1);
   return (
-    <ul className="divide-border/60 -my-1 divide-y">
-      {discounts.map((d: DiscountLine) => (
-        <li key={`${d.source}:${d.label}`} className="py-2">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-sm">
-              {d.label}
-              <span className="text-muted-foreground"> · {SOURCE_LABEL[d.source]}</span>
-            </span>
-            <span className="text-sm tabular-nums">
-              <span className="font-semibold">{money(d.amount)}</span>
-              <span className="text-muted-foreground">
-                {" "}
-                · {d.orders} {d.orders === 1 ? "order" : "orders"}
-              </span>
-            </span>
+    <BreakdownList
+      emptyLabel="No discounts in this range."
+      rows={discounts.map((d: DiscountLine) => ({
+        label: d.label,
+        n: d.amount,
+        aside: money(d.amount),
+        meta: `${SOURCE_LABEL[d.source]} · ${d.orders} ${d.orders === 1 ? "order" : "orders"}`,
+      }))}
+      footer={
+        discounts.length > 0 ? (
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-semibold tabular-nums">{money(kpis.discounts)}</span>
           </div>
-          <div className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
-            <div className="bg-primary h-full rounded-full" style={{ width: `${Math.round((d.amount / max) * 100)}%` }} />
-          </div>
-        </li>
-      ))}
-      <li className="flex items-baseline justify-between pt-2 text-sm">
-        <span className="text-muted-foreground">Total</span>
-        <span className="font-semibold tabular-nums">{money(kpis.discounts)}</span>
-      </li>
-    </ul>
+        ) : null
+      }
+    />
   );
 }
