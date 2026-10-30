@@ -5,7 +5,7 @@ import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { currentMonthEpochRange } from "../shared-filter-params";
+import { currentMonthEpochRange, epoch, list } from "../shared-filter-params";
 
 export type AnalyticsScope = {
   orgIds: "all" | string[];
@@ -29,19 +29,6 @@ export const DATE_BASIS_LABEL = {
   deliveries: "by delivery date",
   tickets: "by ticket date",
 } as const;
-
-const list = (raw: string | undefined): string[] =>
-  (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-
-const epoch = (raw: string | undefined): number | undefined => {
-  if (!raw) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const n = Date.parse(`${raw}T00:00:00.000Z`);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : undefined;
-};
 
 /** Visible orgs narrowed by the `org` URL value. A value outside the visible set yields [] (never widens). */
 export function intersectOrgs(visible: "all" | string[], requested: string[]): "all" | string[] {
@@ -75,12 +62,23 @@ export function buildAnalyticsScope(
   };
 }
 
+export class NoFranchiseAccessError extends Error {
+  constructor(readonly reason: "no_visible_orgs" | "org_not_visible") {
+    super(reason === "no_visible_orgs" ? "No franchise access" : "Franchise not visible to this user");
+    this.name = "NoFranchiseAccessError";
+  }
+}
+
+/** Throws instead of returning an empty scope, so a zeroed dashboard is never mistaken for real data. */
 export async function resolveAnalyticsScope(
   sp: ScopeSearchParams,
   session: Parameters<typeof resolveSessionVisibleOrgIds>[0],
 ): Promise<AnalyticsScope> {
   const [{ timezone }, visible] = await Promise.all([getAppSettings(), resolveSessionVisibleOrgIds(session)]);
-  return buildAnalyticsScope(sp, visible, timezone);
+  if (visible !== "all" && visible.length === 0) throw new NoFranchiseAccessError("no_visible_orgs");
+  const scope = buildAnalyticsScope(sp, visible, timezone);
+  if (Array.isArray(scope.orgIds) && scope.orgIds.length === 0) throw new NoFranchiseAccessError("org_not_visible");
+  return scope;
 }
 
 type Facets = Pick<AnalyticsScope, "plans" | "mealSizes" | "zones">;

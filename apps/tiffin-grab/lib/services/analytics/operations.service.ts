@@ -26,7 +26,7 @@ async function deliveryScope(filters: AnalyticsFilters) {
 }
 
 export async function getOperationsStats(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" },
 ): Promise<OperationsStats> {
   const scope = await deliveryScope(filters);
   const [[{ n: totalDeliveries }], [{ n: skipped }], [{ n: cancelled }]] = await Promise.all([
@@ -50,7 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function getDeliveryStatusMix(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" },
 ) {
   const scope = await deliveryScope(filters);
   const rows = await db
@@ -63,7 +63,7 @@ export async function getDeliveryStatusMix(
 
 export async function getRouteLoadByDriver(
   limit = 10,
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] },
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" },
 ) {
   const scope = await deliveryScope(filters);
   const rows = await db

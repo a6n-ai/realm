@@ -3,7 +3,7 @@ import type { AnyColumn } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, organization, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dateWhere, dateWhereCalendar, facetsWhere, resolveAnalyticsScope } from "./metrics/scope";
+import { dateWhere, dateWhereCalendar, ordersScope, resolveAnalyticsScope } from "./metrics/scope";
 import {
   parseAnalyticsFilters as parseAnalyticsFiltersSync,
   type AnalyticsFilterOptions,
@@ -23,8 +23,9 @@ export {
 
 /**
  * Parse URL filters, defaulting a missing date range to the current business month.
- * With a session the result goes through `resolveAnalyticsScope`, so `orgs` is the
- * visible-org intersection; without one it is the raw `org` param (Stage 1 pages).
+ * With a session the result goes through `resolveAnalyticsScope`, so `orgIds` is the
+ * visible-org intersection. Without one the `org` param is ignored and orgIds is "all":
+ * safe only because today's callers sit behind requireAdmin. Later tasks must pass the session.
  */
 export async function parseAnalyticsFilters(
   sp: AnalyticsSearchParams,
@@ -41,7 +42,7 @@ export async function parseAnalyticsFilters(
     plans: scope.plans,
     mealSizes: scope.mealSizes,
     zones: scope.zones,
-    orgs: scope.orgIds === "all" ? [] : scope.orgIds,
+    orgIds: scope.orgIds,
   };
 }
 
@@ -63,14 +64,14 @@ export async function calendarDateWhere(col: AnyColumn, f: AnalyticsFilters): Pr
   return dateWhereCalendar(col, { fromMs: f.from, toMs: f.to, tz: timezone });
 }
 
-/** Restricts to orders matching plan / meal size / zone. */
+/** Restricts to orders in the filter's orgs and matching plan / meal size / zone. */
 export function ordersMatchFilters(f: AnalyticsFilters): SQL | undefined {
-  return facetsWhere(f);
+  return ordersScope(f);
 }
 
-/** `visibleOrgIds` limits the franchise list; omitted means none are listed (facet hidden). */
+/** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(
-  visibleOrgIds: "all" | string[] = [],
+  visibleOrgIds: "all" | string[],
 ): Promise<AnalyticsFilterOptions> {
   const [planRows, sizeRows, zoneRows, orgRows] = await Promise.all([
     db

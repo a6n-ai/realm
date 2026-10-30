@@ -35,8 +35,7 @@ describe("parseAnalyticsFilters", () => {
     expect(f.to).toBeUndefined();
   });
 
-  it("parses the org facet as a list", () => {
-    expect(parseAnalyticsFilters({ org: "a, b" }).orgs).toEqual(["a", "b"]);
-    expect(parseAnalyticsFilters({}).orgs).toEqual([]);
+  it("ignores the org param (only resolveAnalyticsScope may honour it)", () => {
+    expect(parseAnalyticsFilters({ org: "a" }).orgIds).toBe("all");
   });
 });

@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, type FacetDef } from "@/components/ds";
@@ -8,6 +9,8 @@ import { methodLabel } from "@/lib/analytics/revenue";
 import { categoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import { PRIORITY_OPTIONS } from "@/lib/support/ticket-priority";
 import { STATUS_OPTIONS } from "@/lib/services/analytics/complaint-filters";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { AnalyticsTabs } from "./analytics-tabs";
 
 const REVENUE_FACETS: FacetDef[] = [
@@ -41,6 +44,8 @@ const COMPLAINT_FACETS: FacetDef[] = [
 
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  if (visible !== "all" && visible.length === 0) notFound();
 
   return (
     <PageShell>
@@ -53,7 +58,7 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
           <AnalyticsTabs />
         </Suspense>
         <Suspense fallback={<div className="bg-muted/40 h-11 max-w-3xl animate-pulse rounded-xl" />}>
-          <SharedFilters />
+          <SharedFilters visible={visible} />
         </Suspense>
         <div className="min-w-0">{children}</div>
       </div>
@@ -61,8 +66,8 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   );
 }
 
-async function SharedFilters() {
-  const options = await getAnalyticsFilterOptions();
+async function SharedFilters({ visible }: { visible: "all" | string[] }) {
+  const options = await getAnalyticsFilterOptions(visible);
   return (
     <div className="bg-card flex flex-wrap items-center gap-2 rounded-xl p-2 shadow-[0_1px_8px_rgba(0,0,0,0.04)] sm:p-2.5">
       <AnalyticsFilters

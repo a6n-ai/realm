@@ -13,7 +13,7 @@ const SETTLED = ["paid", "simulated_paid"] as const;
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
-const EMPTY: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgs: [] };
+const EMPTY: AnalyticsFilters = { plans: [], mealSizes: [], zones: [], orgIds: "all" };
 
 export type ProductStats = {
   totalSelections: number;

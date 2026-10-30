@@ -22,17 +22,17 @@ export type AnalyticsFilters = {
   mealSizes: string[];
   /** Delivery zone names. */
   zones: string[];
-  /** Organization ids from the `org` facet (unchecked against what the viewer may see). */
-  orgs: string[];
+  /** Same semantics as AnalyticsScope.orgIds: "all" = unscoped, [] = nothing (fail closed). */
+  orgIds: "all" | string[];
 };
 
-const list = (raw: string | undefined): string[] =>
+export const list = (raw: string | undefined): string[] =>
   (raw ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-const epoch = (raw: string | undefined): number | undefined => {
+export const epoch = (raw: string | undefined): number | undefined => {
   if (!raw) return undefined;
   // Facet dateRange writes epoch ms; revenue once wrote ISO dates — accept both.
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -67,7 +67,8 @@ export function parseAnalyticsFilters(
     plans: list(sp.plan),
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
-    orgs: list(sp.org),
+    // The org URL value is only honoured by resolveAnalyticsScope, which checks it against the session.
+    orgIds: "all",
   };
 }
 

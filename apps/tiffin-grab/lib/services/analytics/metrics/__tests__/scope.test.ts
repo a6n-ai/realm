@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { vi } from "vitest";
 import { isoDateInZone } from "@/lib/analytics/profitability";
-import { buildAnalyticsScope, intersectOrgs, scopeToSearchParams } from "../scope";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
+
+const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
+
+const visibleMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/services/orders.service", () => ({ resolveSessionVisibleOrgIds: visibleMock }));
+vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 
 const TZ = "America/Toronto";
 
@@ -46,5 +54,41 @@ describe("scopeToSearchParams", () => {
     const s = buildAnalyticsScope({ org: "B" }, ["A"], TZ);
     const back = buildAnalyticsScope(Object.fromEntries(scopeToSearchParams(s)), ["A"], TZ);
     expect(back.orgIds).toEqual([]);
+  });
+});
+
+describe("ordersScope", () => {
+  it("is a false condition for an empty visible set", () => {
+    const s = buildAnalyticsScope({}, [], TZ);
+    expect(toSql(ordersScope(s))).toBe("false");
+  });
+  it("is a false condition for an org outside the visible set", () => {
+    const s = buildAnalyticsScope({ org: "B" }, ["A"], TZ);
+    expect(s.orgIds).toEqual([]);
+    expect(toSql(ordersScope(s))).toBe("false");
+  });
+  it("filters on the order's organization_id when scoped, nothing when all", () => {
+    expect(toSql(ordersScope(buildAnalyticsScope({}, ["A"], TZ)))).toContain("organization_id");
+    expect(ordersScope(buildAnalyticsScope({}, "all", TZ))).toBeUndefined();
+  });
+});
+
+describe("resolveAnalyticsScope", () => {
+  const session = { user: { id: "u" } };
+  it("throws no_visible_orgs when the session sees no orgs", async () => {
+    visibleMock.mockResolvedValue([]);
+    await expect(resolveAnalyticsScope({}, session)).rejects.toMatchObject({ reason: "no_visible_orgs" });
+  });
+  it("throws org_not_visible when the URL org is outside the visible set", async () => {
+    visibleMock.mockResolvedValue(["A"]);
+    const err = await resolveAnalyticsScope({ org: "B" }, session).catch((e) => e);
+    expect(err).toBeInstanceOf(NoFranchiseAccessError);
+    expect(err.reason).toBe("org_not_visible");
+  });
+  it("resolves normally otherwise", async () => {
+    visibleMock.mockResolvedValue(["A"]);
+    expect((await resolveAnalyticsScope({ org: "A,B" }, session)).orgIds).toEqual(["A"]);
+    visibleMock.mockResolvedValue("all");
+    expect((await resolveAnalyticsScope({}, session)).orgIds).toBe("all");
   });
 });
