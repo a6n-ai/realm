@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getGoogleReviewsConfig, getReviewsSummary, writeReviewUrl } from "@foundry/google-reviews";
 import { PageIntro } from "@/components/landing/public-shell";
 import { ReviewCard, ReviewStars } from "@/components/landing/landing-reviews";
@@ -16,42 +16,33 @@ export default async function ReviewsPage() {
     getReviewsSummary(integrationsConfigReadStore),
     getGoogleReviewsConfig(integrationsConfigReadStore),
   ]);
+  // Not connected (or Google returned nothing): the page does not exist, same as every other review spot.
+  if (!summary || summary.reviews.length === 0) notFound();
   const writeUrl = cfg.installed && cfg.placeId ? writeReviewUrl(cfg.placeId) : null;
 
   return (
     <div className="tg-wrap tg-section">
       <PageIntro eyebrow="Google reviews" title={<>Said by people who <span className="c-accent">eat it.</span></>} lede="Straight from our Google listing, word for word." />
 
-      {summary && summary.reviews.length > 0 ? (
-        <div className="flex flex-col gap-10">
-          <div className="tg-card flex flex-wrap items-center gap-x-6 gap-y-4 p-6">
-            <div className="flex items-center gap-3">
-              <span className="tg-h2 tabular-nums">{summary.rating.toFixed(1)}</span>
-              <div className="flex flex-col gap-1">
-                <ReviewStars value={summary.rating} size={20} />
-                <span className="c-caption tabular-nums">{summary.total} reviews on Google</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
-              {writeUrl ? <a href={writeUrl} target="_blank" rel="noreferrer" className="tg-cta">Write a review</a> : null}
-              {summary.attributionUrl ? <a href={summary.attributionUrl} target="_blank" rel="noreferrer" className="tg-btn">See all on Google</a> : null}
+      <div className="flex flex-col gap-10">
+        <div className="tg-card flex flex-wrap items-center gap-x-6 gap-y-4 p-6">
+          <div className="flex items-center gap-3">
+            <span className="tg-h2 tabular-nums">{summary.rating.toFixed(1)}</span>
+            <div className="flex flex-col gap-1">
+              <ReviewStars value={summary.rating} size={20} />
+              <span className="c-caption tabular-nums">{summary.total} reviews on Google</span>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+            {writeUrl ? <a href={writeUrl} target="_blank" rel="noreferrer" className="tg-cta">Write a review</a> : null}
+            {summary.attributionUrl ? <a href={summary.attributionUrl} target="_blank" rel="noreferrer" className="tg-btn">See all on Google</a> : null}
+          </div>
+        </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {summary.reviews.map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} />)}
-          </div>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {summary.reviews.map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} />)}
         </div>
-      ) : (
-        <div className="tg-card flex max-w-[620px] flex-col items-start gap-4 p-6">
-          <p className="c-body m-0">Reviews are not showing right now. Check back soon.</p>
-          {writeUrl ? (
-            <a href={writeUrl} target="_blank" rel="noreferrer" className="tg-cta">Write a review</a>
-          ) : (
-            <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

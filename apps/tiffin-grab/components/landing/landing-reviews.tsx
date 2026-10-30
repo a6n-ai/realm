@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getReviewsSummary, type Review } from "@foundry/google-reviews";
+import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv, type Review } from "@foundry/google-reviews";
 import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+
+/** Plugin installed, listing set and key present. Cheap (no Google call): gates links, not content. */
+export async function reviewsConnected(): Promise<boolean> {
+  const cfg = await getGoogleReviewsConfig(integrationsConfigReadStore).catch(() => null);
+  return Boolean(cfg?.installed && cfg.placeId && loadPlacesApiKeyFromEnv());
+}
 
 export function ReviewStars({ value, size = 16 }: { value: number; size?: number }) {
   const filled = Math.round(value);
