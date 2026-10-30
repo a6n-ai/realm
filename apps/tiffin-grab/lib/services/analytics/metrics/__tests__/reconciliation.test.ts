@@ -65,7 +65,7 @@ describe("analytics reconciliation (integration)", () => {
       createdZoneId = zoneId;
     }
 
-    const make = async (key: string, org: string, over: { status?: "cancelled" | "active"; createdAt: number; total?: number; tax?: number; mealIdx?: number; zone?: boolean }) => {
+    const make = async (key: string, org: string, over: { status?: "cancelled" | "active"; createdAt: number; total?: number; tax?: number; applied?: object; mealIdx?: number; zone?: boolean }) => {
       const k = n++;
       const input = {
         planKey: snap.plans[0].key,
@@ -81,7 +81,7 @@ describe("analytics reconciliation (integration)", () => {
         organizationId: org,
         status: over.status ?? "active",
         createdAt: over.createdAt,
-        pricingSnapshot: { total: over.total ?? 113, taxTotal: over.tax ?? 13 },
+        pricingSnapshot: { total: over.total ?? 113, taxTotal: over.tax ?? 13, ...(over.applied ? { appliedAddons: over.applied } : {}) },
         ...(over.zone ? { zoneId } : {}),
       }).where(eq(orders.publicId, publicId));
       // createOrder wrote its own payment and ledger rows; the test owns the money.
@@ -108,7 +108,7 @@ describe("analytics reconciliation (integration)", () => {
     const refunded = await make("refunded", orgA, { createdAt: mar(12) });
     await pay(refunded, 113, mar(13));
     // applyAddons leaves the snapshot including the add-on: plan 113 (13 tax, 13%) + add-on 20 (1 tax, 5%).
-    const addon = await make("addon", orgA, { createdAt: mar(13), zone: true, total: 133, tax: 14 });
+    const addon = await make("addon", orgA, { createdAt: mar(13), zone: true, total: 133, tax: 14, applied: { addonSubtotal: 19, taxTotal: 1, amountDue: 20 } });
     await db.update(orders).set({ userId: (await db.select({ u: orders.userId }).from(orders).where(eq(orders.id, plain)))[0].u }).where(eq(orders.id, addon));
     await pay(addon, 113, mar(14));
     await pay(addon, 20, mar(14), { addonRequest: { taxTotal: 1, amountDue: 20 } as never });
@@ -276,13 +276,16 @@ describe("analytics reconciliation (integration)", () => {
     expect(() => ordersDrillHref(scopeA(MARCH_NOW), { status: ["active", "paused"] })).toThrow();
   });
 
-  it("needs review lists cancelled-but-kept, coin-reduced and refunded-without-ledger orders", async () => {
+  it("needs review lists cancelled-but-kept, coin-reduced, partly refunded and refunded-without-ledger orders", async () => {
     const rows = await needsReviewRows(scopeA(MARCH_NOW));
-    expect(rows.map((r) => r.orderPublicId).sort()).toEqual([o.cancelled, o.coin, o.legacy].sort());
+    expect(rows.map((r) => r.orderPublicId).sort()).toEqual([o.cancelled, o.coin, o.legacy, o.stripe].sort());
     const by = (id: string) => rows.find((r) => r.orderPublicId === id)!;
     expect(by(o.cancelled)).toMatchObject({ reasons: ["cancelled_paid"], paid: 113, total: 113, diff: 0, kept: 113 });
     expect(by(o.coin)).toMatchObject({ reasons: ["paid_ne_total"], paid: 90, total: 113, diff: -23, kept: 90 });
-    expect(by(o.legacy)).toMatchObject({ reasons: ["refunded_no_ledger"], paid: 113, kept: 113 });
+    // The legacy refund already left: nothing kept, so only the missing ledger row is reported.
+    expect(by(o.legacy)).toMatchObject({ reasons: ["refunded_no_ledger"], paid: 113, kept: 0 });
+    // Partial Stripe refund of a surcharged payment: 58 x 113/116 = 56.50 off the paid basis.
+    expect(by(o.stripe)).toMatchObject({ reasons: ["paid_ne_total"], paid: 113, kept: 56.5, diff: -56.5 });
     // The add-on order's paid (113 + 20) equals its snapshot total (133): not flagged.
   });
 

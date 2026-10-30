@@ -15,13 +15,16 @@ export const CAPTURED: PaymentStatus[] = [...SETTLED_STATUSES, "refunded"];
 /** The date money moved: capture, else row creation (same fallback the payments list uses). */
 export const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
 
-// applyAddons rewrites orders.pricing_snapshot so its total/taxTotal include every applied add-on.
-// A plan payment's own quote is therefore the snapshot minus the order's captured add-on quotes
-// (a refunded add-on stays in the snapshot, so 'refunded' is included). An add-on payment uses its own.
-const addonQuoteSum = (key: "taxTotal" | "amountDue") =>
-  sql`(select coalesce(sum((ap.addon_request->>${sql.raw(`'${key}'`)})::numeric), 0) from ${payments} as ap where ap.order_id = ${payments.orderId} and ap.addon_request is not null and ap.status in ('paid', 'simulated_paid', 'refunded'))`;
-const quoteTax = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'taxTotal')::numeric else (${orders.pricingSnapshot}->>'taxTotal')::numeric - ${addonQuoteSum("taxTotal")} end)`;
-const quoteTotal = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'amountDue')::numeric else (${orders.pricingSnapshot}->>'total')::numeric - ${addonQuoteSum("amountDue")} end)`;
+// applyAddons rewrites orders.pricing_snapshot so its total/taxTotal include every applied add-on, and
+// records what it applied in snapshot.appliedAddons (same statement, so it is exact for partial applies;
+// a not-applied or refunded-all add-on payment leaves both untouched). A plan payment's own quote is the
+// snapshot minus that record. An add-on payment uses its addon_request quote.
+// ponytail: orders whose add-ons were applied before appliedAddons existed have no record, so their plan quote
+// keeps the add-on inside it (same small tax-split error); a one-off backfill of appliedAddons fixes them.
+// Staff non-Stripe add-on payments carry no addon_request, so they use the plan quote (total right, per-bucket tax split slightly off).
+const appliedAddon = (key: "taxTotal" | "amountDue") => sql`coalesce((${orders.pricingSnapshot}->'appliedAddons'->>${sql.raw(`'${key}'`)})::numeric, 0)`;
+const quoteTax = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'taxTotal')::numeric else (${orders.pricingSnapshot}->>'taxTotal')::numeric - ${appliedAddon("taxTotal")} end)`;
+const quoteTotal = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'amountDue')::numeric else (${orders.pricingSnapshot}->>'total')::numeric - ${appliedAddon("amountDue")} end)`;
 /** Share of a payment that is tax. Missing tax is tax-free; a zero or missing quote total yields null (contributes 0). */
 const taxShare = sql`(coalesce(${quoteTax}, 0) / nullif(${quoteTotal}, 0))`;
 
