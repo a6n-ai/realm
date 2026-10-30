@@ -17,7 +17,7 @@ export type Catalog = {
   /** App-settings cutoff hour: a day whose cutoff has passed can't be a start date. */
   cutoffHour?: number;
   maxTiffinsPerWeek?: number;
-  durations: { weeks: number }[];
+  durations: { weeks: number; savePct?: number }[];
 };
 
 export function firstWeekdayOnOrAfter(iso: string): string {

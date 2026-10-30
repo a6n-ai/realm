@@ -33,6 +33,8 @@ export async function saveOrderLeadAction(input: {
   source: Source;
   contact: Contact;
   pickedInquiryId?: string;
+  /** false: skip the page refresh (see createOrderFlow's revalidate). */
+  revalidate?: boolean;
 }): Promise<ActionResult<{ inquiryId: string }>> {
   const res = await runAction(async () => {
     await requireStaff();
@@ -47,7 +49,7 @@ export async function saveOrderLeadAction(input: {
     });
     return { inquiryId };
   });
-  if ("ok" in res) revalidatePath("/dashboard/inquiries");
+  if ("ok" in res && input.revalidate !== false) revalidatePath("/dashboard/inquiries");
   return res;
 }
 
@@ -57,6 +59,11 @@ export async function createOrderFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
   order: CreateOrderInput;
+  /**
+   * false: skip the page refresh. New order shows its result inside the Orders page's Suspense
+   * boundary, which a refresh can remount mid-success; it refreshes the list when it closes instead.
+   */
+  revalidate?: boolean;
 }): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   return runAction(async () => {
     await requireStaff();
@@ -79,8 +86,10 @@ export async function createOrderFlow(input: {
       },
       { allowAdditionalOrder: true },
     );
-    revalidatePath("/dashboard/orders");
-    revalidatePath("/dashboard/inquiries");
+    if (input.revalidate !== false) {
+      revalidatePath("/dashboard/orders");
+      revalidatePath("/dashboard/inquiries");
+    }
     return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
   });
 }

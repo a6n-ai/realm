@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
-import { CalendarDaysIcon, CheckIcon, ChevronDownIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import { CalendarDaysIcon, CheckIcon, ChevronDownIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import { estimatePrefill, renewPrefill } from "../../discounts/estimate-actions";
 import { toast } from "sonner";
 import { emailSchema, weekdayKey } from "@foundry/commons";
 import { appToday } from "@/lib/services/start-date";
@@ -23,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toggleVariants } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateInput } from "@/components/dashboard/date-fields";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@foundry/ui/card";
@@ -113,8 +115,19 @@ export function NewOrderWorkspace({ triggerLabel, open: controlledOpen, onOpenCh
   const [busy, setBusy] = useState(false);
   // Bumping the key remounts the body, which clears every field for "New order".
   const [run, setRun] = useState(0);
+  const router = useRouter();
+  // Something was saved while the sheet was open (lead, order); the page refreshes once it closes.
+  // Refreshing while open would remount the sheet inside the Orders page's Suspense boundary (see createOrderFlow).
+  const savedSinceOpen = useRef(false);
   const open = controlledOpen ?? internalOpen;
-  const setOpen = onOpenChange ?? setInternalOpen;
+  const setOpenRaw = onOpenChange ?? setInternalOpen;
+  const setOpen = (o: boolean) => {
+    setOpenRaw(o);
+    if (!o && savedSinceOpen.current) {
+      savedSinceOpen.current = false;
+      router.refresh();
+    }
+  };
 
   return (
     <FormDrawer
@@ -127,7 +140,7 @@ export function NewOrderWorkspace({ triggerLabel, open: controlledOpen, onOpenCh
       {rest.sources.length === 0 ? (
         <div className="px-5 py-4"><NoSources noun="order" /></div>
       ) : (
-        <WorkspaceBody key={run} {...rest} setBusy={setBusy} onClose={() => setOpen(false)} onNew={() => setRun((n) => n + 1)} />
+        <WorkspaceBody key={run} {...rest} setBusy={setBusy} onClose={() => setOpen(false)} onNew={() => setRun((n) => n + 1)} onSaved={() => { savedSinceOpen.current = true; }} />
       )}
     </FormDrawer>
   );
@@ -135,7 +148,8 @@ export function NewOrderWorkspace({ triggerLabel, open: controlledOpen, onOpenCh
 
 function WorkspaceBody({
   defaultCountry, sources, catalog, categories, currency = "CAD", setBusy, onClose, onNew,
-}: Omit<Props, "triggerLabel" | "open" | "onOpenChange"> & { setBusy: (b: boolean) => void; onClose: () => void; onNew: () => void }) {
+  onSaved,
+}: Omit<Props, "triggerLabel" | "open" | "onOpenChange"> & { setBusy: (b: boolean) => void; onClose: () => void; onNew: () => void; onSaved: () => void }) {
   const router = useRouter();
   const enabledSlots = categories.map((c) => ({ key: c.key, label: c.label }));
 
@@ -147,6 +161,11 @@ function WorkspaceBody({
   const [emailTouched, setEmailTouched] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
+  const [renewing, setRenewing] = useState(false);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
+  // The running plan this order was filled from, shown as the selected pill.
+  const [renewedFrom, setRenewedFrom] = useState<string | null>(null);
+  const [addonPickerOpen, setAddonPickerOpen] = useState(false);
   const [leadId, setLeadId] = useState<string | null>(null);
   const [fetchedPrefill, setFetchedPrefill] = useState<{ forId: string; prefill: Partial<OrderFormInput> } | null>(null);
   const [stage, setStage] = useState<string | null>(null);
@@ -182,7 +201,9 @@ function WorkspaceBody({
         },
         pickedInquiryId: pickedId ?? leadId ?? undefined,
         order,
+        revalidate: false,
       }));
+      onSaved();
       let paid: AdminOrderCreated["paid"];
       if (paidNow && proof.file) {
         // The order exists already; a failed upload is reported on the result, not thrown.
@@ -214,6 +235,17 @@ function WorkspaceBody({
     onCreate: createOrder,
   });
   const { form, submitting, error, customerCtx, deliveryOptions, planKey, mealSizeId, frequencyKey, eatingDays, startDate, addressLine, city, postalCode, bounds, sizeDays, isTrial, deliveryFrequencies, durations, eligibleAddons, shownPreview, previewError, created } = d;
+
+  // A picked customer with running plans starts from the latest one (the plan they would renew),
+  // once per customer and only on an untouched plan, so it never overwrites what staff chose.
+  const autoRenewedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pickedCustomerId || autoRenewedFor.current === pickedCustomerId || customerCtx.plans.length === 0 || mealSizeId) return;
+    autoRenewedFor.current = pickedCustomerId;
+    const latest = customerCtx.plans.reduce((a, b) => (b.lastDay > a.lastDay ? b : a));
+    void renewFrom(latest.publicId, latest.deploymentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedCustomerId, customerCtx.plans]);
   const errors = form.formState.errors;
 
   // The hook reads the email from the form, not from props.
@@ -251,13 +283,35 @@ function WorkspaceBody({
         source: { sourceKey, subSourceKey: subSourceKey || undefined },
         contact: { fullName, phone, email: email.trim() },
         pickedInquiryId: pickedId ?? undefined,
+        revalidate: false,
       }))
-        .then(({ inquiryId }) => setLeadId(inquiryId))
+        .then(({ inquiryId }) => { setLeadId(inquiryId); onSaved(); })
         .catch(() => {})
         .finally(() => { leadSaving.current = false; });
     }, 1500);
     return () => clearTimeout(t);
   }, [leadId, contactReady, fullName, phone, email, sourceKey, subSourceKey, pickedId]);
+
+  async function renewFrom(orderPublicId: string, deploymentId: string) {
+    setRenewing(true);
+    setRenewingId(orderPublicId);
+    const r = await estimatePrefill(orderPublicId).catch(() => ({ error: "Couldn't load that plan" }));
+    setRenewing(false);
+    setRenewingId(null);
+    if ("error" in r) return toast.error(r.error);
+    d.applyPrefill(r.prefill, r.addressPublicId);
+    setRenewedFrom(orderPublicId);
+    toast.success(`Filled from ${deploymentId}`);
+  }
+
+  async function renewLast(customerPublicId: string) {
+    setRenewing(true);
+    const r = await renewPrefill(customerPublicId).catch(() => ({ error: "Couldn't load their last plan" }));
+    setRenewing(false);
+    if ("error" in r) return toast.error(r.error);
+    d.applyPrefill(r.prefill, r.addressPublicId);
+    toast.success(`Filled from ${r.deploymentId}`);
+  }
 
   function pickCustomer(c: CustomerHit) {
     setFullName(c.fullName ?? "");
@@ -431,15 +485,42 @@ function WorkspaceBody({
           {customerCtx.conflict && (
             <Alert variant="destructive"><AlertDescription>This phone number and this email belong to two different customers. Correct one of them before creating the order.</AlertDescription></Alert>
           )}
-          {customerCtx.plans.length > 0 && (
-            <div className="bg-muted/40 grid gap-1 rounded-lg border p-3 text-xs">
-              <p className="font-medium">Running plans</p>
-              {customerCtx.plans.map((p) => (
-                <p key={p.publicId} className="text-muted-foreground">
-                  <a href={`/dashboard/orders/${p.publicId}`} target="_blank" rel="noreferrer" className="text-primary font-medium underline-offset-2 hover:underline">{p.deploymentId}</a>
-                  {" · "}{p.mealSize}{" · "}<span className="capitalize">{p.status}</span>{" · "}{p.startDate} to {p.lastDay}{" · "}{p.tiffinCount} tiffins
-                </p>
-              ))}
+          {customerCtx.plans.length > 0 ? (
+            // Each running plan is a pill: tap one to start the new order from it (meal, schedule, add-ons, address).
+            <Field label="Running plans" hint="Tap one to renew it">
+              <TooltipProvider delayDuration={300}>
+                <div className="flex flex-wrap gap-2">
+                  {customerCtx.plans.map((p) => (
+                    <button
+                      key={p.publicId}
+                      type="button"
+                      disabled={renewing}
+                      data-state={renewedFrom === p.publicId ? "on" : "off"}
+                      onClick={() => void renewFrom(p.publicId, p.deploymentId)}
+                      className={toggleVariants({ variant: "outline", className: "max-w-full" })}
+                    >
+                      <RefreshCwIcon className={renewing && renewingId === p.publicId ? "animate-spin" : undefined} />
+                      {/* Tooltip on the label: on the button its trigger would overwrite data-state. */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex min-w-0 items-center gap-1">
+                            <span className="tabular-nums">{p.deploymentId}</span>
+                            <span className="text-muted-foreground truncate font-normal">· ends {p.lastDay}</span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{p.mealSize} · <span className="capitalize">{p.status}</span> · {p.startDate} to {p.lastDay} · {p.tiffinCount} tiffins</TooltipContent>
+                      </Tooltip>
+                    </button>
+                  ))}
+                </div>
+              </TooltipProvider>
+            </Field>
+          ) : pickedCustomerId && (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-xs text-pretty">Same meal, schedule, add-ons and address as their last plan.</p>
+              <Button type="button" variant="outline" disabled={renewing} onClick={() => void renewLast(pickedCustomerId)}>
+                {renewing ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} Renew last plan
+              </Button>
             </div>
           )}
         </Section>
@@ -474,11 +555,57 @@ function WorkspaceBody({
               </TooltipProvider>
             </Field>
           )}
+          {eligibleAddons.length > 0 && (
+            <Field label="Add-ons">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Searchable list: production menus have many add-ons. Picked ones leave the list and line up beside the button. */}
+                <Popover open={addonPickerOpen} onOpenChange={setAddonPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" disabled={eligibleAddons.every((a) => d.qtyFor(a.key) > 0)}><PlusIcon /> Add-on</Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-64 p-0">
+                    <Command>
+                      <CommandInput placeholder="Find an add-on…" />
+                      <CommandList>
+                        <CommandEmpty>No add-ons.</CommandEmpty>
+                        <CommandGroup>
+                          {eligibleAddons.filter((a) => d.qtyFor(a.key) === 0).map((a) => (
+                            <CommandItem key={a.key} value={a.name} onSelect={() => { d.setAddonQty(a.key, 1); setAddonPickerOpen(false); }}>
+                              <span className="flex-1">{a.name}</span>
+                              <span className="text-muted-foreground tabular-nums">${a.pricePerTiffin.toFixed(2)}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {eligibleAddons.filter((a) => d.qtyFor(a.key) > 0).map((a) => {
+                  const qty = d.qtyFor(a.key);
+                  return (
+                    // Same box as a selected ToggleGroup pill, so picked add-ons read as choices, not tags.
+                    <span key={a.key} role="group" aria-label={`${a.name} quantity`} data-state="on" className={toggleVariants({ variant: "outline", className: "gap-1 pr-1" })} title={a.portion ?? undefined}>
+                      {a.name}
+                      <Button type="button" variant="ghost" size="icon-xs" aria-label={`Remove one ${a.name}`} onClick={() => d.setAddonQty(a.key, qty - 1)}>{qty > 1 ? <MinusIcon /> : <XIcon />}</Button>
+                      <span className="w-3 text-center tabular-nums" aria-live="polite">{qty}</span>
+                      <Button type="button" variant="ghost" size="icon-xs" aria-label={`Add one ${a.name}`} disabled={qty >= a.maxQty} onClick={() => d.setAddonQty(a.key, qty + 1)}><PlusIcon /></Button>
+                    </span>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
           {!isTrial && (
             <Field label="Duration">
-              <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="flex-wrap" value={String(form.watch("durationWeeks"))}
+              {/* One row, equal cells: each length shows what it saves, so staff can upsell a longer plan. */}
+              <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="w-full" value={String(form.watch("durationWeeks"))}
                 onValueChange={(v) => v && form.setValue("durationWeeks", Number(v), { shouldDirty: true, shouldValidate: true })}>
-                {durations.map((x) => <ToggleGroupItem key={x.weeks} value={String(x.weeks)} className="tabular-nums">{x.weeks} wk</ToggleGroupItem>)}
+                {durations.map((x) => (
+                  <ToggleGroupItem key={x.weeks} value={String(x.weeks)} className="min-w-0 flex-1 gap-1 px-2 tabular-nums">
+                    {x.weeks} wk
+                    {!!x.savePct && <span className="text-primary text-xs">−{x.savePct}%</span>}
+                  </ToggleGroupItem>
+                ))}
               </ToggleGroup>
             </Field>
           )}
@@ -560,45 +687,6 @@ function WorkspaceBody({
                 {sizeDays?.length ? <p className="text-muted-foreground text-xs">{onlyOnMessage(sizeDays)}.</p> : null}
               </Field>
             </>
-          )}
-
-          {eligibleAddons.length > 0 && (
-            <Field label="Add-ons" hint="Optional · billed per tiffin">
-              <div className="flex flex-wrap items-center gap-2">
-                {eligibleAddons.filter((a) => d.qtyFor(a.key) > 0).map((a) => {
-                  const qty = d.qtyFor(a.key);
-                  return (
-                    <Badge key={a.key} variant="primary-light" size="xl" className="gap-1 pr-1" title={a.portion ?? undefined}>
-                      {a.name}
-                      <Button type="button" variant="ghost" size="icon-xs" aria-label={`Remove one ${a.name}`} onClick={() => d.setAddonQty(a.key, qty - 1)}>{qty > 1 ? <MinusIcon /> : <XIcon />}</Button>
-                      <span className="w-3 text-center tabular-nums" aria-live="polite">{qty}</span>
-                      <Button type="button" variant="ghost" size="icon-xs" aria-label={`Add one ${a.name}`} disabled={qty >= a.maxQty} onClick={() => d.setAddonQty(a.key, qty + 1)}><PlusIcon /></Button>
-                    </Badge>
-                  );
-                })}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" size="sm"><PlusIcon /> Add-on</Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-64 p-0">
-                    <Command>
-                      <CommandInput placeholder="Find an add-on…" />
-                      <CommandList>
-                        <CommandEmpty>No add-ons.</CommandEmpty>
-                        <CommandGroup>
-                          {eligibleAddons.map((a) => (
-                            <CommandItem key={a.key} value={a.name} disabled={d.qtyFor(a.key) > 0} onSelect={() => d.setAddonQty(a.key, 1)}>
-                              <span className="flex-1">{a.name}</span>
-                              <span className="text-muted-foreground tabular-nums">${a.pricePerTiffin.toFixed(2)}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </Field>
           )}
 
           {d.schedule && (

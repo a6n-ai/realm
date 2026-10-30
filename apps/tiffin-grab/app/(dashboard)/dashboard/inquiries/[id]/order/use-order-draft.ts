@@ -282,7 +282,13 @@ export function useOrderDraft({
   }, [planKey]);
 
   // Add-on eligibility follows the meal size; a stale pick would fail pricing.
+  // A renewal prefill sets size and add-ons together, so it skips this reset once.
+  const keepAddonsOnce = useRef(false);
   useEffect(() => {
+    if (keepAddonsOnce.current) {
+      keepAddonsOnce.current = false;
+      return;
+    }
     if (form.getValues("addonSelections")?.length) form.setValue("addonSelections", []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealSizeId]);
@@ -421,6 +427,17 @@ export function useOrderDraft({
     setDropOff(validDropOff(dropOffs, a.dropOff));
   }
 
+  /** Fill the plan from an earlier order (Renew last plan). Start date is left to the renewal rule. */
+  function applyPrefill(prefill: Partial<OrderFormInput>, addressPublicId: string | null) {
+    const { startDate: _start, email: _email, ...plan } = prefill;
+    if (plan.mealSizeId && plan.mealSizeId !== form.getValues("mealSizeId")) keepAddonsOnce.current = true;
+    for (const [key, value] of Object.entries(plan) as [keyof OrderFormInput, OrderFormInput[keyof OrderFormInput]][]) {
+      if (value !== undefined) form.setValue(key, value as never, { shouldDirty: true, shouldValidate: true });
+    }
+    if (addressPublicId && customerCtx.addresses.some((a) => a.publicId === addressPublicId)) pickSavedAddress(addressPublicId);
+    else if (plan.addressLine) setAddressPublicId(null);
+  }
+
   // An existing customer starts on their default saved address, same as checkout.
   useEffect(() => {
     if (addressPublicId != null || addressLine) return;
@@ -552,6 +569,7 @@ export function useOrderDraft({
 
   return {
     form,
+    applyPrefill,
     submitting,
     error,
     preview,

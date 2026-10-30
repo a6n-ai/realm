@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
 import { db } from "@/db/client";
-import { deliveryFrequencies, mealSizes, orders, plans, users } from "@/db/schema";
+import { customerAddresses, deliveryFrequencies, mealSizes, orderAddons, orders, plans, users } from "@/db/schema";
 import { requirePermission, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/components/wizard/selections";
@@ -52,10 +52,43 @@ export async function createQuoteLink(query: string): Promise<{ code: string } |
  * date (an estimate has none) and no codes. A trial leaves meal size empty: trial sizes are not sold as
  * a regular plan, so staff pick the size the customer moves to.
  */
-export async function estimatePrefill(orderPublicId: string): Promise<ActionResult<{ customer: CustomerHit; prefill: Partial<OrderFormInput> }>> {
+export async function estimatePrefill(orderPublicId: string): Promise<ActionResult<OrderPrefill>> {
   return runAction(async () => {
     await requirePermission({ order: ["read"] });
     await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
+    return prefillFromOrder(orderPublicId);
+  });
+}
+
+/**
+ * New order → Renew last plan: the customer's most recent plan (cancelled ones skipped) that this
+ * staff member can see, as order defaults with its add-ons and saved address. No start date: the
+ * form's renewal rule starts it the day after the running plan ends.
+ */
+export async function renewPrefill(customerPublicId: string): Promise<ActionResult<OrderPrefill & { deploymentId: string }>> {
+  return runAction(async () => {
+    await requirePermission({ order: ["read"] });
+    const visible = await resolveSessionVisibleOrgIds(await getSession());
+    if (visible !== "all" && visible.length === 0) throw new ValidationError("This customer has no earlier plan you can see");
+    const [last] = await db
+      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
+      .from(orders)
+      .innerJoin(users, eq(orders.userId, users.id))
+      .where(and(
+        eq(users.publicId, customerPublicId),
+        ne(orders.status, "cancelled"),
+        visible === "all" ? undefined : inArray(orders.organizationId, visible),
+      ))
+      .orderBy(desc(orders.startDate), desc(orders.createdAt))
+      .limit(1);
+    if (!last) throw new ValidationError("This customer has no earlier plan to renew");
+    return { ...(await prefillFromOrder(last.publicId)), deploymentId: last.deploymentId };
+  });
+}
+
+type OrderPrefill = { customer: CustomerHit; prefill: Partial<OrderFormInput>; addressPublicId: string | null };
+
+async function prefillFromOrder(orderPublicId: string): Promise<OrderPrefill> {
     const [o] = await db
       .select({
         userPublicId: users.publicId,
@@ -75,8 +108,12 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
         addressLine: orders.addressLine,
         city: orders.city,
         postalCode: orders.postalCode,
+        orderId: orders.id,
+        // Only a still-saved address can be re-picked; an archived one falls back to the typed fields.
+        addressPublicId: customerAddresses.publicId,
       })
       .from(orders)
+      .leftJoin(customerAddresses, and(eq(orders.addressId, customerAddresses.id), isNull(customerAddresses.archivedAt)))
       .innerJoin(users, eq(orders.userId, users.id))
       .innerJoin(plans, eq(orders.planId, plans.id))
       .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
@@ -85,9 +122,17 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
       .limit(1);
     if (!o) throw new ValidationError("This order has no customer account to estimate for");
     const trial = o.trialLength != null;
+    // A trial has no add-ons and leaves the size empty, so nothing to carry.
+    const addons = trial ? [] : await db
+      .select({ key: orderAddons.addonKey, qty: orderAddons.qty })
+      .from(orderAddons)
+      .where(eq(orderAddons.orderId, o.orderId))
+      .orderBy(asc(orderAddons.addonKey));
     return {
       customer: { publicId: o.userPublicId, fullName: o.fullName, phone: o.phone, email: o.email },
+      addressPublicId: o.addressPublicId ?? null,
       prefill: {
+        ...(addons.length ? { addonSelections: addons } : {}),
         planKey: o.planKey,
         ...(trial ? {} : { mealSizeId: o.mealSizeId, durationWeeks: o.durationWeeks }),
         frequencyKey: o.frequencyKey,
@@ -101,5 +146,4 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
         postalCode: o.postalCode,
       },
     };
-  });
 }

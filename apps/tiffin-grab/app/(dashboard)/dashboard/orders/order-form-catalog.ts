@@ -12,6 +12,6 @@ export function orderFormCatalog(catalog: Awaited<ReturnType<typeof loadCatalogS
     timezone: catalog.timezone,
     cutoffHour: catalog.cutoffHour,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
-    durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
+    durations: catalog.durations.map((d) => ({ weeks: d.weeks, savePct: savePct(catalog.discounts, "duration", d.publicId, d.weeks, catalog.maxDiscountPct) })),
   };
 }
