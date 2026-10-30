@@ -46,7 +46,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
         <div className="tg-wrap tg-header__in">
           <Link href="/" className="tg-header__brand" aria-label="TiffinGrab home">
             <BrandMark className="size-9" />
-            <BrandWordmark className="text-lg" />
+            <BrandWordmark className="tg-header__word text-lg" />
           </Link>
           <nav className="tg-nav" aria-label="Main">
             {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill">{l.label}</Link>)}
@@ -63,8 +63,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
       {open ? (
         <div id="tg-sheet" className="tg-sheet" role="dialog" aria-modal="true" aria-label="Menu" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="tg-sheet__panel">
-            <div className="flex items-center justify-between gap-3">
-              <span onClick={() => setOpen(false)}>{rating}</span>
+            <div className="flex justify-end">
               <button ref={closeRef} type="button" className="tg-menu-btn !inline-flex" aria-label="Close menu" onClick={() => setOpen(false)}>
                 <X className="size-5" strokeWidth={1.75} />
               </button>

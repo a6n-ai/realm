@@ -356,9 +356,13 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-rating:active { transform: scale(0.97); }
 .tg-rating__count { font-weight: 500; color: var(--muted-foreground); }
 .tg-rating__count::before { content: "· "; }
-/* Phones: the bar is full (brand, CTA, menu), so the capsule lives at the top of the menu sheet instead. */
-@media (max-width: 520px) { .tg-nav .tg-rating { display: none; } }
-.tg-sheet__panel .tg-rating { box-shadow: none; background: var(--muted); }
+/* Phones: the capsule stays in the top bar, compact (star and score); the logo mark carries the brand
+   so the wordmark gives up its room. */
+@media (max-width: 520px) {
+  .tg-rating { height: 36px; padding: 0 10px; gap: 4px; }
+  .tg-rating__count { display: none; }
+  .tg-header:has(.tg-rating) .tg-header__word { display: none; }
+}
 
 /* /reviews: glass needs something behind it to read as glass, so the page carries a soft glow. */
 .tg-reviews { position: relative; isolation: isolate; overflow: hidden; }
