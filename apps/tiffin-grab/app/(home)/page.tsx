@@ -220,7 +220,7 @@ export default async function LandingPage() {
 
         {/* External Places fetch: a cache miss must not hold back the rest of the page. */}
         <Suspense fallback={null}>
-          <LandingReviews />
+          <LandingReviews withPhotos />
         </Suspense>
 
         <section className="tg-section" aria-labelledby="tg-faq">

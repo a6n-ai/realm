@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getGoogleReviewsConfig, getReviewsSummary, writeReviewUrl } from "@foundry/google-reviews";
 import { PageIntro } from "@/components/landing/public-shell";
-import { ReviewCard, ReviewStars } from "@/components/landing/landing-reviews";
+import { Suspense } from "react";
+import { ReviewCard, ReviewPhotos, ReviewStars } from "@/components/landing/landing-reviews";
 import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
 import { pageMeta } from "@/lib/landing/meta";
 
@@ -42,6 +43,9 @@ export default async function ReviewsPage() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {summary.reviews.map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} />)}
         </div>
+
+        {/* Separate Google calls per photo: stream in after the reviews. */}
+        <Suspense fallback={null}><ReviewPhotos /></Suspense>
       </div>
     </div>
   );
