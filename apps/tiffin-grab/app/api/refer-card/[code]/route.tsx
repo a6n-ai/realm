@@ -87,7 +87,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
       <div style={{ ...glass, display: "flex", flexDirection: "column", alignSelf: "flex-start", marginTop: og ? 0 : 56, padding: `${Math.round(30 * k)}px ${Math.round(44 * k)}px`, borderRadius: Math.round(44 * k) }}>
         <div style={{ fontSize: L.label, fontWeight: 700, color: MUTED, letterSpacing: L.label * 0.18 }}>USE CODE</div>
         <div style={{ fontSize: L.code, fontWeight: 700, color: GREEN, letterSpacing: L.code * 0.14, lineHeight: 1.1, marginTop: Math.round(6 * k) }}>{code}</div>
-        <div style={{ fontSize: L.url, fontWeight: 500, color: MUTED, marginTop: Math.round(10 * k) }}>{`Sign up at ${host}`}</div>
+        <div style={{ fontSize: L.url, fontWeight: 500, color: MUTED, marginTop: Math.round(10 * k) }}>{`${host}/r/${code}`}</div>
       </div>
     </div>
   );
