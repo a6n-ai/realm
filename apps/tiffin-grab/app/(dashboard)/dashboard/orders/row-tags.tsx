@@ -1,10 +1,11 @@
-import { EyeIcon, FlaskConicalIcon, type LucideIcon } from "lucide-react";
+import { EyeIcon, FlaskConicalIcon, GiftIcon, type LucideIcon } from "lucide-react";
 
 // No "use client": the server page renders the legend and the client list renders the tags,
 // both from this one map so the legend can't drift from the rows.
 export const ORDER_TAGS = {
   trial: { icon: FlaskConicalIcon, label: "Trial", className: "text-amber-600 dark:text-amber-400" },
   lookOut: { icon: EyeIcon, label: "Look out for", className: "text-warn" },
+  free: { icon: GiftIcon, label: "Free tiffins", className: "text-pink-600 dark:text-pink-400" },
 } satisfies Record<string, { icon: LucideIcon; label: string; className: string }>;
 
 /** A small icon after the customer's name; hover shows what it means. */

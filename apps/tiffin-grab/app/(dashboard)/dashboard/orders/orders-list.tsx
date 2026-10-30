@@ -47,6 +47,7 @@ export function OrdersList({
   staff,
   lookOutView = false,
   paymentReviewView = false,
+  freeTiffinsView = false,
 }: {
   spec: FacetDef[];
   rows: OrderListRow[];
@@ -59,6 +60,8 @@ export function OrdersList({
   /** The Look out for tab: each row shows why it was flagged. */
   lookOutView?: boolean;
   paymentReviewView?: boolean;
+  /** The Free tiffins tab: orders where staff gave tiffins on top of the plan. */
+  freeTiffinsView?: boolean;
 }) {
   const tz = useTimezone();
   return (
@@ -74,7 +77,7 @@ export function OrdersList({
       rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
-      emptyMessage={lookOutView ? "No orders are marked look out for." : paymentReviewView ? "No payments are waiting for review." : "No orders yet."}
+      emptyMessage={lookOutView ? "No orders are marked look out for." : paymentReviewView ? "No payments are waiting for review." : freeTiffinsView ? "No order has free tiffins." : "No orders yet."}
       emptySearchMessage="No orders match your search."
       renderRow={(o) => (
         <>
@@ -84,6 +87,7 @@ export function OrdersList({
             </Link>
             {o.trial && <RowTag tag="trial" />}
             {o.lookOut && !lookOutView && <RowTag tag="lookOut" title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : undefined} />}
+            {o.freeTiffins > 0 && <RowTag tag="free" title={`${o.freeTiffins} free ${o.freeTiffins === 1 ? "tiffin" : "tiffins"} given`} />}
             {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>

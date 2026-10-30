@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countFreeTiffinOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { redirect } from "next/navigation";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
@@ -97,12 +97,13 @@ async function StartMigratedAction() {
 async function OrdersViews() {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const [lookOutCount, missedCount, paymentReviewCount] = await Promise.all([
+  const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
     countPaymentReviewOrders(visible),
+    countFreeTiffinOrders(visible),
   ]);
-  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} />;
+  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} freeCount={freeCount} />;
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -166,9 +167,10 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   }
   const lookOutOnly = raw.view === "lookout";
   const paymentReview = raw.view === "payment";
+  const freeTiffins = raw.view === "free";
   // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
-  const sp = lookOutOnly || paymentReview || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const sp = lookOutOnly || paymentReview || freeTiffins || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -224,6 +226,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     listOrdersPage(finalCondition, page, sort, visible, {
       lookOutOnly,
       paymentReview,
+      freeTiffins,
       missedAsOf,
     }),
     canReassign(),
@@ -242,6 +245,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       staff={staff}
       lookOutView={lookOutOnly}
       paymentReviewView={paymentReview}
+      freeTiffinsView={freeTiffins}
     />
   );
 }
