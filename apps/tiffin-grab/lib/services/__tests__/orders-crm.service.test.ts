@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, n
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
 const { ledgerService } = await import("../ledger.service");
@@ -105,6 +105,20 @@ describe("order CRM queries (integration)", () => {
     const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries).innerJoin(orders, eq(orders.id, schema.deliveries.orderId)).where(eq(orders.publicId, o.publicId));
     await db.delete(schema.deliveries).where(and(eq(schema.deliveries.orderId, parallel), eq(schema.deliveries.deliveryDate, last)));
     expect(await of()).toMatchObject({ later: false, status: "none" });
+  });
+
+  it("free tiffins: lists and counts orders where staff gave tiffins on top, cancelled left out", async () => {
+    const snap = await loadCatalogSnapshot();
+    const given = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Fay Free", "+16475550901"));
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Nan None", "+16475550902"));
+    await db.update(orders).set({ complimentaryTiffins: 2 }).where(eq(orders.publicId, given.publicId));
+
+    const free = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { freeTiffins: true });
+    expect(free.items.map((r) => [r.publicId, r.freeTiffins])).toEqual([[given.publicId, 2]]);
+    expect(await countFreeTiffinOrders("all")).toBe(1);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, given.publicId));
+    expect(await countFreeTiffinOrders("all")).toBe(0);
   });
 
   it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {

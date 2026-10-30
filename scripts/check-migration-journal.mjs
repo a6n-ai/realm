@@ -68,6 +68,10 @@ for (const app of readdirSync("apps")) {
     }
   });
 
+  // Without a base, skip "new entry" checks — grandfathered round `when`s
+  // (e.g. puchkaman 0046) would otherwise fail every workflow_dispatch deploy.
+  if (!base) continue;
+
   const newest = baseEntries.length ? baseEntries[baseEntries.length - 1].when : 0;
   for (const e of entries.filter((x) => !known.has(x.tag))) {
     if (e.when <= newest) errors.push(`${app}: new ${e.tag} when ${e.when} is not after shipped ${newest}; regenerate it with drizzle-kit generate`);

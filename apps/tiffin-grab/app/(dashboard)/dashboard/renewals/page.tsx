@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarCheckIcon, CalendarX2Icon, HourglassIcon, PackageIcon, RefreshCwIcon, WalletIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { requirePermission } from "@/lib/auth/guards";
@@ -15,6 +16,7 @@ import { withListDates } from "@/lib/list/default-month";
 import { DateByPicker } from "./date-by-picker";
 import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
 import { RenewalFactsLegend } from "./fact-tags";
+import { RenewalsExportButton } from "./renewals-export-button";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -47,7 +49,16 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   const { page } = parseFilterState(spec, sp);
   return (
     <PageShell>
-      <PageHeader icon={RefreshCwIcon} title="Renewals" subtitle="Plans ending soon or lapsed, and who already booked again." />
+      <PageHeader
+        icon={RefreshCwIcon}
+        title="Renewals"
+        subtitle="Plans ending soon or lapsed, and who already booked again."
+        actions={
+          <Suspense fallback={<Skeleton className="h-9 w-24" />}>
+            <RenewalsExportButton />
+          </Suspense>
+        }
+      />
       {/* The date range filters the cards and the list: one group, tighter than the page rhythm. */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">

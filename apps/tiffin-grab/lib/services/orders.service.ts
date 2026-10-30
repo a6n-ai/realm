@@ -1438,6 +1438,10 @@ async function countVisibleOrders(where: SQL | undefined, visible: "all" | strin
 /** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
 export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
 
+/** Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out. */
+const freeTiffinsWhere = () => and(gt(orders.complimentaryTiffins, 0), ne(orders.status, "cancelled"));
+export const countFreeTiffinOrders = (visible: "all" | string[]) => countVisibleOrders(freeTiffinsWhere(), visible);
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
@@ -1519,6 +1523,8 @@ export type OrderListRow = {
   trial: boolean;
   lookOut: boolean;
   lookOutNote: string | null;
+  /** Free tiffins staff gave on top of the plan. */
+  freeTiffins: number;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
@@ -1624,11 +1630,12 @@ export async function listOrdersPage(
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
   /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
-  opts: { lookOutOnly?: boolean; paymentReview?: boolean; missedAsOf?: string } = {},
+  opts: { lookOutOnly?: boolean; paymentReview?: boolean; freeTiffins?: boolean; missedAsOf?: string } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
+    opts.freeTiffins ? freeTiffinsWhere() : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
@@ -1664,6 +1671,7 @@ export async function listOrdersPage(
         trialLength: orders.trialLength,
         lookOutAt: orders.lookOutAt,
         lookOutNote: orders.lookOutNote,
+        freeTiffins: orders.complimentaryTiffins,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
@@ -1710,6 +1718,7 @@ export async function listOrdersPage(
       trial: r.trialLength != null,
       lookOut: r.lookOutAt != null,
       lookOutNote: r.lookOutNote,
+      freeTiffins: r.freeTiffins,
     };
   });
   return { items, page: page.page, size: page.size, total: count };
