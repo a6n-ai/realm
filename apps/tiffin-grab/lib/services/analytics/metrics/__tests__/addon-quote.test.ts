@@ -91,4 +91,14 @@ describe("plan quote subtracts what was applied, not what was requested", () => 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ reasons: ["refunded_no_ledger"], kept: 0 });
   });
+
+  it("coin-reduced order with a later partial refund reports both paid_ne_total and partly_refunded", async () => {
+    const o = await seed("coinrefund", base);
+    const p = await pay(o.id, 90);
+    await db.insert(ledgerEntries).values({ userId: o.userId!, orderId: o.id, paymentId: p, direction: "debit", type: "refund", amount: "10.00", createdAt: CAPTURED_AT } as never);
+    const rows = await needsReviewRows(scope("coinrefund"));
+    expect(rows).toHaveLength(1);
+    // paid 90 vs total 105 (gap before refunds), 10 refunded so 80 is kept: diff = kept - total.
+    expect(rows[0]).toMatchObject({ reasons: ["paid_ne_total", "partly_refunded"], paid: 90, total: 105, kept: 80, diff: -25 });
+  });
 });

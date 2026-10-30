@@ -31,14 +31,22 @@ export async function withListDates<T extends Dated & { q?: string }>(sp: T): Pr
   return withDefaultMonth(sp);
 }
 
-/** Inclusive epoch window. Either end may be open. */
-export function epochBoundsWhere(column: AnyColumn | SQL, sp: Dated): SQL | undefined {
-  const col = column as AnyColumn; // drizzle comparators accept SQL expressions too; only the typings are narrow
+function bounds(sp: Dated, ge: (v: number) => SQL, le: (v: number) => SQL): SQL | undefined {
   const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
   const a = n(sp.from);
   const b = n(sp.to);
-  if (a != null && b != null) return and(gte(col, Math.min(a, b)), lte(col, Math.max(a, b)));
-  if (a != null) return gte(col, a);
-  if (b != null) return lte(col, b);
+  if (a != null && b != null) return and(ge(Math.min(a, b)), le(Math.max(a, b)));
+  if (a != null) return ge(a);
+  if (b != null) return le(b);
   return undefined;
+}
+
+/** Inclusive epoch window. Either end may be open. */
+export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
+  return bounds(sp, (v) => gte(col, v), (v) => lte(col, v));
+}
+
+/** Same window over an epoch-ms SQL expression, such as a coalesce of two columns. */
+export function epochBoundsWhereSql(expr: SQL, sp: Dated): SQL | undefined {
+  return bounds(sp, (v) => gte(expr, v), (v) => lte(expr, v));
 }

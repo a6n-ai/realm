@@ -6,7 +6,7 @@ import { notificationOutbox, orderActivities, orders, payments, stripeEvents, us
 import type { SendState } from "@/lib/services/customers.service";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
+import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -29,7 +29,7 @@ const SORT_COL = {
 type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
-export function dateRangeWhere(col: AnyColumn | SQL, sp: { from?: string; to?: string }): SQL | undefined {
+export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
   return epochBoundsWhere(col, sp);
 }
 
@@ -146,7 +146,9 @@ export async function listPayments(
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
     // basis=money is the analytics drill: dated by when the money moved, like the revenue tiles.
-    dateRangeWhere(dated.basis === "money" ? sql`coalesce(${payments.capturedAt}, ${payments.createdAt})` : payments.createdAt, dated),
+    dated.basis === "money"
+      ? epochBoundsWhereSql(sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`, dated)
+      : dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
     q
       ? or(

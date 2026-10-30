@@ -237,12 +237,12 @@ describe("analytics reconciliation (integration)", () => {
     const s = scopeA(MARCH_NOW);
     const t = await revenueTotals(s);
     const r = await getRevenueReport(s);
-    expect(r.kpis).toMatchObject({ netRevenue: t.net, tax: t.tax, gross: t.gross, surcharge: 6, payments: t.payments, pendingCount: 1, pendingAmount: 113 });
+    expect(r.kpis).toMatchObject({ netRevenue: t.net, tax: t.tax, gross: t.gross, surcharge: 6, payments: t.payments, pendingCount: 1, pendingAmount: 113, orders: 6 });
     // Stripe partial refund of 58.00 on a surcharged payment is 56.50 on the paid basis, not 58.
     expect(r.kpis.refundsExSurcharge).toBe(t.refundsExSurcharge);
     expect(r.kpis.refundsExSurcharge).toBeLessThan(t.refunds);
     expect(r.kpis.netCollected).toBe(Math.round((t.gross - t.refundsExSurcharge) * 100) / 100);
-    expect(r.kpis.orders).toBeGreaterThan(0);
+    
     expect(Math.round(r.trend.reduce((a, p) => a + p.netSales, 0) * 100) / 100).toBe(t.net);
   });
 
