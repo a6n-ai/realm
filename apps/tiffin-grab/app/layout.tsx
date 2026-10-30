@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -11,11 +11,6 @@ import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
 import "./globals.css";
-
-// Runtime env (not NEXT_PUBLIC_): NEXT_PUBLIC_* is inlined at `next build`, so an
-// empty CI bake would ignore the SSM value. Root layout is a Server Component —
-// it reads this at request time and passes gaId into <GoogleAnalytics /> as a prop.
-const gaId = process.env.GA_MEASUREMENT_ID?.trim();
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
 // specifically so headers, dish names, and the wallet balance read as a warm consumer food
@@ -63,8 +58,8 @@ export default function RootLayout({
           <NavPending />
           <BrowserChrome />
         </ThemeProvider>
+        <Script src="/api/analytics" strategy="afterInteractive" />
       </body>
-      {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
     </html>
   );
 }
