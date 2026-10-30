@@ -5,12 +5,13 @@ import { DAYS, type PosterItem } from "./poster";
 /** What this customer has on a menu day, from their own delivery rows. */
 export type MyDay = "pick" | "locked" | "delivered" | "paused" | "hold" | null;
 
-/** `nonVeg`: this week the dish is only on non-veg plans (chicken, goat, egg...), read from each dish's plan. */
-export type MenuDish = { name: string; nonVeg: boolean };
+/** `nonVeg`: this week the dish is only on non-veg plans (chicken, goat, egg...), read from each dish's plan.
+ *  `color`: that diet's plan tag colour (plans.tag_color), when the plan has one. */
+export type MenuDish = { name: string; nonVeg: boolean; color?: string };
 
 export type MenuDay = {
   date: string;
-  groups: { label: string; dishes: MenuDish[] }[];
+  groups: { key: string; label: string; icon?: string | null; dishes: MenuDish[] }[];
   mine: MyDay;
   /** When changes close for this day; only set while the customer can still pick. */
   cutoffAt: number | null;
@@ -22,6 +23,14 @@ type DeliveryRow = { deliveryDate: string; status: string; cutoffAt: number; pla
 // suffix is not reliable (Chicken Curry has none), so the plan filter uses the dish's plan;
 // the suffix is only dropped so the full menu lists each dish once.
 const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
+const isNonVeg = (planName?: string) => /non-?veg/i.test(planName ?? "");
+
+/** This week's diets as their plans tag them (Veg in green, Non-veg in red), veg first; untagged plans are left out. */
+export function dietLegend(items: PosterItem[]): { label: string; color: string }[] {
+  const seen = new Map<string, { label: string; color: string; nonVeg: boolean }>();
+  for (const it of items) if (it.planLabel && it.planColor) seen.set(it.planLabel, { label: it.planLabel, color: it.planColor, nonVeg: isNonVeg(it.planName) });
+  return [...seen.values()].sort((a, b) => Number(a.nonVeg) - Number(b.nonVeg)).map(({ label, color }) => ({ label, color }));
+}
 
 /** The customer's plan this week; null when they have none, or more than one. */
 export function planOf(deliveries: DeliveryRow[]): string | null {
@@ -58,16 +67,18 @@ export function buildCustomerWeek(
   plan: string | null = null,
 ): MenuDay[] {
   // A dish is non-veg when every plan serving it this week is a non-veg plan. Unknown plans never mark one.
-  const plansByDish = new Map<string, string[]>();
-  for (const it of week.items) plansByDish.set(plain(it.dishName), [...(plansByDish.get(plain(it.dishName)) ?? []), it.planName ?? ""]);
-  const nonVeg = (name: string) => (plansByDish.get(name) ?? []).every((p) => /non-?veg/i.test(p));
+  const servedBy = new Map<string, PosterItem[]>();
+  for (const it of week.items) servedBy.set(plain(it.dishName), [...(servedBy.get(plain(it.dishName)) ?? []), it]);
+  const nonVeg = (name: string) => (servedBy.get(name) ?? []).every((it) => isNonVeg(it.planName));
+  // The colour of a plan on the dish's side: a veg dish also served on the non-veg plan still reads veg.
+  const color = (name: string) => (servedBy.get(name) ?? []).find((it) => isNonVeg(it.planName) === nonVeg(name) && it.planColor)?.planColor ?? undefined;
   return DAYS.map((day, i) => {
     const date = isoPlus(week.weekStart, i);
     const items = week.items
       .filter((it) => it.dayOfWeek === day && (!plan || it.planName === plan))
       .sort((a, b) => a.position - b.position);
     const groups = week.slots
-      .map((s) => ({ label: s.label, dishes: [...new Set(items.filter((it) => it.slot === s.key).map((it) => plain(it.dishName)))].map((name) => ({ name, nonVeg: nonVeg(name) })) }))
+      .map((s) => ({ key: s.key, label: s.label, icon: s.icon, dishes: [...new Set(items.filter((it) => it.slot === s.key).map((it) => plain(it.dishName)))].map((name) => ({ name, nonVeg: nonVeg(name), color: color(name) })) }))
       .filter((g) => g.dishes.length > 0);
     const rows = deliveries.filter((d) => d.deliveryDate === date);
     const state = mine(rows, date, today, nowMs);

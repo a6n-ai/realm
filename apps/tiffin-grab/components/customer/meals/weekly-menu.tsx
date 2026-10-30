@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, Check, Clock, Lock, Pause, UtensilsCrossed } from "lucide-react";
-import { EmptyState, IconTile, ListGroup, ListRow, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
+import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { useTimezone } from "@/components/providers/timezone-provider";
+import { makeCategoryLook } from "./category-look";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
 
 const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -26,14 +27,11 @@ const MINE: Record<NonNullable<MyDay>, { tint: IconTint; icon: typeof Check; lab
   hold: { tint: "pink", icon: Clock, label: "On hold", note: "This day is on hold.", action: "View delivery" },
 };
 
-/** The square-and-dot food mark Indian menus use; brown for non-veg. Shape plus label, never colour alone. */
-function NonVegMark() {
+/** The square-and-dot food mark Indian menus use, drawn in the diet's plan colour (plans.tag_color). */
+function DietMark({ color }: { color?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#8A3B12] dark:text-[#F0A27A]">
-      <span aria-hidden className="grid size-3.5 place-items-center rounded-[3px] border-[1.5px] border-current">
-        <span className="size-1.5 rounded-full bg-current" />
-      </span>
-      Non-veg
+    <span aria-hidden className="grid size-3.5 shrink-0 place-items-center rounded-[3px] border-[1.5px]" style={{ borderColor: color ?? "var(--muted-foreground)" }}>
+      <span className="size-1.5 rounded-full" style={{ background: color ?? "var(--muted-foreground)" }} />
     </span>
   );
 }
@@ -91,7 +89,7 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
 }
 
 /** The released week: a glass week bar marked with this customer's delivery days, and the chosen day's dishes as inset-grouped lists. */
-export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay[]; plan: { name: string; days: MenuDay[] } | null; initial: string; today: string }) {
+export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days: MenuDay[]; plan: { name: string; days: MenuDay[] } | null; legend: { label: string; color: string }[]; initial: string; today: string }) {
   const tz = useTimezone();
   const [selected, setSelected] = useState(initial);
   // Everyone sees what the kitchen makes; a customer on one plan can narrow it to theirs.
@@ -100,6 +98,9 @@ export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay
   const index = Math.max(days.findIndex((d) => d.date === selected), 0);
   const current = days[index]!;
   const mine = current.mine ? MINE[current.mine] : null;
+  const look = makeCategoryLook();
+  // Spoken label for a dish's mark: the plan's own tag when it has one ("Veg"), else the plain diet.
+  const diet = (d: MenuDay["groups"][number]["dishes"][number]) => legend.find((l) => l.color === d.color)?.label ?? (d.nonVeg ? "Non-veg" : "Veg");
   // Same wording and format as the trip card on Deliveries ("Changes until Thu 6:00 PM").
   const until = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
   // ISO dates sort in day order, so the swipe hook can tell which way the new day came from.
@@ -107,15 +108,29 @@ export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay
 
   return (
     <div className="flex flex-col gap-4">
-      {plan && (
-        <Segmented
-          label="Dishes to show"
-          idPrefix="menu-view"
-          items={[{ id: "full", label: "Full menu" }, { id: "plan", label: plan.name }]}
-          value={view}
-          onChange={(v) => setView(v as "full" | "plan")}
-          className="self-start [&>button]:px-4"
-        />
+      {(plan || legend.length > 0) && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {plan && (
+            <Segmented
+              label="Dishes to show"
+              idPrefix="menu-view"
+              items={[{ id: "full", label: "Full menu" }, { id: "plan", label: plan.name }]}
+              value={view}
+              onChange={(v) => setView(v as "full" | "plan")}
+              className="[&>button]:px-4"
+            />
+          )}
+          {legend.length > 0 && (
+            <ul aria-label="Diet marks" className="flex items-center gap-4 px-1">
+              {legend.map((l) => (
+                <li key={l.label} className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: l.color }}>
+                  <DietMark color={l.color} />
+                  {l.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       <div className="flex flex-col gap-5" {...(plan ? { role: "tabpanel", id: panelId("menu-view", view), "aria-labelledby": tabId("menu-view", view) } : {})}>
         <WeekBar days={days} value={index} today={today} onChange={(i) => setSelected(days[i]!.date)} />
@@ -154,18 +169,32 @@ export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay
               // Keyed on the filter so switching it re-enters with one short fade; day changes slide via the swipe hook.
               <div
                 key={view}
-                className="grid gap-5 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-2 lg:grid-cols-3"
+                className="grid items-start gap-4 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-2 lg:grid-cols-3"
               >
-                {current.groups.map((g) => (
-                  <section key={g.label} aria-label={g.label} className="flex flex-col gap-2">
-                    <h3 className="c-label px-4 uppercase">{g.label}</h3>
-                    <ListGroup>
-                      {g.dishes.map((d) => (
-                        <ListRow key={d.name} label={d.name} value={d.nonVeg ? <NonVegMark /> : undefined} className="min-h-12" />
-                      ))}
-                    </ListGroup>
-                  </section>
-                ))}
+                {/* One card per category, like the kitchen's station cards: tile and count up top, then the dishes. */}
+                {current.groups.map((g) => {
+                  const { icon: Icon, tint } = look(g.key, g.icon);
+                  return (
+                    <section key={g.key} aria-labelledby={`menu-cat-${g.key}`} className="c-surface overflow-hidden rounded-3xl bg-[var(--card)]">
+                      <header className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+                        <IconTile tint={tint}><Icon /></IconTile>
+                        <h3 id={`menu-cat-${g.key}`} className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">{g.label}</h3>
+                        <span className="c-caption tabular-nums">{g.dishes.length === 1 ? "1 dish" : `${g.dishes.length} dishes`}</span>
+                      </header>
+                      <ul className="divide-y divide-[var(--border)]">
+                        {g.dishes.map((d) => (
+                          <li key={d.name} className="flex min-h-12 items-center gap-3 px-4 py-3">
+                            <DietMark color={d.color} />
+                            <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug">
+                              {d.name}
+                              <span className="sr-only">, {diet(d)}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
               </div>
             ) : (
               <EmptyState icon={<UtensilsCrossed className="size-6" />} title="Nothing cooking" body="The kitchen hasn't listed dishes for this day." className="py-8" />

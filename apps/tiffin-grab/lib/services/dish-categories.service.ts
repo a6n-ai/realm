@@ -182,6 +182,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       .select({
         key: dishCategories.key,
         label: dishCategories.label,
+        icon: dishCategories.icon,
         selectable: dishCategories.selectable,
         sortOrder: dishCategories.sortOrder,
         tuUnitType: dishCategories.tuUnitType,

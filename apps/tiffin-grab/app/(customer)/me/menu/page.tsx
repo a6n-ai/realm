@@ -4,7 +4,7 @@ import { UtensilsCrossed } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
-import { buildCustomerWeek, initialDay, planOf, weekEnd } from "@/lib/menu/customer-week";
+import { buildCustomerWeek, dietLegend, initialDay, planOf, weekEnd } from "@/lib/menu/customer-week";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/services/customer-deliveries.service";
 import { EmptyState, PageHeader } from "@/components/customer/kit";
@@ -46,7 +46,7 @@ export default async function MenuPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow={scope === "next" ? "Next week" : "This week"} title="Weekly" accent="menu." subtitle={range} />
-      <WeeklyMenu days={days} plan={plan && planDays ? { name: plan, days: planDays } : null} initial={initialDay(days, today)} today={today} />
+      <WeeklyMenu days={days} plan={plan && planDays ? { name: plan, days: planDays } : null} legend={dietLegend(week.items)} initial={initialDay(days, today)} today={today} />
     </div>
   );
 }

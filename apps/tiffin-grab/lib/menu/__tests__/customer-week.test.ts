@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomerWeek, initialDay, planOf } from "../customer-week";
+import { buildCustomerWeek, dietLegend, initialDay, planOf } from "../customer-week";
 
 const week = {
   weekStart: "2026-10-19",
@@ -18,7 +18,7 @@ describe("buildCustomerWeek", () => {
   it("lists seven days with dishes in slot order, diet suffix dropped and deduped", () => {
     const days = buildCustomerWeek(week, [], TODAY, NOW);
     expect(days.map((d) => d.date)).toEqual(["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"]);
-    expect(days[0]!.groups).toEqual([{ label: "Sabzi", dishes: [{ name: "Aloo Gobi", nonVeg: false }] }, { label: "Rice", dishes: [{ name: "Jeera Rice", nonVeg: false }] }]);
+    expect(days[0]!.groups).toEqual([{ key: "sabzi", label: "Sabzi", dishes: [{ name: "Aloo Gobi", nonVeg: false }] }, { key: "rice", label: "Rice", dishes: [{ name: "Jeera Rice", nonVeg: false }] }]);
     expect(days[1]!.groups).toEqual([]);
   });
 
@@ -64,5 +64,25 @@ describe("initialDay", () => {
     expect(initialDay(days, TODAY)).toBe(TODAY);
     expect(initialDay(days, "2026-10-01")).toBe("2026-10-23");
     expect(initialDay(buildCustomerWeek(week, [], TODAY, NOW), "2026-10-01")).toBe("2026-10-19");
+  });
+});
+
+describe("plan colours", () => {
+  const veg = { planName: "Pure Vegetarian Plan", planLabel: "Veg", planColor: "#16a34a" };
+  const nv = { planName: "Non-Veg Plan", planLabel: "Non-veg", planColor: "#dc2626" };
+  const items = [
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Aloo Gobi", position: 0, ...nv },
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Aloo Gobi", position: 0, ...veg },
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Chicken Curry", position: 1, ...nv },
+  ];
+
+  it("colours a dish by the plan on its side, so a shared veg dish stays veg", () => {
+    const dishes = buildCustomerWeek({ ...week, items }, [], TODAY, NOW)[0]!.groups[0]!.dishes;
+    expect(dishes).toEqual([{ name: "Aloo Gobi", nonVeg: false, color: "#16a34a" }, { name: "Chicken Curry", nonVeg: true, color: "#dc2626" }]);
+  });
+
+  it("lists each tagged diet once, veg first", () => {
+    expect(dietLegend(items)).toEqual([{ label: "Veg", color: "#16a34a" }, { label: "Non-veg", color: "#dc2626" }]);
+    expect(dietLegend(week.items)).toEqual([]);
   });
 });

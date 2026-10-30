@@ -587,6 +587,8 @@ export const menuService = {
           image: dishes.image,
           dishPublicId: dishes.publicId,
           planName: plans.name,
+          planLabel: plans.tagLabel,
+          planColor: plans.tagColor,
         })
         .from(menuItems)
         .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
@@ -605,6 +607,8 @@ export const menuService = {
         image: r.image ?? null,
         dishPublicId: r.dishPublicId,
         planName: r.planName,
+        planLabel: r.planLabel,
+        planColor: r.planColor,
       }));
       return { theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: resolvedWeekStart!, slots: categories, items };
     });
