@@ -205,6 +205,13 @@ describe("recordStripeRefund", () => {
     expect(acts.filter((a) => a.type === "payment_refunded").length).toBeGreaterThanOrEqual(2);
   });
 
+  it("full refund of a surcharged payment leaves exactly one ledger refund row of amount + surcharge", async () => {
+    const pay = await makeStripePayment({ amount: "100.00", surcharge: "2.40", piId: "pi_s", paid: true });
+    await svc.recordStripeRefund({ piId: "pi_s", eventId: "evt_s", amountRefundedCents: 10240, fullyRefunded: true });
+    const rows = (await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).filter((r) => r.type === "refund");
+    expect(rows.map((r) => Number(r.amount))).toEqual([102.4]);
+  });
+
   it("cancelled order with unsettled payment: records activity, no throw, no debit", async () => {
     const pay = await makeStripePayment({ amount: "50.00", piId: "pi_c" });
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, pay.orderId));

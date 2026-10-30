@@ -3,7 +3,7 @@ import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIco
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and as sqlAnd, eq, inArray } from "drizzle-orm";
 import type { OrderFacetField } from "@/lib/services/analytics/metrics/orders";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -189,7 +189,9 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(session);
   const [sizeOptions, zoneOptions, orgOptions] = await Promise.all([
     db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
-    db.select({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).orderBy(deliveryZones.name),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones)
+      .where(sqlAnd(eq(deliveryZones.active, true), visible === "all" ? undefined : inArray(deliveryZones.organizationId, visible)))
+      .orderBy(deliveryZones.name),
     visible === "all"
       ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
       : visible.length > 1
@@ -202,7 +204,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const spec: FacetDef[] = [
     {
       kind: "pills",
-      field: "status",
+      field: field("status"),
       label: "Status",
       options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
     },
@@ -220,7 +222,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
         { value: "premium", label: "Premium" },
       ],
     },
-    { kind: "dateRange", field: "createdAt", label: "Created" },
+    { kind: "dateRange", field: field("createdAt"), label: "Created" },
     {
       kind: "select",
       field: "missed",

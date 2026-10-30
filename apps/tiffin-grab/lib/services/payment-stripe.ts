@@ -239,6 +239,7 @@ export async function recordStripeRefund(n: { piId: string; eventId: string; amo
         userId: order!.userId,
         paymentId: pay.id,
         actorInternalId: null,
+        ledgerRecorded: true,
         note: `Refunded in Stripe (${fromCents(n.amountRefundedCents)})`,
       });
     } else {

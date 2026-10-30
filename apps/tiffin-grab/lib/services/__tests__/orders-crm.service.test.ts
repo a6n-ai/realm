@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, n
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, ordersListWhere, refundOrder, refundPaymentInTx, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
+const { listOrdersPage, ordersListWhere, refundOrder, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
 const { ledgerService } = await import("../ledger.service");
@@ -414,10 +414,15 @@ describe("order CRM queries (integration)", () => {
         expect(await ids(cEq("zone", zone.name))).toEqual([a.publicId]);
 
         const [org] = await db.insert(organization).values({ name: "Org F", clientCode: `F-${suffix}` }).returning({ id: organization.id });
-        await db.update(orders).set({ organizationId: org.id }).where(eq(orders.publicId, b.publicId));
-        expect(await ids(cEq("org", org.id))).toEqual([b.publicId]);
-        // A facet naming another franchise cannot widen a scoped viewer.
-        expect(await ids(cEq("org", org.id), ["not-visible"])).toEqual([]);
+        try {
+          await db.update(orders).set({ organizationId: org.id }).where(eq(orders.publicId, b.publicId));
+          expect(await ids(cEq("org", org.id))).toEqual([b.publicId]);
+          // A facet naming another franchise cannot widen a scoped viewer.
+          expect(await ids(cEq("org", org.id), ["not-visible"])).toEqual([]);
+        } finally {
+          await db.update(orders).set({ organizationId: null }).where(eq(orders.publicId, b.publicId));
+          await db.delete(organization).where(eq(organization.id, org.id));
+        }
       } finally {
         await db.update(orders).set({ zoneId: null }).where(eq(orders.publicId, a.publicId));
         await db.delete(schema.deliveryZones).where(eq(schema.deliveryZones.id, zone.id));
@@ -440,16 +445,6 @@ describe("order CRM queries (integration)", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ direction: "debit", paymentId: pay.id, userId: o.userId });
       expect(Number(rows[0].amount)).toBe(Number(pay.amount));
-    });
-
-    it("a Stripe-style pre-written refund row followed by refundPaymentInTx still yields one row", async () => {
-      const a = await mk("Jane Customer", "+16475551006");
-      const { o, pay } = await settle(a.publicId);
-      await db.transaction(async (tx) => {
-        await ledgerService.record(tx, { userId: o.userId!, orderId: o.id, paymentId: pay.id, direction: "debit", type: "refund", amount: pay.amount, memo: "Stripe refund" });
-        await refundPaymentInTx(tx, { orderId: o.id, orderPublicId: o.publicId, userId: o.userId, paymentId: pay.id, actorInternalId: null, note: "x" });
-      });
-      expect(await refundRows(o.id)).toHaveLength(1);
     });
   });
 });

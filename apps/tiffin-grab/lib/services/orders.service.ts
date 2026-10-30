@@ -1149,19 +1149,21 @@ export async function refundOrder(
 // refunded order whose coins were never reversed.
 export async function refundPaymentInTx(
   tx: Tx,
-  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string },
+  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string; /** The Stripe webhook already wrote the ledger refund row(s): it is the only Stripe ledger writer. */ ledgerRecorded?: boolean },
 ): Promise<void> {
+  // Keep this UPDATE before the ledger-sum read: its row lock serializes concurrent refunds of one payment.
   await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
   await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
-  // The Stripe webhook records its own refund row first, so only the unrecorded remainder is written.
-  const [{ already }] = await tx
-    .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
-    .from(ledgerEntries)
-    .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
-  const [{ amount }] = await tx.select({ amount: payments.amount }).from(payments).where(eq(payments.id, i.paymentId));
-  const remainder = Math.round((Number(amount) - Number(already)) * 100) / 100;
-  if (remainder > 0 && i.userId) {
-    await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
+  if (!i.ledgerRecorded && i.userId) {
+    const [{ already }] = await tx
+      .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
+    const [{ amount }] = await tx.select({ amount: payments.amount }).from(payments).where(eq(payments.id, i.paymentId));
+    const remainder = Math.round((Number(amount) - Number(already)) * 100) / 100;
+    if (remainder > 0) {
+      await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
+    }
   }
   // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
   const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
