@@ -106,3 +106,20 @@ describe("popular dishes", () => {
     expect(foldPicks({ "Dal Tadka (Veg)": 3, "Dal Tadka (Non-Veg)": 4, Kadhi: 2 })).toEqual({ "Dal Tadka": 7, Kadhi: 2 });
   });
 });
+
+describe("popular per diet", () => {
+  const nv = { planName: "Non-Veg Plan" };
+  const veg = { planName: "Pure Vegetarian Plan" };
+  const items = [
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Aloo Gobi", position: 0, ...veg },
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Palak Paneer", position: 1, ...veg },
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Keema Matar", position: 2, ...nv },
+    { dayOfWeek: "mon" as const, slot: "sabzi", dishName: "Chicken Curry", position: 3, ...nv },
+  ];
+
+  it("marks a veg favourite as well as a non-veg one, even when non-veg dishes have more picks", () => {
+    const dishes = buildCustomerWeek({ ...week, items }, [], TODAY, NOW, null, { "Keema Matar": 40, "Chicken Curry": 10, "Palak Paneer": 8, "Aloo Gobi": 3 })[0]!.groups[0]!.dishes;
+    expect(dishes.filter((d) => d.popular).map((d) => d.name)).toEqual(["Palak Paneer", "Keema Matar"]);
+  });
+});
+

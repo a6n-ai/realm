@@ -3,7 +3,7 @@ import type { BoardDay } from "@/components/landing/week-board";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
-import { popularIn } from "@/lib/menu/customer-week";
+import { nonVegDishes, popularByDiet } from "@/lib/menu/customer-week";
 
 const isoOf = (weekStart: string, offset: number) => {
   const d = parseIsoDateUtc(weekStart);
@@ -18,10 +18,11 @@ const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
 export type BoardWeekend = { date: string; today: boolean; dishes: string[] };
 
 /** The released week as Mon to Fri board columns with their dish-type rows; Sat and Sun come apart as one weekend line.
- *  `picks` (plain dish name to pick count, see foldPicks) marks each row's Popular dish per day. */
+ *  `picks` (plain dish name to pick count, see foldPicks) marks each row's Popular veg and non-veg dish per day. */
 export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; items: PosterItem[] }, timezone: string, picks: Record<string, number> = {}): { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null } {
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
   const rows: string[] = [];
+  const nonVeg = nonVegDishes(pub.items);
   let weekend: BoardWeekend | null = null;
   const days = buildPosterColumns(pub.slots, pub.items).flatMap((col, i): BoardDay[] => {
     const keys = DAY_COLUMNS[i]!.days;
@@ -39,8 +40,7 @@ export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; item
       const row = g.slotLabel ?? "Dishes";
       if (!rows.includes(row)) rows.push(row);
       dishes[row] = names;
-      const top = popularIn(names, picks);
-      if (top) popular.push(top);
+      popular.push(...popularByDiet(names, picks, nonVeg));
     }
     if (Object.keys(dishes).length === 0) return [];
     return [{ key: col.label, label: col.label, short: col.label.slice(0, 3), date: dateOf(pub.weekStart, DAYS.indexOf(keys[0]!)), today, dishes, popular }];
