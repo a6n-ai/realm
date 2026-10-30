@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { PageShell, type FacetDef } from "@/components/ds";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
 import { getAnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
@@ -45,7 +45,7 @@ const COMPLAINT_FACETS: FacetDef[] = [
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  if (visible !== "all" && visible.length === 0) notFound();
+  const noAccess = visible !== "all" && visible.length === 0;
 
   return (
     <PageShell>
@@ -54,13 +54,25 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
           <h1 className="text-foreground text-[1.75rem] leading-9 font-semibold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground text-sm">Business performance across the app.</p>
         </div>
-        <Suspense fallback={null}>
-          <AnalyticsTabs />
-        </Suspense>
-        <Suspense fallback={<div className="bg-muted/40 h-11 max-w-3xl animate-pulse rounded-xl" />}>
-          <SharedFilters visible={visible} />
-        </Suspense>
-        <div className="min-w-0">{children}</div>
+        {noAccess ? (
+          <Alert variant="destructive">
+            <AlertTitle>No franchise access</AlertTitle>
+            <AlertDescription>
+              Your account isn&apos;t linked to any franchise, so there is no analytics to show. Ask an admin to add
+              you to a franchise.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+          <Suspense fallback={null}>
+            <AnalyticsTabs />
+          </Suspense>
+          <Suspense fallback={<div className="bg-muted/40 h-11 max-w-3xl animate-pulse rounded-xl" />}>
+            <SharedFilters visible={visible} />
+          </Suspense>
+          <div className="min-w-0">{children}</div>
+          </>
+        )}
       </div>
     </PageShell>
   );
