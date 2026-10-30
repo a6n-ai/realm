@@ -115,11 +115,11 @@ export function ordersScope(scope: Pick<AnalyticsScope, "orgIds"> & Facets): SQL
 
 type Window = { fromMs?: number; toMs?: number };
 
-/** Epoch-ms columns (created_at, captured_at). */
-export function dateWhere(col: AnyColumn, w: Window): SQL | undefined {
+/** Epoch-ms columns (created_at, captured_at) or an epoch-ms expression such as a coalesce. */
+export function dateWhere(col: AnyColumn | SQL, w: Window): SQL | undefined {
   const parts: SQL[] = [];
-  if (w.fromMs != null) parts.push(gte(col, w.fromMs));
-  if (w.toMs != null) parts.push(lte(col, w.toMs));
+  if (w.fromMs != null) parts.push(sql`${col} >= ${w.fromMs}`);
+  if (w.toMs != null) parts.push(sql`${col} <= ${w.toMs}`);
   return parts.length ? and(...parts) : undefined;
 }
 
