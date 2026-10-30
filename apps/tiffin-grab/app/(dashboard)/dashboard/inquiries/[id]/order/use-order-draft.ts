@@ -580,6 +580,7 @@ export function useOrderDraft({
 
   return {
     form,
+    estimateOnly,
     applyPrefill,
     coinPreview,
     setCoinsWanted,
