@@ -23,7 +23,7 @@ export async function adjustCustomerCoinsAction(
     if (err instanceof ValidationError) return { error: err.message };
     throw err;
   }
-  revalidatePath(`/dashboard/customers/${customerPublicId}`);
+  revalidatePath(`/dashboard/customers/${customerPublicId}`, "layout");
   return {};
 }
 
@@ -42,6 +42,6 @@ export async function attachReferralCodeAction(customerPublicId: string, code: s
   if (!user) return { error: "Customer not found." };
   const res = await staffAttachReferral(user.id, code, await currentUserId());
   if (res.result !== "attached") return { error: ATTACH_ERRORS[res.result] };
-  revalidatePath(`/dashboard/customers/${customerPublicId}`);
+  revalidatePath(`/dashboard/customers/${customerPublicId}`, "layout");
   return { friend: res.friend, referrer: res.referrer, skipped: res.skipped };
 }

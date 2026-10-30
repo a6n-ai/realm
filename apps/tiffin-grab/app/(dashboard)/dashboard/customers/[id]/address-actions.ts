@@ -15,7 +15,7 @@ async function scope(customerPublicId: string) {
   return addressScopeFor(customerPublicId);
 }
 
-const refresh = (customerPublicId: string) => revalidatePath(`/dashboard/customers/${customerPublicId}`);
+const refresh = (customerPublicId: string) => revalidatePath(`/dashboard/customers/${customerPublicId}`, "layout");
 
 export async function staffCreateAddress(customerPublicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {

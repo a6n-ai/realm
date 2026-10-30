@@ -78,7 +78,7 @@ export function TicketControls({
     SUBCATEGORIES[initialCategory].some((s) => s.value === subcategory)
       ? subcategory
       : "";
-  const [draftCategory, setDraftCategory] = useState(initialCategory);
+  const [draftCategory, setDraftCategory] = useState<TicketCategoryValue | "">(initialCategory);
   const [draftSubcategory, setDraftSubcategory] = useState(initialSub);
 
   const subOptions = draftCategory ? SUBCATEGORIES[draftCategory] : [];

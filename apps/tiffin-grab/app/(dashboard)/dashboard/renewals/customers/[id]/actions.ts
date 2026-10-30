@@ -15,5 +15,6 @@ export async function sendRenewalReminderAction(orderPublicId: string, customerP
     return (await sendRenewalReminderNow(orderPublicId)) === "sent" ? "Reminder sent" : "Already sent today";
   });
   revalidatePath(`/dashboard/renewals/customers/${customerPublicId}`);
+  revalidatePath(`/dashboard/customers/${customerPublicId}/renewals`);
   return res;
 }

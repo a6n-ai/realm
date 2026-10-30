@@ -31,7 +31,7 @@ export function AttachReferral({ customerPublicId }: { customerPublicId: string 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); setError(null); }}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">Add code</Button>
+        <Button size="sm" variant="outline">Add referral code</Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
