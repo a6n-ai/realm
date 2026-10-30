@@ -12,6 +12,7 @@ import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { AdjustCoins } from "./adjust-coins";
+import { AttachReferral } from "./attach-referral";
 import { getReferralInfo } from "@/lib/services/referrals.service";
 import { DataTableSkeleton, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -224,6 +225,8 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
                   <Link href={`/dashboard/customers/${referral.referredBy.publicId}`} className="underline-offset-2 hover:underline">
                     {referral.referredBy.name || "Customer"}
                   </Link>
+                ) : isAdmin ? (
+                  <AttachReferral customerPublicId={id} />
                 ) : "—"}
               </dd>
             </div>
