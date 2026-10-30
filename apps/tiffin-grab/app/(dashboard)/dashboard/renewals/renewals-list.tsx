@@ -62,7 +62,13 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         idHref={renewalHref}
         idLabel="Order"
         rowClassName={() => "group"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
+        filters={
+          <ListSearchFilters
+            spec={spec}
+            placeholder="Search name, order or phone…"
+            shortPlaceholder="Search…"
+          />
+        }
         emptyIcon={RefreshCwIcon}
         emptyMessage={tab === "trials" ? "No trials in this date range. Pick a wider range or another date type." : "No plans in this date range. Pick a wider range or another date type."}
         emptySearchMessage="No plans match your search."

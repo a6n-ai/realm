@@ -13,6 +13,9 @@ export type PosterItem = {
   dishPublicId?: string;
   /** The plan this dish row belongs to (each dish is stored once per plan). */
   planName?: string;
+  /** That plan's tag (plans.tag_label / tag_color), e.g. Veg in green; the customer menu marks dishes with it. */
+  planLabel?: string | null;
+  planColor?: string | null;
 };
 export type RenderedGroup = { slotLabel: string | null; dishes: { name: string }[] };
 export type RenderedColumn = { label: string; groups: RenderedGroup[] };

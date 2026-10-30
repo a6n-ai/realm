@@ -1928,6 +1928,30 @@ export async function listOrderActivities(orderId: bigint) {
   return rows;
 }
 
+/** Every order's activity for one customer (staff customer page), each row tagged with its order. */
+export async function listCustomerOrderActivities(userId: bigint) {
+  return db
+    .select({
+      publicId: orderActivities.publicId,
+      type: orderActivities.type,
+      note: orderActivities.note,
+      fromStatus: orderActivities.fromStatus,
+      toStatus: orderActivities.toStatus,
+      createdAt: orderActivities.createdAt,
+      createdBy: orderActivities.createdBy,
+      actorName: users.name,
+      actorEmail: users.email,
+      actorRole: users.role,
+      orderPublicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+    })
+    .from(orderActivities)
+    .innerJoin(orders, eq(orders.id, orderActivities.orderId))
+    .leftJoin(users, eq(orderActivities.createdBy, users.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orderActivities.createdAt));
+}
+
 type OrderStatusValue = (typeof orders.status.enumValues)[number];
 
 // The order lifecycle is built on the shared commons abstractions: OrdersService

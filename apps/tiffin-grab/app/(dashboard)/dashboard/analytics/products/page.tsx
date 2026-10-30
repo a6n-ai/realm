@@ -1,6 +1,9 @@
 import { Suspense } from "react";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { SkeletonStatCards } from "@/components/ds";
+import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import { ChartCard } from "@/components/analytics/chart-card";
+import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { BreakdownBarChart } from "@/components/analytics/charts";
@@ -10,6 +13,7 @@ import {
   getTopDishes,
   getOrdersByPlan,
   getOrdersByTier,
+  getOrdersByMealType,
 } from "@/lib/services/analytics/products.service";
 import {
   parseAnalyticsFilters,
@@ -20,13 +24,23 @@ type SearchParams = Promise<AnalyticsSearchParams>;
 
 export default function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
+      <AnalyticsPageHeader
+        section="Products & Menu"
+        title="Products & Menu"
+        description="What people pick, and how paid orders split across plans, sizes, and meal types."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+            <AnalyticsLiveStamp />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<SkeletonStatCards count={3} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Most-picked dishes">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard title="Most-picked dishes" subtitle="Meal selections in this range.">
           <Suspense fallback={<ChartSkeleton />}>
             <TopDishesChart searchParams={searchParams} />
           </Suspense>
@@ -38,15 +52,18 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
         </ChartCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
           <Suspense fallback={<ChartSkeleton />}>
             <PlanChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid orders by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
+        <ChartCard
+          title="Paid orders by meal type"
+          subtitle="Maharaja Thali, 4 Item Thali, and other catalog sizes. Custom sizes are not included."
+        >
           <Suspense fallback={<ChartSkeleton />}>
-            <TierList searchParams={searchParams} />
+            <MealTypeList searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
@@ -57,12 +74,18 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   const s = await getProductStats(await parseAnalyticsFilters(await searchParams));
   return (
-    <StatGrid
+    <MetricTiles
       cols={3}
       items={[
-        { label: "Meal selections", value: s.totalSelections },
-        { label: "Distinct dishes ordered", value: s.distinctDishes },
-        { label: "Most popular dish", value: s.topDish ?? "—" },
+        { label: "Meal selections", value: s.totalSelections, badge: "Picks", badgeTone: "neutral" },
+        { label: "Distinct dishes ordered", value: s.distinctDishes, badge: "Dishes", badgeTone: "brand" },
+        {
+          label: "Most popular dish",
+          value: s.topDish ?? "—",
+          valueSize: "label",
+          badge: "Top",
+          badgeTone: "ok",
+        },
       ]}
     />
   );
@@ -106,16 +129,15 @@ async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function TierList({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
+async function MealTypeList({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
-        label: r.tier,
+        label: r.mealType,
         n: r.paid,
         aside: money(r.paid),
-        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
-        href: ordersHref({ tier: r.key }),
+        meta: `${r.plan} · ${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
       }))}
       emptyLabel="No paid orders yet."
     />

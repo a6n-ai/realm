@@ -214,6 +214,42 @@ describe("ticketsService", () => {
     expect(row.ratedAt).not.toBeNull();
   });
 
+  it("staff can reclassify category/subcategory; customers cannot", async () => {
+    const customer = await seedUser("Cust Category", "user");
+    const staff = await seedUser("Staff Category", "member");
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({
+      subject: "Missing tiffin",
+      category: "delivery",
+      subcategory: "not_delivered",
+      body: "Never showed up.",
+    });
+
+    actAs(customer, "user");
+    await expect(
+      ticketsService.setCategory(ticket.publicId, "food_meal", "food_quality"),
+    ).rejects.toThrow(ForbiddenError);
+
+    actAs(staff, "member");
+    await expect(
+      ticketsService.setCategory(ticket.publicId, "food_meal", "not_delivered"),
+    ).rejects.toThrow(ValidationError);
+
+    await ticketsService.setCategory(ticket.publicId, "food_meal", "food_quality");
+    const [row] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
+    expect(row).toMatchObject({ category: "food_meal", subcategory: "food_quality" });
+
+    const notes = (await ticketsService.listMessages(ticket.publicId))
+      .filter((m) => m.authorType === "system")
+      .map((m) => m.body);
+    expect(notes).toEqual(["Category: Delivery / Tiffin not delivered → Food & Meal / Food quality"]);
+
+    actAs(customer, "user");
+    const customerView = (await ticketsService.listMessages(ticket.publicId)).map((m) => m.body);
+    expect(customerView).toEqual(["Never showed up."]);
+  });
+
   it("a different customer cannot read or reply to another customer's ticket", async () => {
     const owner = await seedUser("Cust Owner", "user");
     const intruder = await seedUser("Cust Intruder", "user");

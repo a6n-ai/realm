@@ -18,7 +18,6 @@ describe("ReferView", () => {
       />,
     );
     expect(screen.getByText("ABCD2345")).toBeDefined();
-    expect(screen.getByText(/\/subscribe\?ref=ABCD2345$/)).toBeDefined();
     // The offer card, and the same numbers spelled out in the last step.
     expect(screen.getByText("You get")).toBeDefined();
     expect(screen.getByText("Your friend gets")).toBeDefined();

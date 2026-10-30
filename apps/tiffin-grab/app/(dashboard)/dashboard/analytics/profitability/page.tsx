@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/purity */
-import { cache, Suspense, type ReactNode } from "react";
+import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
@@ -7,7 +7,8 @@ import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
-import { MetricTiles, type MetricTile } from "@/components/analytics/metric-tiles";
+import { MetricFootnote, MetricTiles, type MetricTile } from "@/components/analytics/metric-tiles";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import {
   AnalyticsBadge,
   AnalyticsPanel,
@@ -57,24 +58,15 @@ type SearchParams = Promise<{
 export default function ProfitabilityAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="text-muted-foreground mb-1 flex items-center gap-2 text-[11px] font-semibold tracking-[0.04em] uppercase">
-            <span>Analytics</span>
-            <span aria-hidden>/</span>
-            <span className="text-primary">Profitability</span>
-          </div>
-          <h2 className="text-foreground text-[1.5rem] leading-8 font-semibold tracking-tight sm:text-[1.75rem] sm:leading-9">
-            Profitability
-          </h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            Earned revenue minus variable and allocated costs under your assumptions.
-          </p>
-        </div>
-        <Suspense fallback={<div className="bg-muted/40 h-10 w-full max-w-xl animate-pulse rounded-xl" />}>
-          <Nav searchParams={searchParams} />
-        </Suspense>
-      </div>
+      <AnalyticsPageHeader
+        section="Profitability"
+        description="Earned revenue minus variable and allocated costs under your assumptions."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-10 w-full max-w-xl animate-pulse rounded-xl" />}>
+            <Nav searchParams={searchParams} />
+          </Suspense>
+        }
+      />
 
       <Suspense fallback={<SkeletonStatCards count={4} />}>
         <Headline searchParams={searchParams} />
@@ -159,14 +151,6 @@ async function Headline({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-function Footnote({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-muted/60 flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs">
-      {children}
-    </div>
-  );
-}
-
 function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; grain: Grain; cashHref: string }) {
   const rangeHint =
     grain === "monthly" ? "Last 12 months" : grain === "weekly" ? "Weeks in this month" : "This month";
@@ -180,12 +164,12 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
       badge: "Settled",
       badgeTone: "neutral",
       footer: (
-        <Footnote>
+        <MetricFootnote>
           <span className="text-muted-foreground inline-flex items-center gap-1.5">
             <BanknoteIcon className="size-3.5" aria-hidden />
             Open settled payments
           </span>
-        </Footnote>
+        </MetricFootnote>
       ),
     },
     {
@@ -196,15 +180,15 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
       badgeTone: "ok",
       footer:
         kpis.unpaidRevenue > 0 ? (
-          <Footnote>
+          <MetricFootnote>
             <span className="text-muted-foreground">Not paid yet</span>
             <span className="text-warn font-semibold tabular-nums">{money(kpis.unpaidRevenue)}</span>
-          </Footnote>
+          </MetricFootnote>
         ) : (
-          <Footnote>
+          <MetricFootnote>
             <span className="text-muted-foreground">Allocated on delivery day</span>
             <AnalyticsBadge tone="ok">Current</AnalyticsBadge>
-          </Footnote>
+          </MetricFootnote>
         ),
     },
     {
@@ -215,10 +199,10 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
       badge: kpis.profit < 0 ? "Below target" : "Net",
       badgeTone: kpis.profit < 0 ? "warn" : "ok",
       footer: (
-        <Footnote>
+        <MetricFootnote>
           <span className="text-muted-foreground">Total costs</span>
           <span className="text-foreground font-semibold tabular-nums">{money(kpis.costs)}</span>
-        </Footnote>
+        </MetricFootnote>
       ),
     },
     {
@@ -229,12 +213,12 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
       badge: "Per tiffin",
       badgeTone: "brand",
       footer: (
-        <Footnote>
+        <MetricFootnote>
           <span className="text-muted-foreground inline-flex items-center gap-1.5">
             <TrendingUpIcon className="size-3.5" aria-hidden />
             Under current assumptions
           </span>
-        </Footnote>
+        </MetricFootnote>
       ),
     },
   ];

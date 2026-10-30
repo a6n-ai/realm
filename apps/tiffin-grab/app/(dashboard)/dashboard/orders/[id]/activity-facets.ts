@@ -11,6 +11,8 @@ export const ACTIVITY_CATEGORY_TYPES = {
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
   payments: ["payment_claimed", "payment_verified", "payment_rejected", "payment_failed", "payment_refunded", "payment_disputed"],
   notes: ["note"],
+  // Customer page only: address-book, coin and inquiry events, which belong to no order.
+  account: ["account_address", "account_wallet", "account_inquiry"],
 } as const;
 
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORY_TYPES;
@@ -21,18 +23,19 @@ const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   lifecycle: "Lifecycle",
   payments: "Payments",
   notes: "Notes",
+  account: "Account",
 };
 
+const typeFacet = (categories: ActivityCategory[]): FacetDef => ({
+  kind: "pills",
+  field: "category",
+  label: "Type",
+  options: categories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+});
+const ORDER_CATEGORIES = (Object.keys(ACTIVITY_CATEGORY_TYPES) as ActivityCategory[]).filter((c) => c !== "account");
+
 export const ORDER_ACTIVITY_FACETS: FacetDef[] = [
-  {
-    kind: "pills",
-    field: "category",
-    label: "Type",
-    options: (Object.keys(ACTIVITY_CATEGORY_TYPES) as ActivityCategory[]).map((c) => ({
-      value: c,
-      label: CATEGORY_LABELS[c],
-    })),
-  },
+  typeFacet(ORDER_CATEGORIES),
   {
     kind: "pills",
     field: "actorKind",
@@ -75,3 +78,6 @@ export function filterActivityRows<
 
   return out;
 }
+
+/** The customer page's log: every order plus account events, so it also filters by Account. */
+export const CUSTOMER_ACTIVITY_FACETS: FacetDef[] = [typeFacet([...ORDER_CATEGORIES, "account"]), ...ORDER_ACTIVITY_FACETS.slice(1)];

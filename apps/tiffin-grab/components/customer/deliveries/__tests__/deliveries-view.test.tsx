@@ -69,7 +69,7 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.getByTestId("plan-title")).toHaveTextContent("Large");
     expect(screen.getByTestId("plan-summary")).toHaveTextContent(/Active.*Veg.*16 of 20 tiffins left/);
     expect(screen.queryByText(/hold day|Vacation/)).toBeNull();
-    expect(screen.getByText("Renews in 11 days")).toBeInTheDocument();
+    expect(screen.getByText("Last tiffin in 11 days")).toBeInTheDocument();
   });
   it("header: a custom meal reads 'Custom meal' with its composition underneath", () => {
     const name = "1 Rice + 8 Roti + 1× Veg Raita 8oz + 1× Non-Veg Sabzi 8oz + 1× Veg Sabzi 12oz + 1× Veg Sabzi 8oz";

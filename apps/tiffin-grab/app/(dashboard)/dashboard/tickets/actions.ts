@@ -10,6 +10,7 @@ import {
   type TicketStatus,
 } from "@/lib/services/tickets.service";
 import { uploadAttachments } from "@/lib/services/ticket-attachments";
+import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
 export async function setStatus(
   ticketId: string,
@@ -34,6 +35,19 @@ export async function setPriority(ticketId: string, priority: TicketPriority) {
   await ticketsService.setPriority(ticketId, priority);
   revalidatePath("/dashboard/tickets");
   revalidatePath(`/dashboard/tickets/${ticketId}`);
+}
+
+export async function setCategory(
+  ticketId: string,
+  category: TicketCategoryValue,
+  subcategory: string,
+) {
+  await requireStaff();
+  await ticketsService.setCategory(ticketId, category, subcategory);
+  revalidatePath("/dashboard/tickets");
+  revalidatePath(`/dashboard/tickets/${ticketId}`);
+  // Complaints analytics group by these columns; refresh so corrected buckets show up.
+  revalidatePath("/dashboard/analytics/complaints");
 }
 
 export async function replyTicket(ticketId: string, form: FormData): Promise<void> {

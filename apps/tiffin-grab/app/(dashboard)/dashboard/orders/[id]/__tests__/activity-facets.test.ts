@@ -3,6 +3,7 @@ import { orderActivityType } from "@/db/schema/orders";
 import {
   ACTIVITY_CATEGORY_TYPES,
   ORDER_ACTIVITY_FACETS,
+  CUSTOMER_ACTIVITY_FACETS,
   filterActivityRows,
 } from "../activity-facets";
 
@@ -24,9 +25,10 @@ describe("category coverage", () => {
     }
   });
 
-  it("offers a pill for every category", () => {
-    const options = (ORDER_ACTIVITY_FACETS[0] as { options: { value: string }[] }).options;
-    expect(options.map((o) => o.value)).toEqual(Object.keys(ACTIVITY_CATEGORY_TYPES));
+  it("offers a pill for every order category; Account only on the customer page", () => {
+    const pills = (spec: typeof ORDER_ACTIVITY_FACETS) => (spec[0] as { options: { value: string }[] }).options.map((o) => o.value);
+    expect(pills(ORDER_ACTIVITY_FACETS)).toEqual(Object.keys(ACTIVITY_CATEGORY_TYPES).filter((c) => c !== "account"));
+    expect(pills(CUSTOMER_ACTIVITY_FACETS)).toEqual(Object.keys(ACTIVITY_CATEGORY_TYPES));
   });
 });
 

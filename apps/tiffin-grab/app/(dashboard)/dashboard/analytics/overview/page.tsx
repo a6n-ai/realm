@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
+import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
 import { complaintHref, parseComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { ordersHref, paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
@@ -29,11 +31,21 @@ type SearchParams = Promise<AnalyticsSearchParams>;
 export default function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="flex flex-col gap-5">
+      <AnalyticsPageHeader
+        section="Overview"
+        description="Sales, profit, customers, and tickets for the selected range."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+            <AnalyticsLiveStamp />
+          </Suspense>
+        }
+      />
+
       <Suspense fallback={<SkeletonStatCards count={7} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Net sales" subtitle="Settled payments excluding tax, by day">
           <Suspense fallback={<ChartSkeleton />}>
             <RevenueChart searchParams={searchParams} />
@@ -91,36 +103,59 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
           value: money(revenue.kpis.netSales),
           hint: "Paid amounts, excluding tax",
           href: paid,
+          badge: "Settled",
+          badgeTone: "neutral",
         },
         {
           label: "Discounts",
           value: money(revenue.kpis.discounts),
-          hint:
-            revenue.kpis.discountRatePct == null
-              ? "No sales in range"
-              : `${revenue.kpis.discountRatePct}% of gross sales`,
+          hint: revenue.kpis.discountRatePct == null ? "No sales in range" : "Taken off list price",
           href: analyticsHref("/dashboard/analytics/revenue", sp),
+          badge: "Given",
+          badgeTone: "brand",
+          footer:
+            revenue.kpis.discountRatePct == null ? undefined : (
+              <MetricFootnote>
+                <span className="text-muted-foreground">Share of gross</span>
+                <span className="text-foreground font-semibold tabular-nums">{revenue.kpis.discountRatePct}%</span>
+              </MetricFootnote>
+            ),
         },
         {
           label: "Net profit",
           value: money(profit.kpis.profit),
           hint: "Under current cost assumptions",
           href: analyticsHref("/dashboard/analytics/profitability", sp),
-          tone: profit.kpis.profit < 0 ? "bad" : "default",
+          tone: profit.kpis.profit < 0 ? "bad" : "ok",
+          badge: profit.kpis.profit < 0 ? "Below target" : "Net",
+          badgeTone: profit.kpis.profit < 0 ? "warn" : "ok",
         },
         {
           label: "Active subscriptions",
           value: customers.activeSubscriptions,
           href: ordersHref({ status: "active" }),
+          badge: "Active",
+          badgeTone: "ok",
         },
         {
           label: "Trial → Plan",
           value: trialConv.conversionRatePct == null ? "—" : `${trialConv.conversionRatePct}%`,
           hint:
             trialConv.eligible === 0
-              ? `No trials ended in range`
-              : `${trialConv.converted} of ${trialConv.eligible} trials · ${trialConv.windowDays}d window`,
+              ? "No trials ended in range"
+              : `${trialConv.windowDays}-day window after the trial ends`,
           href: analyticsHref("/dashboard/analytics/customers", sp),
+          badge: "Conversion",
+          badgeTone: "brand",
+          footer:
+            trialConv.eligible === 0 ? undefined : (
+              <MetricFootnote>
+                <span className="text-muted-foreground">Converted</span>
+                <span className="text-foreground font-semibold tabular-nums">
+                  {trialConv.converted} of {trialConv.eligible}
+                </span>
+              </MetricFootnote>
+            ),
         },
         {
           label: "Open tickets",
@@ -129,12 +164,17 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
             ...complaintFilters,
             statuses: ["open", "in_progress", "waiting_on_customer"],
           }),
+          tone: complaints.open > 0 ? "warn" : "default",
+          badge: "Open",
+          badgeTone: complaints.open > 0 ? "warn" : "neutral",
         },
         {
           label: "Total tickets",
           value: complaints.total,
           hint: "Complaints in this range",
           href: complaintHref("/dashboard/tickets", complaintFilters),
+          badge: "In range",
+          badgeTone: "neutral",
         },
       ]}
     />
@@ -157,6 +197,7 @@ async function CohortChart({ searchParams }: { searchParams: SearchParams }) {
         valueKey="amount"
         colorKey="color"
         format="currency"
+        legend={false}
       />
       <CohortLegend slices={slices} />
     </div>

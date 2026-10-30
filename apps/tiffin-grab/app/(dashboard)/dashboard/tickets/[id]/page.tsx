@@ -15,11 +15,9 @@ import {
   type TicketStatus,
 } from "@/lib/services/tickets.service";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
-import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { TicketStatusBadge, PriorityBadge, categoryLabel } from "../ticket-badges";
-import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
+import { TicketStatusBadge } from "../ticket-badges";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
 import { OrderStatusBadge, PresenceDot } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
@@ -118,14 +116,6 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="capitalize">
-          {categoryLabel(ticket.category)}
-        </Badge>
-        {subcategoryLabel(ticket.category, ticket.subcategory) ? (
-          <Badge variant="outline">{subcategoryLabel(ticket.category, ticket.subcategory)}</Badge>
-        ) : null}
-      </div>
       {ticket.rating != null ? (
         <p className="text-sm">
           <span className="text-muted-foreground">Customer rating: </span>
@@ -134,10 +124,12 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
         </p>
       ) : null}
       <TicketControls
-        // Keyed by status: its selects read their initial value only, and the chat's
-        // status pills can change it underneath them.
-        key={`${ticket.status}:${ticket.priority}:${ticket.currentOwner ?? ""}`}
+        // Keyed so selects remount when server state changes underneath them
+        // (status pills, owner reassignment, or a category reclassify).
+        key={`${ticket.status}:${ticket.priority}:${ticket.currentOwner ?? ""}:${ticket.category}:${ticket.subcategory ?? ""}`}
         ticketId={ticket.publicId}
+        category={ticket.category}
+        subcategory={ticket.subcategory}
         priority={ticket.priority as TicketPriority}
         ownerId={currentOwner?.publicId ?? null}
         staff={staffOptions}
@@ -329,16 +321,7 @@ function ChatListFallback() {
 }
 
 function DetailsFallback() {
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      <TicketControlsSkeleton />
-    </div>
-  );
+  return <TicketControlsSkeleton />;
 }
 
 function ConversationFallback() {

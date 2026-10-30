@@ -42,15 +42,22 @@ export async function getOrCreateReferralCode(userId: bigint): Promise<string> {
 }
 
 /** Only an active customer account can refer; staff codes don't exist for this. */
-export async function findReferrerByCode(raw: string): Promise<{ id: bigint; publicId: string } | null> {
+export async function findReferrerByCode(raw: string): Promise<{ id: bigint; publicId: string; firstName: string | null } | null> {
   const code = normalizeReferralCode(raw);
   if (!code) return null;
   const [row] = await db
-    .select({ id: users.id, publicId: users.publicId })
+    .select({ id: users.id, publicId: users.publicId, name: users.name })
     .from(users)
     .where(and(eq(users.referralCode, code), eq(users.role, "user"), eq(users.status, "active")))
     .limit(1);
-  return row ?? null;
+  return row ? { id: row.id, publicId: row.publicId, firstName: publicFirstName(row.name) } : null;
+}
+
+/** First name only: it goes on the public share card and link preview. */
+function publicFirstName(name: string | null): string | null {
+  const first = (name ?? "").trim().split(/\s+/)[0] ?? "";
+  if (!first || first.length > 16) return null;
+  return first[0].toUpperCase() + first.slice(1);
 }
 
 /** Not new: ever paid (a refund doesn't make them new again), or a migrated
@@ -102,6 +109,50 @@ export async function attachReferral(userId: bigint, rawCode: string): Promise<A
     await tx.update(users).set({ referredByUserId: referrer.id }).where(eq(users.id, userId));
     await tx.insert(referrals).values({ referrerUserId: referrer.id, referredUserId: userId }).onConflictDoNothing({ target: referrals.referredUserId });
     return "attached";
+  });
+}
+
+export type StaffAttachResult =
+  | { result: "attached"; friend: number; referrer: number; skipped?: string }
+  | { result: Exclude<AttachResult, "attached"> | "repeat_customer" };
+
+/**
+ * Staff fix for a customer who ordered without their friend's code. Same guards as
+ * attachReferral, but staff vouch for the account, so it may already have its FIRST
+ * paid order: that order qualifies and both rewards pay now, through awardReferral
+ * (same caps, wallet limit, and refund reversal). A second paid order or an imported
+ * WordPress history means they were never a new customer, so no reward.
+ */
+export async function staffAttachReferral(customerId: bigint, rawCode: string, actorId: bigint | null): Promise<StaffAttachResult> {
+  const referrer = await findReferrerByCode(rawCode);
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${customerId} FOR UPDATE`);
+    const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId }).from(users).where(eq(users.id, customerId)).limit(1);
+    if (!me || me.role !== "user") return { result: "not_eligible" as const };
+    if (me.referredBy != null) return { result: "already" as const };
+    if (!referrer) return { result: "unknown_code" as const };
+    if (referrer.id === customerId) return { result: "self" as const };
+    const [back] = await tx.select({ by: users.referredByUserId }).from(users).where(eq(users.id, referrer.id)).limit(1);
+    if (back?.by === customerId) return { result: "not_eligible" as const };
+
+    const history = await tx
+      .select({ order: orders, payStatus: payments.status })
+      .from(orders)
+      .leftJoin(payments, eq(payments.orderId, orders.id))
+      .where(and(eq(orders.userId, customerId), or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%"))))
+      .orderBy(orders.createdAt);
+    const first = history[0];
+    if (history.length > 1 || first?.order.deploymentId?.startsWith("wc-")) return { result: "repeat_customer" as const };
+    // A refunded first order can't qualify, and a later one would be their second.
+    if (first && first.payStatus === "refunded") return { result: "repeat_customer" as const };
+
+    await tx.update(users).set({ referredByUserId: referrer.id }).where(eq(users.id, customerId));
+    await tx.insert(referrals).values({ referrerUserId: referrer.id, referredUserId: customerId }).onConflictDoNothing({ target: referrals.referredUserId });
+    // No paid order yet: the normal payment path pays both when it lands.
+    if (!first) return { result: "attached" as const, friend: 0, referrer: 0 };
+    await tx.insert(orderActivities).values({ orderId: first.order.id, type: "note", note: `Referral code ${normalizeReferralCode(rawCode)} added by staff`, createdBy: actorId });
+    const paid = await awardReferral(tx, first.order, first.payStatus);
+    return { result: "attached" as const, ...paid };
   });
 }
 
@@ -327,18 +378,33 @@ export async function listReferrals(opts: { status?: ReferralFriendStatus; searc
   };
 }
 
-/** Customer detail: who referred them, and how many they referred. */
-export async function getReferralInfo(userId: bigint): Promise<{ referredBy: { publicId: string; name: string | null } | null; referredCount: number }> {
-  const [[by], [{ n }]] = await Promise.all([
+export type ReferralFriendRow = { publicId: string; name: string | null; status: ReferralFriendStatus; referrerCoins: number; friendCoins: number; joinedAt: number };
+
+/** Customer detail: their code, who referred them, and the friends they referred. */
+export async function getReferralInfo(userId: bigint): Promise<{
+  referredBy: { publicId: string; name: string | null } | null;
+  referredCount: number;
+  code: string | null;
+  friends: ReferralFriendRow[];
+}> {
+  const [[by], [own], rows] = await Promise.all([
     db
       .select({ publicId: referrerUser.publicId, name: referrerUser.name })
       .from(users)
       .innerJoin(referrerUser, eq(referrerUser.id, users.referredByUserId))
       .where(eq(users.id, userId))
       .limit(1),
-    db.select({ n: sql<number>`count(*)::int` }).from(referrals).where(eq(referrals.referrerUserId, userId)),
+    // Read only: a code is made when the customer first opens Refer, not when staff look.
+    db.select({ code: users.referralCode }).from(users).where(eq(users.id, userId)).limit(1),
+    db
+      .select({ publicId: users.publicId, name: users.name, status: referrals.status, referrerCoins: referrals.referrerCoins, friendCoins: referrals.friendCoins, joinedAt: referrals.createdAt })
+      .from(referrals)
+      .innerJoin(users, eq(users.id, referrals.referredUserId))
+      .where(eq(referrals.referrerUserId, userId))
+      .orderBy(desc(referrals.createdAt)),
   ]);
-  return { referredBy: by ?? null, referredCount: n };
+  const friends = rows.map((r) => ({ ...r, joinedAt: Number(r.joinedAt) }));
+  return { referredBy: by ?? null, referredCount: friends.length, code: own?.code ?? null, friends };
 }
 
 /** Discounts → Referrals stat cards. Taken-back referrals count, but their coins don't. */

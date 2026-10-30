@@ -13,10 +13,21 @@ export type MetricTile = {
   hint?: string;
   href?: string;
   tone?: "default" | "warn" | "bad" | "ok";
+  /** Long names (a dish title) should not use the figure size. */
+  valueSize?: "metric" | "label";
   badge?: string;
   badgeTone?: "neutral" | "ok" | "warn" | "brand" | "primary";
   footer?: ReactNode;
 };
+
+/** Soft bar under a metric, for a second fact such as a rate or a total. */
+export function MetricFootnote({ children }: { children: ReactNode }) {
+  return (
+    <div className="bg-muted/60 flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs">
+      {children}
+    </div>
+  );
+}
 
 const VALUE_TONE: Record<NonNullable<MetricTile["tone"]>, string> = {
   default: "text-foreground",
@@ -53,7 +64,9 @@ export function MetricTiles({ items, cols = 3 }: { items: MetricTile[]; cols?: 3
               </div>
               <p
                 className={cn(
-                  "nums text-[1.75rem] leading-9 font-bold tracking-tight tabular-nums sm:text-[2rem] sm:leading-10",
+                  it.valueSize === "label"
+                    ? "text-xl leading-7 font-semibold tracking-tight text-balance sm:text-2xl sm:leading-8"
+                    : "nums text-[1.75rem] leading-9 font-bold tracking-tight tabular-nums sm:text-[2rem] sm:leading-10",
                   VALUE_TONE[it.tone ?? "default"],
                 )}
               >
@@ -70,12 +83,14 @@ export function MetricTiles({ items, cols = 3 }: { items: MetricTile[]; cols?: 3
           <Link
             key={it.label}
             href={it.href}
-            className="hover-lift focus-visible:ring-ring block rounded-xl outline-none transition-transform focus-visible:ring-2"
+            className="hover-lift focus-visible:ring-ring block h-full rounded-xl outline-none transition-transform focus-visible:ring-2"
           >
             {body}
           </Link>
         ) : (
-          <div key={it.label}>{body}</div>
+          <div key={it.label} className="h-full">
+            {body}
+          </div>
         );
       })}
     </div>

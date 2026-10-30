@@ -257,7 +257,9 @@ describe("PauseSheet", () => {
     expect(sw).toHaveAttribute("aria-checked", "false");
     fireEvent.click(sw);
     await waitFor(() => expect(a.auto).toHaveBeenCalledWith("o", true));
-    expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "true");
+    await waitFor(() =>
+      expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "true"),
+    );
   });
 
   it("turning the switch on says how many past-cutoff days it moved", async () => {
@@ -279,7 +281,9 @@ describe("PauseSheet", () => {
     await open();
     fireEvent.click(await screen.findByRole("switch", { name: "Add paused days to the end of my plan" }));
     expect(await screen.findByText("This plan is locked.")).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "false");
+    await waitFor(() =>
+      expect(screen.getByRole("switch", { name: "Add paused days to the end of my plan" })).toHaveAttribute("aria-checked", "false"),
+    );
   });
 
   it("a refused pause shows the server's words and the sheet stays open", async () => {

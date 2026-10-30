@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { preload } from "react-dom";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { LandingMotion } from "@/components/landing/landing-motion";
-import { LandingReviews } from "@/components/landing/landing-reviews";
+import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
 import { WeekBend } from "@/components/landing/week-bend";
 import { FrequencyPicker } from "@/components/landing/frequency-picker";
 import { WeeksPicker } from "@/components/landing/weeks-picker";
@@ -12,6 +12,7 @@ import { TIFFIN_LABEL } from "@/components/landing/tiffin-art.generated";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { WeekBoard } from "@/components/landing/week-board";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -90,7 +91,7 @@ export default async function LandingPage() {
   const firstWeeks = lengths.find((l) => l.weeks === 4)?.weeks ?? lengths[0]?.weeks ?? 0;
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
 
-  const board = pub ? buildWeekBoard(pub, timezone) : { days: [], rows: [], weekend: null };
+  const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
 
   return (
     <>
@@ -119,6 +120,8 @@ export default async function LandingPage() {
                   <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
                   {pub ? <a href="#menu" className="tg-btn">This week&apos;s menu</a> : null}
                 </div>
+                {/* External Places fetch: streams in after the hero so it never holds back the LCP. */}
+                <Suspense fallback={null}><HeroRating /></Suspense>
               </div>
             </div>
 
@@ -217,7 +220,7 @@ export default async function LandingPage() {
 
         {/* External Places fetch: a cache miss must not hold back the rest of the page. */}
         <Suspense fallback={null}>
-          <LandingReviews />
+          <LandingReviews withPhotos />
         </Suspense>
 
         <section className="tg-section" aria-labelledby="tg-faq">

@@ -291,7 +291,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} c-liquid fixed inset-x-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full p-1 lg:hidden`}>
+        <div className={`${FONT} c-liquid fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex gap-1 rounded-full p-1 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}

@@ -240,6 +240,23 @@ describe("plan overlap guard: only running plans reserve days", () => {
     expect(await earliestNewPlanStart(db, o.userId!)).toBe(before);
   });
 
+  it("a skipped last day made up earlier does not hold its date", async () => {
+    const { earliestNewPlanStart, lastRunningTiffinDate } = await import("../order-window");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const first = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, first.publicId));
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).orderBy(asc(deliveries.deliveryDate));
+    const [last, prev] = [rows.at(-1)!, rows.at(-2)!];
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, last.id));
+    await db.update(deliveries).set({ makeupForDeliveryId: last.id }).where(eq(deliveries.id, prev.id));
+
+    const next = new Date(`${prev.deliveryDate}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    expect(await earliestNewPlanStart(db, o.userId!)).toBe(next.toISOString().slice(0, 10));
+    expect(await lastRunningTiffinDate(db, o.userId!)).toBe(prev.deliveryDate);
+  });
+
   it("a plan trimmed short frees its weeks: the next plan may start the day after its last tiffin", async () => {
     const { earliestNewPlanStart } = await import("../order-window");
     const snap = await loadCatalogSnapshot();

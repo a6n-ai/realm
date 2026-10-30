@@ -1,30 +1,8 @@
-import { Bean, Beef, CakeSlice, Carrot, ChevronDownIcon, Cookie, Croissant, CupSoda, Drumstick, Egg, Fish, Flame, IceCreamCone, Leaf, Milk, PlusIcon, Salad, Sandwich, Soup, Sparkles, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import type { CatalogAddon } from "@/lib/catalog/types";
-import type { CategoryIcon } from "@/lib/catalog/category-icons";
-import { IconTile, Stepper, type IconTint } from "@/components/customer/kit";
+import { IconTile, Stepper } from "@/components/customer/kit";
+import { makeCategoryLook } from "@/components/customer/meals/category-look";
 import type { WizardSelections } from "./selections";
-
-// Each dish category gets its own Settings-style tile; anything unknown takes the next unused colour.
-const CATEGORY: Record<string, { icon: LucideIcon; tint: IconTint }> = {
-  salad: { icon: Salad, tint: "green" },
-  raita: { icon: Soup, tint: "cyan" },
-  daal: { icon: Soup, tint: "orange" },
-  curry: { icon: Soup, tint: "red" },
-  sabzi: { icon: Leaf, tint: "mint" },
-  roti: { icon: Wheat, tint: "brown" },
-  rice: { icon: Wheat, tint: "yellow" },
-  dessert: { icon: CakeSlice, tint: "pink" },
-  sweet: { icon: CakeSlice, tint: "pink" },
-  drink: { icon: CupSoda, tint: "blue" },
-  beverage: { icon: CupSoda, tint: "blue" },
-  extra: { icon: Sparkles, tint: "purple" },
-};
-const SPARE: IconTint[] = ["purple", "indigo", "teal", "gray"];
-// Drawings for the icons staff pick on a category (dish_categories.icon); a pick beats the guess by key above.
-const PICKED: Record<CategoryIcon, LucideIcon> = {
-  salad: Salad, soup: Soup, wheat: Wheat, leaf: Leaf, carrot: Carrot, bean: Bean, egg: Egg, drumstick: Drumstick, beef: Beef, fish: Fish,
-  flame: Flame, sandwich: Sandwich, croissant: Croissant, "cake-slice": CakeSlice, cookie: Cookie, "ice-cream": IceCreamCone, "cup-soda": CupSoda, milk: Milk, sparkles: Sparkles,
-};
 
 /**
  * The add-on picker: inline under the picked meal on desktop, inside the "Add to every tiffin?" drawer on
@@ -59,12 +37,8 @@ export function AddonsPanel({
 
   const groups = new Map<string, CatalogAddon[]>();
   for (const a of addons) groups.set(a.category, [...(groups.get(a.category) ?? []), a]);
-  let spare = 0;
-  const look = (category: string) => {
-    const guess = CATEGORY[category.toLowerCase()] ?? { icon: UtensilsCrossed, tint: SPARE[spare++ % SPARE.length]! };
-    const picked = PICKED[categoryIcons?.[category] as CategoryIcon];
-    return picked ? { ...guess, icon: picked } : guess;
-  };
+  const categoryLook = makeCategoryLook();
+  const look = (category: string) => categoryLook(category, categoryIcons?.[category]);
   const addedCount = addons.reduce((n, a) => n + qtyFor(a.key), 0);
   const addedPerTiffin = addons.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
 

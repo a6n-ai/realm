@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
+import { reviewsConnected } from "@/components/landing/landing-reviews";
+import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import "@/components/landing/landing.css";
@@ -15,12 +17,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />
       <LocationPicker />
+      <WhatsAppChat />
     </div>
   );
 }
 
 async function PublicFooter() {
-  const catalog = await loadCatalogSnapshot().catch(() => null);
+  const [catalog, showReviews] = await Promise.all([loadCatalogSnapshot().catch(() => null), reviewsConnected()]);
   const zones = catalog?.zones.filter((z) => z.active).map((z) => z.name) ?? [];
   return (
     <footer className="tg-close">
@@ -34,6 +37,7 @@ async function PublicFooter() {
             <Link href="/plans">Plans</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/locations">Locations</Link>
+            {showReviews ? <Link href="/reviews">Reviews</Link> : null}
             <Link href="/faq">FAQ</Link>
             <Link href="/contact">Contact</Link>
           </nav>

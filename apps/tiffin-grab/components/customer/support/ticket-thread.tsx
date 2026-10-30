@@ -124,7 +124,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
     return <p className="c-surface rounded-2xl bg-[var(--card)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
   }
 
-  return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" shellClassName="c-liquid border" />;
+  return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" shellClassName="c-liquid border mr-[calc(0.5rem+58px)] lg:mr-0" />;
 }
 
 const kitChatUi: Partial<ChatUi> = {
@@ -192,7 +192,7 @@ export function TicketThreadSkeleton() {
           </div>
         ))}
       </div>
-      <div className="c-liquid flex shrink-0 items-center gap-1.5 rounded-full p-1.5">
+      <div className="c-liquid mr-[calc(0.5rem+58px)] flex shrink-0 items-center gap-1.5 rounded-full p-1.5 lg:mr-0">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <Skeleton className="h-10 flex-1 rounded-full" />
         <Skeleton className="size-10 shrink-0 rounded-full" />

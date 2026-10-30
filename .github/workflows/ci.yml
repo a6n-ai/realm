@@ -31,6 +31,15 @@ jobs:
           tar xzf "gitleaks_${v}_linux_x64.tar.gz" gitleaks
           ./gitleaks git . --redact --no-banner
 
+  # A half-resolved merge or stash pop (<<<<<<< markers) fails here in seconds,
+  # instead of minutes into the deploy build.
+  conflicts:
+    name: Conflict markers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash scripts/check-conflict-markers.sh
+
   foundry:
     name: Foundry git deps
     runs-on: ubuntu-latest

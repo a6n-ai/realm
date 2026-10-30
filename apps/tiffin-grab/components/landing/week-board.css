@@ -38,3 +38,5 @@
 .tg-board__weekend { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 18px 24px; }
 .tg-board__weekend strong { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .tg-board__weekend[data-today] { border-color: var(--primary); background: color-mix(in oklch, var(--primary) 7%, var(--card)); }
+/* Popular: the dish customers pick most in its row that day (lib/menu/customer-week popularIn). */
+.tg-board__pop { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 8px; border-radius: 9999px; vertical-align: 1px; font-size: 12px; font-weight: 600; white-space: nowrap; background: color-mix(in oklch, var(--primary) 16%, transparent); color: var(--primary-text, var(--primary)); }

@@ -59,7 +59,7 @@ export async function adminUpdateContact(
     throw e;
   }
   revalidatePath(`/dashboard/organization/members/${userId}`);
-  revalidatePath(`/dashboard/customers/${userId}`);
+  revalidatePath(`/dashboard/customers/${userId}`, "layout");
   revalidatePath("/dashboard/organization/members");
   return {};
 }

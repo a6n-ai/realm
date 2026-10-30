@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { ReviewNudge } from "@/app/(customer)/me/review-nudge";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
@@ -48,7 +47,6 @@ type SearchParams = HubSearchParams;
 export function DeliveriesHub({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense fallback={<DeliveriesSkeleton />}>
-      <Suspense fallback={null}><ReviewNudge /></Suspense>
       <MyDeliveriesData searchParams={searchParams} />
     </Suspense>
   );

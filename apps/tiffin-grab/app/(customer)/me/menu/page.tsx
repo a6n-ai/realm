@@ -4,7 +4,8 @@ import { UtensilsCrossed } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
-import { buildCustomerWeek, initialDay, planOf, weekEnd } from "@/lib/menu/customer-week";
+import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, popularSince, weekEnd } from "@/lib/menu/customer-week";
+import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/services/customer-deliveries.service";
 import { EmptyState, PageHeader } from "@/components/customer/kit";
@@ -37,16 +38,19 @@ export default async function MenuPage() {
     );
   }
 
-  const mine = await myDeliveries(userId, week.weekStart, weekEnd(week.weekStart));
+  const [mine, picks] = await Promise.all([
+    myDeliveries(userId, week.weekStart, weekEnd(week.weekStart)),
+    menuService.dishPickCounts(popularSince(week.weekStart)).then(foldPicks),
+  ]);
   const plan = planOf(mine);
-  const days = buildCustomerWeek(week, mine, today, now);
-  const planDays = plan ? buildCustomerWeek(week, mine, today, now, plan) : null;
+  const days = buildCustomerWeek(week, mine, today, now, null, picks);
+  const planDays = plan ? buildCustomerWeek(week, mine, today, now, plan, picks) : null;
   const range = `${formatDateOnly(week.weekStart, { mode: "short" })} to ${formatDateOnly(weekEnd(week.weekStart), { mode: "short" })}`;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow={scope === "next" ? "Next week" : "This week"} title="Weekly" accent="menu." subtitle={range} />
-      <WeeklyMenu days={days} plan={plan && planDays ? { name: plan, days: planDays } : null} initial={initialDay(days, today)} today={today} />
+      <WeeklyMenu days={days} plan={plan && planDays ? { name: plan, days: planDays } : null} legend={dietLegend(week.items)} initial={initialDay(days, today)} today={today} />
     </div>
   );
 }
