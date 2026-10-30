@@ -233,8 +233,11 @@ export interface CreateOrderOptions {
 // read-side-tolerated. Revisit once a second (franchise) org can exist: this will
 // need to become a resolved-context lookup (checkout zone/region -> org), not "the
 // only brand org".
+// Prefer the seeded brand org (client code TG, db/seed-brand-org.ts), then the oldest: with several
+// top-level orgs (test DBs have many) a bare limit(1) returns whichever row Postgres reads first.
 async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
-  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId))
+    .orderBy(sql`${organization.clientCode} is distinct from 'TG'`, asc(organization.createdAt)).limit(1);
   return row?.id ?? null;
 }
 
