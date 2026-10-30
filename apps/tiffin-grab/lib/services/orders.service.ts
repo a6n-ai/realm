@@ -1159,8 +1159,9 @@ export async function refundPaymentInTx(
       .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
       .from(ledgerEntries)
       .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
-    const [{ amount }] = await tx.select({ amount: payments.amount }).from(payments).where(eq(payments.id, i.paymentId));
-    const remainder = Math.round((Number(amount) - Number(already)) * 100) / 100;
+    const [{ amount, surcharge }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount }).from(payments).where(eq(payments.id, i.paymentId));
+    // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
+    const remainder = Math.round((Number(amount) + Number(surcharge) - Number(already)) * 100) / 100;
     if (remainder > 0) {
       await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
     }

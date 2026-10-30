@@ -43,13 +43,19 @@ export async function countCustomers(scope: AnalyticsScope, extra: Extra = {}): 
   return n;
 }
 
-/** Link to the Orders listing showing the rows countOrders counted. */
-export function ordersDrillHref(scope: AnalyticsScope, extra: Extra = {}): string {
+/**
+ * Link to the Orders listing showing the rows countOrders counted. The listing's Status facet is a
+ * single-value pill (a comma list would match nothing), so at most one status is allowed.
+ * `org` is omitted when it adds nothing: all franchises, or the viewer's whole visible set.
+ */
+export function ordersDrillHref(scope: AnalyticsScope, extra: Extra = {}, visible?: "all" | string[]): string {
+  if ((extra.status?.length ?? 0) > 1) throw new Error("Orders links carry at most one status");
   const p = new URLSearchParams();
   p.set("from", String(scope.fromMs));
   p.set("to", String(scope.toMs));
-  if (scope.orgIds !== "all") p.set("org", scope.orgIds.length ? scope.orgIds.join(",") : "none");
-  if (extra.status?.length) p.set("status", extra.status.join(","));
+  const sameAsVisible = visible != null && visible !== "all" && scope.orgIds !== "all" && scope.orgIds.length === visible.length && scope.orgIds.every((id) => visible.includes(id));
+  if (scope.orgIds !== "all" && !sameAsVisible) p.set("org", scope.orgIds.length ? scope.orgIds.join(",") : "none");
+  if (extra.status?.length) p.set("status", extra.status[0]);
   if (scope.plans.length) p.set("plan", scope.plans.join(","));
   if (scope.mealSizes.length) p.set("mealSize", scope.mealSizes.join(","));
   if (scope.zones.length) p.set("zone", scope.zones.join(","));

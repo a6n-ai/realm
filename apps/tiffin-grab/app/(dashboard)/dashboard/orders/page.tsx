@@ -4,7 +4,6 @@ import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
 import { and as sqlAnd, eq, inArray } from "drizzle-orm";
-import type { OrderFacetField } from "@/lib/services/analytics/metrics/orders";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { after } from "next/server";
@@ -36,7 +35,8 @@ import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/da
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
-import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
+import { ongoingFilter } from "./status-pills";
+import { buildOrdersSpec } from "./orders-spec";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
 import { StartMigratedDialog } from "./start-migrated-dialog";
@@ -198,39 +198,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
         ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
         : [],
   ]);
-  // Typed against ORDER_FACET_FIELDS so analytics drill links cannot name a filter the listing lacks.
-  const field = (f: OrderFacetField) => f;
-
-  const spec: FacetDef[] = [
-    {
-      kind: "pills",
-      field: field("status"),
-      label: "Status",
-      options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
-    },
-    { kind: "select", field: field("plan"), label: "Plan", options: planOptions },
-    { kind: "select", field: field("mealSize"), label: "Meal size", options: sizeOptions },
-    { kind: "select", field: field("zone"), label: "Zone", options: zoneOptions },
-    ...(orgOptions.length > 1 ? [{ kind: "select" as const, field: field("org"), label: "Franchise", options: orgOptions }] : []),
-    {
-      kind: "select",
-      field: field("tier"),
-      label: "Size tier",
-      options: [
-        { value: "budget", label: "Budget" },
-        { value: "medium", label: "Medium" },
-        { value: "premium", label: "Premium" },
-      ],
-    },
-    { kind: "dateRange", field: field("createdAt"), label: "Created" },
-    {
-      kind: "select",
-      field: "missed",
-      label: "Deliveries",
-      options: [{ value: "yes", label: "Has missed deliveries" }],
-    },
-    { kind: "search", fields: ["fullName", "deploymentId", "email"] },
-  ];
+  const spec = buildOrdersSpec({ planOptions, sizeOptions, zoneOptions, orgOptions });
 
   // "missed" isn't an orders column: strip it before parseFilterState and filter by subquery instead.
   const missedOnly = sp.missed === "yes";

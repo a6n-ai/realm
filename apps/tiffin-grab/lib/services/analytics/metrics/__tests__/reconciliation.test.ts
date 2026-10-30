@@ -3,16 +3,24 @@ import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
+// recordStripeRefund (the real webhook path) imports the Stripe runtime; it is never called here.
+vi.mock("@/lib/payments/stripe", async (orig) => ({
+  ...(await orig<object>()),
+  stripeRuntime: async () => ({ stripe: {}, cfg: { surcharge: { enabled: false, ratePct: 0, excludeProvinces: [], networksNotifiedOn: "2026-09-01" }, tax: { enabled: false, taxCode: "txcd_x", surchargeTaxable: false } } }),
+}));
 
 const { db } = await import("@/db/client");
 const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notifications, notificationOutbox, organization, deliveryZones } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
-const { createOrder, refundOrder, refundPaymentInTx, listOrdersPage } = await import("@/lib/services/orders.service");
+const { createOrder, refundOrder, listOrdersPage } = await import("@/lib/services/orders.service");
 const { buildAnalyticsScope } = await import("../scope");
 const { revenueTotals, revenueBy, paymentsByStatus } = await import("../money");
 const { countOrders, countCustomers, scopeToOrdersCondition, ordersDrillHref } = await import("../orders");
 const { needsReviewRows } = await import("../needs-review");
+const { recordStripeRefund } = await import("@/lib/services/payment-stripe");
+const { buildOrdersSpec } = await import("@/app/(dashboard)/dashboard/orders/orders-spec");
+const { parseFilterState } = await import("@/components/ds");
 const { eq, inArray } = await import("drizzle-orm");
 
 const TZ = "America/Toronto";
@@ -99,33 +107,37 @@ describe("analytics reconciliation (integration)", () => {
     await pay(cancelled, 113, mar(12));
     const refunded = await make("refunded", orgA, { createdAt: mar(12) });
     await pay(refunded, 113, mar(13));
-    const addon = await make("addon", orgA, { createdAt: mar(13), zone: true });
+    // applyAddons leaves the snapshot including the add-on: plan 113 (13 tax, 13%) + add-on 20 (1 tax, 5%).
+    const addon = await make("addon", orgA, { createdAt: mar(13), zone: true, total: 133, tax: 14 });
     await db.update(orders).set({ userId: (await db.select({ u: orders.userId }).from(orders).where(eq(orders.id, plain)))[0].u }).where(eq(orders.id, addon));
     await pay(addon, 113, mar(14));
-    await pay(addon, 22.6, mar(14), { addonRequest: { taxTotal: 2.6, amountDue: 22.6 } as never });
+    await pay(addon, 20, mar(14), { addonRequest: { taxTotal: 1, amountDue: 20 } as never });
     const unpaid = await make("unpaid", orgA, { createdAt: mar(14) });
     await pay(unpaid, 113, null, { status: "awaiting_payment" });
     // 23:30 Toronto on Mar 31 = Apr 1 03:30Z.
     const late = await make("late", orgA, { createdAt: at("2026-04-01T03:30:00Z") });
     await pay(late, 113, at("2026-04-01T03:30:00Z"));
     const stripe = await make("stripe", orgA, { createdAt: mar(15) });
-    const stripePay = await pay(stripe, 113, mar(15), { surchargeAmount: "3.00" });
+    await pay(stripe, 113, mar(15), { surchargeAmount: "3.00", providerRef: "pi_recon_stripe" });
     const hold = await make("hold", orgA, { createdAt: at("2026-02-20T15:00:00Z") });
-    await pay(hold, 113, mar(16));
+    await pay(hold, 113, mar(16), { providerRef: "pi_recon_hold" });
+    // Marked refunded before the ledger wrote refund rows.
+    const legacy = await make("legacy", orgA, { createdAt: mar(16) });
+    await pay(legacy, 113, mar(17), { status: "refunded" });
+    const surf = await make("surf", orgA, { createdAt: mar(17) });
+    await pay(surf, 113, mar(18), { surchargeAmount: "3.00" });
     const other = await make("other", orgB, { createdAt: mar(10) });
     await pay(other, 113, mar(10));
 
-    // Staff refund through the real path, then dated into April.
+    // Staff refunds through the real path, dated into April. The surcharged one writes amount + surcharge.
     await refundOrder(o.refunded);
-    await db.update(ledgerEntries).set({ createdAt: at("2026-04-02T15:00:00Z") }).where(eq(ledgerEntries.orderId, refunded));
-    // Stripe-style partial refund (includes surcharge), booked in March.
-    const [stripeOrder] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.id, stripe));
-    await db.insert(ledgerEntries).values({ userId: stripeOrder.userId!, orderId: stripe, paymentId: stripePay, direction: "debit", type: "refund", amount: "58.00", providerEventId: `evt-${suffix}-1`, createdAt: mar(20) } as never);
-    // Stripe full refund followed by refundPaymentInTx(ledgerRecorded): still one ledger row.
-    const [holdOrder] = await db.select({ userId: orders.userId, publicId: orders.publicId }).from(orders).where(eq(orders.id, hold));
-    const [holdPay] = await db.select({ id: payments.id }).from(payments).where(eq(payments.orderId, hold));
-    await db.insert(ledgerEntries).values({ userId: holdOrder.userId!, orderId: hold, paymentId: holdPay.id, direction: "debit", type: "refund", amount: "113.00", providerEventId: `evt-${suffix}-2`, createdAt: at("2026-04-03T15:00:00Z") } as never);
-    await db.transaction((tx) => refundPaymentInTx(tx, { orderId: hold, orderPublicId: holdOrder.publicId, userId: holdOrder.userId, paymentId: holdPay.id, actorInternalId: null, note: "Stripe", ledgerRecorded: true }));
+    await refundOrder(o.surf);
+    await db.update(ledgerEntries).set({ createdAt: at("2026-04-02T15:00:00Z") }).where(inArray(ledgerEntries.orderId, [refunded, surf]));
+    // Stripe webhook path: partial refund (incl. surcharge share) in March, full refund in April.
+    await recordStripeRefund({ piId: "pi_recon_stripe", eventId: `evt-${suffix}-1`, amountRefundedCents: 5800, fullyRefunded: false });
+    await db.update(ledgerEntries).set({ createdAt: mar(20) }).where(eq(ledgerEntries.orderId, stripe));
+    await recordStripeRefund({ piId: "pi_recon_hold", eventId: `evt-${suffix}-2`, amountRefundedCents: 11300, fullyRefunded: true });
+    await db.update(ledgerEntries).set({ createdAt: at("2026-04-03T15:00:00Z") }).where(eq(ledgerEntries.orderId, hold));
   });
 
   afterAll(async () => {
@@ -137,20 +149,21 @@ describe("analytics reconciliation (integration)", () => {
   const scopeA = (now: number, extra: Record<string, string | undefined> = {}) => buildAnalyticsScope({ ...extra }, [orgA], TZ, now);
 
   // Independent of the helpers under test: plain SQL over payments / ledger_entries / orders.
+  const ADD = (k: string) => sql.raw(`(select coalesce(sum((a.addon_request->>'${k}')::numeric), 0) from payments a where a.order_id = p.order_id and a.addon_request is not null and a.status in ('paid', 'simulated_paid', 'refunded'))`);
+  const TAX = sql`(case when p.addon_request is not null then (p.addon_request->>'taxTotal')::numeric else (o.pricing_snapshot->>'taxTotal')::numeric - ${ADD("taxTotal")} end)`;
+  const TOT = sql`(case when p.addon_request is not null then (p.addon_request->>'amountDue')::numeric else (o.pricing_snapshot->>'total')::numeric - ${ADD("amountDue")} end)`;
   async function directRevenue(orgIds: string[], from: number, to: number) {
     const q = (rows: unknown) => (rows as { rows?: Record<string, string>[] }).rows ?? (rows as Record<string, string>[]);
     const ids = sql.join(orgIds.map((i) => sql`${i}`), sql`, `);
     const pay = q(await db.execute(sql`
-      select coalesce(sum(p.amount * (1 - coalesce((case when p.addon_request is not null then p.addon_request->>'taxTotal' else o.pricing_snapshot->>'taxTotal' end)::numeric, 0)
-        / nullif((case when p.addon_request is not null then p.addon_request->>'amountDue' else o.pricing_snapshot->>'total' end)::numeric, 0))), 0) as net,
+      select coalesce(sum(p.amount * (1 - coalesce(${TAX}, 0) / nullif(${TOT}, 0))), 0) as net,
         coalesce(sum(p.amount), 0) as gross
       from payments p join orders o on o.id = p.order_id
       where o.organization_id in (${ids}) and p.status in ('paid', 'simulated_paid', 'refunded')
         and coalesce(p.captured_at, p.created_at) between ${from} and ${to}`))[0];
     const ref = q(await db.execute(sql`
       select coalesce(sum(l.amount), 0) as refunds,
-        coalesce(sum(l.amount * (p.amount / (p.amount + p.surcharge_amount)) * (1 - coalesce((case when p.addon_request is not null then p.addon_request->>'taxTotal' else o.pricing_snapshot->>'taxTotal' end)::numeric, 0)
-        / nullif((case when p.addon_request is not null then p.addon_request->>'amountDue' else o.pricing_snapshot->>'total' end)::numeric, 0))), 0) as ex_tax
+        coalesce(sum(l.amount * (p.amount / (p.amount + p.surcharge_amount)) * (1 - coalesce(${TAX}, 0) / nullif(${TOT}, 0))), 0) as ex_tax
       from ledger_entries l join payments p on p.id = l.payment_id join orders o on o.id = p.order_id
       where l.type = 'refund' and o.organization_id in (${ids}) and l.created_at between ${from} and ${to}`))[0];
     return { gross: Number(pay.gross), net: Math.round((Number(pay.net) - Number(ref.ex_tax)) * 100) / 100, refunds: Number(ref.refunds), refundsExTax: Math.round(Number(ref.ex_tax) * 100) / 100 };
@@ -164,32 +177,38 @@ describe("analytics reconciliation (integration)", () => {
     expect(t.net).toBe(d.net);
     expect(t.refunds).toBe(d.refunds);
     expect(t.refundsExTax).toBe(d.refundsExTax);
-    // Captured Mar: plain, coin, cancelled, refunded, addon (plan + add-on), late, stripe, hold = 9 payments; unpaid and org B excluded.
-    expect(t.payments).toBe(9);
+    // Captured Mar: plain, coin, cancelled, refunded, addon plan + add-on, late, stripe, hold, legacy, surf = 11; unpaid and org B excluded.
+    expect(t.payments).toBe(11);
     // Stripe refund 58.00 on a 113.00 + 3.00 surcharge payment: 58 x 113/116 x (100/113) = 50.00 ex tax, ex surcharge.
-    expect(t.refundsExTax).toBe(50);
     expect(t.refunds).toBe(58);
-    expect(t.surcharge).toBe(3);
-    // 7 x 100 (plain, cancelled-but-kept, refunded, addon plan, late, stripe, hold) + 79.65 coin + 20 add-on - 50 refund
-    expect(t.net).toBe(749.65);
+    expect(t.refundsExTax).toBe(50);
+    expect(t.surcharge).toBe(6);
+    // 9 x 100 (plain, cancelled-but-kept, refunded, addon plan, late, stripe, hold, legacy, surf) + 79.65 coin + 19 add-on (5%) - 50 refund
+    expect(t.net).toBe(948.65);
+    // Tax still held: 9 x 13 + 10.35 coin + 1 add-on - 6.50 on the refunded share
+    expect(t.tax).toBe(121.85);
+    expect(t.refundedWithoutLedger).toBe(1);
     expect(t.unlinkedRefunds).toBe(0);
   });
 
-  it("the staff refund lands in the refund's month, not the payment's", async () => {
+  it("refunds land in the refund's month; a late-March payment is not an April payment", async () => {
     const s = scopeA(APRIL_NOW);
     const t = await revenueTotals(s);
     const d = await directRevenue([orgA], s.fromMs, s.toMs);
     expect(t.net).toBe(d.net);
-    // Apr: staff refund 113 (net 100) + Stripe full refund 113 (net 100); no April payments are captured except none.
-    expect(t.refundsExTax).toBe(200);
-    expect(t.refunds).toBe(226);
+    expect(t.payments).toBe(0);
+    expect(t.gross).toBe(0);
+    // Staff 113 (100 ex tax) + Stripe full 113 (100) + surcharged staff refund 116 (100: 116 x 113/116 x 100/113).
+    expect(t.refunds).toBe(342);
+    expect(t.refundsExTax).toBe(300);
+    expect(t.net).toBe(-300);
   });
 
   it("franchise scope: B is absent from A and present under all", async () => {
     const s = scopeA(MARCH_NOW);
     const all = buildAnalyticsScope({}, "all", TZ, MARCH_NOW);
     const b = buildAnalyticsScope({}, [orgB], TZ, MARCH_NOW);
-    expect((await revenueTotals(all)).gross).toBe((await revenueTotals(s)).gross + (await revenueTotals(b)).gross);
+    expect((await revenueTotals(all)).gross).toBe(Math.round(((await revenueTotals(s)).gross + (await revenueTotals(b)).gross) * 100) / 100);
     expect((await revenueTotals(b)).gross).toBe(113);
     expect(await revenueTotals(buildAnalyticsScope({}, [], TZ, MARCH_NOW))).toMatchObject({ gross: 0, net: 0, payments: 0 });
   });
@@ -200,7 +219,7 @@ describe("analytics reconciliation (integration)", () => {
     expect(days.find((x) => x.key === "2026-04-01")).toBeUndefined();
   });
 
-  it("revenueBy buckets sum to the totals for every dimension", async () => {
+  it("revenueBy buckets sum to the totals for every dimension; cohorts and the add-on's own quote are exact", async () => {
     const s = scopeA(MARCH_NOW);
     const t = await revenueTotals(s);
     for (const dim of ["day", "method", "plan", "mealSize", "cohort"] as const) {
@@ -209,14 +228,15 @@ describe("analytics reconciliation (integration)", () => {
     }
     const cohort = Object.fromEntries((await revenueBy(s, "cohort")).map((r) => [r.key, r.net]));
     expect(cohort.trial).toBe(79.65);
-    expect(cohort.renewal).toBe(120);
+    // The add-on order (a repeat customer): plan 100 at 13% stays 100 after the add-on, plus 19 for the 5% add-on.
+    expect(cohort.renewal).toBe(119);
   });
 
   it("paymentsByStatus uses the money date and covers every status", async () => {
     const rows = Object.fromEntries((await paymentsByStatus(scopeA(MARCH_NOW))).map((r) => [r.status, r]));
     expect(rows.awaiting_payment).toMatchObject({ count: 1, amount: 113 });
     expect(rows.paid.count).toBe(7);
-    expect(rows.refunded.count).toBe(2);
+    expect(rows.refunded.count).toBe(4);
   });
 
   it("order counts equal the Orders listing total for each status and with facets", async () => {
@@ -225,31 +245,55 @@ describe("analytics reconciliation (integration)", () => {
       const total = (await listOrdersPage(scopeToOrdersCondition(s, { status: [status] }), { page: 0, size: 1 }, undefined, s.orgIds)).total;
       expect(await countOrders(s, { status: [status] })).toBe(total);
     }
-    expect(await countOrders(s, { status: ["active"] })).toBe(7);
+    expect(await countOrders(s, { status: ["active"] })).toBe(9);
+    expect(await countCustomers(s)).toBe(9);
     const faceted = scopeA(MARCH_NOW, { zone: zoneName, mealSize: mealKeyA });
-    const total = (await listOrdersPage(scopeToOrdersCondition(faceted), { page: 0, size: 1 }, undefined, faceted.orgIds)).total;
-    expect(await countOrders(faceted)).toBe(total);
-    expect(total).toBe(2);
-    expect(await countCustomers(s)).toBe(7);
+    expect(await countOrders(faceted)).toBe(2);
     expect(await countCustomers(faceted)).toBe(1);
-    expect(ordersDrillHref(faceted, { status: ["active"] })).toContain("zone=");
   });
 
-  it("needs review is exactly the cancelled-but-paid and coin-reduced orders", async () => {
+  it("a drill link round-trips through the Orders facet spec to the same total", async () => {
+    const spec = buildOrdersSpec({
+      planOptions: [], sizeOptions: [], zoneOptions: [],
+      orgOptions: [{ value: orgA, label: "A" }, { value: orgB, label: "B" }],
+    });
+    const snap = await loadCatalogSnapshot();
+    const cases = [
+      { scope: scopeA(MARCH_NOW, { zone: zoneName, mealSize: mealKeyA }), extra: { status: ["active"] }, visible: [orgA, orgB] },
+      { scope: scopeA(MARCH_NOW, { mealSize: snap.mealSizes.slice(0, 2).map((m) => m.key).join(",") }), extra: {}, visible: [orgA] },
+      { scope: buildAnalyticsScope({ org: `${orgA},${orgB}` }, "all", TZ, MARCH_NOW), extra: {}, visible: "all" as const },
+    ];
+    for (const c of cases) {
+      const href = ordersDrillHref(c.scope, c.extra, c.visible);
+      const sp = Object.fromEntries(new URL(href, "http://x").searchParams);
+      const { condition, page } = parseFilterState(spec, sp);
+      const listed = await listOrdersPage(condition, page, undefined, c.visible);
+      expect(listed.total).toBe(await countOrders(c.scope, c.extra));
+      expect(listed.total).toBeGreaterThan(0);
+    }
+    expect(ordersDrillHref(scopeA(MARCH_NOW), {}, [orgA])).not.toContain("org=");
+    expect(ordersDrillHref(scopeA(MARCH_NOW), {}, [orgA, orgB])).toContain(`org=${orgA}`);
+    expect(() => ordersDrillHref(scopeA(MARCH_NOW), { status: ["active", "paused"] })).toThrow();
+  });
+
+  it("needs review lists cancelled-but-kept, coin-reduced and refunded-without-ledger orders", async () => {
     const rows = await needsReviewRows(scopeA(MARCH_NOW));
-    expect(rows.map((r) => r.orderPublicId).sort()).toEqual([o.cancelled, o.coin].sort());
-    const c = rows.find((r) => r.orderPublicId === o.cancelled)!;
-    const k = rows.find((r) => r.orderPublicId === o.coin)!;
-    expect(c).toMatchObject({ reasons: ["cancelled_paid"], paid: 113, total: 113, diff: 0 });
-    expect(k).toMatchObject({ reasons: ["paid_ne_total"], paid: 90, total: 113, diff: -23 });
+    expect(rows.map((r) => r.orderPublicId).sort()).toEqual([o.cancelled, o.coin, o.legacy].sort());
+    const by = (id: string) => rows.find((r) => r.orderPublicId === id)!;
+    expect(by(o.cancelled)).toMatchObject({ reasons: ["cancelled_paid"], paid: 113, total: 113, diff: 0, kept: 113 });
+    expect(by(o.coin)).toMatchObject({ reasons: ["paid_ne_total"], paid: 90, total: 113, diff: -23, kept: 90 });
+    expect(by(o.legacy)).toMatchObject({ reasons: ["refunded_no_ledger"], paid: 113, kept: 113 });
+    // The add-on order's paid (113 + 20) equals its snapshot total (133): not flagged.
   });
 
-  it("each refund path writes exactly one ledger refund row", async () => {
-    const count = async (publicId: string) => {
+  it("each refund path writes exactly one ledger refund row on the charged basis", async () => {
+    const rowsOf = async (publicId: string) => {
       const [r] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId));
-      return (await db.select().from(ledgerEntries).where(eq(ledgerEntries.orderId, r.id))).filter((l) => l.type === "refund").length;
+      return (await db.select().from(ledgerEntries).where(eq(ledgerEntries.orderId, r.id))).filter((l) => l.type === "refund").map((l) => Number(l.amount));
     };
-    expect(await count(o.refunded)).toBe(1);
-    expect(await count(o.hold)).toBe(1);
+    expect(await rowsOf(o.refunded)).toEqual([113]);
+    expect(await rowsOf(o.hold)).toEqual([113]);
+    expect(await rowsOf(o.surf)).toEqual([116]);
+    expect(await rowsOf(o.stripe)).toEqual([58]);
   });
 });

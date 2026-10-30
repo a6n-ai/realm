@@ -1,24 +1,27 @@
 import "server-only";
-import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
-import { round2 } from "@/lib/analytics/profitability";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 
 export const SETTLED = SETTLED_STATUSES;
+type PaymentStatus = (typeof payments.status.enumValues)[number];
 // A full refund flips the payment to 'refunded' and also writes a ledger refund row. Revenue counts
 // every captured payment and subtracts the ledger, so a refunded payment must stay in the gross side
 // or its refund would be deducted from nothing.
-const CAPTURED: PaymentStatus[] = [...SETTLED_STATUSES, "refunded"];
-type PaymentStatus = (typeof payments.status.enumValues)[number];
+export const CAPTURED: PaymentStatus[] = [...SETTLED_STATUSES, "refunded"];
 
 /** The date money moved: capture, else row creation (same fallback the payments list uses). */
-const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
+export const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
 
-// The quote a payment settled: an add-on payment carries its own, a plan payment uses the order snapshot.
-const quoteTax = sql`(case when ${payments.addonRequest} is not null then ${payments.addonRequest}->>'taxTotal' else ${orders.pricingSnapshot}->>'taxTotal' end)::numeric`;
-const quoteTotal = sql`(case when ${payments.addonRequest} is not null then ${payments.addonRequest}->>'amountDue' else ${orders.pricingSnapshot}->>'total' end)::numeric`;
+// applyAddons rewrites orders.pricing_snapshot so its total/taxTotal include every applied add-on.
+// A plan payment's own quote is therefore the snapshot minus the order's captured add-on quotes
+// (a refunded add-on stays in the snapshot, so 'refunded' is included). An add-on payment uses its own.
+const addonQuoteSum = (key: "taxTotal" | "amountDue") =>
+  sql`(select coalesce(sum((ap.addon_request->>${sql.raw(`'${key}'`)})::numeric), 0) from ${payments} as ap where ap.order_id = ${payments.orderId} and ap.addon_request is not null and ap.status in ('paid', 'simulated_paid', 'refunded'))`;
+const quoteTax = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'taxTotal')::numeric else (${orders.pricingSnapshot}->>'taxTotal')::numeric - ${addonQuoteSum("taxTotal")} end)`;
+const quoteTotal = sql`(case when ${payments.addonRequest} is not null then (${payments.addonRequest}->>'amountDue')::numeric else (${orders.pricingSnapshot}->>'total')::numeric - ${addonQuoteSum("amountDue")} end)`;
 /** Share of a payment that is tax. Missing tax is tax-free; a zero or missing quote total yields null (contributes 0). */
 const taxShare = sql`(coalesce(${quoteTax}, 0) / nullif(${quoteTotal}, 0))`;
 
@@ -27,72 +30,81 @@ export function netExTax(): SQL {
   return sql`coalesce(${payments.amount} * (1 - ${taxShare}), 0)`;
 }
 
-// A ledger refund row (Stripe's includes the surcharge) reduces revenue by its ex-surcharge, ex-tax share:
+// Every ledger refund row is on the charged basis (amount + surcharge): Stripe's row and the staff
+// refund both write it. Revenue excludes the surcharge, so a refund row reduces revenue by
 // refund x amount/(amount+surcharge) x (1 - tax/total), all from the refunded payment's own quote.
-const refundExTax = sql`coalesce(${ledgerEntries.amount} * (${payments.amount} / nullif(${payments.amount} + ${payments.surchargeAmount}, 0)) * (1 - ${taxShare}), 0)`;
+const refundExSurcharge = sql`coalesce(${ledgerEntries.amount} * (${payments.amount} / nullif(${payments.amount} + ${payments.surchargeAmount}, 0)), 0)`;
+const refundExTax = sql`coalesce(${refundExSurcharge} * (1 - ${taxShare}), 0)`;
 
-const paymentWhere = (scope: AnalyticsScope, statuses: PaymentStatus[]) =>
-  and(ordersScope(scope), inArray(payments.status, statuses), dateWhere(moneyDate, scope));
-// Refunds are scoped only through their payment's order: ledger_entries.organization_id is mostly null.
-const refundWhere = (scope: AnalyticsScope) =>
-  and(ordersScope(scope), eq(ledgerEntries.type, "refund"), dateWhere(ledgerEntries.createdAt, scope));
+const sqlList = (v: readonly string[]) => sql.join(v.map((s) => sql`${s}`), sql`, `);
+const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
+const rowsOf = (r: unknown) => (Array.isArray(r) ? r : ((r as { rows: unknown[] }).rows ?? [])) as Record<string, string | null>[];
+const n2 = (v: string | null | undefined) => Number(v ?? 0);
 
-const num = (v: unknown) => round2(Number(v ?? 0));
-const dec = (e: SQL) => sql<string>`coalesce(sum(${e}), 0)`;
+// One row per captured payment and per ledger refund in scope; callers aggregate and round in SQL,
+// so money is never subtracted as floats in JS. Keys are computed per row (no group-by parameter match).
+function moneyRows(scope: AnalyticsScope, payKey: SQL, refKey: SQL): SQL {
+  return sql`
+    select ${payKey} as key, ${payments.amount} as gross, ${netExTax()} as net, ${payments.surchargeAmount} as surcharge,
+      0::numeric as refunds, 0::numeric as refund_ex_sur, 0::numeric as refund_ex, 1 as pay_cnt,
+      (case when ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund') then 1 else 0 end) as legacy
+    from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
+    where ${and(ordersScope(scope), inArray(payments.status, CAPTURED), dateWhere(moneyDate, scope)) ?? sql`true`}
+    union all
+    select ${refKey}, 0::numeric, 0::numeric, 0::numeric, ${ledgerEntries.amount}, ${refundExSurcharge}, ${refundExTax}, 0, 0
+    from ${ledgerEntries} inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId} inner join ${orders} on ${orders.id} = ${payments.orderId}
+    where ${and(ordersScope(scope), sql`${ledgerEntries.type} = 'refund'`, dateWhere(ledgerEntries.createdAt, scope)) ?? sql`true`}`;
+}
 
 export type RevenueTotals = {
   gross: number;
+  /** Tax still held on the net-of-refunds amount. */
   tax: number;
   net: number;
   refunds: number;
   refundsExTax: number;
   surcharge: number;
   payments: number;
-  /** Refund ledger rows in the window with no payment: cannot be scoped to a franchise, so excluded. */
+  /** Refund ledger rows in the window that cannot be tied to a payment, scoped through their order when they have one. */
   unlinkedRefunds: number;
-  /** Refunded payments with no ledger refund row (refunded before the ledger wrote them): still counted as revenue. */
+  /** Refunded payments with no ledger refund row (refunded before the ledger wrote them): counted as revenue, not deducted. */
   refundedWithoutLedger: number;
 };
 
+const ZERO: RevenueTotals = { gross: 0, tax: 0, net: 0, refunds: 0, refundsExTax: 0, surcharge: 0, payments: 0, unlinkedRefunds: 0, refundedWithoutLedger: 0 };
+
 export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotals> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) {
-    return { gross: 0, tax: 0, net: 0, refunds: 0, refundsExTax: 0, surcharge: 0, payments: 0, unlinkedRefunds: 0, refundedWithoutLedger: 0 };
-  }
-  const [[p], [r], [u]] = await Promise.all([
-    db
-      .select({
-        gross: dec(sql`${payments.amount}`),
-        net: dec(netExTax()),
-        surcharge: dec(sql`${payments.surchargeAmount}`),
-        payments: sql<number>`cast(count(*) as int)`,
-        refundedWithoutLedger: sql<number>`cast(count(*) filter (where ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund')) as int)`,
-      })
-      .from(payments)
-      .innerJoin(orders, eq(orders.id, payments.orderId))
-      .where(paymentWhere(scope, CAPTURED)),
-    db
-      .select({ refunds: dec(sql`${ledgerEntries.amount}`), refundsExTax: dec(refundExTax) })
-      .from(ledgerEntries)
-      .innerJoin(payments, eq(payments.id, ledgerEntries.paymentId))
-      .innerJoin(orders, eq(orders.id, payments.orderId))
-      .where(refundWhere(scope)),
-    db
-      .select({ n: sql<number>`cast(count(*) as int)` })
-      .from(ledgerEntries)
-      .where(and(eq(ledgerEntries.type, "refund"), isNull(ledgerEntries.paymentId), dateWhere(ledgerEntries.createdAt, scope))),
+  if (noOrgs(scope)) return ZERO;
+  const key = sql`'all'`;
+  const inScopeOrder = db.select({ id: orders.id }).from(orders).where(ordersScope(scope));
+  const [totals, unlinked] = await Promise.all([
+    db.execute(sql`
+      with u as (${moneyRows(scope, key, key)})
+      select round(coalesce(sum(gross), 0), 2)::text as gross,
+        round(coalesce(sum(net) - sum(refund_ex), 0), 2)::text as net,
+        round(coalesce((sum(gross) - sum(refund_ex_sur)) - (sum(net) - sum(refund_ex)), 0), 2)::text as tax,
+        round(coalesce(sum(refunds), 0), 2)::text as refunds,
+        round(coalesce(sum(refund_ex), 0), 2)::text as refunds_ex_tax,
+        round(coalesce(sum(surcharge), 0), 2)::text as surcharge,
+        coalesce(sum(pay_cnt), 0)::int::text as payments,
+        coalesce(sum(legacy), 0)::int::text as legacy
+      from u`),
+    db.execute(sql`
+      select count(*)::int::text as n from ${ledgerEntries}
+      where ${ledgerEntries.type} = 'refund' and ${ledgerEntries.paymentId} is null and ${dateWhere(ledgerEntries.createdAt, scope) ?? sql`true`}
+        and (${ledgerEntries.orderId} in (${inScopeOrder}) ${scope.orgIds === "all" ? sql`or ${ledgerEntries.orderId} is null` : sql``})`),
   ]);
-  const gross = num(p.gross);
-  const net = round2(Number(p.net) - Number(r.refundsExTax));
+  const t = rowsOf(totals)[0];
   return {
-    gross,
-    tax: round2(gross - Number(p.net)),
-    net,
-    refunds: num(r.refunds),
-    refundsExTax: num(r.refundsExTax),
-    surcharge: num(p.surcharge),
-    payments: p.payments,
-    unlinkedRefunds: u.n,
-    refundedWithoutLedger: p.refundedWithoutLedger,
+    gross: n2(t.gross),
+    tax: n2(t.tax),
+    net: n2(t.net),
+    refunds: n2(t.refunds),
+    refundsExTax: n2(t.refunds_ex_tax),
+    surcharge: n2(t.surcharge),
+    payments: n2(t.payments),
+    unlinkedRefunds: n2(rowsOf(unlinked)[0].n),
+    refundedWithoutLedger: n2(t.legacy),
   };
 }
 
@@ -118,50 +130,30 @@ function bucketKey(dim: RevenueDim, tz: string, dateCol: SQL | typeof ledgerEntr
   }
 }
 
-// Grouped by ordinal: a bound tz parameter in the select list would not match the same one in group by.
 /** Per-bucket totals. Refunds land in the refund's own day (dim "day") or its order's bucket (other dims). */
 export async function revenueBy(scope: AnalyticsScope, dim: RevenueDim): Promise<RevenueBucket[]> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
-  const payKey = bucketKey(dim, scope.tz, moneyDate);
-  const refKey = bucketKey(dim, scope.tz, ledgerEntries.createdAt);
-  const [pay, ref] = await Promise.all([
-    db
-      .select({ key: sql<string>`${payKey}`, gross: dec(sql`${payments.amount}`), net: dec(netExTax()), payments: sql<number>`cast(count(*) as int)` })
-      .from(payments)
-      .innerJoin(orders, eq(orders.id, payments.orderId))
-      .where(paymentWhere(scope, CAPTURED))
-      .groupBy(sql`1`),
-    db
-      .select({ key: sql<string>`${refKey}`, refundsExTax: dec(refundExTax) })
-      .from(ledgerEntries)
-      .innerJoin(payments, eq(payments.id, ledgerEntries.paymentId))
-      .innerJoin(orders, eq(orders.id, payments.orderId))
-      .where(refundWhere(scope))
-      .groupBy(sql`1`),
-  ]);
-  const out = new Map<string, RevenueBucket>();
-  const slot = (key: string) => {
-    let b = out.get(key);
-    if (!b) out.set(key, (b = { key, gross: 0, net: 0, refundsExTax: 0, payments: 0 }));
-    return b;
-  };
-  for (const r of pay) Object.assign(slot(r.key ?? "unknown"), { gross: num(r.gross), net: num(r.net), payments: r.payments });
-  for (const r of ref) slot(r.key ?? "unknown").refundsExTax = num(r.refundsExTax);
-  return [...out.values()]
-    .map((b) => ({ ...b, net: round2(b.net - b.refundsExTax) }))
-    .sort((a, b) => a.key.localeCompare(b.key));
+  if (noOrgs(scope)) return [];
+  const rows = rowsOf(
+    await db.execute(sql`
+      with u as (${moneyRows(scope, bucketKey(dim, scope.tz, moneyDate), bucketKey(dim, scope.tz, ledgerEntries.createdAt))})
+      select coalesce(key, 'unknown') as key, round(sum(gross), 2)::text as gross, round(sum(net) - sum(refund_ex), 2)::text as net,
+        round(sum(refund_ex), 2)::text as refunds_ex_tax, sum(pay_cnt)::int::text as payments
+      from u group by key order by key`),
+  );
+  return rows.map((r) => ({ key: String(r.key), gross: n2(r.gross), net: n2(r.net), refundsExTax: n2(r.refunds_ex_tax), payments: n2(r.payments) }));
 }
 
 export type PaymentStatusRow = { status: string; count: number; amount: number };
 
 /** Every payment status in the window, dated like revenueTotals (capture date, else creation). */
 export async function paymentsByStatus(scope: AnalyticsScope): Promise<PaymentStatusRow[]> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
-  const rows = await db
-    .select({ status: sql<string>`${payments.status}::text`, count: sql<number>`cast(count(*) as int)`, amount: dec(sql`${payments.amount}`) })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(and(ordersScope(scope), dateWhere(moneyDate, scope)))
-    .groupBy(payments.status);
-  return rows.map((r) => ({ status: r.status, count: r.count, amount: num(r.amount) }));
+  if (noOrgs(scope)) return [];
+  const rows = rowsOf(
+    await db.execute(sql`
+      select ${payments.status}::text as status, count(*)::int::text as count, round(coalesce(sum(${payments.amount}), 0), 2)::text as amount
+      from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
+      where ${and(ordersScope(scope), dateWhere(moneyDate, scope)) ?? sql`true`}
+      group by ${payments.status}`),
+  );
+  return rows.map((r) => ({ status: String(r.status), count: n2(r.count), amount: n2(r.amount) }));
 }
