@@ -519,6 +519,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       status: deliveries.status,
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
+      holidayExtraForDeliveryId: deliveries.holidayExtraForDeliveryId,
       pooledAt: deliveries.pooledAt,
       mergedIntoDeliveryId: deliveries.mergedIntoDeliveryId,
       deliveryDate: deliveries.deliveryDate,
@@ -529,8 +530,10 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .where(eq(deliveries.orderId, order.id));
 
   const delivered = deliveredTiffinCount(rows as DeliveryForCounts[], Date.now());
+  // Same rule as order-window `holdsDay`: a day whose tiffin went to another row is not the last one.
+  const handedOn = new Set(rows.flatMap((r) => [r.makeupForDeliveryId, r.holidayExtraForDeliveryId]).filter((id) => id != null).map(String));
   const lastDeliveryDate = rows.reduce<string | null>(
-    (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
+    (max, r) => (r.status === "cancelled" || r.mergedIntoDeliveryId != null || handedOn.has(String(r.id)) || (max != null && r.deliveryDate <= max) ? max : r.deliveryDate),
     null,
   );
   const deliveryWeekdays = orderDeliveryDays({
