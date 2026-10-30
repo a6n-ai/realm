@@ -18,12 +18,15 @@ export function ListSearchFilters({
   placeholder = "Search…",
   shortPlaceholder,
   dateControl = "menu",
+  clearValues,
 }: {
   spec: FacetDef[];
   placeholder?: string;
   shortPlaceholder?: string;
   /** `menu` keeps the date inside Filter. `inline` shows it beside search. `external` leaves it to the page. */
   dateControl?: "menu" | "inline" | "external";
+  /** Select/pills clear sentinels forwarded to ReuiFacetFilters (e.g. Renewals `ending=off`). */
+  clearValues?: Readonly<Record<string, string>>;
 }) {
   const searchFacet = spec.find((f) => f.kind === "search");
   const nav = useListNav();
@@ -62,7 +65,7 @@ export function ListSearchFilters({
           debounceMs={500}
         />
       )}
-      <ReuiFacetFilters spec={spec} hideDate={dateControl !== "menu" && hasDate} />
+      <ReuiFacetFilters spec={spec} hideDate={dateControl !== "menu" && hasDate} clearValues={clearValues} />
     </div>
   );
 }

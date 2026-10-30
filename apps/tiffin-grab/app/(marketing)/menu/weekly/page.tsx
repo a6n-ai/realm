@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageIntro } from "@/components/landing/public-shell";
 import { WeekBoard } from "@/components/landing/week-board";
+import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard, dateOf } from "@/lib/landing/week-board";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function WeeklyMenuPage() {
   const organizationId = await resolveRequestOrg();
   const [pub, { timezone }] = await Promise.all([menuService.getPublishedWeek(undefined, organizationId), getAppSettings()]);
-  const { days, rows, weekend } = pub ? buildWeekBoard(pub, timezone) : { days: [], rows: [], weekend: null };
+  const { days, rows, weekend } = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
 
   return (
     <div className="tg-wrap tg-section">

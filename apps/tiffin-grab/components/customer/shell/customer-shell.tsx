@@ -43,11 +43,11 @@ const THEMES = [
 ];
 
 /** Mark + wordmark. `compact` fits a 44px chrome bar (public subscribe and checkout). */
-export function Brand({ href = "/me", compact = false }: { href?: string; compact?: boolean }) {
+export function Brand({ href = "/me", compact = false, markOnlyNarrow = false }: { href?: string; compact?: boolean; markOnlyNarrow?: boolean }) {
   return (
     <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full")}>
       <BrandMark className={compact ? "size-8" : "size-9"} />
-      <BrandWordmark className={compact ? "text-[20px]" : "text-[22px]"} />
+      <BrandWordmark className={cn(compact ? "text-[20px]" : "text-[22px]", markOnlyNarrow && "max-[429px]:hidden")} />
     </Link>
   );
 }
@@ -261,7 +261,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         style={{ viewTransitionName: "customer-header" }}
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
-          <Brand />
+          {/* Phones under 430px can't fit the wordmark beside cutoff, wallet and avatar; the page then grew wider
+              than the screen and cut off everything pinned to the right edge. The mark alone still says home. */}
+          <Brand markOnlyNarrow />
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
@@ -279,7 +281,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         </div>
       </header>}
 
-      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:pb-10 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
+      <main id="main" tabIndex={-1} className={cn("mx-auto outline-none w-full max-w-[1280px] px-4 lg:px-6", flow ? "pb-0 pt-0" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:pb-24 lg:pt-6")}><PageTransition>{children}</PageTransition></main>
 
       {!flow && <nav
         aria-label="Primary"
@@ -316,19 +318,19 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         </div>
       </nav>}
 
-      {/* This week's menu one tap away from anywhere: a tinted glass button over the content, right-hand side.
-          On Deliveries it rides above that page's own floating action bar. */}
-      {!flow && tab !== "menu" && (
+      {/* This week's menu one tap away from anywhere: a tinted glass button in one fixed spot on every page, on the
+          line of Deliveries' floating action bar (same 58px height); that bar and the support composer end short of it.
+          Its own view-transition name keeps it still while pages change, like the header and tab bar. */}
+      {!flow && (
         <Link
           href="/me/menu"
           aria-label="This week's menu"
+          aria-current={tab === "menu" ? "page" : undefined}
           className={cn(
             FOCUS,
-            "c-liquid-tint fixed right-4 z-30 inline-flex size-14 items-center justify-center gap-2 rounded-full text-[var(--primary-foreground,#fff)] transition-transform duration-150 active:scale-[.94] motion-reduce:transform-none lg:bottom-6 lg:right-6 lg:size-auto lg:h-12 lg:px-5 [@media(hover:hover)]:hover:-translate-y-px",
-            pathname === "/me"
-              ? "bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+4.25rem)]"
-              : "bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.75rem)]",
+            "c-liquid-tint fixed right-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-40 inline-flex size-[58px] items-center justify-center gap-2 rounded-full text-[var(--primary-foreground,#fff)] transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[.94] motion-reduce:transition-none motion-reduce:transform-none lg:bottom-6 lg:right-6 lg:size-auto lg:h-12 lg:px-5 [@media(hover:hover)]:hover:-translate-y-px",
           )}
+          style={{ viewTransitionName: "customer-menu-fab" }}
         >
           <UtensilsCrossed aria-hidden className="size-6 lg:size-5" />
           <span aria-hidden className="hidden text-[15px] font-semibold lg:inline">This week&apos;s menu</span>

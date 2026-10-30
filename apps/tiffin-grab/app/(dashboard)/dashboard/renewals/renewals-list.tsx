@@ -16,12 +16,15 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { EstimateButton } from "./estimate-button";
 
-const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "money" | "actions">[] = [
-  { key: "customer", label: "Customer" },
-  { key: "plan", label: "Meal size" },
-  { key: "last", label: "Last tiffin" },
-  { key: "status", label: "Status", width: "w-36" },
-  { key: "money", label: "Wallet · spent", align: "right", width: "w-36" },
+const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "coins" | "spent" | "total" | "actions">[] = [
+  // Widths sum to ~1090px with the # and Order columns, so all nine fit a 1440px screen.
+  { key: "customer", label: "Customer", width: "w-40" },
+  { key: "plan", label: "Meal size", width: "w-28" },
+  { key: "last", label: "Last tiffin", width: "w-36" },
+  { key: "status", label: "Status", width: "w-32" },
+  { key: "coins", label: "Wallet", align: "right", width: "w-20" },
+  { key: "spent", label: "Total spent", align: "right", width: "w-24" },
+  { key: "total", label: "Last spent", align: "right", width: "w-24" },
   { key: "actions", label: "Actions", align: "right", width: "w-20" },
 ];
 
@@ -59,9 +62,15 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         idHref={renewalHref}
         idLabel="Order"
         rowClassName={() => "group"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
+        filters={
+          <ListSearchFilters
+            spec={spec}
+            placeholder="Search name, order or phone…"
+            shortPlaceholder="Search…"
+          />
+        }
         emptyIcon={RefreshCwIcon}
-        emptyMessage={tab === "trials" ? "No trials in this window. Try a wider Ending or Ended range." : "No plans in this window. Try a wider Ending or Ended range."}
+        emptyMessage={tab === "trials" ? "No trials in this date range. Pick a wider range or another date type." : "No plans in this date range. Pick a wider range or another date type."}
         emptySearchMessage="No plans match your search."
         renderRow={(r) => (
           <>
@@ -78,8 +87,10 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
             <TableCell>
               <Badge variant={STATUS_VARIANT[rowStatus(r.status, r.lastTiffin, today)]}>{statusLabel(rowStatus(r.status, r.lastTiffin, today), tab)}</Badge>
             </TableCell>
-            <TableCell className="text-right tabular-nums" title={r.prevOrderTotal != null ? `Previous plan ${fmt(Number(r.prevOrderTotal))}` : "No previous plan"}>
-              {r.walletCoins} coins <span className="text-muted-foreground">· {fmt(Number(r.totalSpent))}</span>
+            <TableCell className="text-right tabular-nums">{r.walletCoins} <span className="text-muted-foreground">coins</span></TableCell>
+            <TableCell className="text-right tabular-nums">{fmt(Number(r.totalSpent))}</TableCell>
+            <TableCell className="text-right tabular-nums" title={r.prevOrderTotal != null ? `Plan before this one: ${fmt(Number(r.prevOrderTotal))}` : "No plan before this one"}>
+              {fmt(Number(r.planTotal))}
             </TableCell>
             <TableCell className="text-right">
               <EstimateButton orderPublicId={r.orderPublicId} />

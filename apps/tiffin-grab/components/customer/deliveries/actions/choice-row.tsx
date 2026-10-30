@@ -1,7 +1,10 @@
 "use client";
-import { ChevronDown, Info } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Choice, ChoiceGroup } from "@/components/customer/kit";
+import { ChevronDown, Heart, Info } from "lucide-react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
+
+/** Names of the dishes customers pick most on the sheet's day; the sheet provides it once for every row. */
+export const PopularDishes = createContext<ReadonlySet<string>>(new Set());
 
 const muted = "text-[var(--muted-foreground,#6E6558)]";
 
@@ -49,6 +52,7 @@ export function ChoiceRow({
   children?: ReactNode;
 }) {
   const [why, setWhy] = useState<string | null>(null);
+  const popular = useContext(PopularDishes);
   const shown = choices.find((c) => c.value === why && c.reason);
   return (
     <div className={nested ? "ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3" : "grid gap-2"}>
@@ -64,7 +68,12 @@ export function ChoiceRow({
         {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c) => (
           <div key={c.value} className="relative">
             <Choice value={c.value} disabled={c.disabled} className="h-full min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
-              <span className="min-w-0 flex-1 text-left leading-snug">{c.label}</span>
+              <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left leading-snug">
+                {c.label}
+                {!c.swap && popular.has(c.label) && (
+                  <Pill tone="brand" size="sm" icon={<Heart aria-hidden className="size-3 fill-current" />}>Popular</Pill>
+                )}
+              </span>
             </Choice>
             {c.reason && (
               // Outside the (disabled, faded) button so it stays red and tappable; it sits over the

@@ -3,7 +3,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
-import type { RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
+import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
 
 export type RenewalRow = {
@@ -16,6 +16,8 @@ export type RenewalRow = {
   planName: string;
   mealSize: string;
   lastTiffin: string;
+  /** This plan's total: the "Last spent" column. */
+  planTotal: string;
   status: RenewalStatus;
   /** Facts, not predictions: earlier paid plans, held or paused days on this plan, unresolved tickets. */
   priorPlans: number;
@@ -26,7 +28,10 @@ export type RenewalRow = {
   prevOrderTotal: string | null;
 };
 
-export type RenewalCounts = { endingToday: number; endingWithin7: number; renewed: number; renewedNotPaid: number; lapsed: number };
+export type RenewalCounts = { plans: number; renewed: number; renewedNotPaid: number; notRenewed: number; lapsed: number };
+
+/** The top date range, resolved by the page: ISO dates in the app timezone for date columns, epoch ms for created_at. */
+export type RenewalRange = { by: DateBy; fromIso: string | null; toIso: string | null; fromMs: number | null; toMs: number | null };
 
 const tabWhere = (tab: RenewalsTab) => (tab === "trials" ? isNotNull(orders.trialLength) : isNull(orders.trialLength));
 const running = sql`${orders.status} in ('active', 'paused')`;
@@ -36,9 +41,15 @@ const runningOrDone = sql`${orders.status} in ('active', 'paused', 'completed')`
 /** Running plans whose last tiffin is today through `days` out. */
 const endingWhere = (today: string, days: number) => and(running, sql`${lastTiffinSql} between ${today} and ${addDays(today, days)}`);
 
-/** Plans whose last tiffin was in the last `days` days and that have no later plan: the ones that lapsed. */
-const lapsedWhere = (tab: RenewalsTab, today: string, days: number) =>
-  and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`, sql`${renewalStatusSql(tab === "trials")} = 'none'`);
+/** Plans whose last tiffin was in the last `days` days (over, renewed or not; Status narrows to the lapsed ones). */
+const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`);
+
+/** The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start. */
+function rangeWhere(r: RenewalRange) {
+  if (r.by === "ordered") return and(r.fromMs != null ? gte(orders.createdAt, r.fromMs) : undefined, r.toMs != null ? lte(orders.createdAt, r.toMs) : undefined);
+  if (r.by === "running") return and(r.toIso ? sql`${orders.startDate} <= ${r.toIso}` : undefined, r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined);
+  return and(r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined, r.toIso ? sql`${lastTiffinSql} <= ${r.toIso}` : undefined);
+}
 
 /** Status filter: Not renewed and Lapsed are both "no later plan", split on whether the last tiffin has passed. */
 function statusWhere(f: RenewalsFilter, today: string) {
@@ -53,15 +64,17 @@ function statusWhere(f: RenewalsFilter, today: string) {
 const searchWhere = (q: string) =>
   and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
 
-export async function listRenewals(visible: "all" | string[], f: RenewalsFilter, today: string, page: PageRequest): Promise<Page<RenewalRow>> {
+/** Plans that ran (running or finished) in the top date range, narrowed by the optional Ending / Ended windows, Status and search. */
+export async function listRenewals(visible: "all" | string[], f: RenewalsFilter, today: string, page: PageRequest, range: RenewalRange): Promise<Page<RenewalRow>> {
   if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
   const where = and(
     tabWhere(f.tab),
     visibleOrgWhere(visible),
-    or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? lapsedWhere(f.tab, today, f.ended) : undefined),
-    // Order date: when the ending plan was ordered.
-    f.from != null ? gte(orders.createdAt, f.from) : undefined,
-    f.to != null ? lte(orders.createdAt, f.to) : undefined,
+    runningOrDone,
+    rangeWhere(range),
+    f.ending != null || f.ended != null
+      ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
+      : undefined,
     statusWhere(f, today),
     f.q ? searchWhere(f.q) : undefined,
   );
@@ -79,6 +92,7 @@ export async function listRenewals(visible: "all" | string[], f: RenewalsFilter,
         planName: plans.name,
         mealSize: mealSizes.name,
         lastTiffin: sql<string>`${lastTiffinSql}`,
+        planTotal: orders.total,
         status: renewalStatusSql(f.tab === "trials"),
         priorPlans: sql<number>`(select cast(count(*) as int) from ${orders} as prior where prior.user_id = ${orders.userId} and prior.id <> ${orders.id} and prior.trial_length is null and prior.status in ('active', 'paused', 'completed') and prior.start_date < ${orders.startDate})`,
         holds: sql<number>`(select cast(count(*) as int) from ${deliveries} as d where d.order_id = ${orders.id} and d.status in ('skipped', 'paused'))`,
@@ -109,20 +123,20 @@ export async function listRenewals(visible: "all" | string[], f: RenewalsFilter,
   return { items, page: page.page, size: page.size, total: count };
 }
 
-/** The cards above the list: one pass over plans ending within 7 days or lapsed within `lapsedDays`. */
-export async function countRenewals(visible: "all" | string[], tab: RenewalsTab, today: string, lapsedDays: number): Promise<RenewalCounts> {
-  if (visible !== "all" && visible.length === 0) return { endingToday: 0, endingWithin7: 0, renewed: 0, renewedNotPaid: 0, lapsed: 0 };
+/** The five cards: plans in the top date range, split by where their renewal stands. */
+export async function countRenewals(visible: "all" | string[], tab: RenewalsTab, today: string, range: RenewalRange): Promise<RenewalCounts> {
+  if (visible !== "all" && visible.length === 0) return { plans: 0, renewed: 0, renewedNotPaid: 0, notRenewed: 0, lapsed: 0 };
   const status = renewalStatusSql(tab === "trials");
   const [r] = await db
     .select({
-      endingToday: sql<number>`cast(count(*) filter (where ${running} and ${lastTiffinSql} = ${today}) as int)`,
-      endingWithin7: sql<number>`cast(count(*) filter (where ${endingWhere(today, 7)}) as int)`,
+      plans: sql<number>`cast(count(*) as int)`,
       renewed: sql<number>`cast(count(*) filter (where ${status} = 'renewed') as int)`,
       renewedNotPaid: sql<number>`cast(count(*) filter (where ${status} in ('unpaid', 'waitlisted')) as int)`,
-      lapsed: sql<number>`cast(count(*) filter (where ${lastTiffinSql} < ${today} and ${status} = 'none') as int)`,
+      notRenewed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} >= ${today}) as int)`,
+      lapsed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} < ${today}) as int)`,
     })
     .from(orders)
-    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -lapsedDays)} and ${addDays(today, 7)}`));
+    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, rangeWhere(range)));
   return r;
 }
 

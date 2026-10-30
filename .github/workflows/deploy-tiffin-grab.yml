@@ -39,6 +39,8 @@ jobs:
       # Before anything ships: migration `when` values must be untouched and
       # generated (see scripts/check-migration-journal.mjs). A rewritten `when`
       # gets skipped silently by drizzle's migrator on the box.
+      - name: Check conflict markers
+        run: bash scripts/check-conflict-markers.sh
       - name: Check migration journals
         run: node scripts/check-migration-journal.mjs ${{ github.event.before }}
       - uses: docker/setup-buildx-action@v4

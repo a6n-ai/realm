@@ -35,7 +35,7 @@ import {
 } from "@/lib/menu/slot-dropdown";
 import { swapAmounts } from "@/lib/menu/swap-rules";
 import { sanitizeClientError } from "@/lib/format/client-error";
-import type { RowChoice } from "./choice-row";
+import { PopularDishes, type RowChoice } from "./choice-row";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "pick";
@@ -182,6 +182,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     };
   const tabs = grid ? dates.filter((d) => grid.cells.some((c) => c.dateIso === d)) : [];
   const activeDay = tabs.includes(day) ? day : tabs[0];
+  const popularToday = useMemo(() => new Set(grid?.popular?.[activeDay ?? ""] ?? []), [grid?.popular, activeDay]);
   const persons = grid?.persons ?? 1;
   const who = Math.min(person, persons);
   const cells = grid?.cells.filter((c) => c.dateIso === activeDay && c.personIndex === who) ?? [];
@@ -551,7 +552,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
           </U.Notice>
         )}
         {grid && (
-          <>
+          <PopularDishes.Provider value={popularToday}>
             {tabs.length > 1 && (
               <U.Segmented
                 label="Eating day"
@@ -781,7 +782,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
             </div>
             {error && <U.Notice tone="error">{error}</U.Notice>}
             <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />
-          </>
+          </PopularDishes.Provider>
         )}
       </div>
     </U.Shell>
