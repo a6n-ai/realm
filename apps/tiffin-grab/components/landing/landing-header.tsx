@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/customer/kit/theme-toggle";
@@ -18,7 +18,8 @@ const LINKS = [
 
 // The customer top bar's anatomy: brand left, nav pills, one hero action; on
 // phones the pills fold into a sheet behind a 44px menu button.
-export function LandingHeader() {
+/** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
+export function LandingHeader({ rating }: { rating?: ReactNode }) {
   const { data: session } = useSession();
   const role = (session?.user as { role?: RoleValue } | undefined)?.role;
   const account = session?.user
@@ -50,6 +51,7 @@ export function LandingHeader() {
           <nav className="tg-nav" aria-label="Main">
             {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill">{l.label}</Link>)}
             <Link prefetch={false} href={account.href} className="tg-navpill">{account.label}</Link>
+            {rating}
             <ThemeToggle className="tg-theme" />
             <Link prefetch={false} href="/subscribe" className="tg-cta ml-1">Build my tiffin</Link>
             <button ref={menuRef} type="button" className="tg-menu-btn" aria-label="Open menu" aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen(true)}>
@@ -61,7 +63,8 @@ export function LandingHeader() {
       {open ? (
         <div id="tg-sheet" className="tg-sheet" role="dialog" aria-modal="true" aria-label="Menu" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="tg-sheet__panel">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3">
+              <span onClick={() => setOpen(false)}>{rating}</span>
               <button ref={closeRef} type="button" className="tg-menu-btn !inline-flex" aria-label="Close menu" onClick={() => setOpen(false)}>
                 <X className="size-5" strokeWidth={1.75} />
               </button>

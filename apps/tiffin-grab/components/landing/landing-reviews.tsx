@@ -35,11 +35,12 @@ function ReviewAvatar({ review }: { review: Review }) {
   return <img src={review.profilePhotoUrl} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" className="size-10 shrink-0 rounded-full object-cover" />;
 }
 
-export function ReviewCard({ review, clamp = false }: { review: Review; clamp?: boolean }) {
+/** `glass` is the /reviews page card: liquid glass, justified text, a lift on hover. */
+export function ReviewCard({ review, clamp = false, glass = false }: { review: Review; clamp?: boolean; glass?: boolean }) {
   return (
-    <figure className="tg-card m-0 flex h-full flex-col gap-4 p-6">
+    <figure className={glass ? "tg-review-glass m-0 flex flex-col gap-4 p-6" : "tg-card m-0 flex h-full flex-col gap-4 p-6"}>
       <ReviewStars value={review.rating} />
-      <blockquote className={`c-body m-0 whitespace-pre-line ${clamp ? "line-clamp-6" : ""}`}>{review.text}</blockquote>
+      <blockquote lang="en" className={`c-body m-0 whitespace-pre-line ${clamp ? "line-clamp-6" : ""} ${glass ? "text-justify hyphens-auto" : ""}`}>{review.text}</blockquote>
       <figcaption className="c-caption mt-auto flex items-center gap-3">
         <ReviewAvatar review={review} />
         <span>
@@ -50,6 +51,19 @@ export function ReviewCard({ review, clamp = false }: { review: Review; clamp?: 
         </span>
       </figcaption>
     </figure>
+  );
+}
+
+// Navbar capsule: the overall rating, one tap from the reviews page.
+export async function NavRating() {
+  const summary = await getReviewsSummary(integrationsConfigReadStore);
+  if (!summary || summary.total === 0) return null;
+  return (
+    <Link href="/reviews" className="tg-rating c-liquid" aria-label={`Rated ${summary.rating.toFixed(1)} out of 5 from ${summary.total} Google reviews`}>
+      <Star aria-hidden width={15} height={15} strokeWidth={1.75} className="fill-current text-primary" />
+      <span className="tabular-nums">{summary.rating.toFixed(1)}</span>
+      <span className="tg-rating__count tabular-nums">{summary.total}</span>
+    </Link>
   );
 }
 
