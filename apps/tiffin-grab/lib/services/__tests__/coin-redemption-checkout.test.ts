@@ -21,7 +21,7 @@ const {
 } = await import("@/db/schema");
 const { cancelOrder, createOrder, refundOrder, verifyPayment } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
-const { setMaxCoinPctOfSubtotal, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
+const { setMaxCoinPctOfSubtotal, setMaxCoinRedeemPctOfBalance, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 const { resolveCheckoutTaxes } = await import("@/lib/tax/checkout-taxes");
@@ -56,6 +56,7 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
   await setPaymentConfig({ methods: [] });
   await setMaxCoinPctOfSubtotal(null);
+  await setMaxCoinRedeemPctOfBalance(null);
   await setProvinceTaxes({});
   await sharedCache("app-settings").evictAll();
 }
@@ -510,6 +511,52 @@ describe("createOrder — admin coin limit and provincial tax", () => {
     // Only the coins actually spent left the wallet — the rest stay spendable.
     const coinsSpent = Number(coinLine!.label.match(/Coins \((\d+)\)/)![1]);
     expect(await walletService.balance(owner.id)).toBe(100_000 - coinsSpent);
+  });
+
+  it("refuses coins over the share-of-balance limit instead of quietly spending fewer", async () => {
+    await setMaxCoinRedeemPctOfBalance(50);
+    await sharedCache("app-settings").evictAll();
+    const owner = await seedUserWithCoins(100);
+
+    // Over the limit means the balance moved since the quote: spending fewer would charge more than quoted.
+    await expect(createOrder(await baseInput({ coins: 60 }), { ownerUserId: owner.publicId })).rejects.toThrow(/check the price again/i);
+    expect(await walletService.balance(owner.id)).toBe(100);
+
+    // At the limit it goes through and spends exactly what was asked.
+    await createOrder(await baseInput({ coins: 50 }), { ownerUserId: owner.publicId });
+    expect(await walletService.balance(owner.id)).toBe(50);
+  });
+
+  it("still clamps a count over the share-of-balance limit when the order needs fewer coins anyway", async () => {
+    // Checkout sends back the number the customer typed. If another limit (here the share of the
+    // subtotal) leaves the order needing fewer coins than the balance limit, nothing changed: clamp, don't refuse.
+    await setMaxCoinRedeemPctOfBalance(50);
+    await setMaxCoinPctOfSubtotal(5);
+    await sharedCache("app-settings").evictAll();
+    const owner = await seedUserWithCoins(100);
+
+    const { deploymentId } = await createOrder(await baseInput({ coins: 60 }), { ownerUserId: owner.publicId });
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const coinLine = (order!.pricingSnapshot as Snapshot).adjustments.find((a) => a.label.startsWith("Coins ("));
+    const spent = Number(coinLine!.label.match(/Coins \((\d+)\)/)![1]);
+    expect(spent).toBeGreaterThan(0);
+    expect(spent).toBeLessThan(50);
+    expect(await walletService.balance(owner.id)).toBe(100 - spent);
+  });
+
+  it("two orders at once can't together spend past the share-of-balance limit", async () => {
+    await setMaxCoinRedeemPctOfBalance(50);
+    await sharedCache("app-settings").evictAll();
+    const owner = await seedUserWithCoins(100);
+
+    // Both were quoted against a 100-coin balance (50% = 50). Under the wallet lock the second one reads
+    // the balance after the first spent, so its limit is 25 and it is refused.
+    const results = await Promise.allSettled([
+      createOrder(await baseInput({ coins: 50 }), { ownerUserId: owner.publicId }),
+      createOrder(await baseInput({ coins: 50, startOffsetWeeks: 8 }), { ownerUserId: owner.publicId }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await walletService.balance(owner.id)).toBe(50);
   });
 
   it("applies no coins when the admin limit is 0%", async () => {
