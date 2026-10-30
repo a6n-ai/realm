@@ -79,6 +79,16 @@ UPDATE users SET password_set = true, email_verified = true
 WHERE email = ${ADMIN_EMAIL};
 `);
 
+  // Orders are created in the brand org and listed only to its members: without a member row the
+  // admin 404s on the order it just created.
+  await db.execute(sql`
+INSERT INTO member (organization_id, user_id, role)
+SELECT o.id, u.id, 'admin'
+FROM organization o, users u
+WHERE o.parent_organization_id IS NULL AND u.email = ${ADMIN_EMAIL}
+ON CONFLICT (organization_id, user_id) DO NOTHING;
+`);
+
   await db.execute(sql`
 WITH new_cust AS (
     INSERT INTO users (public_id, name, email, phone, role, created_at, updated_at, password_set, email_verified)

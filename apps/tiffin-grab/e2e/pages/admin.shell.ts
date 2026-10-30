@@ -17,8 +17,9 @@ export class AdminShell {
   }
 
   link(name: string | RegExp): Locator {
-    const exact = typeof name === "string";
-    return this.sidebar().getByRole("link", { name, exact });
+    // A string matches the label at the start of the name: nav links append badge text ("Inquiries New activity").
+    const pattern = typeof name === "string" ? new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`) : name;
+    return this.sidebar().getByRole("link", { name: pattern });
   }
 
   async expectNav() {
@@ -60,49 +61,6 @@ export class LeadSheet {
       await tel.pressSequentially(opts.phone, { delay: 20 });
       await tel.blur();
     }
-  }
-
-  /** Step 2 order form — plan, address, payment method. */
-  async fillMinimalOrder() {
-    await expect(this.root.getByRole("radio", { name: /^veg$/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-
-    await this.root.getByRole("radio", { name: /^veg$/i }).first().click();
-    const mealPill = this.root
-      .getByRole("radio")
-      .filter({ hasText: /regular|standard|medium|small|large|thali/i })
-      .first();
-    if (await mealPill.count()) {
-      await mealPill.click();
-    }
-
-    await pickEarliestDate(this.page, this.root.getByLabel(/^start date/i));
-
-    await this.root.getByLabel(/^address/i).fill("123 Test St");
-    await this.root.getByLabel(/^city/i).fill("Toronto");
-
-    const delivery = this.root.locator("fieldset").filter({ hasText: "Delivery" });
-    const postalCombo = delivery.getByRole("combobox");
-    await postalCombo.click();
-    const search = this.page.getByPlaceholder(/type a postal code/i);
-    await expect(search).toBeVisible({ timeout: 5_000 });
-    await search.fill("M5H 2N2");
-    await this.page.keyboard.press("Escape");
-
-    const payMethod = this.root.getByRole("button").filter({ hasText: /interac|e-transfer|cash/i }).first();
-    if (await payMethod.count()) {
-      await payMethod.click();
-    }
-  }
-
-  /** Step 2 CTA — advances to Review when the New order sheet has three steps. */
-  reviewOrder() {
-    return this.root.getByRole("button", { name: /^review order$/i });
-  }
-
-  submitOrder() {
-    return this.root.getByRole("button", { name: /^create order$/i });
   }
 
   addInquiry() {

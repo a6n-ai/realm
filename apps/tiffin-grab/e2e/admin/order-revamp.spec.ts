@@ -1,5 +1,6 @@
 import { test, expect } from "../fixtures";
 import { LeadSheet } from "../pages/admin.shell";
+import { NewOrderSheet } from "../pages/new-order.page";
 import { OrderDetailPage } from "../pages/order-detail.page";
 import { slowServerActions } from "../helpers/slow-actions";
 
@@ -8,25 +9,16 @@ test.describe.configure({ mode: "serial" });
 test.describe("admin order revamp (desktop)", () => {
   let createdOrderUrl: string | null = null;
 
-  test("new order step 2 shows payment method selection", async ({ page }) => {
-    await page.goto("/dashboard/orders");
-    await page.getByRole("button", { name: /new order/i }).click();
+  test("new order page 2 shows payment method selection", async ({ page }) => {
+    const sheet = new NewOrderSheet(page);
+    await sheet.open();
+    const stamp = Date.now();
+    await sheet.fillContact({ name: "E2E Order UI", email: `e2e-order-ui-${stamp}@example.com`, phone: `416555${String(stamp).slice(-4)}` });
+    await sheet.fillPlan();
+    await sheet.goToPage2();
 
-    const sheet = new LeadSheet(page);
-    await sheet.expectOpen();
-
-    const phone = `416555${String(Date.now()).slice(-4)}`;
-    await sheet.fillContact({
-      name: "E2E Order UI",
-      email: `e2e-order-ui-${Date.now()}@example.com`,
-      phone,
-    });
-    await sheet.continue().click();
-
-    await expect(sheet.root.getByText(/^payment$/i)).toBeVisible();
-    await expect(
-      sheet.root.getByText(/simulated|e-transfer|interac|cash|choose how the customer/i).first(),
-    ).toBeVisible();
+    await expect(sheet.root.getByText("Payment", { exact: true }).first()).toBeVisible();
+    await expect(sheet.root.getByRole("radio", { name: /interac|e-transfer|card/i }).first()).toBeVisible();
   });
 
   test("new inquiry shows loading state while saving", async ({ page }) => {
@@ -53,43 +45,25 @@ test.describe("admin order revamp (desktop)", () => {
     await expect(page.getByRole("dialog", { name: /new inquiry/i })).toBeHidden({ timeout: 45_000 });
   });
 
-  test("create order shows admin success dialog with pay link", async ({ page }) => {
+  test("create order shows in-sheet success panel with pay link", async ({ page }) => {
     test.setTimeout(120_000);
     await slowServerActions(page, 600);
 
-    await page.goto("/dashboard/orders");
-    await page.getByRole("button", { name: /new order/i }).click();
-
-    const sheet = new LeadSheet(page);
-    await sheet.expectOpen();
+    const sheet = new NewOrderSheet(page);
+    await sheet.open();
 
     const stamp = Date.now();
-    const phone = `416555${String(stamp).slice(-4)}`;
-    await sheet.fillContact({
-      name: "E2E Order Success",
-      email: `e2e-order-success-${stamp}@example.com`,
-      phone,
-    });
-    await sheet.continue().click();
-    await expect(sheet.root.getByRole("radio", { name: /^veg$/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await sheet.fillMinimalOrder();
-    await expect(sheet.reviewOrder()).toBeEnabled({ timeout: 10_000 });
-    await sheet.reviewOrder().click();
-    await expect(sheet.root.getByText(/price breakup/i)).toBeVisible({ timeout: 10_000 });
-    await expect(sheet.submitOrder()).toBeEnabled({ timeout: 10_000 });
-    await sheet.submitOrder().click();
+    await sheet.fillContact({ name: "E2E Order Success", email: `e2e-order-success-${stamp}@example.com`, phone: `416555${String(stamp).slice(-4)}` });
+    await sheet.fillPlan();
+    await sheet.goToPage2();
+    await sheet.fillNewAddress();
+    await sheet.payWith();
+    await sheet.create();
 
-    await expect(page.getByText(/creating/i)).toBeVisible({ timeout: 5_000 });
-
-    const success = page.getByRole("dialog", { name: /order created/i });
-    await expect(success).toBeVisible({ timeout: 90_000 });
-    await expect(success.getByText(/SUB-/)).toBeVisible();
-    await expect(success.getByRole("button", { name: /copy link/i })).toBeVisible();
-    await expect(success.getByRole("button", { name: /view order/i })).toBeVisible();
-
-    await success.getByRole("button", { name: /view order/i }).click();
+    await expect(page.getByText(/creating/i).first()).toBeVisible({ timeout: 5_000 });
+    await sheet.expectCreated();
+    await expect(sheet.root.getByRole("button", { name: /copy link/i })).toBeVisible();
+    await sheet.root.getByRole("button", { name: /view order/i }).click();
     await page.waitForURL(/\/dashboard\/orders\//);
     createdOrderUrl = page.url();
     await new OrderDetailPage(page).expectRevampLayout();
@@ -130,13 +104,13 @@ test.describe("admin order revamp (desktop)", () => {
     }
   });
 
-  test("order detail activity log has search, facet filters, and pagination", async ({ page }) => {
+  test("order detail activity log has search and facet filters", async ({ page }) => {
     test.skip(!createdOrderUrl, "Requires create-order test to run first");
     await page.goto(createdOrderUrl!);
 
     const detail = new OrderDetailPage(page);
     await detail.expectActivityFilters();
-    await expect(detail.activityPaginationRange()).toBeVisible();
+    // The Activity panel is now a timeline with no "x–y of n" footer on a one-entry order.
 
     const search = detail.activitySection().getByPlaceholder(/search activity/i);
     await search.fill("created");

@@ -33,12 +33,13 @@ test.describe("admin interactive flows (desktop)", () => {
     await expect(sheet.root.getByRole("radio", { name: /veg/i }).first()).toBeVisible();
   });
 
-  test("New order opens Contact step with source pills", async ({ page }) => {
+  test("New order opens the sheet with customer search, source pills and a disabled Continue", async ({ page }) => {
     await page.goto("/dashboard/orders");
     await page.getByRole("button", { name: /new order/i }).click();
 
     const sheet = new LeadSheet(page);
     await sheet.expectOpen();
+    await expect(sheet.root.getByPlaceholder(/search existing customer/i)).toBeVisible();
     await expect(sheet.root.getByRole("radio", { name: /manual/i })).toBeVisible();
     await expect(sheet.continue()).toBeDisabled();
   });

@@ -2,7 +2,7 @@ import { test as base, expect } from "@playwright/test";
 import path from "node:path";
 import { expectHealthyPage, expectNoHttpFailure } from "./helpers/assert";
 import { customerCreds } from "./helpers/auth";
-import { LeadSheet } from "./pages/admin.shell";
+import { NewOrderSheet } from "./pages/new-order.page";
 
 type Fixtures = {
   /** Desktop viewport for CRM / customer desktop layouts */
@@ -39,17 +39,16 @@ export const test = base.extend<Fixtures>({
     });
     const page = await ctx.newPage();
     try {
-      await page.goto("/dashboard/orders");
-      await page.getByRole("button", { name: /new order/i }).click();
-      const sheet = new LeadSheet(page);
-      await sheet.expectOpen();
+      const sheet = new NewOrderSheet(page);
+      await sheet.open();
       await sheet.fillContact({ name: "E2E Stripe", email: customerCreds().email, phone: `416555${String(Date.now()).slice(-4)}` });
-      await sheet.continue().click();
-      await sheet.fillMinimalOrder();
-      await sheet.root.getByRole("button").filter({ hasText: /^Card$/ }).first().click();
-      await sheet.reviewOrder().click();
-      await sheet.submitOrder().click();
-      await page.getByRole("dialog", { name: /order created/i }).getByRole("button", { name: /view order/i }).click({ timeout: 90_000 });
+      await sheet.fillPlan();
+      await sheet.goToPage2();
+      await sheet.fillNewAddress();
+      await sheet.payWith(/^card$/i);
+      await sheet.create();
+      await sheet.expectCreated();
+      await sheet.root.getByRole("button", { name: /view order/i }).click();
       await page.waitForURL(/\/dashboard\/orders\//);
       const id = (await page.getByTestId("payment-public-id").first().textContent({ timeout: 30_000 }))?.trim();
       if (!id) throw new Error("order detail did not render payment-public-id");
