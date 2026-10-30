@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { LandingReviews } from "@/components/landing/landing-reviews";
 import Link from "next/link";
 import { MealSizePrice } from "@/components/wizard/meal-size-price";
 import { PageIntro } from "@/components/landing/public-shell";
@@ -29,6 +31,7 @@ export default async function PricingPage() {
     .sort((a, b) => parseInt(a.label) - parseInt(b.label));
 
   return (
+    <>
     <div className="tg-wrap tg-section flex flex-col gap-16">
       <div>
         <PageIntro
@@ -87,5 +90,8 @@ export default async function PricingPage() {
         <Link href="/plans" className="tg-btn">Compare the plans</Link>
       </div>
     </div>
+      {/* External Places fetch: a cache miss must not hold back the page. */}
+      <Suspense fallback={null}><LandingReviews /></Suspense>
+    </>
   );
 }

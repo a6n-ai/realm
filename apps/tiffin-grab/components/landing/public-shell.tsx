@@ -34,6 +34,7 @@ async function PublicFooter() {
             <Link href="/plans">Plans</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/locations">Locations</Link>
+            <Link href="/reviews">Reviews</Link>
             <Link href="/faq">FAQ</Link>
             <Link href="/contact">Contact</Link>
           </nav>

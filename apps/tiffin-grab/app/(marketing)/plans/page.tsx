@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { LandingReviews } from "@/components/landing/landing-reviews";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageIntro } from "@/components/landing/public-shell";
@@ -24,6 +26,7 @@ export default async function PlansPage() {
   });
 
   return (
+    <>
     <div className="tg-wrap tg-section">
       <PageIntro
         eyebrow="Plans"
@@ -64,5 +67,8 @@ export default async function PlansPage() {
       </div>
       <p className="mt-8"><Link href="/pricing" className="tg-link tg-link--tap">Every size and rate</Link></p>
     </div>
+      {/* External Places fetch: a cache miss must not hold back the page. */}
+      <Suspense fallback={null}><LandingReviews /></Suspense>
+    </>
   );
 }

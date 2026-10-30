@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { preload } from "react-dom";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { LandingMotion } from "@/components/landing/landing-motion";
-import { LandingReviews } from "@/components/landing/landing-reviews";
+import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
 import { WeekBend } from "@/components/landing/week-bend";
 import { FrequencyPicker } from "@/components/landing/frequency-picker";
 import { WeeksPicker } from "@/components/landing/weeks-picker";
@@ -119,6 +119,8 @@ export default async function LandingPage() {
                   <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
                   {pub ? <a href="#menu" className="tg-btn">This week&apos;s menu</a> : null}
                 </div>
+                {/* External Places fetch: streams in after the hero so it never holds back the LCP. */}
+                <Suspense fallback={null}><HeroRating /></Suspense>
               </div>
             </div>
 
