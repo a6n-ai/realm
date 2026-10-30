@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  ArrowRightIcon, CircleDotIcon, CreditCardIcon, GiftIcon, MapPinIcon, MessageSquareTextIcon, PauseIcon,
+  ArrowRightIcon, CircleDotIcon, ClipboardListIcon, CoinsIcon, CreditCardIcon, GiftIcon, MapPinIcon, MessageSquareTextIcon, PauseIcon,
   PlayIcon, RepeatIcon, ScrollTextIcon, SearchIcon, TruckIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
@@ -16,6 +16,8 @@ import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndica
 import { formatEpoch } from "@/lib/format/datetime";
 import { describeActivity, describeActivityActor } from "@/lib/services/order-activity-describe";
 import { cn } from "@foundry/ui/cn";
+import Link from "next/link";
+import type { FacetDef } from "@/components/ds";
 import { filterActivityRows, ORDER_ACTIVITY_FACETS } from "./activity-facets";
 
 export type OrderActivityLogRow = {
@@ -29,6 +31,10 @@ export type OrderActivityLogRow = {
   actorName: string | null;
   actorEmail: string | null;
   actorRole: string | null;
+  /** Customer page: which order the row belongs to. */
+  order?: { publicId: string; label: string } | null;
+  /** Account events carry their own "by …" in the note, so no actor line. */
+  noActor?: boolean;
 };
 
 type ViewRow = OrderActivityLogRow & {
@@ -59,6 +65,9 @@ const ICON: Record<string, { icon: LucideIcon; tone: string }> = {
   payment_verified: { icon: CreditCardIcon, tone: "text-emerald-500" },
   payment_rejected: { icon: CreditCardIcon, tone: "text-red-500" },
   note: { icon: MessageSquareTextIcon, tone: "text-muted-foreground" },
+  account_address: { icon: MapPinIcon, tone: "text-sky-500" },
+  account_wallet: { icon: CoinsIcon, tone: "text-amber-500" },
+  account_inquiry: { icon: ClipboardListIcon, tone: "text-violet-500" },
 };
 const ROUTE_ICON = { icon: TruckIcon, tone: "text-muted-foreground" };
 
@@ -141,7 +150,7 @@ function RouteLine({ entry, fmt }: { entry: Extract<Entry, { kind: "route" }>; f
   );
 }
 
-export function OrderActivityLog({ activities }: { activities: OrderActivityLogRow[] }) {
+export function OrderActivityLog({ activities, facets = ORDER_ACTIVITY_FACETS }: { activities: OrderActivityLogRow[]; facets?: FacetDef[] }) {
   const tz = useTimezone();
   const params = useSearchParams();
   const [query, setQuery] = useState("");
@@ -154,7 +163,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
     });
     const q = query.trim().toLowerCase();
     const matched = filterActivityRows(view, params).filter((r) =>
-      !q || [r.action, r.actorLabel, r.actorEmail, r.note, r.type].some((s) => s?.toLowerCase().includes(q)));
+      !q || [r.action, r.actorLabel, r.actorEmail, r.note, r.type, r.order?.label].some((s) => s?.toLowerCase().includes(q)));
     return groupByDay(matched, tz);
   }, [activities, params, query, tz]);
 
@@ -167,7 +176,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search activity…" className="pl-8" />
         </div>
-        <ReuiFacetFilters spec={ORDER_ACTIVITY_FACETS} />
+        <ReuiFacetFilters spec={facets} />
       </div>
 
       {days.length === 0 ? (
@@ -186,7 +195,14 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
                 ) : (
                   <Item key={e.row.publicId} step={i + 1} type={e.row.type} title={e.row.note && e.row.action.endsWith(` — ${e.row.note}`) ? e.row.action.slice(0, -(e.row.note.length + 3)) : e.row.action} time={time(e.row.createdAt)}>
                     <div className="space-y-1">
-                      <p className="text-xs"><ActorBadge kind={e.row.actorKind} label={e.row.actorLabel} /></p>
+                      {e.row.noActor && !e.row.order ? null : (
+                        <p className="flex flex-wrap items-center gap-2 text-xs">
+                          {e.row.noActor ? null : <ActorBadge kind={e.row.actorKind} label={e.row.actorLabel} />}
+                          {e.row.order ? (
+                            <Link href={`/dashboard/orders/${e.row.order.publicId}`} className="text-muted-foreground font-mono underline-offset-2 hover:underline">{e.row.order.label}</Link>
+                          ) : null}
+                        </p>
+                      )}
                       {e.row.note && e.row.note !== e.row.action ? (
                         <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">{e.row.note}</p>
                       ) : e.row.fromStatus && e.row.toStatus ? (
