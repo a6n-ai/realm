@@ -10,6 +10,7 @@ import {
   getTopDishes,
   getOrdersByPlan,
   getOrdersByTier,
+  getOrdersByMealType,
 } from "@/lib/services/analytics/products.service";
 import {
   parseAnalyticsFilters,
@@ -44,9 +45,12 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
             <PlanChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid orders by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
+        <ChartCard
+          title="Paid orders by meal type"
+          subtitle="Maharaja Thali, 4 Item Thali, and other catalog sizes. Custom sizes are not included."
+        >
           <Suspense fallback={<ChartSkeleton />}>
-            <TierList searchParams={searchParams} />
+            <MealTypeList searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
@@ -106,16 +110,15 @@ async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function TierList({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
+async function MealTypeList({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
-        label: r.tier,
+        label: r.mealType,
         n: r.paid,
         aside: money(r.paid),
-        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
-        href: ordersHref({ tier: r.key }),
+        meta: `${r.plan} · ${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
       }))}
       emptyLabel="No paid orders yet."
     />

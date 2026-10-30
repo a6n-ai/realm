@@ -118,3 +118,41 @@ export async function getOrdersByTier(filters: AnalyticsFilters = EMPTY): Promis
     paid: Math.round(Number(r.paid) * 100) / 100,
   }));
 }
+
+export type PaidMealTypeRow = {
+  mealType: string;
+  key: string;
+  plan: string;
+  orders: number;
+  paid: number;
+};
+
+/** Settled payments grouped by catalog meal size (Maharaja Thali, 4 Item Thali, …). */
+export async function getOrdersByMealType(filters: AnalyticsFilters = EMPTY): Promise<PaidMealTypeRow[]> {
+  const rows = await db
+    .select({
+      mealType: mealSizes.name,
+      key: mealSizes.key,
+      plan: plans.name,
+      orders: sql<number>`cast(count(distinct ${orders.id}) as int)`,
+      paid: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
+    })
+    .from(orders)
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(payments, eq(payments.orderId, orders.id))
+    .where(
+      and(
+        inArray(payments.status, [...SETTLED]),
+        eq(mealSizes.custom, false),
+        ordersMatchFilters(filters),
+        epochRangeWhere(payments.createdAt, filters),
+      ),
+    )
+    .groupBy(mealSizes.name, mealSizes.key, plans.name)
+    .orderBy(sql`sum(${payments.amount}) desc`);
+  return rows.map((r) => ({
+    ...r,
+    paid: Math.round(Number(r.paid) * 100) / 100,
+  }));
+}
