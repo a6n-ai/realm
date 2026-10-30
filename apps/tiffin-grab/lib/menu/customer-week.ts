@@ -37,6 +37,19 @@ export function popularIn(names: string[], picks: Record<string, number>): strin
   return top >= POPULAR_MIN_PICKS && top > (picks[ranked[1]!] ?? 0) ? ranked[0]! : null;
 }
 
+/** Popular per diet: a veg favourite and a non-veg favourite in the same category, each among its own diet's
+ *  dishes, so the non-veg picks never crowd out the veg ones. */
+export function popularByDiet(names: string[], picks: Record<string, number>, nonVeg: Set<string>): string[] {
+  return [names.filter((n) => !nonVeg.has(n)), names.filter((n) => nonVeg.has(n))].flatMap((side) => popularIn(side, picks) ?? []);
+}
+
+/** Plain names of the dishes that are non-veg this week: every plan serving the dish is a non-veg plan. */
+export function nonVegDishes(items: PosterItem[]): Set<string> {
+  const plans = new Map<string, boolean[]>();
+  for (const it of items) plans.set(plain(it.dishName), [...(plans.get(plain(it.dishName)) ?? []), isNonVeg(it.planName)]);
+  return new Set([...plans].filter(([, nv]) => nv.every(Boolean)).map(([name]) => name));
+}
+
 /** First menu week counted for Popular: the 12 weeks before `weekStart`. */
 export function popularSince(weekStart: string): string {
   const d = parseIsoDateUtc(weekStart);
@@ -45,8 +58,8 @@ export function popularSince(weekStart: string): string {
 }
 
 function markPopular(dishes: MenuDish[], picks: Record<string, number>): MenuDish[] {
-  const top = popularIn(dishes.map((d) => d.name), picks);
-  return top ? dishes.map((d) => (d.name === top ? { ...d, popular: true as const } : d)) : dishes;
+  const top = popularByDiet(dishes.map((d) => d.name), picks, new Set(dishes.filter((d) => d.nonVeg).map((d) => d.name)));
+  return dishes.map((d) => (top.includes(d.name) ? { ...d, popular: true as const } : d));
 }
 
 /** Pick counts keyed by stored dish name, folded onto the plain name the menu shows ("Dal (Veg)" + "Dal (Non-Veg)" = "Dal"). */
