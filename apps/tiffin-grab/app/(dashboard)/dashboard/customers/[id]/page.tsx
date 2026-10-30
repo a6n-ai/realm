@@ -13,6 +13,9 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { AdjustCoins } from "./adjust-coins";
 import { AttachReferral } from "./attach-referral";
+import { Badge as RBadge } from "@/components/reui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { REFERRAL_STATUS } from "../../wallet/referrals/referral-status";
 import { getReferralInfo } from "@/lib/services/referrals.service";
 import { DataTableSkeleton, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -31,6 +34,7 @@ const SECTIONS = {
   inquiries: "Inquiries",
   payment: "Payment",
   account: "Account",
+  referrals: "Referrals",
   timeline: "Activity timeline",
 } as const;
 
@@ -118,7 +122,7 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
                 who={data.profile.name || data.profile.email || "this customer"}
               />
             ) : null}
-            {isAdmin && !referral.referredBy ? <AttachReferral customerPublicId={id} /> : null}
+            {isAdmin ? <AttachReferral customerPublicId={id} /> : null}
           </div>
         }
       />
@@ -219,23 +223,64 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
               <dt className="text-muted-foreground">Locale</dt>
               <dd className="font-medium uppercase">{data.profile.locale}</dd>
             </div>
-            <div className="flex items-center justify-between gap-3">
+          </dl>
+        </SectionCard>
+      </div>
+
+      <SectionCard title={SECTIONS.referrals} subtitle="Their code, who referred them, and the friends who joined with their code.">
+        <div className="flex flex-col gap-4">
+          <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <dt className="text-muted-foreground">Their referral code</dt>
+              <dd className="font-mono font-medium">{referral.code ?? "Not made yet (made when they open Refer)"}</dd>
+            </div>
+            <div className="flex flex-col gap-1">
               <dt className="text-muted-foreground">Referred by</dt>
               <dd className="font-medium">
                 {referral.referredBy ? (
                   <Link href={`/dashboard/customers/${referral.referredBy.publicId}`} className="underline-offset-2 hover:underline">
                     {referral.referredBy.name || "Customer"}
                   </Link>
-                ) : "—"}
+                ) : "No one"}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">Customers referred</dt>
-              <dd className="tabular-nums font-medium">{referral.referredCount}</dd>
+            <div className="flex flex-col gap-1">
+              <dt className="text-muted-foreground">Coins earned from friends</dt>
+              <dd className="tabular-nums font-medium">
+                {referral.friends.filter((f) => f.status !== "reversed").reduce((n, f) => n + f.referrerCoins, 0)}
+              </dd>
             </div>
           </dl>
-        </SectionCard>
-      </div>
+          {referral.friends.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No friends have joined with their code yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Friend</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Friend coins</TableHead>
+                  <TableHead className="text-right">Their coins</TableHead>
+                  <TableHead>Joined</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {referral.friends.map((f) => (
+                  <TableRow key={f.publicId}>
+                    <TableCell>
+                      <Link href={`/dashboard/customers/${f.publicId}`} className="font-medium underline-offset-2 hover:underline">{f.name || "Customer"}</Link>
+                    </TableCell>
+                    <TableCell><RBadge variant={REFERRAL_STATUS[f.status].variant}>{REFERRAL_STATUS[f.status].label}</RBadge></TableCell>
+                    <TableCell className="text-right tabular-nums">{f.friendCoins}</TableCell>
+                    <TableCell className="text-right tabular-nums">{f.referrerCoins}</TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{formatEpoch(f.joinedAt, { mode: "date", timeZone: timezone })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </SectionCard>
 
       {isAdmin && (
         <SectionCard title="Contact" subtitle="Edit the email and phone on file.">

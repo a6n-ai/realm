@@ -378,18 +378,33 @@ export async function listReferrals(opts: { status?: ReferralFriendStatus; searc
   };
 }
 
-/** Customer detail: who referred them, and how many they referred. */
-export async function getReferralInfo(userId: bigint): Promise<{ referredBy: { publicId: string; name: string | null } | null; referredCount: number }> {
-  const [[by], [{ n }]] = await Promise.all([
+export type ReferralFriendRow = { publicId: string; name: string | null; status: ReferralFriendStatus; referrerCoins: number; friendCoins: number; joinedAt: number };
+
+/** Customer detail: their code, who referred them, and the friends they referred. */
+export async function getReferralInfo(userId: bigint): Promise<{
+  referredBy: { publicId: string; name: string | null } | null;
+  referredCount: number;
+  code: string | null;
+  friends: ReferralFriendRow[];
+}> {
+  const [[by], [own], rows] = await Promise.all([
     db
       .select({ publicId: referrerUser.publicId, name: referrerUser.name })
       .from(users)
       .innerJoin(referrerUser, eq(referrerUser.id, users.referredByUserId))
       .where(eq(users.id, userId))
       .limit(1),
-    db.select({ n: sql<number>`count(*)::int` }).from(referrals).where(eq(referrals.referrerUserId, userId)),
+    // Read only: a code is made when the customer first opens Refer, not when staff look.
+    db.select({ code: users.referralCode }).from(users).where(eq(users.id, userId)).limit(1),
+    db
+      .select({ publicId: users.publicId, name: users.name, status: referrals.status, referrerCoins: referrals.referrerCoins, friendCoins: referrals.friendCoins, joinedAt: referrals.createdAt })
+      .from(referrals)
+      .innerJoin(users, eq(users.id, referrals.referredUserId))
+      .where(eq(referrals.referrerUserId, userId))
+      .orderBy(desc(referrals.createdAt)),
   ]);
-  return { referredBy: by ?? null, referredCount: n };
+  const friends = rows.map((r) => ({ ...r, joinedAt: Number(r.joinedAt) }));
+  return { referredBy: by ?? null, referredCount: friends.length, code: own?.code ?? null, friends };
 }
 
 /** Discounts → Referrals stat cards. Taken-back referrals count, but their coins don't. */
