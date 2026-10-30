@@ -28,7 +28,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
   actions?: React.ReactNode;
   /** Plan switcher, shown above the plan box so a second plan is seen before scrolling. */
   plans?: React.ReactNode;
-  /** Renewed, or is the renewal: this replaces "Renews in" and the Renew button (the tabs above reach the other plan). */
+  /** Renewed, or is the renewal: this replaces "Last tiffin in" and the Renew button (the tabs above reach the other plan). */
   renewal?: string | null;
   name?: string | null;
   sub: Subscription;
@@ -74,7 +74,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
         {/* Same line, same place on every plan: when it renews, or that it already has. */}
         {(renewal || renew != null) && (
           <p className={cn("mt-0.5 text-[13px]", MUTED)} data-testid="plan-renewal">
-            {renewal ?? `Renews in ${renew} ${renew === 1 ? "day" : "days"}`}
+            {renewal ?? (renew === 0 ? "Last tiffin today" : renew === 1 ? "Last tiffin tomorrow" : `Last tiffin in ${renew} days`)}
           </p>
         )}
         {/* Every button lives in the footer, so plans differ only by how many there are. */}

@@ -28,3 +28,11 @@ describe("PlanHeader in a line of renewals", () => {
     expect(screen.getByTestId("plan-renewal")).toHaveTextContent("Renewed · next plan starts Nov 2");
   });
 });
+
+describe("PlanHeader last tiffin line", () => {
+  it.each([[0, "Last tiffin today"], [1, "Last tiffin tomorrow"], [3, "Last tiffin in 3 days"]])("renew=%i reads %s, Renew still offered", (renew, text) => {
+    render(<PlanHeader sub={sub} counts={counts} renew={renew} />);
+    expect(screen.getByTestId("plan-renewal")).toHaveTextContent(text);
+    expect(screen.getByRole("link", { name: "Renew plan" })).toBeInTheDocument();
+  });
+});
