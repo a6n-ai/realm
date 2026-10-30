@@ -96,8 +96,13 @@ export function useOrderDraft({
   const [couponCodes, setCouponCodes] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState("");
   const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
-  const [coinsWanted, setCoinsWanted] = useState<number | "max">("max");
+  // An estimate shows the best price (all allowed coins); a real order spends none until staff opt in.
+  const [coinsWanted, setCoinsWanted] = useState<number | "max">(estimateOnly ? "max" : 0);
   const [coinPreview, setCoinPreview] = useState<StaffCoinPreview | null>(null);
+  // Whose wallet coinPreview was priced against. An order only spends coins for that same contact, so a
+  // submit made after switching customer, before the new preview lands, can't carry the old wallet's count.
+  const coinPreviewFor = useRef<string | null>(null);
+  const walletKey = (formEmail: string) => `${formEmail.trim().toLowerCase()}|${contact.email.trim().toLowerCase()}|${contact.phone}`;
   const removeCoupon = (code: string) => setCouponCodes((cs) => cs.filter((c) => c !== code.toUpperCase()));
   const applyCoupon = (code: string) => {
     const next = code.trim().toUpperCase();
@@ -341,6 +346,8 @@ export function useOrderDraft({
       couponCodes,
       repInfo,
       discount,
+      // What the preview settled on, so the order spends exactly the coins the shown total assumes.
+      coins: estimateOnly || coinPreviewFor.current !== walletKey(v.email ?? "") ? undefined : (coinPreview?.used ?? 0),
     });
 
 
@@ -360,6 +367,7 @@ export function useOrderDraft({
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available && !estimateOnly ? repInfo.code : undefined;
+    const pricedFor = walletKey(email ?? "");
     previewPrice(
       buildInput({
         planKey,
@@ -380,13 +388,14 @@ export function useOrderDraft({
       }),
       repCode,
       discount > 0 ? discount : undefined,
-      estimateOnly ? coinsWanted : undefined,
+      coinsWanted,
     )
       .then((r) => {
         if (cancelled) return;
         setPreview("error" in r ? null : r.preview);
         setCoupons("error" in r ? null : r.coupons);
         setCoinPreview("error" in r ? null : r.coins);
+        coinPreviewFor.current = "error" in r ? null : pricedFor;
         const bulk = bulkCodes.current;
         if (bulk && !("error" in r)) {
           bulkCodes.current = null;
@@ -398,6 +407,8 @@ export function useOrderDraft({
       .catch(() => {
         if (cancelled) return;
         setPreview(null);
+        setCoinPreview(null);
+        coinPreviewFor.current = null;
         setPreviewError("Couldn't price this order. Check your connection and try again.");
       });
     return () => { cancelled = true; };
@@ -570,6 +581,8 @@ export function useOrderDraft({
   return {
     form,
     applyPrefill,
+    coinPreview,
+    setCoinsWanted,
     submitting,
     error,
     preview,

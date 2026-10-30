@@ -48,6 +48,8 @@ export type OrderInputCtx = {
   couponCodes: string[];
   repInfo: RepCouponInfo | null;
   discount: number;
+  /** Wallet coins to spend (a count). createOrder re-checks the balance and caps; 0 sends none. */
+  coins?: number;
 };
 
 export function buildOrderInput(v: OrderFormValues, ctx: OrderInputCtx): CreateOrderInput {
@@ -87,6 +89,7 @@ export function buildOrderInput(v: OrderFormValues, ctx: OrderInputCtx): CreateO
     repCoupon: ctx.repInfo?.available && ctx.discount > 0
       ? { code: ctx.repInfo.code, requestedAmount: ctx.discount }
       : undefined,
+    ...(ctx.coins && ctx.coins > 0 ? { coins: ctx.coins } : {}),
   };
 }
 

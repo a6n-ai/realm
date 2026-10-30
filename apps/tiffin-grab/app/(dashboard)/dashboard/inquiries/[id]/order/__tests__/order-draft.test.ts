@@ -38,6 +38,12 @@ const ctx: OrderInputCtx = {
 };
 
 describe("buildOrderInput", () => {
+  it("coins: sends the count only when staff chose some", () => {
+    expect(buildOrderInput(values, ctx)).not.toHaveProperty("coins");
+    expect(buildOrderInput(values, { ...ctx, coins: 0 })).not.toHaveProperty("coins");
+    expect(buildOrderInput(values, { ...ctx, coins: 40 }).coins).toBe(40);
+  });
+
   it("weekly plan: weekend flags come from eating days", () => {
     const o = buildOrderInput(values, ctx);
     expect(o.selections.frequencyKey).toBe("weekdays");

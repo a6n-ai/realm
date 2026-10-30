@@ -48,6 +48,7 @@ import { NoSources } from "../../_leads/no-sources";
 import { useExistingCustomer } from "../../_leads/use-existing-customer";
 import { getInquiryInterestForPrefill, type CustomerHit } from "../../_leads/match-actions";
 import { CustomerCodeField } from "../../discounts/customer-code-field";
+import { CoinsField } from "../../discounts/coins-field";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
 import { AdminOrderCreatedPanel, type AdminOrderCreated } from "../admin-order-created-dialog";
 import { CreatedOrderDetails, createdOrderFacts, whatsAppOrderMessage } from "./created-order-details";
@@ -355,7 +356,7 @@ function WorkspaceBody({
   }
 
   const { coupons, couponCodes, repInfo, discount } = d;
-  const discountCount = (coupons?.applied.length ?? 0) + (discount > 0 ? 1 : 0);
+  const discountCount = (coupons?.applied.length ?? 0) + (discount > 0 ? 1 : 0) + ((d.coinPreview?.used ?? 0) > 0 ? 1 : 0);
   const savedTotal = (shownPreview?.adjustments ?? []).reduce((sum, a) => sum + a.amount, 0);
 
   const contactMissing = [!fullName.trim() && "name", !phone.trim() && "phone", (!email.trim() || !!emailError) && "valid email", !sourceKey && "source"].filter(Boolean) as string[];
@@ -862,6 +863,9 @@ function WorkspaceBody({
                 </div>
               )}
             </div>
+
+            {/* Only a matched customer has a wallet; a new customer gets no coins row. */}
+            {d.coinPreview && <CoinsField onOrder coins={d.coinPreview} setCoins={d.setCoinsWanted} />}
 
             <CustomerCodeField onOrder subtotal={d.subtotal} apply={d.applyStaffCode} note={`New order: ${fullName || email}`} />
 
