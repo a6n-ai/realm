@@ -10,7 +10,7 @@ const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("@/lib/services/orders.service");
 const { addAddonsToSnapshot } = await import("@/lib/pricing/mid-plan-addons");
 const { buildAnalyticsScope } = await import("../scope");
-const { revenueTotals } = await import("../money");
+const { revenueTotals, revenueBy } = await import("../money");
 const { needsReviewRows } = await import("../needs-review");
 const { eq, inArray } = await import("drizzle-orm");
 
@@ -98,7 +98,18 @@ describe("plan quote subtracts what was applied, not what was requested", () => 
     await db.insert(ledgerEntries).values({ userId: o.userId!, orderId: o.id, paymentId: p, direction: "debit", type: "refund", amount: "10.00", createdAt: CAPTURED_AT } as never);
     const rows = await needsReviewRows(scope("coinrefund"));
     expect(rows).toHaveLength(1);
-    // paid 90 vs total 105 (gap before refunds), 10 refunded so 80 is kept: diff = kept - total.
-    expect(rows[0]).toMatchObject({ reasons: ["paid_ne_total", "partly_refunded"], paid: 90, total: 105, kept: 80, diff: -25 });
+    // paid 90 vs total 105 (gap before refunds), 10 refunded so 80 is kept: diff is the pre-refund gap (90 - 105) that flagged it.
+    expect(rows[0]).toMatchObject({ reasons: ["paid_ne_total", "partly_refunded"], paid: 90, total: 105, kept: 80, diff: -15 });
+  });
+
+  it("a trial followed by the same customer's first plan puts that plan in cohort new, not renewal", async () => {
+    const trial = await seed("cohort", base);
+    await db.update(orders).set({ trialLength: 3 }).where(eq(orders.id, trial.id));
+    await pay(trial.id, 105);
+    const plan = await seed("cohort2", base);
+    await db.update(orders).set({ userId: trial.userId, organizationId: orgs.cohort, createdAt: CAPTURED_AT + 60_000 }).where(eq(orders.id, plan.id));
+    await pay(plan.id, 105);
+    const cohort = Object.fromEntries((await revenueBy(scope("cohort"), "cohort")).map((r) => [r.key, r.net]));
+    expect(cohort).toEqual({ trial: 100, new: 100 });
   });
 });

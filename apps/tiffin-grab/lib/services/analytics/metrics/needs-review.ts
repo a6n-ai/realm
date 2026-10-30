@@ -23,7 +23,7 @@ export type NeedsReviewRow = {
   paid: number;
   /** pricing_snapshot.total, which already includes applied add-ons. */
   total: number;
-  /** kept minus total: the comparison paid_ne_total makes. */
+  /** For paid_ne_total rows the gap that flagged them: paid (less legacy refunds) minus total, before refunds. Otherwise kept minus total. */
   diff: number;
   /** paid minus ledger refunds (paid basis) minus legacy no-ledger refunds: the money the business still holds. */
   kept: number;
@@ -62,7 +62,7 @@ export async function needsReviewRows(scope: AnalyticsScope): Promise<NeedsRevie
       status: sql<string>`${orders.status}::text`,
       paid: sql<string>`round(${paid}, 2)::text`,
       total: sql<string | null>`round(${total}, 2)::text`,
-      diff: sql<string>`round(${kept} - coalesce(${total}, 0), 2)::text`,
+      diff: sql<string>`round(case when coalesce(${paidNeTotal}, false) then (${paid} - ${legacyRefunded}) - coalesce(${total}, 0) else ${kept} - coalesce(${total}, 0) end, 2)::text`,
       kept: sql<string>`round(${kept}, 2)::text`,
       isCancelledPaid: sql<boolean>`${cancelledPaid}`,
       isPaidNeTotal: sql<boolean>`coalesce(${paidNeTotal}, false)`,
