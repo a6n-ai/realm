@@ -18,6 +18,7 @@ import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
+  deliveryZones,
   deliveryCategorySwaps,
   deliveryExtraTiffins,
   deliveryMoves,
@@ -1152,6 +1153,16 @@ export async function refundPaymentInTx(
 ): Promise<void> {
   await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
   await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
+  // The Stripe webhook records its own refund row first, so only the unrecorded remainder is written.
+  const [{ already }] = await tx
+    .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
+  const [{ amount }] = await tx.select({ amount: payments.amount }).from(payments).where(eq(payments.id, i.paymentId));
+  const remainder = Math.round((Number(amount) - Number(already)) * 100) / 100;
+  if (remainder > 0 && i.userId) {
+    await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
+  }
   // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
   const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
   if (paid?.addon) return;
@@ -1628,6 +1639,13 @@ function ordersListResolver() {
           ),
       );
     }
+    if (f.field === "mealSize") {
+      return inArray(orders.mealSizeId, db.select({ id: mealSizes.id }).from(mealSizes).where(inArray(mealSizes.key, filterValues(f))));
+    }
+    if (f.field === "zone") {
+      return inArray(orders.zoneId, db.select({ id: deliveryZones.id }).from(deliveryZones).where(inArray(deliveryZones.name, filterValues(f))));
+    }
+    if (f.field === "org") return inArray(orders.organizationId, filterValues(f));
     // Orders carry no email of their own; search matches the account's.
     if (f.field === "email") {
       return inArray(
@@ -1639,15 +1657,17 @@ function ordersListResolver() {
   };
 }
 
-export async function listOrdersPage(
-  condition: Condition | undefined,
-  page: PageRequest,
-  sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
-  visible: "all" | string[],
-  /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
-  opts: { lookOutOnly?: boolean; paymentReview?: boolean; freeTiffins?: boolean; missedAsOf?: string } = {},
-): Promise<Page<OrderListRow>> {
-  const where = and(
+export interface OrdersListOpts {
+  lookOutOnly?: boolean;
+  paymentReview?: boolean;
+  freeTiffins?: boolean;
+  /** today in the app timezone; keeps orders with a missed delivery before it. */
+  missedAsOf?: string;
+}
+
+// Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
+export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
+  return and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
     opts.freeTiffins ? freeTiffinsWhere() : undefined,
@@ -1655,6 +1675,16 @@ export async function listOrdersPage(
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
+}
+
+export async function listOrdersPage(
+  condition: Condition | undefined,
+  page: PageRequest,
+  sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
+  visible: "all" | string[],
+  opts: OrdersListOpts = {},
+): Promise<Page<OrderListRow>> {
+  const where = ordersListWhere(condition, visible, opts);
 
   const SORT_COL = {
     name: orders.fullName,

@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, n
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
+const { listOrdersPage, ordersListWhere, refundOrder, refundPaymentInTx, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("../orders.service");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
 const { ticketsService } = await import("../tickets.service");
 const { ledgerService } = await import("../ledger.service");
@@ -382,5 +382,74 @@ describe("order CRM queries (integration)", () => {
       await expect(guard(id, [orgA.id])).resolves.toBeUndefined();
       await expect(guard(id, "all")).resolves.toBeUndefined();
     }
+  });
+  describe("analytics revamp: shared where + refund ledger", () => {
+    const mk = (name: string, phone: string) =>
+      loadCatalogSnapshot().then((snap) => createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, name, phone)));
+    const ids = async (cond: Parameters<typeof ordersListWhere>[0], visible: "all" | string[] = "all") =>
+      (await db.select({ p: orders.publicId }).from(orders).where(ordersListWhere(cond, visible))).map((r) => r.p).sort();
+
+    it("ordersListWhere matches listOrdersPage for an existing condition", async () => {
+      const a = await mk("Jane Customer", "+16475551001");
+      await mk("Bob Buyer", "+16475551002");
+      await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, a.publicId));
+      const cond = cEq("status", "cancelled");
+      const page = await listOrdersPage(cond, { page: 0, size: 10 }, undefined, "all");
+      expect(await ids(cond)).toEqual(page.items.map((r) => r.publicId).sort());
+      expect(page.total).toBe(1);
+    });
+
+    it("mealSize, zone and org facets narrow, and visible still caps them", async () => {
+      const snap = await loadCatalogSnapshot();
+      const a = await mk("Jane Customer", "+16475551003");
+      const b = await mk("Bob Buyer", "+16475551004");
+      const size = snap.mealSizes[0];
+      expect(await ids(cEq("mealSize", size.key))).toEqual([a.publicId, b.publicId].sort());
+      expect(await ids(cEq("mealSize", "no-such-size"))).toEqual([]);
+
+      const suffix = Math.random().toString(36).slice(2);
+      const [zone] = await db.insert(schema.deliveryZones).values({ name: `Zone ${suffix}`, postalPrefixes: ["ZZZ"] }).returning({ id: schema.deliveryZones.id, name: schema.deliveryZones.name });
+      await db.update(orders).set({ zoneId: zone.id }).where(eq(orders.publicId, a.publicId));
+      try {
+        expect(await ids(cEq("zone", zone.name))).toEqual([a.publicId]);
+
+        const [org] = await db.insert(organization).values({ name: "Org F", clientCode: `F-${suffix}` }).returning({ id: organization.id });
+        await db.update(orders).set({ organizationId: org.id }).where(eq(orders.publicId, b.publicId));
+        expect(await ids(cEq("org", org.id))).toEqual([b.publicId]);
+        // A facet naming another franchise cannot widen a scoped viewer.
+        expect(await ids(cEq("org", org.id), ["not-visible"])).toEqual([]);
+      } finally {
+        await db.update(orders).set({ zoneId: null }).where(eq(orders.publicId, a.publicId));
+        await db.delete(schema.deliveryZones).where(eq(schema.deliveryZones.id, zone.id));
+      }
+    });
+
+    const refundRows = (orderId: bigint) =>
+      db.select().from(ledgerEntries).where(and(eq(ledgerEntries.orderId, orderId), eq(ledgerEntries.type, "refund")));
+    const settle = async (publicId: string) => {
+      const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+      const [pay] = await db.update(payments).set({ status: "paid" }).where(eq(payments.orderId, o.id)).returning();
+      return { o, pay };
+    };
+
+    it("refundOrder writes exactly one ledger refund row for the payment amount", async () => {
+      const a = await mk("Jane Customer", "+16475551005");
+      const { o, pay } = await settle(a.publicId);
+      await refundOrder(a.publicId);
+      const rows = await refundRows(o.id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ direction: "debit", paymentId: pay.id, userId: o.userId });
+      expect(Number(rows[0].amount)).toBe(Number(pay.amount));
+    });
+
+    it("a Stripe-style pre-written refund row followed by refundPaymentInTx still yields one row", async () => {
+      const a = await mk("Jane Customer", "+16475551006");
+      const { o, pay } = await settle(a.publicId);
+      await db.transaction(async (tx) => {
+        await ledgerService.record(tx, { userId: o.userId!, orderId: o.id, paymentId: pay.id, direction: "debit", type: "refund", amount: pay.amount, memo: "Stripe refund" });
+        await refundPaymentInTx(tx, { orderId: o.id, orderPublicId: o.publicId, userId: o.userId, paymentId: pay.id, actorInternalId: null, note: "x" });
+      });
+      expect(await refundRows(o.id)).toHaveLength(1);
+    });
   });
 });

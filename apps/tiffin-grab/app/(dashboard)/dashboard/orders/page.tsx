@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, plans } from "@/db/schema";
+import { deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import type { OrderFacetField } from "@/lib/services/analytics/metrics/orders";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { after } from "next/server";
@@ -183,6 +185,20 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     .from(plans)
     .orderBy(plans.name);
 
+  const session = await getSession();
+  const visible = await resolveSessionVisibleOrgIds(session);
+  const [sizeOptions, zoneOptions, orgOptions] = await Promise.all([
+    db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
+    db.select({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).orderBy(deliveryZones.name),
+    visible === "all"
+      ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
+      : visible.length > 1
+        ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
+        : [],
+  ]);
+  // Typed against ORDER_FACET_FIELDS so analytics drill links cannot name a filter the listing lacks.
+  const field = (f: OrderFacetField) => f;
+
   const spec: FacetDef[] = [
     {
       kind: "pills",
@@ -190,11 +206,14 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       label: "Status",
       options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
     },
-    { kind: "select", field: "plan", label: "Plan", options: planOptions },
+    { kind: "select", field: field("plan"), label: "Plan", options: planOptions },
+    { kind: "select", field: field("mealSize"), label: "Meal size", options: sizeOptions },
+    { kind: "select", field: field("zone"), label: "Zone", options: zoneOptions },
+    ...(orgOptions.length > 1 ? [{ kind: "select" as const, field: field("org"), label: "Franchise", options: orgOptions }] : []),
     {
       kind: "select",
-      field: "tier",
-      label: "Meal size",
+      field: field("tier"),
+      label: "Size tier",
       options: [
         { value: "budget", label: "Budget" },
         { value: "medium", label: "Medium" },
@@ -217,8 +236,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, filterSp);
   const finalCondition = extra ? and(...[condition, extra].filter((c) => c != null)) : condition;
 
-  const session = await getSession();
-  const visible = await resolveSessionVisibleOrgIds(session);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const missedAsOf = missedOnly ? zonedDateIso(Date.now(), (await getAppSettings()).timezone) : undefined;
 
