@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { friendOffer, friendOfferParts, shareMessage } from "../share";
+import { friendOffer, friendOfferParts, referCardPath, shareMessage } from "../share";
 
 const flat = { mode: "flat" as const, referrerValue: 60, friendValue: 60, maxPerReferrer: null };
 
@@ -29,5 +29,13 @@ describe("friendOfferParts", () => {
     expect(friendOfferParts(flat, { perCoin: 0.25, currency: "CAD" })).toEqual({ big: "$15.00", small: "60 coins in your wallet" });
     expect(friendOfferParts(flat, null)).toEqual({ big: "60 coins", small: "in your wallet" });
     expect(friendOfferParts({ ...flat, friendValue: 0 }, null)).toBeNull();
+  });
+});
+
+describe("referCardPath", () => {
+  it("adds only the params that change the image", () => {
+    expect(referCardPath("ABC234")).toBe("/api/refer-card/ABC234");
+    expect(referCardPath("ABC234", { theme: "light" })).toBe("/api/refer-card/ABC234");
+    expect(referCardPath("ABC234", { size: "og", theme: "dark" })).toBe("/api/refer-card/ABC234?size=og&theme=dark");
   });
 });

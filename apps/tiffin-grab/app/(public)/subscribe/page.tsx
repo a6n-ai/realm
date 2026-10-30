@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const meta = pageMeta(TITLE, DESCRIPTION, "/subscribe");
   const ref = normalizeReferralCode((await searchParams).ref ?? "");
   if (!isReferralCodeShape(ref)) return meta;
-  const image = { url: referCardPath(ref, "og"), width: 1200, height: 630, alt: `TiffinGrab referral code ${ref}` };
+  const image = { url: referCardPath(ref, { size: "og" }), width: 1200, height: 630, alt: `TiffinGrab referral code ${ref}` };
   const referrer = await findReferrerByCode(ref);
   if (!referrer) return meta;
   const title = `${referrer.firstName ?? "A friend"} invited you to TiffinGrab`;
