@@ -213,6 +213,7 @@ export function DistributionDonutChart({
   valueKey,
   format = "number",
   colorKey,
+  legend,
   height = 240,
 }: {
   data: Row[];
