@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, Copy, Download, Link2, Mail, MessageCircle, MessageSquare, Send, Share2, Ticket } from "lucide-react";
+import { Check, Copy, Download, Link2, Mail, MessageCircle, MessageSquare, Send, Ticket } from "lucide-react";
 import { Button, Card, IconTile, buttonClass, type IconTint } from "@/components/customer/kit";
 import { referCardPath, shareMessage } from "@/lib/referrals/share";
 
@@ -24,14 +24,12 @@ function Target({ tint, icon, label, href, onClick, download }: { tint: IconTint
 export function ShareCard({ code, offer = null }: { code: string; offer?: string | null }) {
   const image = referCardPath(code);
   const [link, setLink] = useState(`/subscribe?ref=${code}`);
-  const [canShare, setCanShare] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [copied, setCopied] = useState<"link" | "code" | null>(null);
 
-  // Origin and Web Share exist only in the browser; render the relative link until then.
+  // Origin and file sharing exist only in the browser; render the relative link until then.
   useEffect(() => {
     setLink(`${window.location.origin}/subscribe?ref=${code}`);
-    setCanShare(typeof navigator.share === "function");
     // Fetched ahead: Safari drops the tap's permission to share if we await a download first.
     let live = true;
     fetch(referCardPath(code))
@@ -61,11 +59,18 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
     }
   };
 
-  const share = () =>
-    navigator.share(file ? { files: [file], text } : { text }).catch((e: unknown) => {
-      // Some targets refuse files; retry as text. AbortError is the sheet being dismissed.
-      if (file && e instanceof DOMException && e.name !== "AbortError") navigator.share({ text }).catch(() => {});
+  // Image + caption in one share. WhatsApp keeps the caption on Android but can drop it
+  // on iOS, so the message is copied first to paste in. Not awaited: Safari only allows
+  // share() inside the tap, and waiting on the clipboard can spend that permission.
+  // No title or url alongside files: some targets then drop the file or the text.
+  const shareWithImage = () => {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    navigator.share({ files: [file!], text }).catch((e: unknown) => {
+      // A target refusing files: send the text, whose link previews as the card anyway.
+      if (e instanceof DOMException && e.name !== "AbortError") navigator.share({ text }).catch(() => {});
     });
+  };
+  const waText = `https://wa.me/?text=${enc(text)}`;
 
   return (
     <Card className="space-y-4 p-5">
@@ -84,22 +89,32 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
         </Button>
       </div>
 
-      {/* What friends get with "With image"; links preview as the landscape version of the same card. */}
+      {/* What the WhatsApp share sends; a pasted link previews as the landscape version of this card. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- generated per code; next/image's localPatterns fence /api/files only */}
       <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1080} height={1350} loading="lazy" className="mx-auto aspect-[4/5] h-auto w-full max-w-[280px] rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] shadow-sm" />
       <p className="c-caption truncate text-center">{link}</p>
 
-      <a href={`https://wa.me/?text=${enc(text)}`} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "primary", className: "w-full" })}>
-        <MessageCircle aria-hidden className="size-4" />
-        Share on WhatsApp
-      </a>
+      {file ? (
+        <div className="space-y-2">
+          <Button variant="primary" className="w-full" onClick={shareWithImage}>
+            <MessageCircle aria-hidden className="size-4" />
+            Share on WhatsApp
+          </Button>
+          <p className="c-caption text-center text-pretty">
+            Pick WhatsApp to send the image with your message. If only the image arrives, paste: the message is copied.{" "}
+            <a href={waText} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Send text only</a>
+          </p>
+        </div>
+      ) : (
+        // No file sharing here (most desktops): text with the link, which WhatsApp previews as the card.
+        <a href={waText} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "primary", className: "w-full" })}>
+          <MessageCircle aria-hidden className="size-4" />
+          Share on WhatsApp
+        </a>
+      )}
 
       <div className="grid grid-cols-5 gap-1">
-        {canShare ? (
-          <Target tint="blue" icon={<Share2 />} label={file ? "With image" : "More"} onClick={share} />
-        ) : (
-          <Target tint="blue" icon={<Download />} label="Save image" href={image} download={`tiffingrab-${code}.png`} />
-        )}
+        <Target tint="blue" icon={<Download />} label="Save image" href={image} download={`tiffingrab-${code}.png`} />
         <Target tint="green" icon={<MessageSquare />} label="Messages" href={`sms:?&body=${enc(text)}`} />
         <Target tint="orange" icon={<Mail />} label="Email" href={`mailto:?subject=${enc("A tiffin treat from a friend")}&body=${enc(text)}`} />
         <Target tint="cyan" icon={<Send />} label="Telegram" href={`https://t.me/share/url?url=${enc(link)}&text=${enc(text.slice(0, text.lastIndexOf("\n")))}`} />
