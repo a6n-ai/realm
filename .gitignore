@@ -60,6 +60,10 @@ graphify-out/
 !.claude/skills/**
 .cursor/
 .agents/
+.opencode/
+opencode.json
+.gemini/
+.jury/
 .superpowers/
 .planning/
 .idea/
