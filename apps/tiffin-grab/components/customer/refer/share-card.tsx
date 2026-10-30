@@ -14,8 +14,8 @@ function WhatsAppGlyph() {
   );
 }
 
-// WhatsApp's own green (#128C7E): recognisable, and white text on it still reads (#25D366 is too light for white).
-const WHATSAPP = "!border-transparent !bg-[#128C7E] !text-white hover:!bg-[#0E7468]";
+// WhatsApp's brand green with dark text, as whatsapp.com does: white on #25D366 fails contrast.
+const WHATSAPP = "!border-transparent !bg-[#25D366] !text-[#0B141A] hover:!bg-[#1EBE5A]";
 
 /** The app's theme as the CSS sees it: the `dark` class on <html>, kept live. Not @foundry/themes'
  *  useTheme: two copies of that package are installed, and this client chunk gets the one whose
@@ -54,7 +54,7 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const image = referCardPath(code, { theme: useDarkMode() ? "dark" : "light" });
   const [link, setLink] = useState(referPath(code));
   const [file, setFile] = useState<File | null>(null);
-  const [copied, setCopied] = useState<"link" | "code" | "text" | null>(null);
+  const [copied, setCopied] = useState<"link" | "code" | null>(null);
 
   // Origin and file sharing exist only in the browser; render the relative link until then.
   useEffect(() => {
@@ -78,9 +78,9 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const text = shareMessage(code, link, offer);
   const enc = encodeURIComponent;
 
-  const copy = async (what: "link" | "code" | "text") => {
+  const copy = async (what: "link" | "code") => {
     try {
-      await navigator.clipboard.writeText({ link, code, text }[what]);
+      await navigator.clipboard.writeText({ link, code }[what]);
       setCopied(what);
       setTimeout(() => setCopied(null), 2000);
     } catch {
@@ -134,13 +134,6 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
           Share on WhatsApp
         </a>
       )}
-      {/* For when WhatsApp drops the caption under the image: paste it in. */}
-      <div className="-mt-2 flex justify-center">
-        <Button variant="ghost" size="md" className="!min-h-9 !px-3 !text-[13px]" onClick={() => copy("text")}>
-          {copied === "text" ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
-          <span role="status">{copied === "text" ? "Text copied" : "Copy text only"}</span>
-        </Button>
-      </div>
 
       <div className="grid grid-cols-5 gap-1">
         <Target tint="blue" icon={<Download />} label="Save image" href={image} download={`tiffingrab-${code}.png`} />
