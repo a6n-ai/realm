@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { MapPinIcon } from "lucide-react";
+import { ChevronDownIcon, MapPinIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
+import { Button } from "@foundry/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { findInquiryMatches } from "./match-actions";
 
 type Match = { publicId: string; sourceKey: string; sourceLabel: string; stage: string; createdAt: number };
@@ -15,12 +17,14 @@ function ageLabel(ms: number): string {
 }
 
 export function InquiryMatch({
-  phone, sourceKey, pickedId, onPick,
+  phone, sourceKey, pickedId, onPick, compact = false,
 }: {
   phone: string;
   sourceKey: string;
   pickedId: string | null;
   onPick: (id: string | null, lockedSourceKey?: string) => void;
+  /** One button beside a search bar instead of a card; the list opens in a popover. */
+  compact?: boolean;
 }) {
   // Keyed by phone so the empty state is derived, not set synchronously.
   const [found, setFound] = useState<{ phone: string; items: Match[] }>({ phone: "", items: [] });
@@ -48,11 +52,39 @@ export function InquiryMatch({
 
   if (matches.length === 0) return null;
 
+  const heading = `${matches.length} open inquir${matches.length === 1 ? "y" : "ies"} for this number`;
+
+  if (compact) {
+    const using = matches.find((m) => m.publicId === pickedId);
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="shrink-0" aria-label={heading}>
+            <MapPinIcon />
+            {using ? `${using.sourceLabel} · ${ageLabel(using.createdAt)}` : `${matches.length} inquir${matches.length === 1 ? "y" : "ies"}`}
+            <ChevronDownIcon className="opacity-60" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="grid w-80 gap-1.5 text-sm">
+          <p className="text-muted-foreground text-xs font-medium">{heading}</p>
+          {rows()}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   return (
     <div className="border-border/70 grid gap-1.5 rounded-xl border p-3 text-sm">
       <p className="text-muted-foreground text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
-        {matches.length} open inquir{matches.length === 1 ? "y" : "ies"} for this number
+        {heading}
       </p>
+      {rows()}
+    </div>
+  );
+
+  function rows() {
+    return (
+      <>
       {matches.map((m) => {
         const active = pickedId === m.publicId;
         return (
@@ -81,6 +113,7 @@ export function InquiryMatch({
           Create new inquiry instead
         </button>
       )}
-    </div>
-  );
+      </>
+    );
+  }
 }

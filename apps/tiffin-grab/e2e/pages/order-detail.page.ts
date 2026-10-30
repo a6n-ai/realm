@@ -27,7 +27,7 @@ export class OrderDetailPage {
   }
 
   activitySection(): Locator {
-    return this.card("Activity");
+    return this.page.getByRole("tabpanel", { name: "Activity" });
   }
 
   async expectRevampLayout() {
@@ -55,7 +55,7 @@ export class OrderDetailPage {
 
   async expectDeliveriesCalendar() {
     await this.openTab("Deliveries");
-    await expect(this.section("Deliveries").getByRole("grid")).toBeVisible();
+    await expect(this.page.getByRole("tabpanel", { name: "Deliveries" }).getByRole("grid")).toBeVisible();
   }
 
   async expectActivityFilters() {

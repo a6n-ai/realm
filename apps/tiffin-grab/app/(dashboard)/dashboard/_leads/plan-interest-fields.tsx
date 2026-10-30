@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@foundry/ui/cn";
+import { pillClass } from "./pill";
 import { FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -95,12 +96,7 @@ function PillRow({
                 aria-checked={active}
                 disabled={disabled}
                 onClick={() => onChange(opt.value)}
-                className={cn(
-                  "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
-                  active
-                    ? "border-primary/30 bg-primary/12 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
+                className={pillClass(active)}
               >
                 {opt.label}
               </button>
@@ -223,12 +219,7 @@ export function PlanInterestFields({
                 onClick={() =>
                   onChange({ eatingDaysInterest: EATING_DAYS.filter((x) => (x === d ? !on : eating.includes(x))) })
                 }
-                className={cn(
-                  "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium capitalize transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
-                  on
-                    ? "border-primary/30 bg-primary/12 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
+                className={pillClass(on, "capitalize")}
               >
                 {d}
               </button>

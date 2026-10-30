@@ -73,8 +73,10 @@ export function ConvertSheet({
       title={`Order for ${contact.fullName}`}
       description="Prefilled from the lead's interest — review and create the order."
       contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      // Flush: no bottom padding, so the form's sticky Total/Create bar sits on the dialog's edge.
+      flush
     >
-      <div className="space-y-4">
+      <div className="flex min-h-full flex-col gap-4 px-5 [--bar-inset:1.25rem]">
         <section className="bg-muted/30 space-y-3 rounded-xl border p-4">
           <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
             From the inquiry

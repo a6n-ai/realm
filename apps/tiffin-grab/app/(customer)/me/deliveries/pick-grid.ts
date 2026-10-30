@@ -21,7 +21,7 @@ import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { rolesByCategory, type MealItemRole } from "@/lib/menu/side-rules";
 import { AppError } from "@foundry/commons";
 import { menuService } from "@/lib/services/menu.service";
-import { foldPicks, nonVegDishes, plainDishName, popularByDiet, popularSince } from "@/lib/menu/customer-week";
+import { foldPicks, plainDishName, popularSince, popularThisWeek } from "@/lib/menu/customer-week";
 
 export type PickGrid = {
   cells: GridCell[];
@@ -52,23 +52,19 @@ export type PickGrid = {
   addonCounts: Record<string, number>;
   /** Each category's meal items in pick order, by role ("main", "side_1"): Edit meal names a second sabzi "Side". */
   rolesBySlot: Record<string, MealItemRole[]>;
-  /** Dish names customers pick most, per eating date (one veg, one non-veg per category; same rule as the weekly menu). */
+  /** Dish names customers pick most, per eating date (same rule as the weekly menu). */
   popular?: Record<string, string[]>;
 };
 
-/** Each eating day's Popular dish names, ranked within the day's own options per category and diet. */
+/** Each eating day's Popular dish names, ranked across the week per category and diet. */
 async function popularByDate(menu: PickGrid["menu"]): Promise<Record<string, string[]>> {
   const out: Record<string, string[]> = {};
   for (const monday of new Set(Object.keys(menu).map(mondayOfIso))) {
     const [week, counts] = await Promise.all([menuService.getPublishedWeek(monday), menuService.dishPickCounts(popularSince(monday))]);
-    const picks = foldPicks(counts);
-    const nonVeg = nonVegDishes(week?.items ?? []);
+    const top = popularThisWeek(week?.items ?? [], foldPicks(counts));
     for (const [date, byCategory] of Object.entries(menu)) {
       if (mondayOfIso(date) !== monday) continue;
-      out[date] = Object.values(byCategory).flatMap((dishes) => {
-        const top = popularByDiet([...new Set(dishes.map((d) => plainDishName(d.name)))], picks, nonVeg);
-        return dishes.filter((d) => top.includes(plainDishName(d.name))).map((d) => d.name);
-      });
+      out[date] = Object.values(byCategory).flatMap((dishes) => dishes.filter((d) => top.has(plainDishName(d.name))).map((d) => d.name));
     }
   }
   return out;

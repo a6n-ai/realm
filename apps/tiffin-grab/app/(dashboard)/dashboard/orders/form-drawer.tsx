@@ -50,13 +50,13 @@ export function FormDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 data-[side=right]:sm:max-w-2xl">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 data-[side=right]:sm:max-w-xl">
         {/* pr-12 keeps the title clear of the close button. */}
-        <SheetHeader className="shrink-0 gap-1 px-6 pt-6 pr-12 pb-4">
+        <SheetHeader className="shrink-0 gap-0.5 px-6 pt-4 pr-12 pb-2">
           <SheetTitle className="text-lg font-semibold tracking-[-0.01em]">{title}</SheetTitle>
           {description && <SheetDescription className="text-pretty">{description}</SheetDescription>}
         </SheetHeader>
-        <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain", !flush && "px-6 pb-6")}>{children}</div>
+        <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", !flush && "px-6 pb-6")}>{children}</div>
         {footer ? (
           <div className="flex shrink-0 items-center justify-end gap-2 border-t bg-muted/40 px-6 py-4">{footer}</div>
         ) : null}

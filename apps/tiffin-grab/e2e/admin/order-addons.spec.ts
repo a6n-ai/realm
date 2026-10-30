@@ -5,7 +5,7 @@
 import path from "node:path";
 import type { Browser, Locator, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
-import { LeadSheet, pickEarliestDate } from "../pages/admin.shell";
+import { NewOrderSheet } from "../pages/new-order.page";
 import { OrderDetailPage } from "../pages/order-detail.page";
 
 const adminState = path.join(process.cwd(), "e2e/.auth/admin.json");
@@ -51,34 +51,24 @@ const proofPath = path.join(__dirname, "../fixtures/payment-proof.png");
 
 /** Creates an order through the New Order sheet as already paid, so the plan is active with a settled payment. */
 async function openPaidActiveOrder(page: Page) {
-  await page.goto("/dashboard/orders");
-  await page.getByRole("button", { name: /new order/i }).click();
-
-  const sheet = new LeadSheet(page);
-  await sheet.expectOpen();
+  const sheet = new NewOrderSheet(page);
+  await sheet.open();
   const stamp = Date.now();
   await sheet.fillContact({
     name: "E2E Addons",
     email: `e2e-addons-${stamp}@example.com`,
     phone: `416555${String(stamp).slice(-4)}`,
   });
-  await sheet.continue().click();
+  await sheet.fillPlan();
+  await sheet.goToPage2();
+  await sheet.fillNewAddress();
+  await sheet.payWith(/e-?transfer|interac/i);
 
   const root = sheet.root;
-  await root.getByRole("radio", { name: /^veg$/i }).first().click();
-  await root.getByRole("radio").filter({ hasText: /regular|large|thali/i }).first().click();
-  await pickEarliestDate(page, root.getByLabel(/^start date/i));
-  await root.getByRole("button", { name: /continue to payment/i }).click();
-
-  await root.getByRole("combobox", { name: "Street address" }).fill("123 Test St");
-  await root.getByRole("textbox", { name: "City" }).fill("Toronto");
-  await root.getByRole("textbox", { name: "Postal code" }).fill("M5H 2N2");
-
-  await root.getByRole("button", { name: /e-?transfer|interac/i }).first().click();
   // "Already paid" with a screenshot approves the payment on create, so the plan starts active and settled.
-  await root.getByRole("radio", { name: /^Already paid/ }).click();
+  await root.getByRole("switch", { name: /already paid/i }).click();
   await root.locator('input[type="file"]').setInputFiles(proofPath);
-  await root.getByRole("button", { name: /^create order$/i }).click();
+  await sheet.create();
 
   await expect(root.getByText("Order created")).toBeVisible({ timeout: 90_000 });
   await root.getByRole("button", { name: /view order/i }).click();
