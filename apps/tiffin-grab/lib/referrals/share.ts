@@ -27,5 +27,8 @@ export function shareMessage(code: string, link: string, offer: string | null): 
   return `Home-style tiffins from TiffinGrab, delivered across the GTA. ${hook}\n${link}`;
 }
 
+/** What friends get sent: /r/CODE redirects to /subscribe?ref=CODE. */
+export const referPath = (code: string) => `/r/${code}`;
+
 /** Portrait phone image by default; `og` is the landscape link-preview card. */
 export const referCardPath = (code: string, size?: "og") => `/api/refer-card/${code}${size ? `?size=${size}` : ""}`;
