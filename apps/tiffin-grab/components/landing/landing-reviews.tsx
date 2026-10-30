@@ -10,6 +10,9 @@ export async function reviewsConnected(): Promise<boolean> {
   return Boolean(cfg?.installed && cfg.placeId && loadPlacesApiKeyFromEnv());
 }
 
+// Null on any failure: the header renders on static pages that prerender at build, with no DB.
+const summaryOrNull = () => getReviewsSummary(integrationsConfigReadStore).catch(() => null);
+
 export function ReviewStars({ value, size = 16 }: { value: number; size?: number }) {
   const filled = Math.round(value);
   return (
@@ -56,7 +59,7 @@ export function ReviewCard({ review, clamp = false, glass = false }: { review: R
 
 // Navbar capsule: the overall rating, one tap from the reviews page.
 export async function NavRating() {
-  const summary = await getReviewsSummary(integrationsConfigReadStore);
+  const summary = await summaryOrNull();
   if (!summary || summary.total === 0) return null;
   return (
     <Link href="/reviews" className="tg-rating c-liquid" aria-label={`Rated ${summary.rating.toFixed(1)} out of 5 from ${summary.total} Google reviews`}>
@@ -69,7 +72,7 @@ export async function NavRating() {
 
 // Hero line under the CTAs. Renders nothing until Google returns a rating.
 export async function HeroRating() {
-  const summary = await getReviewsSummary(integrationsConfigReadStore);
+  const summary = await summaryOrNull();
   if (!summary || summary.total === 0) return null;
   return (
     <Link href="/reviews" className="tg-link--tap inline-flex items-center gap-2 text-sm font-semibold no-underline">
@@ -82,7 +85,7 @@ export async function HeroRating() {
 
 // Real Google reviews only; without any, the section is not rendered at all.
 export async function LandingReviews({ withPhotos = false }: { withPhotos?: boolean } = {}) {
-  const summary = await getReviewsSummary(integrationsConfigReadStore);
+  const summary = await summaryOrNull();
   if (!summary || summary.reviews.length === 0) return null;
   const score = `${summary.rating.toFixed(1)} out of 5 from ${summary.total} Google reviews`;
 
