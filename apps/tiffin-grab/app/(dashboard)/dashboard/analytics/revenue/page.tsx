@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton, ListSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
@@ -57,10 +58,16 @@ async function reportFrom(searchParams: SearchParams): Promise<RevenueReport> {
 
 export default function RevenueAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<div className="bg-muted/40 h-8 w-full max-w-xl animate-pulse rounded-lg" />}>
-        <RangeAndLive searchParams={searchParams} />
-      </Suspense>
+    <div className="flex flex-col gap-5">
+      <AnalyticsPageHeader
+        section="Revenue"
+        description="Settled payments, discounts given, and amounts still awaiting payment."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-8 w-full max-w-xl animate-pulse rounded-lg" />}>
+            <RangeAndLive searchParams={searchParams} />
+          </Suspense>
+        }
+      />
 
       <Suspense fallback={<SkeletonStatCards count={8} />}>
         <Kpis searchParams={searchParams} />
@@ -84,7 +91,7 @@ export default function RevenueAnalyticsPage({ searchParams }: { searchParams: S
         </Suspense>
       </ChartCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By payment method" subtitle="Settled payments, including tax.">
           <Suspense fallback={<ListSkeleton />}>
             <MethodChart searchParams={searchParams} />
@@ -134,15 +141,38 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
       <MetricTiles
         cols={4}
         items={[
-          { label: "Gross sales", value: money(k.grossSales), hint: "List price before discounts, excl. tax", href: paid },
+          {
+            label: "Gross sales",
+            value: money(k.grossSales),
+            hint: "List price before discounts, excl. tax",
+            href: paid,
+            badge: "List",
+            badgeTone: "neutral",
+          },
           {
             label: "Discounts",
             value: money(k.discounts),
             hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of gross sales`,
             href: paid,
+            badge: "Given",
+            badgeTone: "brand",
           },
-          { label: "Net sales", value: money(k.netSales), hint: "Gross sales minus discounts, excl. tax", href: paid },
-          { label: "Tax collected", value: money(k.tax), hint: "Owed to the government, not revenue", href: paid },
+          {
+            label: "Net sales",
+            value: money(k.netSales),
+            hint: "Gross sales minus discounts, excl. tax",
+            href: paid,
+            badge: "Settled",
+            badgeTone: "ok",
+          },
+          {
+            label: "Tax collected",
+            value: money(k.tax),
+            hint: "Owed to the government, not revenue",
+            href: paid,
+            badge: "Tax",
+            badgeTone: "neutral",
+          },
         ]}
       />
       <MetricTiles
@@ -153,6 +183,8 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
             value: money(k.netCollected),
             hint: k.refunded > 0 ? `${money(k.collected)} received − ${money(k.refunded)} refunded` : "Paid amounts, including tax",
             href: paid,
+            badge: "Cash",
+            badgeTone: "ok",
           },
           {
             label: "Refunded",
@@ -160,6 +192,8 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
             tone: k.refunded > 0 ? "warn" : "default",
             hint: "By original payment date",
             href: settled({ statuses: ["refunded"] }),
+            badge: "Refunds",
+            badgeTone: k.refunded > 0 ? "warn" : "neutral",
           },
           {
             label: "Awaiting payment",
@@ -167,12 +201,16 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
             tone: k.pendingCount > 0 ? "warn" : "default",
             hint: `${k.pendingCount} ${k.pendingCount === 1 ? "payment" : "payments"} not yet verified`,
             href: settled({ statuses: ["awaiting_payment", "pending_verification"] }),
+            badge: "Pending",
+            badgeTone: k.pendingCount > 0 ? "warn" : "neutral",
           },
           {
             label: "Avg order value",
             value: k.avgOrderValue == null ? "—" : money(k.avgOrderValue),
             hint: `${k.orders} settled ${k.orders === 1 ? "order" : "orders"}, excl. tax`,
             href: paid,
+            badge: "Average",
+            badgeTone: "brand",
           },
         ]}
       />

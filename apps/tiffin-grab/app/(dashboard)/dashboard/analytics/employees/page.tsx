@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
+import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
@@ -17,18 +19,27 @@ type SearchParams = Promise<AnalyticsSearchParams>;
 
 export default function EmployeesAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
+      <AnalyticsPageHeader
+        section="Employees"
+        description="What each rep worked, converted, and closed."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+            <AnalyticsLiveStamp />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<SkeletonStatCards count={3} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <ChartCard title="Leads worked per rep">
+      <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched in this range.">
         <Suspense fallback={<ChartSkeleton />}>
           <LeadsChart searchParams={searchParams} />
         </Suspense>
       </ChartCard>
 
-      <ChartCard title="Per-rep breakdown">
+      <ChartCard title="Per-rep breakdown" subtitle="Open a count to see those inquiries or tickets.">
         <Suspense fallback={<TableRowsSkeleton />}>
           <RollupTable searchParams={searchParams} />
         </Suspense>
@@ -46,9 +57,21 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
     <MetricTiles
       cols={3}
       items={[
-        { label: "Active reps", value: activeReps },
-        { label: "Total leads worked", value: totalLeadsWorked, href: inquiriesHref() },
-        { label: "Total tickets resolved", value: totalTicketsResolved, href: "/dashboard/tickets?status=resolved" },
+        { label: "Active reps", value: activeReps, badge: "Reps", badgeTone: "neutral" },
+        {
+          label: "Total leads worked",
+          value: totalLeadsWorked,
+          href: inquiriesHref(),
+          badge: "Leads",
+          badgeTone: "brand",
+        },
+        {
+          label: "Total tickets resolved",
+          value: totalTicketsResolved,
+          href: "/dashboard/tickets?status=resolved",
+          badge: "Resolved",
+          badgeTone: "ok",
+        },
       ]}
     />
   );

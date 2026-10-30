@@ -118,48 +118,48 @@ export function TrendLineChart({
   const lines = series ?? (yKey ? [{ key: yKey, label: yKey }] : []);
   return (
     <div>
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-        <XAxis
-          dataKey={xKey}
-          tick={{ fontSize: 12 }}
-          tickLine={false}
-          axisLine={false}
-          className="fill-muted-foreground"
-        />
-        <YAxis
-          tick={{ fontSize: 12 }}
-          tickLine={false}
-          axisLine={false}
-          width={format === "currency" ? 56 : 36}
-          allowDecimals={false}
-          className="fill-muted-foreground"
-        />
-        <Tooltip content={(props) => <ChartTooltip {...props} format={format} />} />
-        {lines.map((l, i) => (
-          <Line
-            key={l.key}
-            type="monotone"
-            dataKey={l.key}
-            name={l.label}
-            stroke={CHART_COLORS[i % CHART_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+          <XAxis
+            dataKey={xKey}
+            tick={{ fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+            className="fill-muted-foreground"
           />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
-    {lines.length > 1 ? (
-      <ChartLegend
-        items={lines.map((l, i) => ({
-          key: l.key,
-          label: l.label,
-          color: CHART_COLORS[i % CHART_COLORS.length]!,
-        }))}
-      />
-    ) : null}
+          <YAxis
+            tick={{ fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+            width={format === "currency" ? 56 : 36}
+            allowDecimals={false}
+            className="fill-muted-foreground"
+          />
+          <Tooltip content={(props) => <ChartTooltip {...props} format={format} />} />
+          {lines.map((l, i) => (
+            <Line
+              key={l.key}
+              type="monotone"
+              dataKey={l.key}
+              name={l.label}
+              stroke={CHART_COLORS[i % CHART_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      {lines.length > 1 ? (
+        <ChartLegend
+          items={lines.map((l, i) => ({
+            key: l.key,
+            label: l.label,
+            color: CHART_COLORS[i % CHART_COLORS.length]!,
+          }))}
+        />
+      ) : null}
     </div>
   );
 }
@@ -213,6 +213,7 @@ export function DistributionDonutChart({
   valueKey,
   format = "number",
   colorKey,
+  legend = true,
   height = 240,
 }: {
   data: Row[];
