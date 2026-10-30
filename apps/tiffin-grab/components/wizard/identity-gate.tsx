@@ -9,7 +9,7 @@ import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
-import { tiffinAuthUi } from "@/components/auth/auth-kit";
+import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { newOrderHref } from "./selections";
@@ -292,6 +292,12 @@ export function IdentityGate({
 
         {error?.field === "form" ? <Notice tone="error">{error.message}</Notice> : null}
 
+        {/* Both phases can create an account: Google on "email", "Send my code" on "name". */}
+        {phase === "email" || phase === "name" ? (
+          <p className="c-caption text-pretty text-[var(--muted-foreground)] [&_a]:font-semibold [&_a]:text-[var(--foreground)] [&_a]:underline [&_a]:underline-offset-4">
+            <AuthLegal />
+          </p>
+        ) : null}
       </div>
 
       {phase === "email" || phase === "name" ? (
