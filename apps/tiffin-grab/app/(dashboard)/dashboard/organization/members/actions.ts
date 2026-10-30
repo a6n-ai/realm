@@ -45,10 +45,11 @@ export async function setUserRole(userId: string, role: RoleValue) {
 export async function adminUpdateContact(
   userId: string,
   input: { email?: string; phone?: string },
+  opts: { removePhone?: boolean } = {},
 ): Promise<{ error?: string; holderHref?: string }> {
   await requireAdmin();
   try {
-    await usersService.updateContact(userId, input, { nameClash: true });
+    await usersService.updateContact(userId, opts.removePhone ? { phone: "" } : input, { nameClash: true, ...opts });
   } catch (e) {
     if (e instanceof ContactTakenError) {
       const { publicId, role } = e.holder;

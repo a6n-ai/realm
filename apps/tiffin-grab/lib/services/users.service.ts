@@ -146,8 +146,13 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   // nameClash: admin callers only. Self-service and checkout must not learn who
-  // else holds a phone/email.
-  async updateContact(userId: string, input: { phone?: string; email?: string }, opts: { nameClash?: boolean } = {}) {
+  // else holds a phone/email. removePhone: admin Remove phone button only, so an
+  // emptied text field still can't drop a customer's phone by accident.
+  async updateContact(
+    userId: string,
+    input: { phone?: string; email?: string },
+    opts: { nameClash?: boolean; removePhone?: boolean } = {},
+  ) {
     const [current] = await db.select().from(users).where(eq(users.publicId, userId)).limit(1);
     if (!current) throw new ValidationError("User not found");
 
@@ -156,7 +161,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (input.phone !== undefined) {
       const phone = input.phone.trim();
       if (phone === "") {
-        if (current.role === Role.USER) throw new ValidationError("Phone is required for customers");
+        if (current.role === Role.USER && !opts.removePhone) throw new ValidationError("Phone is required for customers");
         patch.phone = null;
       } else {
         const p = phoneSchema().safeParse(phone);
