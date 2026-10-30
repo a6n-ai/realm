@@ -1,25 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, UtensilsCrossed } from "lucide-react";
-import { Card, DateStrip, EmptyState, Pill, Segmented, panelId, tabId, type StripDay, type Tone } from "@/components/customer/kit";
+import { useRef, useState, type KeyboardEvent } from "react";
+import { ArrowRight, Check, Clock, Lock, Pause, UtensilsCrossed } from "lucide-react";
+import { EmptyState, IconTile, ListGroup, ListRow, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
+import { cn, FOCUS } from "@/components/customer/kit/cn";
+import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
 
-const LONG = new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
-const day = (iso: string) => LONG.format(new Date(`${iso}T00:00:00Z`));
+const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
+const WEEKDAY = new Intl.DateTimeFormat("en-CA", { weekday: "long", timeZone: "UTC" });
+const SHORT = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
+const DATE = new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric", timeZone: "UTC" });
 
-const STRIP: Partial<Record<NonNullable<MyDay>, StripDay["status"]>> = { delivered: "delivered", paused: "paused", hold: "hold" };
+const DOT: Partial<Record<NonNullable<MyDay>, DeliveryStatus>> = { delivered: "delivered", paused: "paused", hold: "hold" };
 
 // What this customer has on the selected day, and the one thing they can do about it.
-const MINE: Record<NonNullable<MyDay>, { tone: Tone; label: string; note: string; action?: "Pick meals" | "View delivery" }> = {
-  pick: { tone: "wash", label: "Your delivery", note: "Choose from these dishes before the cutoff.", action: "Pick meals" },
-  locked: { tone: "neutral", label: "Your delivery", note: "Past the cutoff, so this day's meals are set.", action: "View delivery" },
-  delivered: { tone: "ok", label: "Delivered", note: "This day has been delivered." },
-  paused: { tone: "vac", label: "Paused", note: "You paused this day.", action: "View delivery" },
-  hold: { tone: "hold", label: "On hold", note: "This day is on hold.", action: "View delivery" },
+const MINE: Record<NonNullable<MyDay>, { tint: IconTint; icon: typeof Check; label: string; note: string; action?: "Pick meals" | "View delivery" }> = {
+  pick: { tint: "orange", icon: UtensilsCrossed, label: "Your delivery", note: "Choose from these dishes before the cutoff.", action: "Pick meals" },
+  locked: { tint: "gray", icon: Lock, label: "Your delivery", note: "Past the cutoff, so this day's meals are set.", action: "View delivery" },
+  delivered: { tint: "green", icon: Check, label: "Delivered", note: "This day has been delivered." },
+  paused: { tint: "indigo", icon: Pause, label: "Paused", note: "You paused this day.", action: "View delivery" },
+  hold: { tint: "pink", icon: Clock, label: "On hold", note: "This day is on hold.", action: "View delivery" },
 };
 
 /** The square-and-dot food mark Indian menus use; brown for non-veg. Shape plus label, never colour alone. */
@@ -34,23 +38,72 @@ function NonVegMark() {
   );
 }
 
-/** The released week: a day strip marked with this customer's delivery days, and the chosen day's dishes. */
+/** iOS Calendar's week row on a floating glass capsule: one saffron lens slides to the chosen day. */
+function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: number; today: string; onChange: (i: number) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: KeyboardEvent) => {
+    const to = { ArrowLeft: value - 1, ArrowRight: value + 1, Home: 0, End: days.length - 1 }[e.key];
+    if (to === undefined || to < 0 || to >= days.length) return;
+    e.preventDefault();
+    onChange(to);
+    refs.current[to]?.focus();
+  };
+  return (
+    <div className="c-liquid sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-30 rounded-[28px] p-1.5">
+      <div role="group" aria-label="Day" onKeyDown={onKey} className="relative grid grid-cols-7">
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[calc(100%/7)] rounded-[22px] bg-[var(--primary)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          style={{ transform: `translateX(${value * 100}%)` }}
+        />
+        {days.map((d, i) => {
+          const on = i === value;
+          const status = d.mine ? DOT[d.mine] : undefined;
+          const delivery = d.mine === "pick" || d.mine === "locked";
+          return (
+            <button
+              key={d.date}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              type="button"
+              aria-pressed={on}
+              aria-label={`${WEEKDAY.format(at(d.date))}, ${DATE.format(at(d.date))}${d.date === today ? ", today" : ""}${delivery ? ", your delivery" : status ? `, ${MINE[d.mine!].label}` : ""}`}
+              tabIndex={on ? 0 : -1}
+              onClick={() => onChange(i)}
+              className={cn(
+                FOCUS,
+                "relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[22px] [touch-action:manipulation] transition-[color,transform] duration-150 active:scale-[.94] motion-reduce:transform-none",
+                on ? "text-[var(--primary-foreground,#fff)]" : d.date === today ? "text-[var(--primary-text,var(--primary))]" : "text-[var(--foreground)]",
+              )}
+            >
+              <span aria-hidden className={cn("text-xs font-semibold", !on && "opacity-70")}>{SHORT.format(at(d.date)).slice(0, 3)}</span>
+              <b aria-hidden className="text-[17px] leading-none tabular-nums">{at(d.date).getUTCDate()}</b>
+              <span aria-hidden className="flex h-1.5 items-center">
+                {delivery ? <span className={cn("size-1.5 rounded-full", on ? "bg-current" : "bg-[var(--primary)]")} /> : status ? <StatusDot decorative status={status} className="size-1.5" /> : null}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** The released week: a glass week bar marked with this customer's delivery days, and the chosen day's dishes as inset-grouped lists. */
 export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay[]; plan: { name: string; days: MenuDay[] } | null; initial: string; today: string }) {
   const tz = useTimezone();
   const [selected, setSelected] = useState(initial);
   // Everyone sees what the kitchen makes; a customer on one plan can narrow it to theirs.
   const [view, setView] = useState<"full" | "plan">("full");
   const days = view === "plan" && plan ? plan.days : full;
+  const index = Math.max(days.findIndex((d) => d.date === selected), 0);
+  const current = days[index]!;
+  const mine = current.mine ? MINE[current.mine] : null;
   // Same wording and format as the trip card on Deliveries ("Changes until Thu 6:00 PM").
   const until = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
-  const current = days.find((d) => d.date === selected) ?? days[0]!;
-  const mine = current.mine ? MINE[current.mine] : null;
-
-  const strip: StripDay[] = days.map((d) => ({
-    date: d.date,
-    status: d.mine ? STRIP[d.mine] : undefined,
-    delivery: d.mine === "pick" || d.mine === "locked",
-  }));
+  // ISO dates sort in day order, so the swipe hook can tell which way the new day came from.
+  const swipe = useSwipePages({ page: current.date, canPrev: index > 0, canNext: index < days.length - 1, step: (dir) => setSelected(days[index + dir]!.date) });
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,52 +117,61 @@ export function WeeklyMenu({ days: full, plan, initial, today }: { days: MenuDay
           className="self-start [&>button]:px-4"
         />
       )}
-      <div className="flex flex-col gap-4" {...(plan ? { role: "tabpanel", id: panelId("menu-view", view), "aria-labelledby": tabId("menu-view", view) } : {})}>
-        <DateStrip label="Day" days={strip} value={selected} onChange={setSelected} fit />
+      <div className="flex flex-col gap-5" {...(plan ? { role: "tabpanel", id: panelId("menu-view", view), "aria-labelledby": tabId("menu-view", view) } : {})}>
+        <WeekBar days={days} value={index} today={today} onChange={(i) => setSelected(days[i]!.date)} />
 
-        <Card className="flex flex-col gap-5 p-5 lg:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <h2 className="c-h2">{day(current.date)}</h2>
+        <div className="overflow-x-clip">
+          <div ref={swipe.ref} {...swipe.bind} className="flex flex-col gap-5 [touch-action:pan-y]">
+            <header className="flex flex-col gap-1 px-1">
+              <p className="c-label">{DATE.format(at(current.date))}</p>
               <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em]">{WEEKDAY.format(at(current.date))}</h2>
                 {current.date === today && <Pill tone="brand" size="sm">Today</Pill>}
-                {mine ? <Pill tone={mine.tone} size="sm">{mine.label}</Pill> : <span className="c-caption">No delivery this day</span>}
               </div>
-              {mine && <p className="c-caption">{current.cutoffAt ? `Changes until ${until(current.cutoffAt)}` : mine.note}</p>}
-            </div>
-            {mine?.action && (
-              <Link
-                href={`/me?trip=${current.date}${mine.action === "Pick meals" ? "&action=pick" : ""}`}
-                className={buttonClass({ variant: mine.action === "Pick meals" ? "primary" : "outline", pill: true, className: "group" })}
+              {!mine && <p className="c-caption">No delivery this day</p>}
+            </header>
+
+            {mine && (
+              <div className="c-surface flex flex-wrap items-center gap-3 rounded-3xl bg-[var(--card)] p-4">
+                <IconTile tint={mine.tint} size="lg"><mine.icon /></IconTile>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold">{mine.label}</p>
+                  <p className="c-caption">{current.cutoffAt ? `Changes until ${until(current.cutoffAt)}` : mine.note}</p>
+                </div>
+                {mine.action && (
+                  <Link
+                    href={`/me?trip=${current.date}${mine.action === "Pick meals" ? "&action=pick" : ""}`}
+                    className={buttonClass({ variant: mine.action === "Pick meals" ? "primary" : "outline", pill: true, className: "group w-full sm:w-auto" })}
+                  >
+                    {mine.action}
+                    <ArrowRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {current.groups.length ? (
+              // Keyed on the filter so switching it re-enters with one short fade; day changes slide via the swipe hook.
+              <div
+                key={view}
+                className="grid gap-5 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-2 lg:grid-cols-3"
               >
-                {mine.action}
-                <ArrowRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
-              </Link>
+                {current.groups.map((g) => (
+                  <section key={g.label} aria-label={g.label} className="flex flex-col gap-2">
+                    <h3 className="c-label px-4 uppercase">{g.label}</h3>
+                    <ListGroup>
+                      {g.dishes.map((d) => (
+                        <ListRow key={d.name} label={d.name} value={d.nonVeg ? <NonVegMark /> : undefined} className="min-h-12" />
+                      ))}
+                    </ListGroup>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <EmptyState icon={<UtensilsCrossed className="size-6" />} title="Nothing cooking" body="The kitchen hasn't listed dishes for this day." className="py-8" />
             )}
           </div>
-
-          {current.groups.length ? (
-            // Keyed so a new day or filter re-enters with one short fade; nothing moves under reduced motion.
-            <dl
-              key={`${view}:${current.date}`}
-              className="grid gap-x-8 gap-y-5 border-t border-[var(--border)] pt-5 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {current.groups.map((g) => (
-                <div key={g.label} className="flex flex-col gap-1.5">
-                  <dt className="c-eyebrow">{g.label}</dt>
-                  {g.dishes.map((d) => (
-                    <dd key={d.name} className="flex items-center gap-2 text-[16px] font-medium leading-snug">
-                      {d.name}
-                      {d.nonVeg && <NonVegMark />}
-                    </dd>
-                  ))}
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <EmptyState icon={<UtensilsCrossed className="size-6" />} title="Nothing cooking" body="The kitchen hasn't listed dishes for this day." className="py-8" />
-          )}
-        </Card>
+        </div>
       </div>
     </div>
   );
