@@ -15,6 +15,8 @@ const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, 
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
 
 const publishedCache = sharedCache("published-week");
+// Pick counts move slowly (weekly picks over 12 weeks); an hour stale is fine and spares the aggregate.
+const pickCountCache = sharedCache("dish-pick-counts", 3_600_000);
 
 /** Released menu_week identity — shared by Menu poster + Deliveries calendar resolution. */
 export type ReleasedWeekRef = {
@@ -550,6 +552,23 @@ export const menuService = {
    * behavior change. A resolved id that matches no organization fails
    * closed (null), never falling through to the unscoped query.
    */
+  /**
+   * How often customers chose each dish (by name) on menus from `sinceWeekStart` on. meal_selections rows exist
+   * only for explicit picks, never defaults, so this is real preference. Feeds the customer menu's Popular badge.
+   */
+  async dishPickCounts(sinceWeekStart: string): Promise<Record<string, number>> {
+    return pickCountCache.getOrSet(sinceWeekStart, async () => {
+      const rows = await db
+        .select({ name: dishes.name, picks: sql<number>`count(*)` })
+        .from(mealSelections)
+        .innerJoin(dishes, eq(dishes.id, mealSelections.dishId))
+        .innerJoin(menuWeeks, eq(menuWeeks.id, mealSelections.menuWeekId))
+        .where(gte(menuWeeks.weekStart, sinceWeekStart))
+        .groupBy(dishes.name);
+      return Object.fromEntries(rows.map((r) => [r.name, Number(r.picks)]));
+    });
+  },
+
   async getPublishedWeek(weekStart?: string, organizationId?: string | null) {
     if (organizationId) {
       const [org] = await db.select({ id: organization.id }).from(organization).where(eq(organization.id, organizationId)).limit(1);

@@ -316,6 +316,25 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         </div>
       </nav>}
 
+      {/* This week's menu one tap away from anywhere: a tinted glass button over the content, right-hand side.
+          On Deliveries it rides above that page's own floating action bar. */}
+      {!flow && tab !== "menu" && (
+        <Link
+          href="/me/menu"
+          aria-label="This week's menu"
+          className={cn(
+            FOCUS,
+            "c-liquid-tint fixed right-4 z-30 inline-flex size-14 items-center justify-center gap-2 rounded-full text-[var(--primary-foreground,#fff)] transition-transform duration-150 active:scale-[.94] motion-reduce:transform-none lg:bottom-6 lg:right-6 lg:size-auto lg:h-12 lg:px-5 [@media(hover:hover)]:hover:-translate-y-px",
+            pathname === "/me"
+              ? "bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+4.25rem)]"
+              : "bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.75rem)]",
+          )}
+        >
+          <UtensilsCrossed aria-hidden className="size-6 lg:size-5" />
+          <span aria-hidden className="hidden text-[15px] font-semibold lg:inline">This week&apos;s menu</span>
+        </Link>
+      )}
+
       <Sheet open={open} onClose={() => setOpen(false)} title="More">
         {/* Ordered by how often people reach for them: this week's food first, ordering last. */}
         <MenuSection title="Meals">

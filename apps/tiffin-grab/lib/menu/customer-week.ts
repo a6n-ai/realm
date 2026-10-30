@@ -7,7 +7,7 @@ export type MyDay = "pick" | "locked" | "delivered" | "paused" | "hold" | null;
 
 /** `nonVeg`: this week the dish is only on non-veg plans (chicken, goat, egg...), read from each dish's plan.
  *  `color`: that diet's plan tag colour (plans.tag_color), when the plan has one. */
-export type MenuDish = { name: string; nonVeg: boolean; color?: string };
+export type MenuDish = { name: string; nonVeg: boolean; color?: string; popular?: true };
 
 export type MenuDay = {
   date: string;
@@ -24,6 +24,26 @@ type DeliveryRow = { deliveryDate: string; status: string; cutoffAt: number; pla
 // the suffix is only dropped so the full menu lists each dish once.
 const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
 const isNonVeg = (planName?: string) => /non-?veg/i.test(planName ?? "");
+
+/** Fewest picks before a dish can be called Popular; below this a handful of customers would decide it. */
+export const POPULAR_MIN_PICKS = 5;
+
+/** Marks the dish customers pick most among a category's options that day: only with a real choice (2+ dishes),
+ *  enough picks to mean something, and a clear lead (a tie marks nothing). */
+function markPopular(dishes: MenuDish[], picks: Record<string, number>): MenuDish[] {
+  if (dishes.length < 2) return dishes;
+  const ranked = dishes.map((d) => picks[d.name] ?? 0).sort((a, b) => b - a);
+  const [top, next] = [ranked[0]!, ranked[1]!];
+  if (top < POPULAR_MIN_PICKS || top === next) return dishes;
+  return dishes.map((d) => ((picks[d.name] ?? 0) === top ? { ...d, popular: true as const } : d));
+}
+
+/** Pick counts keyed by stored dish name, folded onto the plain name the menu shows ("Dal (Veg)" + "Dal (Non-Veg)" = "Dal"). */
+export function foldPicks(byStoredName: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [name, n] of Object.entries(byStoredName)) out[plain(name)] = (out[plain(name)] ?? 0) + n;
+  return out;
+}
 
 /** This week's diets as their plans tag them (Veg in green, Non-veg in red), veg first; untagged plans are left out. */
 export function dietLegend(items: PosterItem[]): { label: string; color: string }[] {
@@ -65,6 +85,8 @@ export function buildCustomerWeek(
   today: string,
   nowMs: number,
   plan: string | null = null,
+  /** Plain dish name to how often customers picked it (see foldPicks); marks each category's Popular dish. */
+  picks: Record<string, number> = {},
 ): MenuDay[] {
   // A dish is non-veg when every plan serving it this week is a non-veg plan. Unknown plans never mark one.
   const servedBy = new Map<string, PosterItem[]>();
@@ -79,6 +101,7 @@ export function buildCustomerWeek(
       .sort((a, b) => a.position - b.position);
     const groups = week.slots
       .map((s) => ({ key: s.key, label: s.label, icon: s.icon, dishes: [...new Set(items.filter((it) => it.slot === s.key).map((it) => plain(it.dishName)))].map((name) => ({ name, nonVeg: nonVeg(name), color: color(name) })) }))
+      .map((g) => ({ ...g, dishes: markPopular(g.dishes, picks) }))
       .filter((g) => g.dishes.length > 0);
     const rows = deliveries.filter((d) => d.deliveryDate === date);
     const state = mine(rows, date, today, nowMs);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ArrowRight, Check, Clock, Lock, Pause, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, Check, Clock, Heart, Lock, Pause, UtensilsCrossed } from "lucide-react";
 import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -183,12 +183,17 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
                       </header>
                       <ul className="flex flex-wrap gap-3">
                         {g.dishes.map((d) => (
-                          <li key={d.name} className="c-surface flex min-h-16 flex-[1_1_10rem] items-center gap-3 rounded-2xl bg-[var(--card)] px-4 py-3">
+                          <li key={d.name} className="c-surface flex min-h-16 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl bg-[var(--card)] px-4 py-3">
                             <DietMark color={d.color} />
                             <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug">
                               {d.name}
                               <span className="sr-only">, {diet(d)}</span>
                             </span>
+                            {d.popular && (
+                              <Pill tone="brand" size="sm" icon={<Heart aria-hidden className="size-3 fill-current" />} title="Most picked by customers in this category">
+                                Popular
+                              </Pill>
+                            )}
                           </li>
                         ))}
                       </ul>

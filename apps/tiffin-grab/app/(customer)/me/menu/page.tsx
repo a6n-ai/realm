@@ -4,7 +4,9 @@ import { UtensilsCrossed } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
-import { buildCustomerWeek, dietLegend, initialDay, planOf, weekEnd } from "@/lib/menu/customer-week";
+import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, weekEnd } from "@/lib/menu/customer-week";
+import { menuService } from "@/lib/services/menu.service";
+import { parseIsoDateUtc } from "@foundry/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/services/customer-deliveries.service";
 import { EmptyState, PageHeader } from "@/components/customer/kit";
@@ -37,10 +39,16 @@ export default async function MenuPage() {
     );
   }
 
-  const mine = await myDeliveries(userId, week.weekStart, weekEnd(week.weekStart));
+  // Popular = what customers picked over the 12 weeks before this menu.
+  const since = parseIsoDateUtc(week.weekStart);
+  since.setUTCDate(since.getUTCDate() - 84);
+  const [mine, picks] = await Promise.all([
+    myDeliveries(userId, week.weekStart, weekEnd(week.weekStart)),
+    menuService.dishPickCounts(since.toISOString().slice(0, 10)).then(foldPicks),
+  ]);
   const plan = planOf(mine);
-  const days = buildCustomerWeek(week, mine, today, now);
-  const planDays = plan ? buildCustomerWeek(week, mine, today, now, plan) : null;
+  const days = buildCustomerWeek(week, mine, today, now, null, picks);
+  const planDays = plan ? buildCustomerWeek(week, mine, today, now, plan, picks) : null;
   const range = `${formatDateOnly(week.weekStart, { mode: "short" })} to ${formatDateOnly(weekEnd(week.weekStart), { mode: "short" })}`;
 
   return (

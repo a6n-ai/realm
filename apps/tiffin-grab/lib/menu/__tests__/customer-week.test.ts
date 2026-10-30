@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomerWeek, dietLegend, initialDay, planOf } from "../customer-week";
+import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf } from "../customer-week";
 
 const week = {
   weekStart: "2026-10-19",
@@ -84,5 +84,25 @@ describe("plan colours", () => {
   it("lists each tagged diet once, veg first", () => {
     expect(dietLegend(items)).toEqual([{ label: "Veg", color: "#16a34a" }, { label: "Non-veg", color: "#dc2626" }]);
     expect(dietLegend(week.items)).toEqual([]);
+  });
+});
+
+describe("popular dishes", () => {
+  const sabzi = (...names: string[]) => ({ ...week, items: names.map((dishName, position) => ({ dayOfWeek: "mon" as const, slot: "sabzi", dishName, position })) });
+  const popular = (w: ReturnType<typeof sabzi>, picks: Record<string, number>) =>
+    buildCustomerWeek(w, [], TODAY, NOW, null, picks)[0]!.groups[0]!.dishes.filter((d) => d.popular).map((d) => d.name);
+
+  it("marks the clear favourite among a category's options", () => {
+    expect(popular(sabzi("Aloo Gobi", "Palak Paneer"), { "Palak Paneer": 12, "Aloo Gobi": 4 })).toEqual(["Palak Paneer"]);
+  });
+
+  it("marks nothing without a choice, too few picks, or a tie", () => {
+    expect(popular(sabzi("Aloo Gobi"), { "Aloo Gobi": 40 })).toEqual([]);
+    expect(popular(sabzi("Aloo Gobi", "Palak Paneer"), { "Palak Paneer": 4 })).toEqual([]);
+    expect(popular(sabzi("Aloo Gobi", "Palak Paneer"), { "Palak Paneer": 9, "Aloo Gobi": 9 })).toEqual([]);
+  });
+
+  it("folds per-plan dish names onto the name the menu shows", () => {
+    expect(foldPicks({ "Dal Tadka (Veg)": 3, "Dal Tadka (Non-Veg)": 4, Kadhi: 2 })).toEqual({ "Dal Tadka": 7, Kadhi: 2 });
   });
 });
