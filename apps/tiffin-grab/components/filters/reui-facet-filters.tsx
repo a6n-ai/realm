@@ -54,7 +54,19 @@ function DateFacetRenderer(label: string, timeZone: string) {
   };
 }
 
-export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[]; hideDate?: boolean }) {
+export function ReuiFacetFilters({
+  spec,
+  hideDate = false,
+  clearValues,
+}: {
+  spec: FacetDef[];
+  hideDate?: boolean;
+  /**
+   * When a select/pills facet is cleared, write this sentinel instead of deleting the param.
+   * Used by Renewals so clearing "Ending within" becomes `ending=off` and the page default redirect does not re-apply.
+   */
+  clearValues?: Readonly<Record<string, string>>;
+}) {
   const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -143,17 +155,17 @@ export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[];
         }
         continue;
       }
-      // pills | select
+      // pills | select — skip clear sentinels so they do not render as chips
       const v = params.get(f.field);
-      if (v) {
+      if (v && v !== clearValues?.[f.field]) {
         out.push({ id: f.field, field: f.field, operator: SELECT_OP, values: [v] });
       }
     }
     return out;
-  }, [view, params]);
+  }, [view, params, clearValues]);
 
   // Serialize the next Filter[] back into the exact URL params parseFilterState
-  // reads. Any facet absent from `next` has its param(s) deleted.
+  // reads. Any facet absent from `next` has its param(s) deleted (or set to a clearValues sentinel).
   const onChange = (next: Filter<Val>[]) => {
     const sp = new URLSearchParams(params.toString());
     const byField = new Map(next.map((n) => [n.field, n]));
@@ -176,8 +188,9 @@ export function ReuiFacetFilters({ spec, hideDate = false }: { spec: FacetDef[];
         if (values.length) sp.set(f.field, values.join(","));
         else sp.delete(f.field);
       } else {
-        // pills | select — single value
+        // pills | select — single value; optional sentinel keeps an explicit clear in the URL
         if (values.length) sp.set(f.field, values[0]);
+        else if (clearValues?.[f.field] != null) sp.set(f.field, clearValues[f.field]);
         else sp.delete(f.field);
       }
     }

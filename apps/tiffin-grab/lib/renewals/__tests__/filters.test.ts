@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { missingWindow, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "../filters";
+import { ENDING_OFF, missingWindow, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "../filters";
 
 const base: RenewalsFilter = { tab: "renewals", ending: 7, ended: null, status: null, renewed: null, from: null, to: null, q: "" };
+const cleared: RenewalsFilter = { ...base, ending: null };
 
 describe("renewals filter", () => {
   it("defaults to plans ending within 7 days on the Renewals tab", () => {
@@ -12,6 +13,13 @@ describe("renewals filter", () => {
     expect(missingWindow({ tab: "customers" })).toBe(false);
     // The order-date range narrows the window, it does not replace it.
     expect(parseRenewalsFilter({ from: "1", to: "2", ending: "3" })).toEqual({ ...base, ending: 3, from: 1, to: 2 });
+  });
+
+  it("keeps Ending within cleared when ending=off so Ended / Status can stand alone", () => {
+    expect(missingWindow({ ending: ENDING_OFF })).toBe(false);
+    expect(parseRenewalsFilter({ ending: ENDING_OFF })).toEqual(cleared);
+    expect(parseRenewalsFilter({ ending: ENDING_OFF, ended: "30" })).toEqual({ ...cleared, ended: 30 });
+    expect(parseRenewalsFilter({ ending: ENDING_OFF, status: "lapsed" })).toEqual({ ...cleared, status: "lapsed" });
   });
 
   it("reads the tab, both windows, status and search, ignoring values off the menu", () => {

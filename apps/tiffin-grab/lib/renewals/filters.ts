@@ -9,6 +9,8 @@ export const ENDING_DAYS = [0, 1, 2, 3, 7] as const;
 /** "Ended in the last N days" choices, for plans that lapsed with no later plan. */
 export const ENDED_DAYS = [7, 14, 30, 60, 90] as const;
 export const DEFAULT_ENDING = 7;
+/** Explicit clear of the Ending within facet (`?ending=off`); keeps the redirect from re-applying the default. */
+export const ENDING_OFF = "off";
 /** Renewed customers tab: "Renewed in the last N days" choices. */
 export const RENEWED_DAYS = [7, 14, 30, 90] as const;
 /** The Status filter: the renewal status, with "none" split by whether the plan is still running. */
@@ -32,13 +34,12 @@ const pick = (v: string | undefined, allowed: readonly number[]) => {
   return v != null && v !== "" && allowed.includes(n) ? n : null;
 };
 
-/** No window in the URL: the page redirects to the default so the filter bar shows what is applied. */
 const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : null);
 
-/** No window in the URL: the page redirects to the default so the filter bar shows what is applied. */
+/** Bare plans URL (no ending/ended): the page redirects to `ending=7`. `ending=off` is an explicit clear and must not redirect. */
 export const missingWindow = (sp: Record<string, string | undefined>) => sp.tab !== "customers" && !sp.ending && !sp.ended;
 
-/** `?tab=trials|customers`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?q=`. Never leaves both windows off on a plans tab. */
+/** `?tab=trials|customers`, `?ending=<days>|off`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?q=`. */
 export function parseRenewalsFilter(sp: Record<string, string | undefined>): RenewalsFilter {
   const tab = sp.tab === "trials" || sp.tab === "customers" ? sp.tab : "renewals";
   const q = sp.q?.trim().replace(/\s+/g, " ") ?? "";
@@ -46,12 +47,13 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   const to = ms(sp.to);
   if (tab === "customers") return { tab, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
   const ended = pick(sp.ended, ENDED_DAYS);
-  const ending = pick(sp.ending, ENDING_DAYS) ?? (ended == null ? DEFAULT_ENDING : null);
+  // `ending=off` clears the window without falling back to the 7-day default (so Ended / Status can stand alone).
+  const ending = sp.ending === ENDING_OFF ? null : pick(sp.ending, ENDING_DAYS) ?? (ended == null ? DEFAULT_ENDING : null);
   const status = RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
   return { tab, ending, ended, status, renewed: null, from, to, q };
 }
 
-/** The query string for a filter. */
+/** The query string for a filter. Chip-cleared `ending=off` is written by the facet bar, not here. */
 export function renewalsQuery(f: RenewalsFilter): string {
   const sp = new URLSearchParams();
   if (f.tab !== "renewals") sp.set("tab", f.tab);
