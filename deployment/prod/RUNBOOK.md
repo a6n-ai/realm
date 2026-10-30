@@ -183,6 +183,7 @@ Essentials (see `.env.production.example` for the full list):
 /tiffin-grab/prod/BETTER_AUTH_URL      https://app.tiffingrab.ca
 /tiffin-grab/prod/BETTER_AUTH_SECRET   openssl rand -base64 32
 /tiffin-grab/prod/CRON_SECRET          openssl rand -hex 32
+/tiffin-grab/prod/GA_MEASUREMENT_ID    G-…   # GA4 web stream; unset = no gtag (String, not secret)
 /tiffin-grab/prod/AWS_REGION           us-east-1
 /tiffin-grab/prod/NOTIFY_FROM_NAME     Tiffin Grab         # spaces fine, no quoting needed
 /tiffin-grab/prod/NOTIFY_FROM_EMAIL    <transactional sender>   # orders, OTP, reminders
