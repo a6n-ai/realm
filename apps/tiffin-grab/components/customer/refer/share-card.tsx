@@ -1,19 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Copy, Share2, Ticket } from "lucide-react";
-import { Button, Card, IconTile } from "@/components/customer/kit";
+import { useEffect, useState, type ReactNode } from "react";
+import { Check, Copy, Download, Link2, Mail, MessageCircle, MessageSquare, Send, Share2, Ticket } from "lucide-react";
+import { Button, Card, IconTile, buttonClass, type IconTint } from "@/components/customer/kit";
+import { referCardPath, shareMessage } from "@/lib/referrals/share";
 
-export function ShareCard({ code }: { code: string }) {
+/** One app in the share row: a tinted tile over its name, like the iOS share sheet. */
+function Target({ tint, icon, label, href, onClick, download }: { tint: IconTint; icon: ReactNode; label: string; href?: string; onClick?: () => void; download?: string }) {
+  const body = (
+    <>
+      <IconTile tint={tint} size="lg">{icon}</IconTile>
+      <span className="c-caption text-[12px]">{label}</span>
+    </>
+  );
+  const cls = "flex flex-col items-center gap-1.5 rounded-xl py-1 transition-colors hover:bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)]";
+  return href ? (
+    <a href={href} download={download} target={download ? undefined : "_blank"} rel="noopener noreferrer" className={cls}>{body}</a>
+  ) : (
+    <button type="button" onClick={onClick} className={cls}>{body}</button>
+  );
+}
+
+export function ShareCard({ code, offer = null }: { code: string; offer?: string | null }) {
+  const image = referCardPath(code);
   const [link, setLink] = useState(`/subscribe?ref=${code}`);
   const [canShare, setCanShare] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [copied, setCopied] = useState<"link" | "code" | null>(null);
 
   // Origin and Web Share exist only in the browser; render the relative link until then.
   useEffect(() => {
     setLink(`${window.location.origin}/subscribe?ref=${code}`);
     setCanShare(typeof navigator.share === "function");
+    // Fetched ahead: Safari drops the tap's permission to share if we await a download first.
+    let live = true;
+    fetch(referCardPath(code))
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((b) => {
+        const f = new File([b], `tiffingrab-${code}.png`, { type: "image/png" });
+        if (live && navigator.canShare?.({ files: [f] })) setFile(f);
+      })
+      .catch(() => {
+        /* no image: share sends the text and link, whose preview still shows the card */
+      });
+    return () => {
+      live = false;
+    };
   }, [code]);
+
+  const text = shareMessage(code, link, offer);
+  const enc = encodeURIComponent;
 
   const copy = async (what: "link" | "code") => {
     try {
@@ -26,11 +62,11 @@ export function ShareCard({ code }: { code: string }) {
   };
 
   const share = () =>
-    navigator.share({ text: `Get tiffins from TiffinGrab with my code ${code}: ${link}` }).catch(() => {
-      /* share sheet dismissed */
+    navigator.share(file ? { files: [file], text } : { text }).catch((e: unknown) => {
+      // Some targets refuse files; retry as text. AbortError is the sheet being dismissed.
+      if (file && e instanceof DOMException && e.name !== "AbortError") navigator.share({ text }).catch(() => {});
     });
 
-  // A pass, like Apple Wallet: the code is the hero with its own Copy code; the link and its actions sit under it.
   return (
     <Card className="space-y-4 p-5">
       <div className="flex items-center gap-3">
@@ -47,18 +83,27 @@ export function ShareCard({ code }: { code: string }) {
           <span role="status">{copied === "code" ? "Code copied" : "Copy code"}</span>
         </Button>
       </div>
+
+      {/* What friends see: the same card is the link's preview in WhatsApp, Messages and Facebook. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- generated per code; next/image's localPatterns fence /api/files only */}
+      <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1200} height={630} loading="lazy" className="aspect-[1200/630] h-auto w-full rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)]" />
       <p className="c-caption truncate text-center">{link}</p>
-      <div className={canShare ? "grid grid-cols-2 gap-2" : "grid gap-2"}>
-        <Button variant="primary" onClick={() => copy("link")}>
-          {copied === "link" ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
-          {copied === "link" ? "Copied" : "Copy link"}
-        </Button>
+
+      <a href={`https://wa.me/?text=${enc(text)}`} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "primary", className: "w-full" })}>
+        <MessageCircle aria-hidden className="size-4" />
+        Share on WhatsApp
+      </a>
+
+      <div className="grid grid-cols-5 gap-1">
         {canShare ? (
-          <Button variant="outline" onClick={share}>
-            <Share2 aria-hidden className="size-4" />
-            Share
-          </Button>
-        ) : null}
+          <Target tint="blue" icon={<Share2 />} label={file ? "With image" : "More"} onClick={share} />
+        ) : (
+          <Target tint="blue" icon={<Download />} label="Save image" href={image} download={`tiffingrab-${code}.png`} />
+        )}
+        <Target tint="green" icon={<MessageSquare />} label="Messages" href={`sms:?&body=${enc(text)}`} />
+        <Target tint="orange" icon={<Mail />} label="Email" href={`mailto:?subject=${enc("A tiffin treat from a friend")}&body=${enc(text)}`} />
+        <Target tint="cyan" icon={<Send />} label="Telegram" href={`https://t.me/share/url?url=${enc(link)}&text=${enc(text.slice(0, text.lastIndexOf("\n")))}`} />
+        <Target tint="gray" icon={copied === "link" ? <Check /> : <Link2 />} label={copied === "link" ? "Copied" : "Copy link"} onClick={() => copy("link")} />
       </div>
     </Card>
   );

@@ -20,7 +20,8 @@ import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normaliz
 // (List-Unsubscribe one-click) with no cookie — a 401 there breaks unsubscribe.
 // /api/receipts: the email queue fetches the PDF with no cookie; the route checks the
 // signed link, or the session owner/staff when there is no signature.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts"];
+// /api/refer-card: the referral promo image; link-preview crawlers fetch it with no cookie.
+const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card"];
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all
