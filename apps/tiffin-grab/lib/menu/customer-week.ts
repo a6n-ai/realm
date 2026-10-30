@@ -23,6 +23,8 @@ type DeliveryRow = { deliveryDate: string; status: string; cutoffAt: number; pla
 // suffix is not reliable (Chicken Curry has none), so the plan filter uses the dish's plan;
 // the suffix is only dropped so the full menu lists each dish once.
 const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
+/** A dish name without its per-plan "(Veg)" / "(Non-Veg)" suffix, as menus show it and pick counts are folded. */
+export const plainDishName = plain;
 const isNonVeg = (planName?: string) => /non-?veg/i.test(planName ?? "");
 
 /** Fewest picks before a dish can be called Popular; below this a handful of customers would decide it. */

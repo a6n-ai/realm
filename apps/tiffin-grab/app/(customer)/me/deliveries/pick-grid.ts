@@ -20,6 +20,8 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { rolesByCategory, type MealItemRole } from "@/lib/menu/side-rules";
 import { AppError } from "@foundry/commons";
+import { menuService } from "@/lib/services/menu.service";
+import { foldPicks, nonVegDishes, plainDishName, popularByDiet, popularSince } from "@/lib/menu/customer-week";
 
 export type PickGrid = {
   cells: GridCell[];
@@ -50,7 +52,27 @@ export type PickGrid = {
   addonCounts: Record<string, number>;
   /** Each category's meal items in pick order, by role ("main", "side_1"): Edit meal names a second sabzi "Side". */
   rolesBySlot: Record<string, MealItemRole[]>;
+  /** Dish names customers pick most, per eating date (one veg, one non-veg per category; same rule as the weekly menu). */
+  popular?: Record<string, string[]>;
 };
+
+/** Each eating day's Popular dish names, ranked within the day's own options per category and diet. */
+async function popularByDate(menu: PickGrid["menu"]): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {};
+  for (const monday of new Set(Object.keys(menu).map(mondayOfIso))) {
+    const [week, counts] = await Promise.all([menuService.getPublishedWeek(monday), menuService.dishPickCounts(popularSince(monday))]);
+    const picks = foldPicks(counts);
+    const nonVeg = nonVegDishes(week?.items ?? []);
+    for (const [date, byCategory] of Object.entries(menu)) {
+      if (mondayOfIso(date) !== monday) continue;
+      out[date] = Object.values(byCategory).flatMap((dishes) => {
+        const top = popularByDiet([...new Set(dishes.map((d) => plainDishName(d.name)))], picks, nonVeg);
+        return dishes.filter((d) => top.includes(plainDishName(d.name))).map((d) => d.name);
+      });
+    }
+  }
+  return out;
+}
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
   return Object.fromEntries([...portions.entries()].map(([k, slots]) => [k, slots]));
@@ -150,6 +172,7 @@ export async function loadPickGrid(
       for (const d of dates) if (r.menu[d]) grid.menu[d] = r.menu[d];
     }
     if (!grid.cells.length) return { ok: true, grid: null };
+    grid.popular = await popularByDate(grid.menu);
 
     // Per eating day: fold that day's applied swaps so Pick portions match Swap / labels.
     const eatingDates = [...new Set(grid.cells.map((c) => c.dateIso))];
