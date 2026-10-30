@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { reviewsConnected } from "@/components/landing/landing-reviews";
-import { WhatsAppChat } from "@/components/landing/whatsapp-chat";
+import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import "@/components/landing/landing.css";
