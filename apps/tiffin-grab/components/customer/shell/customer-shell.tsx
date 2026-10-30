@@ -43,11 +43,11 @@ const THEMES = [
 ];
 
 /** Mark + wordmark. `compact` fits a 44px chrome bar (public subscribe and checkout). */
-export function Brand({ href = "/me", compact = false }: { href?: string; compact?: boolean }) {
+export function Brand({ href = "/me", compact = false, markOnlyNarrow = false }: { href?: string; compact?: boolean; markOnlyNarrow?: boolean }) {
   return (
     <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full")}>
       <BrandMark className={compact ? "size-8" : "size-9"} />
-      <BrandWordmark className={compact ? "text-[20px]" : "text-[22px]"} />
+      <BrandWordmark className={cn(compact ? "text-[20px]" : "text-[22px]", markOnlyNarrow && "max-[429px]:hidden")} />
     </Link>
   );
 }
@@ -261,7 +261,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         style={{ viewTransitionName: "customer-header" }}
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
-          <Brand />
+          {/* Phones under 430px can't fit the wordmark beside cutoff, wallet and avatar; the page then grew wider
+              than the screen and cut off everything pinned to the right edge. The mark alone still says home. */}
+          <Brand markOnlyNarrow />
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
