@@ -167,35 +167,31 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
 
             {current.groups.length ? (
               // Keyed on the filter so switching it re-enters with one short fade; day changes slide via the swipe hook.
-              <div
+              // One card per dish, like the meal chips on Deliveries: the category's tile and name, then the dish.
+              <ul
                 key={view}
-                className="grid items-start gap-4 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-2 lg:grid-cols-3"
+                aria-label="Dishes"
+                className="grid grid-cols-2 gap-3 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none sm:grid-cols-3 lg:grid-cols-4"
               >
-                {/* One card per category, like the kitchen's station cards: tile and count up top, then the dishes. */}
-                {current.groups.map((g) => {
+                {current.groups.flatMap((g) => {
                   const { icon: Icon, tint } = look(g.key, g.icon);
-                  return (
-                    <section key={g.key} aria-labelledby={`menu-cat-${g.key}`} className="c-surface overflow-hidden rounded-3xl bg-[var(--card)]">
-                      <header className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+                  return g.dishes.map((d) => (
+                    <li key={`${g.key}:${d.name}`} className="c-surface flex flex-col gap-3 rounded-3xl bg-[var(--card)] p-4">
+                      <div className="flex items-center justify-between gap-2">
                         <IconTile tint={tint}><Icon /></IconTile>
-                        <h3 id={`menu-cat-${g.key}`} className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">{g.label}</h3>
-                        <span className="c-caption tabular-nums">{g.dishes.length === 1 ? "1 dish" : `${g.dishes.length} dishes`}</span>
-                      </header>
-                      <ul className="divide-y divide-[var(--border)]">
-                        {g.dishes.map((d) => (
-                          <li key={d.name} className="flex min-h-12 items-center gap-3 px-4 py-3">
-                            <DietMark color={d.color} />
-                            <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug">
-                              {d.name}
-                              <span className="sr-only">, {diet(d)}</span>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
+                        <DietMark color={d.color} />
+                      </div>
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <p className="c-label uppercase">{g.label}</p>
+                        <p className="text-[15px] font-semibold leading-snug">
+                          {d.name}
+                          <span className="sr-only">, {diet(d)}</span>
+                        </p>
+                      </div>
+                    </li>
+                  ));
                 })}
-              </div>
+              </ul>
             ) : (
               <EmptyState icon={<UtensilsCrossed className="size-6" />} title="Nothing cooking" body="The kitchen hasn't listed dishes for this day." className="py-8" />
             )}

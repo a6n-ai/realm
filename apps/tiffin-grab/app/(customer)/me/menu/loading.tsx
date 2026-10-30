@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/customer/kit";
 
-// Mirrors the weekly menu: header, glass week bar, day title, status card, then inset-grouped dish lists.
+// Mirrors the weekly menu: header, glass week bar, day title, status card, then a grid of dish cards.
 export default function Loading() {
   return (
     <div aria-busy="true" aria-label="Loading" role="status" className="flex flex-col gap-6">
@@ -16,13 +16,8 @@ export default function Loading() {
           <Skeleton className="h-8 w-40" />
         </div>
         <Skeleton className="h-[72px] rounded-3xl" />
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              <Skeleton className="mx-4 h-3 w-16" />
-              <Skeleton className="h-[148px] rounded-3xl" />
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[116px] rounded-3xl" />)}
         </div>
       </div>
     </div>
