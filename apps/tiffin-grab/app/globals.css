@@ -87,8 +87,8 @@
      active states, primary buttons, "confirmed" status. Forest green is demoted to
      a secondary accent (--accent-badge below) — matching how the live site itself
      only uses green sparingly, for its discount banner. Everything else in the
-     palette is cream or neutral grey; no other saturated hue appears as a
-     decorative fill anywhere in the app. */
+     palette is cream or neutral grey, except the chart series below: those
+     stay saturated so a legend can tell one series from another. */
   /* Logo orange (docs/Tiffin Grab Logos). --primary stays deeper: white text on
      #FB801C is 2.6:1, too low for button labels. */
   --brand: #FB801C;
@@ -112,11 +112,11 @@
   --border: #E3DFD1;
   --input: #E3DFD1;
   --ring: #FB801C;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #f06b1a;
+  --chart-2: #185936;
+  --chart-3: #0e7490;
+  --chart-4: #c23b3b;
+  --chart-5: #b45309;
   --radius: 0.625rem;
   /* Sidebar: cream panel; the active nav item is a soft orange wash — orange means
      "where I am," matching the brand swap above. */
@@ -207,11 +207,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #FF9843;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #ff9843;
+  --chart-2: #5cba7d;
+  --chart-3: #38bdf8;
+  --chart-4: #fb7185;
+  --chart-5: #f5b942;
   --sidebar: #18261F;
   --sidebar-foreground: #F3EFE4;
   --sidebar-primary: #FF9843;

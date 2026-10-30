@@ -13,6 +13,12 @@ import { clearTicketLookOut, lookOutForTicket } from "./orders.service";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { createLogger } from "@foundry/commons/logger";
+import {
+  categoryLabel,
+  isValidPair,
+  subcategoryLabel,
+  type TicketCategoryValue,
+} from "@/lib/support/ticket-taxonomy";
 
 const log = createLogger("tickets.service");
 
@@ -58,6 +64,12 @@ type Actor = { id: bigint; role: RoleValue; isStaff: boolean };
 const STATUS_TEXT: Record<TicketStatus, string> = {
   open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed",
 };
+
+function formatCategoryPair(category: string, subcategory: string | null): string {
+  const cat = categoryLabel(category);
+  const sub = subcategoryLabel(category, subcategory);
+  return sub ? `${cat} / ${sub}` : cat;
+}
 
 class TicketsService extends SessionUpdatableService<typeof tickets> {
   // Resolve the acting user (internal id + role). Throws when unauthenticated —
@@ -233,6 +245,29 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     if (previous === priority) return;
     await this.update(publicId, { priority });
     await this.message(ticket.id, actor.id, "system", `Priority: ${previous} → ${priority}`);
+  }
+
+  /**
+   * Staff reclassify a ticket after the customer picked the wrong bucket.
+   * Analytics read these columns live, so the next complaints refresh uses the
+   * corrected pair with no separate backfill.
+   */
+  async setCategory(
+    publicId: string,
+    category: TicketCategoryValue,
+    subcategory: string,
+  ): Promise<void> {
+    const actor = await this.assertStaff();
+    if (!isValidPair(category, subcategory)) {
+      throw new ValidationError("Pick a valid category and sub-category");
+    }
+    const ticket = await this.read(publicId);
+    if (ticket.category === category && ticket.subcategory === subcategory) return;
+
+    const before = formatCategoryPair(ticket.category, ticket.subcategory);
+    const after = formatCategoryPair(category, subcategory);
+    await this.update(publicId, { category, subcategory });
+    await this.message(ticket.id, actor.id, "system", `Category: ${before} → ${after}`);
   }
 
   async listForCustomer(userId: bigint) {

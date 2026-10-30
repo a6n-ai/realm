@@ -1,11 +1,16 @@
 "use client";
 
 import { PRIORITY_OPTIONS } from "@/lib/support/ticket-priority";
+import {
+  CATEGORY_LABEL,
+  SUBCATEGORIES,
+  TICKET_CATEGORIES,
+  type TicketCategoryValue,
+} from "@/lib/support/ticket-taxonomy";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@foundry/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@foundry/ui/select";
@@ -14,7 +19,7 @@ import { cn } from "@foundry/ui/cn";
 import type { RealtimeRole } from "@foundry/realtime";
 import { useMessageComposer } from "@foundry/design-system";
 import { ChatComposer } from "@/components/support/chat-composer";
-import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
+import { assignOwner, replyTicket, setCategory, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
 const STATUSES: { value: TicketStatus; label: string }[] = [
@@ -28,33 +33,117 @@ const STATUSES: { value: TicketStatus; label: string }[] = [
 const PRIORITIES: { value: TicketPriority; label: string }[] = PRIORITY_OPTIONS;
 
 const UNASSIGNED = "__unassigned__";
+const PICK_SUB = "__pick_sub__";
 
 // Single source of truth for the control fields (label + trigger width). Both
 // the real controls below and the skeleton twin render from this, so the
 // loading state can't drift from the component.
-// Status lives only in the conversation's pills; these are the ticket's other two settings.
+// Status lives only in the conversation's pills; these are the ticket's other settings.
 const FIELDS = [
+  { key: "category", label: "Category", width: "w-44" },
+  { key: "subcategory", label: "Sub-category", width: "w-48" },
   { key: "owner", label: "Owner", width: "w-44" },
   { key: "priority", label: "Priority", width: "w-36" },
 ] as const;
-const [F_OWNER, F_PRIORITY] = FIELDS;
+const [F_CATEGORY, F_SUBCATEGORY, F_OWNER, F_PRIORITY] = FIELDS;
+
+function isSelectableCategory(value: string): value is TicketCategoryValue {
+  return (TICKET_CATEGORIES as readonly string[]).includes(value);
+}
 
 export function TicketControls({
   ticketId,
+  category,
+  subcategory,
   priority,
   ownerId,
   staff,
 }: {
   ticketId: string;
+  category: string;
+  subcategory: string | null;
   priority: TicketPriority;
   ownerId: string | null;
   staff: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  // Category change clears the sub-category locally until staff pick a valid pair;
+  // only then do we persist (same rule as customer create). Legacy / unknown
+  // values start blank so the selects stay controllable.
+  const initialCategory = isSelectableCategory(category) ? category : "";
+  const initialSub =
+    initialCategory &&
+    subcategory &&
+    SUBCATEGORIES[initialCategory].some((s) => s.value === subcategory)
+      ? subcategory
+      : "";
+  const [draftCategory, setDraftCategory] = useState(initialCategory);
+  const [draftSubcategory, setDraftSubcategory] = useState(initialSub);
+
+  const subOptions = draftCategory ? SUBCATEGORIES[draftCategory] : [];
+
+  function savePair(nextCategory: TicketCategoryValue, nextSubcategory: string) {
+    start(async () => {
+      try {
+        await setCategory(ticketId, nextCategory, nextSubcategory);
+        router.refresh();
+        toast("Category updated");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to update category");
+      }
+    });
+  }
 
   return (
     <div className="flex flex-wrap items-end gap-4">
+      <div className="space-y-1">
+        <label className="text-muted-foreground text-xs font-medium">{F_CATEGORY.label}</label>
+        <Select
+          value={draftCategory || undefined}
+          disabled={pending}
+          onValueChange={(v) => {
+            const next = v as TicketCategoryValue;
+            setDraftCategory(next);
+            setDraftSubcategory("");
+          }}
+        >
+          <SelectTrigger className={F_CATEGORY.width}>
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {TICKET_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-muted-foreground text-xs font-medium">{F_SUBCATEGORY.label}</label>
+        <Select
+          value={draftSubcategory || PICK_SUB}
+          disabled={pending || !draftCategory}
+          onValueChange={(v) => {
+            if (v === PICK_SUB || !draftCategory) return;
+            setDraftSubcategory(v);
+            savePair(draftCategory, v);
+          }}
+        >
+          <SelectTrigger className={F_SUBCATEGORY.width}>
+            <SelectValue placeholder="Sub-category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={PICK_SUB} disabled>
+              {draftCategory ? "Pick sub-category" : "Pick category first"}
+            </SelectItem>
+            {subOptions.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-1">
         <label className="text-muted-foreground text-xs font-medium">{F_OWNER.label}</label>
         <Select
