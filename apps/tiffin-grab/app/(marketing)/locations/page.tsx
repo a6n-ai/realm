@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { LandingReviews } from "@/components/landing/landing-reviews";
 import { postalArea } from "@foundry/delivery/fsa";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listFranchiseLocations } from "@/lib/services/organizations.service";
@@ -65,6 +67,8 @@ export default async function LocationsPage() {
         </div>
       )}
       </div>
+      {/* External Places fetch: a cache miss must not hold back the page. */}
+      <Suspense fallback={null}><LandingReviews /></Suspense>
     </>
   );
 }
