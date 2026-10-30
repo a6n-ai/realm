@@ -4,23 +4,26 @@ import { ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { organization } = await import("@/db/schema");
 const { deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orderActivities, orders, payments, plans, ticketMessages, tickets, users } =
   await import("@/db/schema");
 const {
   getByCategory,
   getBySubcategory,
   getComplaintKpis,
+  getComplaintTrend,
   getNeedsAttention,
   getRepeatCustomers,
   getStatusMix,
   getTopIssues,
 } = await import("../complaints.service");
-const { parseComplaintFilters } = await import("../complaint-filters");
+const { buildAnalyticsScope } = await import("../metrics/scope");
 const { deliveredTiffinCount } = await import("@/lib/services/tiffin-counts");
 
-const NO_FILTERS = parseComplaintFilters({});
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
+const TZ = "America/Toronto";
+const NO_FILTERS = { ...buildAnalyticsScope({}, "all", TZ, now), fromMs: 0, toMs: now + 365 * DAY };
 
 async function reset() {
   dayCursor = 0;
@@ -104,7 +107,7 @@ async function makeDelivery(orderId: bigint, over: Partial<{ status: string; cut
 }
 
 /** Minimal valid order — only the columns the complaint queries join through. */
-async function makeOrder(userId: bigint) {
+async function makeOrder(userId: bigint, organizationId?: string) {
   const [[plan], [mealSize], [freq]] = await Promise.all([
     db.select({ id: plans.id }).from(plans).limit(1),
     db.select({ id: mealSizes.id }).from(mealSizes).limit(1),
@@ -114,6 +117,7 @@ async function makeOrder(userId: bigint) {
     .insert(orders)
     .values({
       userId,
+      organizationId,
       planId: plan!.id,
       mealSizeId: mealSize!.id,
       frequencyId: freq!.id,
@@ -168,7 +172,7 @@ describe("complaint KPIs", () => {
     await makeTicket(u.id, { createdAt: now - 10 * DAY });
     await makeTicket(u.id, { createdAt: now });
 
-    const recent = await getComplaintKpis(parseComplaintFilters({ from: String(now - 2 * DAY) }));
+    const recent = await getComplaintKpis({ ...NO_FILTERS, fromMs: now - 2 * DAY });
     expect(recent.total).toBe(1);
   });
 });
@@ -305,5 +309,53 @@ describe("needs attention", () => {
     await makeTicket(u.id, { status: "resolved", staffReplied: true, lastMessageAt: now - 30 * DAY });
     const a = await getNeedsAttention(NO_FILTERS, now);
     expect(a.overdue).toBe(0);
+  });
+});
+
+describe("complaint scope", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  const suffix = Math.random().toString(36).slice(2);
+  const makeOrg = async (name: string) => {
+    const [org] = await db.insert(organization).values({ name, clientCode: `CS-${name}-${suffix}` }).returning({ id: organization.id });
+    return org!.id;
+  };
+
+  it("counts an orderless ticket only when every franchise is in scope", async () => {
+    const orgA = await makeOrg("A");
+    const orgB = await makeOrg("B");
+    const u = await makeUser("scope@x.test");
+    const oA = await makeOrder(u.id, orgA);
+    const oB = await makeOrder(u.id, orgB);
+    await db.insert(tickets).values([
+      { raisedBy: u.id, subject: "a", category: "delivery" as never, status: "open" as never, priority: "normal" as never, createdAt: now, orderId: oA.id },
+      { raisedBy: u.id, subject: "b", category: "delivery" as never, status: "open" as never, priority: "normal" as never, createdAt: now, orderId: oB.id },
+      { raisedBy: u.id, subject: "none", category: "delivery" as never, status: "open" as never, priority: "normal" as never, createdAt: now },
+    ]);
+
+    expect((await getComplaintKpis(NO_FILTERS)).total).toBe(3);
+    expect((await getComplaintKpis({ ...NO_FILTERS, orgIds: [orgA] })).total).toBe(1);
+    expect((await getComplaintKpis({ ...NO_FILTERS, orgIds: [orgA, orgB] })).total).toBe(2);
+    expect((await getComplaintKpis({ ...NO_FILTERS, orgIds: [] })).total).toBe(0);
+  });
+
+  it("buckets the trend by Toronto day, not UTC", async () => {
+    const u = await makeUser("trend@x.test");
+    // 23:30 Toronto (EDT, UTC-4) on Mar 31 is already Apr 1 in UTC.
+    await makeTicket(u.id, { createdAt: Date.parse("2026-04-01T03:30:00Z") });
+    await makeTicket(u.id, { createdAt: Date.parse("2026-04-01T15:00:00Z") });
+    const rows = await getComplaintTrend({ ...NO_FILTERS, fromMs: Date.parse("2026-03-01T00:00:00Z"), toMs: Date.parse("2026-04-30T00:00:00Z") });
+    expect(rows).toEqual([
+      { day: "2026-03-31", n: 1 },
+      { day: "2026-04-01", n: 1 },
+    ]);
+  });
+
+  it("defaults to the current month in the app timezone", () => {
+    const scope = buildAnalyticsScope({}, "all", TZ, Date.parse("2026-04-15T16:00:00Z"));
+    expect(scope.fromMs).toBe(Date.parse("2026-04-01T04:00:00Z"));
+    expect(scope.toMs).toBeLessThan(Date.parse("2026-05-01T04:00:00Z"));
+    expect(scope.toMs).toBeGreaterThan(Date.parse("2026-04-30T12:00:00Z"));
   });
 });

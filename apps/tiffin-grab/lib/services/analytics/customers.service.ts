@@ -1,52 +1,90 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, subscriptionPauses, users } from "@/db/schema";
-import {
-  epochRangeWhere,
-  ordersMatchFilters,
-  type AnalyticsFilters,
-} from "./shared-filters";
+import { deliveries, orders, users } from "@/db/schema";
+import { isoDateInZone } from "@/lib/analytics/profitability";
+import { lastTiffinSql, ordersListWhere } from "@/lib/services/orders.service";
+import { countCustomers, scopeToOrdersCondition } from "./metrics/orders";
+import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
+const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;
 
 export type CustomerStats = {
-  totalCustomers: number;
-  activeSubscriptions: number;
-  pausedNow: number;
-  cancelledEver: number;
+  /** Distinct customers with an order created in range (equals the Orders listing's customers). */
+  customers: number;
+  /** Distinct customers with an active order created in range or still running in range. */
+  activeCustomers: number;
+  /** Distinct customers whose active order has a paused delivery today. Not range-dependent. */
+  pausedToday: number;
+  /** Distinct customers with a cancelled order created in range. */
+  cancelledCustomers: number;
 };
 
-export async function getCustomerStats(
-  filters: AnalyticsFilters,
-): Promise<CustomerStats> {
-  const orderDim = ordersMatchFilters(filters);
-  const signupRange = epochRangeWhere(users.createdAt, filters);
-  const [[{ n: totalCustomers }], [{ n: activeSubscriptions }], [{ n: pausedNow }], [{ n: cancelledEver }]] =
-    await Promise.all([
-      db.select({ n: intCount }).from(users).where(and(eq(users.role, "user"), signupRange)),
-      db.select({ n: intCount }).from(orders).where(and(eq(orders.status, "active"), orderDim)),
-      // "Currently paused" = an open pause window (never resumed), not the order status
-      // snapshot — a resumed order can still carry status 'paused' briefly mid-transition.
-      db
-        .select({ n: intCount })
-        .from(subscriptionPauses)
-        .innerJoin(orders, eq(subscriptionPauses.orderId, orders.id))
-        .where(and(sql`${subscriptionPauses.resumedAt} is null`, orderDim)),
-      db.select({ n: intCount }).from(orders).where(and(eq(orders.status, "cancelled"), orderDim)),
-    ]);
-  return { totalCustomers, activeSubscriptions, pausedNow, cancelledEver };
+/** Orders matching the Orders listing for this scope, so these counts equal what the list shows. */
+const listingWhere = (scope: AnalyticsScope, status?: string) =>
+  ordersListWhere(scopeToOrdersCondition(scope, status ? { status: [status] } : {}), scope.orgIds);
+
+const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
+
+export async function getCustomerStats(scope: AnalyticsScope, now = Date.now()): Promise<CustomerStats> {
+  if (noOrgs(scope)) return { customers: 0, activeCustomers: 0, pausedToday: 0, cancelledCustomers: 0 };
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const today = isoDateInZone(now, scope.tz);
+
+  // Not expressible as a listing condition (running-in-range and paused-today), so computed here
+  // over the same org/facet scope; their tiles carry no drill link.
+  const [[{ n: activeCustomers }], [{ n: pausedToday }], customers, [{ n: cancelledCustomers }]] = await Promise.all([
+    db
+      .select({ n: distinctUsers })
+      .from(orders)
+      .where(
+        and(
+          ordersScope(scope),
+          eq(orders.status, "active"),
+          or(
+            dateWhere(orders.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
+            and(sql`${orders.startDate} <= ${to}`, sql`${lastTiffinSql} >= ${from}`),
+          ),
+        ),
+      ),
+    db
+      .select({ n: distinctUsers })
+      .from(orders)
+      .where(
+        and(
+          ordersScope(scope),
+          eq(orders.status, "active"),
+          sql`exists (select 1 from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} = 'paused' and ${deliveries.deliveryDate} = ${today})`,
+        ),
+      ),
+    countCustomers(scope),
+    db.select({ n: distinctUsers }).from(orders).where(listingWhere(scope, "cancelled")),
+  ]);
+  return { customers, activeCustomers, pausedToday, cancelledCustomers };
 }
 
-const dayTrunc = sql<Date>`date_trunc('day', to_timestamp(${users.createdAt} / 1000.0))`;
-
-export async function getSignupTrend(filters: AnalyticsFilters) {
-  return db
-    .select({ day: sql<string>`to_char(${dayTrunc}, 'Mon DD')`, n: intCount })
+/** Accounts created per local day. With franchise or facet filters, only accounts holding an order in scope. */
+export async function getSignupTrend(scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
+  const scoped = ordersScope(scope);
+  // Grouped by ordinal: tz is a bound value, so repeating the expression would be a different parameter.
+  const rows = await db
+    .select({ iso: sql<string>`${localDay(users.createdAt, scope.tz)}::text`, n: intCount })
     .from(users)
-    .where(and(eq(users.role, "user"), epochRangeWhere(users.createdAt, filters)))
-    .groupBy(dayTrunc)
-    .orderBy(dayTrunc);
+    .where(
+      and(
+        eq(users.role, "user"),
+        dateWhere(users.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
+        scoped ? sql`exists (select 1 from ${orders} where ${orders.userId} = ${users.id} and ${scoped})` : undefined,
+      ),
+    )
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
+  return rows.map((r) => ({ day: DAY_LABEL.format(new Date(`${r.iso}T00:00:00Z`)), n: r.n }));
 }
+
+const DAY_LABEL = new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", timeZone: "UTC" });
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -57,42 +95,27 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   completed: "Over",
 };
 
-export async function getSubscriptionMix(filters: AnalyticsFilters) {
+/** Orders created in range by status; the same rows the Orders listing shows for the scope. */
+export async function getSubscriptionMix(scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
   const rows = await db
     .select({ status: orders.status, n: intCount })
     .from(orders)
-    .where(ordersMatchFilters(filters))
+    .where(listingWhere(scope))
     .groupBy(orders.status);
-  return rows.map((r) => ({
-    status: ORDER_STATUS_LABELS[r.status] ?? r.status,
-    key: r.status,
-    n: r.n,
-  }));
+  return rows.map((r) => ({ status: ORDER_STATUS_LABELS[r.status] ?? r.status, key: r.status, n: r.n }));
 }
 
-export async function getTopCities(
-  limit = 8,
-  filters: AnalyticsFilters,
-) {
-  const orderDim = ordersMatchFilters(filters);
-  // When plan/size/zone are set, cities come from customers who hold matching orders.
-  if (orderDim) {
-    const rows = await db
-      .select({ city: users.city, n: intCount })
-      .from(users)
-      .innerJoin(orders, eq(orders.userId, users.id))
-      .where(and(isNotNull(users.city), orderDim, epochRangeWhere(users.createdAt, filters)))
-      .groupBy(users.city)
-      .orderBy(sql`count(*) desc`)
-      .limit(limit);
-    return rows.map((r) => ({ city: r.city ?? "Unknown", n: r.n }));
-  }
+/** Customers (orders created in range, as in the Customers tile) per city. */
+export async function getTopCities(limit = 8, scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
   const rows = await db
-    .select({ city: users.city, n: intCount })
-    .from(users)
-    .where(and(isNotNull(users.city), epochRangeWhere(users.createdAt, filters)))
+    .select({ city: users.city, n: distinctUsers })
+    .from(orders)
+    .innerJoin(users, eq(orders.userId, users.id))
+    .where(and(isNotNull(users.city), listingWhere(scope)))
     .groupBy(users.city)
-    .orderBy(sql`count(*) desc`)
+    .orderBy(sql`count(distinct ${orders.userId}) desc`)
     .limit(limit);
   return rows.map((r) => ({ city: r.city ?? "Unknown", n: r.n }));
 }

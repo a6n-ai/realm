@@ -1,6 +1,6 @@
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { categoryLabel, subcategoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
@@ -9,8 +9,10 @@ import {
   IS_NEW,
   NOT_LINKED,
   complaintWhere,
-  type ComplaintFilters,
+  scopeToComplaintFilters,
+  ticketOrgWhere,
 } from "./complaint-filters";
+import { localDay, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -23,10 +25,8 @@ const intCount = sql<number>`cast(count(*) as int)`;
 // Written out at each call site rather than behind a helper: drizzle infers row
 // types through the chained builder, and a generic wrapper erases them.
 
-type Scope = { filters: ComplaintFilters; complaintsOnly?: boolean };
-
-function where({ filters, complaintsOnly = true }: Scope) {
-  return complaintWhere(filters, { complaintsOnly });
+function where(scope: AnalyticsScope, complaintsOnly = true) {
+  return and(complaintWhere(scopeToComplaintFilters(scope), { complaintsOnly }), ticketOrgWhere(scope.orgIds));
 }
 
 export type ComplaintKpis = {
@@ -51,36 +51,34 @@ const OPEN_STATUSES = ["open", "in_progress", "waiting_on_customer"] as const;
  * That file stays the canonical definition; complaints-rate.test.ts asserts the
  * two agree on the same fixtures, so they cannot drift unnoticed.
  */
-async function deliveredTiffins(filters: ComplaintFilters, now = Date.now()): Promise<number> {
+async function deliveredTiffins(scope: AnalyticsScope): Promise<number> {
   const parts = [
     eq(deliveries.status, "scheduled"),
     eq(deliveries.optimoCompletionStatus, "success"),
   ];
   // deliveryDate is a DATE; the filters are epoch ms, so compare on app-timezone calendar days.
-  const { timezone } = await getAppSettings();
-  if (filters.from != null) parts.push(gte(deliveries.deliveryDate, zonedDateIso(filters.from, timezone)));
-  if (filters.to != null) parts.push(lte(deliveries.deliveryDate, zonedDateIso(filters.to, timezone)));
-  if (filters.plans.length) parts.push(inArray(plans.key, filters.plans));
-  if (filters.mealSizes.length) parts.push(inArray(mealSizes.key, filters.mealSizes));
-  if (filters.zones.length) parts.push(inArray(deliveryZones.name, filters.zones));
+  parts.push(gte(deliveries.deliveryDate, zonedDateIso(scope.fromMs, scope.tz)));
+  parts.push(lte(deliveries.deliveryDate, zonedDateIso(scope.toMs, scope.tz)));
+  if (scope.plans.length) parts.push(inArray(plans.key, scope.plans));
+  if (scope.mealSizes.length) parts.push(inArray(mealSizes.key, scope.mealSizes));
+  if (scope.zones.length) parts.push(inArray(deliveryZones.name, scope.zones));
+  const org = ticketOrgWhere(scope.orgIds);
+  if (org) parts.push(org);
 
-  const needsOrder = filters.plans.length > 0 || filters.mealSizes.length > 0 || filters.zones.length > 0;
   const units = sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`;
-  const [row] = needsOrder
-    ? await db
-        .select({ units })
-        .from(deliveries)
-        .innerJoin(orders, eq(deliveries.orderId, orders.id))
-        .leftJoin(plans, eq(orders.planId, plans.id))
-        .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-        .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-        .where(and(...parts))
-    : await db.select({ units }).from(deliveries).where(and(...parts));
+  const [row] = await db
+    .select({ units })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
+    .where(and(...parts));
   return row?.units ?? 0;
 }
 
-export async function getComplaintKpis(filters: ComplaintFilters): Promise<ComplaintKpis> {
-  const scope = where({ filters });
+export async function getComplaintKpis(scope: AnalyticsScope): Promise<ComplaintKpis> {
+  const cond = where(scope);
   // Counted in one pass: separate round trips would each re-run the same joins.
   const [[row], tiffins] = await Promise.all([
     db
@@ -94,8 +92,8 @@ export async function getComplaintKpis(filters: ComplaintFilters): Promise<Compl
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id)).where(scope),
-    deliveredTiffins(filters),
+    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id)).where(cond),
+    deliveredTiffins(scope),
   ]);
 
   const total = row?.total ?? 0;
@@ -115,8 +113,8 @@ export async function getComplaintKpis(filters: ComplaintFilters): Promise<Compl
 }
 
 /** Complaints per day, for the trend chart. */
-export async function getComplaintTrend(filters: ComplaintFilters) {
-  const day = sql<string>`to_char(to_timestamp(${tickets.createdAt} / 1000.0), 'YYYY-MM-DD')`;
+export async function getComplaintTrend(scope: AnalyticsScope) {
+  const day = sql<string>`to_char(${localDay(tickets.createdAt, scope.tz)}, 'YYYY-MM-DD')`;
   const rows = await db
     .select({ day, n: intCount })
     .from(tickets)
@@ -124,9 +122,9 @@ export async function getComplaintTrend(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
-    .groupBy(day)
-    .orderBy(asc(day));
+    .where(where(scope))
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
   return rows.map((r) => ({ day: r.day, n: r.n }));
 }
 
@@ -135,7 +133,7 @@ export async function getComplaintTrend(filters: ComplaintFilters) {
  * Suggestions is excluded from the complaint METRICS but still worth seeing and
  * clicking through to.
  */
-export async function getByCategory(filters: ComplaintFilters) {
+export async function getByCategory(scope: AnalyticsScope) {
   const rows = await db
     .select({ category: tickets.category, n: intCount })
     .from(tickets)
@@ -143,7 +141,7 @@ export async function getByCategory(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters, complaintsOnly: false }))
+    .where(where(scope, false))
     .groupBy(tickets.category);
 
   const counts = new Map(rows.map((r) => [r.category as string, r.n]));
@@ -162,7 +160,7 @@ export async function getByCategory(filters: ComplaintFilters) {
 }
 
 /** Sub-category counts within one category (the drill-down). */
-export async function getBySubcategory(filters: ComplaintFilters, category: string) {
+export async function getBySubcategory(scope: AnalyticsScope, category: string) {
   const rows = await db
     .select({ subcategory: tickets.subcategory, n: intCount })
     .from(tickets)
@@ -170,7 +168,7 @@ export async function getBySubcategory(filters: ComplaintFilters, category: stri
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(and(where({ filters, complaintsOnly: false }), eq(tickets.category, category as never)))
+    .where(and(where(scope, false), eq(tickets.category, category as never)))
     .groupBy(tickets.subcategory);
 
   const counts = new Map(rows.map((r) => [r.subcategory ?? "", r.n]));
@@ -185,7 +183,7 @@ export async function getBySubcategory(filters: ComplaintFilters, category: stri
 }
 
 /** Status mix, with New derived as "open and nobody has replied". */
-export async function getStatusMix(filters: ComplaintFilters) {
+export async function getStatusMix(scope: AnalyticsScope) {
   const [row] = await db
     .select({
       isNew: sql<number>`cast(count(*) filter (where ${IS_NEW}) as int)`,
@@ -200,7 +198,7 @@ export async function getStatusMix(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }));
+    .where(where(scope));
 
   const isNew = row?.isNew ?? 0;
   return [
@@ -217,7 +215,7 @@ export async function getStatusMix(filters: ComplaintFilters) {
 
 export const PRIORITY_ORDER = ["urgent", "high", "normal", "low"] as const;
 
-export async function getPriorityMix(filters: ComplaintFilters) {
+export async function getPriorityMix(scope: AnalyticsScope) {
   const rows = await db
     .select({ priority: tickets.priority, n: intCount })
     .from(tickets)
@@ -225,14 +223,14 @@ export async function getPriorityMix(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
+    .where(where(scope))
     .groupBy(tickets.priority);
   const counts = new Map(rows.map((r) => [r.priority as string, r.n]));
   return PRIORITY_ORDER.map((p) => ({ value: p, n: counts.get(p) ?? 0 }));
 }
 
 /** The most common (category, sub-category) pairs — "top issues". */
-export async function getTopIssues(filters: ComplaintFilters, limit = 8) {
+export async function getTopIssues(scope: AnalyticsScope, limit = 8) {
   const rows = await db
     .select({ category: tickets.category, subcategory: tickets.subcategory, n: intCount })
     .from(tickets)
@@ -240,7 +238,7 @@ export async function getTopIssues(filters: ComplaintFilters, limit = 8) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
+    .where(where(scope))
     .groupBy(tickets.category, tickets.subcategory)
     .orderBy(desc(intCount))
     .limit(limit);
@@ -255,7 +253,7 @@ export async function getTopIssues(filters: ComplaintFilters, limit = 8) {
 }
 
 /** Customers who complained more than once in the window. */
-export async function getRepeatCustomers(filters: ComplaintFilters, limit = 8) {
+export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
   const rows = await db
     .select({
       publicId: users.publicId,
@@ -270,7 +268,7 @@ export async function getRepeatCustomers(filters: ComplaintFilters, limit = 8) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
+    .where(where(scope))
     .groupBy(users.publicId, users.name, users.email)
     .having(sql`count(*) > 1`)
     .orderBy(desc(intCount))
@@ -279,7 +277,7 @@ export async function getRepeatCustomers(filters: ComplaintFilters, limit = 8) {
 }
 
 /** Plan and zone splits, each with an explicit unlinked bucket. */
-export async function getByPlan(filters: ComplaintFilters) {
+export async function getByPlan(scope: AnalyticsScope) {
   const rows = await db
     .select({ key: plans.key, name: plans.name, n: intCount })
     .from(tickets)
@@ -287,7 +285,7 @@ export async function getByPlan(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
+    .where(where(scope))
     .groupBy(plans.key, plans.name);
   return rows.map((r) => ({
     value: r.key ?? NOT_LINKED,
@@ -296,7 +294,7 @@ export async function getByPlan(filters: ComplaintFilters) {
   }));
 }
 
-export async function getByZone(filters: ComplaintFilters) {
+export async function getByZone(scope: AnalyticsScope) {
   const rows = await db
     .select({ name: deliveryZones.name, n: intCount })
     .from(tickets)
@@ -304,7 +302,7 @@ export async function getByZone(filters: ComplaintFilters) {
     .leftJoin(plans, eq(orders.planId, plans.id))
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(where({ filters }))
+    .where(where(scope))
     .groupBy(deliveryZones.name);
   return rows.map((r) => ({ value: r.name ?? NOT_LINKED, label: r.name ?? "Not linked to an order", n: r.n }));
 }
@@ -321,8 +319,8 @@ export type NeedsAttention = {
 };
 
 /** The three "act on this now" counts, each linking to the tickets behind it. */
-export async function getNeedsAttention(filters: ComplaintFilters, now = Date.now()): Promise<NeedsAttention> {
-  const scope = where({ filters });
+export async function getNeedsAttention(scope: AnalyticsScope, now = Date.now()): Promise<NeedsAttention> {
+  const cond = where(scope);
   const lastMessage = sql`(
     select max(m.created_at) from ticket_messages m where m.ticket_id = ${tickets.id}
   )`;
@@ -339,8 +337,8 @@ export async function getNeedsAttention(filters: ComplaintFilters, now = Date.no
       .leftJoin(plans, eq(orders.planId, plans.id))
       .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
       .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-      .where(scope),
-    getRepeatCustomers(filters, 100),
+      .where(cond),
+    getRepeatCustomers(scope, 100),
   ]);
 
   return {
@@ -363,24 +361,4 @@ export async function getFilterOptions() {
   ]);
   const notLinked = { value: NOT_LINKED, label: "Not linked" };
   return { plans: [...planRows, notLinked], zones: [...zoneRows, notLinked] };
-}
-
-// Kept for the overview page, which shows headline ticket numbers unfiltered.
-export async function getComplaintStats() {
-  const [[{ n: total }], [{ n: open }], [{ n: resolved }], avgRow] = await Promise.all([
-    db.select({ n: intCount }).from(tickets),
-    db.select({ n: intCount }).from(tickets).where(inArray(tickets.status, OPEN_STATUSES)),
-    db.select({ n: intCount }).from(tickets).where(ne(tickets.status, "open")),
-    db
-      .select({ avgMs: sql<number | null>`avg(${tickets.closedAt} - ${tickets.createdAt})` })
-      .from(tickets)
-      .where(isNotNull(tickets.closedAt)),
-  ]);
-  const avgMs = avgRow[0]?.avgMs;
-  return {
-    total,
-    open,
-    resolved,
-    avgResolutionHours: avgMs != null ? Math.round((Number(avgMs) / 3_600_000) * 10) / 10 : null,
-  };
 }

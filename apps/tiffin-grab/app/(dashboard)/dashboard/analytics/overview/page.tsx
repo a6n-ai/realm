@@ -7,14 +7,14 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
-import { complaintHref, parseComplaintFilters } from "@/lib/services/analytics/complaint-filters";
+import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { ordersHref, paymentsHref } from "@/lib/analytics/drill";
+import { paymentsHref } from "@/lib/analytics/drill";
+import { countOrders, ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import type { RevenueCohortSlice } from "@/lib/analytics/revenue-cohorts";
 import { currentMonth } from "@/lib/analytics/profitability";
 import { getRevenueReport, getRevenueCohortMix } from "@/lib/services/analytics/revenue.service";
-import { getCustomerStats } from "@/lib/services/analytics/customers.service";
 import { getComplaintKpis } from "@/lib/services/analytics/complaints.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import { getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
@@ -86,19 +86,19 @@ function analyticsHref(path: string, sp: AnalyticsSearchParams): string {
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
   const filters = await parseAnalyticsFilters(sp, await getSession());
   const { timezone } = await getAppSettings();
-  const [revenue, customers, complaints, profit, trialConv] = await Promise.all([
+  const [revenue, activePlans, complaints, profit, trialConv] = await Promise.all([
     loadReport(scope),
-    getCustomerStats(filters),
-    getComplaintKpis(parseComplaintFilters(sp)),
+    countOrders(scope, { status: ["active"] }),
+    getComplaintKpis(scope),
     getProfitabilityReport({
       month: currentMonth(timezone),
       grain: "daily",
       filters,
     }),
-    getTrialToPlanConversion(filters),
+    getTrialToPlanConversion(scope),
   ]);
   const paid = paymentsHref({ statuses: SETTLED_STATUSES, methods: scope.extra.method, fromMs: scope.fromMs, toMs: scope.toMs, basis: "money" });
-  const complaintFilters = parseComplaintFilters(sp);
+  const complaintFilters = scopeToComplaintFilters(scope);
 
   return (
     <MetricTiles
@@ -138,8 +138,9 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
         },
         {
           label: "Active subscriptions",
-          value: customers.activeSubscriptions,
-          href: ordersHref({ status: "active" }),
+          value: activePlans,
+          hint: `Active orders · ${DATE_BASIS_LABEL.orders}`,
+          href: ordersDrillHref(scope, { status: ["active"] }),
           badge: "Active",
           badgeTone: "ok",
         },
@@ -148,8 +149,10 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
           value: trialConv.conversionRatePct == null ? "—" : `${trialConv.conversionRatePct}%`,
           hint:
             trialConv.eligible === 0
-              ? "No trials ended in range"
-              : `${trialConv.windowDays}-day window after the trial ends`,
+              ? trialConv.open > 0
+                ? `${trialConv.open} still open`
+                : "No trials ended in range"
+              : `${trialConv.windowDays}-day window after the trial ends${trialConv.open > 0 ? ` · ${trialConv.open} still open` : ""}`,
           href: analyticsHref("/dashboard/analytics/customers", sp),
           badge: "Conversion",
           badgeTone: "brand",
@@ -177,7 +180,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
         {
           label: "Total tickets",
           value: complaints.total,
-          hint: "Complaints in this range",
+          hint: `Complaints · ${DATE_BASIS_LABEL.tickets}`,
           href: complaintHref("/dashboard/tickets", complaintFilters),
           badge: "In range",
           badgeTone: "neutral",

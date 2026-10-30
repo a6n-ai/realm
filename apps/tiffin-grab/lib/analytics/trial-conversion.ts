@@ -1,31 +1,26 @@
 /**
- * Trial → paid-plan conversion for Analytics Overview.
+ * Trial → plan conversion for Analytics Overview.
  *
- * Eligible: trials whose last delivery date falls in the selected range.
- * Converted: same customer placed a settled non-trial plan on or after the
- * trial was created, and within `windowDays` after the trial's last delivery.
+ * Eligible: trials whose last tiffin falls in the selected range AND whose conversion window has
+ * closed (`endDate + windowDays <= today`), so a customer still deciding is not counted as lost.
+ * Trials still inside the window come back as `open` and stay out of the rate.
+ * Whether a trial converted is decided in SQL by the same "later plan" rule the Renewals desk uses.
  */
 
 export const TRIAL_CONVERT_WINDOW_DAYS = 14;
 
 export type TrialEndRow = {
   orderId: string;
-  userId: string;
-  /** Epoch ms when the trial order was created. */
-  trialCreatedAt: number;
   /** ISO calendar date of the last trial delivery. */
   endDate: string;
-};
-
-export type PaidPlanRow = {
-  userId: string;
-  /** Epoch ms when the paid plan order was created. */
-  createdAt: number;
+  /** A later non-trial plan exists for the customer (`laterPaidOrderSql`). */
+  converted: boolean;
 };
 
 export type TrialConversionStats = {
   eligible: number;
   converted: number;
+  open: number;
   conversionRatePct: number | null;
   windowDays: number;
 };
@@ -35,56 +30,33 @@ function addDaysIso(iso: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-/** Inclusive end of the conversion window as an ISO calendar day. */
+/** Last calendar day on which a trial can still convert. */
 export function conversionDeadline(endDate: string, windowDays: number): string {
   return addDaysIso(endDate, windowDays);
 }
 
-/**
- * True when `createdAt` (epoch ms) falls on a calendar day in `timezone` that is
- * on or before `deadlineIso`. Compared as calendar days so timezone walls match
- * analytics date filters.
- */
-export function createdOnOrBeforeDeadline(
-  createdAt: number,
-  deadlineIso: string,
-  timezone: string,
-  isoDateInZone: (ms: number, tz: string) => string,
-): boolean {
-  return isoDateInZone(createdAt, timezone) <= deadlineIso;
-}
-
+/** `todayIso` is the current calendar day in the business timezone. */
 export function summarizeTrialConversion(input: {
   trials: TrialEndRow[];
-  paidPlans: PaidPlanRow[];
-  timezone: string;
-  isoDateInZone: (ms: number, tz: string) => string;
+  todayIso: string;
   windowDays?: number;
 }): TrialConversionStats {
   const windowDays = input.windowDays ?? TRIAL_CONVERT_WINDOW_DAYS;
-  const byUser = new Map<string, PaidPlanRow[]>();
-  for (const p of input.paidPlans) {
-    const list = byUser.get(p.userId) ?? [];
-    list.push(p);
-    byUser.set(p.userId, list);
-  }
-
+  let eligible = 0;
   let converted = 0;
+  let open = 0;
   for (const trial of input.trials) {
-    const deadline = conversionDeadline(trial.endDate, windowDays);
-    const plans = byUser.get(trial.userId) ?? [];
-    const hit = plans.some(
-      (p) =>
-        p.createdAt >= trial.trialCreatedAt &&
-        createdOnOrBeforeDeadline(p.createdAt, deadline, input.timezone, input.isoDateInZone),
-    );
-    if (hit) converted += 1;
+    if (conversionDeadline(trial.endDate, windowDays) > input.todayIso) {
+      open += 1;
+      continue;
+    }
+    eligible += 1;
+    if (trial.converted) converted += 1;
   }
-
-  const eligible = input.trials.length;
   return {
     eligible,
     converted,
+    open,
     conversionRatePct: eligible > 0 ? Math.round((converted / eligible) * 1000) / 10 : null,
     windowDays,
   };

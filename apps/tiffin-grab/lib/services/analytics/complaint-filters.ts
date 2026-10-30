@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-o
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
+import type { AnalyticsScope } from "./metrics/scope";
 
 /**
  * Complaint analytics and the ticket queue read the SAME query parameters, so
@@ -64,6 +65,30 @@ export function parseComplaintFilters(sp: ComplaintSearchParams): ComplaintFilte
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
   };
+}
+
+/** Analytics pages read the shared scope; category/subcategory/status arrive via `scope.extra`. */
+export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters {
+  return {
+    from: scope.fromMs,
+    to: scope.toMs,
+    categories: (scope.extra.category ?? []).filter((c) => isTicketCategory(c)),
+    subcategories: scope.extra.subcategory ?? [],
+    statuses: scope.extra.status ?? [],
+    priorities: [],
+    plans: scope.plans,
+    mealSizes: scope.mealSizes,
+    zones: scope.zones,
+  };
+}
+
+/**
+ * Franchise scope for tickets, through the linked order's own organization_id. A ticket with no
+ * order has no franchise, so it counts only when the viewer sees every franchise.
+ */
+export function ticketOrgWhere(orgIds: AnalyticsScope["orgIds"]): SQL | undefined {
+  if (orgIds === "all") return undefined;
+  return orgIds.length === 0 ? sql`false` : inArray(orders.organizationId, orgIds);
 }
 
 /** Serialise filters back into a querystring for a drill-through link. */

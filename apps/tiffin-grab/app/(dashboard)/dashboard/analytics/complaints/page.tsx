@@ -12,10 +12,11 @@ import { priorityLabel } from "@/lib/support/ticket-priority";
 import {
   NOT_LINKED,
   complaintHref,
-  parseComplaintFilters,
+  scopeToComplaintFilters,
   type ComplaintFilters,
-  type ComplaintSearchParams,
 } from "@/lib/services/analytics/complaint-filters";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { DATE_BASIS_LABEL, scopeToSearchParams, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   getByCategory,
   getByPlan,
@@ -32,14 +33,19 @@ import {
 
 const TICKETS = "/dashboard/tickets";
 
-type SearchParams = Promise<ComplaintSearchParams & { drill?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 /** Drill-through link: carries the page's active filters plus the clicked slice. */
 function ticketsHref(filters: ComplaintFilters, extra: Partial<ComplaintFilters> = {}) {
   return complaintHref(TICKETS, { ...filters, ...extra });
 }
 
-export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ComplaintsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const resolved = await scopeOrAlert("/dashboard/analytics/complaints", sp);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
+  const drill = sp.drill;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -52,28 +58,28 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
         }
       />
       <Suspense fallback={<ChartSkeleton />}>
-        <Kpis searchParams={searchParams} />
+        <Kpis scope={scope} />
       </Suspense>
 
       <Suspense fallback={<ChartSkeleton />}>
-        <NeedsAttentionSection searchParams={searchParams} />
+        <NeedsAttentionSection scope={scope} />
       </Suspense>
 
-      <ChartCard title="Complaint trend" subtitle="Complaints raised per day in the selected range.">
+      <ChartCard title="Complaint trend" subtitle={`Complaints raised per local day · ${DATE_BASIS_LABEL.tickets}`}>
         <Suspense fallback={<ChartSkeleton />}>
-          <Trend searchParams={searchParams} />
+          <Trend scope={scope} />
         </Suspense>
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By category" subtitle="Select a category to see its sub-categories.">
           <Suspense fallback={<ChartSkeleton />}>
-            <Categories searchParams={searchParams} />
+            <Categories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
         <ChartCard title="By sub-category">
           <Suspense fallback={<ChartSkeleton />}>
-            <Subcategories searchParams={searchParams} />
+            <Subcategories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
       </div>
@@ -81,12 +87,12 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Status">
           <Suspense fallback={<ChartSkeleton />}>
-            <Statuses searchParams={searchParams} />
+            <Statuses scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Priority">
           <Suspense fallback={<ChartSkeleton />}>
-            <Priorities searchParams={searchParams} />
+            <Priorities scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -94,12 +100,12 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Top issues" subtitle="Most common reasons, across categories.">
           <Suspense fallback={<ChartSkeleton />}>
-            <TopIssuesSection searchParams={searchParams} />
+            <TopIssuesSection scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Customers with repeat complaints">
           <Suspense fallback={<ChartSkeleton />}>
-            <RepeatCustomers searchParams={searchParams} />
+            <RepeatCustomers scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -107,12 +113,12 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By plan">
           <Suspense fallback={<ChartSkeleton />}>
-            <Plans searchParams={searchParams} />
+            <Plans scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="By delivery zone">
           <Suspense fallback={<ChartSkeleton />}>
-            <Zones searchParams={searchParams} />
+            <Zones scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -120,9 +126,9 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
   );
 }
 
-async function Kpis({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const k = await getComplaintKpis(filters);
+async function Kpis({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const k = await getComplaintKpis(scope);
   return (
     <MetricTiles
       cols={3}
@@ -130,6 +136,7 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
         {
           label: "Total complaints",
           value: k.total,
+          hint: DATE_BASIS_LABEL.tickets,
           href: ticketsHref(filters),
           badge: "In range",
           badgeTone: "neutral",
@@ -182,9 +189,9 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function NeedsAttentionSection({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const a = await getNeedsAttention(filters);
+async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const a = await getNeedsAttention(scope);
   if (a.urgent + a.overdue + a.unanswered + a.repeatCustomers === 0) return null;
 
   const cards: {
@@ -241,27 +248,24 @@ async function NeedsAttentionSection({ searchParams }: { searchParams: SearchPar
   );
 }
 
-async function Trend({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getComplaintTrend(filters);
+async function Trend({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getComplaintTrend(scope);
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No complaints in this range.</p>;
   }
   return <TrendLineChart data={rows} xKey="day" yKey="n" />;
 }
 
-async function Categories({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
-  const filters = parseComplaintFilters(sp);
-  const rows = await getByCategory(filters);
-  const drill = sp.drill;
+async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {
+  const rows = await getByCategory(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
         label: r.category,
         n: r.n,
         // Selecting a category drills in place; the link keeps every other filter.
-        href: `?${new URLSearchParams({ ...(sp as Record<string, string>), drill: r.value }).toString()}`,
+        href: `?${new URLSearchParams([...scopeToSearchParams(scope), ["drill", r.value]])}`,
         active: drill === r.value,
         muted: !r.isComplaint,
         meta: r.isComplaint ? undefined : "Not counted as a complaint",
@@ -270,14 +274,12 @@ async function Categories({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function Subcategories({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
-  const filters = parseComplaintFilters(sp);
-  const category = sp.drill;
+async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope; drill?: string }) {
+  const filters = scopeToComplaintFilters(scope);
   if (!category) {
     return <p className="text-muted-foreground py-8 text-center text-sm">Pick a category to break it down.</p>;
   }
-  const rows = await getBySubcategory(filters, category);
+  const rows = await getBySubcategory(scope, category);
   return (
     <BreakdownList
       emptyLabel={`No ${categoryLabel(category)} complaints in this range.`}
@@ -290,9 +292,9 @@ async function Subcategories({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function Statuses({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getStatusMix(filters);
+async function Statuses({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getStatusMix(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({ label: r.status, n: r.n, href: ticketsHref(filters, { statuses: [r.value] }) }))}
@@ -300,9 +302,9 @@ async function Statuses({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function Priorities({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getPriorityMix(filters);
+async function Priorities({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getPriorityMix(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -314,9 +316,9 @@ async function Priorities({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function TopIssuesSection({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getTopIssues(filters);
+async function TopIssuesSection({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getTopIssues(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -332,9 +334,9 @@ async function TopIssuesSection({ searchParams }: { searchParams: SearchParams }
   );
 }
 
-async function RepeatCustomers({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getRepeatCustomers(filters);
+async function RepeatCustomers({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getRepeatCustomers(scope);
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No repeat complaints in this range.</p>;
   }
@@ -350,9 +352,9 @@ async function RepeatCustomers({ searchParams }: { searchParams: SearchParams })
   );
 }
 
-async function Plans({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getByPlan(filters);
+async function Plans({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getByPlan(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -365,9 +367,9 @@ async function Plans({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function Zones({ searchParams }: { searchParams: SearchParams }) {
-  const filters = parseComplaintFilters(await searchParams);
-  const rows = await getByZone(filters);
+async function Zones({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getByZone(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
