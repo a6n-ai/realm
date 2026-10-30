@@ -13,8 +13,28 @@ import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existin
 import { newOrderHref, type QuoteParams } from "@/components/wizard/selections";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
+import { referCardPath } from "@/lib/referrals/share";
+import { findReferrerByCode } from "@/lib/services/referrals.service";
 
-export const metadata: Metadata = pageMeta("Build your tiffin plan | Tiffin Grab", "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.", "/subscribe");
+const TITLE = "Build your tiffin plan | Tiffin Grab";
+const DESCRIPTION = "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.";
+
+// A referral link previews (WhatsApp, iMessage, Facebook) as the friend's promo card with their code.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ ref?: string }> }): Promise<Metadata> {
+  const meta = pageMeta(TITLE, DESCRIPTION, "/subscribe");
+  const ref = normalizeReferralCode((await searchParams).ref ?? "");
+  if (!isReferralCodeShape(ref)) return meta;
+  const image = { url: referCardPath(ref, "og"), width: 1200, height: 630, alt: `TiffinGrab referral code ${ref}` };
+  const referrer = await findReferrerByCode(ref);
+  if (!referrer) return meta;
+  const title = `${referrer.firstName ?? "A friend"} invited you to TiffinGrab`;
+  const description = `Use code ${ref} on your first tiffin plan.`;
+  return {
+    ...meta,
+    openGraph: { ...meta.openGraph, title, description, images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [image.url] },
+  };
+}
 
 export const dynamic = "force-dynamic";
 

@@ -31,12 +31,12 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
 const svc = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
-const { attachReferral, getOrCreateReferralCode, getReferralSummary } = await import("../referrals.service");
+const { attachReferral, getOrCreateReferralCode, getReferralSummary, staffAttachReferral } = await import("../referrals.service");
 
 const RATE = 0.1;
 vi.spyOn(walletService, "activeRate").mockResolvedValue(RATE);
 
-const PHONES = Array.from({ length: 36 }, (_, i) => `+164755500${50 + i}`);
+const PHONES = Array.from({ length: 42 }, (_, i) => `+164755500${50 + i}`);
 const phone = (n: number) => `+164755500${n}`;
 
 afterEach(() => {
@@ -292,5 +292,36 @@ describe("getReferralSummary: entering a code later", () => {
 
     await placeFor(83);
     expect((await getReferralSummary(fresh)).canEnterCode).toBe(false);
+  });
+});
+
+describe("staff adds a forgotten referral code", () => {
+  it("pays both sides on the customer's already-paid first order", async () => {
+    const referrer = await makeUser(86);
+    const order = await placeFor(87);
+    const res = await staffAttachReferral(order.userId!, (await getOrCreateReferralCode(referrer)).toLowerCase(), null);
+    expect(res).toMatchObject({ result: "attached", friend: 10, referrer: 20 });
+    const r = await rowFor(order.userId!);
+    expect(r).toMatchObject({ status: "rewarded", qualifyingOrderId: order.id, referrerUserId: referrer });
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(notes.some((n) => n.note?.includes("added by staff"))).toBe(true);
+  });
+
+  it("attaches without paying when there is no paid order yet; payment pays later", async () => {
+    const referrer = await makeUser(88);
+    const friend = await makeUser(89);
+    expect(await staffAttachReferral(friend, await getOrCreateReferralCode(referrer), null)).toEqual({ result: "attached", friend: 0, referrer: 0 });
+    expect((await rowFor(friend)).status).toBe("joined");
+  });
+
+  it("refuses a repeat customer and a second attach", async () => {
+    const referrer = await makeUser(90);
+    const first = await placeFor(91);
+    await placeFor(91, 1);
+    const code = await getOrCreateReferralCode(referrer);
+    expect(await staffAttachReferral(first.userId!, code, null)).toEqual({ result: "repeat_customer" });
+    expect(await rowFor(first.userId!)).toBeUndefined();
+    const friend = (await placeFor(87, 2)).userId!;
+    expect(await staffAttachReferral(friend, code, null)).toEqual({ result: "already" });
   });
 });
