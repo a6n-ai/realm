@@ -12,6 +12,7 @@ import { TIFFIN_LABEL } from "@/components/landing/tiffin-art.generated";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { WeekBoard } from "@/components/landing/week-board";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -90,7 +91,7 @@ export default async function LandingPage() {
   const firstWeeks = lengths.find((l) => l.weeks === 4)?.weeks ?? lengths[0]?.weeks ?? 0;
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
 
-  const board = pub ? buildWeekBoard(pub, timezone) : { days: [], rows: [], weekend: null };
+  const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
 
   return (
     <>

@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { Heart } from "lucide-react";
 import "./week-board.css";
 
-export type BoardDay = { key: string; label: string; short: string; date: string; today: boolean; dishes: Record<string, string[]> };
+export type BoardDay = { key: string; label: string; short: string; date: string; today: boolean; dishes: Record<string, string[]>; popular?: string[] };
+
+/** A dish name, tagged when customers pick it most in its row that day. */
+function Dish({ name, popular }: { name: string; popular: boolean }) {
+  return (
+    <>
+      {name}
+      {popular ? <span className="tg-board__pop"><Heart aria-hidden className="size-3 fill-current" />Popular</span> : null}
+    </>
+  );
+}
 type Weekend = { date: string; today: boolean; dishes: string[] };
 
 // The week as a menu board: dish types down the side, days across, today lit.
@@ -38,7 +49,7 @@ export function WeekBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
             <span role="rowheader" className="tg-board__type">{row}</span>
             {days.map((d) => (
               <span key={d.key} role="cell" className="tg-board__cell" data-today={d.today || undefined}>
-                {(d.dishes[row] ?? []).map((name) => <span key={name}>{name}</span>)}
+                {(d.dishes[row] ?? []).map((name) => <span key={name}><Dish name={name} popular={!!d.popular?.includes(name)} /></span>)}
               </span>
             ))}
           </div>
@@ -59,7 +70,7 @@ export function WeekBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
           {rows.filter((r) => day.dishes[r]?.length).map((r) => (
             <div key={r} className="tg-board__group">
               <span className="tg-board__type">{r}</span>
-              <ul>{day.dishes[r]!.map((n) => <li key={n}>{n}</li>)}</ul>
+              <ul>{day.dishes[r]!.map((n) => <li key={n}><Dish name={n} popular={!!day.popular?.includes(n)} /></li>)}</ul>
             </div>
           ))}
         </div> : null}

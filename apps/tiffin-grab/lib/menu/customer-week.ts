@@ -28,14 +28,25 @@ const isNonVeg = (planName?: string) => /non-?veg/i.test(planName ?? "");
 /** Fewest picks before a dish can be called Popular; below this a handful of customers would decide it. */
 export const POPULAR_MIN_PICKS = 5;
 
-/** Marks the dish customers pick most among a category's options that day: only with a real choice (2+ dishes),
- *  enough picks to mean something, and a clear lead (a tie marks nothing). */
+/** The dish customers pick most among one category's options on one day: only with a real choice (2+ dishes),
+ *  enough picks to mean something, and a clear lead (a tie names nothing). Shared by /me/menu and the public board. */
+export function popularIn(names: string[], picks: Record<string, number>): string | null {
+  if (names.length < 2) return null;
+  const ranked = [...names].sort((a, b) => (picks[b] ?? 0) - (picks[a] ?? 0));
+  const top = picks[ranked[0]!] ?? 0;
+  return top >= POPULAR_MIN_PICKS && top > (picks[ranked[1]!] ?? 0) ? ranked[0]! : null;
+}
+
+/** First menu week counted for Popular: the 12 weeks before `weekStart`. */
+export function popularSince(weekStart: string): string {
+  const d = parseIsoDateUtc(weekStart);
+  d.setUTCDate(d.getUTCDate() - 84);
+  return d.toISOString().slice(0, 10);
+}
+
 function markPopular(dishes: MenuDish[], picks: Record<string, number>): MenuDish[] {
-  if (dishes.length < 2) return dishes;
-  const ranked = dishes.map((d) => picks[d.name] ?? 0).sort((a, b) => b - a);
-  const [top, next] = [ranked[0]!, ranked[1]!];
-  if (top < POPULAR_MIN_PICKS || top === next) return dishes;
-  return dishes.map((d) => ((picks[d.name] ?? 0) === top ? { ...d, popular: true as const } : d));
+  const top = popularIn(dishes.map((d) => d.name), picks);
+  return top ? dishes.map((d) => (d.name === top ? { ...d, popular: true as const } : d)) : dishes;
 }
 
 /** Pick counts keyed by stored dish name, folded onto the plain name the menu shows ("Dal (Veg)" + "Dal (Non-Veg)" = "Dal"). */
