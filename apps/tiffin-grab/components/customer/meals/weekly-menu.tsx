@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ArrowRight, Check, Clock, Heart, Lock, Pause, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, Check, Clock, CookingPot, Heart, Lock, Pause, UtensilsCrossed } from "lucide-react";
 import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -26,6 +26,26 @@ const MINE: Record<NonNullable<MyDay>, { tint: IconTint; icon: typeof Check; lab
   paused: { tint: "indigo", icon: Pause, label: "Paused", note: "You paused this day.", action: "View delivery" },
   hold: { tint: "pink", icon: Clock, label: "On hold", note: "This day is on hold.", action: "View delivery" },
 };
+
+// Short lines for a light day (weekends usually list one dish), picked by date so a day always reads the same.
+const LIGHT_DAY = [
+  "Cooked slow and served with care.",
+  "Less on the menu, more in the pot.",
+  "A simple plate for an easy day.",
+  "Home-style comfort, the way the weekend should taste.",
+  "The kitchen kept it short and made it count.",
+];
+
+/** Fills the space under a one- or two-dish day, so the page doesn't end in a blank screen. */
+function LightDay({ date }: { date: string }) {
+  return (
+    <figure className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-[var(--border)] px-6 py-10 text-center">
+      <IconTile tint="orange" size="lg"><CookingPot /></IconTile>
+      <blockquote className="max-w-xs text-[17px] font-semibold leading-snug tracking-[-0.01em] text-balance">{LIGHT_DAY[at(date).getUTCDate() % LIGHT_DAY.length]}</blockquote>
+      <figcaption className="c-caption">From the TiffinGrab kitchen</figcaption>
+    </figure>
+  );
+}
 
 /** The square-and-dot food mark Indian menus use, drawn in the diet's plan colour (plans.tag_color). */
 function DietMark({ color }: { color?: string }) {
@@ -203,6 +223,7 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
                     </section>
                   );
                 })}
+                {current.groups.reduce((n, g) => n + g.dishes.length, 0) <= 2 && <LightDay date={current.date} />}
               </div>
             ) : (
               <EmptyState icon={<UtensilsCrossed className="size-6" />} title="Nothing cooking" body="The kitchen hasn't listed dishes for this day." className="py-8" />

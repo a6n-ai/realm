@@ -24,9 +24,11 @@ interface Props {
 export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPause, pausing }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";
-  // Over the tab bar the actions sit on one glass bar like the tabs do: the main one solid, the rest clear.
+  // Over the tab bar each action floats on its own: the main one solid, the rest glass like the menu button beside them.
   const main = "primary";
-  const rest = bar ? "ghost" : undefined;
+  const rest = bar ? "glass" : undefined;
+  // A see-through button lets the page show through it in the floating bar, so an unavailable one there is glass with dimmed text.
+  const off = (ok: boolean) => !ok && (bar ? "text-[var(--muted-foreground,#6E6558)]" : "opacity-45");
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
   const primary = model.rows.find((r) => r.key === model.primary);
   // Only Move sits beside the primary; the rest (address) lives behind "•••".
@@ -70,7 +72,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
       size={bar ? "lg" : "md"}
       aria-label={ACTION_LABEL[k]}
       aria-disabled={!a.ok || undefined}
-      className={cn(bar ? "min-w-0 flex-1 px-1" : "shrink-0 px-5", !a.ok && "opacity-45")}
+      className={cn(bar ? "min-w-0 flex-1 px-1" : "shrink-0 px-5", off(a.ok))}
       onClick={() => fire(k, a)}
     >
       {label}
@@ -89,11 +91,11 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
         {!primary && model.goTo && <Button variant={main} size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
         {primary && (
           <Button
-            variant={main}
+            variant={bar && !primary.av.ok ? "glass" : main}
             size="lg"
             aria-label={ACTION_LABEL[primary.key]}
             aria-disabled={!primary.av.ok || undefined}
-            className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full", !primary.av.ok && "opacity-45")}
+            className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full", off(primary.av.ok))}
             onClick={() => fire(primary.key, primary.av)}
           >
             {ACTION_SHORT[primary.key]}

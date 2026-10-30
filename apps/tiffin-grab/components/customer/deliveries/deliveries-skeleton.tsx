@@ -86,7 +86,7 @@ export function DeliveriesSkeleton() {
           </div>
         </div>
       </div>
-      <div aria-hidden className="c-liquid fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex gap-1 rounded-full p-1 lg:hidden">
+      <div aria-hidden className="fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 flex h-[58px] items-center gap-2 lg:hidden">
         <Bone className="h-[50px] flex-[1.6] rounded-full" />
         <Bone className="h-[50px] flex-1 rounded-full" />
         <Bone className="h-[50px] flex-1 rounded-full" />

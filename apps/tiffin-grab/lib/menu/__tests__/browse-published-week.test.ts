@@ -25,6 +25,25 @@ describe("browsePublishedWeek", () => {
     const result = await browsePublishedWeek(NOW, TZ);
     expect(result.scope).toBe("this");
     expect(result.week?.weekStart).toBe(thisMonday);
+    expect(result.scopes).toEqual(["this"]);
+  });
+
+  it("offers next week when both are released, and opens it on request", async () => {
+    vi.mocked(menuService.getPublishedWeek).mockImplementation(async (weekStart?: string) => poster(weekStart!));
+    const first = await browsePublishedWeek(NOW, TZ);
+    expect(first.scope).toBe("this");
+    expect(first.scopes).toEqual(["this", "next"]);
+    const next = await browsePublishedWeek(NOW, TZ, "next");
+    expect(next.scope).toBe("next");
+    expect(next.week?.weekStart).toBe(comingWeekStartIso(NOW, TZ));
+  });
+
+  it("stays on this week when next is asked for but unreleased", async () => {
+    const thisMonday = thisWeekStartIso(NOW, TZ);
+    vi.mocked(menuService.getPublishedWeek).mockImplementation(async (weekStart?: string) =>
+      weekStart === thisMonday ? poster(thisMonday) : null,
+    );
+    expect((await browsePublishedWeek(NOW, TZ, "next")).scope).toBe("this");
   });
 
   it("shows the coming released week when this week is unpublished", async () => {
@@ -40,6 +59,6 @@ describe("browsePublishedWeek", () => {
 
   it("does not fall back to a past week", async () => {
     vi.mocked(menuService.getPublishedWeek).mockResolvedValue(null);
-    await expect(browsePublishedWeek(NOW, TZ)).resolves.toEqual({ week: null, scope: null });
+    await expect(browsePublishedWeek(NOW, TZ)).resolves.toEqual({ week: null, scope: null, scopes: [] });
   });
 });
