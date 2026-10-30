@@ -1,6 +1,9 @@
 import { Suspense } from "react";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { SkeletonStatCards } from "@/components/ds";
+import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
+import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
 import { ChartCard } from "@/components/analytics/chart-card";
+import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { BreakdownBarChart } from "@/components/analytics/charts";
@@ -21,13 +24,23 @@ type SearchParams = Promise<AnalyticsSearchParams>;
 
 export default function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
+      <AnalyticsPageHeader
+        section="Products & Menu"
+        title="Products & Menu"
+        description="What people pick, and how paid orders split across plans, sizes, and meal types."
+        action={
+          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+            <AnalyticsLiveStamp />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<SkeletonStatCards count={3} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Most-picked dishes">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard title="Most-picked dishes" subtitle="Meal selections in this range.">
           <Suspense fallback={<ChartSkeleton />}>
             <TopDishesChart searchParams={searchParams} />
           </Suspense>
@@ -39,7 +52,7 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
         </ChartCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
           <Suspense fallback={<ChartSkeleton />}>
             <PlanChart searchParams={searchParams} />
@@ -61,12 +74,18 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   const s = await getProductStats(await parseAnalyticsFilters(await searchParams));
   return (
-    <StatGrid
+    <MetricTiles
       cols={3}
       items={[
-        { label: "Meal selections", value: s.totalSelections },
-        { label: "Distinct dishes ordered", value: s.distinctDishes },
-        { label: "Most popular dish", value: s.topDish ?? "—" },
+        { label: "Meal selections", value: s.totalSelections, badge: "Picks", badgeTone: "neutral" },
+        { label: "Distinct dishes ordered", value: s.distinctDishes, badge: "Dishes", badgeTone: "brand" },
+        {
+          label: "Most popular dish",
+          value: s.topDish ?? "—",
+          valueSize: "label",
+          badge: "Top",
+          badgeTone: "ok",
+        },
       ]}
     />
   );
