@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@foundry/ui/cn";
+import { pillClass } from "../../../_leads/pill";
 import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -24,18 +24,16 @@ interface Props {
   mealDays?: DayOfWeek[] | null;
 }
 
-const press = "transition-[transform,background-color,border-color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100";
-
 export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, bounds, mealDays }: Props) {
   const deliveryDays = frequencies.find((f) => f.key === frequencyKey)?.weekdays ?? [];
   const enough = eatingDays.length >= bounds.min;
   const error = enough ? (eatingDaysError(deliveryDays, eatingDays, bounds) ?? allowedDaysError(eatingDays, mealDays)) : null;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4">
       <div role="radiogroup" aria-label="Delivery days" className="grid gap-2">
         <p className="text-sm font-medium">Delivery days</p>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-wrap gap-2">
           {frequencies.map((f) => {
             const on = f.key === frequencyKey;
             return (
@@ -45,19 +43,11 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
                 role="radio"
                 aria-checked={on}
                 onClick={() => onFrequencyChange(f.key)}
-                className={cn(
-                  "grid min-h-11 gap-0.5 rounded-lg border px-3 py-2.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  press,
-                  on ? "border-primary bg-primary/5" : "border-input hover:bg-muted/50",
-                )}
+                title={f.weekdays.map(dayName).join(" · ")}
+                className={pillClass(on)}
               >
-                <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                  {f.name}
-                  {!!f.savePct && (
-                    <span className="rounded-full bg-primary/12 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">Save {f.savePct}%</span>
-                  )}
-                </span>
-                <span className="text-muted-foreground text-xs">{f.weekdays.map(dayName).join(" · ")}</span>
+                {f.name}
+                {!!f.savePct && <span className="text-primary text-xs font-semibold tabular-nums">Save {f.savePct}%</span>}
               </button>
             );
           })}
@@ -108,11 +98,7 @@ export function DayPicker({
             aria-pressed={on}
             disabled={isDisabled(d, on)}
             onClick={() => onToggle(d)}
-            className={cn(
-              "min-h-11 min-w-0 rounded-lg border text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
-              press,
-              on ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/50",
-            )}
+            className={pillClass(on)}
           >
             {dayName(d)}
           </button>

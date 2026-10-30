@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserRoundIcon } from "lucide-react";
+import { UserRoundIcon, XIcon } from "lucide-react";
+import { Button } from "@foundry/ui/button";
 import {
   Command, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@foundry/ui/command";
@@ -29,14 +30,24 @@ export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void })
   }, [term]);
 
   return (
-    <Command shouldFilter={false} className="border-border/70 h-auto rounded-lg border">
+    // A plain field, not a panel: Command's popover chrome and the input wrapper's padding are stripped so
+    // the input lines up with the form's other fields, and results drop down over the form instead of pushing it.
+    <Command shouldFilter={false} className="relative h-auto overflow-visible bg-transparent p-0 [&_[data-slot=command-input-wrapper]]:p-0 [&_[data-slot=input-group]]:border-input [&_[data-slot=input-group]]:bg-transparent dark:[&_[data-slot=input-group]]:bg-input/30">
       <CommandInput
         placeholder="Search existing customer by name or phone…"
         value={q}
         onValueChange={setQ}
+        onKeyDown={(e) => { if (e.key === "Escape" && q) { e.preventDefault(); e.stopPropagation(); setQ(""); } }}
+        className={q ? "pr-7" : undefined}
       />
+      {q && (
+        // Over the input's right edge: CommandInput has no end slot. Escape clears too, without closing the sheet.
+        <Button type="button" variant="ghost" size="icon-xs" aria-label="Clear search" className="absolute top-1 right-1" onClick={() => setQ("")}>
+          <XIcon />
+        </Button>
+      )}
       {hits.length > 0 && (
-        <CommandList className="max-h-52">
+        <CommandList className="bg-popover text-popover-foreground absolute inset-x-0 top-full z-50 mt-1 max-h-52 rounded-lg border p-1 shadow-md">
           <CommandGroup heading="Existing customers">
             {hits.map((c) => (
               <CommandItem

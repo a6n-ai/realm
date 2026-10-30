@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CheckCircle2Icon, CheckIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, MailIcon } from "lucide-react";
+import { CheckCircle2Icon, CheckIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, MailIcon, MessageCircleIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -25,8 +25,18 @@ export function createdSummary(result: AdminOrderCreated): string {
 }
 
 /** What staff do right after create: copy or email the pay link. Never the customer `/activate` page itself. */
-export function AdminOrderCreatedPanel({ result, heading = false }: { result: AdminOrderCreated; heading?: boolean }) {
+export function AdminOrderCreatedPanel({
+  result,
+  heading = false,
+  whatsappText,
+}: {
+  result: AdminOrderCreated;
+  heading?: boolean;
+  /** Builds the order recap to paste into WhatsApp; gets the pay link, or null once the order is paid. */
+  whatsappText?: (payUrl: string | null) => string;
+}) {
   const [copied, setCopied] = useState(false);
+  const [copiedMessage, setCopiedMessage] = useState(false);
   const [email, setEmail] = useState<"idle" | "sending" | "sent">("idle");
 
   const payPath = result.payUrl ?? `/activate/${result.deploymentId}`;
@@ -40,6 +50,18 @@ export function AdminOrderCreatedPanel({ result, heading = false }: { result: Ad
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Could not copy link");
+    }
+  }
+
+  async function copyMessage() {
+    if (!whatsappText) return;
+    try {
+      await navigator.clipboard.writeText(whatsappText(result.paid?.ok ? null : payUrl));
+      setCopiedMessage(true);
+      toast.success("Message copied. Paste it in WhatsApp");
+      setTimeout(() => setCopiedMessage(false), 2000);
+    } catch {
+      toast.error("Could not copy the message");
     }
   }
 
@@ -74,6 +96,12 @@ export function AdminOrderCreatedPanel({ result, heading = false }: { result: Ad
           The screenshot wasn&apos;t saved ({result.paid.error}). Add it from the order&apos;s Payments tab.
         </p>
       ) : null}
+      {whatsappText && (
+        <Button type="button" onClick={() => void copyMessage()}>
+          {copiedMessage ? <CheckIcon data-icon="inline-start" /> : <MessageCircleIcon data-icon="inline-start" />}
+          {copiedMessage ? "Copied" : "Copy WhatsApp message"}
+        </Button>
+      )}
       {result.paid?.ok ? null : (
         <div className="space-y-2">
           <p className="text-sm font-medium">Customer payment link</p>
