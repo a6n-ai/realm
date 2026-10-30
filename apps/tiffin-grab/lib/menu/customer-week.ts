@@ -30,19 +30,28 @@ const isNonVeg = (planName?: string) => /non-?veg/i.test(planName ?? "");
 /** Fewest picks before a dish can be called Popular; below this a handful of customers would decide it. */
 export const POPULAR_MIN_PICKS = 5;
 
-/** The dish customers pick most among one category's options on one day: only with a real choice (2+ dishes),
- *  enough picks to mean something, and a clear lead (a tie names nothing). Shared by /me/menu and the public board. */
-export function popularIn(names: string[], picks: Record<string, number>): string | null {
-  if (names.length < 2) return null;
-  const ranked = [...names].sort((a, b) => (picks[b] ?? 0) - (picks[a] ?? 0));
-  const top = picks[ranked[0]!] ?? 0;
-  return top >= POPULAR_MIN_PICKS && top > (picks[ranked[1]!] ?? 0) ? ranked[0]! : null;
-}
+/** Most Popular dishes per category and diet in one week; never more than half its dishes, so the tag still means something. */
+export const POPULAR_PER_CATEGORY = 2;
 
-/** Popular per diet: a veg favourite and a non-veg favourite in the same category, each among its own diet's
- *  dishes, so the non-veg picks never crowd out the veg ones. */
-export function popularByDiet(names: string[], picks: Record<string, number>, nonVeg: Set<string>): string[] {
-  return [names.filter((n) => !nonVeg.has(n)), names.filter((n) => nonVeg.has(n))].flatMap((side) => popularIn(side, picks) ?? []);
+/** The dishes customers pick most, ranked across the whole week within each category and diet. Per day would almost
+ *  never fire: the kitchen usually offers one veg and one non-veg dish per category a day. A tie at the cut names
+ *  neither, and a dish needs POPULAR_MIN_PICKS. Shared by /me/menu, the public board and the Deliveries pick sheet. */
+export function popularThisWeek(items: PosterItem[], picks: Record<string, number>): Set<string> {
+  const nonVeg = nonVegDishes(items);
+  const pools = new Map<string, Set<string>>();
+  for (const it of items) {
+    const name = plain(it.dishName);
+    const key = `${it.slot}:${nonVeg.has(name)}`;
+    pools.set(key, (pools.get(key) ?? new Set()).add(name));
+  }
+  const out = new Set<string>();
+  for (const pool of pools.values()) {
+    const ranked = [...pool].sort((a, b) => (picks[b] ?? 0) - (picks[a] ?? 0));
+    const n = Math.min(POPULAR_PER_CATEGORY, Math.floor(ranked.length / 2));
+    const cut = picks[ranked[n]!] ?? 0;
+    for (const name of ranked.slice(0, n)) if ((picks[name] ?? 0) >= POPULAR_MIN_PICKS && (picks[name] ?? 0) > cut) out.add(name);
+  }
+  return out;
 }
 
 /** Plain names of the dishes that are non-veg this week: every plan serving the dish is a non-veg plan. */
@@ -57,11 +66,6 @@ export function popularSince(weekStart: string): string {
   const d = parseIsoDateUtc(weekStart);
   d.setUTCDate(d.getUTCDate() - 84);
   return d.toISOString().slice(0, 10);
-}
-
-function markPopular(dishes: MenuDish[], picks: Record<string, number>): MenuDish[] {
-  const top = popularByDiet(dishes.map((d) => d.name), picks, new Set(dishes.filter((d) => d.nonVeg).map((d) => d.name)));
-  return dishes.map((d) => (top.includes(d.name) ? { ...d, popular: true as const } : d));
 }
 
 /** Pick counts keyed by stored dish name, folded onto the plain name the menu shows ("Dal (Veg)" + "Dal (Non-Veg)" = "Dal"). */
@@ -119,6 +123,7 @@ export function buildCustomerWeek(
   for (const it of week.items) servedBy.set(plain(it.dishName), [...(servedBy.get(plain(it.dishName)) ?? []), it]);
   const nonVeg = (name: string) => (servedBy.get(name) ?? []).every((it) => isNonVeg(it.planName));
   // The colour of a plan on the dish's side: a veg dish also served on the non-veg plan still reads veg.
+  const popular = popularThisWeek(week.items, picks);
   const color = (name: string) => (servedBy.get(name) ?? []).find((it) => isNonVeg(it.planName) === nonVeg(name) && it.planColor)?.planColor ?? undefined;
   return DAYS.map((day, i) => {
     const date = isoPlus(week.weekStart, i);
@@ -127,7 +132,7 @@ export function buildCustomerWeek(
       .sort((a, b) => a.position - b.position);
     const groups = week.slots
       .map((s) => ({ key: s.key, label: s.label, icon: s.icon, dishes: [...new Set(items.filter((it) => it.slot === s.key).map((it) => plain(it.dishName)))].map((name) => ({ name, nonVeg: nonVeg(name), color: color(name) })) }))
-      .map((g) => ({ ...g, dishes: markPopular(g.dishes, picks) }))
+      .map((g) => ({ ...g, dishes: g.dishes.map((d) => (popular.has(d.name) ? { ...d, popular: true as const } : d)) }))
       .filter((g) => g.dishes.length > 0);
     const rows = deliveries.filter((d) => d.deliveryDate === date);
     const state = mine(rows, date, today, nowMs);

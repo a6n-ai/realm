@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -57,6 +58,7 @@ export default function RootLayout({
           <NavPending />
           <BrowserChrome />
         </ThemeProvider>
+        <Script src="/api/analytics" strategy="afterInteractive" />
       </body>
     </html>
   );

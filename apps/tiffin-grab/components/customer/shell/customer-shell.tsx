@@ -320,10 +320,12 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
 
       {/* This week's menu one tap away from anywhere: a tinted glass button in one fixed spot on every page, on the
           line of Deliveries' floating action bar (same 58px height); that bar and the support composer end short of it.
-          Its own view-transition name keeps it still while pages change, like the header and tab bar. */}
+          Its own view-transition name keeps it still while pages change, like the header and tab bar.
+          A full prefetch: the default stops at the menu's loading.tsx, so every tap flashed its skeleton. */}
       {!flow && (
         <Link
           href="/me/menu"
+          prefetch
           aria-label="This week's menu"
           aria-current={tab === "menu" ? "page" : undefined}
           className={cn(

@@ -350,3 +350,33 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-lost__fig { padding: 40px 12px 44px; }
 .tg-lost__fig img { display: block; width: 100%; height: auto; }
 @media (max-width: 900px) { .tg-lost__fig { max-width: 420px; } }
+
+/* Navbar rating capsule (NavRating): liquid glass, saffron star, count hidden on phones. */
+.tg-rating { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--foreground); text-decoration: none; transition: transform 150ms ease; }
+.tg-rating:active { transform: scale(0.97); }
+.tg-rating__count { font-weight: 500; color: var(--muted-foreground); }
+.tg-rating__count::before { content: "· "; }
+/* Phones: the capsule stays in the top bar, compact (star and score); the logo mark carries the brand
+   so the wordmark gives up its room. */
+@media (max-width: 520px) {
+  .tg-rating { height: 36px; padding: 0 10px; gap: 4px; }
+  .tg-rating__count { display: none; }
+  .tg-header:has(.tg-rating) .tg-header__word { display: none; }
+}
+
+/* /reviews: glass needs something behind it to read as glass, so the page carries a soft glow. */
+.tg-reviews { position: relative; isolation: isolate; overflow: hidden; }
+.tg-reviews__glow { position: absolute; inset: -10% -10% auto; height: 900px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 15% 20%, color-mix(in oklch, var(--primary) 28%, transparent), transparent 70%),
+    radial-gradient(35% 45% at 85% 35%, color-mix(in oklch, #2f7d4f 22%, transparent), transparent 70%),
+    radial-gradient(30% 40% at 50% 80%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%);
+  filter: blur(20px); }
+.tg-reviews__hero { display: flex; flex-wrap: wrap; align-items: center; gap: 20px 32px; padding: 28px; border-radius: 32px; }
+.tg-reviews__score { font-size: clamp(56px, 9vw, 80px); line-height: 0.95; font-weight: 700; letter-spacing: -0.045em; }
+.tg-review-glass { border-radius: 28px; background: color-mix(in srgb, var(--card) 55%, transparent); -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%); box-shadow: 0 1px 0 color-mix(in srgb, white 35%, transparent) inset, 0 12px 32px -18px rgb(0 0 0 / 0.35); transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+@media (hover: hover) { .tg-review-glass:hover { transform: translateY(-2px); box-shadow: 0 1px 0 color-mix(in srgb, white 35%, transparent) inset, 0 18px 40px -18px rgb(0 0 0 / 0.4); } }
+.dark .tg-review-glass { box-shadow: 0 1px 0 color-mix(in srgb, white 8%, transparent) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7); }
+@media (prefers-reduced-motion: reduce) { .tg-review-glass, .tg-rating { transition: none; } .tg-review-glass:hover { transform: none; } }
+@media (prefers-reduced-transparency: reduce) { .tg-review-glass { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } .tg-reviews__glow { display: none; } }
+@media (prefers-contrast: more) { .tg-review-glass { background: var(--card); border: 1px solid var(--foreground); } }

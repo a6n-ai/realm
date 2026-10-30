@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/customer/kit/theme-toggle";
@@ -18,7 +18,8 @@ const LINKS = [
 
 // The customer top bar's anatomy: brand left, nav pills, one hero action; on
 // phones the pills fold into a sheet behind a 44px menu button.
-export function LandingHeader() {
+/** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
+export function LandingHeader({ rating }: { rating?: ReactNode }) {
   const { data: session } = useSession();
   const role = (session?.user as { role?: RoleValue } | undefined)?.role;
   const account = session?.user
@@ -45,11 +46,12 @@ export function LandingHeader() {
         <div className="tg-wrap tg-header__in">
           <Link href="/" className="tg-header__brand" aria-label="TiffinGrab home">
             <BrandMark className="size-9" />
-            <BrandWordmark className="text-lg" />
+            <BrandWordmark className="tg-header__word text-lg" />
           </Link>
           <nav className="tg-nav" aria-label="Main">
             {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill">{l.label}</Link>)}
             <Link prefetch={false} href={account.href} className="tg-navpill">{account.label}</Link>
+            {rating}
             <ThemeToggle className="tg-theme" />
             <Link prefetch={false} href="/subscribe" className="tg-cta ml-1">Build my tiffin</Link>
             <button ref={menuRef} type="button" className="tg-menu-btn" aria-label="Open menu" aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen(true)}>

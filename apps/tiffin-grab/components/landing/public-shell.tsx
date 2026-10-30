@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ViewTransition, type ReactNode } from "react";
+import { Suspense, ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
-import { reviewsConnected } from "@/components/landing/landing-reviews";
+import { NavRating, reviewsConnected } from "@/components/landing/landing-reviews";
 import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -12,7 +12,7 @@ import "@/components/landing/landing.css";
 export function PublicShell({ children }: { children: ReactNode }) {
   return (
     <div className="tg-land customer-app">
-      <LandingHeader />
+      <LandingHeader rating={<Suspense fallback={null}><NavRating /></Suspense>} />
       {/* Route changes cross-fade the page under a header that stays put (see landing.css). */}
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />

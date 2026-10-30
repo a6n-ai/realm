@@ -8,12 +8,13 @@ export const ORDER_TAGS = {
   free: { icon: GiftIcon, label: "Free tiffins", className: "text-pink-600 dark:text-pink-400" },
 } satisfies Record<string, { icon: LucideIcon; label: string; className: string }>;
 
-/** A small icon after the customer's name; hover shows what it means. */
-export function RowTag({ tag, title }: { tag: keyof typeof ORDER_TAGS; title?: string }) {
+/** A small icon after the customer's name, with an optional count beside it; hover shows what it means. */
+export function RowTag({ tag, title, count }: { tag: keyof typeof ORDER_TAGS; title?: string; count?: number }) {
   const { icon: Icon, label, className } = ORDER_TAGS[tag];
   return (
-    <span title={title ?? label} className={`ml-2 inline-flex align-middle ${className}`}>
+    <span title={title ?? label} className={`ml-2 inline-flex items-center gap-0.5 align-middle text-xs font-medium tabular-nums ${className}`}>
       <Icon className="size-4" aria-label={label} />
+      {count != null && count}
     </span>
   );
 }

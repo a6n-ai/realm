@@ -102,6 +102,14 @@ describe("popular dishes", () => {
     expect(popular(sabzi("Aloo Gobi", "Palak Paneer"), { "Palak Paneer": 9, "Aloo Gobi": 9 })).toEqual([]);
   });
 
+  it("ranks a category across the week when each day has a single dish, as the kitchen usually plans it", () => {
+    const days = ["mon", "tue", "wed", "thu", "fri"] as const;
+    const names = ["Veg Korma", "Aloo Beans", "Baingan Patiala", "Soya Keema", "Cabbage Masala"];
+    const items = names.map((dishName, i) => ({ dayOfWeek: days[i]!, slot: "sabzi", dishName, position: 0 }));
+    const built = buildCustomerWeek({ ...week, items }, [], TODAY, NOW, null, { "Baingan Patiala": 54, "Soya Keema": 53, "Veg Korma": 32, "Cabbage Masala": 25 });
+    expect(built.flatMap((d) => d.groups.flatMap((g) => g.dishes.filter((x) => x.popular).map((x) => x.name)))).toEqual(["Baingan Patiala", "Soya Keema"]);
+  });
+
   it("folds per-plan dish names onto the name the menu shows", () => {
     expect(foldPicks({ "Dal Tadka (Veg)": 3, "Dal Tadka (Non-Veg)": 4, Kadhi: 2 })).toEqual({ "Dal Tadka": 7, Kadhi: 2 });
   });

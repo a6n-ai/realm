@@ -429,15 +429,19 @@ body:has(.crm-app) .font-pixel-circle {
   animation: none;
 }
 
+/* The menu button too: unnamed, it sat in page order and the incoming page's action bar drew over it mid-transition. */
 ::view-transition-group(customer-header),
-::view-transition-group(customer-bottom-nav) {
+::view-transition-group(customer-bottom-nav),
+::view-transition-group(customer-menu-fab) {
   animation: none;
   z-index: 100;
 }
 ::view-transition-old(customer-header),
 ::view-transition-new(customer-header),
 ::view-transition-old(customer-bottom-nav),
-::view-transition-new(customer-bottom-nav) {
+::view-transition-new(customer-bottom-nav),
+::view-transition-old(customer-menu-fab),
+::view-transition-new(customer-menu-fab) {
   animation: none;
 }
 
