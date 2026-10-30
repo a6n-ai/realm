@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/purity */
-import { getSession } from "@/lib/auth/session";
 import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
@@ -7,17 +6,15 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton, ListSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { MetricTiles, type MetricTile } from "@/components/analytics/metric-tiles";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
-import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import {
-  getRevenueReport,
-  parseRevenueFilters,
-  type RevenueReport,
-} from "@/lib/services/analytics/revenue.service";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { paymentsHref } from "@/lib/analytics/drill";
+import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { clockInZone } from "@/lib/analytics/profitability";
 import { SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
+import { NeedsReview } from "./needs-review";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -31,76 +28,61 @@ function rangeLabel(from: string, to: string) {
   return a === b ? a : `${a} – ${b}`;
 }
 
-type SearchParams = Promise<{
-  from?: string;
-  to?: string;
-  method?: string;
-  plan?: string;
-  mealSize?: string;
-  zone?: string;
-}>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-const loadReport = cache(
-  async (from: string, to: string, method: string, plan: string, mealSize: string, zone: string) =>
-    getRevenueReport(await parseRevenueFilters({ from, to, method, plan, mealSize, zone }, await getSession())),
-);
+const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
 
-async function reportFrom(searchParams: SearchParams): Promise<RevenueReport> {
-  const sp = await searchParams;
-  return loadReport(
-    sp.from ?? "",
-    sp.to ?? "",
-    sp.method ?? "",
-    sp.plan ?? "",
-    sp.mealSize ?? "",
-    sp.zone ?? "",
-  );
-}
-
-export default function RevenueAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function RevenueAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/revenue", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
         section="Revenue"
-        description="Settled payments, discounts given, and amounts still awaiting payment."
+        description="Money kept after refunds, excluding tax and card surcharge, by payment date."
         action={
           <Suspense fallback={<div className="bg-muted/40 h-8 w-full max-w-xl animate-pulse rounded-lg" />}>
-            <RangeAndLive searchParams={searchParams} />
+            <RangeAndLive scope={scope} />
           </Suspense>
         }
       />
 
       <Suspense fallback={<SkeletonStatCards count={8} />}>
-        <Kpis searchParams={searchParams} />
+        <Kpis scope={scope} />
       </Suspense>
 
       <ChartCard
         title="Revenue over time"
-        subtitle="Net sales exclude tax. Net collected is settled payments after refunds."
+        subtitle={`Net revenue excludes tax and surcharge, ${DATE_BASIS_LABEL.money}. Collected is payments received, including tax.`}
       >
         <Suspense fallback={<ChartSkeleton />}>
-          <Trend searchParams={searchParams} />
+          <Trend scope={scope} />
         </Suspense>
       </ChartCard>
 
+      <Suspense fallback={<ListSkeleton />}>
+        <NeedsReview scope={scope} />
+      </Suspense>
+
       <ChartCard
         title="Payments by status"
-        subtitle="Created in this range. Open a row to see those payments. The totals above follow the day the money moved."
+        subtitle={`Every payment ${DATE_BASIS_LABEL.money}. Open a row to see those payments.`}
       >
         <Suspense fallback={<ListSkeleton />}>
-          <Statuses searchParams={searchParams} />
+          <Statuses scope={scope} />
         </Suspense>
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="By payment method" subtitle="Settled payments, including tax.">
+        <ChartCard title="By payment method" subtitle={`Net revenue, ex tax & surcharge, ${DATE_BASIS_LABEL.money}.`}>
           <Suspense fallback={<ListSkeleton />}>
-            <MethodChart searchParams={searchParams} />
+            <MethodChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Discounts given" subtitle="Across settled orders in this range.">
           <Suspense fallback={<ListSkeleton />}>
-            <Discounts searchParams={searchParams} />
+            <Discounts scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -108,119 +90,112 @@ export default function RevenueAnalyticsPage({ searchParams }: { searchParams: S
   );
 }
 
-async function RangeAndLive({ searchParams }: { searchParams: SearchParams }) {
-  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
+async function RangeAndLive({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
-      <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} />
+      <LiveRefresh updatedLabel={clockInZone(Date.now(), scope.tz)} />
     </div>
   );
 }
 
-async function rangeFor(searchParams: SearchParams) {
-  const sp = await searchParams;
-  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
-  const filters = await parseRevenueFilters(sp, await getSession());
-  const range = zonedRangeMs(report.from, report.to, timezone);
-  const settled = (extra: { statuses?: readonly string[] } = {}) =>
-    paymentsHref({
-      statuses: extra.statuses ?? SETTLED_STATUSES,
-      methods: filters.methods,
-      fromMs: range.from,
-      toMs: range.to,
-    });
-  return { report, filters, range, settled };
+function links(scope: AnalyticsScope) {
+  const methods = scope.extra.method ?? [];
+  return (statuses: readonly string[] = SETTLED_STATUSES, only: readonly string[] = methods) =>
+    paymentsHref({ statuses, methods: only, fromMs: scope.fromMs, toMs: scope.toMs });
 }
 
-async function Kpis({ searchParams }: { searchParams: SearchParams }) {
-  const { report, settled } = await rangeFor(searchParams);
-  const k = report.kpis;
-  const paid = settled();
+async function Kpis({ scope }: { scope: AnalyticsScope }) {
+  const k = (await loadReport(scope)).kpis;
+  const href = links(scope);
+  const paid = href();
+  const basis = DATE_BASIS_LABEL.money;
+  const second: MetricTile[] = [
+    {
+      label: "Net collected",
+      value: money(k.netCollected),
+      hint: k.refunds > 0 ? `${money(k.gross)} received − ${money(k.refunds)} refunded` : `Payments incl. tax, ${basis}`,
+      href: paid,
+      badge: "Cash",
+      badgeTone: "ok",
+    },
+    {
+      label: "Awaiting payment",
+      value: money(k.pendingAmount),
+      tone: k.pendingCount > 0 ? "warn" : "default",
+      hint: `${k.pendingCount} ${k.pendingCount === 1 ? "payment" : "payments"} not yet verified`,
+      href: href(["awaiting_payment", "pending_verification"]),
+      badge: "Pending",
+      badgeTone: k.pendingCount > 0 ? "warn" : "neutral",
+    },
+    {
+      label: "Avg order value",
+      value: k.avgOrderValue == null ? "—" : money(k.avgOrderValue),
+      hint: `${k.orders} settled ${k.orders === 1 ? "order" : "orders"}, ex tax & surcharge`,
+      href: paid,
+      badge: "Average",
+      badgeTone: "brand",
+    },
+  ];
+  if (k.surcharge > 0) {
+    second.push({
+      label: "Card surcharge",
+      value: money(k.surcharge),
+      hint: `Charged on top of the price, not revenue · ${basis}`,
+      href: paid,
+      badge: "Surcharge",
+      badgeTone: "neutral",
+    });
+  }
   return (
     <div className="space-y-3">
       <MetricTiles
         cols={4}
         items={[
           {
-            label: "Gross sales",
-            value: money(k.grossSales),
-            hint: "List price before discounts, excl. tax",
-            href: paid,
-            badge: "List",
-            badgeTone: "neutral",
-          },
-          {
-            label: "Discounts",
-            value: money(k.discounts),
-            hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of gross sales`,
-            href: paid,
-            badge: "Given",
-            badgeTone: "brand",
-          },
-          {
-            label: "Net sales",
-            value: money(k.netSales),
-            hint: "Gross sales minus discounts, excl. tax",
+            label: "Net revenue",
+            value: money(k.netRevenue),
+            hint: `${basis} · ex tax & surcharge`,
             href: paid,
             badge: "Settled",
             badgeTone: "ok",
           },
           {
-            label: "Tax collected",
+            label: "Discounts",
+            value: money(k.discounts),
+            hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of list price`,
+            href: paid,
+            badge: "Given",
+            badgeTone: "brand",
+          },
+          {
+            label: "Tax held",
             value: money(k.tax),
-            hint: "Owed to the government, not revenue",
+            hint: `Owed to the government, not revenue · ${basis}`,
             href: paid,
             badge: "Tax",
             badgeTone: "neutral",
           },
-        ]}
-      />
-      <MetricTiles
-        cols={4}
-        items={[
-          {
-            label: "Net collected",
-            value: money(k.netCollected),
-            hint: k.refunded > 0 ? `${money(k.collected)} received − ${money(k.refunded)} refunded` : "Paid amounts, including tax",
-            href: paid,
-            badge: "Cash",
-            badgeTone: "ok",
-          },
           {
             label: "Refunded",
-            value: money(k.refunded),
-            tone: k.refunded > 0 ? "warn" : "default",
-            hint: "By original payment date",
-            href: settled({ statuses: ["refunded"] }),
+            value: money(k.refunds),
+            tone: k.refunds > 0 ? "warn" : "default",
+            hint: "By refund date",
+            href: href(["refunded"]),
             badge: "Refunds",
-            badgeTone: k.refunded > 0 ? "warn" : "neutral",
-          },
-          {
-            label: "Awaiting payment",
-            value: money(k.pendingAmount),
-            tone: k.pendingCount > 0 ? "warn" : "default",
-            hint: `${k.pendingCount} ${k.pendingCount === 1 ? "payment" : "payments"} not yet verified`,
-            href: settled({ statuses: ["awaiting_payment", "pending_verification"] }),
-            badge: "Pending",
-            badgeTone: k.pendingCount > 0 ? "warn" : "neutral",
-          },
-          {
-            label: "Avg order value",
-            value: k.avgOrderValue == null ? "—" : money(k.avgOrderValue),
-            hint: `${k.orders} settled ${k.orders === 1 ? "order" : "orders"}, excl. tax`,
-            href: paid,
-            badge: "Average",
-            badgeTone: "brand",
+            badgeTone: k.refunds > 0 ? "warn" : "neutral",
           },
         ]}
       />
+      <MetricTiles cols={4} items={second} />
     </div>
   );
 }
 
-async function Statuses({ searchParams }: { searchParams: SearchParams }) {
-  const { report, filters, range } = await rangeFor(searchParams);
+async function Statuses({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
+  const href = links(scope);
   return (
     <BreakdownList
       rows={report.byStatus.map((s) => ({
@@ -228,47 +203,38 @@ async function Statuses({ searchParams }: { searchParams: SearchParams }) {
         n: s.count,
         aside: money(s.amount),
         meta: `${s.count} ${s.count === 1 ? "payment" : "payments"}`,
-        href: paymentsHref({
-          statuses: [s.status],
-          methods: filters.methods,
-          fromMs: range.from,
-          toMs: range.to,
-        }),
+        href: href([s.status]),
       }))}
-      emptyLabel="No payments created in this range."
+      emptyLabel="No payments in this range."
     />
   );
 }
 
-async function Trend({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
+async function Trend({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
   return (
     <TrendLineChart
       data={report.trend}
       xKey="period"
       format="currency"
       series={[
-        { key: "netSales", label: "Net sales" },
-        { key: "collected", label: "Net collected" },
+        { key: "netSales", label: "Net revenue" },
+        { key: "collected", label: "Collected" },
       ]}
     />
   );
 }
 
-async function MethodChart({ searchParams }: { searchParams: SearchParams }) {
-  const { report, range } = await rangeFor(searchParams);
+async function MethodChart({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
+  const href = links(scope);
   return (
     <BreakdownList
       rows={report.byMethod.map((m) => ({
         label: m.method,
         n: m.amount,
         aside: money(m.amount),
-        href: paymentsHref({
-          statuses: SETTLED_STATUSES,
-          methods: [m.key],
-          fromMs: range.from,
-          toMs: range.to,
-        }),
+        href: href(SETTLED_STATUSES, [m.key]),
       }))}
       emptyLabel="No settled payments in this range."
     />
@@ -282,8 +248,8 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
   other: "Discount",
 };
 
-async function Discounts({ searchParams }: { searchParams: SearchParams }) {
-  const { discounts, kpis } = await reportFrom(searchParams);
+async function Discounts({ scope }: { scope: AnalyticsScope }) {
+  const { discounts, kpis } = await loadReport(scope);
   return (
     <BreakdownList
       emptyLabel="No discounts in this range."

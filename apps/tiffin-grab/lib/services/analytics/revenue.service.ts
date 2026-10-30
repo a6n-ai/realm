@@ -1,248 +1,130 @@
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
-import { zonedRangeMs } from "@/lib/analytics/drill";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { eachDateInclusive, isoDateInZone, periodKey, periodLabel, round2 } from "@/lib/analytics/profitability";
 import {
   PENDING_STATUSES,
-  SETTLED_STATUSES,
+  grainForRange,
+  methodLabel,
   presentPaymentStatuses,
-  resolveRevenueBounds,
-  summarizeRevenue,
+  summarizeDiscounts,
   type PaymentStatusSlice,
   type RevenueSummary,
 } from "@/lib/analytics/revenue";
 import {
-  summarizeRevenueCohorts,
+  REVENUE_COHORT_COLOR,
+  REVENUE_COHORT_LABEL,
+  REVENUE_COHORT_ORDER,
+  type RevenueCohortKey,
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
-import { resolveAnalyticsScope } from "./metrics/scope";
-import { ordersMatchFilters, parseAnalyticsFiltersSync } from "./shared-filters";
+import { SETTLED, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
+import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
 
 export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[] };
 
-export type RevenueFilters = {
-  from?: string;
-  to?: string;
-  methods: string[];
-  plans: string[];
-  mealSizes: string[];
-  zones: string[];
-  orgIds: "all" | string[];
-};
+export const REVENUE_METHODS = payments.method.enumValues;
 
-const PAYMENT_METHODS = payments.method.enumValues;
-type PaymentMethod = (typeof PAYMENT_METHODS)[number];
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-export async function parseRevenueFilters(
-  sp: {
-  from?: string;
-  to?: string;
-  method?: string;
-  plan?: string;
-  mealSize?: string;
-  zone?: string;
-  org?: string;
-  },
-  session: Parameters<typeof resolveAnalyticsScope>[1],
-): Promise<RevenueFilters> {
-  const bound = (raw: string | undefined) => {
-    if (!raw) return undefined;
-    if (ISO_DATE.test(raw)) return raw;
-    const n = Number(raw);
-    return Number.isFinite(n) ? raw : undefined;
-  };
-  const methods = (sp.method ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter((m): m is PaymentMethod => (PAYMENT_METHODS as readonly string[]).includes(m));
-  const dims = parseAnalyticsFiltersSync(sp);
-  const { orgIds } = await resolveAnalyticsScope(sp, session);
-  return {
-    from: bound(sp.from),
-    to: bound(sp.to),
-    methods,
-    plans: dims.plans,
-    mealSizes: dims.mealSizes,
-    zones: dims.zones,
-    orgIds,
-  };
-}
-
-function dimensionWhere(filters: RevenueFilters) {
-  return ordersMatchFilters({
-    from: undefined,
-    to: undefined,
-    plans: filters.plans,
-    mealSizes: filters.mealSizes,
-    zones: filters.zones,
-    orgIds: filters.orgIds,
-  });
-}
-
-const DAY_PAD = 48 * 60 * 60 * 1000;
-const moneyAt = sql<number>`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
-
-export async function getRevenueReport(
-  filters: RevenueFilters,
-  opts: { now?: number } = {},
-): Promise<RevenueReport> {
-  const now = opts.now ?? Date.now();
-  const { timezone } = await getAppSettings();
-  const { from, to } = resolveRevenueBounds(filters.from, filters.to, timezone, now);
-
-  // Padded by two days either side; exact business-day membership is decided in
-  // summarizeRevenue once each timestamp is converted to the app timezone.
-  const fromMs = Date.parse(`${from}T00:00:00.000Z`) - DAY_PAD;
-  const toMs = Date.parse(`${to}T23:59:59.999Z`) + DAY_PAD;
-  const window = sql`${moneyAt} between ${fromMs} and ${toMs}`;
-  const methodWhere = filters.methods.length
-    ? inArray(payments.method, filters.methods as PaymentMethod[])
-    : undefined;
-  const orderWhere = dimensionWhere(filters);
-  // The payments list filters createdAt, so the status breakdown uses the same
-  // window. A click on a status then shows exactly the rows that were counted.
-  const created = zonedRangeMs(from, to, timezone);
-
-  const [rows, pending, statusRows] = await Promise.all([
-    db
-      .select({
-        orderId: payments.orderId,
-        status: payments.status,
-        method: payments.method,
-        amount: payments.amount,
-        at: moneyAt,
-        orderTotal: orders.total,
-        snapshot: orders.pricingSnapshot,
-      })
-      .from(payments)
-      .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(and(inArray(payments.status, [...SETTLED_STATUSES, "refunded"]), window, methodWhere, orderWhere)),
-    db
-      .select({ amount: payments.amount, at: payments.createdAt })
-      .from(payments)
-      .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(
-        and(
-          inArray(payments.status, [...PENDING_STATUSES]),
-          sql`${payments.createdAt} between ${fromMs} and ${toMs}`,
-          methodWhere,
-          orderWhere,
-        ),
-      ),
-    db
-      .select({
-        status: payments.status,
-        count: sql<number>`cast(count(*) as int)`,
-        amount: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
-      })
-      .from(payments)
-      .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(
-        and(
-          gte(payments.createdAt, created.from),
-          lte(payments.createdAt, created.to),
-          methodWhere,
-          orderWhere,
-        ),
-      )
-      .groupBy(payments.status),
-  ]);
-
-  const summary = summarizeRevenue({
-    from,
-    to,
-    timezone,
-    payments: rows.map((r) => ({
-      orderId: String(r.orderId),
-      status: r.status,
-      method: r.method,
-      amount: Number(r.amount),
-      at: Number(r.at),
-      orderTotal: Number(r.orderTotal),
-      snapshot: r.snapshot,
-    })),
-    pending: pending.map((p) => ({ amount: Number(p.amount), at: Number(p.at) })),
-  });
-
-  return {
-    ...summary,
-    byStatus: presentPaymentStatuses(
-      statusRows.map((r) => ({ status: r.status, count: r.count, amount: Number(r.amount) })),
-    ),
-  };
-}
-
-export const REVENUE_METHODS: readonly PaymentMethod[] = PAYMENT_METHODS;
-
-const priorNonTrial = sql<boolean>`exists (
-  select 1 from ${orders} as prior
-  where prior.user_id = ${orders.userId}
-    and prior.trial_length is null
-    and prior.created_at < ${orders.createdAt}
-)`;
-
-/**
- * Settled net sales split into renewals / new plans / trials for the same
- * window as {@link getRevenueReport}. Amounts sum to net sales.
- */
-export async function getRevenueCohortMix(
-  filters: RevenueFilters,
-  opts: { now?: number } = {},
-): Promise<{ from: string; to: string; slices: RevenueCohortSlice[]; totalAmount: number; totalCount: number }> {
-  const now = opts.now ?? Date.now();
-  const { timezone } = await getAppSettings();
-  const { from, to } = resolveRevenueBounds(filters.from, filters.to, timezone, now);
-  const fromMs = Date.parse(`${from}T00:00:00.000Z`) - DAY_PAD;
-  const toMs = Date.parse(`${to}T23:59:59.999Z`) + DAY_PAD;
-  const window = sql`${moneyAt} between ${fromMs} and ${toMs}`;
-  const methodWhere = filters.methods.length
-    ? inArray(payments.method, filters.methods as PaymentMethod[])
-    : undefined;
-  const orderWhere = dimensionWhere(filters);
-
+/** One row per order with a settled payment in the window: its paid amount and snapshot, for discount lines. */
+async function settledOrderRows(scope: AnalyticsScope) {
+  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
   const rows = await db
     .select({
-      orderId: payments.orderId,
-      status: payments.status,
-      method: payments.method,
-      amount: payments.amount,
-      at: moneyAt,
+      orderId: orders.id,
+      amount: sql<string>`sum(${payments.amount})`,
       orderTotal: orders.total,
       snapshot: orders.pricingSnapshot,
-      trialLength: orders.trialLength,
-      userId: orders.userId,
-      orderCreatedAt: orders.createdAt,
-      hasPriorNonTrial: priorNonTrial,
     })
     .from(payments)
     .innerJoin(orders, eq(payments.orderId, orders.id))
-    .where(and(inArray(payments.status, [...SETTLED_STATUSES]), window, methodWhere, orderWhere));
+    .where(and(ordersScope(scope), methodWhere(scope), inArray(payments.status, [...SETTLED]), dateWhere(moneyDate, scope)))
+    .groupBy(orders.id);
+  return rows.map((r) => ({
+    orderId: String(r.orderId),
+    amount: Number(r.amount),
+    orderTotal: Number(r.orderTotal),
+    snapshot: r.snapshot,
+  }));
+}
+
+export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueReport> {
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const grain = grainForRange(from, to);
+  const [totals, days, statusRows, methods, orderRows] = await Promise.all([
+    revenueTotals(scope),
+    revenueBy(scope, "day"),
+    paymentsByStatus(scope),
+    revenueBy(scope, "method"),
+    settledOrderRows(scope),
+  ]);
+
+  const buckets = new Map<string, { netSales: number; collected: number }>();
+  for (const day of eachDateInclusive(from, to)) buckets.set(periodKey(day, grain), { netSales: 0, collected: 0 });
+  for (const d of days) {
+    const b = buckets.get(periodKey(d.key, grain));
+    if (!b) continue;
+    b.netSales += d.net;
+    b.collected += d.gross;
+  }
+
+  const disc = summarizeDiscounts(orderRows);
+  const pending = statusRows.filter((r) => (PENDING_STATUSES as readonly string[]).includes(r.status));
 
   return {
     from,
     to,
-    ...summarizeRevenueCohorts({
-      from,
-      to,
-      timezone,
-      payments: rows.map((r) => ({
-        orderId: String(r.orderId),
-        status: r.status,
-        method: r.method,
-        amount: Number(r.amount),
-        at: Number(r.at),
-        orderTotal: Number(r.orderTotal),
-        snapshot: r.snapshot,
-        trialLength: r.trialLength,
-        userId: r.userId == null ? null : String(r.userId),
-        orderCreatedAt: Number(r.orderCreatedAt),
-        hasPriorNonTrial: Boolean(r.hasPriorNonTrial),
-      })),
-    }),
+    grain,
+    kpis: {
+      gross: totals.gross,
+      netRevenue: totals.net,
+      tax: totals.tax,
+      refunds: totals.refunds,
+      surcharge: totals.surcharge,
+      netCollected: round2(totals.gross - totals.refunds),
+      payments: totals.payments,
+      orders: disc.orders,
+      avgOrderValue: disc.orders > 0 ? round2(totals.net / disc.orders) : null,
+      listPrice: disc.listPrice,
+      discounts: disc.discounts,
+      discountRatePct: disc.listPrice > 0 ? round2((disc.discounts / disc.listPrice) * 100) : null,
+      pendingAmount: round2(pending.reduce((s, r) => s + r.amount, 0)),
+      pendingCount: pending.reduce((s, r) => s + r.count, 0),
+    },
+    trend: [...buckets.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, b]) => ({ period: periodLabel(key, grain), netSales: round2(b.netSales), collected: round2(b.collected) })),
+    byMethod: methods
+      .filter((m) => m.net !== 0)
+      .map((m) => ({ method: methodLabel(m.key), key: m.key, amount: m.net }))
+      .sort((a, b) => b.amount - a.amount),
+    discounts: disc.lines,
+    byStatus: presentPaymentStatuses(statusRows),
+  };
+}
+
+const COHORT_OF: Record<string, RevenueCohortKey> = { renewal: "renewals", new: "new", trial: "trials" };
+
+/** Net revenue split into renewals / new plans / trials for the same scope as {@link getRevenueReport}. */
+export async function getRevenueCohortMix(
+  scope: AnalyticsScope,
+): Promise<{ slices: RevenueCohortSlice[]; totalAmount: number; totalCount: number }> {
+  const rows = await revenueBy(scope, "cohort");
+  const slices = REVENUE_COHORT_ORDER.map((key) => {
+    const mine = rows.filter((r) => COHORT_OF[r.key] === key);
+    return {
+      key,
+      label: REVENUE_COHORT_LABEL[key],
+      amount: round2(mine.reduce((s, r) => s + r.net, 0)),
+      count: mine.reduce((s, r) => s + r.payments, 0),
+      color: REVENUE_COHORT_COLOR[key],
+    };
+  });
+  return {
+    slices,
+    totalAmount: round2(slices.reduce((s, r) => s + r.amount, 0)),
+    totalCount: slices.reduce((s, r) => s + r.count, 0),
   };
 }

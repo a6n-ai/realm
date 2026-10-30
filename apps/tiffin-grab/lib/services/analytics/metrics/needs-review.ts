@@ -5,11 +5,12 @@ import { ledgerEntries, orders, payments } from "@/db/schema";
 import { CAPTURED, moneyDate } from "./money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./scope";
 
-export type ReviewReason = "cancelled_paid" | "paid_ne_total" | "refunded_no_ledger";
+export type ReviewReason = "cancelled_paid" | "paid_ne_total" | "partly_refunded" | "refunded_no_ledger";
 
 export const REVIEW_REASON_LABEL: Record<ReviewReason, string> = {
   cancelled_paid: "Cancelled but money kept",
   paid_ne_total: "Paid amount differs from order total",
+  partly_refunded: "Partly refunded",
   refunded_no_ledger: "Payment marked refunded with no ledger refund",
 };
 
@@ -41,7 +42,9 @@ const legacyRefunded = sql`(select coalesce(sum(${payments.amount}), 0) from ${p
 // Legacy refunds count as money gone, so a cancelled order whose only refund is one shows just refunded_no_ledger.
 const kept = sql`(${paid} - ${refunds} - ${legacyRefunded})`;
 const cancelledPaid = sql`(${orders.status} = 'cancelled' and ${kept} > 0.01)`;
-const paidNeTotal = sql`(${kept} > 0.01 and abs(${kept} - ${total}) > 0.01)`;
+const partlyRefunded = sql`(${refunds} > 0.01 and ${kept} > 0.01)`;
+// A partial refund explains the gap on its own, so it is reported as partly_refunded instead.
+const paidNeTotal = sql`(${kept} > 0.01 and abs(${kept} - ${total}) > 0.01 and not ${partlyRefunded})`;
 const refundedNoLedger = sql`exists (select 1 from ${payments} where ${mine} and ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund'))`;
 
 /**
@@ -63,15 +66,17 @@ export async function needsReviewRows(scope: AnalyticsScope): Promise<NeedsRevie
       kept: sql<string>`round(${kept}, 2)::text`,
       isCancelledPaid: sql<boolean>`${cancelledPaid}`,
       isPaidNeTotal: sql<boolean>`coalesce(${paidNeTotal}, false)`,
+      isPartlyRefunded: sql<boolean>`${partlyRefunded}`,
       isRefundedNoLedger: sql<boolean>`${refundedNoLedger}`,
     })
     .from(orders)
-    .where(and(ordersScope(scope), inWindow, or(cancelledPaid, paidNeTotal, refundedNoLedger)))
+    .where(and(ordersScope(scope), inWindow, or(cancelledPaid, paidNeTotal, partlyRefunded, refundedNoLedger)))
     .orderBy(desc(orders.createdAt));
   return rows.map((r) => {
     const reasons: ReviewReason[] = [];
     if (r.isCancelledPaid) reasons.push("cancelled_paid");
     if (r.isPaidNeTotal) reasons.push("paid_ne_total");
+    if (r.isPartlyRefunded) reasons.push("partly_refunded");
     if (r.isRefundedNoLedger) reasons.push("refunded_no_ledger");
     return {
       orderPublicId: r.orderPublicId, deploymentId: r.deploymentId, fullName: r.fullName, status: r.status,

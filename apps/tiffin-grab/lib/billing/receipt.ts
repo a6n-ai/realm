@@ -103,7 +103,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     getAppSettings(),
     getBrandOrganizationAddress(),
   ]);
-  // Stripe refunds (partial and full) are ledger rows; a staff refund only flips the status.
+  // Every refund (Stripe or staff, partial or full) is a ledger refund row.
   const refundRows = await db
     .select({ paymentId: ledgerEntries.paymentId, amount: sql<string>`sum(${ledgerEntries.amount})` })
     .from(ledgerEntries)

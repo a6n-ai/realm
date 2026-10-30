@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth/session";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
@@ -8,16 +8,18 @@ import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
 import { complaintHref, parseComplaintFilters } from "@/lib/services/analytics/complaint-filters";
-import { ordersHref, paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { ordersHref, paymentsHref } from "@/lib/analytics/drill";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import type { RevenueCohortSlice } from "@/lib/analytics/revenue-cohorts";
 import { currentMonth } from "@/lib/analytics/profitability";
-import { getRevenueReport, getRevenueCohortMix, parseRevenueFilters } from "@/lib/services/analytics/revenue.service";
+import { getRevenueReport, getRevenueCohortMix } from "@/lib/services/analytics/revenue.service";
 import { getCustomerStats } from "@/lib/services/analytics/customers.service";
 import { getComplaintKpis } from "@/lib/services/analytics/complaints.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import { getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   parseAnalyticsFilters,
   type AnalyticsSearchParams,
@@ -29,7 +31,13 @@ function money(n: number) {
 
 type SearchParams = Promise<AnalyticsSearchParams>;
 
-export default function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
+
+export default async function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const resolved = await scopeOrAlert("/dashboard/analytics/overview", sp);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -43,21 +51,21 @@ export default function OverviewAnalyticsPage({ searchParams }: { searchParams: 
       />
 
       <Suspense fallback={<SkeletonStatCards count={7} />}>
-        <StatsData searchParams={searchParams} />
+        <StatsData sp={sp} scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Net sales" subtitle="Settled payments excluding tax, by day">
+        <ChartCard title="Net revenue" subtitle={`Ex tax & surcharge, after refunds, by day · ${DATE_BASIS_LABEL.money}`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <RevenueChart searchParams={searchParams} />
+            <RevenueChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard
           title="Revenue mix"
-          subtitle="Settled net sales by renewals, new plans, and trials"
+          subtitle={`Net revenue by renewals, new plans, and trials · ${DATE_BASIS_LABEL.money}`}
         >
           <Suspense fallback={<ChartSkeleton />}>
-            <CohortChart searchParams={searchParams} />
+            <CohortChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -75,13 +83,11 @@ function analyticsHref(path: string, sp: AnalyticsSearchParams): string {
   return s ? `${path}?${s}` : path;
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
+async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
   const filters = await parseAnalyticsFilters(sp, await getSession());
-  const revenueFilters = await parseRevenueFilters(sp, await getSession());
   const { timezone } = await getAppSettings();
   const [revenue, customers, complaints, profit, trialConv] = await Promise.all([
-    getRevenueReport(revenueFilters),
+    loadReport(scope),
     getCustomerStats(filters),
     getComplaintKpis(parseComplaintFilters(sp)),
     getProfitabilityReport({
@@ -91,8 +97,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
     }),
     getTrialToPlanConversion(filters),
   ]);
-  const range = zonedRangeMs(revenue.from, revenue.to, timezone);
-  const paid = paymentsHref({ statuses: SETTLED_STATUSES, fromMs: range.from, toMs: range.to });
+  const paid = paymentsHref({ statuses: SETTLED_STATUSES, methods: scope.extra.method, fromMs: scope.fromMs, toMs: scope.toMs });
   const complaintFilters = parseComplaintFilters(sp);
 
   return (
@@ -100,9 +105,9 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
       cols={4}
       items={[
         {
-          label: "Net sales",
-          value: money(revenue.kpis.netSales),
-          hint: "Paid amounts, excluding tax",
+          label: "Net revenue",
+          value: money(revenue.kpis.netRevenue),
+          hint: `${DATE_BASIS_LABEL.money} · ex tax & surcharge`,
           href: paid,
           badge: "Settled",
           badgeTone: "neutral",
@@ -110,14 +115,14 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
         {
           label: "Discounts",
           value: money(revenue.kpis.discounts),
-          hint: revenue.kpis.discountRatePct == null ? "No sales in range" : "Taken off list price",
+          hint: revenue.kpis.discountRatePct == null ? "No sales in range" : `Taken off list price · ${DATE_BASIS_LABEL.money}`,
           href: analyticsHref("/dashboard/analytics/revenue", sp),
           badge: "Given",
           badgeTone: "brand",
           footer:
             revenue.kpis.discountRatePct == null ? undefined : (
               <MetricFootnote>
-                <span className="text-muted-foreground">Share of gross</span>
+                <span className="text-muted-foreground">Share of list price</span>
                 <span className="text-foreground font-semibold tabular-nums">{revenue.kpis.discountRatePct}%</span>
               </MetricFootnote>
             ),
@@ -182,13 +187,13 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function RevenueChart({ searchParams }: { searchParams: SearchParams }) {
-  const report = await getRevenueReport(await parseRevenueFilters(await searchParams, await getSession()));
+async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
   return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" format="currency" />;
 }
 
-async function CohortChart({ searchParams }: { searchParams: SearchParams }) {
-  const { slices } = await getRevenueCohortMix(await parseRevenueFilters(await searchParams, await getSession()));
+async function CohortChart({ scope }: { scope: AnalyticsScope }) {
+  const { slices } = await getRevenueCohortMix(scope);
   const chartRows = slices.filter((s) => s.amount > 0);
   return (
     <div className="space-y-3">
@@ -214,7 +219,7 @@ function CohortLegend({ slices }: { slices: RevenueCohortSlice[] }) {
           <span className="text-muted-foreground flex-1">{s.label}</span>
           <span className="tabular-nums">{money(s.amount)}</span>
           <span className="text-muted-foreground w-14 text-right tabular-nums">
-            {s.count} {s.count === 1 ? "order" : "orders"}
+            {s.count} {s.count === 1 ? "payment" : "payments"}
           </span>
         </li>
       ))}

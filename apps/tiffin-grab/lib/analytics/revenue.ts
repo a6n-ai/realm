@@ -1,31 +1,11 @@
 /**
- * Revenue math, kept pure so the waterfall can be tested without a database.
- *
- * Every number is derived from the order's immutable pricing snapshot, scaled by
- * the share of the order total that one payment covers:
- *
- *   gross sales (list price: tiffins + add-ons + delivery, before discounts)
- * − discounts   (catalog cadence discounts, coupons, coins)
- * = net sales   (excludes tax — tax is owed to the government, not earned)
- * + tax
- * = net collected (what settled payments actually brought in)
- *
- * A refund flips the payment row from paid to refunded. Refunded payments drop out
- * of sales and out of the trend, and are reported once under `refunded`. Discount
- * lines come from the pricing snapshot (catalog, coupon, coins), scaled to the
- * discount that was actually applied — never more than the list price.
+ * Pure revenue helpers: status/method labels, chart grain and discount lines.
+ * Revenue totals themselves come from SQL (lib/services/analytics/metrics/money.ts).
+ * Discount lines come from each order's pricing snapshot (catalog, coupon, coins), scaled to the
+ * share of the order a payment covers and capped at the list price.
  */
 
-import {
-  currentMonth,
-  eachDateInclusive,
-  isoDateInZone,
-  monthBounds,
-  periodKey,
-  periodLabel,
-  round2,
-  type Grain,
-} from "./profitability";
+import { eachDateInclusive, round2, type Grain } from "./profitability";
 
 export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
 export const PENDING_STATUSES = ["awaiting_payment", "pending_verification"] as const;
@@ -77,32 +57,29 @@ export function presentPaymentStatuses(
     .sort((a, b) => rank(a.status) - rank(b.status) || a.label.localeCompare(b.label));
 }
 
-export type RevenuePaymentRow = {
-  orderId: string;
-  status: string;
-  method: string;
-  amount: number;
-  /** Epoch ms the money moved: capturedAt, falling back to createdAt. */
-  at: number;
-  orderTotal: number;
-  snapshot: unknown;
-};
-
 export type DiscountSource = "catalog" | "coupon" | "coins" | "other";
 
 export type DiscountLine = { source: DiscountSource; label: string; amount: number; orders: number };
 
 export type RevenueKpis = {
-  grossSales: number;
-  discounts: number;
-  discountRatePct: number | null;
-  netSales: number;
+  /** Captured payments before refunds, including tax (surcharge excluded). */
+  gross: number;
+  /** Net revenue: ex tax and surcharge, after refunds. */
+  netRevenue: number;
+  /** Tax still held on the net-of-refunds amount. */
   tax: number;
-  collected: number;
-  refunded: number;
+  refunds: number;
+  surcharge: number;
+  /** gross minus refunds. */
   netCollected: number;
+  payments: number;
+  /** Orders with a settled payment in the range. */
   orders: number;
   avgOrderValue: number | null;
+  /** List price of those orders before discounts, excl. tax. */
+  listPrice: number;
+  discounts: number;
+  discountRatePct: number | null;
   pendingAmount: number;
   pendingCount: number;
 };
@@ -168,33 +145,6 @@ export function methodLabel(method: string): string {
   return METHOD_LABELS[method] ?? method;
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * The date the user picked is a calendar day, stored as YYYY-MM-DD. Epoch values
- * are the older picker payload: an instant, converted into the business timezone.
- * No bounds means the full current calendar month in that timezone.
- */
-export function resolveRevenueBounds(
-  fromRaw: string | undefined,
-  toRaw: string | undefined,
-  timezone: string,
-  now: number,
-): { from: string; to: string } {
-  const today = isoDateInZone(now, timezone);
-  const one = (raw: string | undefined, fallback: string) => {
-    if (!raw) return fallback;
-    if (ISO_DATE.test(raw)) return raw;
-    const n = Number(raw);
-    return Number.isFinite(n) ? isoDateInZone(n, timezone) : fallback;
-  };
-  // Match the shared analytics date control: full current month when unset.
-  if (!fromRaw && !toRaw) return monthBounds(currentMonth(timezone, now));
-  const from = one(fromRaw, "2000-01-01");
-  const to = one(toRaw, today);
-  return from <= to ? { from, to } : { from: to, to: from };
-}
-
 function classifyAdjustment(line: { label: string; catalog: boolean }): { source: DiscountSource; label: string } {
   if (line.catalog) return { source: "catalog", label: line.label };
   if (/^coins\b/i.test(line.label)) return { source: "coins", label: "Coins redeemed" };
@@ -215,126 +165,52 @@ function apportion(total: number, weights: number[]): number[] {
   return rounded;
 }
 
-export function summarizeRevenue(input: {
-  from: string;
-  to: string;
-  timezone: string;
-  payments: RevenuePaymentRow[];
-  pending: { amount: number; at: number }[];
-}): RevenueSummary {
-  const { from, to, timezone } = input;
-  const grain = grainForRange(from, to);
-  const inRange = (ms: number) => {
-    const day = isoDateInZone(ms, timezone);
-    return day >= from && day <= to ? day : null;
-  };
+export type DiscountOrderRow = {
+  orderId: string;
+  /** Settled amount paid on this order in the range. */
+  amount: number;
+  orderTotal: number;
+  snapshot: unknown;
+};
 
-  const buckets = new Map<string, { netSales: number; collected: number }>();
-  for (const day of eachDateInclusive(from, to)) {
-    const key = periodKey(day, grain);
-    if (!buckets.has(key)) buckets.set(key, { netSales: 0, collected: 0 });
-  }
-
-  const byMethod = new Map<string, number>();
-  const discountLines = new Map<string, DiscountLine & { orderIds: Set<string> }>();
-  const addDiscount = (source: DiscountSource, label: string, amount: number, orderId: string) => {
-    if (amount <= 0) return;
-    const key = `${source}:${label}`;
-    const line = discountLines.get(key) ?? { source, label, amount: 0, orders: 0, orderIds: new Set<string>() };
-    line.amount += amount;
-    line.orderIds.add(orderId);
-    discountLines.set(key, line);
-  };
-
-  const settledOrders = new Set<string>();
-  let grossSales = 0;
+/** One row per order: its settled payments in range carry their share of the order's snapshot. */
+export function summarizeDiscounts(rows: DiscountOrderRow[]): {
+  listPrice: number;
+  discounts: number;
+  lines: DiscountLine[];
+  orders: number;
+} {
+  const lines = new Map<string, DiscountLine>();
+  let listPrice = 0;
   let discounts = 0;
-  let netSales = 0;
-  let tax = 0;
-  let collected = 0;
-  let refunded = 0;
-
-  for (const p of input.payments) {
-    const day = inRange(p.at);
-    if (!day) continue;
-    const bucket = buckets.get(periodKey(day, grain))!;
-
-    collected += p.amount;
-    if (p.status === "refunded") {
-      refunded += p.amount;
-      continue;
-    }
-    if (!(SETTLED_STATUSES as readonly string[]).includes(p.status)) continue;
-
-    // One order can be settled by more than one payment; each carries its share.
-    const share = p.orderTotal > 0 ? p.amount / p.orderTotal : 1;
-    const snap = parseSnapshot(p.snapshot);
-    const payTax = snap.taxTotal * share;
-    const payNet = p.amount - payTax;
+  for (const r of rows) {
+    const share = r.orderTotal > 0 ? r.amount / r.orderTotal : 1;
+    const snap = parseSnapshot(r.snapshot);
+    const payNet = r.amount - snap.taxTotal * share;
     // No subtotal on file (legacy rows): treat the payment, minus tax, as the list price.
     const payGross = snap.subtotal == null ? payNet : snap.subtotal * share;
-    // Floored at the list price: a discount that would take the order below $0
-    // was never actually given, so it must not be reported in full.
+    // Floored at the list price: a discount that would take the order below $0 was never given.
     const effective = snap.subtotal == null ? 0 : Math.max(0, payGross - payNet);
-
-    tax += payTax;
-    netSales += payNet;
-    grossSales += payGross;
+    listPrice += payGross;
     discounts += effective;
-    bucket.netSales += payNet;
-    bucket.collected += p.amount;
-    byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amount);
-    settledOrders.add(p.orderId);
-
     if (effective <= 0) continue;
     const parts = snap.adjustments.map((a) => ({ ...classifyAdjustment(a), weight: a.amount * share }));
     const amounts = apportion(effective, parts.map((part) => part.weight));
-    if (amounts.length === 0) {
-      addDiscount("other", "Discount", effective, p.orderId);
-    } else {
-      parts.forEach((part, i) => addDiscount(part.source, part.label, amounts[i] ?? 0, p.orderId));
-    }
+    const add = (source: DiscountSource, label: string, amount: number) => {
+      if (amount <= 0) return;
+      const key = `${source}:${label}`;
+      const line = lines.get(key) ?? { source, label, amount: 0, orders: 0 };
+      line.amount += amount;
+      line.orders += 1;
+      lines.set(key, line);
+    };
+    if (amounts.length === 0) add("other", "Discount", effective);
+    else parts.forEach((part, i) => add(part.source, part.label, amounts[i] ?? 0));
   }
-
-  let pendingAmount = 0;
-  let pendingCount = 0;
-  for (const p of input.pending) {
-    if (!inRange(p.at)) continue;
-    pendingAmount += p.amount;
-    pendingCount += 1;
-  }
-
-  const orders = settledOrders.size;
   return {
-    from,
-    to,
-    grain,
-    kpis: {
-      grossSales: round2(grossSales),
-      discounts: round2(discounts),
-      discountRatePct: grossSales > 0 ? round2((discounts / grossSales) * 100) : null,
-      netSales: round2(netSales),
-      tax: round2(tax),
-      collected: round2(collected),
-      refunded: round2(refunded),
-      netCollected: round2(collected - refunded),
-      orders,
-      avgOrderValue: orders > 0 ? round2(netSales / orders) : null,
-      pendingAmount: round2(pendingAmount),
-      pendingCount,
-    },
-    trend: [...buckets.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, b]) => ({
-        period: periodLabel(key, grain),
-        netSales: round2(b.netSales),
-        collected: round2(b.collected),
-      })),
-    byMethod: [...byMethod.entries()]
-      .map(([method, amount]) => ({ method: methodLabel(method), key: method, amount: round2(amount) }))
-      .sort((a, b) => b.amount - a.amount),
-    discounts: [...discountLines.values()]
-      .map(({ orderIds, ...line }) => ({ ...line, amount: round2(line.amount), orders: orderIds.size }))
-      .sort((a, b) => b.amount - a.amount),
+    listPrice: round2(listPrice),
+    discounts: round2(discounts),
+    lines: [...lines.values()].map((l) => ({ ...l, amount: round2(l.amount) })).sort((a, b) => b.amount - a.amount),
+    orders: rows.length,
   };
 }

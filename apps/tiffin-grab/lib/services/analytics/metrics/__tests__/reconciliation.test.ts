@@ -285,7 +285,7 @@ describe("analytics reconciliation (integration)", () => {
     // The legacy refund already left: nothing kept, so only the missing ledger row is reported.
     expect(by(o.legacy)).toMatchObject({ reasons: ["refunded_no_ledger"], paid: 113, kept: 0 });
     // Partial Stripe refund of a surcharged payment: 58 x 113/116 = 56.50 off the paid basis.
-    expect(by(o.stripe)).toMatchObject({ reasons: ["paid_ne_total"], paid: 113, kept: 56.5, diff: -56.5 });
+    expect(by(o.stripe)).toMatchObject({ reasons: ["partly_refunded"], paid: 113, kept: 56.5, diff: -56.5 });
     // The add-on order's paid (113 + 20) equals its snapshot total (133): not flagged.
   });
 

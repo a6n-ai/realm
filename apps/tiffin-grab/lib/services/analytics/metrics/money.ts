@@ -42,6 +42,8 @@ const refundExTax = sql`coalesce(${refundExSurcharge} * (1 - ${taxShare}), 0)`;
 const sqlList = (v: readonly string[]) => sql.join(v.map((s) => sql`${s}`), sql`, `);
 const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 const rowsOf = (r: unknown) => (Array.isArray(r) ? r : ((r as { rows: unknown[] }).rows ?? [])) as Record<string, string | null>[];
+// Payment-method facet (scope.extra.method); unknown values match nothing.
+export const methodWhere = (scope: AnalyticsScope) => (scope.extra.method?.length ? sql`${payments.method}::text in (${sqlList(scope.extra.method)})` : undefined);
 const n2 = (v: string | null | undefined) => Number(v ?? 0);
 
 // One row per captured payment and per ledger refund in scope; callers aggregate and round in SQL,
@@ -52,11 +54,11 @@ function moneyRows(scope: AnalyticsScope, payKey: SQL, refKey: SQL): SQL {
       0::numeric as refunds, 0::numeric as refund_ex_sur, 0::numeric as refund_ex, 1 as pay_cnt,
       (case when ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund') then 1 else 0 end) as legacy
     from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
-    where ${and(ordersScope(scope), inArray(payments.status, CAPTURED), dateWhere(moneyDate, scope)) ?? sql`true`}
+    where ${and(ordersScope(scope), methodWhere(scope), inArray(payments.status, CAPTURED), dateWhere(moneyDate, scope)) ?? sql`true`}
     union all
     select ${refKey}, 0::numeric, 0::numeric, 0::numeric, ${ledgerEntries.amount}, ${refundExSurcharge}, ${refundExTax}, 0, 0
     from ${ledgerEntries} inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId} inner join ${orders} on ${orders.id} = ${payments.orderId}
-    where ${and(ordersScope(scope), sql`${ledgerEntries.type} = 'refund'`, dateWhere(ledgerEntries.createdAt, scope)) ?? sql`true`}`;
+    where ${and(ordersScope(scope), methodWhere(scope), sql`${ledgerEntries.type} = 'refund'`, dateWhere(ledgerEntries.createdAt, scope)) ?? sql`true`}`;
 }
 
 export type RevenueTotals = {
@@ -155,7 +157,7 @@ export async function paymentsByStatus(scope: AnalyticsScope): Promise<PaymentSt
     await db.execute(sql`
       select ${payments.status}::text as status, count(*)::int::text as count, round(coalesce(sum(${payments.amount}), 0), 2)::text as amount
       from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
-      where ${and(ordersScope(scope), dateWhere(moneyDate, scope)) ?? sql`true`}
+      where ${and(ordersScope(scope), methodWhere(scope), dateWhere(moneyDate, scope)) ?? sql`true`}
       group by ${payments.status}`),
   );
   return rows.map((r) => ({ status: String(r.status), count: n2(r.count), amount: n2(r.amount) }));
