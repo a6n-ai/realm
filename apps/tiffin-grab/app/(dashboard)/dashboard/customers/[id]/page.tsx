@@ -118,6 +118,7 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
                 who={data.profile.name || data.profile.email || "this customer"}
               />
             ) : null}
+            {isAdmin && !referral.referredBy ? <AttachReferral customerPublicId={id} /> : null}
           </div>
         }
       />
@@ -225,8 +226,6 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
                   <Link href={`/dashboard/customers/${referral.referredBy.publicId}`} className="underline-offset-2 hover:underline">
                     {referral.referredBy.name || "Customer"}
                   </Link>
-                ) : isAdmin ? (
-                  <AttachReferral customerPublicId={id} />
                 ) : "—"}
               </dd>
             </div>
