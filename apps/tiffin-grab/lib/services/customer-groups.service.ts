@@ -23,6 +23,7 @@ import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
 import { walletService } from "./wallet.service";
+import { balanceSql } from "./wallet-balances.service";
 
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
 const BATCH = 500;
@@ -53,6 +54,9 @@ export type GroupMember = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  notifyEmail: boolean;
+  /** Current wallet balance in coins (lapsed holds excluded). */
+  coins: number;
   revenue: string;
   firstOrderDate: string | null;
   lastTiffin: string | null;
@@ -383,16 +387,24 @@ async function memberIds(groupId: bigint) {
 
 async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
   const base = await db
-    .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+    .select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, notifyEmail: users.notifyEmail })
     .from(customerGroupMembers)
     .innerJoin(users, eq(users.id, customerGroupMembers.userId))
     .where(eq(customerGroupMembers.groupId, groupId))
     .orderBy(users.name);
   const { rows } = await listPayoutCandidates({ userIds: await memberIds(groupId) }, { limit: 1_000_000 });
   const stats = new Map(rows.map((r) => [r.publicId, r]));
-  return base.map((u) => {
+  const bal = base.length
+    ? await db
+        .select({ userId: walletLedger.userId, balance: balanceSql() })
+        .from(walletLedger)
+        .where(inArray(walletLedger.userId, base.map((u) => u.id)))
+        .groupBy(walletLedger.userId)
+    : [];
+  const coins = new Map(bal.map((b) => [b.userId, b.balance]));
+  return base.map(({ id, ...u }) => {
     const s = stats.get(u.publicId);
-    return { ...u, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
+    return { ...u, coins: coins.get(id) ?? 0, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
   });
 }
 
@@ -410,6 +422,21 @@ export async function groupMembersCsv(groupPublicId: string): Promise<string> {
     ...detail.members.map((m) => [m.name, m.email, m.phone, m.revenue, m.firstOrderDate, m.lastTiffin]),
   ];
   return lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+}
+
+/** Group page cards. Coins given counts every coins action, legacy backfilled ones included. */
+export async function groupStats(groupPublicId: string) {
+  const [detail, actions] = await Promise.all([getCustomerGroup(groupPublicId), listGroupActions(groupPublicId)]);
+  if (!detail) throw new ValidationError("Group not found");
+  const count = (a: GroupActionRow) => (Array.isArray(a.result.awardedUserIds) ? a.result.awardedUserIds.length : 0);
+  const last = actions[0] ?? null;
+  return {
+    members: detail.members.length,
+    emailOn: detail.members.filter((m) => m.notifyEmail && m.email).length,
+    coinsGiven: actions.filter((a) => a.kind === "coins").reduce((n, a) => n + (Number(a.params.coins) || 0) * count(a), 0),
+    actionsRun: actions.length,
+    lastAction: last ? { kind: last.kind, createdAt: last.createdAt } : null,
+  };
 }
 
 export async function listGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {

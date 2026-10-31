@@ -6,7 +6,7 @@ import { DataTable, ListPagination, type Column, type FacetDef } from "@/compone
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { GroupQuickActions } from "./group-quick-actions";
+import { GroupRowActions } from "./group-quick-actions";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
@@ -66,7 +66,7 @@ export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTabl
               {r.createdBy ? ` · ${r.createdBy}` : ""}
             </TableCell>
             <TableCell className="text-right">
-              <GroupQuickActions publicId={r.publicId} name={r.name} size="sm" />
+              <GroupRowActions publicId={r.publicId} name={r.name} />
             </TableCell>
           </>
         )}

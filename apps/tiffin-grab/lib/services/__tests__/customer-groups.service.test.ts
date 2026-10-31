@@ -26,6 +26,7 @@ import {
   getCoinsActionMembers,
   getCustomerGroup,
   groupMembersCsv,
+  groupStats,
   giveGroupCoins,
   listCustomerGroups,
   listGroupActions,
@@ -381,6 +382,23 @@ describe("customer groups", () => {
     }).returning({ publicId: customerGroupActions.publicId });
     const m = await getCoinsActionMembers(a.publicId);
     expect(m.map((x) => [x.name, x.status]).sort()).toEqual([["Capped", "capped"], ["Ok", "awarded"]]);
+  });
+
+  it("groupStats: members, email-on, coins given (legacy too), actions and last action", async () => {
+    const g = await mk("gstats", [uOk, uCapped, uNoEmail]);
+    const empty = await groupStats(g.publicId);
+    expect(empty).toEqual({ members: 3, emailOn: 2, coinsGiven: 0, actionsRun: 0, lastAction: null });
+    await db.insert(customerGroupActions).values({
+      groupId: g.id, kind: "coins", params: { coins: 7, legacy: true }, result: { awardedUserIds: ["1", "2"], cappedUserIds: [] },
+    });
+    const r = await giveGroupCoins(g.publicId, { coins: 5 }, uOk);
+    const s = await groupStats(g.publicId);
+    expect(s.coinsGiven).toBe(14 + 5 * r.awarded);
+    expect(s.actionsRun).toBe(2);
+    expect(s.lastAction?.kind).toBe("coins");
+    const m = (await getCustomerGroup(g.publicId))!.members;
+    expect(m.find((x) => x.name === "Capped")!.coins).toBeGreaterThanOrEqual(100);
+    expect(m.find((x) => x.name === "NoEmail")!.notifyEmail).toBe(false);
   });
 
   it("listCustomerGroups pages are 0-indexed and disjoint", async () => {

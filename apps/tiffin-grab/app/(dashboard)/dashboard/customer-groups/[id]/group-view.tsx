@@ -1,27 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CoinsIcon, MailIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, SectionCard } from "@/components/ds";
+import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, SectionCard, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/services/customer-groups.service";
 import { AccountSearch } from "../new/account-search";
 import { addGroupMemberAction, removeGroupMemberAction } from "../actions";
-import { GroupQuickActions } from "../group-quick-actions";
+import { GroupHeaderActions } from "../group-quick-actions";
 import { MemberStatuses } from "./member-statuses";
 
-type MemberColumn = "name" | "email" | "phone" | "revenue" | "since" | "last" | "remove";
+type MemberColumn = "name" | "email" | "phone" | "coins" | "revenue" | "since" | "last" | "remove";
 const MEMBER_COLUMNS = [
   { key: "name", label: "Customer" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
+  { key: "coins", label: "Wallet coins", align: "right" },
   { key: "revenue", label: "Revenue", align: "right" },
   { key: "since", label: "Ordering since" },
   { key: "last", label: "Last tiffin" },
@@ -49,6 +51,13 @@ function summary(a: GroupActionRow): string {
   return "Campaign created";
 }
 
+// Facets live in the URL (the shared ReUI filter bar writes there); the m_/a_ prefixes keep the two tabs apart.
+const MEMBER_FACETS: FacetDef[] = [
+  { kind: "pills", field: "m_email", label: "Email", options: [{ value: "on", label: "On" }, { value: "off", label: "Off" }] },
+  { kind: "pills", field: "m_wallet", label: "Wallet", options: [{ value: "has", label: "Has balance" }, { value: "none", label: "None" }] },
+];
+const FACET_KEYS = { members: ["m_email", "m_wallet"], activity: ["a_kind", "a_by"] } as const;
+
 // Each table keeps its own search: DataTable's built-in one shares the URL `q`.
 const matches = (q: string, ...fields: (string | null | undefined)[]) => {
   const t = q.trim().toLowerCase();
@@ -61,7 +70,9 @@ export function GroupView({
   group,
   members,
   actions,
+  stats,
 }: {
+  stats: ReactNode;
   group: CustomerGroupRow;
   members: GroupMember[];
   actions: GroupActionRow[];
@@ -75,6 +86,54 @@ export function GroupView({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = () => router.refresh();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const memberEmail = params.get("m_email");
+  const memberWallet = params.get("m_wallet");
+  const actionKind = params.get("a_kind");
+  const actionBy = params.get("a_by");
+  const clearFacets = (keys: readonly string[]) => {
+    const sp = new URLSearchParams(params.toString());
+    keys.forEach((k) => sp.delete(k));
+    const qs = sp.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+  const activityFacets = useMemo<FacetDef[]>(
+    () => [
+      {
+        kind: "pills",
+        field: "a_kind",
+        label: "Action",
+        options: [
+          { value: "coins", label: "Coins" },
+          { value: "email", label: "Email" },
+          { value: "discount", label: "Discount" },
+          { value: "campaign", label: "Campaign" },
+        ],
+      },
+      {
+        kind: "select",
+        field: "a_by",
+        label: "By",
+        options: [...new Set(actions.map((a) => a.createdBy).filter((n): n is string => !!n))].sort().map((n) => ({ value: n, label: n })),
+      },
+    ],
+    [actions],
+  );
+  const shownMembers = members.filter(
+    (m) =>
+      matches(memberQ, m.name, m.email, m.phone) &&
+      (!memberEmail || (memberEmail === "on") === (m.notifyEmail && !!m.email)) &&
+      (!memberWallet || (memberWallet === "has") === m.coins > 0),
+  );
+  const shownActions = actions.filter(
+    (a) =>
+      matches(activityQ, ACTION_LABEL[a.kind] ?? a.kind, a.createdBy, summary(a)) &&
+      (!actionKind || a.kind === actionKind) &&
+      (!actionBy || a.createdBy === actionBy),
+  );
+  const memberFiltered = memberQ.trim() !== "" || !!memberEmail || !!memberWallet;
+  const activityFiltered = activityQ.trim() !== "" || !!actionKind || !!actionBy;
   const memberTerm = memberQ.trim();
   const activityTerm = activityQ.trim();
 
@@ -114,9 +173,7 @@ export function GroupView({
         title={group.name}
         subtitle={`${group.memberCount} customer${group.memberCount === 1 ? "" : "s"}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <GroupQuickActions publicId={group.publicId} name={group.name} />
-          </div>
+          <GroupHeaderActions publicId={group.publicId} name={group.name} />
         }
       />
       {error && (
@@ -124,6 +181,7 @@ export function GroupView({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+      {stats}
       <Tabs defaultValue="members">
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
@@ -148,15 +206,22 @@ export function GroupView({
               )}
               <DataTable
                 columns={MEMBER_COLUMNS}
-                rows={members.filter((m) => matches(memberQ, m.name, m.email, m.phone))}
-                filters={<SearchInput value={memberQ} onChange={setMemberQ} placeholder="Search by name, email or phone" shortPlaceholder="Search customers" />}
+                rows={shownMembers}
+                filters={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SearchInput value={memberQ} onChange={setMemberQ} placeholder="Search by name, email or phone" shortPlaceholder="Search customers" />
+                    <ReuiFacetFilters spec={MEMBER_FACETS} />
+                  </div>
+                }
                 rowKey={(m) => m.publicId}
                 serial={false}
                 emptyIcon={UsersIcon}
-                emptyMessage={memberTerm ? `No matches for "${memberTerm}"` : "This group has no customers yet."}
+                emptyMessage={memberTerm ? `No matches for "${memberTerm}"` : memberFiltered ? "No customers match these filters." : "This group has no customers yet."}
                 emptyAction={
-                  memberTerm ? (
-                    <Button variant="outline" size="sm" onClick={() => setMemberQ("")}>Clear search</Button>
+                  memberFiltered ? (
+                    <Button variant="outline" size="sm" onClick={() => { setMemberQ(""); clearFacets(FACET_KEYS.members); }}>
+                      {memberTerm ? "Clear search" : "Clear filters"}
+                    </Button>
                   ) : (
                     <Button onClick={() => setAdding(true)}><PlusIcon /> Add customer</Button>
                   )
@@ -166,6 +231,7 @@ export function GroupView({
                     <TableCell className="font-medium">{m.name ?? "Unnamed"}</TableCell>
                     <TableCell className="text-muted-foreground">{m.email ?? ""}</TableCell>
                     <TableCell className="text-muted-foreground">{m.phone ?? ""}</TableCell>
+                    <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>
                     <TableCell className="text-right tabular-nums">${Number(m.revenue).toFixed(2)}</TableCell>
                     <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>
                     <TableCell className="tabular-nums">{m.lastTiffin ?? ""}</TableCell>
@@ -190,15 +256,22 @@ export function GroupView({
           <SectionCard title="Activity" subtitle="Everything done to this group, newest first.">
             <DataTable
               columns={ACTIVITY_COLUMNS}
-              rows={actions.filter((a) => matches(activityQ, ACTION_LABEL[a.kind] ?? a.kind, a.createdBy, summary(a)))}
-              filters={<SearchInput value={activityQ} onChange={setActivityQ} placeholder="Search action, person or campaign" shortPlaceholder="Search activity" />}
+              rows={shownActions}
+              filters={
+                <div className="flex flex-wrap items-center gap-2">
+                  <SearchInput value={activityQ} onChange={setActivityQ} placeholder="Search action, person or campaign" shortPlaceholder="Search activity" />
+                  <ReuiFacetFilters spec={activityFacets} />
+                </div>
+              }
               rowKey={(a) => a.publicId}
               serial={false}
               emptyIcon={CoinsIcon}
-              emptyMessage={activityTerm ? `No matches for "${activityTerm}"` : "Nothing has been done to this group yet."}
+              emptyMessage={activityTerm ? `No matches for "${activityTerm}"` : activityFiltered ? "No activity matches these filters." : "Nothing has been done to this group yet."}
               emptyAction={
-                activityTerm ? (
-                  <Button variant="outline" size="sm" onClick={() => setActivityQ("")}>Clear search</Button>
+                activityFiltered ? (
+                  <Button variant="outline" size="sm" onClick={() => { setActivityQ(""); clearFacets(FACET_KEYS.activity); }}>
+                    {activityTerm ? "Clear search" : "Clear filters"}
+                  </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Button asChild><Link href="/dashboard/wallet/give"><CoinsIcon /> Give coins</Link></Button>

@@ -12,7 +12,7 @@ export type BalanceFilter = "has" | "zero";
 const inRange = (r: Range) => and(gte(walletLedger.createdAt, r.from), lte(walletLedger.createdAt, r.to));
 
 // Same rule as walletService.balance(): lapsed holds are not part of what a customer holds.
-const balanceSql = () =>
+export const balanceSql = () =>
   sql<number>`cast(coalesce(sum(case when ${unexpired(walletLedger, Date.now())} then (case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end) else 0 end), 0) as int)`;
 
 /** Customers only: staff and soft-deleted accounts never appear on a balance sheet. */

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CoinsIcon, DownloadIcon, MailIcon, TicketPercentIcon, ZapIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CoinsIcon, DownloadIcon, MailIcon, TicketPercentIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
+import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { exportGroupCsvAction } from "./actions";
 
 /** Shortcuts into the feature pages; the actions themselves still run (and are guarded) there. */
-export function GroupQuickActions({ publicId, name, size }: { publicId: string; name: string; size?: "sm" }) {
+function useGroupShortcuts(publicId: string, name: string) {
   const [exporting, setExporting] = useState(false);
 
   async function exportCsv() {
@@ -35,27 +36,46 @@ export function GroupQuickActions({ publicId, name, size }: { publicId: string; 
   }
 
   const id = encodeURIComponent(publicId);
+  return {
+    exporting,
+    exportCsv,
+    give: `/dashboard/wallet/give?group=${id}`,
+    email: `/dashboard/notifications/campaigns?emailGroup=${id}`,
+    coupon: `/dashboard/discounts/coupons?newForGroup=${id}`,
+  };
+}
+
+/** Group detail header: labelled buttons. */
+export function GroupHeaderActions({ publicId, name }: { publicId: string; name: string }) {
+  const g = useGroupShortcuts(publicId, name);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size={size} aria-label={`Quick actions for ${name}`}>
-          <ZapIcon /> Quick actions
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/dashboard/wallet/give?group=${id}`}><CoinsIcon /> Give coins</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/dashboard/notifications/campaigns?emailGroup=${id}`}><MailIcon /> Email group</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/dashboard/discounts/coupons?newForGroup=${id}`}><TicketPercentIcon /> Create group coupon</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled={exporting} onSelect={() => void exportCsv()}>
-          <DownloadIcon /> Export CSV
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button asChild>
+        <Link href={g.give}><CoinsIcon /> Give coins</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link href={g.email}><MailIcon /> Email group</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link href={g.coupon}><TicketPercentIcon /> Create group coupon</Link>
+      </Button>
+      <Button variant="outline" disabled={g.exporting} onClick={() => void g.exportCsv()}>
+        <DownloadIcon /> Export CSV
+      </Button>
+    </div>
+  );
+}
+
+/** Customer groups list: icon buttons with tooltips. */
+export function GroupRowActions({ publicId, name }: { publicId: string; name: string }) {
+  const router = useRouter();
+  const g = useGroupShortcuts(publicId, name);
+  return (
+    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+      <RowActionTooltipButton icon={CoinsIcon} label={`Give coins to ${name}`} hint="Give coins" onClick={() => router.push(g.give)} />
+      <RowActionTooltipButton icon={MailIcon} label={`Email ${name}`} hint="Email group" onClick={() => router.push(g.email)} />
+      <RowActionTooltipButton icon={TicketPercentIcon} label={`Create coupon for ${name}`} hint="Create group coupon" onClick={() => router.push(g.coupon)} />
+      <RowActionTooltipButton icon={DownloadIcon} label={`Export ${name} as CSV`} hint="Export CSV" disabled={g.exporting} onClick={() => void g.exportCsv()} />
+    </div>
   );
 }
