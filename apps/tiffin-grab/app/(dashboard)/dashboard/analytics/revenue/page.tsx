@@ -4,7 +4,7 @@ import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { TrendLineChart } from "@/components/analytics/charts";
+import { GroupedBarChart, HoverValueBarChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
@@ -51,14 +51,24 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         <Kpis scope={scope} />
       </Suspense>
 
-      <ChartCard
-        title="Revenue over time"
-        subtitle={`Net revenue excludes tax and surcharge, ${DATE_BASIS_LABEL.money}. Collected is payments received, including tax, before refunds.`}
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <Trend scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard
+          title="Net revenue by day"
+          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that day.`}
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <NetByDay scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard
+          title="Is cash keeping up with sales?"
+          subtitle="Net revenue next to collected, which is payments received including tax, before refunds."
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <NetVsCollected scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
       <Suspense fallback={<ChartSkeleton />}>
         <NeedsReview scope={scope} />
@@ -215,10 +225,17 @@ async function Statuses({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function Trend({ scope }: { scope: AnalyticsScope }) {
+async function NetByDay({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   return (
-    <TrendLineChart
+    <HoverValueBarChart data={report.trend} xKey="period" yKey="netSales" format="currency" totalLabel="Net revenue" />
+  );
+}
+
+async function NetVsCollected({ scope }: { scope: AnalyticsScope }) {
+  const report = await loadReport(scope);
+  return (
+    <GroupedBarChart
       data={report.trend}
       xKey="period"
       format="currency"

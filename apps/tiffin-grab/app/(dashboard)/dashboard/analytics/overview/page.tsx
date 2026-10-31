@@ -5,7 +5,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
+import { DistributionDonutChart, RadialRateChart, TrendLineChart } from "@/components/analytics/charts";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
@@ -32,6 +32,7 @@ const TREND_HEIGHT = 340;
 type SearchParams = Promise<AnalyticsSearchParams>;
 
 const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
+const loadTrial = cache((scope: AnalyticsScope) => getTrialToPlanConversion(scope));
 
 export default async function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -68,6 +69,25 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
           </Suspense>
         </ChartCard>
       </div>
+
+      <Suspense fallback={<ChartSkeleton />}>
+        <TrialRate scope={scope} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function TrialRate({ scope }: { scope: AnalyticsScope }) {
+  const t = await loadTrial(scope);
+  if (t.eligible === 0 || t.conversionRatePct == null) return null;
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <ChartCard
+        title="What share of trials became a plan?"
+        subtitle={`${t.converted} of ${t.eligible} trials that ended ${t.windowDays}+ days ago went on to a later plan.`}
+      >
+        <RadialRateChart data={[{ label: "Trial → Plan", rate: t.conversionRatePct }]} nameKey="label" valueKey="rate" />
+      </ChartCard>
     </div>
   );
 }
@@ -83,7 +103,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
       grain: "daily",
       scope,
     }),
-    getTrialToPlanConversion(scope),
+    loadTrial(scope),
   ]);
   const paid = paymentsHref(scope, { statuses: SETTLED_STATUSES, methods: scope.extra.method, basis: "money" });
   const complaintFilters = scopeToComplaintFilters(scope);

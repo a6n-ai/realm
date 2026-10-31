@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { BreakdownBarChart } from "@/components/analytics/charts";
+import { ActiveSegmentDonutChart, BreakdownBarChart, GroupedBarChart } from "@/components/analytics/charts";
 import { getSession } from "@/lib/auth/session";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { ordersDrillHref } from "@/lib/analytics/drill";
@@ -15,6 +15,7 @@ import {
   getTopDishes,
   getPaidByPlan,
   getPaidByTier,
+  getPaidByTierAndDiet,
   getPaidByMealType,
 } from "@/lib/services/analytics/products.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
@@ -46,12 +47,21 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <TopDishesChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid by meal size" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included. May differ from the total by rounding.`}>
+        <ChartCard title="Which meal size tier earns the most?" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Hover a slice to grow it. Budget, medium, and premium; custom sizes are not included. May differ from the total by rounding.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <TierBarChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
+
+      <ChartCard
+        title="Which sizes sell in which diet?"
+        subtitle={`Net revenue ${DATE_BASIS_LABEL.money} by meal size tier, split by plan (veg, non-veg, healthy). Custom sizes are not included.`}
+      >
+        <Suspense fallback={<ChartSkeleton />}>
+          <TierByDietChart scope={scope} />
+        </Suspense>
+      </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Paid by plan" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, ex tax and surcharge, after refunds. Open a plan to see orders created in this range (bars are payments by payment date). May differ from the total by rounding.`}>
@@ -100,10 +110,29 @@ async function TopDishesChart({ scope }: { scope: AnalyticsScope }) {
 async function TierBarChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByTier(scope);
   return (
-    <BreakdownBarChart
+    <ActiveSegmentDonutChart
       data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
+      nameKey="tier"
+      valueKey="paid"
+      format="currency"
+      height={280}
+    />
+  );
+}
+
+async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getPaidByTierAndDiet(scope);
+  const diets = [...new Set(rows.map((r) => r.diet))];
+  const tiers = [...new Map(rows.map((r) => [r.tierKey, r.tier])).values()];
+  const data = tiers.map((tier) => ({
+    tier,
+    ...Object.fromEntries(diets.map((d) => [d, rows.find((r) => r.tier === tier && r.diet === d)?.paid ?? 0])),
+  }));
+  return (
+    <GroupedBarChart
+      data={rows.length === 0 ? [] : data}
       xKey="tier"
-      yKey="paid"
+      series={diets.map((d) => ({ key: d, label: d }))}
       format="currency"
       height={280}
     />

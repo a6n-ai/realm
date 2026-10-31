@@ -9,7 +9,7 @@ const { dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, 
   await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { revenueTotals } = await import("../metrics/money");
-const { getPaidByMealType, getPaidByPlan, getPaidByTier, getProductStats, getTopDishes } = await import("../products.service");
+const { getPaidByTierAndDiet, getPaidByMealType, getPaidByPlan, getPaidByTier, getProductStats, getTopDishes } = await import("../products.service");
 
 const TZ = "America/Toronto";
 const now = Date.now();
@@ -101,6 +101,7 @@ describe("products analytics", () => {
     // Both fixture orders use one catalog meal size, so the two size splits carry all of it too.
     expect(sum(byMeal)).toBe(net.net);
     expect(sum(byTier)).toBe(net.net);
+    expect(sum(await getPaidByTierAndDiet(payScope))).toBe(net.net);
   });
 
   it("dish counts leave out cancelled orders nobody paid for", async () => {

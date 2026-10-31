@@ -117,6 +117,20 @@ export async function getPaidByTier(scope: AnalyticsScope): Promise<PaidTierRow[
   return [...byTier.values()].sort((a, b) => b.paid - a.paid);
 }
 
+export type PaidTierDietRow = { tier: string; tierKey: string; diet: string; paid: number };
+
+/** Meal tier x diet. A meal size belongs to one plan (the diet), so this is the same buckets as getPaidByTier, split by plan. */
+export async function getPaidByTierAndDiet(scope: AnalyticsScope): Promise<PaidTierDietRow[]> {
+  const cells = new Map<string, PaidTierDietRow>();
+  for (const { size, bucket } of await paidByMealSize(scope)) {
+    const id = `${size.tier}|${size.plan}`;
+    const cell = cells.get(id) ?? { tier: TIER_LABELS[size.tier] ?? size.tier, tierKey: size.tier, diet: size.plan, paid: 0 };
+    cell.paid = Math.round((cell.paid + bucket.net) * 100) / 100;
+    cells.set(id, cell);
+  }
+  return [...cells.values()];
+}
+
 /** Paid money grouped by catalog meal size (Maharaja Thali, 4 Item Thali, ...). */
 export async function getPaidByMealType(scope: AnalyticsScope): Promise<PaidMealTypeRow[]> {
   return (await paidByMealSize(scope))

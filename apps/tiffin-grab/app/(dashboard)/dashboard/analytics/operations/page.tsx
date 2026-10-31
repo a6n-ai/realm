@@ -1,11 +1,11 @@
 import { Skeleton } from "@foundry/ui/skeleton";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, DistributionDonutChart, RadialRateChart } from "@/components/analytics/charts";
 import {
   getOperationsStats,
   getDeliveryStatusMix,
@@ -13,6 +13,8 @@ import {
 } from "@/lib/services/analytics/operations.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+
+const loadStats = cache((scope: AnalyticsScope) => getOperationsStats(scope));
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -46,12 +48,26 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
           </Suspense>
         </ChartCard>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <SkipRateChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
     </div>
   );
 }
 
+async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
+  const s = await loadStats(scope);
+  const data = s.totalDeliveries === 0 ? [] : [{ label: "Skip rate", rate: s.skipRatePct }];
+  return <RadialRateChart data={data} nameKey="label" valueKey="rate" />;
+}
+
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
-  const s = await getOperationsStats(scope);
+  const s = await loadStats(scope);
   return (
     <StatCards
       cols={4}
