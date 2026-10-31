@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/purity */
+import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
@@ -290,16 +291,6 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-/** Closing line of a donut card, shared so the cards end alike. */
-function TotalLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground font-semibold tabular-nums">{value}</span>
-    </div>
-  );
-}
 
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
   const { discounts } = await loadReport(scope);

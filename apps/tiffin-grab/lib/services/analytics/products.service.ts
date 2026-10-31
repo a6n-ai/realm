@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orders, payments, plans } from "@/db/schema";
+import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orderAddons, orders, payments, plans } from "@/db/schema";
 import type { SizeSale } from "@/lib/analytics/size-treemap";
 import { revenueBy } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
@@ -60,26 +60,59 @@ export async function getProductStats(scope: AnalyticsScope): Promise<ProductSta
 export async function getTopDishes(limit = 8, scope: AnalyticsScope) {
   if (noOrgs(scope)) return [];
   return db
-    .select({ dish: dishes.name, category: sql<string>`min(${dishCategories.label})`, n: intCount })
+    .select({ dish: dishes.name, category: sql<string>`min(${dishCategories.label})`, plan: sql<string>`min(${plans.name})`, n: intCount })
     .from(mealSelections)
     .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
     .innerJoin(dishCategories, eq(mealSelections.categoryId, dishCategories.id))
+    .innerJoin(plans, eq(dishes.planId, plans.id))
     .where(selectionOrderIds(scope))
     .groupBy(dishes.name)
     .orderBy(sql`count(*) desc`)
     .limit(limit);
 }
 
-/** Picks per dish category, most picked first; sums to ProductStats.totalSelections. */
-export async function picksByCategory(scope: AnalyticsScope) {
+export type AddonSale = { name: string; qty: number; amount: number };
+
+/** Orders in range and scope by order date, cancelled orders left out (paid or not: they never ran). */
+function liveOrders(scope: AnalyticsScope) {
+  return and(ordersScope(scope), dateWhere(orders.createdAt, scope), sql`${orders.status} <> 'cancelled'`);
+}
+
+/** Add-on lines sold, by order date; amount is the pre-tax line amount stored on the order. Biggest first. */
+export async function getAddonSales(scope: AnalyticsScope): Promise<AddonSale[]> {
   if (noOrgs(scope)) return [];
-  return db
-    .select({ label: dishCategories.label, n: intCount })
-    .from(mealSelections)
-    .innerJoin(dishCategories, eq(mealSelections.categoryId, dishCategories.id))
-    .where(selectionOrderIds(scope))
-    .groupBy(dishCategories.label)
-    .orderBy(sql`count(*) desc`);
+  const amount = sql<string>`coalesce(sum(${orderAddons.amount}), 0)::text`;
+  const rows = await db
+    .select({ name: orderAddons.addonName, qty: sql<number>`cast(sum(${orderAddons.qty}) as int)`, amount })
+    .from(orderAddons)
+    .innerJoin(orders, eq(orderAddons.orderId, orders.id))
+    .where(liveOrders(scope))
+    .groupBy(orderAddons.addonName)
+    .orderBy(sql`sum(${orderAddons.amount}) desc`);
+  return rows.map((r) => ({ name: r.name, qty: r.qty, amount: Number(r.amount) }));
+}
+
+export type ProductSale = { size: string; weeks: number; orders: number; revenue: number };
+
+/**
+ * Orders (order date, cancelled left out) per meal size and duration, with the net revenue of the same
+ * size and duration by payment date. The two windows differ, as the card's info says.
+ */
+export async function getProductSales(scope: AnalyticsScope): Promise<ProductSale[]> {
+  if (noOrgs(scope)) return [];
+  const [counts, buckets] = await Promise.all([
+    db
+      .select({ key: mealSizes.key, name: mealSizes.name, weeks: orders.durationWeeks, n: intCount })
+      .from(orders)
+      .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+      .where(liveOrders(scope))
+      .groupBy(mealSizes.key, mealSizes.name, orders.durationWeeks),
+    revenueBy(scope, "mealSizeWeeks"),
+  ]);
+  const net = new Map(buckets.map((b) => [b.key, b.net]));
+  return counts
+    .map((c) => ({ size: c.name, weeks: c.weeks, orders: c.n, revenue: net.get(`${c.key}|${c.weeks}`) ?? 0 }))
+    .sort((a, b) => b.orders - a.orders || b.revenue - a.revenue);
 }
 
 const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;
@@ -148,7 +181,7 @@ export async function getSizeSales(scope: AnalyticsScope): Promise<SizeSale[]> {
 // "Paid by ..." is Revenue's definition (net ex tax and surcharge, after refunds, by capture date),
 // so each split sums to the Revenue tab's net. `payments` counts captured payments, not orders.
 
-const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium", premium: "Premium" };
+const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium", premium: "Premium", custom: "Custom" };
 
 export type PaidTierRow = { tier: string; key: string; payments: number; paid: number };
 
@@ -160,20 +193,23 @@ export type PaidMealTypeRow = {
   paid: number;
 };
 
-/** Catalog meal sizes only; custom sizes stay out of both splits, as the card subtitles say. */
+/**
+ * Every revenue bucket, so each split sums to the Revenue tab's net. Custom sizes (and money on a size no longer
+ * in the catalog) have no tier; they fall under tier "custom".
+ */
 async function paidByMealSize(scope: AnalyticsScope) {
   const [buckets, sizes] = await Promise.all([
     revenueBy(scope, "mealSize"),
     db
-      .select({ key: mealSizes.key, name: mealSizes.name, tier: mealSizes.tier, plan: plans.name })
+      .select({ key: mealSizes.key, name: mealSizes.name, tier: mealSizes.tier, custom: mealSizes.custom, plan: plans.name })
       .from(mealSizes)
-      .innerJoin(plans, eq(mealSizes.planId, plans.id))
-      .where(eq(mealSizes.custom, false)),
+      .innerJoin(plans, eq(mealSizes.planId, plans.id)),
   ]);
   const byKey = new Map(sizes.map((s) => [s.key, s]));
-  return buckets.flatMap((b) => {
-    const size = byKey.get(b.key);
-    return size ? [{ size, bucket: b }] : [];
+  return buckets.map((b) => {
+    const s = byKey.get(b.key);
+    const size = { key: b.key, name: s?.name ?? "Unknown size", plan: s?.plan ?? "Other", tier: s && !s.custom ? s.tier : "custom" };
+    return { size, bucket: b };
   });
 }
 
@@ -202,7 +238,7 @@ export async function getPaidByTierAndDiet(scope: AnalyticsScope): Promise<PaidT
   return [...cells.values()];
 }
 
-const TIER_ORDER = ["budget", "medium", "premium"];
+const TIER_ORDER = ["budget", "medium", "premium", "custom"];
 
 /** Fixed order so a diet keeps its colour across ranges: veg, non-veg, healthy, then the rest A-Z. */
 export function dietOrder(a: string, b: string) {

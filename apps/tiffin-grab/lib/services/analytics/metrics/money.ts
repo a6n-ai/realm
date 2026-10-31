@@ -116,7 +116,7 @@ export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotal
   };
 }
 
-export type RevenueDim = "day" | "method" | "plan" | "mealSize" | "cohort" | "owner";
+export type RevenueDim = "day" | "method" | "plan" | "mealSize" | "mealSizeWeeks" | "cohort" | "owner";
 export type RevenueBucket = { key: string; gross: number; net: number; refundsExTax: number; refundsExSurcharge: number; payments: number; settledPayments: number };
 
 // Cohort: trial wins; otherwise renewal when the customer had an earlier non-cancelled, non-trial order
@@ -133,6 +133,8 @@ function bucketKey(dim: RevenueDim, tz: string, dateCol: SQL | typeof ledgerEntr
       return sql`(select p2.key from ${plans} as p2 where p2.id = ${orders.planId})`;
     case "mealSize":
       return sql`(select m2.key from ${mealSizes} as m2 where m2.id = ${orders.mealSizeId})`;
+    case "mealSizeWeeks":
+      return sql`(select m2.key || '|' || ${orders.durationWeeks} from ${mealSizes} as m2 where m2.id = ${orders.mealSizeId})`;
     case "cohort":
       return cohortSql;
     case "owner":

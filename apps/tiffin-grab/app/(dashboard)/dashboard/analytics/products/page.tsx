@@ -1,3 +1,4 @@
+import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
@@ -6,19 +7,20 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { rankedHeight, topWithOther } from "@/components/analytics/chart-math";
+import { chartColor, rankedHeight, topWithOther } from "@/components/analytics/chart-math";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { HeatmapGrid, PartsDonut, TreemapChart } from "@/components/analytics/charts";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import {
+  getAddonSales,
   getPaidByTier,
   getPaidByTierAndDiet,
   getPickers,
+  getProductSales,
   getProductStats,
   getSizeSales,
   getTopDishes,
   dietOrder,
-  picksByCategory,
   tierOrder,
 } from "@/lib/services/analytics/products.service";
 import { revenueTotals } from "@/lib/services/analytics/metrics/money";
@@ -62,14 +64,14 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
-          title="What sells?"
+          title="Sales by plan and size"
           subtitle="Every meal size by plan" info={`Revenue is net, counted ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
         >
           <Suspense fallback={<ChartSkeleton height={340} />}>
             <SizeTreemap scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included.`}>
+        <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <TierDonut scope={scope} />
           </Suspense>
@@ -79,7 +81,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="Which sizes sell in which diet?"
-          subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are not included.`}
+          subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
             <TierByDietChart scope={scope} />
@@ -93,17 +95,31 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Picks by category" subtitle="Dish picks, top four categories and the rest" info={`On orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out.`}>
+        <ChartCard
+          title="Add-ons sold"
+          subtitle="Add-on sales, top four and the rest"
+          info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
+        >
           <Suspense fallback={<ChartSkeleton />}>
-            <CategoryDonut scope={scope} />
+            <AddonDonut scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10 and the rest" info={`On orders ${DATE_BASIS_LABEL.orders}.`}>
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
-            <TopDishesList scope={scope} />
+        <ChartCard
+          title="What sells?"
+          subtitle="Meal size and plan length, by orders"
+          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
+        >
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(10)} />}>
+            <ProductSalesList scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
+
+      <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10 and the rest" info={`On orders ${DATE_BASIS_LABEL.orders}. Bar colour is the dish's plan.`}>
+        <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
+          <TopDishesList scope={scope} />
+        </Suspense>
+      </ChartCard>
     </div>
   );
 }
@@ -222,14 +238,37 @@ async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function CategoryDonut({ scope }: { scope: AnalyticsScope }) {
-  const rows = await picksByCategory(scope);
+async function AddonDonut({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getAddonSales(scope);
   return (
     <PartsDonut
+      format="currency"
       max={5}
-      caption="Picks"
-      parts={rows.map((r) => ({ label: r.label, value: r.n }))}
-      listParts={rows.map((r) => ({ label: r.label, value: r.n }))}
+      parts={rows.map((r) => ({ label: r.name, value: r.amount }))}
+      listParts={rows.map((r) => ({ label: r.name, value: r.amount, meta: `${r.qty.toLocaleString()} sold` }))}
+    />
+  );
+}
+
+const money = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => Math.round(rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
+
+async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
+  const all = await getProductSales(scope);
+  const rest = all.slice(10);
+  const shown = rest.length > 1 ? [...all.slice(0, 10), { size: "Other", weeks: 0, orders: sum(rest, "orders"), revenue: sum(rest, "revenue") }] : all;
+  return (
+    <BreakdownList
+      emptyLabel="No orders in this range."
+      pageSize={11}
+      footer={<TotalLine label="Total" value={`${plural(sum(all, "orders"), "order", "orders")} · ${money(sum(all, "revenue"))}`} />}
+      rows={shown.map((r) => ({
+        label: r.weeks ? `${r.size} · ${r.weeks} ${r.weeks === 1 ? "week" : "weeks"}` : `Other (${rest.length} products)`,
+        n: r.orders,
+        meta: `${money(r.revenue)} net revenue`,
+        aside: plural(r.orders, "order", "orders"),
+      }))}
     />
   );
 }
@@ -238,22 +277,39 @@ async function TopDishesList({ scope }: { scope: AnalyticsScope }) {
   const rows = await getTopDishes(500, scope);
   const total = rows.reduce((s, r) => s + r.n, 0);
   const category = new Map(rows.map((r) => [r.dish, r.category]));
+  const plan = new Map(rows.map((r) => [r.dish, r.plan]));
+  const planNames = [...new Set(rows.map((r) => r.plan))].sort(dietOrder);
   const shown = topWithOther(rows.map((r) => ({ dish: r.dish, n: r.n })), "dish", "n", 10);
   return (
-    <BreakdownList
-      total={total}
-      pageSize={11}
-      emptyLabel="No dish picks in this range."
-      rows={shown.map((r) => {
-        const n = Number(r.n);
-        const label = String(r.dish);
-        return {
-          label,
-          n,
-          meta: category.get(label) ?? `${rows.length - 10} more dishes`,
-          aside: `${n.toLocaleString()} · ${total > 0 ? Math.round((n / total) * 100) : 0}%`,
-        };
-      })}
-    />
+    <div className="flex flex-col gap-3">
+      {planNames.length > 1 ? (
+        <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {planNames.map((name, i) => (
+            <li key={name} className="flex items-center gap-1.5">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: chartColor(i) }} />
+              {name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <BreakdownList
+        total={total}
+        pageSize={11}
+        emptyLabel="No dish picks in this range."
+        rows={shown.map((r) => {
+          const n = Number(r.n);
+          const label = String(r.dish);
+          const p = plan.get(label);
+          return {
+            label,
+            n,
+            color: p ? chartColor(planNames.indexOf(p)) : undefined,
+            muted: p === undefined,
+            meta: category.get(label) ?? `${rows.length - 10} more dishes`,
+            aside: `${n.toLocaleString()} · ${total > 0 ? Math.round((n / total) * 100) : 0}%`,
+          };
+        })}
+      />
+    </div>
   );
 }

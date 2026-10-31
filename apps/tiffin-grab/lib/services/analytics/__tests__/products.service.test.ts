@@ -5,11 +5,11 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, menuWeeks, orders, payments, plans, users } =
+const { deliveries, dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, menuWeeks, orderAddons, orders, payments, plans, users } =
   await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { revenueBy, revenueTotals } = await import("../metrics/money");
-const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes, getSizeSales, picksByCategory, tiffinsBySize, getPickers } =
+const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes, getSizeSales, getAddonSales, getProductSales, tiffinsBySize, getPickers } =
   await import("../products.service");
 const { getDeliveryStatusMix } = await import("../operations.service");
 const { buildSizeTreemap, treemapTotal } = await import("@/lib/analytics/size-treemap");
@@ -110,6 +110,8 @@ describe("products analytics", () => {
     // Both fixture orders use one catalog meal size, so the two size splits carry all of it too.
     expect(sum(byMeal)).toBe(net.net);
     expect(sum(byTier)).toBe(net.net);
+    const salesTotal = Math.round((await getSizeSales(payScope)).reduce((t, r) => t + r.revenue, 0) * 100) / 100;
+    expect(sum(byTier)).toBe(salesTotal);
     const byDiet = await getPaidByTierAndDiet(payScope);
     expect(sum(byDiet)).toBe(net.net);
     // Each diet's money is that plan's money: a wrong diet attribution moves cash between them.
@@ -132,7 +134,7 @@ describe("products analytics", () => {
     expect(top.find((d) => d.dish.startsWith("Fixture dish"))?.n).toBe(2);
   });
 
-  it("size treemap, tiffins and category picks tie back to the other tabs", async () => {
+  it("size treemap, tiffins and picks tie back to the other tabs", async () => {
     await cleanOrders();
     const a = await makeOrder({ planIdx: 0, paid: "113.00", deploymentId: "PRD-F" });
     const b = await makeOrder({ planIdx: 1, paid: "56.50", deploymentId: "PRD-G" });
@@ -152,12 +154,34 @@ describe("products analytics", () => {
     expect(delivered).toBe(scheduled);
     expect(treemapTotal(buildSizeTreemap(await getSizeSales(scope), "tiffins", order))).toBe(delivered);
 
-    const picks = (await picksByCategory(scope)).reduce((s, r) => s + r.n, 0);
-    expect(picks).toBe((await getProductStats(scope)).totalSelections);
-
     const { pickers, customers } = await getPickers(scope);
     expect(pickers).toBeGreaterThanOrEqual(2);
     expect(customers).toBeGreaterThanOrEqual(2);
+  });
+
+  it("add-on sales and top products leave out cancelled orders", async () => {
+    await cleanOrders();
+    const live = await makeOrder({ planIdx: 0, paid: "113.00", deploymentId: "PRD-H" });
+    const dead = await makeOrder({ planIdx: 0, status: "cancelled", deploymentId: "PRD-I" });
+    const [plan] = await db.select({ id: plans.id }).from(plans).limit(1);
+    for (const [o, qty, amount] of [[live, 2, "10.00"], [dead, 5, "99.00"]] as const) {
+      await db.insert(orderAddons).values({
+        orderId: o.id, addonKey: "fx", addonName: "Fixture add-on", category: "x", planId: plan!.id,
+        tuAmount: "1", pricePerTiffin: "1", qty, amount,
+      });
+    }
+    const fx = (await getAddonSales(scope)).find((a) => a.name === "Fixture add-on");
+    expect(fx).toEqual({ name: "Fixture add-on", qty: 2, amount: 10 });
+    expect(await getAddonSales({ ...scope, orgIds: [] })).toEqual([]);
+
+    const sales = await getProductSales(scope);
+    expect(sales.reduce((s, r) => s + r.orders, 0)).toBeGreaterThanOrEqual(1);
+    const row = sales.find((r) => r.weeks === 1 && r.orders >= 1);
+    expect(row).toBeDefined();
+    const liveOnly = await getProductSales({ ...scope, fromMs: now - 1000, toMs: now + 1000 });
+    expect(liveOnly.reduce((s, r) => s + r.orders, 0)).toBeGreaterThanOrEqual(1);
+    expect(await getProductSales({ ...scope, orgIds: [] })).toEqual([]);
+    await db.delete(orderAddons).where(inArray(orderAddons.orderId, [live.id, dead.id]));
   });
 
   it("is empty for a scope with no franchise", async () => {

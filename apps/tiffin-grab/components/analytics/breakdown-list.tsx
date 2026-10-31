@@ -23,6 +23,8 @@ export type BreakdownRow = {
   active?: boolean;
   /** Dimmed styling for rows that are shown but excluded from the metrics. */
   muted?: boolean;
+  /** Bar colour (a chart token); defaults to the first categorical slot. */
+  color?: string;
   /** Hover detail for the row, for example the parts a folded row is made of. */
   tip?: ReactNode;
 };
@@ -85,7 +87,7 @@ export function BreakdownList({
                 <div className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
                   <div
                     className={cn("h-full rounded-full", r.muted ? "bg-muted-foreground/40" : "bg-chart-1")}
-                    style={{ width: `${pct}%` }}
+                    style={{ width: `${pct}%`, ...(r.color && !r.muted ? { background: r.color } : {}) }}
                   />
                 </div>
               </div>
