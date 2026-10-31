@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2Icon } from "lucide-react";
+import { ArrowUpRightIcon, CheckCircle2Icon } from "lucide-react";
+import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { DataTable, type Column } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
@@ -80,14 +81,11 @@ export function TodayQueue({
                   <TooltipContent>{formatEpoch(r.since, { mode: "datetime", timeZone: tz })}</TooltipContent>
                 </Tooltip>
               </TableCell>
-              <TableCell className="text-right">
-                {r.kind === "payment" && r.canVerify ? (
-                  <VerifyPaymentButton who={r.who} payment={r.payment} />
-                ) : (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={r.href}>Open</Link>
-                  </Button>
-                )}
+              <TableCell>
+                <div className="flex justify-end gap-1">
+                  {r.kind === "payment" && r.canVerify ? <VerifyPaymentButton icon who={r.who} payment={r.payment} /> : null}
+                  <RowActionTooltipButton icon={ArrowUpRightIcon} label="Open" hint={`Open ${r.who}`} onClick={() => router.push(r.href)} />
+                </div>
               </TableCell>
             </>
           )}

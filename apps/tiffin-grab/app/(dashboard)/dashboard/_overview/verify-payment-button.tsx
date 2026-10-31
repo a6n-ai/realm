@@ -4,12 +4,15 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
+import { CircleCheckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
+import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { verifyPaymentAction } from "../orders/[id]/actions";
 import type { TodayPayment } from "@/lib/today/types";
 
-export function VerifyPaymentButton({ who, payment, label = "Verify", variant = "default" }: { who: string; payment: TodayPayment; label?: string; variant?: "default" | "outline" }) {
+/** `icon`: the table row action (icon + tooltip, like the other tables); otherwise a text button. */
+export function VerifyPaymentButton({ who, payment, label = "Verify", variant = "default", icon = false }: { who: string; payment: TodayPayment; label?: string; variant?: "default" | "outline"; icon?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -33,9 +36,13 @@ export function VerifyPaymentButton({ who, payment, label = "Verify", variant = 
 
   return (
     <>
-      <Button size="sm" variant={variant} onClick={() => setOpen(true)}>
-        {label}
-      </Button>
+      {icon ? (
+        <RowActionTooltipButton icon={CircleCheckIcon} label="Verify payment" hint={`Verify ${who}'s payment`} tone="text-emerald-600 dark:text-emerald-400" onClick={() => setOpen(true)} />
+      ) : (
+        <Button size="sm" variant={variant} onClick={() => setOpen(true)}>
+          {label}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>

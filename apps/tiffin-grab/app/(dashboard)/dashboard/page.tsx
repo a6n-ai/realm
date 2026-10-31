@@ -75,6 +75,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
+  const isAdmin = session.user.role === Role.ADMIN;
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
@@ -108,12 +109,13 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
         <GlanceCard visible={visible} today={today} now={now} />
       </Suspense>
 
-      {/* Act first: what needs doing, how today is going, tomorrow's route. */}
+      {/* Act first: what needs doing, how today is going, the menus to release. */}
       <CardGrid
         cards={[
           { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} />, h: 260 },
           seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
-          seesAll && { key: "route", node: <RouteCard today={today} />, h: 260 },
+          // Menu pages are admin-only, so the menu card is too.
+          isAdmin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
         ]}
       />
 
@@ -125,12 +127,12 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
         </SectionCard>
       </div>
 
-      {/* Then context: drivers, kitchen, menus. */}
+      {/* Then dispatch and kitchen: tomorrow's route, drivers, what to cook. */}
       <CardGrid
         cards={[
+          seesAll && { key: "route", node: <RouteCard today={today} />, h: 260 },
           seesAll && { key: "lanes", node: <LanesCard today={today} />, h: 260 },
           seesAll && { key: "cooking", node: <CookingCard today={today} />, h: 260 },
-          { key: "menus", node: <MenusCard today={today} />, h: 200 },
         ]}
       />
 
@@ -145,12 +147,12 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
 type GridCard = { key: string; node: React.ReactNode; h: number };
 
 /**
- * Up to three cards per row on wide screens, two on laptops. Cards are direct grid children, so a
- * card that renders nothing (Tomorrow's route without OptimoRoute) leaves no empty cell.
+ * Cards fill the row: auto-fit columns of at least 20rem, so two cards share the width a third
+ * would have used (no empty cell when a card renders nothing, e.g. Tomorrow's route without OptimoRoute).
  */
 function CardGrid({ cards }: { cards: (GridCard | false)[] }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-4">
       {cards.filter((c): c is GridCard => Boolean(c)).map((c) => (
         <Suspense key={c.key} fallback={<ChartSkeleton height={c.h} />}>
           {c.node}
