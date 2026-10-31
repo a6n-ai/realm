@@ -9,7 +9,6 @@ const { deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orderActiviti
   await import("@/db/schema");
 const {
   getByCategory,
-  getBySubcategory,
   getComplaintKpis,
   getComplaintDaily,
   getNeedsAttention,
@@ -252,17 +251,6 @@ describe("breakdowns", () => {
     expect(by.open).toBe(1);
     // The slices sum to the total rather than counting the unanswered one twice.
     expect(mix.reduce((s, m) => s + m.n, 0)).toBe(3);
-  });
-
-  it("breaks a category down by sub-category", async () => {
-    const u = await makeUser("h@x.test");
-    await makeTicket(u.id, { category: "delivery", subcategory: "late_delivery" });
-    await makeTicket(u.id, { category: "delivery", subcategory: "late_delivery" });
-    await makeTicket(u.id, { category: "delivery", subcategory: "not_delivered" });
-
-    const rows = await getBySubcategory(NO_FILTERS, "delivery");
-    expect(rows.find((r) => r.value === "late_delivery")!.n).toBe(2);
-    expect(rows.find((r) => r.value === "not_delivered")!.n).toBe(1);
   });
 
   it("ranks top issues by (category, sub-category)", async () => {

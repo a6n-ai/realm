@@ -160,29 +160,6 @@ export async function getByCategory(scope: AnalyticsScope) {
   );
 }
 
-/** Sub-category counts within one category (the drill-down). */
-export async function getBySubcategory(scope: AnalyticsScope, category: string) {
-  const rows = await db
-    .select({ subcategory: tickets.subcategory, n: intCount })
-    .from(tickets)
-    .leftJoin(orders, eq(tickets.orderId, orders.id))
-    .leftJoin(plans, eq(orders.planId, plans.id))
-    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-    .where(and(where(scope, false), eq(tickets.category, category as never)))
-    .groupBy(tickets.subcategory);
-
-  const counts = new Map(rows.map((r) => [r.subcategory ?? "", r.n]));
-  const known = (SUBCATEGORIES[category as keyof typeof SUBCATEGORIES] ?? []).map((s) => ({
-    value: s.value,
-    label: s.label,
-    n: counts.get(s.value) ?? 0,
-  }));
-  // Tickets raised before the two-level picker have no sub-category.
-  const unspecified = counts.get("") ?? 0;
-  return unspecified > 0 ? [...known, { value: "", label: "Unspecified", n: unspecified }] : known;
-}
-
 /** Status mix, with New derived as "open and nobody has replied". */
 export async function getStatusMix(scope: AnalyticsScope) {
   const [row] = await db

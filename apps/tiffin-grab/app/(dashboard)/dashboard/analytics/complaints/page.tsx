@@ -26,7 +26,7 @@ import { DATE_BASIS_LABEL, scopeToSearchParams, type AnalyticsScope } from "@/li
 import {
   getByCategory,
   getByPlan,
-  getBySubcategory,
+  getTopIssues,
   getByZone,
   getComplaintDaily,
   getComplaintKpis,
@@ -50,8 +50,6 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   const resolved = await scopeOrAlert("/dashboard/analytics/complaints", sp);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
-  // The Category filter wins over the clicked bar.
-  const drill = scopeToComplaintFilters(scope).categories?.[0] ?? sp.drill;
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -76,35 +74,35 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
             <Trend scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="By category" subtitle="Tickets per category" info="Select a bar to see its sub-categories.">
+        <ChartCard title="By delivery zone" subtitle="Tickets per zone of the linked order">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-            <Categories scope={scope} drill={drill} />
+            <Zones scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="By sub-category" subtitle="Top 8 in the selected category">
+        <ChartCard title="By category" subtitle="Tickets per category" info="Feedback is shown greyed out; it is not counted as a complaint. Select a bar to open those tickets.">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-            <Subcategories scope={scope} drill={drill} />
+            <Categories scope={scope} />
           </Suspense>
         </ChartCard>
+        <ChartCard title="By sub-category" subtitle="Top issues across every category" info="Each bar is a sub-category with its category after the dot. Feedback is left out. Select a bar to open those tickets.">
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
+            <Subcategories scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Status">
           <Suspense fallback={<ChartSkeleton />}>
             <Statuses scope={scope} />
           </Suspense>
         </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By plan">
           <Suspense fallback={<ChartSkeleton />}>
             <Plans scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="By delivery zone">
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-            <Zones scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -259,16 +257,15 @@ async function Trend({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {
+async function Categories({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
   const rows = await getByCategory(scope);
   return (
     <BreakdownBarChart
       data={rows.map((r) => ({
         category: r.category,
         n: r.n,
-        // Selecting a category drills in place; the link keeps every other filter.
-        href: `?${new URLSearchParams([...scopeToSearchParams(scope), ["drill", r.value]])}`,
-        active: drill === r.value ? 1 : 0,
+        href: ticketsHref(filters, { categories: [r.value] }),
         // Feedback and suggestions are shown but not counted as complaints.
         muted: r.isComplaint ? 0 : 1,
       }))}
@@ -276,29 +273,28 @@ async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: str
       yKey="n"
       label="Complaints"
       hrefKey="href"
-      activeKey="active"
       mutedKey="muted"
+      limit={9}
     />
   );
 }
 
-async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope; drill?: string }) {
-  if (!category) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">Pick a category to break it down.</p>;
-  }
+/** Every sub-category ranked together, so no category has to be picked first. */
+async function Subcategories({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
-  const rows = await getBySubcategory(scope, category);
+  const rows = await getTopIssues(scope, 100);
   return (
     <BreakdownBarChart
       data={rows.map((r) => ({
-        label: r.label,
+        label: r.subcategory ? `${r.label} · ${r.categoryLabel}` : `${r.categoryLabel} · no sub-category`,
         n: r.n,
-        href: ticketsHref(filters, { categories: [category], subcategories: r.value ? [r.value] : [] }),
+        href: ticketsHref(filters, { categories: [r.category], subcategories: r.subcategory ? [r.subcategory] : [] }),
       }))}
       xKey="label"
       yKey="n"
       label="Complaints"
       hrefKey="href"
+      limit={10}
     />
   );
 }
