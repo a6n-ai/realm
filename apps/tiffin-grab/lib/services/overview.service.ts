@@ -1,8 +1,9 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, orders } from "@/db/schema";
+import { deliveries, orders, plans } from "@/db/schema";
+import { countBy, dailyLabelSheet } from "@/lib/services/daily-labels.service";
 import { addDays } from "@/lib/deliveries-view/week";
 import { buildKitchenWeek, type KitchenWeekRow } from "@/lib/overview/kitchen-week";
 import { getDailyScorecard } from "./analytics/overview.service";
@@ -87,25 +88,19 @@ export async function getDriverLanes(date: string): Promise<DriverLane[]> {
   return rows.map((r) => ({ driver: r.driver ?? "Unassigned", stops: r.stops, done: r.done }));
 }
 
-/** Meal-size names in a stable order, so a size keeps its donut colour across days. */
-export async function listMealSizeNames(): Promise<string[]> {
-  const rows = await db.selectDistinct({ name: mealSizes.name }).from(mealSizes).orderBy(asc(mealSizes.name));
-  return rows.map((r) => r.name);
-}
 
-/** Scheduled tiffins (sum of tiffin_units) per meal size for the week starting `monday` and the week before. */
+/** Scheduled tiffins (sum of tiffin_units) per meal plan (Pure Vegetarian, Non-Veg…) for the week starting `monday` and the week before. */
 export async function getKitchenWeek(visible: Visible, monday: string): Promise<KitchenWeekRow[]> {
   if (visible !== "all" && visible.length === 0) return [];
   const rows = await db
     .select({
-      // Custom sizes are one row: each customer's custom mix is its own meal size.
-      mealSize: sql<string>`case when ${mealSizes.custom} then 'Custom meals' else ${mealSizes.name} end`,
+      mealSize: plans.name,
       date: deliveries.deliveryDate,
       units: sql<number>`cast(coalesce(sum(${deliveries.tiffinUnits}), 0) as int)`,
     })
     .from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
-    .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+    .innerJoin(plans, eq(plans.id, orders.planId))
     .where(
       and(
         eq(deliveries.status, "scheduled"),
@@ -115,6 +110,20 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
         visible === "all" ? undefined : inArray(orders.organizationId, visible),
       ),
     )
-    .groupBy(sql`1`, deliveries.deliveryDate);
+    .groupBy(plans.name, deliveries.deliveryDate);
   return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDays);
+}
+
+/**
+ * Containers to cook per dish category (Sabzi, Daal, Roti, Rice…) for each day of the week, from the
+ * same label sheet the kitchen prints. Days whose menu week is not released count 0 (labels cannot
+ * resolve). Not franchise-scoped (the label sheet is not), so the page shows it to all-scope users only.
+ */
+export async function getKitchenWeekDishes(monday: string): Promise<KitchenWeekRow[]> {
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const sheets = await Promise.all(dates.map((d) => dailyLabelSheet(d)));
+  const cells = sheets.flatMap((sheet, i) =>
+    countBy(sheet.labels).map((c) => ({ mealSize: c.categoryLabel, date: dates[i]!, units: c.count })),
+  );
+  return buildKitchenWeek(cells, monday, addDays);
 }

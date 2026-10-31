@@ -14,15 +14,15 @@ let orgA = "";
 let orgB = "";
 const orderIds: bigint[] = [];
 const userIds: bigint[] = [];
-let sizeName = "";
+let sizeName = ""; // the plan name the seeded orders use
 
 async function makeOrder(org: string, k: number) {
   const [u] = await db.insert(users).values({ email: `kw${k}-${suffix}@x.test`, name: `KW ${k}`, role: "user" }).returning();
   userIds.push(u!.id);
-  const [plan] = await db.select({ id: plans.id }).from(plans).orderBy(plans.id).limit(1);
+  const [plan] = await db.select({ id: plans.id, name: plans.name }).from(plans).orderBy(plans.id).limit(1);
   const [size] = await db.select({ id: mealSizes.id, name: mealSizes.name }).from(mealSizes).limit(1);
   const [freq] = await db.select({ id: deliveryFrequencies.id }).from(deliveryFrequencies).limit(1);
-  sizeName = size!.name;
+  sizeName = plan!.name; // rows are per meal plan
   const [o] = await db
     .insert(orders)
     .values({

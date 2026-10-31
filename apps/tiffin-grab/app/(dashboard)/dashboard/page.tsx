@@ -44,7 +44,6 @@ import { NeedsActionCard } from "./_overview/needs-action-card";
 import { RouteCard } from "./_overview/route-card";
 import { LanesCard } from "./_overview/lanes-card";
 import { MenusCard } from "./_overview/menus-card";
-import { CookingCard } from "./_overview/cooking-card";
 import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
 
@@ -127,17 +126,16 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
         </SectionCard>
       </div>
 
-      {/* Then dispatch and kitchen: tomorrow's route, drivers, what to cook. */}
+      {/* Then dispatch: tomorrow's route and today's drivers. What to cook is in Kitchen week. */}
       <CardGrid
         cards={[
           seesAll && { key: "route", node: <RouteCard today={today} />, h: 260 },
           seesAll && { key: "lanes", node: <LanesCard today={today} />, h: 260 },
-          seesAll && { key: "cooking", node: <CookingCard today={today} />, h: 260 },
         ]}
       />
 
       <Suspense fallback={<ChartSkeleton height={260} />}>
-        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} />
+        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} seesAll={seesAll} />
       </Suspense>
 
     </PageShell>
