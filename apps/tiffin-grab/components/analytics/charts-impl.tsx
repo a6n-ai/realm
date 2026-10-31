@@ -542,7 +542,7 @@ export function RadialRateChart({
           dataKey={valueKey}
           background
           cornerRadius={10}
-          label={{ position: "insideStart", fill: "var(--background)", fontSize: 12, fontWeight: 600, formatter: (v: number) => `${v}%` }}
+          label={{ position: "insideStart", fill: "var(--background)", fontSize: 12, fontWeight: 600, formatter: (v: unknown) => `${v}%` }}
         />
         <ChartLegend content={<ChartLegendContent nameKey={nameKey} className="-translate-y-2" />} />
       </RadialBarChart>
