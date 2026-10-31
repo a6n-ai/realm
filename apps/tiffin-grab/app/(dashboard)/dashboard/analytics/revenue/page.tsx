@@ -291,17 +291,28 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Closing line of a donut card, shared so the cards end alike. */
+function TotalLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
   const { discounts } = await loadReport(scope);
   const staff = discounts.find((d) => d.source === "staff");
   const meta = (d: DiscountLine) =>
-    `${SOURCE_LABEL[d.source]} · ${plural(d.orders, "order", "orders")}${d.codes ? ` · ${plural(d.codes.length, "code", "codes")}` : ""}`;
+    `${SOURCE_LABEL[d.source]} · ${plural(d.orders, "order", "orders")}${d.codes ? ` · ${plural(d.codes.length, "employee", "employees")}` : ""}`;
   return (
     <PartsDonut
       format="currency"
       caption="discounts"
       max={5}
       emptyLabel="No discounts in this range."
+      footnote={<TotalLine label="Total discounts" value={money(discounts.reduce((s, d) => s + d.amount, 0))} />}
       parts={discounts.map((d: DiscountLine) => ({ label: d.label, value: d.amount }))}
       listParts={topWithOther(
         discounts.map((d: DiscountLine) => ({ label: d.label, amount: d.amount, meta: meta(d) })),
@@ -316,9 +327,8 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
           staff && d.label === staff.label && staff.codes ? (
             <ul className="flex flex-col gap-1">
               {staff.codes.map((c) => (
-                <li key={c.code} className="flex items-baseline justify-between gap-4 tabular-nums">
-                  <span>{c.code}</span>
-                  <span>{money(c.amount)}</span>
+                <li key={c.name} className="tabular-nums">
+                  {c.name} — {money(c.amount)} · {plural(c.orders, "order", "orders")}
                 </li>
               ))}
             </ul>
@@ -347,6 +357,7 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
         label={valued ? money(free.amount) : String(free.count)}
         max={5}
         emptyLabel="No free tiffins in this range."
+        footnote={<TotalLine label="Total free tiffins" value={valued ? money(free.amount) : plural(free.count, "tiffin", "tiffins")} />}
         parts={free.byReason.map((r) => ({ label: r.reason, value: r.count }))}
         listParts={rows.map((r) => ({
           label: r.reason,

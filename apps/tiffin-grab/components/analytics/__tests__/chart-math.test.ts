@@ -5,6 +5,8 @@ import {
   moneyTick,
   tickEvery,
   truncateLabel,
+  fitLabel,
+  LABEL_CHAR_PX,
   foldParts,
   heatBucket,
   heatIsDense,
@@ -194,5 +196,17 @@ describe("calendarWeeks", () => {
     const day = isoDateInZone(Date.parse("2026-11-01T03:30:00Z"), "America/Toronto");
     expect(day).toBe("2026-10-31");
     expect(calendarWeeks("2026-10-01", "2026-10-31").flat()).toContain(day);
+  });
+});
+
+describe("fitLabel", () => {
+  it("keeps the start of a long label within the axis width", () => {
+    const out = fitLabel("Pure Vegetarian Plan with extras", 110);
+    expect(out.startsWith("Pure Vegetar")).toBe(true);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.length * LABEL_CHAR_PX).toBeLessThanOrEqual(110);
+  });
+  it("leaves short labels alone", () => {
+    expect(fitLabel("Brampton", 110)).toBe("Brampton");
   });
 });

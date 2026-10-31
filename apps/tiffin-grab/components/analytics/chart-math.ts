@@ -139,6 +139,13 @@ export function truncateLabel(v: unknown, max = 18): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
+/** Average glyph width of text-xs, rounded up so wide capitals still fit. */
+export const LABEL_CHAR_PX = 7;
+
+/** Truncates to what fits in `widthPx` of right-aligned axis text, so the start of the label always shows. */
+export const fitLabel = (v: unknown, widthPx: number): string =>
+  truncateLabel(v, Math.max(4, Math.floor(widthPx / LABEL_CHAR_PX)));
+
 /** Ticks for a chart that can go negative: nice min and max on one step, always including 0. */
 export function signedTicks(min: number, max: number): number[] {
   const step = axisStep(Math.max(max, -min, 1) * 2, 6) / 1;

@@ -40,7 +40,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
 import type { TreemapGroup } from "@/lib/analytics/size-treemap";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
@@ -68,7 +68,7 @@ import {
   tickEvery,
   topWithOther,
   trailingAverage,
-  truncateLabel,
+  fitLabel,
   type Part,
   type Tone,
 } from "@/components/analytics/chart-math";
@@ -266,12 +266,15 @@ function AverageTrend({
   );
 }
 
+/** Y-axis width (120) minus its tick margin (10): text is right-aligned, so overflow clips the start. */
+const RANKED_LABEL_PX = 110;
+
 /** One-line, truncated category tick (Recharts' default tick wraps at the axis width). */
 function SingleLineTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: unknown } }) {
   return (
     <text x={x} y={y} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-xs">
       <title>{String(payload?.value ?? "")}</title>
-      {truncateLabel(payload?.value)}
+      {fitLabel(payload?.value, RANKED_LABEL_PX)}
     </text>
   );
 }
@@ -657,7 +660,7 @@ export function PartsDonut({
   caption?: string;
   /** Centre figure instead of the total, e.g. "62%" with caption "collected". */
   label?: string;
-  footnote?: string;
+  footnote?: ReactNode;
 }) {
   const router = useRouter();
   const folded = foldParts(parts, max);
@@ -678,7 +681,7 @@ export function PartsDonut({
       }))
     : folded.map((p) => ({ label: p.label, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format), share: p.share }));
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
+    <div className="flex h-full flex-col items-center gap-4">
       <ChartContainer config={config} className="aspect-square shrink-0" style={{ height: DONUT_PX }}>
         <PieChart accessibilityLayer>
           <ChartTooltip
@@ -705,7 +708,7 @@ export function PartsDonut({
           </Pie>
         </PieChart>
       </ChartContainer>
-      <div className="w-full min-w-0 flex-1">
+      <div className="flex w-full min-w-0 flex-1 flex-col">
       <ul className="divide-border/60 w-full divide-y">
         {listRows.map((p, i) => {
           const row = (
@@ -749,7 +752,7 @@ export function PartsDonut({
           );
         })}
       </ul>
-      {footnote ? <p className="text-muted-foreground pt-2 text-xs">{footnote}</p> : null}
+      {footnote ? <div className="text-muted-foreground pt-2 text-xs">{footnote}</div> : null}
       </div>
     </div>
   );
@@ -758,23 +761,31 @@ export function PartsDonut({
 /** Lowest a size shade goes: the plan colour mixed this far toward the card. */
 const SHADE_FLOOR = 55;
 
+const TREEMAP_PAD = 6;
+
+/** Light text on dark fills, dark on light, from the fill's own lightness; the class is the fallback for browsers without relative colours. */
+const onFill = (fill: string) => `oklch(from ${fill} clamp(0.15, calc((0.62 - l) * 100), 0.98) 0 0)`;
+
 function TreemapCell({ node, format }: { node: TreemapNode; format: ValueFormat }) {
   if (node.depth !== 2) return <g />;
   const { x, y, width, height, name, value } = node;
-  const label = truncateLabel(name, Math.floor((width - 12) / 6.5));
-  const room = width > 56 && height > 24;
+  const fill = String(node.color);
+  const inner = width - TREEMAP_PAD * 2;
+  // Name and value together need about two text-xs lines; smaller boxes stay unlabelled (the tooltip has it).
+  const room = inner >= 48 && height >= 2 * 16 + TREEMAP_PAD * 2;
+  const textClass = "fill-foreground text-xs";
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} fill={String(node.color)} stroke="var(--card)" strokeWidth={2} />
+      <rect x={x} y={y} width={width} height={height} fill={fill} stroke="var(--card)" strokeWidth={2} />
       {room ? (
-        <text x={x + 6} y={y + 16} className="fill-foreground text-xs font-medium" style={{ paintOrder: "stroke", stroke: "var(--card)", strokeWidth: 3 }}>
-          {label}
-        </text>
-      ) : null}
-      {room && height > 40 ? (
-        <text x={x + 6} y={y + 31} className="fill-foreground text-xs tabular-nums" style={{ paintOrder: "stroke", stroke: "var(--card)", strokeWidth: 3 }}>
-          {formatValue(value, format)}
-        </text>
+        <>
+          <text x={x + TREEMAP_PAD} y={y + TREEMAP_PAD} dominantBaseline="hanging" className={`${textClass} font-medium`} style={{ fill: onFill(fill) }}>
+            {fitLabel(name, inner)}
+          </text>
+          <text x={x + TREEMAP_PAD} y={y + TREEMAP_PAD + 16} dominantBaseline="hanging" className={`${textClass} tabular-nums`} style={{ fill: onFill(fill) }}>
+            {formatValue(value, format)}
+          </text>
+        </>
       ) : null}
     </g>
   );

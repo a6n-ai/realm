@@ -63,8 +63,8 @@ export function presentPaymentStatuses(
 
 export type DiscountSource = "catalog" | "coupon" | "coins" | "staff" | "other";
 
-/** `codes` lists the staff codes folded into a "staff" line, largest first. */
-export type DiscountLine = { source: DiscountSource; label: string; amount: number; orders: number; codes?: { code: string; amount: number }[] };
+/** `codes` lists the employees whose staff codes are folded into a "staff" line, largest first. */
+export type DiscountLine = { source: DiscountSource; label: string; amount: number; orders: number; codes?: { name: string; amount: number; orders: number }[] };
 
 export type RevenueKpis = {
   /** Captured payments before refunds, including tax (surcharge excluded). */
@@ -188,8 +188,8 @@ export type DiscountOrderRow = {
   amount: number;
   orderTotal: number;
   snapshot: unknown;
-  /** Codes of staff-issued coupons (rep_code / rep_daily) redeemed on this order, from coupon_redemptions. */
-  staffCodes?: string[];
+  /** Staff-issued coupons (rep_code / rep_daily) redeemed on this order, with their owner's name (null when ownerless). */
+  staffCodes?: { code: string; owner: string | null }[];
 };
 
 /** One row per order: its settled payments in range carry their share of the order's snapshot. */
@@ -215,12 +215,12 @@ export function summarizeDiscounts(rows: DiscountOrderRow[]): {
     if (effective <= 0) continue;
     const staffCodes = r.staffCodes ?? [];
     const parts = snap.adjustments.map((a) => {
-      const code = staffCodes.find((c) => a.label.endsWith(`(${c})`));
-      return { ...(code ? { source: "staff" as const, label: STAFF_LABEL } : classifyAdjustment(a)), code, weight: a.amount * share };
+      const staff = staffCodes.find((c) => a.label.endsWith(`(${c.code})`));
+      return { ...(staff ? { source: "staff" as const, label: STAFF_LABEL } : classifyAdjustment(a)), employee: staff ? staff.owner || staff.code : undefined, weight: a.amount * share };
     });
     const amounts = apportion(effective, parts.map((part) => part.weight));
     const seen = new Set<string>();
-    const add = (source: DiscountSource, label: string, amount: number, code?: string) => {
+    const add = (source: DiscountSource, label: string, amount: number, employee?: string) => {
       if (amount <= 0) return;
       const key = `${source}:${label}`;
       const line = lines.get(key) ?? { source, label, amount: 0, orders: 0 };
@@ -229,16 +229,20 @@ export function summarizeDiscounts(rows: DiscountOrderRow[]): {
         line.orders += 1;
         seen.add(key);
       }
-      if (code) {
+      if (employee) {
         line.codes ??= [];
-        const c = line.codes.find((x) => x.code === code);
-        if (c) c.amount += amount;
-        else line.codes.push({ code, amount });
+        let c = line.codes.find((x) => x.name === employee);
+        if (!c) line.codes.push((c = { name: employee, amount: 0, orders: 0 }));
+        c.amount += amount;
+        if (!seen.has(`${key}:${employee}`)) {
+          c.orders += 1;
+          seen.add(`${key}:${employee}`);
+        }
       }
       lines.set(key, line);
     };
     if (amounts.length === 0) add("other", "Discount", effective);
-    else parts.forEach((part, i) => add(part.source, part.label, amounts[i] ?? 0, part.code));
+    else parts.forEach((part, i) => add(part.source, part.label, amounts[i] ?? 0, part.employee));
   }
   return {
     listPrice: round2(listPrice),

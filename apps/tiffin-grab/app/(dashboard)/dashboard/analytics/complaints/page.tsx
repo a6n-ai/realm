@@ -7,11 +7,12 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
 import Link from "next/link";
-import { BreakdownBarChart, CalendarHeatmap, SegmentedBar } from "@/components/analytics/charts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/analytics/charts";
+import { Card, CardContent } from "@foundry/ui/card";
+import { Badge } from "@/components/reui/badge";
+import { formatEpoch } from "@/lib/format/datetime";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import type { Tone } from "@/components/analytics/chart-math";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import {
   NOT_LINKED,
@@ -96,7 +97,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By plan">
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(3)} />}>
+          <Suspense fallback={<ChartSkeleton />}>
             <Plans scope={scope} />
           </Suspense>
         </ChartCard>
@@ -107,11 +108,13 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
         </ChartCard>
       </div>
 
-      <ChartCard title="Customers with repeat complaints">
-        <Suspense fallback={<ChartSkeleton />}>
-          <RepeatCustomers scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div id="repeat-customers" className="scroll-mt-20">
+        <ChartCard title="Customers with repeat complaints" subtitle="Top 10 in this range.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <RepeatCustomers scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
     </div>
   );
 }
@@ -178,28 +181,67 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
   const a = await getNeedsAttention(scope);
   if (a.urgent + a.overdue + a.unanswered + a.repeatCustomers === 0) return null;
 
-  const rows = [
+  const cards = [
     {
       label: "High & critical, still open",
+      hint: "Priority high or urgent, not yet resolved",
       n: a.urgent,
+      tone: "destructive-light" as const,
       href: ticketsHref(filters, {
         priorities: ["high", "urgent"],
         statuses: ["open", "in_progress", "waiting_on_customer"],
       }),
     },
     {
-      label: "Overdue (no reply in 24h)",
+      label: "Overdue",
+      hint: "No reply in 24 hours",
       n: a.overdue,
+      tone: "warning-light" as const,
       href: ticketsHref(filters, { statuses: ["open", "in_progress"] }),
     },
-    { label: "Never answered", n: a.unanswered, href: ticketsHref(filters, { statuses: ["new"] }) },
-    { label: "Customers complaining repeatedly", n: a.repeatCustomers },
+    {
+      label: "Never answered",
+      hint: "No staff reply yet",
+      n: a.unanswered,
+      tone: "warning-light" as const,
+      href: ticketsHref(filters, { statuses: ["new"] }),
+    },
+    {
+      label: "Repeat complainers",
+      hint: "Customers complaining more than once",
+      n: a.repeatCustomers,
+      tone: "warning-light" as const,
+      href: "#repeat-customers",
+    },
   ];
 
   return (
-    <ChartCard title="Needs attention" subtitle="Complaints that should not wait. Open these first.">
-      <BreakdownList rows={rows} />
-    </ChartCard>
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-sm font-semibold">Needs attention</h2>
+        <p className="text-muted-foreground text-xs">Complaints that should not wait. Open these first.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((c) => (
+          <Link
+            key={c.label}
+            href={c.href}
+            className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2"
+          >
+            <Card className="hover:bg-muted/50 h-full transition-colors">
+              <CardContent className="flex flex-col gap-2">
+                <span className="text-sm font-medium">{c.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-semibold tabular-nums">{c.n}</span>
+                  {c.n > 0 ? <Badge variant={c.tone}>Act now</Badge> : null}
+                </div>
+                <span className="text-muted-foreground text-xs">{c.hint}</span>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -266,42 +308,45 @@ async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
   const rows = await getStatusMix(scope);
   return (
-    <SegmentedBar
-      withList
+    <PartsDonut
+      caption="Complaints"
       max={6}
+      emptyLabel="No complaints in this range."
       parts={rows.map((r) => ({ label: r.status, value: r.n, tone: TICKET_TONE[r.value] ?? "chart", href: ticketsHref(filters, { statuses: [r.value] }) }))}
     />
   );
 }
 
 async function RepeatCustomers({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getRepeatCustomers(scope);
+  const filters = scopeToComplaintFilters(scope);
+  const rows = await getRepeatCustomers(scope, 10);
+  const base = ticketsHref(filters);
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No repeat complaints in this range.</p>;
   }
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Customer</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead className="text-right">Complaints</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.publicId}>
-            <TableCell className="font-medium">
-              <Link href={`/dashboard/customers/${r.publicId}`} className="hover:underline">
-                {r.name ?? r.email ?? "Customer"}
-              </Link>
-            </TableCell>
-            <TableCell className="text-muted-foreground">{r.name ? (r.email ?? "") : ""}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.n}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      {rows.map((r, i) => (
+        <Link
+          key={r.publicId}
+          href={`${base}${base.includes("?") ? "&" : "?"}q=${encodeURIComponent(r.email ?? r.name ?? "")}`}
+          className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2"
+        >
+          <Card className="hover:bg-muted/50 h-full transition-colors">
+            <CardContent className="flex flex-col items-start gap-2">
+              <Badge variant="secondary">#{i + 1}</Badge>
+              <span className="w-full truncate text-sm font-medium">{r.name ?? r.email ?? "Customer"}</span>
+              <span className="text-3xl font-semibold tabular-nums">{r.n}</span>
+              {r.topCategoryLabel ? <span className="text-muted-foreground text-xs">Mostly {r.topCategoryLabel}</span> : null}
+              <span className="text-muted-foreground text-xs">
+                Last {formatEpoch(Number(r.lastAt), { mode: "date", timeZone: scope.tz })}
+              </span>
+              {r.name && r.email ? <span className="text-muted-foreground w-full truncate text-xs">{r.email}</span> : null}
+            </CardContent>
+          </Card>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -309,13 +354,11 @@ async function Plans({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
   const rows = await getByPlan(scope);
   return (
-    <BreakdownBarChart
-      data={rows.map((r) => ({ label: r.label, n: r.n, href: ticketsHref(filters, { plans: [r.value] }), muted: r.value === NOT_LINKED ? 1 : 0 }))}
-      xKey="label"
-      yKey="n"
-      label="Complaints"
-      hrefKey="href"
-      mutedKey="muted"
+    <PartsDonut
+      caption="Complaints"
+      max={5}
+      emptyLabel="No complaints in this range."
+      parts={rows.map((r) => ({ label: r.label, value: r.n, tone: r.value === NOT_LINKED ? "muted" : "chart", href: ticketsHref(filters, { plans: [r.value] }) }))}
     />
   );
 }

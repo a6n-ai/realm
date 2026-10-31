@@ -21,20 +21,27 @@ function order(over: Partial<DiscountOrderRow> = {}): DiscountOrderRow {
 }
 
 describe("summarizeDiscounts", () => {
-  it("folds staff-issued codes into one line, keeping each code's amount", () => {
+  it("folds staff codes into one line, per employee: shared owner merges, ownerless shows its code", () => {
     const snap = (code: string, amt: number) => ({
       subtotal: 100,
       taxTotal: 0,
       adjustments: [{ label: `Staff discount (${code})`, amount: amt }],
     });
     const r = summarizeDiscounts([
-      order({ orderId: "1", amount: 90, orderTotal: 90, snapshot: snap("TG-AAA", 10), staffCodes: ["TG-AAA"] }),
-      order({ orderId: "2", amount: 95, orderTotal: 95, snapshot: snap("TG-BBB", 5), staffCodes: ["TG-BBB"] }),
+      order({ orderId: "1", amount: 90, orderTotal: 90, snapshot: snap("TG-AAA", 10), staffCodes: [{ code: "TG-AAA", owner: "Asha" }] }),
+      order({ orderId: "2", amount: 95, orderTotal: 95, snapshot: snap("TG-BBB", 5), staffCodes: [{ code: "TG-BBB", owner: "Asha" }] }),
+      order({ orderId: "3", amount: 98, orderTotal: 98, snapshot: snap("TG-CCC", 2), staffCodes: [{ code: "TG-CCC", owner: null }] }),
     ]);
     expect(r.lines).toEqual([
-      { source: "staff", label: "Staff discounts", amount: 15, orders: 2, codes: [{ code: "TG-AAA", amount: 10 }, { code: "TG-BBB", amount: 5 }] },
+      {
+        source: "staff",
+        label: "Staff discounts",
+        amount: 17,
+        orders: 3,
+        codes: [{ name: "Asha", amount: 15, orders: 2 }, { name: "TG-CCC", amount: 2, orders: 1 }],
+      },
     ]);
-    expect(r.discounts).toBe(15);
+    expect(r.discounts).toBe(17);
   });
 
   it("reports list price and discounts from the snapshot, keeping tax out", () => {

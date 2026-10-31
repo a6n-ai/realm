@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, orders, payments } from "@/db/schema";
+import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";
 import { eachDateInclusive, isoDateInZone, periodKey, round2 } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
@@ -44,8 +44,10 @@ async function settledOrderRows(scope: AnalyticsScope) {
       amount: sql<string>`sum(${payments.amount})`,
       orderTotal: orders.total,
       snapshot: orders.pricingSnapshot,
-      staffCodes: sql<string[] | null>`(
-        select array_agg(${coupons.code}) from ${couponRedemptions} inner join ${coupons} on ${coupons.id} = ${couponRedemptions.couponId}
+      staffCodes: sql<{ code: string; owner: string | null }[] | null>`(
+        select json_agg(json_build_object('code', ${coupons.code}, 'owner', ${users.name})) from ${couponRedemptions}
+        inner join ${coupons} on ${coupons.id} = ${couponRedemptions.couponId}
+        left join ${users} on ${users.id} = ${coupons.ownerUserId}
         where ${couponRedemptions.orderId} = ${orders.id} and ${coupons.kind} in ('rep_daily', 'rep_code'))`,
     })
     .from(payments)

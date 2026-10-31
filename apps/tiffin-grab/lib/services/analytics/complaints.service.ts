@@ -262,6 +262,10 @@ export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
       email: users.email,
       n: intCount,
       lastAt: sql<number>`max(${tickets.createdAt})`,
+      // Most common category for this customer; ties go to the alphabetically first.
+      topCategory: sql<string | null>`(
+        select t2.category from tickets t2 where t2.raised_by = ${users.id} and t2.created_at >= ${scope.fromMs} and t2.created_at <= ${scope.toMs}
+        group by t2.category order by count(*) desc, t2.category asc limit 1)`,
     })
     .from(tickets)
     .innerJoin(users, eq(tickets.raisedBy, users.id))
@@ -270,11 +274,11 @@ export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
     .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where(scope))
-    .groupBy(users.publicId, users.name, users.email)
+    .groupBy(users.id, users.publicId, users.name, users.email)
     .having(sql`count(*) > 1`)
     .orderBy(desc(intCount))
     .limit(limit);
-  return rows;
+  return rows.map((r) => ({ ...r, topCategoryLabel: r.topCategory ? categoryLabel(r.topCategory) : null }));
 }
 
 /** Plan and zone splits, each with an explicit unlinked bucket. */

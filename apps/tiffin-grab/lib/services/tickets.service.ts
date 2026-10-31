@@ -370,7 +370,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined,
       opts.ownerId ? eq(owner.publicId, opts.ownerId) : undefined,
       q
-        ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
+        ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(customer.email, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
         : undefined,
     );
     const where = and(base, opts.overdue ? isOverdue : undefined);
