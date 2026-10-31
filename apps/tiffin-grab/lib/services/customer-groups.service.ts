@@ -1,8 +1,10 @@
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
-import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, like, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
+import type { AnyColumn } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import {
@@ -21,6 +23,7 @@ import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
 import { walletService } from "./wallet.service";
+import { balanceSql } from "./wallet-balances.service";
 
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
 const BATCH = 500;
@@ -51,6 +54,9 @@ export type GroupMember = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  notifyEmail: boolean;
+  /** Current wallet balance in coins (lapsed holds excluded). */
+  coins: number;
   revenue: string;
   firstOrderDate: string | null;
   lastTiffin: string | null;
@@ -168,10 +174,13 @@ export async function listCustomerGroups(page: {
   page: number;
   size: number;
   range?: EpochRange;
+  q?: string;
 }): Promise<{ rows: CustomerGroupRow[]; total: number }> {
-  const where = page.range
-    ? and(gte(customerGroups.createdAt, page.range.from), lte(customerGroups.createdAt, page.range.to))
-    : undefined;
+  const term = page.q?.trim();
+  const where = and(
+    page.range ? and(gte(customerGroups.createdAt, page.range.from), lte(customerGroups.createdAt, page.range.to)) : undefined,
+    term ? ilike(customerGroups.name, `%${term}%`) : undefined,
+  );
   const [rows, [{ n }]] = await Promise.all([
     groupQuery()
       .where(where)
@@ -191,6 +200,14 @@ export async function searchCustomerGroups(q: string): Promise<{ publicId: strin
     .where(term ? ilike(customerGroups.name, `%${term}%`) : undefined)
     .orderBy(desc(customerGroups.createdAt), desc(customerGroups.id))
     .limit(20);
+}
+
+export async function findCustomerGroup(publicId: string): Promise<{ publicId: string; name: string; memberCount: number } | null> {
+  const [row] = await db
+    .select({ publicId: customerGroups.publicId, name: customerGroups.name, memberCount: customerGroups.memberCount })
+    .from(customerGroups)
+    .where(eq(customerGroups.publicId, publicId));
+  return row ?? null;
 }
 
 const groupsCreatedIn = (r: EpochRange) => and(gte(customerGroups.createdAt, r.from), lte(customerGroups.createdAt, r.to));
@@ -232,6 +249,112 @@ export async function giveCoinsStats(r: EpochRange) {
   };
 }
 
+export type GiveSortColumn = "when" | "customer" | "coins" | "type" | "group" | "givenBy" | "memo";
+export type GiveHistoryFilters = {
+  q?: string;
+  /** `group` = a saved-group grant (`grant:%`), `one` = one customer / renewals page (`broadcast:%`). */
+  type?: "group" | "one";
+  /** Staff member's public id. */
+  givenBy?: string;
+  /** Customer group public id (group grants only). */
+  group?: string;
+  range?: EpochRange;
+  sort: { column: GiveSortColumn; dir: "asc" | "desc" };
+  page: { page: number; size: number };
+};
+
+const giver = alias(users, "giver");
+const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
+// Legacy grants stored the GROUP public id (not an action id) in that segment.
+const legacyGroup = alias(customerGroups, "legacy_group");
+const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
+const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
+
+/** Wallet -> Give coins table: manual_broadcast credits with the group and staff member behind each. */
+export async function giveHistoryRows(f: GiveHistoryFilters) {
+  const term = f.q?.trim();
+  const where = and(
+    eq(walletLedger.sourceType, "manual_broadcast"),
+    eq(walletLedger.direction, "credit"),
+    f.range ? and(gte(walletLedger.createdAt, f.range.from), lte(walletLedger.createdAt, f.range.to)) : undefined,
+    f.type === "group" ? like(walletLedger.sourceId, "grant:%") : f.type === "one" ? like(walletLedger.sourceId, "broadcast:%") : undefined,
+    f.givenBy ? eq(giver.publicId, f.givenBy) : undefined,
+    f.group ? or(eq(customerGroups.publicId, f.group), eq(legacyGroup.publicId, f.group)) : undefined,
+    term ? or(ilike(users.name, `%${term}%`), ilike(users.email, `%${term}%`)) : undefined,
+  );
+  const order: Record<GiveSortColumn, AnyColumn | SQL> = {
+    when: walletLedger.createdAt,
+    customer: users.email,
+    coins: walletLedger.coins,
+    type: walletLedger.sourceId,
+    group: grantGroupName,
+    givenBy: giver.name,
+    memo: walletLedger.memo,
+  };
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        publicId: walletLedger.publicId,
+        createdAt: walletLedger.createdAt,
+        coins: walletLedger.coins,
+        memo: walletLedger.memo,
+        sourceId: walletLedger.sourceId,
+        customerName: users.name,
+        customerEmail: users.email,
+        givenBy: giver.name,
+        groupName: grantGroupName,
+        groupPublicId: grantGroupPublicId,
+      })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
+      .where(where)
+      .orderBy(...pageOrder(f.sort.dir, order[f.sort.column], walletLedger.id))
+      .limit(f.page.size)
+      .offset(f.page.page * f.page.size),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
+      .where(where),
+  ]);
+  return {
+    total,
+    rows: rows.map((r) => ({
+      publicId: r.publicId,
+      createdAt: r.createdAt,
+      coins: r.coins,
+      memo: r.memo,
+      customer: r.customerName || r.customerEmail || "—",
+      type: r.sourceId.startsWith("grant:") ? ("group" as const) : ("one" as const),
+      group: r.groupName,
+      groupPublicId: r.groupPublicId,
+      givenBy: r.givenBy,
+    })),
+  };
+}
+
+/** Facet options for the Give coins filters: staff who have given, and saved groups. */
+export async function giveFilterOptions() {
+  const [givers, groups] = await Promise.all([
+    db
+      .selectDistinct({ value: giver.publicId, label: giver.name })
+      .from(walletLedger)
+      .innerJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .where(eq(walletLedger.sourceType, "manual_broadcast"))
+      .orderBy(giver.name),
+    db.select({ value: customerGroups.publicId, label: customerGroups.name }).from(customerGroups).orderBy(customerGroups.name).limit(200),
+  ]);
+  return { givers, groups };
+}
+
 /** Customer groups cards: groups created in the range and the actions taken in it. */
 export async function customerGroupStats(r: EpochRange) {
   const [{ groups, members }, [a]] = await Promise.all([
@@ -270,16 +393,24 @@ async function memberIds(groupId: bigint) {
 
 async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
   const base = await db
-    .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+    .select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, notifyEmail: users.notifyEmail })
     .from(customerGroupMembers)
     .innerJoin(users, eq(users.id, customerGroupMembers.userId))
     .where(eq(customerGroupMembers.groupId, groupId))
     .orderBy(users.name);
   const { rows } = await listPayoutCandidates({ userIds: await memberIds(groupId) }, { limit: 1_000_000 });
   const stats = new Map(rows.map((r) => [r.publicId, r]));
-  return base.map((u) => {
+  const bal = base.length
+    ? await db
+        .select({ userId: walletLedger.userId, balance: balanceSql() })
+        .from(walletLedger)
+        .where(inArray(walletLedger.userId, base.map((u) => u.id)))
+        .groupBy(walletLedger.userId)
+    : [];
+  const coins = new Map(bal.map((b) => [b.userId, b.balance]));
+  return base.map(({ id, ...u }) => {
     const s = stats.get(u.publicId);
-    return { ...u, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
+    return { ...u, coins: coins.get(id) ?? 0, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
   });
 }
 
@@ -297,6 +428,21 @@ export async function groupMembersCsv(groupPublicId: string): Promise<string> {
     ...detail.members.map((m) => [m.name, m.email, m.phone, m.revenue, m.firstOrderDate, m.lastTiffin]),
   ];
   return lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+}
+
+/** Group page cards. Coins given counts every coins action, legacy backfilled ones included. */
+export async function groupStats(groupPublicId: string) {
+  const [detail, actions] = await Promise.all([getCustomerGroup(groupPublicId), listGroupActions(groupPublicId)]);
+  if (!detail) throw new ValidationError("Group not found");
+  const count = (a: GroupActionRow) => (Array.isArray(a.result.awardedUserIds) ? a.result.awardedUserIds.length : 0);
+  const last = actions[0] ?? null;
+  return {
+    members: detail.members.length,
+    emailOn: detail.members.filter((m) => m.notifyEmail && m.email).length,
+    coinsGiven: actions.filter((a) => a.kind === "coins").reduce((n, a) => n + (Number(a.params.coins) || 0) * count(a), 0),
+    actionsRun: actions.length,
+    lastAction: last ? { kind: last.kind, createdAt: last.createdAt } : null,
+  };
 }
 
 export async function listGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {

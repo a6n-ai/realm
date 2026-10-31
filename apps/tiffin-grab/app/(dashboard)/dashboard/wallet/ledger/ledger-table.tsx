@@ -1,0 +1,86 @@
+"use client";
+
+import Link from "next/link";
+import { ScrollTextIcon } from "lucide-react";
+import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { TableCell } from "@foundry/ui/table";
+
+export type LedgerColumn = "time" | "user" | "event" | "source" | "coins" | "order" | "memo";
+
+/** One ledger line, already formatted by the page (functions cannot cross into a client component). */
+export type LedgerRow = {
+  publicId: string;
+  when: string;
+  direction: "credit" | "debit";
+  eventLabel: string | null;
+  sourceType: string;
+  coins: number;
+  memo: string | null;
+  who: string | null;
+  orderLabel: string | null;
+  orderHref: string | null;
+};
+
+const COLUMNS: readonly Column<LedgerColumn>[] = [
+  { key: "time", label: "Time", sortable: true },
+  { key: "user", label: "User", sortable: true },
+  { key: "event", label: "Event", sortable: true },
+  { key: "source", label: "Source", sortable: true },
+  { key: "coins", label: "Coins", sortable: true, align: "right" },
+  { key: "order", label: "Order", sortable: true },
+  { key: "memo", label: "Memo", sortable: true },
+];
+
+export function LedgerTable({ rows, spec, sort, total, page, size }: {
+  rows: LedgerRow[];
+  spec: FacetDef[];
+  sort: SortState<LedgerColumn>;
+  total: number;
+  page: number;
+  size: number;
+}) {
+  return (
+    <>
+      <DataTable
+        serialOffset={page * size}
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        sort={sort}
+        filters={<ListSearchFilters spec={spec} dateControl="external" placeholder="Search ledger…" shortPlaceholder="Search…" />}
+        emptyIcon={ScrollTextIcon}
+        emptyMessage="No wallet activity yet. Earns and redemptions will appear here."
+        emptySearchMessage="No ledger entries match your search or filters."
+        renderRow={(r) => {
+          const credit = r.direction === "credit";
+          return (
+            <>
+              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
+              <TableCell className="text-muted-foreground">{r.who ?? "—"}</TableCell>
+              <TableCell>{r.eventLabel ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
+              <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+                {credit ? "+" : "−"}
+                {r.coins}
+              </TableCell>
+              <TableCell>
+                {r.orderHref && r.orderLabel ? (
+                  <Link href={r.orderHref} className="text-muted-foreground hover:underline">{r.orderLabel}</Link>
+                ) : (
+                  <span className="text-muted-foreground">{r.orderLabel ?? "—"}</span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
+            </>
+          );
+        }}
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </>
+  );
+}
+
+export function LedgerTableSkeleton() {
+  return <DataTable.Skeleton columns={COLUMNS} />;
+}

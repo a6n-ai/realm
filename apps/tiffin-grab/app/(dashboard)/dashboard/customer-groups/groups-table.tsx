@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
-import { DataTable, ListPagination, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
+import { GroupRowActions } from "./group-quick-actions";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
@@ -17,18 +19,19 @@ export type GroupTableRow = {
   lastAction: { kind: string; createdAt: number } | null;
 };
 
-type GroupColumn = "name" | "members" | "last" | "created";
+type GroupColumn = "name" | "members" | "last" | "created" | "actions";
 
 const COLUMNS: readonly Column<GroupColumn>[] = [
   { key: "name", label: "Group" },
   { key: "members", label: "Customers", align: "right" },
   { key: "last", label: "Last action" },
   { key: "created", label: "Created" },
+  { key: "actions", label: "", align: "right" },
 ];
 
 const ACTION_LABEL: Record<string, string> = { coins: "Coins given", email: "Emailed", discount: "Coupon applied" };
 
-export function GroupsTable({ rows, total, page, size }: { rows: GroupTableRow[]; total: number; page: number; size: number }) {
+export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTableRow[]; spec: FacetDef[]; total: number; page: number; size: number }) {
   const tz = useTimezone();
   return (
     <>
@@ -38,8 +41,10 @@ export function GroupsTable({ rows, total, page, size }: { rows: GroupTableRow[]
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
+        filters={<ListSearchFilters spec={spec} dateControl="external" placeholder="Search groups…" shortPlaceholder="Search…" />}
         emptyIcon={UsersIcon}
         emptyMessage="No customer groups yet. Save a set of customers once, then give them coins, email them or offer a coupon."
+        emptySearchMessage="No groups match your search."
         emptyAction={
           <Button asChild>
             <Link href="?new=1" scroll={false}><PlusIcon /> New group</Link>
@@ -59,6 +64,9 @@ export function GroupsTable({ rows, total, page, size }: { rows: GroupTableRow[]
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}
               {r.createdBy ? ` · ${r.createdBy}` : ""}
+            </TableCell>
+            <TableCell className="text-right">
+              <GroupRowActions publicId={r.publicId} name={r.name} />
             </TableCell>
           </>
         )}

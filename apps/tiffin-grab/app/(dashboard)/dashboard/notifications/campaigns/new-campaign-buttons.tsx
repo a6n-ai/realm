@@ -3,6 +3,7 @@
 import { useFormStatus } from "react-dom";
 import { Button } from "@foundry/ui/button";
 import { createDraftCampaign } from "./actions";
+import type { PickedGroup } from "../../customer-groups/group-picker";
 import { EmailGroupDialog } from "./email-group-dialog";
 
 function Buttons() {
@@ -24,10 +25,10 @@ function Buttons() {
 }
 
 /** A form post, not a link: a GET must never create a draft. */
-export function NewCampaignButtons() {
+export function NewCampaignButtons({ presetGroup = null, groupMissing = false }: { presetGroup?: PickedGroup | null; groupMissing?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <EmailGroupDialog />
+      <EmailGroupDialog presetGroup={presetGroup} groupMissing={groupMissing} />
       <form action={createDraftCampaign} className="flex items-center gap-2">
         <Buttons />
       </form>

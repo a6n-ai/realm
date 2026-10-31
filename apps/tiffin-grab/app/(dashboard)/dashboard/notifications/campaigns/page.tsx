@@ -10,6 +10,7 @@ import { db } from "@/db/client";
 import { campaign, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { withListDates } from "@/lib/list/default-month";
+import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
 
@@ -57,7 +58,9 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
         title="Campaigns"
         subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
         action={
-          <NewCampaignButtons />
+          <Suspense fallback={<NewCampaignButtons />}>
+            <Buttons searchParams={searchParams} />
+          </Suspense>
         }
       >
         <Suspense fallback={<CampaignsTableSkeleton />}>
@@ -66,6 +69,13 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
       </SectionCard>
     </div>
   );
+}
+
+async function Buttons({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const groupId = (await searchParams).emailGroup;
+  const preset = groupId ? await findCustomerGroup(groupId) : null;
+  return <NewCampaignButtons presetGroup={preset} groupMissing={Boolean(groupId) && !preset} />;
 }
 
 // SES account limits, not a per-campaign figure — shown once above the list so
