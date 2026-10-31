@@ -21,7 +21,7 @@ const CARD_SUBTITLE =
   "One-off bulk payout: filter down to a set of customers, review who's included, and award a coin amount. Not a standing rule — running the same filters again pays again.";
 
 type AccountResult = { publicId: string; fullName: string | null; phone: string | null; email: string | null };
-type Candidate = Awaited<ReturnType<typeof getPayoutCandidates>>[number];
+type Candidate = Awaited<ReturnType<typeof getPayoutCandidates>>["rows"][number];
 type RevenueOp = ">" | "<" | "=";
 
 function money(v: string): string {
@@ -68,7 +68,7 @@ export function CustomerPayoutPanel({ cities }: { cities: string[] }) {
     }
     startSearch(async () => {
       try {
-        const rows = await getPayoutCandidates({
+        const { rows } = await getPayoutCandidates({
           accountPublicId: account?.publicId ?? null,
           revenueOp: revenueOp || null,
           revenueValue: n,

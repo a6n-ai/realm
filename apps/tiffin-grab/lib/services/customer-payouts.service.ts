@@ -2,10 +2,15 @@
 // broadcast. A manual, admin-picks-people-right-now action with no
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
-import { and, eq, exists, gte, lte, sql } from "drizzle-orm";
+import { zonedDateIso } from "@foundry/commons";
+import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
+import { getAppSettings } from "./app-settings.service";
+import { lastTiffinSql, laterOrderSql } from "./orders.service";
 import { walletService } from "./wallet.service";
+
+export const MAX_REVIEW_ROWS = 2000;
 
 export type RevenueOp = ">" | "<" | "=";
 
@@ -16,6 +21,11 @@ export type PayoutCandidateFilters = {
   startDateFrom?: string | null; // ISO date
   startDateTo?: string | null; // ISO date
   city?: string | null;
+  lastTiffinFrom?: string | null; // ISO date, latest plan's last tiffin
+  lastTiffinTo?: string | null;
+  lapsed?: boolean | null; // latest plan ended before today and was not renewed
+  lapsedFrom?: string | null;
+  lapsedTo?: string | null;
 };
 
 export type PayoutCandidate = {
@@ -25,6 +35,7 @@ export type PayoutCandidate = {
   email: string | null;
   revenue: string;
   firstOrderDate: string;
+  lastTiffin: string | null;
 };
 
 const REVENUE_SQL = sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`;
@@ -39,7 +50,10 @@ export async function listOrderCities(): Promise<string[]> {
 // revenue (same "payment credits − refund debits" formula as
 // ledger.service.ts::totalSpent, generalized across all customers at once
 // instead of one query per customer).
-export async function listPayoutCandidates(filters: PayoutCandidateFilters): Promise<PayoutCandidate[]> {
+export async function listPayoutCandidates(
+  filters: PayoutCandidateFilters,
+  { limit = MAX_REVIEW_ROWS }: { limit?: number } = {},
+): Promise<{ rows: PayoutCandidate[]; total: number }> {
   const orderAgg = db
     .select({
       userId: orders.userId,
@@ -58,7 +72,27 @@ export async function listPayoutCandidates(filters: PayoutCandidateFilters): Pro
     .groupBy(ledgerEntries.userId)
     .as("ra");
 
+  // Each customer's latest plan; lastTiffinSql/laterOrderSql bind to the outer `orders`.
+  const latestPlan = db
+    .selectDistinctOn([orders.userId], {
+      userId: orders.userId,
+      lastTiffin: sql<string | null>`${lastTiffinSql}`.as("last_tiffin"),
+      renewed: sql<boolean>`${laterOrderSql}`.as("renewed"),
+    })
+    .from(orders)
+    .where(inArray(orders.status, ["active", "paused", "completed"]))
+    .orderBy(orders.userId, desc(orders.startDate))
+    .as("lp");
+
   const conditions = [eq(users.role, "user")];
+  if (filters.lastTiffinFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lastTiffinFrom));
+  if (filters.lastTiffinTo) conditions.push(lte(latestPlan.lastTiffin, filters.lastTiffinTo));
+  if (filters.lapsed || filters.lapsedFrom || filters.lapsedTo) {
+    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    conditions.push(sql`${latestPlan.lastTiffin} < ${today}`, sql`not ${latestPlan.renewed}`);
+    if (filters.lapsedFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lapsedFrom));
+    if (filters.lapsedTo) conditions.push(lte(latestPlan.lastTiffin, filters.lapsedTo));
+  }
   if (filters.accountPublicId) conditions.push(eq(users.publicId, filters.accountPublicId));
   if (filters.startDateFrom) conditions.push(gte(orderAgg.firstOrderDate, filters.startDateFrom));
   if (filters.startDateTo) conditions.push(lte(orderAgg.firstOrderDate, filters.startDateTo));
@@ -88,14 +122,18 @@ export async function listPayoutCandidates(filters: PayoutCandidateFilters): Pro
       email: users.email,
       revenue: sql<string>`coalesce(${revenueAgg.revenue}, 0)`,
       firstOrderDate: orderAgg.firstOrderDate,
+      lastTiffin: latestPlan.lastTiffin,
+      total: sql<number>`count(*) over()`.mapWith(Number),
     })
     .from(users)
     .innerJoin(orderAgg, eq(orderAgg.userId, users.id))
     .leftJoin(revenueAgg, eq(revenueAgg.userId, users.id))
+    .leftJoin(latestPlan, eq(latestPlan.userId, users.id))
     .where(and(...conditions))
-    .orderBy(users.name);
+    .orderBy(users.name)
+    .limit(limit);
 
-  return rows;
+  return { rows: rows.map(({ total: _t, ...r }) => r), total: rows[0]?.total ?? 0 };
 }
 
 export async function awardCustomerBroadcast(

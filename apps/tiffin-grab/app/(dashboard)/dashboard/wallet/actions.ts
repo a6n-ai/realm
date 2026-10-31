@@ -52,9 +52,14 @@ const payoutFiltersSchema = z.object({
   startDateFrom: z.string().trim().min(1).nullish(),
   startDateTo: z.string().trim().min(1).nullish(),
   city: z.string().trim().min(1).nullish(),
+  lastTiffinFrom: z.string().trim().min(1).nullish(),
+  lastTiffinTo: z.string().trim().min(1).nullish(),
+  lapsed: z.boolean().nullish(),
+  lapsedFrom: z.string().trim().min(1).nullish(),
+  lapsedTo: z.string().trim().min(1).nullish(),
 });
 
-export async function getPayoutCandidates(input: unknown): Promise<PayoutCandidate[]> {
+export async function getPayoutCandidates(input: unknown): Promise<{ rows: PayoutCandidate[]; total: number }> {
   await requireAdmin();
   const filters = payoutFiltersSchema.parse(input) satisfies PayoutCandidateFilters;
   return listPayoutCandidates(filters);
