@@ -32,7 +32,14 @@ const COLUMNS: Column[] = [
 ];
 
 const CAD = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
-const DAY = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const WEEKDAY = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" });
+
+/** "Oct 31 · Saturday": date first, then the full day name. */
+export function dayLabel(isoDate: string) {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  return `${DATE.format(d)} · ${WEEKDAY.format(d)}`;
+}
 
 /** Profit is the only column with a fill-free, signed reading; it is the one place a zero is a result. */
 const SIGNED: Column["key"] = "profit";
@@ -56,7 +63,12 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
   const ranges = Object.fromEntries(COLUMNS.map((c) => [c.key, range(rows, c.key)]));
   return (
     <div className="max-h-[32rem] overflow-auto">
-      <Table>
+      <Table className="table-fixed">
+        <colgroup>
+          {[null, ...COLUMNS].map((_, i) => (
+            <col key={i} style={{ width: `${100 / (COLUMNS.length + 1)}%` }} />
+          ))}
+        </colgroup>
         <TableHeader>
           <TableRow>
             <TableHead className="bg-card sticky top-0 z-10">Day</TableHead>
@@ -81,10 +93,10 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
                 <TableCell className="py-0 whitespace-nowrap">
                   <Link
                     href={r.href}
-                    aria-label={`${DAY.format(new Date(`${r.date}T00:00:00Z`))}: open orders`}
+                    aria-label={`${dayLabel(r.date)}: open orders`}
                     className="focus-visible:ring-ring/50 rounded-sm outline-none hover:underline focus-visible:ring-2"
                   >
-                    {DAY.format(new Date(`${r.date}T00:00:00Z`))}
+                    {dayLabel(r.date)}
                   </Link>
                 </TableCell>
                 {COLUMNS.map((c) => {
