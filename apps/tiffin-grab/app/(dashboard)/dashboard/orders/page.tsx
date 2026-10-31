@@ -43,6 +43,13 @@ import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
+// Work-queue tabs list every date, whatever the picker says; say so, since the picker still drives the cards.
+function listNote(view?: string) {
+  if (view === "lookout" || view === "payment" || view === "missed") return "All dates: this tab ignores the date range, which only changes the cards above";
+  if (view === "free") return "Orders with a free tiffin delivered in the date range";
+  return undefined;
+}
+
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -80,7 +87,7 @@ export default async function OrdersPage({
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
         <OrdersViews searchParams={searchParams} />
       </Suspense>
-      <SectionCard title="Orders">
+      <SectionCard title="Orders" subtitle={listNote(raw.view)}>
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
