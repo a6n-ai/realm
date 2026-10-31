@@ -62,6 +62,7 @@ type CouponRow = {
   expiresAt: number | null;
   active: boolean;
   config: CouponConfig | null;
+  groupName: string | null;
 };
 
 type Draft = {
@@ -84,6 +85,7 @@ type Draft = {
   autoApply: boolean;
   visible: boolean;
   active: boolean;
+  groupName: string | null;
 };
 
 function emptyDraft(): Draft {
@@ -107,6 +109,7 @@ function emptyDraft(): Draft {
     autoApply: false,
     visible: true,
     active: true,
+    groupName: null,
   };
 }
 
@@ -131,6 +134,7 @@ function toDraft(c: CouponRow, tz: string): Draft {
     autoApply: c.autoApply,
     visible: c.visible,
     active: c.active,
+    groupName: c.groupName,
   };
 }
 
@@ -491,10 +495,18 @@ export function CouponsManager({
                   </div>
                 </div>
 
+                {draft.groupName && (
+                  <p className="text-sm text-muted-foreground">Group: {draft.groupName} (members only; set from the group page)</p>
+                )}
                 <ToggleRow
                   id="cpn-auto"
                   label="Auto-apply"
-                  hint="Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
+                  hint={
+                    draft.groupName
+                      ? "Not available for group-only coupons."
+                      : "Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
+                  }
+                  disabled={draft.groupName != null}
                   checked={draft.autoApply}
                   onChange={(v) => setDraft({ ...draft, autoApply: v })}
                 />

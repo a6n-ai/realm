@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import {
   customerGroupActions,
   customerGroupMembers,
+  coupons,
   customerGroups,
   users,
   walletLedger,
@@ -363,4 +364,27 @@ export async function emailAwardedMembers(
   });
   await recordEmailAction(group.id, { fromAction: actionPublicId, listPublicId: listId }, publicId, actorId);
   return { campaignPublicId: publicId };
+}
+
+// Group-only coupons are never auto-apply: that would hand the discount to everyone who qualifies without a code.
+export async function applyGroupCoupon(groupPublicId: string, couponPublicId: string, actorId: bigint | null): Promise<void> {
+  const g = await groupByPublicId(groupPublicId);
+  const [c] = await db.select().from(coupons).where(eq(coupons.publicId, couponPublicId));
+  if (!c) throw new ValidationError("Coupon not found");
+  if (!c.active) throw new ValidationError("Coupon is not active");
+  if (c.autoApply) throw new ValidationError("An auto-apply coupon can't be limited to a group");
+  if (c.customerGroupId != null && c.customerGroupId !== g.id) {
+    throw new ValidationError("Coupon already belongs to another group");
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(coupons).set({ customerGroupId: g.id }).where(eq(coupons.id, c.id));
+    await tx.insert(customerGroupActions).values({
+      groupId: g.id,
+      kind: "discount",
+      params: { couponCode: c.code },
+      result: {},
+      createdBy: actorId,
+      updatedBy: actorId,
+    });
+  });
 }

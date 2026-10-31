@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { and, asc, desc, eq, ilike, notInArray, or } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
-import { coupons } from "@/db/schema";
+import { coupons, customerGroups } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -81,8 +81,10 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       expiresAt: coupons.expiresAt,
       active: coupons.active,
       config: coupons.config,
+      groupName: customerGroups.name,
     })
     .from(coupons)
+    .leftJoin(customerGroups, eq(customerGroups.id, coupons.customerGroupId))
     .where(and(
       notInArray(coupons.kind, ["rep_daily", "rep_code"]),
       epochBoundsWhere(coupons.createdAt, sp),

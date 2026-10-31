@@ -71,6 +71,15 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     if (mode === "fixed" && data.valueAmount == null) throw new ValidationError("Set the amount value");
   }
 
+  if (publicId && data.autoApply) {
+    const [row] = await db
+      .select({ customerGroupId: coupons.customerGroupId })
+      .from(coupons)
+      .where(eq(coupons.publicId, publicId))
+      .limit(1);
+    if (row?.customerGroupId != null) throw new ValidationError("A group-only coupon can't be auto-apply");
+  }
+
   const config: CouponConfig =
     data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
 
