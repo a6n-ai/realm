@@ -6,7 +6,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, mealSizes, orders, organization, plans, users } = await import("@/db/schema");
-const { getKitchenWeek } = await import("../overview.service");
+const { getKitchenWeek, kitchenAmount } = await import("../overview.service");
 
 const suffix = Math.random().toString(36).slice(2);
 const MONDAY = "2035-03-05";
@@ -71,5 +71,14 @@ describe("getKitchenWeek (integration)", () => {
 
   it("returns nothing when no franchise is visible", async () => {
     expect(await getKitchenWeek([], MONDAY)).toEqual([]);
+  });
+});
+
+describe("kitchenAmount", () => {
+  it("sums roti pieces and rice portions, counts containers for weight dishes", () => {
+    expect(kitchenAmount({ categoryLabel: "Roti", portion: "8 roti", count: 12 })).toEqual({ mealSize: "Roti · pieces", units: 96 });
+    expect(kitchenAmount({ categoryLabel: "Rice", portion: "2 unit", count: 5 })).toEqual({ mealSize: "Rice · portions", units: 10 });
+    expect(kitchenAmount({ categoryLabel: "Daal", portion: "8oz", count: 7 })).toEqual({ mealSize: "Daal · containers", units: 7 });
+    expect(kitchenAmount({ categoryLabel: "Salad", portion: null, count: 3 })).toEqual({ mealSize: "Salad · containers", units: 3 });
   });
 });

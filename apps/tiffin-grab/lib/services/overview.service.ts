@@ -114,16 +114,29 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
   return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDays);
 }
 
+// Count categories print as "<n> <unit>" ("8 roti", "1 unit"); weight ones as "8oz" (no space).
+const COUNT_PORTION = /^(\d+(?:\.\d+)?) (\S.*)$/;
+const COUNT_UNIT_NAME: Record<string, string> = { roti: "pieces", unit: "portions", dish: "dishes" };
+
 /**
- * Containers to cook per dish category (Sabzi, Daal, Roti, Rice…) for each day of the week, from the
+ * What to cook for one kitchen-count line. Count categories (roti, rice, weekend dish) sum the
+ * portion amount, so roti is pieces (12 × "8 roti" = 96); everything else counts containers.
+ */
+export function kitchenAmount(c: { categoryLabel: string; portion: string | null; count: number }): { mealSize: string; units: number } {
+  const m = c.portion ? COUNT_PORTION.exec(c.portion) : null;
+  if (!m) return { mealSize: `${c.categoryLabel} · containers`, units: c.count };
+  const unit = COUNT_UNIT_NAME[m[2]!] ?? m[2]!;
+  return { mealSize: `${c.categoryLabel} · ${unit}`, units: Number(m[1]) * c.count };
+}
+
+/**
+ * What to cook per dish category (Sabzi, Daal, Roti, Rice…) for each day of the week, from the
  * same label sheet the kitchen prints. Days whose menu week is not released count 0 (labels cannot
  * resolve). Not franchise-scoped (the label sheet is not), so the page shows it to all-scope users only.
  */
 export async function getKitchenWeekDishes(monday: string): Promise<KitchenWeekRow[]> {
   const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const sheets = await Promise.all(dates.map((d) => dailyLabelSheet(d)));
-  const cells = sheets.flatMap((sheet, i) =>
-    countBy(sheet.labels).map((c) => ({ mealSize: c.categoryLabel, date: dates[i]!, units: c.count })),
-  );
+  const cells = sheets.flatMap((sheet, i) => countBy(sheet.labels).map((c) => ({ ...kitchenAmount(c), date: dates[i]! })));
   return buildKitchenWeek(cells, monday, addDays);
 }
