@@ -10,7 +10,7 @@ import { coupons, customerGroups, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
 import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
-import { setCouponGroup } from "@/lib/services/customer-groups.service";
+import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 
@@ -106,14 +106,25 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     config,
   };
 
-  // Resolve the group before any write: an unknown id must not leave a coupon saved as open to Everyone.
+  // Resolve the group before any write and save it with the coupon in ONE write: an unknown id or a
+  // second-step failure must never leave a coupon saved as open to Everyone. Omitted = unchanged; null = Everyone.
+  let groupId: bigint | null | undefined;
   if (data.customerGroupPublicId) {
     const [g] = await db.select({ id: customerGroups.id }).from(customerGroups).where(eq(customerGroups.publicId, data.customerGroupPublicId));
     if (!g) throw new ValidationError("Group not found");
+    groupId = g.id;
+  } else if (data.customerGroupPublicId === null) {
+    groupId = null;
   }
+  const before = publicId
+    ? (await db.select({ customerGroupId: coupons.customerGroupId }).from(coupons).where(eq(coupons.publicId, publicId)))[0]
+    : undefined;
+  const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
 
-  const saved = publicId ? await couponsService.update(publicId, values) : await couponsService.create(values);
-  await setCouponGroup(saved.publicId, data.customerGroupPublicId ?? null, await currentUserId());
+  const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
+  if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
+    await recordCouponGroupAction(groupId, data.code, await currentUserId());
+  }
   revalidatePath(PATH, "layout");
 }
 

@@ -364,7 +364,7 @@ export function CouponsManager({
                 </div>
                 <div className="grid gap-1.5">
                   <Label>Kind</Label>
-                  <Select value={draft.kind} onValueChange={(v) => setDraft({ ...draft, kind: v as CouponKind })}>
+                  <Select value={draft.kind} onValueChange={(v) => setDraft({ ...draft, kind: v as CouponKind, group: v === "rep_daily" || v === "rep_code" ? null : draft.group })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

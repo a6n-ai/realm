@@ -37,6 +37,18 @@ vi.mock("../app-settings.service", async (orig) => ({
   getMaxWalletBalance: async () => 100,
 }));
 
+const failLists = vi.hoisted(() => ({ on: false }));
+vi.mock("@relay/engine", async (orig) => {
+  const real = await orig<typeof import("@relay/engine")>();
+  return {
+    ...real,
+    createContactList: (...a: Parameters<typeof real.createContactList>) => {
+      if (failLists.on) throw new Error("relay down");
+      return real.createContactList(...a);
+    },
+  };
+});
+
 let uOk: bigint;
 let uCapped: bigint;
 let uNoEmail: bigint;
@@ -259,6 +271,41 @@ describe("customer groups", () => {
     await db.delete(campaigns).where(eq(campaigns.publicId, campaignPublicId));
     await db.delete(contactListMember).where(eq(contactListMember.listId, l.id));
     await db.delete(contactList).where(eq(contactList.id, l.id));
+  });
+
+  it("a sync failure after the write still creates the group and reports a warning", async () => {
+    failLists.on = true;
+    try {
+      const r = await createCustomerGroup({ name: "g-syncfail", filters: {}, userIds: [uOk] }, null);
+      const [g] = await db.select().from(customerGroups).where(eq(customerGroups.publicId, r.publicId));
+      groupIds.push(g.id);
+      expect(g).toBeTruthy();
+      expect(r.warning).toBeTruthy();
+    } finally {
+      failLists.on = false;
+    }
+  });
+
+  it("a member who turns email off drops off an already-built awarded-members list", async () => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `cg-optout-${run}-${Math.random().toString(36).slice(2)}@throwaway.local`, name: "OptOut" })
+      .returning();
+    try {
+      const g = await mk("g-optout", [u.id, uOk]);
+      const r = await giveGroupCoins(g.publicId, { coins: 5 }, uOk);
+      const { campaignPublicId } = await emailAwardedMembers(r.actionPublicId, uOk);
+      const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
+      const listId = (c.audience as { listIds: string[] }).listIds[0];
+      expect(await listMemberCount(listId)).toBe(2);
+      await usersService.updatePreferences(u.publicId, { notifyEmail: false });
+      expect(await listMemberCount(listId)).toBe(1);
+    } finally {
+      await db.delete(notificationOutbox).where(eq(notificationOutbox.recipientId, u.id));
+      await db.delete(walletLedger).where(eq(walletLedger.userId, u.id));
+      await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
   });
 
   it("giveGroupCoins sends no wallet_credited; the coins email is prefilled with the coin count", async () => {

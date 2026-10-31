@@ -3,6 +3,7 @@ import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
 import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import {
   campaign,
@@ -23,6 +24,18 @@ import { walletService } from "./wallet.service";
 
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
 const BATCH = 500;
+const log = createLogger("customer-groups");
+
+// The write already committed; a failed list sync must not look like a failed action (staff would retry and duplicate).
+async function syncAfterWrite(groupPublicId: string): Promise<string | undefined> {
+  try {
+    await syncGroupContactList(groupPublicId);
+    return undefined;
+  } catch (e) {
+    log.error({ groupPublicId, err: e }, "group contact list sync failed after write");
+    return "Saved, but the email list could not be updated yet. It will catch up on the next change.";
+  }
+}
 
 export type LastAction = { kind: string; createdAt: number };
 export type CustomerGroupRow = {
@@ -76,7 +89,7 @@ async function recountMembers(groupId: bigint) {
 export async function createCustomerGroup(
   input: { name: string; filters: Record<string, unknown>; userIds: bigint[] },
   actorId: bigint | null,
-): Promise<{ publicId: string }> {
+): Promise<{ publicId: string; warning?: string }> {
   const userIds = [...new Set(input.userIds)];
   if (userIds.length === 0) throw new ValidationError("Pick at least one customer");
   const created = await db.transaction(async (tx) => {
@@ -89,11 +102,10 @@ export async function createCustomerGroup(
     }
     return { publicId: g.publicId };
   });
-  await syncGroupContactList(created.publicId);
-  return created;
+  return { ...created, warning: await syncAfterWrite(created.publicId) };
 }
 
-export async function addGroupMembers(groupPublicId: string, userIds: bigint[]): Promise<void> {
+export async function addGroupMembers(groupPublicId: string, userIds: bigint[]): Promise<{ warning?: string }> {
   const g = await groupByPublicId(groupPublicId);
   for (const slice of chunks([...new Set(userIds)])) {
     await db
@@ -102,10 +114,10 @@ export async function addGroupMembers(groupPublicId: string, userIds: bigint[]):
       .onConflictDoNothing();
   }
   await recountMembers(g.id);
-  await syncGroupContactList(groupPublicId);
+  return { warning: await syncAfterWrite(groupPublicId) };
 }
 
-export async function removeGroupMember(groupPublicId: string, userPublicId: string): Promise<void> {
+export async function removeGroupMember(groupPublicId: string, userPublicId: string): Promise<{ warning?: string }> {
   const g = await groupByPublicId(groupPublicId);
   await db.delete(customerGroupMembers).where(
     and(
@@ -114,7 +126,7 @@ export async function removeGroupMember(groupPublicId: string, userPublicId: str
     ),
   );
   await recountMembers(g.id);
-  await syncGroupContactList(groupPublicId);
+  return { warning: await syncAfterWrite(groupPublicId) };
 }
 
 const creator = alias(users, "creator");
@@ -518,20 +530,60 @@ export async function syncGroupContactList(groupPublicId: string): Promise<{ con
   return { contactListPublicId: listPublicId! };
 }
 
-/** Resyncs every group containing the user; call after anything that changes their notifyEmail, email or status. */
+/**
+ * Resyncs every group containing the user, and drops them from the one-off "email awarded members" lists
+ * when they are no longer emailable; call after anything that changes their notifyEmail, email or status.
+ */
 export async function syncGroupsForUser(userId: bigint): Promise<void> {
   const groups = await db
-    .select({ publicId: customerGroups.publicId })
+    .select({ id: customerGroups.id, publicId: customerGroups.publicId })
     .from(customerGroupMembers)
     .innerJoin(customerGroups, eq(customerGroups.id, customerGroupMembers.groupId))
     .where(eq(customerGroupMembers.userId, userId));
   for (const g of groups) await syncGroupContactList(g.publicId);
+  if (groups.length) await pruneAwardedLists(groups.map((g) => g.id));
 }
 
-/** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. */
+// Removal only: the one-off list is a snapshot, but it must never mail someone who has since opted out or left.
+async function pruneAwardedLists(groupIds: bigint[]) {
+  const emails = await db
+    .select({ actionId: customerGroupActions.params, listPublicId: sql<string>`${customerGroupActions.params} ->> 'listPublicId'` })
+    .from(customerGroupActions)
+    .where(and(inArray(customerGroupActions.groupId, groupIds), eq(customerGroupActions.kind, "email"), sql`${customerGroupActions.params} ? 'fromAction'`));
+  for (const e of emails) {
+    const { fromAction } = e.actionId as { fromAction: string };
+    const { awarded } = await coinsAction(fromAction);
+    const [list] = await db.select({ id: contactList.id }).from(contactList).where(eq(contactList.publicId, e.listPublicId));
+    if (!list) continue;
+    const people = awarded.length
+      ? emailable(
+          await db
+            .select({ email: users.email, notifyEmail: users.notifyEmail })
+            .from(users)
+            .where(and(inArray(users.id, awarded), ne(users.status, "deleted"))),
+        )
+      : [];
+    const keep = people.map((u) => normalizeAddress(u.email!));
+    await db
+      .delete(contactListMember)
+      .where(and(eq(contactListMember.listId, list.id), keep.length ? notInArray(contactListMember.email, keep) : undefined));
+    await db
+      .update(contactList)
+      .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${list.id})` })
+      .where(eq(contactList.id, list.id));
+  }
+}
+
+/** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. Each group is independent. */
 export async function syncAllGroupContactLists(): Promise<void> {
   const groups = await db.select({ publicId: customerGroups.publicId }).from(customerGroups);
-  for (const g of groups) await syncGroupContactList(g.publicId);
+  for (const g of groups) {
+    try {
+      await syncGroupContactList(g.publicId);
+    } catch (e) {
+      log.error({ groupPublicId: g.publicId, err: e }, "group contact list sync failed");
+    }
+  }
 }
 
 export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {
@@ -612,18 +664,18 @@ export async function applyGroupCoupon(
   });
 }
 
-/** Coupon form: a changed group records one `discount` action; clearing or re-saving the same group records none. */
-export async function setCouponGroup(couponPublicId: string, groupPublicId: string | null, actorId: bigint | null): Promise<void> {
-  const [c] = await db
-    .select({ id: coupons.id, customerGroupId: coupons.customerGroupId })
-    .from(coupons)
-    .where(eq(coupons.publicId, couponPublicId));
-  if (!c) throw new ValidationError("Coupon not found");
-  if (groupPublicId == null) {
-    if (c.customerGroupId != null) await db.update(coupons).set({ customerGroupId: null }).where(eq(coupons.id, c.id));
-    return;
+/** Coupon form saves the group with the coupon; this only records the one `discount` action for a newly attached group. */
+export async function recordCouponGroupAction(groupId: bigint, couponCode: string, actorId: bigint | null): Promise<void> {
+  try {
+    await db.insert(customerGroupActions).values({
+      groupId,
+      kind: "discount",
+      params: { couponCode },
+      result: {},
+      createdBy: actorId,
+      updatedBy: actorId,
+    });
+  } catch (e) {
+    log.error({ groupId, err: e }, "could not record coupon group action");
   }
-  const g = await groupByPublicId(groupPublicId);
-  if (c.customerGroupId === g.id) return;
-  await applyGroupCoupon(groupPublicId, couponPublicId, actorId, { fromForm: true });
 }

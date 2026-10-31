@@ -116,4 +116,32 @@ describe("coupon form customer group", () => {
       await db.delete(customerGroups).where(eq(customerGroups.id, g.id));
     }
   });
+
+  it("rejects a group on a rep kind with no write, and an omitted group keeps it", async () => {
+    const [g] = await db.insert(customerGroups).values({ name: "form-group-2", filters: {} }).returning();
+    try {
+      await expect(
+        saveCoupon(null, { ...basePatch, code: "GRPREP", kind: "rep_code" as const, customerGroupPublicId: g.publicId }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(await db.select().from(coupons).where(eq(coupons.code, "GRPREP"))).toHaveLength(0);
+
+      await expect(
+        saveCoupon(null, { ...basePatch, code: "GRPBAD", kind: "percentage" as const, valuePct: 5, customerGroupPublicId: "no-such-group" }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(await db.select().from(coupons).where(eq(coupons.code, "GRPBAD"))).toHaveLength(0);
+
+      const patch = { ...basePatch, code: "GRPKEEP", kind: "percentage" as const, valuePct: 10, customerGroupPublicId: g.publicId };
+      await saveCoupon(null, patch);
+      const [c] = await db.select().from(coupons).where(eq(coupons.code, "GRPKEEP"));
+      const { customerGroupPublicId: _omit, ...noGroup } = patch;
+      await saveCoupon(c.publicId, { ...noGroup, name: "Renamed again" });
+      const [kept] = await db.select().from(coupons).where(eq(coupons.id, c.id));
+      expect(kept.customerGroupId).toBe(g.id);
+      expect(kept.name).toBe("Renamed again");
+    } finally {
+      await db.delete(coupons).where(eq(coupons.code, "GRPKEEP"));
+      await db.delete(customerGroupActions).where(eq(customerGroupActions.groupId, g.id));
+      await db.delete(customerGroups).where(eq(customerGroups.id, g.id));
+    }
+  });
 });

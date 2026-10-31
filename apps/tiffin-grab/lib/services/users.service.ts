@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
+import { createLogger } from "@foundry/commons/logger";
 import { syncGroupsForUser } from "./customer-groups.service";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
@@ -209,7 +210,13 @@ class UsersService extends SessionUpdatableService<typeof users> {
   // Customer-group send lists mirror notifyEmail/email/status; Relay never rechecks them at send time.
   private async syncGroups(publicId: string) {
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    if (u) await syncGroupsForUser(u.id);
+    if (!u) return;
+    try {
+      await syncGroupsForUser(u.id);
+    } catch (e) {
+      // The preference already saved; the next sync catches up.
+      log.error({ userId: publicId, err: e }, "customer group sync failed");
+    }
   }
 
   async updateProfile(
@@ -503,6 +510,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
 }
 
 // Carries the holder so the admin UI can link to their page.
+const log = createLogger("users-service");
+
 export class ContactTakenError extends ValidationError {
   constructor(message: string, readonly holder: { publicId: string; role: string }) {
     super(message);

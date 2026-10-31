@@ -10,6 +10,7 @@ import { db } from "@/db/client";
 import { campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
+import { createLogger } from "@foundry/commons/logger";
 import { syncAllGroupContactLists } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
@@ -27,6 +28,8 @@ import type { AudienceValue } from "@relay/engine/ui/audience-builder";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 import { BulkRuns } from "./bulk-runs";
+
+const log = createLogger("campaign-page");
 
 // Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
 const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
@@ -76,7 +79,11 @@ export default async function CampaignPage({
   const retriggerable =
     !isSystem &&
     (row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled");
-  await syncAllGroupContactLists();
+  try {
+    await syncAllGroupContactLists();
+  } catch (e) {
+    log.error({ err: e }, "customer group list catch-up failed");
+  }
   const [content, lists, { timezone }, unsubscribes] = await Promise.all([
     db
       .select({
