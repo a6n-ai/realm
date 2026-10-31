@@ -81,7 +81,7 @@ export function SummaryStep({ groupId, listError, onReset }: { groupId: string; 
       <div>
         <h3 className="text-base font-semibold">{g.name}</h3>
         <p className="text-muted-foreground text-sm tabular-nums">
-          {g.coins} coin{g.coins === 1 ? "" : "s"} each · {g.memberCount} customers · {g.awardedCount} awarded · {g.cappedCount} blocked by cap · {g.noEmailCount} without email
+          {g.coins} coin{g.coins === 1 ? "" : "s"} each · {g.memberCount} customer{g.memberCount === 1 ? "" : "s"} · {g.awardedCount} awarded · {g.cappedCount} blocked by cap · {g.noEmailCount} without email
         </p>
       </div>
       {noList && (

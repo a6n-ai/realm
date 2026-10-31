@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertCircleIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -33,6 +34,7 @@ export function CoinsStep({
   onBack: () => void;
   onSaved: (r: { publicId: string; listError: string | null }) => void;
 }) {
+  const router = useRouter();
   const [memo, setMemo] = React.useState("");
   const [saving, startSave] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
@@ -55,6 +57,7 @@ export function CoinsStep({
         // number - that is how 20 real customers once got 155 coins instead of 5.
         onCoinsChange("0");
         toast.success(`${r.awarded} awarded${r.capped ? `, ${r.capped} blocked by the wallet cap` : ""}`);
+        router.refresh();
         onSaved({ publicId: r.publicId, listError: r.listError });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not save the grant";

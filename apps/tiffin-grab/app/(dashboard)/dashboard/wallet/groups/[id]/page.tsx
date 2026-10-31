@@ -32,7 +32,7 @@ async function GroupDetail({ params }: { params: Params }) {
       <div>
         <h2 className="text-base font-semibold">{g.name}</h2>
         <p className="text-muted-foreground text-sm tabular-nums">
-          {g.coins} coin{g.coins === 1 ? "" : "s"} each · {g.memberCount} customers · {g.awardedCount} awarded ·{" "}
+          {g.coins} coin{g.coins === 1 ? "" : "s"} each · {g.memberCount} customer{g.memberCount === 1 ? "" : "s"} · {g.awardedCount} awarded ·{" "}
           {g.cappedCount} blocked by cap · {g.noEmailCount} without email
         </p>
       </div>
