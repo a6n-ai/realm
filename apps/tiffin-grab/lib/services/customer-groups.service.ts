@@ -1,7 +1,7 @@
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
-import { and, desc, eq, gte, ilike, inArray, isNull, like, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, like, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
 import type { AnyColumn } from "drizzle-orm";
@@ -265,6 +265,10 @@ export type GiveHistoryFilters = {
 
 const giver = alias(users, "giver");
 const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
+// Legacy grants stored the GROUP public id (not an action id) in that segment.
+const legacyGroup = alias(customerGroups, "legacy_group");
+const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
+const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
 
 /** Wallet -> Give coins table: manual_broadcast credits with the group and staff member behind each. */
 export async function giveHistoryRows(f: GiveHistoryFilters) {
@@ -275,15 +279,15 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
     f.range ? and(gte(walletLedger.createdAt, f.range.from), lte(walletLedger.createdAt, f.range.to)) : undefined,
     f.type === "group" ? like(walletLedger.sourceId, "grant:%") : f.type === "one" ? like(walletLedger.sourceId, "broadcast:%") : undefined,
     f.givenBy ? eq(giver.publicId, f.givenBy) : undefined,
-    f.group ? eq(customerGroups.publicId, f.group) : undefined,
+    f.group ? or(eq(customerGroups.publicId, f.group), eq(legacyGroup.publicId, f.group)) : undefined,
     term ? or(ilike(users.name, `%${term}%`), ilike(users.email, `%${term}%`)) : undefined,
   );
-  const order: Record<GiveSortColumn, AnyColumn> = {
+  const order: Record<GiveSortColumn, AnyColumn | SQL> = {
     when: walletLedger.createdAt,
     customer: users.email,
     coins: walletLedger.coins,
     type: walletLedger.sourceId,
-    group: customerGroups.name,
+    group: grantGroupName,
     givenBy: giver.name,
     memo: walletLedger.memo,
   };
@@ -298,14 +302,15 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
         customerName: users.name,
         customerEmail: users.email,
         givenBy: giver.name,
-        groupName: customerGroups.name,
-        groupPublicId: customerGroups.publicId,
+        groupName: grantGroupName,
+        groupPublicId: grantGroupPublicId,
       })
       .from(walletLedger)
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
       .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
       .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where)
       .orderBy(...pageOrder(f.sort.dir, order[f.sort.column], walletLedger.id))
       .limit(f.page.size)
@@ -317,6 +322,7 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
       .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
       .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
       .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where),
   ]);
   return {

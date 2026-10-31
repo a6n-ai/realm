@@ -401,6 +401,17 @@ describe("customer groups", () => {
     expect(m.find((x) => x.name === "NoEmail")!.notifyEmail).toBe(false);
   });
 
+  it("give history resolves a legacy grant whose sourceId carries the group public id", async () => {
+    const g = await mk("legacy-hist", [uOk]);
+    await db.insert(walletLedger).values({
+      userId: uOk, direction: "credit", sourceType: "manual_broadcast", sourceId: `grant:${g.publicId}:${uOk}`, coins: 3, createdBy: uOk,
+    });
+    const base = { sort: { column: "when" as const, dir: "desc" as const }, page: { page: 0, size: 50 } };
+    const { rows } = await giveHistoryRows({ ...base, group: g.publicId });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ group: "legacy-hist", groupPublicId: g.publicId, type: "group" });
+  });
+
   it("listCustomerGroups pages are 0-indexed and disjoint", async () => {
     await Promise.all([1, 2, 3].map((n) => mk(`paging-${n}`, [uOk])));
     const p0 = await listCustomerGroups({ page: 0, size: 2 });
