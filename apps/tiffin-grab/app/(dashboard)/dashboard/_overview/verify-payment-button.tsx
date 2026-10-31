@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { verifyPaymentAction } from "../orders/[id]/actions";
 import type { TodayPayment } from "@/lib/today/types";
 
-export function VerifyPaymentButton({ who, payment }: { who: string; payment: TodayPayment }) {
+export function VerifyPaymentButton({ who, payment, label = "Verify", variant = "default" }: { who: string; payment: TodayPayment; label?: string; variant?: "default" | "outline" }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -33,8 +33,8 @@ export function VerifyPaymentButton({ who, payment }: { who: string; payment: To
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        Verify
+      <Button size="sm" variant={variant} onClick={() => setOpen(true)}>
+        {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
         <DialogContent>

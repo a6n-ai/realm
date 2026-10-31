@@ -1,4 +1,4 @@
-import { ActivityIcon, DollarSignIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
+import { ActivityIcon, DollarSignIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Sparkline } from "@/components/analytics/sparkline";
@@ -11,7 +11,8 @@ type Metric = { label: string; icon: LucideIcon; value: string; delta: Delta; vs
 
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 
-export async function GlanceCard({ visible, today, now }: { visible: "all" | string[]; today: string; now: number }) {
+/** `isAdmin`: revenue is admin-only (Analytics requires admin), so members see orders in its place. */
+export async function GlanceCard({ visible, today, now, isAdmin }: { visible: "all" | string[]; today: string; now: number; isAdmin: boolean }) {
   const s = await getOverviewSeries(visible, today, now);
   const d = s.days;
   const last7 = (f: (x: (typeof d)[number]) => number) => [sum(d.slice(7).map(f)), sum(d.slice(0, 7).map(f))] as const;
@@ -26,14 +27,23 @@ export async function GlanceCard({ visible, today, now }: { visible: "all" | str
       vs: "vs same day last week",
       spark: d.map((x) => x.tiffins),
     },
-    {
-      label: "Net revenue MTD",
-      icon: DollarSignIcon,
-      value: formatMoney(s.mtdRevenue),
-      delta: delta(rev7, revPrev7),
-      vs: "last 7 days vs the 7 before",
-      spark: d.map((x) => x.revenue),
-    },
+    isAdmin
+      ? {
+          label: "Net revenue MTD",
+          icon: DollarSignIcon,
+          value: formatMoney(s.mtdRevenue),
+          delta: delta(rev7, revPrev7),
+          vs: "last 7 days vs the 7 before",
+          spark: d.map((x) => x.revenue),
+        }
+      : {
+          label: "Orders this week",
+          icon: PackageIcon,
+          value: String(ord7),
+          delta: delta(ord7, ordPrev7),
+          vs: "last 7 days vs the 7 before",
+          spark: d.map((x) => x.orders),
+        },
     {
       label: "Active plans",
       icon: ActivityIcon,
@@ -81,7 +91,7 @@ export async function GlanceCard({ visible, today, now }: { visible: "all" | str
       <p className="text-muted-foreground mt-5 text-sm">
         {attention === 0 ? "All four are level with or above their baseline." : `${attention} of 4 are below their baseline, worth a look.`}
       </p>
-      <FooterLink href="/dashboard/analytics">Full analytics</FooterLink>
+      {isAdmin ? <FooterLink href="/dashboard/analytics">Full analytics</FooterLink> : null}
     </ChartCard>
   );
 }

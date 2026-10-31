@@ -18,7 +18,7 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
-import { TODAY_KINDS, isTodayKind, kindOptionLabel, type TodayKind } from "@/lib/today/types";
+import { TODAY_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
@@ -74,6 +74,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
+  const isAdmin = session.user.role === Role.ADMIN;
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
@@ -104,50 +105,59 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
       <Suspense fallback={<ChartSkeleton height={150} />}>
-        <GlanceCard visible={visible} today={today} now={now} />
+        <GlanceCard visible={visible} today={today} now={now} isAdmin={isAdmin} />
       </Suspense>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {seesAll ? (
-          <Suspense fallback={<ChartSkeleton height={260} />}>
-            <ServiceCard today={today} />
+      {/* Act first: what needs doing, how today is going, tomorrow's route. */}
+      <CardGrid
+        cards={[
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} />, h: 260 },
+          seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
+          seesAll && { key: "route", node: <RouteCard today={today} />, h: 260 },
+        ]}
+      />
+
+      <div id="queue">
+        <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
+          <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
+            <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
           </Suspense>
-        ) : null}
-        <Suspense fallback={<ChartSkeleton height={260} />}>
-          <NeedsActionCard visible={visible} today={today} seesAll={seesAll} />
-        </Suspense>
-        {seesAll ? (
-          <Suspense fallback={<ChartSkeleton height={200} />}>
-            <RouteCard today={today} />
-          </Suspense>
-        ) : null}
-        <Suspense fallback={<ChartSkeleton height={260} />}>
-          <PaceCard visible={visible} today={today} now={now} />
-        </Suspense>
-        {seesAll ? (
-          <Suspense fallback={<ChartSkeleton height={200} />}>
-            <LanesCard today={today} />
-          </Suspense>
-        ) : null}
-        {seesAll ? (
-          <Suspense fallback={<ChartSkeleton height={260} />}>
-            <CookingCard today={today} />
-          </Suspense>
-        ) : null}
+        </SectionCard>
       </div>
+
+      {/* Then context: money, drivers, kitchen. */}
+      <CardGrid
+        cards={[
+          // Revenue is admin-only, as on Analytics.
+          isAdmin && { key: "pace", node: <PaceCard visible={visible} today={today} now={now} />, h: 260 },
+          seesAll && { key: "lanes", node: <LanesCard today={today} />, h: 260 },
+          seesAll && { key: "cooking", node: <CookingCard today={today} />, h: 260 },
+        ]}
+      />
 
       <Suspense fallback={<ChartSkeleton height={260} />}>
         <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} />
       </Suspense>
 
-      <div id="queue">
-      <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
-        <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
-          <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
-        </Suspense>
-      </SectionCard>
-      </div>
     </PageShell>
+  );
+}
+
+type GridCard = { key: string; node: React.ReactNode; h: number };
+
+/**
+ * Up to three cards per row on wide screens, two on laptops. Cards are direct grid children, so a
+ * card that renders nothing (Tomorrow's route without OptimoRoute) leaves no empty cell.
+ */
+function CardGrid({ cards }: { cards: (GridCard | false)[] }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {cards.filter((c): c is GridCard => Boolean(c)).map((c) => (
+        <Suspense key={c.key} fallback={<ChartSkeleton height={c.h} />}>
+          {c.node}
+        </Suspense>
+      ))}
+    </div>
   );
 }
 
@@ -164,16 +174,9 @@ async function TodayQueueSection({ visible, today, now, activeType }: { visible:
     getTodayCounts(visible, today),
     getTodayQueue(visible, now, activeType ? [activeType] : undefined),
   ]);
-  // Totals stay exact in the facet; picking a type filters on the server before the 50 cap.
-  const spec: FacetDef[] = [
-    {
-      kind: "select",
-      field: "type",
-      label: "Type",
-      options: TODAY_KINDS.map((k) => ({ value: k, label: kindOptionLabel(k, counts.byKind[k]) })),
-    },
-  ];
-  return <TodayQueue rows={queue.items} now={now} spec={spec} failed={queue.failed} activeType={activeType} />;
+  // Pills are quick filters: each carries the exact total; picking one filters on the server before the 50 cap.
+  const pills = TODAY_KINDS.map((k) => ({ kind: k, count: counts.byKind[k] }));
+  return <TodayQueue rows={queue.items} now={now} pills={pills} failed={queue.failed} activeType={activeType} />;
 }
 
 const CUSTOMER_LINKS = [

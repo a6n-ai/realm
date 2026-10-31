@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { FacetDef } from "@foundry/design-system";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { TODAY_KINDS, kindOptionLabel, type TodayItem } from "@/lib/today/types";
 
@@ -26,14 +25,12 @@ const rows: TodayItem[] = [
   { ...base, kind: "inquiry", key: "inquiry:1", who: "Cy Lead", what: "New lead · Web", urgency: 3, href: "/dashboard/inquiries/inq_1" },
 ];
 
-const spec: FacetDef[] = [
-  { kind: "select", field: "type", label: "Type", options: TODAY_KINDS.map((k) => ({ value: k, label: kindOptionLabel(k, 0) })) },
-];
+const pills = TODAY_KINDS.map((kind) => ({ kind, count: 0 }));
 
 const mount = (over: Partial<Parameters<typeof TodayQueue>[0]> = {}) =>
   render(
     <TimezoneProvider tz="America/Toronto">
-      <TodayQueue rows={rows} now={NOW} spec={spec} failed={[]} activeType={null} {...over} />
+      <TodayQueue rows={rows} now={NOW} pills={pills} failed={[]} activeType={null} {...over} />
     </TimezoneProvider>,
   );
 
