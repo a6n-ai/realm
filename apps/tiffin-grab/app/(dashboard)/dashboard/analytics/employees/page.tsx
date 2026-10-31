@@ -6,7 +6,8 @@ import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/st
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, PartsDonut } from "@/components/analytics/charts";
+import { PartsDonut } from "@/components/analytics/charts";
+import type { Part } from "@/components/analytics/chart-math";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
@@ -142,11 +143,11 @@ async function RepCards({ scope }: { scope: AnalyticsScope }) {
 
 async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
   const { rows, unassignedRevenue } = await getEmployeeRollup(scope);
-  const data = [
-    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ name: r.name, n: r.revenueOwned, muted: 0 })),
-    ...(unassignedRevenue > 0 ? [{ name: "Unassigned", n: unassignedRevenue, muted: 1 }] : []),
-  ].sort((a, b) => b.n - a.n);
-  return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Revenue" format="currency" mutedKey="muted" />;
+  const parts: Part[] = [
+    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ label: r.name, value: r.revenueOwned })),
+    ...(unassignedRevenue > 0 ? [{ label: "Unassigned", value: unassignedRevenue, tone: "muted" as const }] : []),
+  ];
+  return <PartsDonut format="currency" caption="Revenue" max={5} emptyLabel="No revenue in this range." parts={parts} />;
 }
 
 async function WorkloadDonut({ scope }: { scope: AnalyticsScope }) {
@@ -157,14 +158,14 @@ async function WorkloadDonut({ scope }: { scope: AnalyticsScope }) {
 
 async function LeadsChart({ scope }: { scope: AnalyticsScope }) {
   const { rows } = await getEmployeeRollup(scope);
-  const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
-  return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Leads worked" />;
+  const parts = rows.map((r) => ({ label: r.name, value: r.leadsWorked }));
+  return <PartsDonut caption="Leads" max={5} emptyLabel="No leads worked in this range." parts={parts} />;
 }
 
 async function TicketsChart({ scope }: { scope: AnalyticsScope }) {
   const { rows } = await getEmployeeRollup(scope);
-  const data = rows.some((r) => r.ticketsResolved > 0) ? rows.map((r) => ({ name: r.name, n: r.ticketsResolved })) : [];
-  return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Tickets resolved" />;
+  const parts = rows.map((r) => ({ label: r.name, value: r.ticketsResolved }));
+  return <PartsDonut caption="Tickets" max={5} emptyLabel="No tickets resolved in this range." parts={parts} />;
 }
 
 async function RollupTable({ scope }: { scope: AnalyticsScope }) {

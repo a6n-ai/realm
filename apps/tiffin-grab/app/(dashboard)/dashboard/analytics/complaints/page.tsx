@@ -9,6 +9,7 @@ import { rankedHeight } from "@/components/analytics/chart-math";
 import Link from "next/link";
 import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/analytics/charts";
 import { Card, CardContent } from "@foundry/ui/card";
+import { RankCards } from "@/components/analytics/rank-cards";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isoDateInZone } from "@/lib/analytics/profitability";
@@ -302,7 +303,7 @@ async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope
   );
 }
 
-const TICKET_TONE: Record<string, Tone> = { new: "warning", resolved: "success", closed: "muted" };
+const TICKET_TONE: Record<string, Tone> = { open: "warning", in_progress: "c2", waiting_on_customer: "c3", resolved: "c1", closed: "muted" };
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
@@ -325,28 +326,20 @@ async function RepeatCustomers({ scope }: { scope: AnalyticsScope }) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No repeat complaints in this range.</p>;
   }
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-      {rows.map((r, i) => (
-        <Link
-          key={r.publicId}
-          href={`${base}${base.includes("?") ? "&" : "?"}q=${encodeURIComponent(r.email ?? r.name ?? "")}`}
-          className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2"
-        >
-          <Card className="hover:bg-muted/50 h-full transition-colors">
-            <CardContent className="flex flex-col items-start gap-2">
-              <Badge variant="secondary">#{i + 1}</Badge>
-              <span className="w-full truncate text-sm font-medium">{r.name ?? r.email ?? "Customer"}</span>
-              <span className="text-3xl font-semibold tabular-nums">{r.n}</span>
-              {r.topCategoryLabel ? <span className="text-muted-foreground text-xs">Mostly {r.topCategoryLabel}</span> : null}
-              <span className="text-muted-foreground text-xs">
-                Last {formatEpoch(Number(r.lastAt), { mode: "date", timeZone: scope.tz })}
-              </span>
-              {r.name && r.email ? <span className="text-muted-foreground w-full truncate text-xs">{r.email}</span> : null}
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
-    </div>
+    <RankCards
+      cols={5}
+      items={rows.map((r, i) => ({
+        rank: i + 1,
+        title: r.name ?? r.email ?? "Customer",
+        value: String(r.n),
+        href: `${base}${base.includes("?") ? "&" : "?"}q=${encodeURIComponent(r.email ?? r.name ?? "")}`,
+        meta: [
+          ...(r.topCategoryLabel ? [`Mostly ${r.topCategoryLabel}`] : []),
+          `Last ${formatEpoch(Number(r.lastAt), { mode: "date", timeZone: scope.tz })}`,
+          ...(r.name && r.email ? [r.email] : []),
+        ],
+      }))}
+    />
   );
 }
 

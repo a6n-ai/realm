@@ -27,6 +27,15 @@ describe("moneyTick", () => {
 });
 
 describe("foldParts", () => {
+  it("explicit slots pin the colour and do not advance the auto sequence", () => {
+    const out = foldParts([
+      { label: "a", value: 3, tone: "c4" },
+      { label: "b", value: 2 },
+      { label: "c", value: 1, tone: "c1" },
+      { label: "d", value: 1 },
+    ]);
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-4)", "var(--chart-1)", "var(--chart-1)", "var(--chart-2)"]);
+  });
   const parts = Array.from({ length: 9 }, (_, i) => ({ label: `p${i}`, value: i + 1 }));
   it("folds more than 5 into Other and shares sum to 100", () => {
     const out = foldParts(parts);

@@ -221,10 +221,10 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
 }
 
 const STATUS_TONE: Record<string, Tone> = {
-  paid: "success",
+  paid: "c1",
   simulated_paid: "muted",
   awaiting_payment: "warning",
-  pending_verification: "chart",
+  pending_verification: "c2",
   pending: "muted",
   rejected: "destructive",
   refunded: "muted",

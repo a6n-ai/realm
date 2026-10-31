@@ -1,8 +1,14 @@
-export type Tone = "success" | "warning" | "destructive" | "muted" | "chart";
+/** `c1`..`c5` pin a part to one categorical slot so colour follows the entity, not its position. */
+export type Tone = "success" | "warning" | "destructive" | "muted" | "chart" | "c1" | "c2" | "c3" | "c4" | "c5";
 export type Part = { label: string; value: number; tone?: Tone; href?: string };
 export type SharedPart = Part & { share: number; color: string };
 
 export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
+  c1: "var(--chart-1)",
+  c2: "var(--chart-2)",
+  c3: "var(--chart-3)",
+  c4: "var(--chart-4)",
+  c5: "var(--chart-5)",
   success: "var(--chart-good)",
   warning: "var(--chart-warn)",
   destructive: "var(--chart-bad)",

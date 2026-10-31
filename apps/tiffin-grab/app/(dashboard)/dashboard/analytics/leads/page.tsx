@@ -115,7 +115,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 }
 
 const STAGE_ORDER = ["new", "contacted", "quoted", "follow_up", "converted", "lost"];
-const STAGE_TONE: Record<string, Tone> = { converted: "success", lost: "destructive" };
+const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "c1", lost: "muted" };
 
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
