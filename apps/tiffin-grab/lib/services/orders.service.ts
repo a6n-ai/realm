@@ -1000,6 +1000,7 @@ export async function verifyPayment(
         orderId: order.id,
         redeemedBy,
         amountApplied: r.amount,
+        deferredSettlement: true,
         context: { subtotal: snap.subtotal, planType: snap.planType, kind: coupon.kind },
       });
     }

@@ -3,7 +3,7 @@ import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
 import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";
+import { couponRedemptions, coupons, customerGroupMembers, orders, payments, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
 import { getDiscountPolicy } from "./app-settings.service";
@@ -52,6 +52,7 @@ export interface BestCouponsContext {
 }
 
 export const MAX_MANUAL_CODES = 5;
+const GROUP_ONLY_ERROR = "This code isn't available for your account";
 
 // The winning set: discount lines (already distributed against the running
 // subtotal) plus the coupon rows + applied amount for in-tx redemption. Typed codes
@@ -107,6 +108,9 @@ export interface RedeemInput {
   redeemedBy?: bigint | null;
   amountApplied: number;
   context?: Record<string, unknown> | null;
+  // Deferred settlement (payment verification): eligibility was decided when the order was priced,
+  // and money is already captured, so group membership is not re-judged.
+  deferredSettlement?: boolean;
 }
 
 export interface MintRepDailyInput {
@@ -342,6 +346,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   async redeem(tx: Tx, input: RedeemInput): Promise<void> {
     const { coupon, userId, orderId, amountApplied } = input;
 
+    // Re-checked under the tx: the preview may have run before the group changed.
+    if (!input.deferredSettlement && (await this.groupAccessError(tx, coupon, userId))) throw new ValidationError(GROUP_ONLY_ERROR);
+
     // A rep's day budget is shared with the codes they issued, which this coupon's own count
     // can't see. Recount under the same user-row lock issueRepCode takes, so a concurrent
     // issue or apply can't both take the last use.
@@ -546,9 +553,11 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         ),
       );
     const live = rows.filter((c) => !this.windowError(c) && (c.maxRedemptions == null || c.redemptionCount < c.maxRedemptions));
+    const grouped = await Promise.all(live.map(async (c) => ((await this.groupAccessError(db, c, userId)) ? null : c)));
+    const open = grouped.filter((c) => c != null);
     const usable = userId == null
-      ? live
-      : (await Promise.all(live.map(async (c) => ((await this.userEligibilityError(c, userId)) ? null : c)))).filter((c) => c != null);
+      ? open
+      : (await Promise.all(open.map(async (c) => ((await this.userEligibilityError(c, userId)) ? null : c)))).filter((c) => c != null);
     return usable
       .map((c) => ({
         code: c.code,
@@ -583,6 +592,8 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // validatePublicCode (which throws) and resolveBestCoupons (which skips).
   private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<string | null> {
     if (coupon.kind === "rep_daily") return "This code cannot be used here";
+    // The order's customer, never the staff actor placing it.
+    if (await this.groupAccessError(db, coupon, ctx.userId)) return GROUP_ONLY_ERROR;
     if (coupon.kind === "rep_code" && !(await this.issuerStillAllowed(coupon))) return "This code is no longer valid";
     const w = this.windowError(coupon);
     if (w) return w;
@@ -602,6 +613,22 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       return "This coupon has been fully redeemed";
     }
     return ctx.userId != null ? this.userEligibilityError(coupon, ctx.userId) : null;
+  }
+
+  // A group-only coupon is usable by that group's members and nobody else (no user = no).
+  private async groupAccessError(
+    exec: Pick<typeof db, "select">,
+    coupon: Coupon,
+    userId: bigint | null | undefined,
+  ): Promise<boolean> {
+    if (coupon.customerGroupId == null) return false;
+    if (userId == null) return true;
+    const [m] = await exec
+      .select({ id: customerGroupMembers.id })
+      .from(customerGroupMembers)
+      .where(and(eq(customerGroupMembers.groupId, coupon.customerGroupId), eq(customerGroupMembers.userId, userId)))
+      .limit(1);
+    return !m;
   }
 
   // The checks that depend only on who is paying, not on the cart.

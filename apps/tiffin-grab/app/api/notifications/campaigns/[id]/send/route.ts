@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { handler, json, problem } from "@foundry/routes";
 import { sendCampaign } from "@relay/engine";
+import { staleGroupsForCampaign } from "@/lib/services/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
@@ -19,6 +20,8 @@ export const POST = handler(
     const { id } = await ctx.params;
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return problem(400, "Confirm the recipient count before sending");
+    const stale = await staleGroupsForCampaign(id);
+    if (stale.length) return problem(409, `Customer group list could not be refreshed (${stale.join(", ")}). Try again before sending.`);
     const result = await sendCampaign(deps, id, parsed.data.confirmedCount, { footerConfigured: await footerConfigured() });
     if ("error" in result) {
       const items = result.blocking?.length ? `: ${result.blocking.map((b) => b.message).join(" ")}` : "";

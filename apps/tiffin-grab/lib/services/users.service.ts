@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
+import { createLogger } from "@foundry/commons/logger";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
 // the internal pin_attempts counter from audit noise. The real values are still
@@ -125,11 +126,13 @@ class UsersService extends SessionUpdatableService<typeof users> {
    */
   async softDelete(publicId: string) {
     await this.revokeSessions(publicId);
-    return super.update(publicId, {
+    const res = await super.update(publicId, {
       status: "deleted",
       email: `deleted-${publicId}@deleted.invalid`,
       phone: null,
     });
+    await this.syncGroups(publicId);
+    return res;
   }
 
   /** Verify a plaintext password against the user's credential account. */
@@ -199,7 +202,22 @@ class UsersService extends SessionUpdatableService<typeof users> {
         .set({ email: patch.email })
         .where(and(eq(invitation.email, current.email), eq(invitation.status, "pending")));
     }
+    if (emailChanged) await this.syncGroups(userId);
     return updated;
+  }
+
+  // Customer-group send lists mirror notifyEmail/email/status; Relay never rechecks them at send time.
+  private async syncGroups(publicId: string) {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+    if (!u) return;
+    try {
+      // Lazy: customer-groups.service pulls app-settings, which imports back through session-service.
+      const { syncGroupsForUser } = await import("./customer-groups.service");
+      await syncGroupsForUser(u.id);
+    } catch (e) {
+      // The preference already saved; the next sync catches up.
+      log.error({ userId: publicId, err: e }, "customer group sync failed");
+    }
   }
 
   async updateProfile(
@@ -320,7 +338,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
     }
     if (input.notifyEmail !== undefined) patch.notifyEmail = input.notifyEmail;
     if (input.notifySms !== undefined) patch.notifySms = input.notifySms;
-    return super.update(userId, patch);
+    const res = await super.update(userId, patch);
+    if (input.notifyEmail !== undefined) await this.syncGroups(userId);
+    return res;
   }
 
   async setPin(userId: string, currentPassword: string, newPin: string) {
@@ -491,6 +511,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
 }
 
 // Carries the holder so the admin UI can link to their page.
+const log = createLogger("users-service");
+
 export class ContactTakenError extends ValidationError {
   constructor(message: string, readonly holder: { publicId: string; role: string }) {
     super(message);

@@ -10,6 +10,7 @@
  */
 import { db } from "./client";
 import { notificationTemplate } from "./schema";
+import { seedWalletCreditedTemplates } from "../lib/notifications/wallet-credited-template";
 
 async function main() {
   await db
@@ -28,6 +29,8 @@ async function main() {
       target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
     });
   console.log("seeded: review_nudge");
+  await seedWalletCreditedTemplates(db);
+  console.log("seeded: wallet_credited (missing rows only)");
   process.exit(0);
 }
 

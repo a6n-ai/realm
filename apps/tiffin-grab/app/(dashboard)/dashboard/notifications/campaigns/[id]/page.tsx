@@ -1,15 +1,18 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { campaignFromLine, buildUnsubscribeUrl, withPreviewFooter } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
+import { campaign, campaignContent, contactList, customerGroups, messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
+import { createLogger } from "@foundry/commons/logger";
+import { syncAllGroupContactLists } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import { CampaignAnalytics } from "@relay/engine/ui/campaign-analytics";
@@ -26,6 +29,8 @@ import type { AudienceValue } from "@relay/engine/ui/audience-builder";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 import { BulkRuns } from "./bulk-runs";
+
+const log = createLogger("campaign-page");
 
 // Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
 const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
@@ -75,6 +80,23 @@ export default async function CampaignPage({
   const retriggerable =
     !isSystem &&
     (row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled");
+  let failedGroups: string[] = [];
+  try {
+    failedGroups = await syncAllGroupContactLists();
+  } catch (e) {
+    log.error({ err: e }, "customer group list catch-up failed");
+  }
+  const staleGroupNames = failedGroups.length
+    ? (await db.select({ name: customerGroups.name }).from(customerGroups).where(inArray(customerGroups.publicId, failedGroups))).map((g) => g.name)
+    : [];
+  const staleAlert = staleGroupNames.length ? (
+    <Alert variant="warning">
+      <AlertTitle>Customer group lists are out of date</AlertTitle>
+      <AlertDescription>
+        {staleGroupNames.join(", ")} could not be refreshed. Sending or scheduling a campaign that uses these groups is blocked until it succeeds.
+      </AlertDescription>
+    </Alert>
+  ) : null;
   const [content, lists, { timezone }, unsubscribes] = await Promise.all([
     db
       .select({
@@ -130,6 +152,7 @@ export default async function CampaignPage({
     const channel = (row.channels as string[])[0] ?? "email";
     return (
       <div className="space-y-4">
+        {staleAlert}
         <div className="flex justify-end gap-2">
           <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
           <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />

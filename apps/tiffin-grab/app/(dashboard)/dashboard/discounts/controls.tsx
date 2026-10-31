@@ -118,7 +118,7 @@ export function NumberField({
 }
 
 export function ToggleRow({
-  id, label, hint, checked, onChange, inline,
+  id, label, hint, checked, onChange, inline, disabled,
 }: {
   id: string;
   label: string;
@@ -126,6 +126,7 @@ export function ToggleRow({
   checked: boolean;
   onChange: (v: boolean) => void;
   inline?: boolean;
+  disabled?: boolean;
 }) {
   if (inline) {
     return (
@@ -133,7 +134,7 @@ export function ToggleRow({
         <Label htmlFor={id} className="text-sm">
           {label}
         </Label>
-        <Switch id={id} checked={checked} onCheckedChange={onChange} />
+        <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
       </div>
     );
   }
@@ -143,7 +144,7 @@ export function ToggleRow({
         <Label htmlFor={id}>{label}</Label>
         {hint && <p className="text-muted-foreground text-xs text-pretty">{hint}</p>}
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
   );
 }

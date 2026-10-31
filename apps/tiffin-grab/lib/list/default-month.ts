@@ -50,3 +50,11 @@ export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
 export function epochBoundsWhereSql(expr: SQL, sp: Dated): SQL | undefined {
   return bounds(sp, (v) => gte(expr, v), (v) => lte(expr, v));
 }
+
+/** Numeric window for stat functions. A missing end opens to the epoch start or now. */
+export function epochRange(sp: Dated): { from: number; to: number } {
+  const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const a = n(sp.from) ?? 0;
+  const b = n(sp.to) ?? Date.now();
+  return { from: Math.min(a, b), to: Math.max(a, b) };
+}

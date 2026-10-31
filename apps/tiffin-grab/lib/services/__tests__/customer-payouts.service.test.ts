@@ -1,9 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orders, users } from "@/db/schema";
+import { deliveries, notificationOutbox, orders, users, walletLedger } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listPayoutCandidates } from "../customer-payouts.service";
+import { awardCustomerBroadcast, listPayoutCandidates } from "../customer-payouts.service";
+
+vi.mock("../app-settings.service", async (orig) => ({
+  ...(await orig<typeof import("../app-settings.service")>()),
+  getMaxWalletBalance: async () => 100,
+}));
 
 const emails = ["a", "b", "c", "d"].map((k) => `payouts-${k}@throwaway.local`);
 const ids: Record<string, string> = {};
@@ -53,6 +58,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, userIds));
+  await db.delete(walletLedger).where(inArray(walletLedger.userId, userIds));
   await db.delete(orders).where(inArray(orders.userId, userIds));
   await db.delete(users).where(inArray(users.id, userIds));
 });
@@ -86,5 +93,20 @@ describe("listPayoutCandidates plan filters", () => {
     const r = await listPayoutCandidates({}, { limit: 1 });
     expect(r.rows.length).toBe(1);
     expect(r.total).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("awardCustomerBroadcast notifications", () => {
+  it("enqueues one wallet_credited per awarded user with coins and reason; capped users get none", async () => {
+    const [awardedUser, cappedUser] = userIds;
+    await db.insert(walletLedger).values({
+      userId: cappedUser, direction: "credit", sourceType: "test_fill", sourceId: `payouts-test:${cappedUser}`, coins: 100,
+    });
+    const r = await awardCustomerBroadcast([awardedUser, cappedUser], 10, undefined, null);
+    expect(r).toMatchObject({ awarded: 1, capped: 1 });
+    const rows = await db.select().from(notificationOutbox).where(inArray(notificationOutbox.recipientId, [awardedUser, cappedUser]));
+    const credited = rows.filter((x) => x.event === "wallet_credited");
+    expect(credited.map((x) => x.recipientId)).toEqual([awardedUser]);
+    expect(credited[0].payload).toMatchObject({ vars: { wallet: { coins: "10", reason: "Staff gift" } } });
   });
 });

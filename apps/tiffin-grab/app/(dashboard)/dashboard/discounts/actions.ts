@@ -6,9 +6,11 @@ import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { coupons, users } from "@/db/schema";
+import { coupons, customerGroups, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
 import { planType } from "@/db/schema/catalog";
+import { currentUserId } from "@/lib/services/session-service";
+import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 
@@ -37,6 +39,8 @@ const couponSchema = z.object({
   startsAt: z.number().int().nullish(),
   expiresAt: z.number().int().nullish(),
   active: z.boolean(),
+  // null = Everyone.
+  customerGroupPublicId: z.string().trim().min(1).nullish(),
 });
 
 export async function saveCoupon(publicId: string | null, patch: unknown) {
@@ -71,6 +75,8 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     if (mode === "fixed" && data.valueAmount == null) throw new ValidationError("Set the amount value");
   }
 
+  if (data.customerGroupPublicId && data.autoApply) throw new ValidationError("A group-only coupon can't be auto-apply");
+
   const config: CouponConfig =
     data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
 
@@ -100,8 +106,25 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     config,
   };
 
-  if (publicId) await couponsService.update(publicId, values);
-  else await couponsService.create(values);
+  // Resolve the group before any write and save it with the coupon in ONE write: an unknown id or a
+  // second-step failure must never leave a coupon saved as open to Everyone. Omitted = unchanged; null = Everyone.
+  let groupId: bigint | null | undefined;
+  if (data.customerGroupPublicId) {
+    const [g] = await db.select({ id: customerGroups.id }).from(customerGroups).where(eq(customerGroups.publicId, data.customerGroupPublicId));
+    if (!g) throw new ValidationError("Group not found");
+    groupId = g.id;
+  } else if (data.customerGroupPublicId === null) {
+    groupId = null;
+  }
+  const before = publicId
+    ? (await db.select({ customerGroupId: coupons.customerGroupId }).from(coupons).where(eq(coupons.publicId, publicId)))[0]
+    : undefined;
+  const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
+
+  const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
+  if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
+    await recordCouponGroupAction(groupId, data.code, await currentUserId());
+  }
   revalidatePath(PATH, "layout");
 }
 
