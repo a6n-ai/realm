@@ -238,4 +238,22 @@ describe("customer groups", () => {
     const past = await customerGroupStats({ from: 0, to: 1000 });
     expect(past).toEqual({ groups: 0, members: 0, actions: 0, coinsViaGroups: 0, emailsSent: 0 });
   });
+
+  it("grants count events: one per group action, one per renewals-page broadcast row", async () => {
+    const t0 = Date.now() - 1;
+    const range = { from: t0, to: t0 + 3_600_000 };
+    const before = await giveCoinsStats(range);
+    const g = await mk("grant-events", [uOk, uNoEmail]);
+    await giveGroupCoins(g.publicId, { coins: 3 }, uOk);
+    const tag = `cg-bc-${Date.now()}`;
+    await db.insert(walletLedger).values([uOk, uNoEmail].map((userId, n) => ({
+      userId, direction: "credit" as const, sourceType: "manual_broadcast", sourceId: `broadcast:${tag}-${n}:${userId}`, coins: 4, memo: "t",
+    })));
+    const after = await giveCoinsStats(range);
+    expect(after.grants - before.grants).toBe(1 + 2);
+    expect(after.coinsGiven - before.coinsGiven).toBe(3 * 2 + 4 * 2);
+    expect(after.customersRewarded - before.customersRewarded).toBeGreaterThanOrEqual(0);
+    expect(after.customersRewarded).toBeGreaterThanOrEqual(2);
+    await db.delete(walletLedger).where(eq(walletLedger.memo, "t"));
+  });
 });

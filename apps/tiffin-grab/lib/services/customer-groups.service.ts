@@ -189,7 +189,7 @@ export async function giveCoinsStats(r: EpochRange) {
       .select({
         coins: sql<number>`coalesce(sum(${walletLedger.coins}), 0)::int`,
         customers: sql<number>`count(distinct ${walletLedger.userId})::int`,
-        grants: sql<number>`count(distinct split_part(${walletLedger.sourceId}, ':', 2))::int`,
+        grants: sql<number>`count(distinct case when ${walletLedger.sourceId} like 'grant:%' then split_part(${walletLedger.sourceId}, ':', 2) else ${walletLedger.sourceId} end)::int`,
       })
       .from(walletLedger)
       .where(
