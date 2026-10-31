@@ -1,6 +1,12 @@
 "use client";
 
-import { useId, useState, type ComponentProps, type ReactNode, type SVGProps } from "react";
+import {
+  useId,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import {
   Area,
   AreaChart,
@@ -30,6 +36,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@foundry/ui/cn";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
@@ -39,6 +52,7 @@ import {
   heatBucket,
   heatOpacity,
   HEAT_STEPS,
+  heatIsDense,
   positionalConfig,
   rankedHeight,
   topWithOther,
@@ -50,7 +64,10 @@ import {
 type ValueFormat = "number" | "currency";
 type Row = Record<string, string | number>;
 
-const CURRENCY = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
+const CURRENCY = new Intl.NumberFormat("en-CA", {
+  style: "currency",
+  currency: "CAD",
+});
 const CURRENCY_COMPACT = new Intl.NumberFormat("en-CA", {
   style: "currency",
   currency: "CAD",
@@ -66,7 +83,9 @@ function formatValue(v: unknown, format: ValueFormat): string {
 // The five theme-aware chart tokens (light/dark are handled by the CSS vars).
 const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;
 
-type TooltipFormatter = NonNullable<ComponentProps<typeof ChartTooltipContent>["formatter"]>;
+type TooltipFormatter = NonNullable<
+  ComponentProps<typeof ChartTooltipContent>["formatter"]
+>;
 
 const valueFormatter =
   (format: ValueFormat, suffix = ""): TooltipFormatter =>
@@ -127,23 +146,53 @@ export function TrendLineChart({
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
   const lines = series ?? (yKey ? [{ key: yKey, label }] : []);
-  if (mode === "line") return <SeriesLines data={data} xKey={xKey} series={lines} format={format} height={height} />;
+  if (mode === "line")
+    return (
+      <SeriesLines
+        data={data}
+        xKey={xKey}
+        series={lines}
+        format={format}
+        height={height}
+      />
+    );
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
   ) satisfies ChartConfig;
   return (
-    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
-      <AreaChart accessibilityLayer data={data} margin={{ top: 20, right: 0, bottom: 0, left: 0 }}>
+    <ChartContainer
+      config={config}
+      className="aspect-auto w-full"
+      style={{ height }}
+    >
+      <AreaChart
+        accessibilityLayer
+        data={data}
+        margin={{ top: 20, right: 0, bottom: 0, left: 0 }}
+      >
         <defs>
           {lines.map((l, i) => (
-            <linearGradient key={l.key} id={`${uid}-g${i}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              key={l.key}
+              id={`${uid}-g${i}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="5%" stopColor={chartColor(i)} stopOpacity={0.5} />
               <stop offset="95%" stopColor={chartColor(i)} stopOpacity={0.05} />
             </linearGradient>
           ))}
         </defs>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+        />
         <YAxis hide domain={[0, "auto"]} />
         <ChartTooltip
           cursor={false}
@@ -167,7 +216,9 @@ export function TrendLineChart({
             strokeWidth={2}
           />
         ))}
-        {lines.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
+        {lines.length > 1 ? (
+          <ChartLegend content={<ChartLegendContent />} />
+        ) : null}
       </AreaChart>
     </ChartContainer>
   );
@@ -190,11 +241,33 @@ function SeriesLines({
   const config = positionalConfig(series) satisfies ChartConfig;
   const hasNegative = rows.some((r) => keys.some((k) => Number(r[k]) < 0));
   const last = rows.length - 1;
+  // Direct labels collide when the series end close together; the legend still names them.
+  const ends = keys.map((k) => Number(rows[last]?.[k]) || 0);
+  const all = rows.flatMap((r) => keys.map((k) => Number(r[k]) || 0));
+  const range =
+    Math.max(...all) - Math.min(hasNegative ? Math.min(...all) : 0, ...all) ||
+    1;
+  const labelEnds =
+    keys.length < 2 || (Math.max(...ends) - Math.min(...ends)) / range >= 0.08;
   return (
-    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
-      <LineChart accessibilityLayer data={rows} margin={{ top: 20, right: 56, bottom: 0, left: 0 }}>
+    <ChartContainer
+      config={config}
+      className="aspect-auto w-full"
+      style={{ height }}
+    >
+      <LineChart
+        accessibilityLayer
+        data={rows}
+        margin={{ top: 20, right: 56, bottom: 0, left: 0 }}
+      >
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+        />
         <YAxis hide domain={[hasNegative ? "auto" : 0, "auto"]} />
         <ChartTooltip
           cursor={false}
@@ -217,9 +290,23 @@ function SeriesLines({
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
-            label={({ index, x, y }: { index?: number; x?: string | number; y?: string | number }) =>
-              index === last ? (
-                <text key={keys[i]} x={Number(x) + 6} y={Number(y)} dominantBaseline="middle" className="fill-muted-foreground text-xs">
+            label={({
+              index,
+              x,
+              y,
+            }: {
+              index?: number;
+              x?: string | number;
+              y?: string | number;
+            }) =>
+              labelEnds && index === last ? (
+                <text
+                  key={keys[i]}
+                  x={Number(x) + 6}
+                  y={Number(y)}
+                  dominantBaseline="middle"
+                  className="fill-muted-foreground text-xs"
+                >
                   {s.label.length > 10 ? `${s.label.slice(0, 9)}…` : s.label}
                 </text>
               ) : (
@@ -265,7 +352,9 @@ export function BreakdownBarChart({
   limit?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
-  const config = { [yKey]: { label, color: chartColor(0) } } satisfies ChartConfig;
+  const config = {
+    [yKey]: { label, color: chartColor(0) },
+  } satisfies ChartConfig;
   const tooltip = (
     <ChartTooltip
       cursor={false}
@@ -281,19 +370,38 @@ export function BreakdownBarChart({
   );
   if (orientation === "vertical") {
     return (
-      <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <ChartContainer
+        config={config}
+        className="aspect-auto w-full"
+        style={{ height }}
+      >
         <BarChart accessibilityLayer data={data}>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} />
+          <XAxis
+            dataKey={xKey}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+          />
           {tooltip}
-          <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={4} maxBarSize={32} />
+          <Bar
+            dataKey={yKey}
+            name={label}
+            fill={chartColor(0)}
+            radius={4}
+            maxBarSize={32}
+          />
         </BarChart>
       </ChartContainer>
     );
   }
   const ranked = topWithOther(data, xKey, yKey, limit);
   return (
-    <ChartContainer config={config} className="aspect-auto w-full" style={{ height: rankedHeight(ranked.length) }}>
+    <ChartContainer
+      config={config}
+      className="aspect-auto w-full"
+      style={{ height: rankedHeight(ranked.length) }}
+    >
       <BarChart
         accessibilityLayer
         data={ranked}
@@ -310,21 +418,40 @@ export function BreakdownBarChart({
           width={110}
           tickFormatter={truncate}
         />
-        <XAxis type="number" tickLine={false} tickMargin={10} axisLine={false} hide />
+        <XAxis
+          type="number"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          hide
+        />
         {tooltip}
-        <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={2} maxBarSize={32} />
+        <Bar
+          dataKey={yKey}
+          name={label}
+          fill={chartColor(0)}
+          radius={2}
+          maxBarSize={32}
+        />
       </BarChart>
     </ChartContainer>
   );
 }
 
-function legendList(items: { key: string; label: string; color: string; value: string }[]) {
+function legendList(
+  items: { key: string; label: string; color: string; value: string }[],
+) {
   return (
     <ul className="flex flex-col gap-1.5 pt-3 text-xs" aria-label="Legend">
       {items.map((item) => (
         <li key={item.key} className="flex items-center gap-2">
-          <span className="size-2.5 shrink-0 rounded-full" style={{ background: item.color }} />
-          <span className="text-muted-foreground min-w-0 flex-1">{item.label}</span>
+          <span
+            className="size-2.5 shrink-0 rounded-full"
+            style={{ background: item.color }}
+          />
+          <span className="text-muted-foreground min-w-0 flex-1">
+            {item.label}
+          </span>
           <span className="font-medium tabular-nums">{item.value}</span>
         </li>
       ))}
@@ -333,17 +460,33 @@ function legendList(items: { key: string; label: string; color: string; value: s
 }
 
 function donutCentre(total: number, format: ValueFormat, caption: string) {
-  const text = format === "currency" ? CURRENCY_COMPACT.format(total) : total.toLocaleString();
+  const text =
+    format === "currency"
+      ? CURRENCY_COMPACT.format(total)
+      : total.toLocaleString();
   return (
     <Label
       content={({ viewBox }) => {
         if (viewBox && "cx" in viewBox && "cy" in viewBox) {
           return (
-            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold tabular-nums">
+            <text
+              x={viewBox.cx}
+              y={viewBox.cy}
+              textAnchor="middle"
+              dominantBaseline="middle"
+            >
+              <tspan
+                x={viewBox.cx}
+                y={viewBox.cy}
+                className="fill-foreground text-2xl font-bold tabular-nums"
+              >
                 {text}
               </tspan>
-              <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 22} className="fill-muted-foreground text-xs">
+              <tspan
+                x={viewBox.cx}
+                y={(viewBox.cy || 0) + 22}
+                className="fill-muted-foreground text-xs"
+              >
                 {caption}
               </tspan>
             </text>
@@ -375,22 +518,40 @@ function useSlices({ data, nameKey, valueKey, colorKey }: DonutProps) {
     .map((row, i): Row => ({ ...row, fill: sliceColor(row, i, colorKey) }));
   const total = slices.reduce((sum, r) => sum + (Number(r[valueKey]) || 0), 0);
   const config = Object.fromEntries(
-    slices.map((r) => [String(r[nameKey]), { label: String(r[nameKey] ?? "") }]),
+    slices.map((r) => [
+      String(r[nameKey]),
+      { label: String(r[nameKey] ?? "") },
+    ]),
   ) satisfies ChartConfig;
   return { slices, total, config };
 }
 
 /** c-chart-19 donut with the total in the centre. */
 export function DistributionDonutChart(props: DonutProps) {
-  const { nameKey, valueKey, format = "number", legend = true, height = 240 } = props;
+  const {
+    nameKey,
+    valueKey,
+    format = "number",
+    legend = true,
+    height = 240,
+  } = props;
   const { slices, total, config } = useSlices(props);
   if (slices.length === 0) return <EmptyChart />;
   return (
     <div>
-      <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
+      <ChartContainer
+        config={config}
+        className="mx-auto aspect-square"
+        style={{ height }}
+      >
         <PieChart accessibilityLayer>
           <ChartTooltip
-            content={<ChartTooltipContent className="min-w-40 gap-2.5" formatter={valueFormatter(format)} />}
+            content={
+              <ChartTooltipContent
+                className="min-w-40 gap-2.5"
+                formatter={valueFormatter(format)}
+              />
+            }
           />
           <Pie
             data={slices}
@@ -430,12 +591,28 @@ export function ActiveSegmentDonutChart(props: DonutProps) {
   const { slices, total, config } = useSlices(props);
   if (slices.length === 0) return <EmptyChart />;
   return (
-    <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
+    <ChartContainer
+      config={config}
+      className="mx-auto aspect-square"
+      style={{ height }}
+    >
       <PieChart accessibilityLayer>
         <ChartTooltip
-          content={<ChartTooltipContent className="min-w-40 gap-2.5" formatter={valueFormatter(format)} />}
+          content={
+            <ChartTooltipContent
+              className="min-w-40 gap-2.5"
+              formatter={valueFormatter(format)}
+            />
+          }
         />
-        <ChartLegend content={<ChartLegendContent nameKey={nameKey} className="-translate-y-2 flex-wrap" />} />
+        <ChartLegend
+          content={
+            <ChartLegendContent
+              nameKey={nameKey}
+              className="-translate-y-2 flex-wrap"
+            />
+          }
+        />
         <Pie
           data={slices}
           dataKey={valueKey}
@@ -468,7 +645,16 @@ type HoverBarProps = SVGProps<SVGRectElement> & {
 };
 
 // Resting bars are slim; the hovered one widens. scaleX (not width) keeps it a transform-only animation.
-function HoverBar({ x, y, width, height, fill, index, activeIndex, onActive }: HoverBarProps) {
+function HoverBar({
+  x,
+  y,
+  width,
+  height,
+  fill,
+  index,
+  activeIndex,
+  onActive,
+}: HoverBarProps) {
   const w = Number(width || 0);
   const active = index === activeIndex;
   return (
@@ -481,7 +667,9 @@ function HoverBar({ x, y, width, height, fill, index, activeIndex, onActive }: H
         fill={fill}
         rx={3}
         className="origin-center transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [transform-box:fill-box] motion-reduce:transition-none"
-        style={{ transform: `scaleX(${active || w === 0 ? 1 : Math.min(1, COLLAPSED_WIDTH / w)})` }}
+        style={{
+          transform: `scaleX(${active || w === 0 ? 1 : Math.min(1, COLLAPSED_WIDTH / w)})`,
+        }}
       />
     </g>
   );
@@ -507,7 +695,9 @@ export function HoverValueBarChart({
 }) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   if (data.length === 0) return <EmptyChart />;
-  const config = { [yKey]: { label, color: chartColor(0) } } satisfies ChartConfig;
+  const config = {
+    [yKey]: { label, color: chartColor(0) },
+  } satisfies ChartConfig;
   const active = activeIndex === undefined ? undefined : data[activeIndex];
   const figure = active
     ? Number(active[yKey]) || 0
@@ -515,17 +705,31 @@ export function HoverValueBarChart({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-muted-foreground text-sm">{active ? String(active[xKey]) : totalLabel}</span>
-        <span className="text-xl font-semibold tracking-tight tabular-nums">{formatValue(figure, format)}</span>
+        <span className="text-muted-foreground text-sm">
+          {active ? String(active[xKey]) : totalLabel}
+        </span>
+        <span className="text-xl font-semibold tracking-tight tabular-nums">
+          {formatValue(figure, format)}
+        </span>
       </div>
-      <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <ChartContainer
+        config={config}
+        className="aspect-auto w-full"
+        style={{ height }}
+      >
         <BarChart
           accessibilityLayer
           data={data}
           onMouseLeave={() => setActiveIndex(undefined)}
           margin={{ top: 20, right: 12, bottom: 12, left: 12 }}
         >
-          <XAxis dataKey={xKey} tickLine={false} tickMargin={10} axisLine={false} minTickGap={24} />
+          <XAxis
+            dataKey={xKey}
+            tickLine={false}
+            tickMargin={10}
+            axisLine={false}
+            minTickGap={24}
+          />
           <ChartTooltip
             cursor={false}
             content={
@@ -542,7 +746,11 @@ export function HoverValueBarChart({
             name={yKey}
             fill={chartColor(0)}
             shape={(p: unknown) => (
-              <HoverBar {...(p as HoverBarProps)} activeIndex={activeIndex} onActive={setActiveIndex} />
+              <HoverBar
+                {...(p as HoverBarProps)}
+                activeIndex={activeIndex}
+                onActive={setActiveIndex}
+              />
             )}
           />
         </BarChart>
@@ -571,13 +779,26 @@ export function GroupedBarChart({
   if (data.length === 0) return <EmptyChart />;
   const { rows } = keySeries(data, series);
   const config = Object.fromEntries(
-    series.map((s, i) => [seriesKey(i), { label: s.label, color: chartColor(i) }]),
+    series.map((s, i) => [
+      seriesKey(i),
+      { label: s.label, color: chartColor(i) },
+    ]),
   ) satisfies ChartConfig;
   return (
-    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+    <ChartContainer
+      config={config}
+      className="aspect-auto w-full"
+      style={{ height }}
+    >
       <BarChart accessibilityLayer data={rows}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey={xKey} tickLine={false} tickMargin={10} axisLine={false} minTickGap={24} />
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          minTickGap={24}
+        />
         <ChartTooltip
           cursor={false}
           content={
@@ -590,9 +811,17 @@ export function GroupedBarChart({
           }
         />
         {series.map((s, i) => (
-          <Bar key={seriesKey(i)} dataKey={seriesKey(i)} name={s.label} fill={chartColor(i)} radius={4} />
+          <Bar
+            key={seriesKey(i)}
+            dataKey={seriesKey(i)}
+            name={s.label}
+            fill={chartColor(i)}
+            radius={4}
+          />
         ))}
-        {legend || series.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
+        {legend || series.length > 1 ? (
+          <ChartLegend content={<ChartLegendContent />} />
+        ) : null}
       </BarChart>
     </ChartContainer>
   );
@@ -616,8 +845,18 @@ export function RadialRateChart({
     rows.map((r) => [String(r[nameKey]), { label: String(r[nameKey] ?? "") }]),
   ) satisfies ChartConfig;
   return (
-    <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
-      <RadialBarChart accessibilityLayer data={rows} innerRadius="30%" outerRadius="100%" barSize={22}>
+    <ChartContainer
+      config={config}
+      className="mx-auto aspect-square"
+      style={{ height }}
+    >
+      <RadialBarChart
+        accessibilityLayer
+        data={rows}
+        innerRadius="30%"
+        outerRadius="100%"
+        barSize={22}
+      >
         <ChartTooltip
           content={
             <ChartTooltipContent
@@ -627,14 +866,29 @@ export function RadialRateChart({
             />
           }
         />
-        <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+        <PolarAngleAxis
+          type="number"
+          domain={[0, 100]}
+          angleAxisId={0}
+          tick={false}
+        />
         <RadialBar
           dataKey={valueKey}
           background
           cornerRadius={10}
-          label={{ position: "insideStart", fill: "var(--background)", fontSize: 12, fontWeight: 600, formatter: (v: unknown) => `${v}%` }}
+          label={{
+            position: "insideStart",
+            fill: "var(--background)",
+            fontSize: 12,
+            fontWeight: 600,
+            formatter: (v: unknown) => `${v}%`,
+          }}
         />
-        <ChartLegend content={<ChartLegendContent nameKey={nameKey} className="-translate-y-2" />} />
+        <ChartLegend
+          content={
+            <ChartLegendContent nameKey={nameKey} className="-translate-y-2" />
+          }
+        />
       </RadialBarChart>
     </ChartContainer>
   );
@@ -659,26 +913,36 @@ export function SegmentedBar({
   const total = folded.reduce((s, p) => s + p.value, 0);
   return (
     <div className="flex flex-col gap-3">
-      <div
-        role="img"
-        aria-label={folded.map((p) => `${p.label} ${p.share}%`).join(", ")}
-        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
-        onMouseLeave={() => setHover(null)}
-      >
-        {folded.map((p, i) => (
-          <div
-            key={`${p.label}-${i}`}
-            className="relative h-full transition-opacity first:rounded-l-full last:rounded-r-full"
-            style={{
-              width: `${(p.value / total) * 100}%`,
-              background: p.color,
-              opacity: hover === null || hover === i ? 1 : 0.45,
-            }}
-            title={`${p.label}: ${formatValue(p.value, format)} (${fmtPct(p.share)})`}
-            onMouseEnter={() => setHover(i)}
-          />
-        ))}
-      </div>
+      <TooltipProvider>
+        <div
+          className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
+          onMouseLeave={() => setHover(null)}
+        >
+          {folded.map((p, i) => {
+            const text = `${p.label}: ${formatValue(p.value, format)} (${fmtPct(p.share)})`;
+            return (
+              <Tooltip key={`${p.label}-${i}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    tabIndex={0}
+                    aria-label={text}
+                    className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
+                    style={{
+                      width: `${(p.value / total) * 100}%`,
+                      background: p.color,
+                      opacity: hover === null || hover === i ? 1 : 0.45,
+                    }}
+                    onMouseEnter={() => setHover(i)}
+                    onFocus={() => setHover(i)}
+                    onBlur={() => setHover(null)}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{text}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
       {withList ? (
         <ul className="divide-border/60 divide-y">
           {folded.map((p, i) => (
@@ -688,20 +952,35 @@ export function SegmentedBar({
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
             >
-              <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ background: p.color }}
+              />
               <span className="min-w-0 flex-1 truncate">{p.label}</span>
-              <span className="font-semibold tabular-nums">{formatValue(p.value, format)}</span>
-              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(p.share)}</span>
+              <span className="font-semibold tabular-nums">
+                {formatValue(p.value, format)}
+              </span>
+              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">
+                {fmtPct(p.share)}
+              </span>
             </li>
           ))}
         </ul>
       ) : (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Legend">
+        <ul
+          className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+          aria-label="Legend"
+        >
           {folded.map((p, i) => (
             <li key={`${p.label}-${i}`} className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full" style={{ background: p.color }} />
+              <span
+                className="size-2.5 rounded-full"
+                style={{ background: p.color }}
+              />
               <span className="text-muted-foreground">{p.label}</span>
-              <span className="font-medium tabular-nums">{fmtPct(p.share)}</span>
+              <span className="font-medium tabular-nums">
+                {fmtPct(p.share)}
+              </span>
             </li>
           ))}
         </ul>
@@ -718,31 +997,54 @@ export function FunnelChart({
   stages: { label: string; value: number }[];
   format?: ValueFormat;
 }) {
-  if (stages.length === 0 || stages.every((s) => s.value <= 0)) return <EmptyChart />;
+  if (stages.length === 0 || stages.every((s) => s.value <= 0))
+    return <EmptyChart />;
   const rows = funnelStages(stages);
   return (
-    <ul className="flex flex-col gap-2" aria-label="Funnel">
-      {rows.map((r, i) => (
-        <li key={`${r.label}-${i}`} className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="truncate">{r.label}</span>
-            <span className="flex items-baseline gap-2">
-              <span className="font-semibold tabular-nums">{formatValue(r.value, format)}</span>
-              {r.kept !== null ? (
-                <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">{fmtPct(r.kept)} kept</span>
-              ) : null}
-            </span>
-          </div>
-          <div className="bg-muted h-3 w-full overflow-hidden rounded-sm">
-            <div
-              className="h-full rounded-sm"
-              style={{ width: `${r.width}%`, background: tokenColor(0) }}
-              title={`${r.label}: ${formatValue(r.value, format)}${r.kept !== null ? ` (${r.kept}% kept)` : ""}`}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <TooltipProvider>
+      <ul className="flex flex-col gap-2" aria-label="Funnel">
+        {rows.map((r, i) => (
+          <li key={`${r.label}-${i}`} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="truncate">{r.label}</span>
+              <span className="flex items-baseline gap-2">
+                <span className="font-semibold tabular-nums">
+                  {formatValue(r.value, format)}
+                </span>
+                {r.kept !== null ? (
+                  <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
+                    {fmtPct(r.kept)} kept
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            {(() => {
+              const text = `${r.label}: ${formatValue(r.value, format)}${r.kept !== null ? ` (${r.kept}% kept)` : ""}`;
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      tabIndex={0}
+                      aria-label={text}
+                      className="bg-muted focus-visible:ring-ring/50 h-3 w-full overflow-hidden rounded-sm outline-none focus-visible:ring-2"
+                    >
+                      <div
+                        className="h-full rounded-sm"
+                        style={{
+                          width: `${r.width}%`,
+                          background: tokenColor(0),
+                        }}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{text}</TooltipContent>
+                </Tooltip>
+              );
+            })()}
+          </li>
+        ))}
+      </ul>
+    </TooltipProvider>
   );
 }
 
@@ -759,64 +1061,107 @@ export function HeatmapGrid({
   cells: (number | null)[][];
   format?: ValueFormat;
 }) {
-  const values = cells.flat().filter((v): v is number => typeof v === "number" && v > 0);
-  if (rows.length === 0 || columns.length === 0 || values.length === 0) return <EmptyChart />;
+  const values = cells
+    .flat()
+    .filter((v): v is number => typeof v === "number" && v > 0);
+  if (rows.length === 0 || columns.length === 0 || values.length === 0)
+    return <EmptyChart />;
   const min = Math.min(...values);
   const max = Math.max(...values);
   return (
-    <div className="flex flex-col gap-3">
-      <div
-        role="table"
-        className="grid items-stretch gap-0.5 text-sm"
-        style={{ gridTemplateColumns: `minmax(0, auto) repeat(${columns.length}, minmax(0, 1fr))` }}
-      >
-        <div role="row" className="contents">
-          <div role="columnheader" />
-          {columns.map((c, ci) => (
-            <div key={`${c}-${ci}`} role="columnheader" className="text-muted-foreground truncate px-2 pb-1 text-center text-xs">
-              {c}
-            </div>
-          ))}
-        </div>
-        {rows.map((r, ri) => (
-          <div key={`${r}-${ri}`} role="row" className="contents">
-            <div role="rowheader" className="text-muted-foreground flex items-center truncate pr-2 text-xs">
-              {r}
-            </div>
-            {columns.map((c, ci) => {
-              const v = cells[ri]?.[ci] ?? null;
-              const b = heatBucket(v, min, max);
-              return (
-                <div
-                  key={`${c}-${ci}`}
-                  role="cell"
-                  title={`${r} / ${c}: ${b === 0 ? "none" : formatValue(v, format)}`}
-                  className="relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-2 py-2 text-xs tabular-nums"
-                >
-                  <span
-                    aria-hidden
-                    className="absolute inset-0"
-                    style={{ background: tokenColor(0), opacity: heatOpacity(b) }}
-                  />
-                  <span className={b === 0 ? "text-muted-foreground relative" : "text-foreground relative font-medium"}>
-                    {b === 0 ? "\u2014" : formatValue(v, format)}
-                  </span>
-                </div>
-              );
-            })}
+    <TooltipProvider>
+      <div className="flex flex-col gap-3">
+        <div
+          role="table"
+          className="grid items-stretch gap-0.5 text-sm"
+          style={{
+            gridTemplateColumns: `minmax(0, auto) repeat(${columns.length}, minmax(0, 1fr))`,
+          }}
+        >
+          <div role="row" className="contents">
+            <div role="columnheader" />
+            {columns.map((c, ci) => (
+              <div
+                key={`${c}-${ci}`}
+                role="columnheader"
+                className="text-muted-foreground truncate px-2 pb-1 text-center text-xs"
+              >
+                {c}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="text-muted-foreground flex items-center gap-2 text-xs" aria-hidden>
-        <span>{formatValue(min, format)}</span>
-        <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
-          {Array.from({ length: HEAT_STEPS }, (_, i) => (
-            <span key={i} className="flex-1" style={{ background: tokenColor(0), opacity: heatOpacity(i + 1) }} />
+          {rows.map((r, ri) => (
+            <div key={`${r}-${ri}`} role="row" className="contents">
+              <div
+                role="rowheader"
+                className="text-muted-foreground flex items-center truncate pr-2 text-xs"
+              >
+                {r}
+              </div>
+              {columns.map((c, ci) => {
+                const v = cells[ri]?.[ci] ?? null;
+                const b = heatBucket(v, min, max);
+                const shown = v == null ? "\u2014" : formatValue(v, format);
+                const text = `${r} / ${c}: ${v == null ? "no data" : shown}`;
+                return (
+                  <Tooltip key={`${c}-${ci}`}>
+                    <TooltipTrigger asChild>
+                      <div
+                        role="cell"
+                        tabIndex={0}
+                        aria-label={text}
+                        className="focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-2 py-2 text-xs tabular-nums outline-none focus-visible:ring-2"
+                      >
+                        <span
+                          aria-hidden
+                          className="absolute inset-0"
+                          style={{
+                            background: tokenColor(0),
+                            opacity: heatOpacity(b),
+                          }}
+                        />
+                        <span
+                          className={cn(
+                            "relative",
+                            b === 0
+                              ? "text-muted-foreground"
+                              : heatIsDense(b)
+                                ? "text-background font-medium"
+                                : "text-foreground font-medium",
+                          )}
+                        >
+                          {shown}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{text}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
           ))}
         </div>
-        <span>{formatValue(max, format)}</span>
+        <div
+          className="text-muted-foreground flex items-center gap-2 text-xs"
+          aria-hidden
+        >
+          <span>{formatValue(min, format)}</span>
+          <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
+            {Array.from({ length: HEAT_STEPS }, (_, i) => (
+              <span
+                key={i}
+                className="flex-1"
+                style={{
+                  background: tokenColor(0),
+                  opacity: heatOpacity(i + 1),
+                }}
+              />
+            ))}
+          </div>
+          <span>{formatValue(max, format)}</span>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
@@ -837,13 +1182,26 @@ export function DivergingBarChart({
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
-  const rows = data.map((r) => ({ ...r, s0: Number(r[yKey]) || 0 }));
+  const rows = data.map((r) => {
+    const s0 = Number(r[yKey]) || 0;
+    return { ...r, s0, fill: s0 < 0 ? "var(--destructive)" : "var(--success)" };
+  });
   const config = positionalConfig([{ label }]) satisfies ChartConfig;
   return (
-    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+    <ChartContainer
+      config={config}
+      className="aspect-auto w-full"
+      style={{ height }}
+    >
       <BarChart accessibilityLayer data={rows}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+        />
         <YAxis hide domain={["auto", "auto"]} />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip
@@ -859,7 +1217,7 @@ export function DivergingBarChart({
         />
         <Bar dataKey="s0" name={label} radius={3} maxBarSize={32}>
           {rows.map((r, i) => (
-            <Cell key={i} fill={r.s0 < 0 ? "var(--destructive)" : "var(--success)"} />
+            <Cell key={i} fill={r.fill} />
           ))}
         </Bar>
       </BarChart>

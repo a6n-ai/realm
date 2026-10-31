@@ -3,6 +3,7 @@ import {
   foldParts,
   funnelStages,
   heatBucket,
+  heatIsDense,
   positionalConfig,
   rankedHeight,
   topWithOther,
@@ -10,10 +11,11 @@ import {
 
 describe("foldParts", () => {
   const parts = Array.from({ length: 9 }, (_, i) => ({ label: `p${i}`, value: i + 1 }));
-  it("folds more than 6 into Other and shares sum to 100", () => {
+  it("folds more than 5 into Other and shares sum to 100", () => {
     const out = foldParts(parts);
-    expect(out).toHaveLength(6);
-    expect(out.at(-1)).toMatchObject({ label: "Other", value: 1 + 2 + 3 + 4 });
+    expect(out).toHaveLength(5);
+    expect(out.at(-1)).toMatchObject({ label: "Other", value: 1 + 2 + 3 + 4 + 5 });
+    expect(new Set(out.slice(0, 4).map((p) => p.color)).size).toBe(4);
     expect(out.reduce((s, p) => s + p.share, 0)).toBe(100);
     expect(out.reduce((s, p) => s + p.value, 0)).toBe(45);
   });
@@ -25,6 +27,13 @@ describe("foldParts", () => {
     ]);
     expect(out.reduce((s, p) => s + p.share, 0)).toBe(100);
     expect(out.map((p) => p.color)).toEqual(["var(--success)", "var(--destructive)", "var(--chart-1)"]);
+  });
+  it("skips the red chart-4 when status colours are present", () => {
+    const out = foldParts([
+      { label: "ok", value: 5, tone: "success" },
+      ...["a", "b", "c", "d"].map((label) => ({ label, value: 1 })),
+    ]);
+    expect(out.map((p) => p.color)).not.toContain("var(--chart-4)");
   });
   it("is empty for all-zero input", () => {
     expect(foldParts([{ label: "a", value: 0 }])).toEqual([]);
@@ -54,6 +63,8 @@ describe("heatBucket", () => {
     expect(heatBucket(10, 10, 100)).toBe(1);
     expect(heatBucket(100, 10, 100)).toBe(5);
     expect(heatBucket(5, 5, 5)).toBe(5);
+    expect(heatIsDense(heatBucket(100, 10, 100))).toBe(true);
+    expect(heatIsDense(heatBucket(10, 10, 100))).toBe(false);
   });
 });
 
@@ -64,6 +75,13 @@ describe("topWithOther", () => {
     expect(out).toHaveLength(9);
     expect(out.at(-1)).toMatchObject({ name: "Other", n: 1 + 2 + 3 + 4 });
     expect(out.reduce((s, r) => s + Number(r.n), 0)).toBe(78);
+  });
+  it("shows a single leftover row instead of folding it", () => {
+    const rows = Array.from({ length: 9 }, (_, i) => ({ name: `r${i}`, n: i + 1 }));
+    const out = topWithOther(rows, "name", "n");
+    expect(out).toHaveLength(9);
+    expect(out.map((r) => r.name)).not.toContain("Other");
+    expect(out[0]!.n).toBe(9);
   });
   it("leaves short lists alone", () => {
     expect(topWithOther([{ name: "a", n: 1 }], "name", "n")).toHaveLength(1);
