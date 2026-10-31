@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { AlertCircleIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -81,8 +82,9 @@ export function CoinsStep({
         <Alert variant="destructive">
           <AlertCircleIcon />
           <AlertDescription className="flex items-center justify-between gap-2">
-            {error}
-            <Button size="sm" variant="outline" onClick={save} disabled={saving || !valid}>Retry</Button>
+            <span>
+              {error} Check <Link href="/dashboard/wallet/groups" className="underline">Wallet → Groups</Link> before saving again.
+            </span>
           </AlertDescription>
         </Alert>
       )}

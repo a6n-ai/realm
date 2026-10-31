@@ -3,6 +3,7 @@
 import { UsersIcon } from "lucide-react";
 import { DataTable } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
+import { Badge } from "@/components/reui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { AccountSearch, type AccountResult } from "../account-search";
 import type { Candidate } from "../types";
@@ -19,7 +20,7 @@ const COLUMNS = [
 const money = (v: string) => `$${Number(v).toFixed(2)}`;
 
 export function toCandidate(a: AccountResult): Candidate {
-  return { publicId: a.publicId, name: a.fullName, phone: a.phone, email: a.email, revenue: "0", firstOrderDate: "-", lastTiffin: null };
+  return { publicId: a.publicId, name: a.fullName, phone: a.phone, email: a.email, revenue: "0", firstOrderDate: "-", lastTiffin: null, added: true };
 }
 
 export function ReviewStep({
@@ -82,9 +83,9 @@ export function ReviewStep({
             </TableCell>
             <TableCell className="font-medium">{r.name ?? "Customer"}</TableCell>
             <TableCell className="text-muted-foreground">{r.phone ?? r.email ?? "-"}</TableCell>
-            <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>
-            <TableCell className="tabular-nums">{r.firstOrderDate}</TableCell>
-            <TableCell className="tabular-nums">{r.lastTiffin ?? "-"}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : money(r.revenue)}</TableCell>
+            <TableCell className="tabular-nums">{r.added ? "" : r.firstOrderDate}</TableCell>
+            <TableCell className="tabular-nums">{r.added ? "" : (r.lastTiffin ?? "-")}</TableCell>
           </>
         )}
       />

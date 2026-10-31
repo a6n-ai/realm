@@ -51,7 +51,7 @@ function buildFields(cities: string[]): Fields {
           placeholder="$ amount"
           value={values[0] ?? ""}
           onChange={(e) => onChange([e.target.value])}
-          className="h-6 w-28"
+          className="w-28"
         />
       ),
     },
@@ -119,7 +119,7 @@ export function FindStep({
       try {
         const { rows, total } = await getPayoutCandidates(parsed.input);
         if (total > maxRows) {
-          setError(`${total} customers match - narrow the filters to ${maxRows} or fewer.`);
+          setError(`Too many matches (${total}). Narrow the filters.`);
           return;
         }
         onFound(rows, parsed.input);
