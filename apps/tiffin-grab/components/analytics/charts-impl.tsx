@@ -386,7 +386,8 @@ export function BreakdownBarChart({
           accessibilityLayer
           data={ranked}
           layout="vertical"
-          margin={{ top: 0, bottom: 0, left: -10, right: 48 }}
+          // Currency labels ("$1,802.35") need more room than counts, or the longest bar's label clips.
+          margin={{ top: 0, bottom: 0, left: -10, right: format === "currency" ? 84 : 48 }}
           barCategoryGap="30%"
         >
           <YAxis
