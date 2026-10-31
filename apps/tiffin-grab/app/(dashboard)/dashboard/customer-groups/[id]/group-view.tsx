@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CoinsIcon, DownloadIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { CoinsIcon, DownloadIcon, MailIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
@@ -188,6 +189,12 @@ export function GroupView({
               serial={false}
               emptyIcon={CoinsIcon}
               emptyMessage="Nothing has been done to this group yet."
+              emptyAction={
+                <div className="flex gap-2">
+                  <Button asChild><Link href="/dashboard/wallet/give"><CoinsIcon /> Give coins</Link></Button>
+                  <Button asChild variant="outline"><Link href="/dashboard/notifications/campaigns"><MailIcon /> Email a group</Link></Button>
+                </div>
+              }
               renderRow={(a) => (
                 <>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>

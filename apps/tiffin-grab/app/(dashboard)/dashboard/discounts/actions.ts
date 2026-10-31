@@ -6,7 +6,7 @@ import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { coupons, users } from "@/db/schema";
+import { coupons, customerGroups, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
 import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
@@ -105,6 +105,12 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     active: data.active,
     config,
   };
+
+  // Resolve the group before any write: an unknown id must not leave a coupon saved as open to Everyone.
+  if (data.customerGroupPublicId) {
+    const [g] = await db.select({ id: customerGroups.id }).from(customerGroups).where(eq(customerGroups.publicId, data.customerGroupPublicId));
+    if (!g) throw new ValidationError("Group not found");
+  }
 
   const saved = publicId ? await couponsService.update(publicId, values) : await couponsService.create(values);
   await setCouponGroup(saved.publicId, data.customerGroupPublicId ?? null, await currentUserId());

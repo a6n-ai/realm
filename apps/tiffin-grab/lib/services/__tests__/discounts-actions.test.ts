@@ -99,6 +99,13 @@ describe("coupon form customer group", () => {
 
       await expect(saveCoupon(c.publicId, { ...patch, autoApply: true })).rejects.toBeInstanceOf(ValidationError);
 
+      await expect(saveCoupon(c.publicId, { ...patch, name: "Renamed", customerGroupPublicId: "no-such-group" })).rejects.toBeInstanceOf(ValidationError);
+      const [kept] = await db.select().from(coupons).where(eq(coupons.id, c.id));
+      expect(kept.customerGroupId).toBe(g.id);
+      expect(kept.name).toBe(c.name);
+      await expect(saveCoupon(null, { ...patch, code: "GRPNEW", customerGroupPublicId: "no-such-group" })).rejects.toBeInstanceOf(ValidationError);
+      expect(await db.select().from(coupons).where(eq(coupons.code, "GRPNEW"))).toHaveLength(0);
+
       await saveCoupon(c.publicId, { ...patch, customerGroupPublicId: null });
       const [cleared] = await db.select().from(coupons).where(eq(coupons.id, c.id));
       expect(cleared.customerGroupId).toBeNull();

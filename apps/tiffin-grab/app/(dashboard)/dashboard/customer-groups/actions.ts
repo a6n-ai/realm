@@ -11,14 +11,12 @@ import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
 import {
   addGroupMembers,
-  applyGroupCoupon,
   createCustomerGroup,
   emailAwardedMembers,
   emailGroup,
   getCoinsActionMembers,
   giveGroupCoins,
   groupMembersCsv,
-  listGroupableCoupons,
   removeGroupMember,
   searchCustomerGroups,
 } from "@/lib/services/customer-groups.service";
@@ -156,17 +154,6 @@ export async function emailAwardedMembersAction(actionPublicId: string) {
     const res = await emailAwardedMembers(idSchema.parse(actionPublicId), await currentUserId());
     revalidatePath("/dashboard/customer-groups");
     return res;
-  });
-}
-
-export async function listGroupableCouponsAction() {
-  return run(listGroupableCoupons);
-}
-
-export async function applyGroupCouponAction(groupPublicId: string, couponPublicId: string) {
-  return run(async () => {
-    await applyGroupCoupon(idSchema.parse(groupPublicId), idSchema.parse(couponPublicId), await currentUserId());
-    revalidatePath("/dashboard/customer-groups");
   });
 }
 

@@ -56,7 +56,7 @@ export function GiveOneCustomerDialog() {
   const body = outcome ? (
     <Alert variant={outcome.awarded > 0 ? "success" : "warning"}>
       <AlertDescription>
-        {outcome.awarded > 0 ? `Gave ${outcome.coinsPerCustomer} coins to ${name}.` : `${name} is at the wallet cap, so no coins were given.`}
+        {outcome.awarded > 0 ? `Gave ${outcome.coinsPerCustomer} coins to ${name}.` : outcome.capped > 0 ? `${name} is at the wallet cap, so no coins were given.` : "No coins were given."}
       </AlertDescription>
     </Alert>
   ) : failure ? (

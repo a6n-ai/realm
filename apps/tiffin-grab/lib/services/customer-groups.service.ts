@@ -499,18 +499,3 @@ export async function setCouponGroup(couponPublicId: string, groupPublicId: stri
   if (c.customerGroupId === g.id) return;
   await applyGroupCoupon(groupPublicId, couponPublicId, actorId, { fromForm: true });
 }
-
-export async function listGroupableCoupons(): Promise<{ publicId: string; code: string; name: string }[]> {
-  return db
-    .select({ publicId: coupons.publicId, code: coupons.code, name: coupons.name })
-    .from(coupons)
-    .where(
-      and(
-        eq(coupons.active, true),
-        eq(coupons.autoApply, false),
-        isNull(coupons.customerGroupId),
-        notInArray(coupons.kind, ["rep_daily", "rep_code"]),
-      ),
-    )
-    .orderBy(coupons.code);
-}
