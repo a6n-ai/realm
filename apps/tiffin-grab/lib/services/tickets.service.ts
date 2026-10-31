@@ -334,7 +334,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   async listQueuePage(
     sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
     filters: ComplaintFilters | undefined,
-    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string },
+    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string; visible?: "all" | string[] },
   ): Promise<Page<QueueRow> & { overdueCount: number }> {
     const customer = alias(users, "customer");
     const owner = alias(users, "owner");
@@ -369,6 +369,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const base = and(
       filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined,
       opts.ownerId ? eq(owner.publicId, opts.ownerId) : undefined,
+      opts.visible && opts.visible !== "all" ? inArray(tickets.organizationId, opts.visible) : undefined,
       q
         ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(customer.email, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
         : undefined,

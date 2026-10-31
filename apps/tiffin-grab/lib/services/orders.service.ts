@@ -1450,7 +1450,7 @@ export function renewalStatusSql(paidPlansOnly = false) {
 export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all" ? undefined : inArray(orders.organizationId, visible));
 
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
-function paymentReviewWhere() {
+export function paymentReviewWhere() {
   return and(
     inArray(orders.status, ["active", "pending", "paused"]),
     sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
@@ -1570,6 +1570,7 @@ export type OrderListRow = {
   trial: boolean;
   lookOut: boolean;
   lookOutNote: string | null;
+  lookOutAt: number | null;
   /** Free tiffins staff gave on top of the plan. */
   freeTiffins: number;
 };
@@ -1786,6 +1787,7 @@ export async function listOrdersPage(
       trial: r.trialLength != null,
       lookOut: r.lookOutAt != null,
       lookOutNote: r.lookOutNote,
+      lookOutAt: r.lookOutAt,
       freeTiffins: r.freeTiffins,
     };
   });

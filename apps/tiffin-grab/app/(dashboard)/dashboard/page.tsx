@@ -1,31 +1,28 @@
 import { Suspense } from "react";
-import { and, desc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ChevronRightIcon,
-  ClockIcon,
   DollarSignIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
   PackageIcon,
   SparklesIcon,
   UserIcon,
-  UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Role, formatMoney as fmt } from "@foundry/commons";
+import { Role, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { db } from "@/db/client";
-import { orders, users } from "@/db/schema";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
+import { TODAY_KINDS, isTodayKind, kindOptionLabel, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
-import { Badge } from "@foundry/ui/badge";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { cn } from "@foundry/ui/cn";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
+import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { ChartSkeleton } from "@/components/analytics/skeletons";
 import {
   PageShell,
   PageHeader,
@@ -37,29 +34,15 @@ import {
   OrderStatusBadge,
   ORDER_STATUS_LABEL,
   PageSkeleton,
-  SkeletonStatCards,
+  DataTableSkeleton,
+  type FacetDef,
 } from "@/components/ds";
-import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { TodayTiles } from "./_overview/today-tiles";
+import { NextDayCard } from "./_overview/next-day-card";
+import { TodayDeliveriesCard } from "./_overview/today-deliveries-card";
+import { TodayQueue } from "./_overview/today-queue";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
-
-async function loadStats(sp: { from?: string; to?: string }) {
-  const joined = epochBoundsWhere(users.createdAt, sp);
-  const created = epochBoundsWhere(orders.createdAt, sp);
-  const [userCount, subsTotal, subsActive, subsWaitlisted, revenue] = await Promise.all([
-    db.$count(users, joined),
-    db.$count(orders, created),
-    db.$count(orders, and(eq(orders.status, "active"), created)),
-    db.$count(orders, and(eq(orders.status, "waitlisted"), created)),
-    db
-      .select({ total: sql<string>`coalesce(sum(${orders.total}), 0)` })
-      .from(orders)
-      .where(and(eq(orders.status, "active"), created))
-      .then((r) => Number(r[0]?.total ?? 0)),
-  ]);
-  return { userCount, subsTotal, subsActive, subsWaitlisted, revenue };
-}
 
 // The page shell returns synchronously (no top-level await), so `loading.tsx`
 // never fires — instead the role gate and each data region stream into their own
@@ -80,133 +63,86 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
     return <CustomerDashboard userId={session.user.id} />;
   }
-  return <StaffOverview searchParams={searchParams} />;
+  return <StaffOverview searchParams={searchParams} session={session} />;
 }
 
-function StaffOverview({ searchParams }: { searchParams: SearchParams }) {
+async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
+  await requireStaff();
+  const visible = await resolveSessionVisibleOrgIds(session);
+  const { type } = await searchParams;
+  const activeType = isTodayKind(type) ? type : null;
+  const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const now = Date.now();
+  const today = zonedDateIso(now, timezone);
+
+  if (visible !== "all" && visible.length === 0) {
+    return (
+      <PageShell>
+        <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
+        <Alert variant="destructive">
+          <AlertTitle>No franchise access</AlertTitle>
+          <AlertDescription>
+            Your account isn&apos;t linked to any franchise, so there is nothing to show. Ask an admin to add you to a
+            franchise.
+          </AlertDescription>
+        </Alert>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
-      <PageHeader
-        icon={LayoutDashboardIcon}
-        title="Overview"
-        subtitle="Operational snapshot across orders and members."
-      />
-      <SectionDateRange />
+      <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <OverviewStats searchParams={searchParams} />
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+        <TodayTiles visible={visible} today={today} />
       </Suspense>
 
-      <SectionCard title="Recent orders" subtitle="The latest plans deployed through checkout.">
-        <Suspense fallback={<RecentOrders.Skeleton />}>
-          <RecentOrders searchParams={searchParams} />
+      {visible === "all" ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Suspense fallback={<ChartSkeleton height={160} />}>
+            <NextDayCard today={today} />
+          </Suspense>
+          <Suspense fallback={<ChartSkeleton height={160} />}>
+            <TodayDeliveriesCard today={today} />
+          </Suspense>
+        </div>
+      ) : null}
+
+      <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
+        <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
+          <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
         </Suspense>
       </SectionCard>
     </PageShell>
   );
 }
 
-async function OverviewStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
-  const stats = await loadStats(await withDefaultMonth(await searchParams));
-
-  const cards = [
-    { label: "Members", value: String(stats.userCount), hint: "joined in selected dates", icon: UsersIcon },
-    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} created`, icon: PackageIcon },
-    { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "created in selected dates", icon: ClockIcon },
-    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans created in range", icon: DollarSignIcon },
-  ];
-
-  return <StatGrid cols={4} items={cards} />;
-}
-
-// Single source of truth for the recent-orders table columns. The real header and
-// the .Skeleton twin both render from this, so the loading state can't drift.
-const RECENT_ORDER_COLUMNS = [
-  { key: "deployment", label: "Deployment" },
-  { key: "customer", label: "Customer" },
-  { key: "city", label: "City" },
-  { key: "status", label: "Status" },
-  { key: "total", label: "Total", align: "right" },
+const QUEUE_SKELETON_COLUMNS = [
+  { key: "type", label: "Type" },
+  { key: "who", label: "Who" },
+  { key: "what", label: "What" },
+  { key: "since", label: "Waiting since" },
+  { key: "action", label: "Action", align: "right" },
 ] as const;
 
-async function RecentOrders({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
-  const sp = await withDefaultMonth(await searchParams);
-  const recent = await db
-    .select({
-      deploymentId: orders.deploymentId,
-      status: orders.status,
-      fullName: orders.fullName,
-      city: orders.city,
-      total: orders.total,
-      createdAt: orders.createdAt,
-    })
-    .from(orders)
-    .where(epochBoundsWhere(orders.createdAt, sp))
-    .orderBy(desc(orders.createdAt))
-    .limit(5);
-
-  if (recent.length === 0) {
-    return <p className="text-muted-foreground text-sm">No orders in the selected dates.</p>;
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {RECENT_ORDER_COLUMNS.map((c) => (
-            <TableHead key={c.key} className={"align" in c ? "text-right" : undefined}>
-              {c.label}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {recent.map((r) => (
-          <TableRow key={r.deploymentId}>
-            <TableCell className="font-mono text-xs">{r.deploymentId}</TableCell>
-            <TableCell>{r.fullName}</TableCell>
-            <TableCell>{r.city}</TableCell>
-            <TableCell>
-              <Badge variant={r.status === "active" ? "default" : "secondary"}>{r.status}</Badge>
-            </TableCell>
-            <TableCell className="text-right">{fmt(Number(r.total))}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+async function TodayQueueSection({ visible, today, now, activeType }: { visible: "all" | string[]; today: string; now: number; activeType: TodayKind | null }) {
+  const [counts, queue] = await Promise.all([
+    getTodayCounts(visible, today),
+    getTodayQueue(visible, now, activeType ? [activeType] : undefined),
+  ]);
+  // Totals stay exact in the facet; picking a type filters on the server before the 50 cap.
+  const spec: FacetDef[] = [
+    {
+      kind: "select",
+      field: "type",
+      label: "Type",
+      options: TODAY_KINDS.map((k) => ({ value: k, label: kindOptionLabel(k, counts.byKind[k]) })),
+    },
+  ];
+  return <TodayQueue rows={queue.items} now={now} spec={spec} failed={queue.failed} activeType={activeType} />;
 }
-
-// Exact loading twin: same RECENT_ORDER_COLUMNS + Table markup, grey cells instead
-// of data. Used as the page's <Suspense fallback> so it can't drift from the table.
-RecentOrders.Skeleton = function RecentOrdersSkeleton() {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {RECENT_ORDER_COLUMNS.map((c) => (
-            <TableHead key={c.key} className={"align" in c ? "text-right" : undefined}>
-              {c.label}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: 8 }).map((_, r) => (
-          <TableRow key={r}>
-            {RECENT_ORDER_COLUMNS.map((c) => (
-              <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
-                <Skeleton className={cn("h-4 w-full max-w-32", "align" in c && "ml-auto")} />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-};
 
 const CUSTOMER_LINKS = [
   {
