@@ -69,8 +69,8 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Total tickets resolved",
           value: totalTicketsResolved,
-          hint: "Resolved or closed · by resolved date",
-          href: "/dashboard/tickets?status=resolved",
+          hint: "Resolved or closed in range, by resolved date. The link opens all resolved and closed tickets, not limited to this range.",
+          href: "/dashboard/tickets?status=resolved,closed",
           badge: "Resolved",
           badgeTone: "ok",
         },

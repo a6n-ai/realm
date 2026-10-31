@@ -87,3 +87,14 @@ export type AnalyticsFilterOptions = {
   zones: { value: string; label: string }[];
   orgs: { value: string; label: string }[];
 };
+
+/** Carries every analytics filter param (including org) onto another analytics path. */
+export function analyticsHref(path: string, sp: Partial<Record<string, string>>): string {
+  const qs = new URLSearchParams();
+  for (const key of ANALYTICS_FILTER_PARAMS) {
+    const v = sp[key];
+    if (v) qs.set(key, v);
+  }
+  const s = qs.toString();
+  return s ? `${path}?${s}` : path;
+}

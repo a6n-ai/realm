@@ -52,7 +52,8 @@ export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scop
           <TableCell className="text-right tabular-nums">{r.conversionRatePct}%</TableCell>
           <TableCell className="text-right tabular-nums">
             <Link
-              href={`/dashboard/tickets?status=resolved&owner=${encodeURIComponent(r.name)}`}
+              title="Opens this rep's resolved and closed tickets, not limited to the range"
+              href={`/dashboard/tickets?status=resolved,closed&owner=${encodeURIComponent(r.name)}`}
               className="hover:underline"
             >
               {r.ticketsResolved}

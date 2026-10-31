@@ -126,15 +126,14 @@ async function Headline({ view }: { view: View }) {
   return (
     <HeadlineCards
       kpis={report.kpis}
-      grain={report.grain}
+      range={`${report.from} to ${report.to}`}
       cashHref={paymentsHref(view.scope, { statuses: SETTLED_STATUSES, basis: "money" })}
     />
   );
 }
 
-function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; grain: Grain; cashHref: string }) {
-  const rangeHint =
-    grain === "monthly" ? "Last 12 months" : grain === "weekly" ? "Weeks in this month" : "This month";
+function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; range: string; cashHref: string }) {
+  const rangeHint = range;
 
   const items: MetricTile[] = [
     {

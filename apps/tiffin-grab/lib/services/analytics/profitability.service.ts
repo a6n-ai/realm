@@ -44,15 +44,18 @@ const HAS_CAPTURED = sql`exists (
 )`;
 // What the order actually earned: its captured payments ex tax, minus ledger refunds ex tax (the
 // same expressions the Revenue tab sums). Not date-limited: it is spread over the order's tiffins.
-const ORDER_EARNED = sql`((select coalesce(sum(${netExTax()}), 0) from ${payments}
-    where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, CAPTURED)})
+const CAPTURED_NET = sql`(select coalesce(sum(${netExTax()}), 0) from ${payments}
+    where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, CAPTURED)})`;
+const ORDER_EARNED = sql`(${CAPTURED_NET}
   - (select coalesce(sum(${refundExTax}), 0) from ${ledgerEntries}
     inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId}
     where ${payments.orderId} = ${orders.id} and ${ledgerEntries.type} = 'refund'))`;
 const EARNED_PER_TIFFIN = sql`(${ORDER_EARNED} / nullif(${orders.tiffinCount}, 0))`;
-// Order total net of tax, for orders nobody has paid yet (no earned figure exists for them).
-const PER_TIFFIN = sql`((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
-  / nullif(${orders.tiffinCount}, 0))`;
+// Still owed per tiffin: order total ex tax less what was paid ex tax (before refunds). A half-paid
+// order owes half; an order nobody paid owes all of it.
+const UNPAID_PER_TIFFIN = sql`greatest(
+  ((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0)) - ${CAPTURED_NET})
+  / nullif(${orders.tiffinCount}, 0), 0)`;
 
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
@@ -61,7 +64,7 @@ const PER_TIFFIN = sql`((${orders.total}::numeric - coalesce((${orders.pricingSn
  * order's tiffinCount, then attributed to the delivery DATE, never the payment date.
  *
  * An order earns what it was actually paid ex tax, less refunds (partial payments earn
- * the paid share); orders with no captured payment are reported as `unpaidRevenue`. Every
+ * the paid share); the unpaid remainder of an order is reported as `unpaidRevenue`. Every
  * delivered tiffin still carries its kitchen and driver cost, because that food
  * went out whether or not it was paid for.
  */
@@ -100,8 +103,7 @@ export async function getProfitabilityReport(opts: {
             tiffins: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`,
             revenue: sql<number>`coalesce(sum(case when ${HAS_CAPTURED}
               then ${deliveries.tiffinUnits}::numeric * ${EARNED_PER_TIFFIN} end), 0)::float`,
-            unpaidRevenue: sql<number>`coalesce(sum(case when not ${HAS_CAPTURED}
-              then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
+            unpaidRevenue: sql<number>`round(coalesce(sum(${deliveries.tiffinUnits}::numeric * ${UNPAID_PER_TIFFIN}), 0), 2)::float`,
           })
           .from(deliveries)
           .innerJoin(orders, eq(deliveries.orderId, orders.id))

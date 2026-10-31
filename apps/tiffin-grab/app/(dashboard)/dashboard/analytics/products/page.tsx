@@ -48,7 +48,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <TopDishesChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid by meal size" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included.`}>
+        <ChartCard title="Paid by meal size" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included. May differ from the total by rounding.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <TierBarChart scope={scope} />
           </Suspense>
@@ -56,14 +56,14 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Paid by plan" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, ex tax and surcharge, after refunds. Open a plan to see its orders.`}>
+        <ChartCard title="Paid by plan" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, ex tax and surcharge, after refunds. Open a plan to see orders created in this range (bars are payments by payment date). May differ from the total by rounding.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <PlanChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard
           title="Paid by meal type"
-          subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Maharaja Thali, 4 Item Thali, and other catalog sizes; custom sizes are not included.`}
+          subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Maharaja Thali, 4 Item Thali, and other catalog sizes; custom sizes are not included. May differ from the total by rounding.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
             <MealTypeList scope={scope} />

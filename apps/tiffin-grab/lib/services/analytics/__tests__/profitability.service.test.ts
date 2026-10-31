@@ -256,7 +256,7 @@ describe("profitability report", () => {
 
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
     expect(report.kpis.revenue).toBe(20);
-    expect(report.kpis.unpaidRevenue).toBe(0);
+    expect(report.kpis.unpaidRevenue).toBe(20); // the other half, ex tax
   });
 
   it("takes refunds off the order's earned revenue ex tax", async () => {
@@ -296,5 +296,27 @@ describe("profitability report", () => {
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: none });
     expect(report.kpis.tiffins).toBe(0);
     expect(report.kpis.cashCollected).toBe(0);
+  });
+
+  it("a refunded payment with no ledger refund row still earns its net ex tax (legacy rule, as on the Revenue tab)", async () => {
+    const order = await makeOrder({ total: "113.00", tiffinCount: 10, deploymentId: "PROF-LEGACY", taxTotal: 13 });
+    await makePayment(order.id, "113.00", Date.parse("2035-01-02T15:00:00Z"), "refunded");
+    await makeDelivery(order.id, "2035-01-05");
+
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    expect(report.kpis.revenue).toBe(10);
+    expect((await getRevenueReport(JAN_2035)).kpis.netRevenue).toBe(100); // same order, whole
+  });
+
+  it("reports the unpaid remainder of a half-paid order", async () => {
+    // $100 order, 10 tiffins, $40 paid: $4 earned and $6 still owed per tiffin.
+    const order = await makeOrder({ total: "100.00", tiffinCount: 10, deploymentId: "PROF-HALF" });
+    await makePayment(order.id, "40.00", Date.parse("2035-01-02T15:00:00Z"));
+    await makeDelivery(order.id, "2035-01-05");
+    await makeDelivery(order.id, "2035-01-06");
+
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    expect(report.kpis.revenue).toBe(8);
+    expect(report.kpis.unpaidRevenue).toBe(12);
   });
 });

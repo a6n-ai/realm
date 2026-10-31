@@ -20,6 +20,7 @@ import { getTrialToPlanConversion } from "@/lib/services/analytics/overview.serv
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
+import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -67,16 +68,6 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
       </div>
     </div>
   );
-}
-
-function analyticsHref(path: string, sp: AnalyticsSearchParams): string {
-  const qs = new URLSearchParams();
-  for (const key of ["from", "to", "plan", "mealSize", "zone"] as const) {
-    const v = sp[key];
-    if (v) qs.set(key, v);
-  }
-  const s = qs.toString();
-  return s ? `${path}?${s}` : path;
 }
 
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {

@@ -15,6 +15,10 @@ const TZ = "America/Toronto";
 const now = Date.now();
 const scope = buildAnalyticsScope({ from: String(now - 86_400_000), to: String(now + 86_400_000) }, "all", TZ, now);
 
+// Payments are captured in a window no other test-DB row touches, so the money split is exact.
+const PAID_AT = now + 400 * 86_400_000;
+const payScope = buildAnalyticsScope({ from: String(PAID_AT - 1000), to: String(PAID_AT + 1000) }, "all", TZ, now);
+
 const orderIds: bigint[] = [];
 const userIds: bigint[] = [];
 let dishId = 0n;
@@ -48,7 +52,7 @@ async function makeOrder(over: { planIdx: number; status?: "active" | "cancelled
     })
     .returning();
   orderIds.push(o!.id);
-  if (over.paid) await db.insert(payments).values({ orderId: o!.id, status: "paid", method: "etransfer", amount: over.paid, capturedAt: now });
+  if (over.paid) await db.insert(payments).values({ orderId: o!.id, status: "paid", method: "etransfer", amount: over.paid, capturedAt: PAID_AT });
   await db.insert(mealSelections).values({
     orderId: o!.id, menuWeekId: weekId, dayOfWeek: "mon", categoryId: (await db.select({ id: dishCategories.id }).from(dishCategories).limit(1))[0]!.id,
     personIndex: 1, dishId,
@@ -86,10 +90,10 @@ describe("products analytics", () => {
     await makeOrder({ planIdx: 1, paid: "56.50", deploymentId: "PRD-B" });
 
     const [net, byPlan, byTier, byMeal] = await Promise.all([
-      revenueTotals(scope),
-      getPaidByPlan(scope),
-      getPaidByTier(scope),
-      getPaidByMealType(scope),
+      revenueTotals(payScope),
+      getPaidByPlan(payScope),
+      getPaidByTier(payScope),
+      getPaidByMealType(payScope),
     ]);
     const sum = (rows: { paid: number }[]) => Math.round(rows.reduce((s, r) => s + r.paid, 0) * 100) / 100;
     expect(net.net).toBe(150); // 100 + 50, ex tax

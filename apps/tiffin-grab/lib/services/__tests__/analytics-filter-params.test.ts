@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   currentMonthEpochRange,
+  analyticsHref,
   parseAnalyticsFilters,
 } from "@/lib/services/analytics/shared-filter-params";
 import { isoDateInZone } from "@/lib/analytics/profitability";
@@ -34,5 +35,14 @@ describe("parseAnalyticsFilters", () => {
     const f = parseAnalyticsFilters({});
     expect(f.from).toBeUndefined();
     expect(f.to).toBeUndefined();
+  });
+});
+
+describe("analyticsHref", () => {
+  it("carries the franchise along with the date and facet filters", () => {
+    expect(analyticsHref("/dashboard/analytics/revenue", { from: "1", to: "2", org: "a,b", plan: "veg", junk: "x" })).toBe(
+      "/dashboard/analytics/revenue?from=1&to=2&plan=veg&org=a%2Cb",
+    );
+    expect(analyticsHref("/x", {})).toBe("/x");
   });
 });
