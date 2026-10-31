@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { asc, eq, inArray, like, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
@@ -31,7 +31,7 @@ const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
 
 async function brandOrgId(): Promise<string> {
-  const [row] = await db.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+  const [row] = await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, "TG")).limit(1);
   if (row) return row.id;
   const [made] = await db.insert(organization).values({ name: "Tiffin Grab", clientCode: "TG", parentOrganizationId: null }).returning({ id: organization.id });
   return made!.id;
@@ -94,6 +94,8 @@ describe("holidays at schedule writes", () => {
     createdOrderIds.push(o!.id);
     if (o!.userId != null) createdUserIds.push(o!.userId);
     expect(o!.status).toBe("active");
+    // Other files leave top-level orgs (this file's own included); the order must still land in the brand org.
+    expect(o!.organizationId).toBe(org);
     const rows = await rowsOf(o!.id);
     const closedRow = rows.find((r) => r.deliveryDate === closed)!;
     expect([closedRow.status, closedRow.holidayId != null]).toEqual(["paused", true]);
