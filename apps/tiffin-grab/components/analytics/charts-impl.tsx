@@ -1258,7 +1258,7 @@ export function FunnelChart({ steps, footnote }: { steps: FunnelStep[]; footnote
     <div className="flex flex-col gap-1">
       {steps.map((s, i) => {
         const prev = steps[i - 1]?.value ?? 0;
-        const width = Math.max(2, (s.value / first) * 100);
+        const width = Math.min(100, Math.max(2, (s.value / first) * 100));
         const bar = (
           <div className="flex flex-col gap-1 py-1">
             <div className="flex items-baseline justify-between gap-2 text-sm">

@@ -13,6 +13,7 @@ import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/component
 import { BreakdownBarChart, FunnelChart, SankeyChart } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 import { buildSourceFlow } from "@/lib/analytics/source-flow";
+import { reachedStages } from "@/lib/analytics/lead-funnel";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
   getLeadStats,
@@ -43,7 +44,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Lead stages" subtitle="Where each lead sits now" info="Each lead counts once, at its current stage (not every stage it passed through). Open a stage to see those inquiries.">
+        <ChartCard title="Lead stages" subtitle="How far leads got in the pipeline" info="Each step counts leads that reached at least that stage: a converted lead passed through every earlier one. Lost leads count only in All leads, since we do not know where they dropped out.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
           </Suspense>
@@ -118,18 +119,19 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 
 const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "success", lost: "destructive" };
 
-const FUNNEL = ["new", "contacted", "quoted", "follow_up", "converted"] as const;
-
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
-  const by = new Map(rows.map((r) => [r.key, r]));
-  const lost = by.get("lost")?.n ?? 0;
+  const counts = Object.fromEntries(rows.map((r) => [r.key, r.n]));
+  const lost = counts.lost ?? 0;
   return (
     <FunnelChart
-      steps={FUNNEL.map((k) => {
-        const r = by.get(k);
-        return { label: r?.stage ?? STAGE_NAME[k]!, value: r?.n ?? 0, tone: STAGE_TONE[k], href: inquiriesHref(scope, { stage: k }) };
-      })}
+      steps={reachedStages(counts).map(({ key, reached }, i) => ({
+        label: i === 0 ? "All leads" : STAGE_NAME[key]!,
+        value: reached,
+        tone: STAGE_TONE[key],
+        // Only the ends match a stage filter exactly; middle steps also count leads that moved on.
+        href: i === 0 ? inquiriesHref(scope, {}) : key === "converted" ? inquiriesHref(scope, { stage: key }) : undefined,
+      }))}
       footnote={
         <Link href={inquiriesHref(scope, { stage: "lost" })} className="hover:text-foreground transition-colors">
           {lost.toLocaleString()} lost
