@@ -6,7 +6,7 @@ import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, CalendarHeatmap, PartsDonut, RadialRateChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/analytics/charts";
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import {
@@ -71,19 +71,14 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
 
 async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
   const s = await loadStats(scope);
-  const data = s.totalDeliveries === 0 ? [] : [{ label: "Skip rate", rate: s.skipRatePct }];
+  const has = s.totalDeliveries > 0;
   return (
-    <div className="flex flex-col gap-3">
-      <RadialRateChart data={data} nameKey="label" valueKey="rate" caption="skipped" />
-      {s.totalDeliveries > 0 ? (
-        <p className="text-muted-foreground text-center text-sm">
-          <span className="text-foreground font-semibold tabular-nums">
-            {s.skipped.toLocaleString()} of {s.totalDeliveries.toLocaleString()}
-          </span>{" "}
-          deliveries skipped
-        </p>
-      ) : null}
-    </div>
+    <PartsDonut
+      caption="skipped"
+      label={has ? `${s.skipRatePct}%` : undefined}
+      footnote={has ? `${s.skipped.toLocaleString()} of ${s.totalDeliveries.toLocaleString()} deliveries skipped` : undefined}
+      parts={has ? [{ label: "Skipped", value: s.skipped, tone: "chart" }, { label: "Not skipped", value: s.totalDeliveries - s.skipped, tone: "muted" }] : []}
+    />
   );
 }
 

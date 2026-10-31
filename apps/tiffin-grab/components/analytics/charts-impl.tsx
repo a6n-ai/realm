@@ -20,11 +20,8 @@ import {
   Line,
   LineChart,
   ReferenceLine,
-  PolarAngleAxis,
   Pie,
   PieChart,
-  RadialBar,
-  RadialBarChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -60,8 +57,6 @@ import {
   DONUT_OUTER,
   DONUT_VALUE_CLASS,
   DONUT_CAPTION_CLASS,
-  DONUT_VALUE_TEXT_CLASS,
-  DONUT_CAPTION_TEXT_CLASS,
   positionalConfig,
   rankedHeight,
   signedTicks,
@@ -457,11 +452,12 @@ export function BreakdownBarChart({
   );
 }
 
-function donutCentre(total: number, format: ValueFormat, caption: string) {
+function donutCentre(total: number, format: ValueFormat, caption: string, label?: string) {
   const text =
-    format === "currency"
+    label ??
+    (format === "currency"
       ? moneyTick(total)
-      : total.toLocaleString();
+      : total.toLocaleString());
   return (
     <Label
       content={({ viewBox }) => {
@@ -492,56 +488,6 @@ function donutCentre(total: number, format: ValueFormat, caption: string) {
         }
       }}
     />
-  );
-}
-
-/** c-chart-25: one radial bar on a 0-100 track with the % in the centre. Values are percentages. */
-export function RadialRateChart({
-  data,
-  nameKey,
-  valueKey,
-  caption,
-  height = DONUT_PX,
-}: {
-  data: Row[];
-  nameKey: string;
-  valueKey: string;
-  /** Small word under the figure: "collected", "converted", "skipped". */
-  caption?: string;
-  height?: number;
-}) {
-  if (data.length === 0) return <EmptyChart />;
-  const rows = data.map((r, i): Row => ({ ...r, fill: chartColor(i) }));
-  const config = positionalConfig(rows.map((r) => ({ label: String(r[nameKey] ?? "") }))) satisfies ChartConfig;
-  const tip = valueFormatter("number", "%");
-  return (
-    <div className="relative mx-auto aspect-square" style={{ height }}>
-      <ChartContainer config={config} className="aspect-square h-full w-full">
-        <RadialBarChart
-          accessibilityLayer
-          data={rows}
-          innerRadius={DONUT_INNER}
-          outerRadius={DONUT_OUTER}
-          startAngle={90}
-          endAngle={-270}
-        >
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                className="min-w-40 gap-2.5"
-                formatter={(v, _name, item, i, payload) => tip(v, String(item?.payload?.[nameKey] ?? ""), item, i, payload)}
-              />
-            }
-          />
-          <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-          <RadialBar dataKey={valueKey} background cornerRadius={10} />
-        </RadialBarChart>
-      </ChartContainer>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className={DONUT_VALUE_TEXT_CLASS}>{Number(rows[0]![valueKey])}%</span>
-        {caption ? <span className={DONUT_CAPTION_TEXT_CLASS}>{caption}</span> : null}
-      </div>
-    </div>
   );
 }
 
@@ -678,22 +624,55 @@ export function SegmentedBar({
  * Part-to-whole as a donut with the total in the centre, beside the figures list (name, value, share).
  * The list keeps small parts readable and carries the drill links; slices link too.
  */
+export type ListPart = {
+  label: string;
+  value: number;
+  /** Replaces the formatted value on the right. */
+  aside?: string;
+  meta?: string;
+  /** Hover detail, for example the parts a folded row is made of. */
+  tip?: ReactNode;
+};
+
 export function PartsDonut({
   parts,
+  listParts,
+  emptyLabel,
   format = "number",
   max = 6,
   caption = "Total",
+  label,
+  footnote,
 }: {
   parts: Part[];
+  /** List rows independent of the slices. A row takes the swatch of the slice with its label, else the Other slice's. */
+  listParts?: ListPart[];
+  emptyLabel?: string;
   format?: ValueFormat;
   max?: number;
   caption?: string;
+  /** Centre figure instead of the total, e.g. "62%" with caption "collected". */
+  label?: string;
+  footnote?: string;
 }) {
   const router = useRouter();
   const folded = foldParts(parts, max);
-  if (folded.length === 0) return <EmptyChart />;
+  if (folded.length === 0) return emptyLabel ? <ChartEmpty message={emptyLabel} /> : <EmptyChart />;
   const total = folded.reduce((s, p) => s + p.value, 0);
   const config = Object.fromEntries(folded.map((p, i) => [`p${i}`, { label: p.label }])) satisfies ChartConfig;
+  const otherColor = folded.find((p) => p.label === "Other")?.color ?? TONE_COLOR.muted;
+  const listTotal = listParts?.reduce((t, p) => t + p.value, 0) ?? 0;
+  const listRows = listParts
+    ? listParts.map((p) => ({
+        label: p.label,
+        meta: p.meta,
+        tip: p.tip,
+        href: undefined as string | undefined,
+        color: folded.find((f) => f.label === p.label)?.color ?? otherColor,
+        text: p.aside ?? formatValue(p.value, format),
+        share: listTotal > 0 ? Math.round((p.value / listTotal) * 100) : 0,
+      }))
+    : folded.map((p) => ({ label: p.label, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format), share: p.share }));
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
       <ChartContainer config={config} className="aspect-square shrink-0" style={{ height: DONUT_PX }}>
@@ -718,23 +697,41 @@ export function PartsDonut({
             {folded.map((p, i) => (
               <Cell key={`${p.label}-${i}`} fill={p.color} />
             ))}
-            {donutCentre(total, format, caption)}
+            {donutCentre(total, format, caption, label)}
           </Pie>
         </PieChart>
       </ChartContainer>
-      <ul className="divide-border/60 w-full min-w-0 flex-1 divide-y">
-        {folded.map((p, i) => {
+      <div className="w-full min-w-0 flex-1">
+      <ul className="divide-border/60 w-full divide-y">
+        {listRows.map((p, i) => {
           const row = (
             <>
               <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
-              <span className="min-w-0 flex-1 truncate">{p.label}</span>
-              <span className="font-semibold tabular-nums">{formatValue(p.value, format)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{p.label}</span>
+                {p.meta ? <span className="text-muted-foreground block truncate text-xs">{p.meta}</span> : null}
+              </span>
+              <span className="font-semibold tabular-nums">{p.text}</span>
               <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(p.share)}</span>
             </>
           );
+          const cls = "flex items-center gap-2 py-2 text-sm";
           return (
             <li key={`${p.label}-${i}`}>
-              {p.href ? (
+              {p.tip ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div tabIndex={0} className={cn(cls, "focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2")}>
+                        {row}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      {p.tip}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : p.href ? (
                 <Link
                   href={p.href}
                   className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors focus-visible:ring-2"
@@ -742,12 +739,14 @@ export function PartsDonut({
                   {row}
                 </Link>
               ) : (
-                <div className="flex items-center gap-2 py-2 text-sm">{row}</div>
+                <div className={cls}>{row}</div>
               )}
             </li>
           );
         })}
       </ul>
+      {footnote ? <p className="text-muted-foreground pt-2 text-xs">{footnote}</p> : null}
+      </div>
     </div>
   );
 }

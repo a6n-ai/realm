@@ -9,7 +9,7 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
+import { BreakdownBarChart, PartsDonut, SegmentedBar } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
@@ -133,22 +133,12 @@ async function StageChart({ scope }: { scope: AnalyticsScope }) {
 async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
   const s = await getLeadStats(scope);
   return (
-    <div className="flex flex-col gap-3">
-      <RadialRateChart
-        data={s.total === 0 ? [] : [{ label: "Converted", rate: s.conversionRatePct }]}
-        nameKey="label"
-        valueKey="rate"
-        caption="converted"
-      />
-      {s.total > 0 ? (
-        <p className="text-muted-foreground text-center text-sm">
-          <span className="text-foreground font-semibold tabular-nums">
-            {s.converted.toLocaleString()} of {s.total.toLocaleString()}
-          </span>{" "}
-          leads converted
-        </p>
-      ) : null}
-    </div>
+    <PartsDonut
+      caption="converted"
+      label={s.total > 0 ? `${s.conversionRatePct}%` : undefined}
+      footnote={s.total > 0 ? `${s.converted.toLocaleString()} of ${s.total.toLocaleString()} leads converted` : undefined}
+      parts={s.total > 0 ? [{ label: "Converted", value: s.converted, tone: "chart" }, { label: "Not converted", value: s.total - s.converted, tone: "muted" }] : []}
+    />
   );
 }
 

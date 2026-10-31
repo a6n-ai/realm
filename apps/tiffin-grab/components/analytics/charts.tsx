@@ -11,9 +11,6 @@ const Trend = lazy(() => load().then((m) => ({ default: m.TrendLineChart })));
 const Breakdown = lazy(() =>
   load().then((m) => ({ default: m.BreakdownBarChart })),
 );
-const RadialRate = lazy(() =>
-  load().then((m) => ({ default: m.RadialRateChart })),
-);
 
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
 const Parts = lazy(() => load().then((m) => ({ default: m.PartsDonut })));
@@ -65,7 +62,6 @@ function wrap<C extends React.ComponentType<any>>(Inner: C, sized = false) {
 
 export const TrendLineChart = wrap(Trend);
 export const BreakdownBarChart = wrap(Breakdown, true);
-export const RadialRateChart = wrap(RadialRate);
 export const SegmentedBar = wrap(Segmented);
 export const PartsDonut = wrap(Parts);
 export const HeatmapGrid = wrap(Heatmap);

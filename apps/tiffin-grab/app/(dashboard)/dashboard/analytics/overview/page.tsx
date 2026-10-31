@@ -7,7 +7,7 @@ import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { PartsDonut, RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { PartsDonut, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { DailyScorecard } from "@/components/analytics/daily-scorecard";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
@@ -117,22 +117,12 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
             : "No trials ended in range"
       }
     >
-      <div className="flex flex-col gap-3">
-        <RadialRateChart
-          data={has ? [{ label: "Trial → Plan", rate: t.conversionRatePct! }] : []}
-          nameKey="label"
-          valueKey="rate"
-          caption="converted"
-        />
-        {has ? (
-          <p className="text-muted-foreground text-center text-sm">
-            <span className="text-foreground font-semibold tabular-nums">
-              {t.converted} of {t.eligible}
-            </span>{" "}
-            trials converted
-          </p>
-        ) : null}
-      </div>
+      <PartsDonut
+        caption="converted"
+        label={has ? `${t.conversionRatePct}%` : undefined}
+        footnote={has ? `${t.converted} of ${t.eligible} trials converted` : undefined}
+        parts={has ? [{ label: "Converted", value: t.converted, tone: "chart" }, { label: "Not converted", value: t.eligible - t.converted, tone: "muted" }] : []}
+      />
     </ChartCard>
   );
 }

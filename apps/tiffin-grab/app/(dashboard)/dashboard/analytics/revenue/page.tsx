@@ -6,8 +6,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { CalendarHeatmap, PartsDonut, RadialRateChart, TrendLineChart } from "@/components/analytics/charts";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
+import { CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -18,7 +17,6 @@ import { clockInZone, isoDateInZone } from "@/lib/analytics/profitability";
 import { topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
-import type { BreakdownRow } from "@/components/analytics/breakdown-list";
 import { NeedsReview } from "./needs-review";
 
 function money(n: number) {
@@ -249,24 +247,12 @@ async function Owed({ scope }: { scope: AnalyticsScope }) {
   const total = k.netCollected + k.pendingAmount;
   const rate = total > 0 ? (k.netCollected / total) * 100 : 0;
   return (
-    <div className="flex flex-col gap-3">
-      <RadialRateChart
-        data={total > 0 ? [{ label: "Collected", rate: Number(rate.toFixed(rate < 10 ? 1 : 0)) }] : []}
-        nameKey="label"
-        valueKey="rate"
-        caption="collected"
-      />
-      <dl className="flex flex-col gap-1.5 text-sm">
-        <div className="flex items-baseline justify-between gap-2">
-          <dt className="text-muted-foreground">Collected</dt>
-          <dd className="font-semibold tabular-nums">{money(k.netCollected)}</dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-2">
-          <dt className="text-muted-foreground">Awaiting or needs review</dt>
-          <dd className="font-semibold tabular-nums">{money(k.pendingAmount)}</dd>
-        </div>
-      </dl>
-    </div>
+    <PartsDonut
+      format="currency"
+      caption="collected"
+      label={total > 0 ? `${rate.toFixed(rate < 10 ? 1 : 0)}%` : undefined}
+      parts={[{ label: "Collected", value: k.netCollected, tone: "chart" }, { label: "Still owed", value: k.pendingAmount, tone: "muted" }]}
+    />
   );
 }
 
@@ -306,44 +292,38 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
-  const { discounts, kpis } = await loadReport(scope);
+  const { discounts } = await loadReport(scope);
   const staff = discounts.find((d) => d.source === "staff");
+  const meta = (d: DiscountLine) =>
+    `${SOURCE_LABEL[d.source]} · ${plural(d.orders, "order", "orders")}${d.codes ? ` · ${plural(d.codes.length, "code", "codes")}` : ""}`;
   return (
-    <BreakdownList
+    <PartsDonut
+      format="currency"
+      caption="discounts"
+      max={5}
       emptyLabel="No discounts in this range."
-      rows={topWithOther(
-        discounts.map((d: DiscountLine) => ({
-          label: d.label,
-          amount: d.amount,
-          meta: `${SOURCE_LABEL[d.source]} · ${plural(d.orders, "order", "orders")}${d.codes ? ` · ${plural(d.codes.length, "code", "codes")}` : ""}`,
-        })),
+      parts={discounts.map((d: DiscountLine) => ({ label: d.label, value: d.amount }))}
+      listParts={topWithOther(
+        discounts.map((d: DiscountLine) => ({ label: d.label, amount: d.amount, meta: meta(d) })),
         "label",
         "amount",
-      ).map(
-        (d): BreakdownRow => ({
-          label: String(d.label),
-          n: Number(d.amount),
-          aside: money(Number(d.amount)),
-          meta: d.meta == null ? undefined : String(d.meta),
-          tip:
-            staff && d.label === staff.label && staff.codes ? (
-              <ul className="flex flex-col gap-1">
-                {staff.codes.map((c) => (
-                  <li key={c.code} className="flex items-baseline justify-between gap-4 tabular-nums">
-                    <span>{c.code}</span>
-                    <span>{money(c.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : undefined,
-        }),
-      )}
-      footer={
-        <div className="flex items-baseline justify-between text-sm">
-          <span className="text-muted-foreground">Total discounts</span>
-          <span className="font-semibold tabular-nums">{money(kpis.discounts)}</span>
-        </div>
-      }
+      ).map((d) => ({
+        label: String(d.label),
+        value: Number(d.amount),
+        aside: money(Number(d.amount)),
+        meta: d.meta == null ? undefined : String(d.meta),
+        tip:
+          staff && d.label === staff.label && staff.codes ? (
+            <ul className="flex flex-col gap-1">
+              {staff.codes.map((c) => (
+                <li key={c.code} className="flex items-baseline justify-between gap-4 tabular-nums">
+                  <span>{c.code}</span>
+                  <span>{money(c.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : undefined,
+      }))}
     />
   );
 }
@@ -356,17 +336,21 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
   const rows = rest.length
     ? [...head, { reason: "Other", count: rest.reduce((s, r) => s + r.count, 0), amount: Math.round(rest.reduce((s, r) => s + r.amount, 0) * 100) / 100 }]
     : head;
+  const valued = free.amount > 0;
   return (
     <ChartCard
       title="Free tiffins"
       subtitle={`${plural(free.count, "tiffin", "tiffins")} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`}
-      action={<span className="text-sm font-semibold tabular-nums">{money(free.amount)}</span>}
     >
-      <BreakdownList
+      <PartsDonut
+        caption={valued ? "free tiffins" : "tiffins"}
+        label={valued ? money(free.amount) : String(free.count)}
+        max={5}
         emptyLabel="No free tiffins in this range."
-        rows={rows.map((r) => ({
+        parts={free.byReason.map((r) => ({ label: r.reason, value: r.count }))}
+        listParts={rows.map((r) => ({
           label: r.reason,
-          n: r.count,
+          value: r.count,
           aside: r.amount > 0 ? money(r.amount) : "Not valued",
           meta: plural(r.count, "tiffin", "tiffins"),
         }))}
