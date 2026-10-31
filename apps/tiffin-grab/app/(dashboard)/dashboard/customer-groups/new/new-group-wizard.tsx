@@ -4,9 +4,8 @@ import * as React from "react";
 import { CheckIcon } from "lucide-react";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
 import type { Filter } from "@/components/reui/filters";
-import { AccountSearch } from "./account-search";
 import { FindStep } from "./steps/find-step";
-import { ReviewStep, toCandidate } from "./steps/review-step";
+import { ReviewStep } from "./steps/review-step";
 import { SaveStep } from "./steps/save-step";
 import { createGroupAction } from "../actions";
 import type { Candidate } from "./types";
@@ -60,35 +59,18 @@ export function NewGroupWizard({
       </Stepper>
 
       {step === 1 && (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">One customer</p>
-            <AccountSearch
-              placeholder="Name, phone or email"
-              onPick={(a) => {
-                setRows([toCandidate(a)]);
-                setSelected(new Set([a.publicId]));
-                setPayload({ accountPublicId: a.publicId });
-                setStep(2);
-              }}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Or a group of customers</p>
-            <FindStep
-              cities={cities}
-              maxRows={maxRows}
-              filters={filters}
-              onFiltersChange={setFilters}
-              onFound={(found, p) => {
-                setRows(found);
-                setSelected(new Set(found.map((r) => r.publicId)));
-                setPayload(p);
-                setStep(2);
-              }}
-            />
-          </div>
-        </div>
+        <FindStep
+          cities={cities}
+          maxRows={maxRows}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onFound={(found, p) => {
+            setRows(found);
+            setSelected(new Set(found.map((r) => r.publicId)));
+            setPayload(p);
+            setStep(2);
+          }}
+        />
       )}
 
       {step === 2 && (

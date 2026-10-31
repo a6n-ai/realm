@@ -39,6 +39,7 @@ import {
   tzLabel,
 } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
+import { GroupPicker, type PickedGroup } from "../../customer-groups/group-picker";
 import { DateTimeInput } from "@/components/dashboard/date-fields";
 
 type CouponRow = {
@@ -62,6 +63,7 @@ type CouponRow = {
   expiresAt: number | null;
   active: boolean;
   config: CouponConfig | null;
+  customerGroupPublicId: string | null;
   groupName: string | null;
 };
 
@@ -85,7 +87,7 @@ type Draft = {
   autoApply: boolean;
   visible: boolean;
   active: boolean;
-  groupName: string | null;
+  group: PickedGroup | null;
 };
 
 function emptyDraft(): Draft {
@@ -109,7 +111,7 @@ function emptyDraft(): Draft {
     autoApply: false,
     visible: true,
     active: true,
-    groupName: null,
+    group: null,
   };
 }
 
@@ -134,7 +136,7 @@ function toDraft(c: CouponRow, tz: string): Draft {
     autoApply: c.autoApply,
     visible: c.visible,
     active: c.active,
-    groupName: c.groupName,
+    group: c.customerGroupPublicId ? { publicId: c.customerGroupPublicId, name: c.groupName ?? "Group", memberCount: 0 } : null,
   };
 }
 
@@ -225,6 +227,7 @@ export function CouponsManager({
       startsAt: fromLocalInput(draft.startsAt, tz),
       expiresAt: fromLocalInput(draft.expiresAt, tz),
       active: draft.active,
+      customerGroupPublicId: draft.group?.publicId ?? null,
     };
     start(async () => {
       try {
@@ -495,18 +498,27 @@ export function CouponsManager({
                   </div>
                 </div>
 
-                {draft.groupName && (
-                  <p className="text-sm text-muted-foreground">Group: {draft.groupName} (members only; set from the group page)</p>
+                {draft.kind !== "rep_daily" && draft.kind !== "rep_code" && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="cpn-group">Restrict to customer group</Label>
+                    <GroupPicker
+                      id="cpn-group"
+                      noneLabel="Everyone"
+                      value={draft.group}
+                      onChange={(g) => setDraft({ ...draft, group: g, autoApply: g ? false : draft.autoApply })}
+                    />
+                    <p className="text-muted-foreground text-xs">Only members can use the code. Recorded on the group&apos;s activity.</p>
+                  </div>
                 )}
                 <ToggleRow
                   id="cpn-auto"
                   label="Auto-apply"
                   hint={
-                    draft.groupName
+                    draft.group
                       ? "Not available for group-only coupons."
                       : "Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
                   }
-                  disabled={draft.groupName != null}
+                  disabled={draft.group != null}
                   checked={draft.autoApply}
                   onChange={(v) => setDraft({ ...draft, autoApply: v })}
                 />

@@ -455,14 +455,20 @@ export async function emailAwardedMembers(
 }
 
 // Group-only coupons are never auto-apply: that would hand the discount to everyone who qualifies without a code.
-export async function applyGroupCoupon(groupPublicId: string, couponPublicId: string, actorId: bigint | null): Promise<void> {
+// `fromForm`: the coupon form may attach an inactive coupon and move it between groups.
+export async function applyGroupCoupon(
+  groupPublicId: string,
+  couponPublicId: string,
+  actorId: bigint | null,
+  opts: { fromForm?: boolean } = {},
+): Promise<void> {
   const g = await groupByPublicId(groupPublicId);
   const [c] = await db.select().from(coupons).where(eq(coupons.publicId, couponPublicId));
   if (!c) throw new ValidationError("Coupon not found");
-  if (!c.active) throw new ValidationError("Coupon is not active");
+  if (!c.active && !opts.fromForm) throw new ValidationError("Coupon is not active");
   if (c.kind === "rep_daily" || c.kind === "rep_code") throw new ValidationError("Staff coupons can't be limited to a group");
   if (c.autoApply) throw new ValidationError("An auto-apply coupon can't be limited to a group");
-  if (c.customerGroupId != null && c.customerGroupId !== g.id) {
+  if (c.customerGroupId != null && c.customerGroupId !== g.id && !opts.fromForm) {
     throw new ValidationError("Coupon already belongs to another group");
   }
   await db.transaction(async (tx) => {
@@ -476,6 +482,22 @@ export async function applyGroupCoupon(groupPublicId: string, couponPublicId: st
       updatedBy: actorId,
     });
   });
+}
+
+/** Coupon form: a changed group records one `discount` action; clearing or re-saving the same group records none. */
+export async function setCouponGroup(couponPublicId: string, groupPublicId: string | null, actorId: bigint | null): Promise<void> {
+  const [c] = await db
+    .select({ id: coupons.id, customerGroupId: coupons.customerGroupId })
+    .from(coupons)
+    .where(eq(coupons.publicId, couponPublicId));
+  if (!c) throw new ValidationError("Coupon not found");
+  if (groupPublicId == null) {
+    if (c.customerGroupId != null) await db.update(coupons).set({ customerGroupId: null }).where(eq(coupons.id, c.id));
+    return;
+  }
+  const g = await groupByPublicId(groupPublicId);
+  if (c.customerGroupId === g.id) return;
+  await applyGroupCoupon(groupPublicId, couponPublicId, actorId, { fromForm: true });
 }
 
 export async function listGroupableCoupons(): Promise<{ publicId: string; code: string; name: string }[]> {

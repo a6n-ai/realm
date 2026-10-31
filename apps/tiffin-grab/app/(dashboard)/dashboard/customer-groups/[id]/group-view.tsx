@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CoinsIcon, DownloadIcon, MailIcon, PlusIcon, TagIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { CoinsIcon, DownloadIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
@@ -12,9 +12,7 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/services/customer-groups.service";
 import { AccountSearch } from "../new/account-search";
-import { addGroupMemberAction, emailGroupAction, exportGroupCsvAction, removeGroupMemberAction } from "../actions";
-import { ApplyDiscountDialog } from "./apply-discount-dialog";
-import { GiveCoinsDialog } from "./give-coins-dialog";
+import { addGroupMemberAction, exportGroupCsvAction, removeGroupMemberAction } from "../actions";
 import { MemberStatuses } from "./member-statuses";
 
 type MemberColumn = "name" | "email" | "phone" | "revenue" | "since" | "last" | "remove";
@@ -59,8 +57,6 @@ export function GroupView({
 }) {
   const router = useRouter();
   const tz = useTimezone();
-  const [coinsOpen, setCoinsOpen] = useState(false);
-  const [discountOpen, setDiscountOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -79,14 +75,6 @@ export function GroupView({
       setBusy(null);
     }
   }
-
-  const sendEmail = () =>
-    guarded("email", async () => {
-      const res = await emailGroupAction(group.publicId);
-      if (!res.ok) return res.error;
-      router.push(`/dashboard/notifications/campaigns/${res.data.campaignPublicId}?step=content`);
-      return null;
-    });
 
   const exportCsv = () =>
     guarded("csv", async () => {
@@ -125,11 +113,6 @@ export function GroupView({
         subtitle={`${group.memberCount} customer${group.memberCount === 1 ? "" : "s"}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setCoinsOpen(true)}><CoinsIcon /> Give coins</Button>
-            <Button variant="outline" onClick={sendEmail} disabled={busy === "email"}>
-              <MailIcon /> {busy === "email" ? "Creating campaign..." : "Send email"}
-            </Button>
-            <Button variant="outline" onClick={() => setDiscountOpen(true)}><TagIcon /> Apply discount</Button>
             <Button variant="outline" onClick={exportCsv} disabled={busy === "csv"}>
               <DownloadIcon /> Export CSV
             </Button>
@@ -205,7 +188,6 @@ export function GroupView({
               serial={false}
               emptyIcon={CoinsIcon}
               emptyMessage="Nothing has been done to this group yet."
-              emptyAction={<Button onClick={() => setCoinsOpen(true)}><CoinsIcon /> Give coins</Button>}
               renderRow={(a) => (
                 <>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
@@ -224,14 +206,6 @@ export function GroupView({
           </SectionCard>
         </TabsContent>
       </Tabs>
-      <GiveCoinsDialog
-        groupPublicId={group.publicId}
-        memberCount={group.memberCount}
-        open={coinsOpen}
-        onOpenChange={setCoinsOpen}
-        onDone={refresh}
-      />
-      <ApplyDiscountDialog groupPublicId={group.publicId} open={discountOpen} onOpenChange={setDiscountOpen} onDone={refresh} />
       <ResponsiveDialog
         open={viewing !== null}
         onOpenChange={(o) => !o && setViewing(null)}

@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { coupons, couponRedemptions, ledgerEntries } = await import("@/db/schema");
+const { coupons, couponRedemptions, customerGroupActions, customerGroups, ledgerEntries } = await import("@/db/schema");
 const { couponKind } = await import("@/db/schema/coupons");
 const { setDiscountPolicy } = await import("@/lib/services/app-settings.service");
 const { saveCoupon, setCouponActive } = await import(
@@ -76,5 +76,37 @@ describe("discounts settings actions", () => {
     });
     const [row] = await db.select().from(coupons).where(eq(coupons.code, "PRIVATE10"));
     expect(row.visible).toBe(false);
+  });
+});
+
+describe("coupon form customer group", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("records one discount action when a group is set, none on re-save or clear, and blocks auto-apply", async () => {
+    const [g] = await db.insert(customerGroups).values({ name: "form-group", filters: {} }).returning();
+    try {
+      const patch = { ...basePatch, code: "GRPFORM", kind: "percentage" as const, valuePct: 10, customerGroupPublicId: g.publicId };
+      await saveCoupon(null, patch);
+      const [c] = await db.select().from(coupons).where(eq(coupons.code, "GRPFORM"));
+      expect(c.customerGroupId).toBe(g.id);
+      const actions = () => db.select().from(customerGroupActions).where(eq(customerGroupActions.groupId, g.id));
+      expect(await actions()).toHaveLength(1);
+      expect((await actions())[0].kind).toBe("discount");
+
+      await saveCoupon(c.publicId, patch);
+      expect(await actions()).toHaveLength(1);
+
+      await expect(saveCoupon(c.publicId, { ...patch, autoApply: true })).rejects.toBeInstanceOf(ValidationError);
+
+      await saveCoupon(c.publicId, { ...patch, customerGroupPublicId: null });
+      const [cleared] = await db.select().from(coupons).where(eq(coupons.id, c.id));
+      expect(cleared.customerGroupId).toBeNull();
+      expect(await actions()).toHaveLength(1);
+    } finally {
+      await db.delete(coupons).where(eq(coupons.code, "GRPFORM"));
+      await db.delete(customerGroupActions).where(eq(customerGroupActions.groupId, g.id));
+      await db.delete(customerGroups).where(eq(customerGroups.id, g.id));
+    }
   });
 });

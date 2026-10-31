@@ -81,6 +81,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       expiresAt: coupons.expiresAt,
       active: coupons.active,
       config: coupons.config,
+      customerGroupPublicId: customerGroups.publicId,
       groupName: customerGroups.name,
     })
     .from(coupons)

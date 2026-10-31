@@ -3,6 +3,7 @@
 import { useFormStatus } from "react-dom";
 import { Button } from "@foundry/ui/button";
 import { createDraftCampaign } from "./actions";
+import { EmailGroupDialog } from "./email-group-dialog";
 
 function Buttons() {
   // Disabled while the draft is being created, so a double click cannot make two.
@@ -25,8 +26,11 @@ function Buttons() {
 /** A form post, not a link: a GET must never create a draft. */
 export function NewCampaignButtons() {
   return (
-    <form action={createDraftCampaign} className="flex items-center gap-2">
-      <Buttons />
-    </form>
+    <div className="flex items-center gap-2">
+      <EmailGroupDialog />
+      <form action={createDraftCampaign} className="flex items-center gap-2">
+        <Buttons />
+      </form>
+    </div>
   );
 }

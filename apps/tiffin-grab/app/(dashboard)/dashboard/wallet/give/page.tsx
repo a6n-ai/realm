@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { CoinsIcon } from "lucide-react";
+import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
-import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
+import { parseFilterState } from "@/components/ds";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
@@ -14,6 +15,7 @@ import { giveCoinsStats } from "@/lib/services/customer-groups.service";
 import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
 import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
 import { GiveCoinsFlowDialog } from "./give-coins-flow-dialog";
+import { GiveOneCustomerDialog } from "./give-one-customer-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -22,16 +24,18 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-start gap-2">
         <h2 className="text-base font-semibold">Give coins</h2>
-        <p className="text-muted-foreground text-sm">Coins are given to a customer group. Pick or create a group, then give each member coins.</p>
-        <Suspense fallback={<Button disabled><CoinsIcon /> Give coins</Button>}>
-          <Launcher />
-        </Suspense>
+        <p className="text-muted-foreground text-sm">Give coins to a customer group, or to one customer.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Suspense fallback={<Button disabled><CoinsIcon /> Give coins</Button>}>
+            <Launcher />
+          </Suspense>
+        </div>
       </div>
       <SectionDateRange />
       <Suspense
         fallback={
           <>
-            <SkeletonStatCards count={5} className="md:grid-cols-2 lg:grid-cols-5" />
+            <StatCardsSkeleton count={5} />
             <WalletLedgerTableSkeleton />
           </>
         }
@@ -44,7 +48,12 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
 
 async function Launcher() {
   await requireAdmin();
-  return <GiveCoinsFlowDialog cities={await listOrderCities()} maxRows={MAX_REVIEW_ROWS} />;
+  return (
+    <>
+      <GiveCoinsFlowDialog cities={await listOrderCities()} maxRows={MAX_REVIEW_ROWS} />
+      <GiveOneCustomerDialog />
+    </>
+  );
 }
 
 // Cards and every past Give coins grant (with the staff member who saved it) follow
@@ -65,18 +74,22 @@ async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
     getAppSettings(),
   ]);
 
+  const cards: StatCardItem[] = [
+    { label: "Coins given", value: stats.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
+    { label: "Customers rewarded", value: stats.customersRewarded.toLocaleString(), icon: UserCheckIcon, hint: "received at least one grant" },
+    { label: "Grants", value: stats.grants.toLocaleString(), icon: GiftIcon, hint: "one per Give coins action" },
+    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in range" },
+    {
+      label: "Avg coins per customer",
+      value: stats.avgCoinsPerCustomer.toFixed(1),
+      icon: WalletIcon,
+      hint: "coins per rewarded customer",
+    },
+  ];
+
   return (
     <>
-      <StatGrid
-        cols={5}
-        items={[
-          { label: "Coins given", value: stats.coinsGiven.toLocaleString() },
-          { label: "Customers rewarded", value: stats.customersRewarded.toLocaleString() },
-          { label: "Grants", value: stats.grants.toLocaleString() },
-          { label: "Groups", value: stats.groups.toLocaleString() },
-          { label: "Avg coins per customer", value: stats.avgCoinsPerCustomer.toFixed(1) },
-        ]}
-      />
+      <StatCards items={cards} />
       <WalletLedgerTable
         orderColumnLabel="Given by"
         rows={rows.map((r) => ({

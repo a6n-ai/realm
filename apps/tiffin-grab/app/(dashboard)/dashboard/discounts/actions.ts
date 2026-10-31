@@ -9,6 +9,8 @@ import { db } from "@/db/client";
 import { coupons, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
 import { planType } from "@/db/schema/catalog";
+import { currentUserId } from "@/lib/services/session-service";
+import { setCouponGroup } from "@/lib/services/customer-groups.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 
@@ -37,6 +39,8 @@ const couponSchema = z.object({
   startsAt: z.number().int().nullish(),
   expiresAt: z.number().int().nullish(),
   active: z.boolean(),
+  // null = Everyone.
+  customerGroupPublicId: z.string().trim().min(1).nullish(),
 });
 
 export async function saveCoupon(publicId: string | null, patch: unknown) {
@@ -71,14 +75,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     if (mode === "fixed" && data.valueAmount == null) throw new ValidationError("Set the amount value");
   }
 
-  if (publicId && data.autoApply) {
-    const [row] = await db
-      .select({ customerGroupId: coupons.customerGroupId })
-      .from(coupons)
-      .where(eq(coupons.publicId, publicId))
-      .limit(1);
-    if (row?.customerGroupId != null) throw new ValidationError("A group-only coupon can't be auto-apply");
-  }
+  if (data.customerGroupPublicId && data.autoApply) throw new ValidationError("A group-only coupon can't be auto-apply");
 
   const config: CouponConfig =
     data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
@@ -109,8 +106,8 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     config,
   };
 
-  if (publicId) await couponsService.update(publicId, values);
-  else await couponsService.create(values);
+  const saved = publicId ? await couponsService.update(publicId, values) : await couponsService.create(values);
+  await setCouponGroup(saved.publicId, data.customerGroupPublicId ?? null, await currentUserId());
   revalidatePath(PATH, "layout");
 }
 
