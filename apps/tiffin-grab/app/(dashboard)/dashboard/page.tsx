@@ -18,10 +18,11 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
-import { TODAY_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
+import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import {
   PageShell,
   PageHeader,
@@ -41,8 +42,8 @@ import { GlanceCard } from "./_overview/glance-card";
 import { ServiceCard } from "./_overview/service-card";
 import { NeedsActionCard } from "./_overview/needs-action-card";
 import { RouteCard } from "./_overview/route-card";
-import { PaceCard } from "./_overview/pace-card";
 import { LanesCard } from "./_overview/lanes-card";
+import { MenusCard } from "./_overview/menus-card";
 import { CookingCard } from "./_overview/cooking-card";
 import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
@@ -74,7 +75,6 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
-  const isAdmin = session.user.role === Role.ADMIN;
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
@@ -104,8 +104,8 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
     <PageShell>
       <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
-      <Suspense fallback={<ChartSkeleton height={150} />}>
-        <GlanceCard visible={visible} today={today} now={now} isAdmin={isAdmin} />
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+        <GlanceCard visible={visible} today={today} now={now} />
       </Suspense>
 
       {/* Act first: what needs doing, how today is going, tomorrow's route. */}
@@ -125,13 +125,12 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
         </SectionCard>
       </div>
 
-      {/* Then context: money, drivers, kitchen. */}
+      {/* Then context: drivers, kitchen, menus. */}
       <CardGrid
         cards={[
-          // Revenue is admin-only, as on Analytics.
-          isAdmin && { key: "pace", node: <PaceCard visible={visible} today={today} now={now} />, h: 260 },
           seesAll && { key: "lanes", node: <LanesCard today={today} />, h: 260 },
           seesAll && { key: "cooking", node: <CookingCard today={today} />, h: 260 },
+          { key: "menus", node: <MenusCard today={today} />, h: 200 },
         ]}
       />
 
@@ -175,7 +174,7 @@ async function TodayQueueSection({ visible, today, now, activeType }: { visible:
     getTodayQueue(visible, now, activeType ? [activeType] : undefined),
   ]);
   // Pills are quick filters: each carries the exact total; picking one filters on the server before the 50 cap.
-  const pills = TODAY_KINDS.map((k) => ({ kind: k, count: counts.byKind[k] }));
+  const pills = OVERVIEW_KINDS.map((k) => ({ kind: k, count: counts.byKind[k] }));
   return <TodayQueue rows={queue.items} now={now} pills={pills} failed={queue.failed} activeType={activeType} />;
 }
 

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { inArray } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
+import { OVERVIEW_KINDS, TODAY_KINDS } from "@/lib/today/types";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
@@ -126,7 +127,7 @@ describe("today queue (integration)", () => {
   });
 
   it("maps every source to a row with its kind, urgency and link, other franchises left out", async () => {
-    const { items, failed } = await getTodayQueue([orgA], Date.now());
+    const { items, failed } = await getTodayQueue([orgA], Date.now(), TODAY_KINDS);
     expect(failed).toEqual([]);
 
     const by = (kind: string) => items.filter((i) => i.kind === kind);
@@ -151,7 +152,10 @@ describe("today queue (integration)", () => {
   });
 
   it("excludes a renewal ending in 3 days and a resolved ticket", async () => {
-    const { items } = await getTodayQueue([orgA], Date.now());
+    // The Overview leaves leads out: no inquiry rows by default.
+    expect((await getTodayQueue([orgA], Date.now())).items.some((i) => i.kind === "inquiry")).toBe(false);
+    expect(OVERVIEW_KINDS).not.toContain("inquiry");
+    const { items } = await getTodayQueue([orgA], Date.now(), TODAY_KINDS);
     expect(items.some((i) => i.who === "A renew3" || i.who === "A done")).toBe(false);
   });
 
@@ -188,7 +192,7 @@ describe("today queue (integration)", () => {
     expect((await getTodayCounts([orgB], today)).byKind.inquiry).toBe(53);
 
     // Mixed view (every type): a large backlog of one type is capped so the others still show.
-    const mixed = await getTodayQueue([orgB], Date.now());
+    const mixed = await getTodayQueue([orgB], Date.now(), TODAY_KINDS);
     expect(mixed.items.filter((i) => i.kind === "inquiry")).toHaveLength(PER_KIND_MIXED);
   });
 

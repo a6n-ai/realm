@@ -3,6 +3,8 @@
 
 export const TODAY_KINDS = ["payment", "missed", "ticket", "renewal", "lookout", "inquiry"] as const;
 export type TodayKind = (typeof TODAY_KINDS)[number];
+/** What the staff Overview shows: orders, renewals, dispatch and tickets. Leads (inquiries) stay on Inquiries. */
+export const OVERVIEW_KINDS: readonly TodayKind[] = ["payment", "missed", "ticket", "renewal", "lookout"];
 
 export const TODAY_KIND_LABEL: Record<TodayKind, string> = {
   payment: "Payments",

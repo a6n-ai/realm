@@ -12,7 +12,7 @@ import { countPaymentReviewOrders, listOrdersPage, paymentReviewWhere, visibleOr
 import { listRenewals } from "@/lib/services/renewals.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import type { RenewalsFilter } from "@/lib/renewals/filters";
-import { TODAY_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/today/types";
+import { OVERVIEW_KINDS, TODAY_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/today/types";
 
 type Visible = "all" | string[];
 const empty = (visible: Visible) => visible !== "all" && visible.length === 0;
@@ -167,7 +167,7 @@ const SOURCES: Record<TodayKind, Source> = {
  * The open items, most urgent first, at most 50. Each source is read with a limit of 50 before the merge,
  * so the global top 50 is right. A source that throws drops only its kind (returned in `failed`).
  */
-export async function getTodayQueue(visible: Visible, now: number, kinds: readonly TodayKind[] = TODAY_KINDS) {
+export async function getTodayQueue(visible: Visible, now: number, kinds: readonly TodayKind[] = OVERVIEW_KINDS) {
   if (empty(visible)) return { items: [] as TodayItem[], failed: [] as TodayKind[] };
   const { timezone } = await getAppSettings();
   const today = zonedDateIso(now, timezone);
@@ -184,7 +184,7 @@ export async function getTodayQueue(visible: Visible, now: number, kinds: readon
   // Mixed view: the most urgent few of each type. A single type (the facet) lists up to 50.
   const mixed = kinds.length > 1;
   const shown = mixed
-    ? TODAY_KINDS.flatMap((k) => rankTodayItems(items.filter((i) => i.kind === k)).slice(0, PER_KIND_MIXED))
+    ? kinds.flatMap((k) => rankTodayItems(items.filter((i) => i.kind === k)).slice(0, PER_KIND_MIXED))
     : items;
   return { items: rankTodayItems(shown).slice(0, TODAY_LIMIT), failed };
 }
