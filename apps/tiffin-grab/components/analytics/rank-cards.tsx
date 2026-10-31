@@ -21,19 +21,21 @@ const COLS = {
 } as const;
 
 /** Ranked entities as small cards: rank badge, name, one big number, a few meta lines. */
-export function RankCards({ items, cols = 2 }: { items: RankItem[]; cols?: keyof typeof COLS }) {
+export function RankCards({ items, cols = 2, size = "default" }: { items: RankItem[]; cols?: keyof typeof COLS; size?: "default" | "sm" }) {
+  const sm = size === "sm";
   return (
     <div className={cn("grid gap-3", COLS[cols])}>
       {items.map((it) => {
         const card = (
-          <Card className={cn("h-full", it.href && "hover:bg-muted/50 transition-colors")}>
-            <CardContent className="flex flex-col items-start gap-2">
-              <Badge variant="secondary">#{it.rank}</Badge>
+          <Card size={size} className={cn("h-full", it.href && "hover:bg-muted/50 transition-colors")}>
+            <CardContent className={cn("flex flex-col items-start", sm ? "gap-1" : "gap-2")}>
+              {sm ? null : <Badge variant="secondary">#{it.rank}</Badge>}
               <span className="flex w-full items-center gap-2 text-sm font-medium">
+                {sm ? <Badge variant="secondary">#{it.rank}</Badge> : null}
                 {it.dot ? <span className="size-2.5 shrink-0 rounded-full" style={{ background: it.dot }} /> : null}
-                <span className="truncate">{it.title}</span>
+                <span className="truncate" title={it.title}>{it.title}</span>
               </span>
-              <span className="text-3xl font-semibold tabular-nums">{it.value}</span>
+              <span className={cn("font-semibold tabular-nums", sm ? "text-xl" : "text-3xl")}>{it.value}</span>
               {it.meta?.map((m) => (
                 <span key={m} className="text-muted-foreground w-full truncate text-xs">
                   {m}

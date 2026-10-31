@@ -105,21 +105,32 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </Suspense>
         </ChartCard>
         <ChartCard
+          title="How long do they buy for?"
+          subtitle="Orders by plan length"
+          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <PlanLengthDonut scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
           title="What sells?"
-          subtitle="Meal size and plan length, by orders"
+          subtitle="Meal size and plan length, top 10 by orders"
           info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
         >
           <Suspense fallback={<ChartSkeleton height={340} />}>
             <ProductSalesList scope={scope} />
           </Suspense>
         </ChartCard>
+        <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10" info={`On orders ${DATE_BASIS_LABEL.orders}. Dot colour is the dish's plan.`}>
+          <Suspense fallback={<ChartSkeleton height={340} />}>
+            <TopDishesList scope={scope} />
+          </Suspense>
+        </ChartCard>
       </div>
-
-      <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 8" info={`On orders ${DATE_BASIS_LABEL.orders}. Dot colour is the dish's plan.`}>
-        <Suspense fallback={<ChartSkeleton height={340} />}>
-          <TopDishesList scope={scope} />
-        </Suspense>
-      </ChartCard>
     </div>
   );
 }
@@ -252,24 +263,47 @@ async function AddonDonut({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
+// Catalog plan lengths (duration_packages), pinned so a length keeps its colour across ranges.
+const WEEK_SLOTS = ["1", "2", "4", "8", "12"];
+const productSales = cache(getProductSales);
+
+async function PlanLengthDonut({ scope }: { scope: AnalyticsScope }) {
+  const byWeeks = new Map<number, { orders: number; revenue: number }>();
+  for (const r of await productSales(scope)) {
+    const b = byWeeks.get(r.weeks) ?? { orders: 0, revenue: 0 };
+    b.orders += r.orders;
+    b.revenue += r.revenue;
+    byWeeks.set(r.weeks, b);
+  }
+  const rows = [...byWeeks.entries()].sort(([a], [b]) => a - b);
+  const label = (w: number) => `${w} ${w === 1 ? "week" : "weeks"}`;
+  return (
+    <PartsDonut
+      parts={rows.map(([w, b]) => ({ label: label(w), value: b.orders, tone: slotTone(String(w), WEEK_SLOTS) }))}
+      listParts={rows.map(([w, b]) => ({ label: label(w), value: b.orders, meta: `${money(b.revenue)} net revenue` }))}
+    />
+  );
+}
+
 const money = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => Math.round(rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
 
 async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
-  const all = await getProductSales(scope);
+  const all = await productSales(scope);
   if (all.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No orders in this range.</p>;
   return (
     <div className="flex flex-col gap-3">
       <RankCards
-        items={all.slice(0, 8).map((r, i) => ({
+        size="sm"
+        items={all.slice(0, 10).map((r, i) => ({
           rank: i + 1,
           title: `${r.size} · ${r.weeks} ${r.weeks === 1 ? "week" : "weeks"}`,
           value: plural(r.orders, "order", "orders"),
           meta: [`${money(r.revenue)} net revenue`],
         }))}
       />
-      {all.length > 8 ? <p className="text-muted-foreground text-xs">Other · {all.length - 8} more products</p> : null}
+      {all.length > 10 ? <p className="text-muted-foreground text-xs">Other · {all.length - 10} more products</p> : null}
       <TotalLine label="Total" value={`${plural(sum(all, "orders"), "order", "orders")} · ${money(sum(all, "revenue"))}`} />
     </div>
   );
@@ -280,7 +314,7 @@ async function TopDishesList({ scope }: { scope: AnalyticsScope }) {
   if (rows.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No dish picks in this range.</p>;
   const total = rows.reduce((s, r) => s + r.n, 0);
   const planNames = [...new Set(rows.map((r) => r.plan))].sort(dietOrder);
-  const top = [...rows].sort((a, b) => b.n - a.n).slice(0, 8);
+  const top = [...rows].sort((a, b) => b.n - a.n).slice(0, 10);
   const rest = rows.length - top.length;
   return (
     <div className="flex flex-col gap-3">
@@ -295,6 +329,7 @@ async function TopDishesList({ scope }: { scope: AnalyticsScope }) {
         </ul>
       ) : null}
       <RankCards
+        size="sm"
         items={top.map((r, i) => ({
           rank: i + 1,
           title: r.dish,
