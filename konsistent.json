@@ -22,7 +22,8 @@
       "excludeFiles": [
         "**/__tests__/**",
         "apps/tiffin-grab/components/analytics/charts.tsx",
-        "apps/tiffin-grab/components/analytics/recharts.tsx",
+        "apps/tiffin-grab/components/analytics/charts-impl.tsx",
+        "apps/tiffin-grab/components/ui/chart.tsx",
         "apps/tiffin-grab/components/dashboard/date-fields.tsx",
         "apps/tiffin-grab/components/analytics/skeletons.tsx",
         "apps/tiffin-grab/components/customer/skeleton-parts.tsx",
