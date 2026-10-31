@@ -28,6 +28,7 @@ import {
   listCustomerGroups,
   listGroupActions,
   removeGroupMember,
+  syncAllGroupContactLists,
 } from "../customer-groups.service";
 import { usersService } from "../users.service";
 import { campaign as campaigns } from "@/db/schema";
@@ -307,6 +308,47 @@ describe("customer groups", () => {
       await db.delete(users).where(eq(users.id, u.id));
     }
   });
+
+  async function optOutFixture(fn: (u: { id: bigint; publicId: string }, listId: string, g: { publicId: string }) => Promise<void>) {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `cg-opt2-${run}-${Math.random().toString(36).slice(2)}@throwaway.local`, name: "Opt2" })
+      .returning();
+    try {
+      const g = await mk("g-opt2", [u.id, uOk]);
+      const r = await giveGroupCoins(g.publicId, { coins: 5 }, uOk);
+      const { campaignPublicId } = await emailAwardedMembers(r.actionPublicId, uOk);
+      const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
+      const listId = (c.audience as { listIds: string[] }).listIds[0];
+      expect(await listMemberCount(listId)).toBe(2);
+      await fn(u, listId, g);
+    } finally {
+      failLists.on = false;
+      await db.delete(notificationOutbox).where(eq(notificationOutbox.recipientId, u.id));
+      await db.delete(walletLedger).where(eq(walletLedger.userId, u.id));
+      await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
+  }
+
+  it("a member removed from the group who then opts out is still pruned from the earlier awarded list", () =>
+    optOutFixture(async (u, listId, g) => {
+      await removeGroupMember(g.publicId, u.publicId);
+      await usersService.updatePreferences(u.publicId, { notifyEmail: false });
+      expect(await listMemberCount(listId)).toBe(1);
+    }));
+
+  it("one group sync throwing still prunes awarded lists; syncAllGroupContactLists reports the failed group", () =>
+    optOutFixture(async (u, listId) => {
+      failLists.on = true;
+      const bad = await createCustomerGroup({ name: "g-opt2-bad", filters: {}, userIds: [u.id] }, null);
+      const [bg] = await db.select().from(customerGroups).where(eq(customerGroups.publicId, bad.publicId));
+      groupIds.push(bg.id);
+      expect(await syncAllGroupContactLists()).toContain(bad.publicId);
+      await usersService.updatePreferences(u.publicId, { notifyEmail: false });
+      failLists.on = false;
+      expect(await listMemberCount(listId)).toBe(1);
+    }));
 
   it("giveGroupCoins sends no wallet_credited; the coins email is prefilled with the coin count", async () => {
     const g = await mk("g7b", [uOk, uCapped]);

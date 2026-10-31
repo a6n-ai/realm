@@ -533,57 +533,112 @@ export async function syncGroupContactList(groupPublicId: string): Promise<{ con
 /**
  * Resyncs every group containing the user, and drops them from the one-off "email awarded members" lists
  * when they are no longer emailable; call after anything that changes their notifyEmail, email or status.
+ * Awarded lists are pruned by the user's award, not their current membership, and even if a group sync throws.
  */
 export async function syncGroupsForUser(userId: bigint): Promise<void> {
   const groups = await db
-    .select({ id: customerGroups.id, publicId: customerGroups.publicId })
+    .select({ publicId: customerGroups.publicId })
     .from(customerGroupMembers)
     .innerJoin(customerGroups, eq(customerGroups.id, customerGroupMembers.groupId))
     .where(eq(customerGroupMembers.userId, userId));
-  for (const g of groups) await syncGroupContactList(g.publicId);
-  if (groups.length) await pruneAwardedLists(groups.map((g) => g.id));
-}
-
-// Removal only: the one-off list is a snapshot, but it must never mail someone who has since opted out or left.
-async function pruneAwardedLists(groupIds: bigint[]) {
-  const emails = await db
-    .select({ actionId: customerGroupActions.params, listPublicId: sql<string>`${customerGroupActions.params} ->> 'listPublicId'` })
-    .from(customerGroupActions)
-    .where(and(inArray(customerGroupActions.groupId, groupIds), eq(customerGroupActions.kind, "email"), sql`${customerGroupActions.params} ? 'fromAction'`));
-  for (const e of emails) {
-    const { fromAction } = e.actionId as { fromAction: string };
-    const { awarded } = await coinsAction(fromAction);
-    const [list] = await db.select({ id: contactList.id }).from(contactList).where(eq(contactList.publicId, e.listPublicId));
-    if (!list) continue;
-    const people = awarded.length
-      ? emailable(
-          await db
-            .select({ email: users.email, notifyEmail: users.notifyEmail })
-            .from(users)
-            .where(and(inArray(users.id, awarded), ne(users.status, "deleted"))),
-        )
-      : [];
-    const keep = people.map((u) => normalizeAddress(u.email!));
-    await db
-      .delete(contactListMember)
-      .where(and(eq(contactListMember.listId, list.id), keep.length ? notInArray(contactListMember.email, keep) : undefined));
-    await db
-      .update(contactList)
-      .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${list.id})` })
-      .where(eq(contactList.id, list.id));
-  }
-}
-
-/** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. Each group is independent. */
-export async function syncAllGroupContactLists(): Promise<void> {
-  const groups = await db.select({ publicId: customerGroups.publicId }).from(customerGroups);
+  const failures: unknown[] = [];
   for (const g of groups) {
     try {
       await syncGroupContactList(g.publicId);
     } catch (e) {
       log.error({ groupPublicId: g.publicId, err: e }, "group contact list sync failed");
+      failures.push(e);
     }
   }
+  try {
+    await pruneAwardedLists(userId);
+  } catch (e) {
+    failures.push(e);
+  }
+  if (failures.length) throw failures[0];
+}
+
+// Removal only: the one-off list is a snapshot, but it must never mail someone who has since opted out or left.
+export async function pruneAwardedLists(userId: bigint) {
+  const awardedActions = await db
+    .select({ publicId: customerGroupActions.publicId })
+    .from(customerGroupActions)
+    .where(and(eq(customerGroupActions.kind, "coins"), sql`${customerGroupActions.result} -> 'awardedUserIds' ? ${String(userId)}`));
+  if (awardedActions.length === 0) return;
+  const emails = await db
+    .select({ fromAction: sql<string>`${customerGroupActions.params} ->> 'fromAction'`, listPublicId: sql<string>`${customerGroupActions.params} ->> 'listPublicId'` })
+    .from(customerGroupActions)
+    .where(
+      and(
+        eq(customerGroupActions.kind, "email"),
+        inArray(sql`${customerGroupActions.params} ->> 'fromAction'`, awardedActions.map((a) => a.publicId)),
+      ),
+    );
+  for (const e of emails) {
+    try {
+      const { awarded } = await coinsAction(e.fromAction);
+      const [list] = await db.select({ id: contactList.id }).from(contactList).where(eq(contactList.publicId, e.listPublicId));
+      if (!list) continue;
+      const people = awarded.length
+        ? emailable(
+            await db
+              .select({ email: users.email, notifyEmail: users.notifyEmail })
+              .from(users)
+              .where(and(inArray(users.id, awarded), ne(users.status, "deleted"))),
+          )
+        : [];
+      const keep = people.map((u) => normalizeAddress(u.email!));
+      await db
+        .delete(contactListMember)
+        .where(and(eq(contactListMember.listId, list.id), keep.length ? notInArray(contactListMember.email, keep) : undefined));
+      await db
+        .update(contactList)
+        .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${list.id})` })
+        .where(eq(contactList.id, list.id));
+    } catch (err) {
+      log.error({ listPublicId: e.listPublicId, err }, "could not prune awarded list");
+    }
+  }
+}
+
+/** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. Returns the groups that failed. */
+export async function syncAllGroupContactLists(): Promise<string[]> {
+  const groups = await db.select({ publicId: customerGroups.publicId }).from(customerGroups);
+  const failed: string[] = [];
+  for (const g of groups) {
+    try {
+      await syncGroupContactList(g.publicId);
+    } catch (e) {
+      log.error({ groupPublicId: g.publicId, err: e }, "group contact list sync failed");
+      failed.push(g.publicId);
+    }
+  }
+  return failed;
+}
+
+/**
+ * Resyncs the groups behind a campaign's audience lists right before a send/schedule. Returns the names of groups
+ * that could not be synced; the caller must refuse, since a stale list can still hold an opted-out member.
+ * ponytail: Relay itself never rechecks notifyEmail at send time; that recheck belongs in Relay.
+ */
+export async function staleGroupsForCampaign(campaignPublicId: string): Promise<string[]> {
+  const [c] = await db.select({ audience: campaign.audience }).from(campaign).where(eq(campaign.publicId, campaignPublicId));
+  const listIds = (c?.audience as { listIds?: string[] } | null)?.listIds ?? [];
+  if (listIds.length === 0) return [];
+  const groups = await db
+    .select({ publicId: customerGroups.publicId, name: customerGroups.name })
+    .from(customerGroups)
+    .where(inArray(customerGroups.contactListPublicId, listIds));
+  const stale: string[] = [];
+  for (const g of groups) {
+    try {
+      await syncGroupContactList(g.publicId);
+    } catch (e) {
+      log.error({ groupPublicId: g.publicId, err: e }, "group contact list sync failed before send");
+      stale.push(g.name);
+    }
+  }
+  return stale;
 }
 
 export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {
