@@ -16,6 +16,7 @@ import { getProfitabilityReport } from "@/lib/services/analytics/profitability.s
 import {
   clockInZone,
   currentMonth,
+  isoDateInZone,
   navScope,
   type Grain,
   type ProfitabilityKpis,
@@ -134,13 +135,14 @@ async function Headline({ view }: { view: View }) {
     <HeadlineCards
       kpis={report.kpis}
       range={`${report.from} to ${report.to}`}
+      toDate={report.to > isoDateInZone(Date.now(), view.scope.tz)}
       cashHref={paymentsHref(view.scope, { statuses: SETTLED_STATUSES, basis: "money" })}
     />
   );
 }
 
-function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; range: string; cashHref: string }) {
-  const rangeHint = range;
+function HeadlineCards({ kpis, range, cashHref, toDate }: { kpis: ProfitabilityKpis; range: string; cashHref: string; toDate: boolean }) {
+  const rangeHint = toDate ? `${range}, to date` : range;
 
   const items: AnalyticsStatCardItem[] = [
     {
@@ -181,7 +183,7 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
     {
       label: "Profit margin",
       value: pct(kpis.marginPct),
-      hint: `Net profit ${money(kpis.profit)} after assumed costs.`,
+      hint: `Net profit ${money(kpis.profit)} after assumed costs${toDate ? ", to date" : ""}.`,
       tone: kpis.profit < 0 ? "bad" : "ok",
       badge: kpis.profit < 0 ? "Below target" : "Net",
       badgeTone: kpis.profit < 0 ? "warn" : "ok",
@@ -195,7 +197,7 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
     {
       label: "Avg profit / tiffin",
       value: kpis.profitPerTiffin == null ? "—" : money(kpis.profitPerTiffin),
-      hint: "Earned revenue minus costs, per delivered tiffin.",
+      hint: `Earned revenue minus costs, per delivered tiffin${toDate ? ", to date" : ""}.`,
       tone: kpis.profitPerTiffin != null && kpis.profitPerTiffin < 0 ? "bad" : undefined,
       badge: "Per tiffin",
       badgeTone: "brand",

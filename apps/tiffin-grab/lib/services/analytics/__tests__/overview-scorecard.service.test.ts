@@ -32,7 +32,7 @@ const ticketIds: bigint[] = [];
 let n = 0;
 
 async function makeUser() {
-  const [u] = await db.insert(users).values({ email: `sc${n++}-${suffix}@x.test`, name: "Sc", role: "user" }).returning();
+  const [u] = await db.insert(users).values({ email: `sc${n++}-${suffix}@x.test`, name: "Sc", role: "user", createdAt: now }).returning();
   userIds.push(u!.id);
   return u!.id;
 }
@@ -47,7 +47,7 @@ async function makeOrder() {
       userId: await makeUser(), planId: plan!.id, mealSizeId: size!.id, frequencyId: freq!.id, durationWeeks: 1,
       startDate: "2035-01-01", tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: { total: 50, taxTotal: 0 }, total: "50.00",
       deploymentId: `SCD-${suffix}-${n++}`, fullName: "Fixture", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6",
-      organizationId: org,
+      organizationId: org, createdAt: now,
     })
     .returning();
   orderIds.push(o!.id);
@@ -98,8 +98,8 @@ describe("daily scorecard (integration)", () => {
     prior = await getProfitabilityAssumptions();
     await setProfitabilityAssumptions({ ...prior, marketingMonthly: 3100 });
     // Ends today: the scorecard stops at today, so a range reaching past it would leave the scheduled "tomorrow" delivery out of the column.
-    const sc = buildAnalyticsScope({ from: String(now - 2 * DAY), to: String(now + 300_000) }, [org], TZ, now);
-    const rows = (await getDailyScorecard(sc))!;
+    const sc = buildAnalyticsScope({ from: String(now - 2 * DAY), to: String(now) }, [org], TZ, now);
+    const rows = (await getDailyScorecard(sc, { now }))!;
     const sum = (k: "revenue" | "orders" | "deliveries" | "skipped" | "signups" | "complaints") => rows.reduce((t, r) => t + r[k], 0);
     const [report, orderCount, ops, signups, complaints] = await Promise.all([
       getRevenueReport(sc),
@@ -122,7 +122,7 @@ describe("daily scorecard (integration)", () => {
     expect(sum("complaints")).toBe(2);
 
     expect(rows.map((r) => r.date)).toEqual([...rows.map((r) => r.date)].sort().reverse());
-    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc });
+    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc, now });
     const profitSum = rows.reduce((t, r) => t + (r.profit ?? 0), 0);
     expect(profit.kpis.costs).toBeGreaterThan(0);
     expect(Math.round(profitSum * 100) / 100).toBe(profit.kpis.profit);
@@ -136,13 +136,15 @@ describe("daily scorecard (integration)", () => {
     await setProfitabilityAssumptions({ ...prior, marketingMonthly: 3100 });
     const today = isoDateInZone(now, TZ);
     const sc = scope([org]);
-    const rows = (await getDailyScorecard(sc))!;
+    const rows = (await getDailyScorecard(sc, { now }))!;
     expect(rows[0]!.date).toBe(today);
     expect(rows.every((r) => r.date <= today)).toBe(true);
-    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc });
+    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc, now });
     expect(profit.rows.every((r) => r.date <= today)).toBe(true);
-    // Future days are not rows, yet the range total still spreads the monthly costs over them.
-    expect(profit.kpis.costs).toBeGreaterThan(profit.rows.reduce((t, r) => t + r.costs, 0));
+    // To date: the KPIs come from the same rows, so future days carry no share of the monthly costs.
+    const sumOf = (k: "costs" | "profit") => Math.round(profit.rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
+    expect(profit.kpis.costs).toBe(sumOf("costs"));
+    expect(profit.kpis.profit).toBe(sumOf("profit"));
   });
 
   it("is empty for a franchise with no access", async () => {

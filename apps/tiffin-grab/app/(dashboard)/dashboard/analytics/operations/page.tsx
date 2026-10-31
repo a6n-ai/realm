@@ -42,7 +42,7 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Deliveries calendar" subtitle={`Deliveries per day · ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
-          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope, false)} />}>
             <DeliveriesCalendar scope={scope} />
           </Suspense>
         </ChartCard>
@@ -121,7 +121,6 @@ async function DeliveriesCalendar({ scope }: { scope: AnalyticsScope }) {
     <CalendarHeatmap
       from={isoDateInZone(scope.fromMs, scope.tz)}
       to={isoDateInZone(scope.toMs, scope.tz)}
-      today={isoDateInZone(Date.now(), scope.tz)}
       label="Deliveries"
       days={rows.map((r) => ({
         date: r.iso,

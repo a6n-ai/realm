@@ -25,7 +25,7 @@ type Column = { key: Exclude<keyof ScorecardDay, "date" | "href">; label: string
 const COLUMNS: Column[] = [
   { key: "revenue", label: "Net revenue", color: "var(--chart-1)", money: true },
   { key: "orders", label: "Orders", color: "var(--chart-2)" },
-  { key: "deliveries", label: "Deliveries", color: "var(--chart-3)" },
+  { key: "deliveries", label: "Deliveries to date", color: "var(--chart-3)" },
   { key: "skipped", label: "Skipped", color: "var(--warning)" },
   { key: "signups", label: "Signups", color: "var(--chart-5)" },
   { key: "complaints", label: "Complaints", color: "var(--destructive)" },
