@@ -9,6 +9,9 @@ import {
   CartesianGrid,
   Cell,
   Label,
+  Line,
+  LineChart,
+  ReferenceLine,
   PolarAngleAxis,
   Pie,
   PieChart,
@@ -29,6 +32,18 @@ import {
 } from "@/components/ui/chart";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
+import {
+  chartColor as tokenColor,
+  foldParts,
+  funnelStages,
+  heatBucket,
+  heatOpacity,
+  HEAT_STEPS,
+  positionalConfig,
+  rankedHeight,
+  topWithOther,
+  type Part,
+} from "@/components/analytics/chart-math";
 
 // A string, not a formatter function: these charts are rendered from server
 // components, and functions cannot cross that boundary as props.
@@ -93,12 +108,15 @@ export function TrendLineChart({
   yKey,
   label = "Value",
   series,
+  mode = "area",
   format = "number",
   height = 240,
 }: {
   data: Row[];
   xKey: string;
   yKey?: string;
+  /** "line" draws plain 2px lines (use for 2 series sharing one axis); keyed by position. */
+  mode?: "area" | "line";
   /** Series name for the single-`yKey` form (tooltip, legend). */
   label?: string;
   /** Several named series; takes precedence over `yKey`. */
@@ -109,6 +127,7 @@ export function TrendLineChart({
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
   const lines = series ?? (yKey ? [{ key: yKey, label }] : []);
+  if (mode === "line") return <SeriesLines data={data} xKey={xKey} series={lines} format={format} height={height} />;
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
   ) satisfies ChartConfig;
@@ -154,6 +173,67 @@ export function TrendLineChart({
   );
 }
 
+function SeriesLines({
+  data,
+  xKey,
+  series,
+  format,
+  height,
+}: {
+  data: Row[];
+  xKey: string;
+  series: { key: string; label: string }[];
+  format: ValueFormat;
+  height: number;
+}) {
+  const { rows, keys } = keySeries(data, series);
+  const config = positionalConfig(series) satisfies ChartConfig;
+  const hasNegative = rows.some((r) => keys.some((k) => Number(r[k]) < 0));
+  const last = rows.length - 1;
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <LineChart accessibilityLayer data={rows} margin={{ top: 20, right: 56, bottom: 0, left: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+        <YAxis hide domain={[hasNegative ? "auto" : 0, "auto"]} />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              indicator="dot"
+              className="min-w-40 gap-2.5"
+              labelFormatter={headerLabel}
+              formatter={valueFormatter(format)}
+            />
+          }
+        />
+        {series.map((s, i) => (
+          <Line
+            key={keys[i]}
+            dataKey={keys[i]}
+            name={s.label}
+            type="monotone"
+            stroke={tokenColor(i)}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+            label={({ index, x, y }: { index?: number; x?: string | number; y?: string | number }) =>
+              index === last ? (
+                <text key={keys[i]} x={Number(x) + 6} y={Number(y)} dominantBaseline="middle" className="fill-muted-foreground text-xs">
+                  {s.label.length > 10 ? `${s.label.slice(0, 9)}…` : s.label}
+                </text>
+              ) : (
+                <g key={`${keys[i]}-${index}`} />
+              )
+            }
+          />
+        ))}
+        <ChartLegend content={<ChartLegendContent />} />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 const truncate = (v: unknown) => {
   const s = String(v);
   return s.length > 16 ? `${s.slice(0, 15)}…` : s;
@@ -171,6 +251,7 @@ export function BreakdownBarChart({
   format = "number",
   orientation = "horizontal",
   height = 240,
+  limit = 8,
 }: {
   data: Row[];
   xKey: string;
@@ -178,7 +259,10 @@ export function BreakdownBarChart({
   label?: string;
   format?: ValueFormat;
   orientation?: "horizontal" | "vertical";
+  /** Vertical charts only; horizontal height follows the row count. */
   height?: number;
+  /** Horizontal charts only: rows kept before the tail folds into "Other". */
+  limit?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
   const config = { [yKey]: { label, color: chartColor(0) } } satisfies ChartConfig;
@@ -202,20 +286,17 @@ export function BreakdownBarChart({
           <CartesianGrid vertical={false} />
           <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} />
           {tooltip}
-          <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={4} />
+          <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={4} maxBarSize={32} />
         </BarChart>
       </ChartContainer>
     );
   }
+  const ranked = topWithOther(data, xKey, yKey, limit);
   return (
-    <ChartContainer
-      config={config}
-      className="aspect-auto w-full"
-      style={{ height: Math.max(height, data.length * 32) }}
-    >
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height: rankedHeight(ranked.length) }}>
       <BarChart
         accessibilityLayer
-        data={data}
+        data={ranked}
         layout="vertical"
         margin={{ left: -10, right: 20 }}
         barCategoryGap="30%"
@@ -231,7 +312,7 @@ export function BreakdownBarChart({
         />
         <XAxis type="number" tickLine={false} tickMargin={10} axisLine={false} hide />
         {tooltip}
-        <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={2} />
+        <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={2} maxBarSize={32} />
       </BarChart>
     </ChartContainer>
   );
@@ -555,6 +636,233 @@ export function RadialRateChart({
         />
         <ChartLegend content={<ChartLegendContent nameKey={nameKey} className="-translate-y-2" />} />
       </RadialBarChart>
+    </ChartContainer>
+  );
+}
+
+const fmtPct = (n: number) => `${n}%`;
+
+/** One whole split into at most 6 parts. Status parts use status tokens, the rest var(--chart-N) in order. */
+export function SegmentedBar({
+  parts,
+  format = "number",
+  withList = false,
+}: {
+  parts: Part[];
+  format?: ValueFormat;
+  /** Name, value and share per part under the bar, in BreakdownList's row style. */
+  withList?: boolean;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const folded = foldParts(parts);
+  if (folded.length === 0) return <EmptyChart />;
+  const total = folded.reduce((s, p) => s + p.value, 0);
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        role="img"
+        aria-label={folded.map((p) => `${p.label} ${p.share}%`).join(", ")}
+        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
+        onMouseLeave={() => setHover(null)}
+      >
+        {folded.map((p, i) => (
+          <div
+            key={`${p.label}-${i}`}
+            className="relative h-full transition-opacity first:rounded-l-full last:rounded-r-full"
+            style={{
+              width: `${(p.value / total) * 100}%`,
+              background: p.color,
+              opacity: hover === null || hover === i ? 1 : 0.45,
+            }}
+            title={`${p.label}: ${formatValue(p.value, format)} (${fmtPct(p.share)})`}
+            onMouseEnter={() => setHover(i)}
+          />
+        ))}
+      </div>
+      {withList ? (
+        <ul className="divide-border/60 divide-y">
+          {folded.map((p, i) => (
+            <li
+              key={`${p.label}-${i}`}
+              className="flex items-center gap-2 py-2 text-sm"
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
+              <span className="min-w-0 flex-1 truncate">{p.label}</span>
+              <span className="font-semibold tabular-nums">{formatValue(p.value, format)}</span>
+              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(p.share)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Legend">
+          {folded.map((p, i) => (
+            <li key={`${p.label}-${i}`} className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full" style={{ background: p.color }} />
+              <span className="text-muted-foreground">{p.label}</span>
+              <span className="font-medium tabular-nums">{fmtPct(p.share)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Ordered stages (not sorted) as horizontal bars on one baseline, with the % kept from the stage before. */
+export function FunnelChart({
+  stages,
+  format = "number",
+}: {
+  stages: { label: string; value: number }[];
+  format?: ValueFormat;
+}) {
+  if (stages.length === 0 || stages.every((s) => s.value <= 0)) return <EmptyChart />;
+  const rows = funnelStages(stages);
+  return (
+    <ul className="flex flex-col gap-2" aria-label="Funnel">
+      {rows.map((r, i) => (
+        <li key={`${r.label}-${i}`} className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="truncate">{r.label}</span>
+            <span className="flex items-baseline gap-2">
+              <span className="font-semibold tabular-nums">{formatValue(r.value, format)}</span>
+              {r.kept !== null ? (
+                <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">{fmtPct(r.kept)} kept</span>
+              ) : null}
+            </span>
+          </div>
+          <div className="bg-muted h-3 w-full overflow-hidden rounded-sm">
+            <div
+              className="h-full rounded-sm"
+              style={{ width: `${r.width}%`, background: tokenColor(0) }}
+              title={`${r.label}: ${formatValue(r.value, format)}${r.kept !== null ? ` (${r.kept}% kept)` : ""}`}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Rows x columns of amounts. One hue, stepped opacity; empty cells read "—". */
+export function HeatmapGrid({
+  rows,
+  columns,
+  cells,
+  format = "number",
+}: {
+  rows: string[];
+  columns: string[];
+  /** cells[r][c]; null or 0 is an empty cell. */
+  cells: (number | null)[][];
+  format?: ValueFormat;
+}) {
+  const values = cells.flat().filter((v): v is number => typeof v === "number" && v > 0);
+  if (rows.length === 0 || columns.length === 0 || values.length === 0) return <EmptyChart />;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        role="table"
+        className="grid items-stretch gap-0.5 text-sm"
+        style={{ gridTemplateColumns: `minmax(0, auto) repeat(${columns.length}, minmax(0, 1fr))` }}
+      >
+        <div role="row" className="contents">
+          <div role="columnheader" />
+          {columns.map((c, ci) => (
+            <div key={`${c}-${ci}`} role="columnheader" className="text-muted-foreground truncate px-2 pb-1 text-center text-xs">
+              {c}
+            </div>
+          ))}
+        </div>
+        {rows.map((r, ri) => (
+          <div key={`${r}-${ri}`} role="row" className="contents">
+            <div role="rowheader" className="text-muted-foreground flex items-center truncate pr-2 text-xs">
+              {r}
+            </div>
+            {columns.map((c, ci) => {
+              const v = cells[ri]?.[ci] ?? null;
+              const b = heatBucket(v, min, max);
+              return (
+                <div
+                  key={`${c}-${ci}`}
+                  role="cell"
+                  title={`${r} / ${c}: ${b === 0 ? "none" : formatValue(v, format)}`}
+                  className="relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-2 py-2 text-xs tabular-nums"
+                >
+                  <span
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{ background: tokenColor(0), opacity: heatOpacity(b) }}
+                  />
+                  <span className={b === 0 ? "text-muted-foreground relative" : "text-foreground relative font-medium"}>
+                    {b === 0 ? "\u2014" : formatValue(v, format)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="text-muted-foreground flex items-center gap-2 text-xs" aria-hidden>
+        <span>{formatValue(min, format)}</span>
+        <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
+          {Array.from({ length: HEAT_STEPS }, (_, i) => (
+            <span key={i} className="flex-1" style={{ background: tokenColor(0), opacity: heatOpacity(i + 1) }} />
+          ))}
+        </div>
+        <span>{formatValue(max, format)}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Bars from a 0 baseline: positive in the success token, negative in destructive. */
+export function DivergingBarChart({
+  data,
+  xKey,
+  yKey,
+  label = "Value",
+  format = "number",
+  height = 240,
+}: {
+  data: Row[];
+  xKey: string;
+  yKey: string;
+  label?: string;
+  format?: ValueFormat;
+  height?: number;
+}) {
+  if (data.length === 0) return <EmptyChart />;
+  const rows = data.map((r) => ({ ...r, s0: Number(r[yKey]) || 0 }));
+  const config = positionalConfig([{ label }]) satisfies ChartConfig;
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <BarChart accessibilityLayer data={rows}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+        <YAxis hide domain={["auto", "auto"]} />
+        <ReferenceLine y={0} stroke="var(--border)" />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              indicator="dot"
+              className="min-w-40 gap-2.5"
+              labelFormatter={headerLabel}
+              formatter={valueFormatter(format)}
+            />
+          }
+        />
+        <Bar dataKey="s0" name={label} radius={3} maxBarSize={32}>
+          {rows.map((r, i) => (
+            <Cell key={i} fill={r.s0 < 0 ? "var(--destructive)" : "var(--success)"} />
+          ))}
+        </Bar>
+      </BarChart>
     </ChartContainer>
   );
 }
