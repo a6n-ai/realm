@@ -177,6 +177,7 @@ describe("customer groups", () => {
     expect(email?.params).toMatchObject({ fromAction: r.actionPublicId });
     // one-off list is cleaned up via the campaign delete + list sweep below
     const [l] = await db.select().from(contactList).where(eq(contactList.publicId, listIds[0]));
+    await db.delete(campaignContent).where(eq(campaignContent.campaignId, c.id));
     await db.delete(campaigns).where(eq(campaigns.publicId, campaignPublicId));
     await db.delete(contactListMember).where(eq(contactListMember.listId, l.id));
     await db.delete(contactList).where(eq(contactList.id, l.id));

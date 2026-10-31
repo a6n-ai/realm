@@ -2,13 +2,9 @@ import { interpolate } from "@relay/engine";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationTemplate } from "@/db/schema";
+import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "./wallet-credited-template";
 
-export const DEFAULT_GRANT_REASON = "Staff gift";
-
-/** Title/body stored on the outbox row; a saved wallet_credited template overrides them at render time. */
-export function walletCreditedDefaults(coins: number, reason: string) {
-  return { title: `${coins} coins added to your wallet`, body: `${reason}. ${coins} coins were added to your wallet.` };
-}
+export { DEFAULT_GRANT_REASON, walletCreditedDefaults };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
