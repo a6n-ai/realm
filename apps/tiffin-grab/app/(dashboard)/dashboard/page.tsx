@@ -18,6 +18,7 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
+import { staffFirstName } from "@/lib/services/overview.service";
 import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
@@ -81,6 +82,10 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
+  // "Hi Vishwas" and "Saturday, October 31", both from the app timezone's today.
+  const firstName = await staffFirstName(session.user.email);
+  const greeting = firstName ? `Hi ${firstName}` : "Overview";
+  const todayLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${today}T12:00:00Z`));
 
   const seesAll = await coversAllOrgs(visible);
   const weekStart = parseWeekParam(week) ?? mondayOf(today);
@@ -88,7 +93,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   if (visible !== "all" && visible.length === 0) {
     return (
       <PageShell>
-        <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
+        <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />
         <Alert variant="destructive">
           <AlertTitle>No franchise access</AlertTitle>
           <AlertDescription>
@@ -102,7 +107,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
 
   return (
     <PageShell>
-      <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
+      <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />
 
       <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <GlanceCard visible={visible} today={today} now={now} />

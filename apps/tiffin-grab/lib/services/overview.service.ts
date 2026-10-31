@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orders, plans } from "@/db/schema";
+import { deliveries, orders, plans, users } from "@/db/schema";
 import { countBy, dailyLabelSheet } from "@/lib/services/daily-labels.service";
 import { addDays } from "@/lib/deliveries-view/week";
 import { buildKitchenWeek, type KitchenWeekRow } from "@/lib/overview/kitchen-week";
@@ -139,4 +139,10 @@ export async function getKitchenWeekDishes(monday: string): Promise<KitchenWeekR
   const sheets = await Promise.all(dates.map((d) => dailyLabelSheet(d)));
   const cells = sheets.flatMap((sheet, i) => countBy(sheet.labels).map((c) => ({ ...kitchenAmount(c), date: dates[i]! })));
   return buildKitchenWeek(cells, monday, addDays);
+}
+
+/** First name for the Overview greeting ("Hi Vishwas"); null when the account has no name. */
+export async function staffFirstName(email: string): Promise<string | null> {
+  const [row] = await db.select({ name: users.name }).from(users).where(eq(users.email, email)).limit(1);
+  return row?.name?.trim().split(/\s+/)[0] || null;
 }
