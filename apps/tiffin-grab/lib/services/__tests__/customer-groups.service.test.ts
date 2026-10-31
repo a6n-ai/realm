@@ -193,7 +193,8 @@ describe("customer groups", () => {
     const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
     const [content] = await db.select().from(campaignContent).where(eq(campaignContent.campaignId, c.id));
     expect(content.channel).toBe("email");
-    expect(content.subject).toContain("7");
+    expect(content.subject).toBe("You've got 7 TiffinGrab coins");
+    expect(content.html).toContain("{{contact.first_name|there}}");
     expect(content.html).toContain("Diwali");
     await db.delete(campaignContent).where(eq(campaignContent.campaignId, c.id));
     await db.delete(campaigns).where(eq(campaigns.publicId, campaignPublicId));
