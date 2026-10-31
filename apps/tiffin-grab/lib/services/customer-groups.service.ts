@@ -372,6 +372,7 @@ export async function applyGroupCoupon(groupPublicId: string, couponPublicId: st
   const [c] = await db.select().from(coupons).where(eq(coupons.publicId, couponPublicId));
   if (!c) throw new ValidationError("Coupon not found");
   if (!c.active) throw new ValidationError("Coupon is not active");
+  if (c.kind === "rep_daily" || c.kind === "rep_code") throw new ValidationError("Staff coupons can't be limited to a group");
   if (c.autoApply) throw new ValidationError("An auto-apply coupon can't be limited to a group");
   if (c.customerGroupId != null && c.customerGroupId !== g.id) {
     throw new ValidationError("Coupon already belongs to another group");

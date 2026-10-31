@@ -92,6 +92,21 @@ describe("group-only coupons", () => {
     expect(String((err as Error).message)).not.toContain(MSG);
   });
 
+  it("deferred settlement skips the membership re-check; the immediate path does not", async () => {
+    const [u] = await db.insert(users).values({ email: "cgc-removed@throwaway.local", name: "R" }).returning({ id: users.id });
+    userIds.push(u.id);
+    await db.insert(customerGroupMembers).values({ groupId, userId: u.id });
+    await couponsService.validatePublicCode("CGC-GROUP", { subtotal: 100, userId: u.id });
+    await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+    await expect(
+      db.transaction((tx) => couponsService.redeem(tx, { coupon: gc, userId: u.id, orderId: 0n, amountApplied: 5 })),
+    ).rejects.toThrow(MSG);
+    const err = await db
+      .transaction((tx) => couponsService.redeem(tx, { coupon: gc, userId: u.id, orderId: 0n, amountApplied: 5, deferredSettlement: true }))
+      .then(() => null, (e: unknown) => e);
+    expect(String((err as Error).message)).not.toContain(MSG);
+  });
+
   it("listAvailable: member yes, non-member and null no", async () => {
     const codes = async (u: bigint | null) => (await couponsService.listAvailable(u)).map((c) => c.code);
     expect(await codes(member)).toContain("CGC-GROUP");
@@ -105,6 +120,8 @@ describe("applyGroupCoupon", () => {
     const inactive = await mk("CGC-OFF", { active: false });
     const auto = await mk("CGC-AUTO", { autoApply: true });
     const free = await mk("CGC-FREE");
+    const rep = await mk("CGC-REP", { kind: "rep_code" });
+    await expect(applyGroupCoupon(groupPublic, rep.publicId, null)).rejects.toBeInstanceOf(ValidationError);
     await expect(applyGroupCoupon(groupPublic, inactive.publicId, null)).rejects.toBeInstanceOf(ValidationError);
     await expect(applyGroupCoupon(groupPublic, auto.publicId, null)).rejects.toBeInstanceOf(ValidationError);
     await expect(applyGroupCoupon(otherGroupPublic, gc.publicId, null)).rejects.toBeInstanceOf(ValidationError);

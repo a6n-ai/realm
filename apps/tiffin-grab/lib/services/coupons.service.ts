@@ -108,6 +108,9 @@ export interface RedeemInput {
   redeemedBy?: bigint | null;
   amountApplied: number;
   context?: Record<string, unknown> | null;
+  // Deferred settlement (payment verification): eligibility was decided when the order was priced,
+  // and money is already captured, so group membership is not re-judged.
+  deferredSettlement?: boolean;
 }
 
 export interface MintRepDailyInput {
@@ -344,7 +347,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     const { coupon, userId, orderId, amountApplied } = input;
 
     // Re-checked under the tx: the preview may have run before the group changed.
-    if (await this.groupAccessError(tx, coupon, userId)) throw new ValidationError(GROUP_ONLY_ERROR);
+    if (!input.deferredSettlement && (await this.groupAccessError(tx, coupon, userId))) throw new ValidationError(GROUP_ONLY_ERROR);
 
     // A rep's day budget is shared with the codes they issued, which this coupon's own count
     // can't see. Recount under the same user-row lock issueRepCode takes, so a concurrent

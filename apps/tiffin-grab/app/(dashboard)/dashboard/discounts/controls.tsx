@@ -134,7 +134,7 @@ export function ToggleRow({
         <Label htmlFor={id} className="text-sm">
           {label}
         </Label>
-        <Switch id={id} checked={checked} onCheckedChange={onChange} />
+        <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
       </div>
     );
   }
