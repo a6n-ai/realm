@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
@@ -111,8 +111,10 @@ async function WalletStatsData() {
  */
 const actor = alias(users, "actor");
 
-export async function walletLedgerRows({ q, sourceType, sort, page }: {
+export async function walletLedgerRows({ q, sourceType, range, sort, page }: {
   q?: string;
+  /** Narrows to entries created inside the window (epoch-ms, inclusive). */
+  range?: { from: number; to: number };
   /** Narrows to one source, e.g. the Give coins history (`manual_broadcast`). */
   sourceType?: string;
   sort: SortState<WalletSortColumn>;
@@ -131,6 +133,7 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
     unexpired(walletLedger, Date.now()),
     search,
     sourceType ? eq(walletLedger.sourceType, sourceType) : undefined,
+    range ? and(gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)) : undefined,
   );
 
   const [rows, [{ total }]] = await Promise.all([

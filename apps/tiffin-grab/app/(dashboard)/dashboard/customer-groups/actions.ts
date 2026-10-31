@@ -19,6 +19,7 @@ import {
   groupMembersCsv,
   listGroupableCoupons,
   removeGroupMember,
+  searchCustomerGroups,
 } from "@/lib/services/customer-groups.service";
 import {
   listOrderCities,
@@ -30,6 +31,10 @@ import {
 export async function searchAccounts(query: string) {
   await requireAdmin();
   return searchCustomers(query);
+}
+
+export async function searchGroupsAction(query: string) {
+  return run(() => searchCustomerGroups(z.string().max(120).parse(query)));
 }
 
 export async function getOrderCities(): Promise<string[]> {

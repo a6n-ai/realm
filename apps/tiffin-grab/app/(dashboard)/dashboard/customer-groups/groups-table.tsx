@@ -42,7 +42,7 @@ export function GroupsTable({ rows, total, page, size }: { rows: GroupTableRow[]
         emptyMessage="No customer groups yet. Save a set of customers once, then give them coins, email them or offer a coupon."
         emptyAction={
           <Button asChild>
-            <Link href="/dashboard/customer-groups/new"><PlusIcon /> New group</Link>
+            <Link href="?new=1" scroll={false}><PlusIcon /> New group</Link>
           </Button>
         }
         renderRow={(r) => (

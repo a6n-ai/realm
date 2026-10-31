@@ -1,7 +1,7 @@
 import "server-only";
 import { ValidationError } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList } from "@relay/engine";
-import { and, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -141,18 +141,90 @@ function toRow({ lastKind, lastAt, id: _id, filters: _f, contactListPublicId: _c
   return { ...r, lastAction: lastKind && lastAt != null ? { kind: lastKind, createdAt: Number(lastAt) } : null };
 }
 
+export type EpochRange = { from: number; to: number };
+
 export async function listCustomerGroups(page: {
   page: number;
   size: number;
+  range?: EpochRange;
 }): Promise<{ rows: CustomerGroupRow[]; total: number }> {
+  const where = page.range
+    ? and(gte(customerGroups.createdAt, page.range.from), lte(customerGroups.createdAt, page.range.to))
+    : undefined;
   const [rows, [{ n }]] = await Promise.all([
     groupQuery()
+      .where(where)
       .orderBy(desc(customerGroups.createdAt), desc(customerGroups.id))
       .limit(page.size)
       .offset(page.page * page.size),
-    db.select({ n: sql<number>`count(*)::int` }).from(customerGroups),
+    db.select({ n: sql<number>`count(*)::int` }).from(customerGroups).where(where),
   ]);
   return { rows: rows.map(toRow), total: n };
+}
+
+export async function searchCustomerGroups(q: string): Promise<{ publicId: string; name: string; memberCount: number }[]> {
+  const term = q.trim();
+  return db
+    .select({ publicId: customerGroups.publicId, name: customerGroups.name, memberCount: customerGroups.memberCount })
+    .from(customerGroups)
+    .where(term ? ilike(customerGroups.name, `%${term}%`) : undefined)
+    .orderBy(desc(customerGroups.createdAt), desc(customerGroups.id))
+    .limit(20);
+}
+
+const groupsCreatedIn = (r: EpochRange) => and(gte(customerGroups.createdAt, r.from), lte(customerGroups.createdAt, r.to));
+
+async function groupsInRange(r: EpochRange): Promise<{ groups: number; members: number }> {
+  const [row] = await db
+    .select({ groups: sql<number>`count(*)::int`, members: sql<number>`coalesce(sum(${customerGroups.memberCount}), 0)::int` })
+    .from(customerGroups)
+    .where(groupsCreatedIn(r));
+  return row;
+}
+
+/** Wallet -> Give coins cards: every manual_broadcast credit created inside the range. */
+export async function giveCoinsStats(r: EpochRange) {
+  const [[g], { groups }] = await Promise.all([
+    db
+      .select({
+        coins: sql<number>`coalesce(sum(${walletLedger.coins}), 0)::int`,
+        customers: sql<number>`count(distinct ${walletLedger.userId})::int`,
+        grants: sql<number>`count(distinct split_part(${walletLedger.sourceId}, ':', 2))::int`,
+      })
+      .from(walletLedger)
+      .where(
+        and(
+          eq(walletLedger.sourceType, "manual_broadcast"),
+          eq(walletLedger.direction, "credit"),
+          gte(walletLedger.createdAt, r.from),
+          lte(walletLedger.createdAt, r.to),
+        ),
+      ),
+    groupsInRange(r),
+  ]);
+  return {
+    coinsGiven: g.coins,
+    customersRewarded: g.customers,
+    grants: g.grants,
+    groups,
+    avgCoinsPerCustomer: g.customers ? g.coins / g.customers : 0,
+  };
+}
+
+/** Customer groups cards: groups created in the range and the actions taken in it. */
+export async function customerGroupStats(r: EpochRange) {
+  const [{ groups, members }, [a]] = await Promise.all([
+    groupsInRange(r),
+    db
+      .select({
+        actions: sql<number>`count(*)::int`,
+        coins: sql<number>`coalesce(sum(case when ${customerGroupActions.kind} = 'coins' then coalesce((${customerGroupActions.params}->>'coins')::int, 0) * coalesce(jsonb_array_length(${customerGroupActions.result}->'awardedUserIds'), 0) else 0 end), 0)::int`,
+        emails: sql<number>`count(*) filter (where ${customerGroupActions.kind} = 'email')::int`,
+      })
+      .from(customerGroupActions)
+      .where(and(gte(customerGroupActions.createdAt, r.from), lte(customerGroupActions.createdAt, r.to))),
+  ]);
+  return { groups, members, actions: a.actions, coinsViaGroups: a.coins, emailsSent: a.emails };
 }
 
 export async function getCustomerGroup(publicId: string): Promise<{

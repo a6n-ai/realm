@@ -13,6 +13,8 @@ import {
 } from "@/db/schema";
 import {
   addGroupMembers,
+  customerGroupStats,
+  giveCoinsStats,
   createCustomerGroup,
   emailAwardedMembers,
   emailGroup,
@@ -211,5 +213,29 @@ describe("customer groups", () => {
       await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
       await db.delete(users).where(eq(users.id, u.id));
     }
+  });
+
+  it("stats count only what happened inside the range", async () => {
+    const t0 = Date.now() - 1;
+    const range = { from: t0, to: t0 + 3_600_000 };
+    const before = { give: await giveCoinsStats(range), groups: await customerGroupStats(range) };
+    const g = await mk("stats-group", [uOk, uCapped]);
+    await giveGroupCoins(g.publicId, { coins: 10 }, uOk);
+    await emailGroup(g.publicId, uOk);
+    const give = await giveCoinsStats(range);
+    const groups = await customerGroupStats(range);
+    expect(give.coinsGiven - before.give.coinsGiven).toBe(10);
+    expect(give.customersRewarded - before.give.customersRewarded).toBe(1);
+    expect(give.grants - before.give.grants).toBe(1);
+    expect(give.groups - before.give.groups).toBe(1);
+    expect(give.avgCoinsPerCustomer).toBeGreaterThan(0);
+    expect(groups.groups - before.groups.groups).toBe(1);
+    expect(groups.members - before.groups.members).toBe(2);
+    expect(groups.actions - before.groups.actions).toBe(2);
+    expect(groups.coinsViaGroups - before.groups.coinsViaGroups).toBe(10);
+    expect(groups.emailsSent - before.groups.emailsSent).toBe(1);
+
+    const past = await customerGroupStats({ from: 0, to: 1000 });
+    expect(past).toEqual({ groups: 0, members: 0, actions: 0, coinsViaGroups: 0, emailsSent: 0 });
   });
 });
