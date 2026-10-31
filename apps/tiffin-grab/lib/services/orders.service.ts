@@ -72,6 +72,7 @@ import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
   lockAndQuoteCoinRedemption,
+  balanceInTx,
   commitCoinRedemption,
   reserveCoinRedemption,
   settleCoinReservation,
@@ -85,6 +86,7 @@ import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { allowedDaysError, eatingDaysError, orderDeliveryDays, planDaysError, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
+import { quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
@@ -584,12 +586,25 @@ export async function createOrder(
           ? Infinity
           : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
 
-        const walletBalance = await walletService.balance(userId);
+        // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
+        // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
+        // one balance and together spend past it.
+        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+        const walletBalance = await balanceInTx(tx, userId);
         const maxRedeemPct = await getMaxCoinRedeemPctOfBalance();
         const walletPctCap = maxRedeemPct == null ? Infinity : Math.floor(walletBalance * (maxRedeemPct / 100));
-        const requestedCoins = Math.min(input.coins, walletPctCap);
+        // Same rule as the checkout quote: refuse only when the share-of-balance limit is what binds. A
+        // count over it that the order wouldn't use anyway (it needs fewer coins) still clamps below;
+        // checkout sends back the number the customer typed. When it does bind here but the quote
+        // passed, the balance moved since the price was shown, and spending fewer would charge more.
+        const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: walletBalance, rate, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
+        if (input.coins > quote.maxCoins && quote.limitedBy === "wallet_pct") {
+          throw new ValidationError(
+            `You can use up to ${maxRedeemPct}% of the coins at once, ${quote.maxCoins} on this order. Check the price again.`,
+          );
+        }
         coinRedemption = await lockAndQuoteCoinRedemption(tx, {
-          userId, coins: requestedCoins, rate, cap: Math.min(remaining, pctCap),
+          userId, coins: Math.min(input.coins, walletPctCap), rate, cap: Math.min(remaining, pctCap),
         });
         if (coinRedemption.currencyValue > 0) {
           adjustments.push({ label: `Coins (${coinRedemption.coinsSpent})`, amount: coinRedemption.currencyValue });
@@ -1148,6 +1163,7 @@ export async function refundPaymentInTx(
     // Money back means coins back: a refunded order's spent coins return too.
     await reverseCoinRedemption(tx, { userId: i.userId, orderId: i.orderId });
   }
+  await couponsService.releaseForOrder(tx, i.orderId);
   await reverseReferral(tx, { id: i.orderId });
 }
 

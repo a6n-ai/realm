@@ -173,6 +173,28 @@ describe("couponsService.redeem (integration)", () => {
     const [after] = await db.select().from(coupons).where(eq(coupons.id, coupon.id));
     expect(after.redemptionCount).toBe(1);
   });
+
+  it("releaseForOrder frees the per-user cap so the same customer can redeem again", async () => {
+    const order = await makeOrder();
+    const [coupon] = await db
+      .insert(coupons)
+      .values({ code: "WELCOME", kind: "fixed", name: "Welcome", valueAmount: "25", maxPerUser: 1 })
+      .returning();
+    const redeem = () =>
+      db.transaction((tx) =>
+        couponsService.redeem(tx, { coupon, userId: order.userId!, orderId: order.id, amountApplied: 25 }),
+      );
+
+    await redeem();
+    await expect(redeem()).rejects.toThrow("Per-user redemption limit reached");
+
+    await db.transaction((tx) => couponsService.releaseForOrder(tx, order.id));
+    const [released] = await db.select().from(coupons).where(eq(coupons.id, coupon.id));
+    expect(released.redemptionCount).toBe(0);
+    expect(await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id))).toHaveLength(0);
+
+    await redeem();
+  });
 });
 
 describe("couponsService method-gating (integration)", () => {

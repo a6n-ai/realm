@@ -223,6 +223,10 @@ async function quote(
         // Over the admin limit: refuse with the reason rather than quietly apply
         // fewer. More coins than the order needs still clamps, as it always has.
         coinsError = `Coins can cover up to ${maxPct}% of your subtotal — you can use up to ${quote.maxCoins} coins on this order.`;
+      } else if (coins > quote.maxCoins && quote.limitedBy === "wallet_pct") {
+        // Same for the share-of-balance limit: capRedemption below doesn't know it, so without this the
+        // quote would show more coins than createOrder spends (it refuses over that limit).
+        coinsError = `You can use up to ${maxRedeemPctOfBalance}% of your coins at once — up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
         const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
         const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
