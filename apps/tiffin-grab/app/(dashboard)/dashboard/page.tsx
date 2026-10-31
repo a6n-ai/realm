@@ -140,7 +140,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       />
 
       <Suspense fallback={<ChartSkeleton height={260} />}>
-        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} seesAll={seesAll} />
+        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} today={today} seesAll={seesAll} />
       </Suspense>
 
     </PageShell>
