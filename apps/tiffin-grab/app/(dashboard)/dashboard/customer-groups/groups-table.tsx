@@ -5,6 +5,7 @@ import { PlusIcon, UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
+import { GroupQuickActions } from "./group-quick-actions";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
@@ -17,13 +18,14 @@ export type GroupTableRow = {
   lastAction: { kind: string; createdAt: number } | null;
 };
 
-type GroupColumn = "name" | "members" | "last" | "created";
+type GroupColumn = "name" | "members" | "last" | "created" | "actions";
 
 const COLUMNS: readonly Column<GroupColumn>[] = [
   { key: "name", label: "Group" },
   { key: "members", label: "Customers", align: "right" },
   { key: "last", label: "Last action" },
   { key: "created", label: "Created" },
+  { key: "actions", label: "", align: "right" },
 ];
 
 const ACTION_LABEL: Record<string, string> = { coins: "Coins given", email: "Emailed", discount: "Coupon applied" };
@@ -59,6 +61,9 @@ export function GroupsTable({ rows, total, page, size }: { rows: GroupTableRow[]
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}
               {r.createdBy ? ` · ${r.createdBy}` : ""}
+            </TableCell>
+            <TableCell className="text-right">
+              <GroupQuickActions publicId={r.publicId} name={r.name} size="sm" />
             </TableCell>
           </>
         )}

@@ -15,11 +15,11 @@ import { searchGroupsAction } from "../../customer-groups/actions";
 type Group = { publicId: string; name: string; memberCount: number };
 type Stage = "pick" | "create";
 
-export function GiveCoinsFlowDialog({ cities, maxRows }: { cities: string[]; maxRows: number }) {
+export function GiveCoinsFlowDialog({ cities, maxRows, presetGroup = null }: { cities: string[]; maxRows: number; presetGroup?: { publicId: string; count: number } | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("pick");
-  const [target, setTarget] = useState<{ publicId: string; count: number } | null>(null);
+  const [target, setTarget] = useState<{ publicId: string; count: number } | null>(presetGroup);
 
   const choose = (g: { publicId: string; count: number }) => {
     setOpen(false);

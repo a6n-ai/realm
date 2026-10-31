@@ -10,17 +10,17 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { GroupPicker, type PickedGroup } from "../../customer-groups/group-picker";
 import { emailGroupAction } from "../../customer-groups/actions";
 
-export function EmailGroupDialog() {
+export function EmailGroupDialog({ presetGroup = null, groupMissing = false }: { presetGroup?: PickedGroup | null; groupMissing?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [group, setGroup] = useState<PickedGroup | null>(null);
+  const [open, setOpen] = useState(presetGroup !== null || groupMissing);
+  const [group, setGroup] = useState<PickedGroup | null>(presetGroup);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = (o: boolean) => {
     setOpen(o);
     if (!o) {
-      setGroup(null);
+      setGroup(presetGroup);
       setError(null);
     }
   };
@@ -58,6 +58,11 @@ export function EmailGroupDialog() {
             <Label htmlFor="email-group">Customer group</Label>
             <GroupPicker id="email-group" value={group} onChange={setGroup} />
           </div>
+          {groupMissing && !group && (
+            <Alert variant="destructive">
+              <AlertDescription>That customer group was not found. Pick a group below.</AlertDescription>
+            </Alert>
+          )}
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

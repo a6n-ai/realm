@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CoinsIcon, DownloadIcon, MailIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { CoinsIcon, MailIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
@@ -13,7 +13,8 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/services/customer-groups.service";
 import { AccountSearch } from "../new/account-search";
-import { addGroupMemberAction, exportGroupCsvAction, removeGroupMemberAction } from "../actions";
+import { addGroupMemberAction, removeGroupMemberAction } from "../actions";
+import { GroupQuickActions } from "../group-quick-actions";
 import { MemberStatuses } from "./member-statuses";
 
 type MemberColumn = "name" | "email" | "phone" | "revenue" | "since" | "last" | "remove";
@@ -80,19 +81,6 @@ export function GroupView({
     }
   }
 
-  const exportCsv = () =>
-    guarded("csv", async () => {
-      const res = await exportGroupCsvAction(group.publicId);
-      if (!res.ok) return res.error;
-      const url = URL.createObjectURL(new Blob([res.data], { type: "text/csv;charset=utf-8" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${group.name.replace(/[\\/:*?"<>|]+/g, "_")}.csv`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-      return null;
-    });
-
   const remove = (m: GroupMember) =>
     guarded(`rm-${m.publicId}`, async () => {
       const res = await removeGroupMemberAction(group.publicId, m.publicId);
@@ -117,9 +105,7 @@ export function GroupView({
         subtitle={`${group.memberCount} customer${group.memberCount === 1 ? "" : "s"}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={exportCsv} disabled={busy === "csv"}>
-              <DownloadIcon /> Export CSV
-            </Button>
+            <GroupQuickActions publicId={group.publicId} name={group.name} />
           </div>
         }
       />
@@ -153,6 +139,7 @@ export function GroupView({
               <DataTable
                 columns={MEMBER_COLUMNS}
                 rows={members}
+                search={{ placeholder: "Search by name, email or phone", shortPlaceholder: "Search customers", keys: ["name", "email", "phone"] }}
                 rowKey={(m) => m.publicId}
                 serial={false}
                 emptyIcon={UsersIcon}
@@ -187,7 +174,8 @@ export function GroupView({
           <SectionCard title="Activity" subtitle="Everything done to this group, newest first.">
             <DataTable
               columns={ACTIVITY_COLUMNS}
-              rows={actions}
+              rows={actions.map((a) => ({ ...a, searchText: `${ACTION_LABEL[a.kind] ?? a.kind} ${a.createdBy ?? ""} ${summary(a)}` }))}
+              search={{ placeholder: "Search action, person or campaign", shortPlaceholder: "Search activity", keys: ["searchText"] }}
               rowKey={(a) => a.publicId}
               serial={false}
               emptyIcon={CoinsIcon}

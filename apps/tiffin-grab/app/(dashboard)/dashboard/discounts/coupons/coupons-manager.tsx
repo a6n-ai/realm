@@ -187,7 +187,9 @@ export function CouponsManager({
   sort,
   pagination,
   spec,
+  presetGroup = null,
 }: {
+  presetGroup?: PickedGroup | null;
   coupons: CouponRow[];
   paymentMethods: { value: string; label: string }[];
   stats: StatItem[];
@@ -198,7 +200,7 @@ export function CouponsManager({
   const router = useRouter();
   const tz = useTimezone();
   const [pending, start] = React.useTransition();
-  const [draft, setDraft] = React.useState<Draft | null>(null);
+  const [draft, setDraft] = React.useState<Draft | null>(() => (presetGroup ? { ...emptyDraft(), group: presetGroup, autoApply: false } : null));
 
   const open = (d: Draft) => setDraft(d);
 

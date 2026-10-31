@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
+import { Alert, AlertDescription } from "@/components/reui/alert";
 import { requireAdmin } from "@/lib/auth/guards";
 import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
 import { parseFilterState } from "@/components/ds";
@@ -11,7 +12,7 @@ import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { giveCoinsStats } from "@/lib/services/customer-groups.service";
+import { findCustomerGroup, giveCoinsStats } from "@/lib/services/customer-groups.service";
 import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
 import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
 import { GiveCoinsFlowDialog } from "./give-coins-flow-dialog";
@@ -27,7 +28,7 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
         <p className="text-muted-foreground text-sm">Give coins to a customer group, or to one customer.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Suspense fallback={<Button disabled><CoinsIcon /> Give coins</Button>}>
-            <Launcher />
+            <Launcher searchParams={searchParams} />
           </Suspense>
         </div>
       </div>
@@ -46,11 +47,22 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
   );
 }
 
-async function Launcher() {
+async function Launcher({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
+  const groupId = (await searchParams).group;
+  const preset = groupId ? await findCustomerGroup(groupId) : null;
   return (
     <>
-      <GiveCoinsFlowDialog cities={await listOrderCities()} maxRows={MAX_REVIEW_ROWS} />
+      {groupId && !preset && (
+        <Alert variant="destructive" className="w-full">
+          <AlertDescription>That customer group was not found. Pick a group below.</AlertDescription>
+        </Alert>
+      )}
+      <GiveCoinsFlowDialog
+        cities={await listOrderCities()}
+        maxRows={MAX_REVIEW_ROWS}
+        presetGroup={preset ? { publicId: preset.publicId, count: preset.memberCount } : null}
+      />
       <GiveOneCustomerDialog />
     </>
   );

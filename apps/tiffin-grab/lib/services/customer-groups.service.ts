@@ -193,6 +193,14 @@ export async function searchCustomerGroups(q: string): Promise<{ publicId: strin
     .limit(20);
 }
 
+export async function findCustomerGroup(publicId: string): Promise<{ publicId: string; name: string; memberCount: number } | null> {
+  const [row] = await db
+    .select({ publicId: customerGroups.publicId, name: customerGroups.name, memberCount: customerGroups.memberCount })
+    .from(customerGroups)
+    .where(eq(customerGroups.publicId, publicId));
+  return row ?? null;
+}
+
 const groupsCreatedIn = (r: EpochRange) => and(gte(customerGroups.createdAt, r.from), lte(customerGroups.createdAt, r.to));
 
 async function groupsInRange(r: EpochRange): Promise<{ groups: number; members: number }> {
