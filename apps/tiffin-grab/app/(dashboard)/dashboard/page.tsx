@@ -21,7 +21,6 @@ import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/tod
 import { TODAY_KINDS, isTodayKind, kindOptionLabel, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import {
   PageShell,
@@ -37,9 +36,15 @@ import {
   DataTableSkeleton,
   type FacetDef,
 } from "@/components/ds";
-import { TodayTiles } from "./_overview/today-tiles";
-import { NextDayCard } from "./_overview/next-day-card";
-import { TodayDeliveriesCard } from "./_overview/today-deliveries-card";
+import { mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
+import { GlanceCard } from "./_overview/glance-card";
+import { ServiceCard } from "./_overview/service-card";
+import { NeedsActionCard } from "./_overview/needs-action-card";
+import { RouteCard } from "./_overview/route-card";
+import { PaceCard } from "./_overview/pace-card";
+import { LanesCard } from "./_overview/lanes-card";
+import { CookingCard } from "./_overview/cooking-card";
+import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -69,7 +74,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
-  const { type } = await searchParams;
+  const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
@@ -77,6 +82,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   const today = zonedDateIso(now, timezone);
 
   const seesAll = await coversAllOrgs(visible);
+  const weekStart = parseWeekParam(week) ?? mondayOf(today);
 
   if (visible !== "all" && visible.length === 0) {
     return (
@@ -97,26 +103,50 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
     <PageShell>
       <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
-        <TodayTiles visible={visible} today={today} seesAll={seesAll} />
+      <Suspense fallback={<ChartSkeleton height={150} />}>
+        <GlanceCard visible={visible} today={today} now={now} />
       </Suspense>
 
-      {seesAll ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Suspense fallback={<ChartSkeleton height={160} />}>
-            <NextDayCard today={today} />
+      <div className="grid gap-4 md:grid-cols-2">
+        {seesAll ? (
+          <Suspense fallback={<ChartSkeleton height={260} />}>
+            <ServiceCard today={today} />
           </Suspense>
-          <Suspense fallback={<ChartSkeleton height={160} />}>
-            <TodayDeliveriesCard today={today} />
+        ) : null}
+        <Suspense fallback={<ChartSkeleton height={260} />}>
+          <NeedsActionCard visible={visible} today={today} seesAll={seesAll} />
+        </Suspense>
+        {seesAll ? (
+          <Suspense fallback={<ChartSkeleton height={200} />}>
+            <RouteCard today={today} />
           </Suspense>
-        </div>
-      ) : null}
+        ) : null}
+        <Suspense fallback={<ChartSkeleton height={260} />}>
+          <PaceCard visible={visible} today={today} now={now} />
+        </Suspense>
+        {seesAll ? (
+          <Suspense fallback={<ChartSkeleton height={200} />}>
+            <LanesCard today={today} />
+          </Suspense>
+        ) : null}
+        {seesAll ? (
+          <Suspense fallback={<ChartSkeleton height={260} />}>
+            <CookingCard today={today} />
+          </Suspense>
+        ) : null}
+      </div>
 
+      <Suspense fallback={<ChartSkeleton height={260} />}>
+        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} />
+      </Suspense>
+
+      <div id="queue">
       <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
         <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
           <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
         </Suspense>
       </SectionCard>
+      </div>
     </PageShell>
   );
 }

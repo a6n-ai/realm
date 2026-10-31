@@ -134,11 +134,14 @@ export function TrendLineChart({
   format = "number",
   height = 240,
   average = false,
+  dashedAverage = false,
   tipKey,
 }: {
   data: Row[];
   xKey: string;
   yKey: string;
+  /** With `average`: draw the 7-day line dashed. */
+  dashedAverage?: boolean;
   /** Daily grain: a light area of the values plus a bold trailing 7-day average line. */
   average?: boolean;
   /** Row field with the long date shown in the tooltip heading ("Sat, Oct 3"). */
@@ -152,7 +155,7 @@ export function TrendLineChart({
   if (data.length === 0) return <EmptyChart />;
   const lines = [{ key: yKey, label }];
   if (average)
-    return <AverageTrend data={data} xKey={xKey} yKey={yKey} label={label} format={format} height={height} tipKey={tipKey} />;
+    return <AverageTrend data={data} xKey={xKey} yKey={yKey} label={label} format={format} height={height} tipKey={tipKey} dashed={dashedAverage} />;
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
   ) satisfies ChartConfig;
@@ -227,6 +230,7 @@ function AverageTrend({
   format,
   height,
   tipKey,
+  dashed,
 }: {
   data: Row[];
   xKey: string;
@@ -235,6 +239,7 @@ function AverageTrend({
   format: ValueFormat;
   height: number;
   tipKey?: string;
+  dashed?: boolean;
 }) {
   const values = data.map((r) => Number(r[yKey]) || 0);
   if (values.every((v) => !v)) return <EmptyChart />;
@@ -262,7 +267,7 @@ function AverageTrend({
           }
         />
         <Area dataKey="s0" name={label} type="monotone" fill={chartColor(0)} fillOpacity={0.18} stroke={chartColor(0)} strokeOpacity={0.35} strokeWidth={1} />
-        <Area dataKey="s1" name="7-day average" type="monotone" fill="none" stroke={chartColor(0)} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Area dataKey="s1" name="7-day average" type="monotone" fill="none" stroke={chartColor(0)} strokeWidth={2} strokeDasharray={dashed ? "5 4" : undefined} dot={false} activeDot={{ r: 4 }} />
       </AreaChart>
     </ChartContainer>
   );
