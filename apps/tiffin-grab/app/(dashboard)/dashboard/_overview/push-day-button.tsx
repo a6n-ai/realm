@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { pushDayAction } from "../dispatch/actions";
 
-export function PushDayButton({ date, dayLabel, stops }: { date: string; dayLabel: string; stops: number }) {
+export function PushDayButton({ date, dayLabel, stops, label = "Push to OptimoRoute" }: { date: string; dayLabel: string; stops: number; label?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -31,7 +31,7 @@ export function PushDayButton({ date, dayLabel, stops }: { date: string; dayLabe
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
         <SendIcon data-icon="inline-start" />
-        Push to OptimoRoute
+        {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
         <DialogContent>

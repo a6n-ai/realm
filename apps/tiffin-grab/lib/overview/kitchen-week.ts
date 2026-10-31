@@ -1,3 +1,5 @@
+export const KITCHEN_WEEK_ROWS = 8;
+
 export type WeekCell = { mealSize: string; date: string; units: number };
 export type KitchenWeekRow = { mealSize: string; days: number[]; total: number; prevTotal: number };
 
@@ -15,5 +17,15 @@ export function buildKitchenWeek(cells: WeekCell[], monday: string, addDays: (is
     } else if (c.date >= prevFrom && c.date < monday) row.prevTotal += c.units;
     byName.set(c.mealSize, row);
   }
-  return [...byName.values()].filter((r) => r.total > 0 || r.prevTotal > 0).sort((a, b) => b.total - a.total || a.mealSize.localeCompare(b.mealSize));
+  const sorted = [...byName.values()].filter((r) => r.total > 0 || r.prevTotal > 0).sort((a, b) => b.total - a.total || a.mealSize.localeCompare(b.mealSize));
+  if (sorted.length <= KITCHEN_WEEK_ROWS + 1) return sorted;
+  // Keep the grid short: the biggest sizes, then one "Other" row summing the rest.
+  const rest = sorted.slice(KITCHEN_WEEK_ROWS);
+  const other: KitchenWeekRow = {
+    mealSize: `Other (${rest.length} sizes)`,
+    days: Array.from({ length: 7 }, (_, i) => rest.reduce((s, r) => s + r.days[i]!, 0)),
+    total: rest.reduce((s, r) => s + r.total, 0),
+    prevTotal: rest.reduce((s, r) => s + r.prevTotal, 0),
+  };
+  return [...sorted.slice(0, KITCHEN_WEEK_ROWS), other];
 }

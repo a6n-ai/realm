@@ -54,9 +54,9 @@ export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { vi
         key: "route",
         icon: RouteIcon,
         count: left,
-        label: `stop${left === 1 ? "" : "s"} not pushed`,
+        label: `stop${left === 1 ? "" : "s"} to push`,
         sub: `route ${dayLabel(push.date)}`,
-        action: left > 0 && optimo.hasApiKey ? <PushDayButton date={push.date} dayLabel={dayLabel(push.date)} stops={push.total} /> : go("/dashboard/dispatch", "Dispatch"),
+        action: left > 0 && optimo.hasApiKey ? <PushDayButton date={push.date} dayLabel={dayLabel(push.date)} stops={push.total} label="Push" /> : go("/dashboard/dispatch", "Dispatch"),
       });
     }
   }
@@ -71,7 +71,7 @@ export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { vi
       count: released ? 0 : 1,
       label: released ? "Next week's menu released" : "Next week's menu not released",
       bare: true,
-      sub: `week of ${dayLabel(nextMonday)}${week ? ` · ${week.status === "ready" ? "ready" : "draft"}` : " · not started"}`,
+      sub: `week of ${dayLabel(nextMonday)} · ${week ? week.status : "not started"}`,
       action: go(week ? `/dashboard/menus/${week.publicId}` : "/dashboard/menus", week ? "Open" : "Create"),
     });
   }

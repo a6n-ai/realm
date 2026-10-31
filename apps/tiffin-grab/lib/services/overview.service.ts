@@ -98,7 +98,8 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
   if (visible !== "all" && visible.length === 0) return [];
   const rows = await db
     .select({
-      mealSize: mealSizes.name,
+      // Custom sizes are one row: each customer's custom mix is its own meal size.
+      mealSize: sql<string>`case when ${mealSizes.custom} then 'Custom meals' else ${mealSizes.name} end`,
       date: deliveries.deliveryDate,
       units: sql<number>`cast(coalesce(sum(${deliveries.tiffinUnits}), 0) as int)`,
     })
@@ -114,6 +115,6 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
         visible === "all" ? undefined : inArray(orders.organizationId, visible),
       ),
     )
-    .groupBy(mealSizes.name, deliveries.deliveryDate);
+    .groupBy(sql`1`, deliveries.deliveryDate);
   return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDays);
 }
