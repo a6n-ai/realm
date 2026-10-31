@@ -1,15 +1,18 @@
 import Link from "next/link";
-import { CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
+import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
 import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service";
+import { menuService } from "@/lib/services/menu.service";
+import { addDays, mondayOf } from "@/lib/deliveries-view/week";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
 
-type Line = { key: string; icon: LucideIcon; count: number | null; label: string; sub: string; action: React.ReactNode };
+/** `bare`: show the label alone (a yes/no item, not a count). */
+type Line = { key: string; icon: LucideIcon; count: number | null; label: string; sub: string; action: React.ReactNode; bare?: boolean };
 
 const dayLabel = (iso: string) =>
   new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
@@ -20,7 +23,7 @@ const go = (href: string, text: string) => (
   </Button>
 );
 
-export async function NeedsActionCard({ visible, today, seesAll }: { visible: "all" | string[]; today: string; seesAll: boolean }) {
+export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: "all" | string[]; today: string; seesAll: boolean; isAdmin: boolean }) {
   const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
   const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (oldest.status === "pending_verification" || oldest.status === "awaiting_payment");
@@ -57,6 +60,21 @@ export async function NeedsActionCard({ visible, today, seesAll }: { visible: "a
       });
     }
   }
+  // Next week's menu must be released before customers can pick; menu pages are admin-only.
+  if (isAdmin) {
+    const nextMonday = addDays(mondayOf(today), 7);
+    const week = (await menuService.listWeeks()).find((w) => w.weekStart === nextMonday);
+    const released = week?.status === "released";
+    lines.push({
+      key: "menu",
+      icon: CalendarDaysIcon,
+      count: released ? 0 : 1,
+      label: released ? "Next week's menu released" : "Next week's menu not released",
+      bare: true,
+      sub: `week of ${dayLabel(nextMonday)}${week ? ` · ${week.status === "ready" ? "ready" : "draft"}` : " · not started"}`,
+      action: go(week ? `/dashboard/menus/${week.publicId}` : "/dashboard/menus", week ? "Open" : "Create"),
+    });
+  }
   lines.push(
     { key: "missed", icon: CircleAlertIcon, count: c.byKind.missed, label: "missed days", sub: "past days nobody confirmed", action: go("/dashboard?type=missed#queue", "Review") },
     { key: "renewal", icon: RefreshCwIcon, count: c.byKind.renewal, label: "plans ending within 2 days", sub: "not renewed yet", action: go("/dashboard/renewals?ending=2", "Renew") },
@@ -72,7 +90,7 @@ export async function NeedsActionCard({ visible, today, seesAll }: { visible: "a
             <li key={l.key} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
               <l.icon className="text-muted-foreground size-4 shrink-0" aria-hidden />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{l.count == null ? `? ${l.label}` : `${l.count} ${l.label}`}</div>
+                <div className="truncate text-sm font-medium">{l.bare ? l.label : l.count == null ? `? ${l.label}` : `${l.count} ${l.label}`}</div>
                 <div className="text-muted-foreground truncate text-xs">{l.count == null ? "count unavailable" : l.sub}</div>
               </div>
               {clear ? (

@@ -112,7 +112,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       {/* Act first: what needs doing, how today is going, the menus to release. */}
       <CardGrid
         cards={[
-          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} />, h: 260 },
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} isAdmin={isAdmin} />, h: 260 },
           seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
           // Menu pages are admin-only, so the menu card is too.
           isAdmin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
