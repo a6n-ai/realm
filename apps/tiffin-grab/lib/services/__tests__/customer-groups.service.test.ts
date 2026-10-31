@@ -8,6 +8,8 @@ import {
   customerGroups,
   contactList,
   contactListMember,
+  campaignContent,
+  notificationOutbox,
   users,
   walletLedger,
 } from "@/db/schema";
@@ -62,6 +64,7 @@ afterAll(async () => {
   const listPublicIds = acts.map((a) => a.params.listPublicId).filter((x): x is string => typeof x === "string");
   const camps = await db.select().from(campaigns);
   const mine = camps.filter((c) => (c.audience as { listIds?: string[] } | null)?.listIds?.some((l) => listPublicIds.includes(l)));
+  if (mine.length) await db.delete(campaignContent).where(inArray(campaignContent.campaignId, mine.map((c) => c.id)));
   if (mine.length) await db.delete(campaigns).where(inArray(campaigns.id, mine.map((c) => c.id)));
   for (const pid of new Set(listPublicIds)) {
     const [l] = await db.select().from(contactList).where(eq(contactList.publicId, pid));
@@ -75,6 +78,7 @@ afterAll(async () => {
     await db.delete(customerGroupMembers).where(inArray(customerGroupMembers.groupId, groupIds));
     await db.delete(customerGroups).where(inArray(customerGroups.id, groupIds));
   }
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
   await db.delete(walletLedger).where(inArray(walletLedger.userId, ids));
   await db.delete(users).where(inArray(users.id, ids));
 });
@@ -174,6 +178,22 @@ describe("customer groups", () => {
     await db.delete(campaigns).where(eq(campaigns.publicId, campaignPublicId));
     await db.delete(contactListMember).where(eq(contactListMember.listId, l.id));
     await db.delete(contactList).where(eq(contactList.id, l.id));
+  });
+
+  it("giveGroupCoins sends no wallet_credited; the coins email is prefilled with the coin count", async () => {
+    const g = await mk("g7b", [uOk, uCapped]);
+    const r = await giveGroupCoins(g.publicId, { coins: 7, memo: "Diwali" }, uOk);
+    const rows = await db.select().from(notificationOutbox).where(inArray(notificationOutbox.recipientId, [uOk, uCapped]));
+    expect(rows.filter((x) => x.event === "wallet_credited")).toHaveLength(0);
+
+    const { campaignPublicId } = await emailAwardedMembers(r.actionPublicId, uOk);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
+    const [content] = await db.select().from(campaignContent).where(eq(campaignContent.campaignId, c.id));
+    expect(content.channel).toBe("email");
+    expect(content.subject).toContain("7");
+    expect(content.html).toContain("Diwali");
+    await db.delete(campaignContent).where(eq(campaignContent.campaignId, c.id));
+    await db.delete(campaigns).where(eq(campaigns.publicId, campaignPublicId));
   });
 
   it("legacy group (coins columns set) and its backfilled action render member statuses", async () => {

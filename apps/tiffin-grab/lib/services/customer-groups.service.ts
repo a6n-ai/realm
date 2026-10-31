@@ -1,6 +1,6 @@
 import "server-only";
 import { ValidationError } from "@foundry/commons";
-import { addContactListMembers, createCampaign, createContactList } from "@relay/engine";
+import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
 import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
+import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
 import { walletService } from "./wallet.service";
 
@@ -450,6 +451,10 @@ export async function emailAwardedMembers(
     channels: ["email"],
     audience: { listIds: [listId] },
   });
+  const params = action.params as { coins: number; memo?: string | null };
+  const draft = await walletCreditedEmailDraft(params.coins, params.memo?.trim() || DEFAULT_GRANT_REASON);
+  const content = await setCampaignContent(deps, publicId, { channel: "email", locale: "en", ...draft });
+  if ("error" in content) throw new Error(content.error);
   await recordEmailAction(group.id, { fromAction: actionPublicId, listPublicId: listId }, publicId, actorId);
   return { campaignPublicId: publicId };
 }

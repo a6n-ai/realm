@@ -9,6 +9,8 @@ import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "./orders.service";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
 import { walletService } from "./wallet.service";
 
 export const MAX_REVIEW_ROWS = 2000;
@@ -166,20 +168,34 @@ export async function awardCustomerBroadcast(
   const { ok, capped } = await walletService.filterUnderCap(userIds, coins);
   if (ok.length === 0) return { awarded: 0, coinsPerCustomer: coins, capped: capped.length };
 
-  await db.insert(walletLedger).values(
-    ok.map((userId) => ({
-      userId,
-      direction: "credit" as const,
-      sourceType: "manual_broadcast",
-      // Unique per row for audit traceability. No exclusion/idempotency
-      // check here: this is a one-off broadcast, re-running the same filters is meant to pay
-      // again, not be blocked.
-      sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
-      coins,
-      memo: memo?.trim() || "Manual customer payout",
-      createdBy: actorId,
-    })),
-  );
+  const reason = memo?.trim() || DEFAULT_GRANT_REASON;
+  const copy = walletCreditedDefaults(coins, reason);
+  await db.transaction(async (tx) => {
+    await tx.insert(walletLedger).values(
+      ok.map((userId) => ({
+        userId,
+        direction: "credit" as const,
+        sourceType: "manual_broadcast",
+        // Unique per row for audit traceability. No exclusion/idempotency
+        // check here: this is a one-off broadcast, re-running the same filters is meant to pay
+        // again, not be blocked.
+        sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
+        coins,
+        memo: memo?.trim() || "Manual customer payout",
+        createdBy: actorId,
+      })),
+    );
+    // Group grants go through giveGroupCoins, which deliberately does not notify.
+    for (const userId of ok) {
+      await enqueueNotification(tx, {
+        event: "wallet_credited",
+        recipientId: userId,
+        ...copy,
+        href: "/me/wallet",
+        data: { wallet: { coins: String(coins), reason } },
+      });
+    }
+  });
 
   return { awarded: ok.length, coinsPerCustomer: coins, capped: capped.length };
 }
