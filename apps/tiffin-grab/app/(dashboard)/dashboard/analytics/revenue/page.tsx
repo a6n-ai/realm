@@ -348,8 +348,6 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-const NO_REASON = "No reason given";
-
 async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
   const { free } = await loadReport(scope);
   // Already ranked by count; fold the tail like topWithOther, keeping its count and value together.
@@ -367,7 +365,7 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
       <BreakdownList
         emptyLabel="No free tiffins in this range."
         rows={rows.map((r) => ({
-          label: r.reason || NO_REASON,
+          label: r.reason,
           n: r.count,
           aside: r.amount > 0 ? money(r.amount) : "Not valued",
           meta: plural(r.count, "tiffin", "tiffins"),

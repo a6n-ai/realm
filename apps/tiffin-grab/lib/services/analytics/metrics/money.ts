@@ -203,8 +203,15 @@ export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Prom
   // Summed unrounded and rounded once, so the headline equals the old single-query figure; reasons are rounded per row.
   const count = rows.reduce((s, r) => s + n2(r.count), 0);
   const valued = rows.reduce((s, r) => s + n2(r.valued), 0);
-  const byReason = rows
-    .map((r) => ({ reason: r.reason || "No reason given", count: n2(r.count), amount: Math.round(n2(r.amount) * 100) / 100 }))
+  const merged = new Map<string, { count: number; amount: number }>();
+  for (const r of rows) {
+    const key = r.reason || "No reason given";
+    const m = merged.get(key) ?? { count: 0, amount: 0 };
+    m.count += n2(r.count);
+    m.amount += n2(r.amount);
+    merged.set(key, m);
+  }
+  const byReason = [...merged].map(([reason, m]) => ({ reason, count: m.count, amount: Math.round(m.amount * 100) / 100 }))
     .sort((a, b) => b.count - a.count || b.amount - a.amount || a.reason.localeCompare(b.reason));
   return { count, valued, notValued: count - valued, amount: Math.round(rows.reduce((s, r) => s + n2(r.amount), 0) * 100) / 100, byReason };
 }

@@ -86,12 +86,13 @@ describe("freeTiffins", () => {
     await free(o.id, "2035-03-06", { note: "  Apology " });
     await free(o.id, "2035-03-07", { note: "Referral", units: 2 });
     await free(o.id, "2035-03-08", { note: "   " });
+    await free(o.id, "2035-03-11", { note: "No reason given" });
     await free(o.id, "2035-03-09", { note: "Apology", status: "paused" });
     const r = await freeTiffins(scopeFor([org]), AFTER);
     expect(r.byReason).toEqual([
       { reason: "Apology", count: 2, amount: 20 },
+      { reason: "No reason given", count: 2, amount: 20 },
       { reason: "Referral", count: 2, amount: 20 },
-      { reason: "No reason given", count: 1, amount: 10 },
     ]);
     expect(r.byReason.reduce((s, x) => s + x.count, 0)).toBe(r.count);
     expect(r.byReason.reduce((s, x) => s + x.amount, 0)).toBeCloseTo(r.amount, 2);

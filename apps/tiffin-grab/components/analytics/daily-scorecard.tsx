@@ -94,7 +94,7 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
                     if (v === null) return <TableCell key={c.key} className={cn(cell, "text-muted-foreground")}>—</TableCell>;
                     const sign = v > 0 ? "+" : v < 0 ? "−" : "";
                     return (
-                      <TableCell key={c.key} className={cn(cell, v > 0 && "text-success", v < 0 && "text-destructive", v === 0 && "text-muted-foreground")}>
+                      <TableCell key={c.key} className={cn(cell, muted || v === 0 ? "text-muted-foreground" : v > 0 ? "text-success" : "text-destructive")}>
                         {sign}
                         {CAD.format(Math.abs(v))}
                       </TableCell>
