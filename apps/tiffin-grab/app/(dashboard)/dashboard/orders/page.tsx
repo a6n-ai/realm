@@ -43,9 +43,8 @@ import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// Work-queue tabs list every date, whatever the picker says; say so, since the picker still drives the cards.
+// The work-queue tabs mark "ignores the date range" with an icon on the tab itself (orders-view-tabs).
 function listNote(view?: string) {
-  if (view === "lookout" || view === "payment" || view === "missed") return "All dates: this tab ignores the date range, which only changes the cards above";
   if (view === "free") return "Orders with a free tiffin delivered in the date range";
   return undefined;
 }
