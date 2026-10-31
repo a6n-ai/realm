@@ -1,7 +1,9 @@
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, inquiries, orders, tickets, users } from "@/db/schema";
+import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets, users } from "@/db/schema";
 import { leadWhere as scopedLeadWhere } from "./leads.service";
+import { laterOrderSql } from "@/lib/services/orders.service";
+import { revenueBy } from "./metrics/money";
 import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
@@ -16,7 +18,14 @@ export type EmployeeRow = {
   ticketsResolved: number;
   avgResolutionHours: number | null;
   repDailyCoupons: number;
+  ordersOwned: number;
+  revenueOwned: number;
+  /** Share of owned orders with a later plan by the same customer; null with no owned orders. */
+  renewalRatePct: number | null;
+  actions: number;
 };
+
+export type EmployeeRollup = { rows: EmployeeRow[]; unassignedRevenue: number };
 
 const leadWhere = (scope: AnalyticsScope) => and(isNotNull(inquiries.currentOwner), scopedLeadWhere(scope));
 
@@ -45,10 +54,10 @@ function couponScope(scope: AnalyticsScope): SQL | undefined {
 // Per-rep rollup across leads/tickets/coupons — there's no dedicated staff
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
-export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRow[]> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRollup> {
+  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return { rows: [], unassignedRevenue: 0 };
   const window = { fromMs: scope.fromMs, toMs: scope.toMs };
-  const [leadRows, ticketRows, couponRows, staff] = await Promise.all([
+  const [leadRows, ticketRows, couponRows, staff, ownedRows, revenueRows, actionRows] = await Promise.all([
     db
       .select({
         owner: inquiries.currentOwner,
@@ -85,9 +94,26 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
         ),
       )
       .groupBy(coupons.ownerUserId),
-    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email }).from(users),
+    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, isSystem: users.isSystem }).from(users),
+    db
+      .select({
+        owner: orders.currentOwner,
+        n: intCount,
+        renewed: sql<number>`cast(count(*) filter (where ${laterOrderSql}) as int)`,
+      })
+      .from(orders)
+      .where(and(isNotNull(orders.currentOwner), dateWhere(orders.createdAt, window), ordersScope(scope)))
+      .groupBy(orders.currentOwner),
+    revenueBy(scope, "owner"),
+    db
+      .select({ actor: orderActivities.createdBy, n: intCount })
+      .from(orderActivities)
+      .innerJoin(orders, sql`${orders.id} = ${orderActivities.orderId}`)
+      .where(and(isNotNull(orderActivities.createdBy), dateWhere(orderActivities.createdAt, window), ordersScope(scope)))
+      .groupBy(orderActivities.createdBy),
   ]);
 
+  const systemIds = new Set(staff.filter((u) => u.isSystem).map((u) => u.id.toString()));
   const staffById = new Map(staff.map((u) => [u.id.toString(), u]));
 
   const byOwner = new Map<string, EmployeeRow>();
@@ -105,6 +131,10 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
         ticketsResolved: 0,
         avgResolutionHours: null,
         repDailyCoupons: 0,
+        ordersOwned: 0,
+        revenueOwned: 0,
+        renewalRatePct: null,
+        actions: 0,
       };
       byOwner.set(key, row);
     }
@@ -130,5 +160,24 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
     row.repDailyCoupons = r.n;
   }
 
-  return [...byOwner.values()].sort((a, b) => b.leadsWorked - a.leadsWorked);
+  for (const r of ownedRows) {
+    if (!r.owner) continue;
+    const row = ensure(r.owner);
+    row.ordersOwned = r.n;
+    row.renewalRatePct = r.n > 0 ? Math.round((r.renewed / r.n) * 1000) / 10 : null;
+  }
+  let unassignedRevenue = 0;
+  for (const r of revenueRows) {
+    if (r.key === "unknown") unassignedRevenue = r.net;
+    else if (r.net !== 0) ensure(BigInt(r.key)).revenueOwned = r.net;
+  }
+  for (const r of actionRows) {
+    if (r.actor) ensure(r.actor).actions = r.n;
+  }
+
+  const rows = [...byOwner.values()]
+    .filter((r) => !systemIds.has(r.userId))
+    .filter((r) => r.leadsWorked + r.ticketsResolved + r.repDailyCoupons + r.ordersOwned + r.actions > 0 || r.revenueOwned !== 0)
+    .sort((a, b) => b.revenueOwned - a.revenueOwned || b.actions - a.actions);
+  return { rows, unassignedRevenue };
 }

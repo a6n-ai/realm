@@ -8,8 +8,12 @@ import { inquiriesHref } from "@/lib/analytics/drill";
 import type { EmployeeRow } from "@/lib/services/analytics/employees.service";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-const COLUMNS: readonly Column<"rep" | "leads" | "converted" | "rate" | "tickets" | "resolution" | "coupons">[] = [
+const COLUMNS: readonly Column<"rep" | "revenue" | "orders" | "renewal" | "actions" | "leads" | "converted" | "rate" | "tickets" | "resolution" | "coupons">[] = [
   { key: "rep", label: "Rep" },
+  { key: "revenue", label: "Revenue owned", align: "right" },
+  { key: "orders", label: "Orders owned", align: "right" },
+  { key: "renewal", label: "Renewal rate", align: "right" },
+  { key: "actions", label: "Actions", align: "right" },
   { key: "leads", label: "Leads worked", align: "right" },
   { key: "converted", label: "Converted", align: "right" },
   { key: "rate", label: "Conversion rate", align: "right" },
@@ -33,6 +37,10 @@ export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scop
           <TableCell className="font-medium">
             {r.publicId ? <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
           </TableCell>
+          <TableCell className="text-right tabular-nums">{r.revenueOwned.toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</TableCell>
+          <TableCell className="text-right tabular-nums">{r.ordersOwned}</TableCell>
+          <TableCell className="text-right tabular-nums">{r.renewalRatePct != null ? `${r.renewalRatePct}%` : "—"}</TableCell>
+          <TableCell className="text-right tabular-nums">{r.actions}</TableCell>
           <TableCell className="text-right tabular-nums">
             {r.publicId ? (
               <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.leadsWorked}</Link>

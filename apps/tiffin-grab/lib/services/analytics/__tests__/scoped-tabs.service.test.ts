@@ -7,7 +7,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 const { db } = await import("@/db/client");
 const {
   couponRedemptions, coupons, deliveries, deliveryFrequencies, inquiries, leadSources, mealSizes, notificationOutbox,
-  orders, organization, plans, tickets, users,
+  orderActivities, orders, organization, plans, tickets, users,
 } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { getLeadStats, getLeadsByStage } = await import("../leads.service");
@@ -82,6 +82,7 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     if (ticketIds.length) await db.delete(tickets).where(inArray(tickets.id, ticketIds));
     if (inquiryIds.length) await db.delete(inquiries).where(inArray(inquiries.id, inquiryIds));
     if (orderIds.length) {
+      await db.delete(orderActivities).where(inArray(orderActivities.orderId, orderIds));
       await db.delete(deliveries).where(inArray(deliveries.orderId, orderIds));
       await db.delete(orders).where(inArray(orders.id, orderIds));
     }
@@ -178,7 +179,7 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     await mkCoupon(null);
 
     const mine = async (scope: ReturnType<typeof scopeFor>) =>
-      (await getEmployeeRollup(scope)).find((r) => r.userId === String(staffId));
+      (await getEmployeeRollup(scope)).rows.find((r) => r.userId === String(staffId));
 
     const all = await mine(scopeFor("all"));
     expect(all?.ticketsResolved).toBe(4); // the four resolved today, linked or not
@@ -194,7 +195,23 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     expect(none?.ticketsResolved ?? 0).toBe(0);
     expect(none?.repDailyCoupons ?? 0).toBe(0);
 
-    expect(await getEmployeeRollup(scopeFor([]))).toEqual([]);
+    expect((await getEmployeeRollup(scopeFor([]))).rows).toEqual([]);
+  });
+
+  it("counts a rep's owned orders and logged actions inside the franchise scope only", async () => {
+    const orderA = await makeOrder(orgA);
+    const orderB = await makeOrder(orgB);
+    await db.update(orders).set({ currentOwner: staffId }).where(inArray(orders.id, [orderA.id, orderB.id]));
+    await db.insert(orderActivities).values([
+      { orderId: orderA.id, type: "note", note: "a", createdBy: staffId, organizationId: orgA },
+      { orderId: orderA.id, type: "note", note: "a2", createdBy: staffId, organizationId: orgA },
+      { orderId: orderB.id, type: "note", note: "b", createdBy: staffId, organizationId: orgB },
+    ]);
+    const mine = async (orgIds: "all" | string[]) =>
+      (await getEmployeeRollup(scopeFor(orgIds))).rows.find((r) => r.userId === String(staffId));
+    expect(await mine([orgA])).toMatchObject({ ordersOwned: 1, actions: 2, renewalRatePct: 0 });
+    expect(await mine([orgB])).toMatchObject({ ordersOwned: 1, actions: 1 });
+    expect((await mine("all"))?.ordersOwned).toBeGreaterThanOrEqual(2);
   });
 
   it("notification buckets add up to the total, with a retried send still Delivered", async () => {
