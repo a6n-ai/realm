@@ -114,8 +114,8 @@ export async function getComplaintKpis(scope: AnalyticsScope): Promise<Complaint
   };
 }
 
-/** Complaints per day, for the trend chart. */
-export async function getComplaintTrend(scope: AnalyticsScope) {
+/** Complaints per local day (sparse). */
+export async function getComplaintDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
   const day = sql<string>`to_char(${localDay(tickets.createdAt, scope.tz)}, 'YYYY-MM-DD')`;
   const rows = await db
     .select({ day, n: intCount })
@@ -127,12 +127,12 @@ export async function getComplaintTrend(scope: AnalyticsScope) {
     .where(where(scope))
     .groupBy(sql`1`)
     .orderBy(sql`1`);
-  return bucketCounts(
-    rows.map((r) => ({ iso: r.day, n: r.n })),
-    ["n"],
-    isoDateInZone(scope.fromMs, scope.tz),
-    isoDateInZone(scope.toMs, scope.tz),
-  );
+  return rows.map((r) => ({ iso: r.day, n: r.n }));
+}
+
+/** Complaints per bucket, for the trend; the grain follows the range. */
+export async function getComplaintTrend(scope: AnalyticsScope) {
+  return bucketCounts(await getComplaintDaily(scope), ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
 }
 
 /**

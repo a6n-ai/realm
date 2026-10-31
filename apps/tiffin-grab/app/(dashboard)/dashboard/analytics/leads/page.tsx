@@ -40,7 +40,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
         <StatsData scope={scope} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Lead stages" subtitle="Where every lead in range sits in the pipeline. Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
@@ -53,7 +53,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <SourceTable scope={scope} />

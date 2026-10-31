@@ -24,7 +24,8 @@ import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
 
-export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[] };
+/** `daily` is net revenue per calendar day whatever the trend's grain, for the calendar. */
+export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[]; daily: { iso: string; net: number }[] };
 
 export const REVENUE_METHODS = payments.method.enumValues;
 
@@ -105,6 +106,7 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
       .sort((a, b) => b.amount - a.amount),
     discounts: disc.lines,
     byStatus: presentPaymentStatuses(statusRows),
+    daily: days.map((d) => ({ iso: d.key, net: d.net })),
   };
 }
 

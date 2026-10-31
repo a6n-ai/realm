@@ -64,8 +64,8 @@ export async function getCustomerStats(scope: AnalyticsScope, now = Date.now()):
   return { customers, activeCustomers, pausedToday, cancelledOrders };
 }
 
-/** Accounts created per local day. With franchise or facet filters, only accounts holding an order in scope. */
-export async function getSignupTrend(scope: AnalyticsScope) {
+/** Accounts created per local day (sparse). With franchise or facet filters, only accounts holding an order in scope. */
+export async function getSignupDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
   if (noOrgs(scope)) return [];
   const scoped = ordersScope(scope);
   // Grouped by ordinal: tz is a bound value, so repeating the expression would be a different parameter.
@@ -81,7 +81,12 @@ export async function getSignupTrend(scope: AnalyticsScope) {
     )
     .groupBy(sql`1`)
     .orderBy(sql`1`);
-  return bucketCounts(rows, ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
+  return rows;
+}
+
+/** Signups per bucket; the grain follows the range. */
+export async function getSignupTrend(scope: AnalyticsScope) {
+  return bucketCounts(await getSignupDaily(scope), ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
 }
 
 const ORDER_STATUS_LABELS: Record<string, string> = {

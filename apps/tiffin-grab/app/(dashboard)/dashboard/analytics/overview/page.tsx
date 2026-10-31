@@ -7,7 +7,9 @@ import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { HoverValueBarChart, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
+import { RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { DailyScorecard } from "@/components/analytics/daily-scorecard";
+import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
@@ -17,7 +19,8 @@ import { currentMonth } from "@/lib/analytics/profitability";
 import { getRevenueReport, getRevenueCohortMix } from "@/lib/services/analytics/revenue.service";
 import { getComplaintKpis } from "@/lib/services/analytics/complaints.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
-import { getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
+import { getDailyScorecard, getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
+import { getSubscriptionMix } from "@/lib/services/analytics/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
@@ -54,16 +57,15 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
         <StatsData sp={sp} scope={scope} />
       </Suspense>
 
-      <ChartCard
-        title={`Net revenue by ${unit}`}
-        subtitle={`Ex tax & surcharge, after refunds · ${DATE_BASIS_LABEL.money}. Hover a bar for that ${unit}.`}
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <RevenueChart scope={scope} />
-        </Suspense>
-      </ChartCard>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title={`Net revenue by ${unit}`}
+          subtitle={`Ex tax & surcharge, after refunds · ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <RevenueChart scope={scope} daily={unit === "day"} />
+          </Suspense>
+        </ChartCard>
         <ChartCard
           title="Revenue mix"
           subtitle={`Net revenue by renewals, new plans, and trials · ${DATE_BASIS_LABEL.money}`}
@@ -72,12 +74,29 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
             <CohortChart scope={scope} />
           </Suspense>
         </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartBoundary>
           <Suspense fallback={<ChartSkeleton height={300} />}>
             <TrialRate scope={scope} />
           </Suspense>
         </ChartBoundary>
+        <ChartCard title="Customer status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <StatusSplit scope={scope} />
+          </Suspense>
+        </ChartCard>
       </div>
+
+      <ChartCard
+        title="Day by day"
+        subtitle="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders."
+      >
+        <Suspense fallback={<ChartSkeleton height={320} />}>
+          <Scorecard scope={scope} />
+        </Suspense>
+      </ChartCard>
     </div>
   );
 }
@@ -232,11 +251,18 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
   );
 }
 
-async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
+async function RevenueChart({ scope, daily }: { scope: AnalyticsScope; daily: boolean }) {
   const report = await loadReport(scope);
-  return (
-    <HoverValueBarChart data={report.trend} xKey="period" tipKey="tip" yKey="netSales" label="Net revenue" format="currency" totalLabel="Net revenue" />
-  );
+  return <TrendLineChart data={report.trend} xKey="period" tipKey="tip" yKey="netSales" label="Net revenue" format="currency" average={daily} />;
+}
+
+async function StatusSplit({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSubscriptionMix(scope);
+  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
+}
+
+async function Scorecard({ scope }: { scope: AnalyticsScope }) {
+  return <DailyScorecard rows={await getDailyScorecard(scope)} />;
 }
 
 async function CohortChart({ scope }: { scope: AnalyticsScope }) {

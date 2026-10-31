@@ -39,7 +39,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         <StatsData scope={scope} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Most-picked dishes" subtitle={`Meal selections on orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out.`}>
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <TopDishesChart scope={scope} />
@@ -52,7 +52,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="Which sizes sell in which diet?"
           subtitle={`Net revenue ${DATE_BASIS_LABEL.money} by meal size tier and plan. Custom sizes are not included.`}

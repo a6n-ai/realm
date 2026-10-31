@@ -56,7 +56,7 @@ export async function getDeliveryStatusMix(scope: AnalyticsScope) {
     .from(deliveries)
     .where(where)
     .groupBy(deliveries.status);
-  return rows.map((r) => ({ status: STATUS_LABELS[r.status] ?? r.status, n: r.n }));
+  return rows.map((r) => ({ status: STATUS_LABELS[r.status] ?? r.status, key: r.status, n: r.n }));
 }
 
 export async function getRouteLoadByDriver(limit = 10, scope: AnalyticsScope) {
@@ -74,10 +74,8 @@ export async function getRouteLoadByDriver(limit = 10, scope: AnalyticsScope) {
 
 export const DELIVERY_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
 
-/** Deliveries per day (grain follows the range) split by status; same where-clause as the status counts. */
-export async function getDeliveriesByDay(scope: AnalyticsScope) {
-  const from = isoDateInZone(scope.fromMs, scope.tz);
-  const to = isoDateInZone(scope.toMs, scope.tz);
+/** Per-day rows split by status, sparse (days with no deliveries are absent); same where-clause as the status counts. */
+export async function getDeliveriesDaily(scope: AnalyticsScope) {
   const rows = noOrgs(scope)
     ? []
     : await db
@@ -91,10 +89,15 @@ export async function getDeliveriesByDay(scope: AnalyticsScope) {
     if (r.status in d) d[r.status as keyof typeof d] += r.n;
     byDay.set(r.iso, d);
   }
+  return [...byDay].map(([iso, d]) => ({ iso, ...d }));
+}
+
+/** Deliveries per bucket (grain follows the range) split by status. */
+export async function getDeliveriesByDay(scope: AnalyticsScope) {
   return bucketCounts(
-    [...byDay].map(([iso, d]) => ({ iso, ...d })),
+    await getDeliveriesDaily(scope),
     DELIVERY_DAY_STATUSES,
-    from,
-    to,
+    isoDateInZone(scope.fromMs, scope.tz),
+    isoDateInZone(scope.toMs, scope.tz),
   );
 }

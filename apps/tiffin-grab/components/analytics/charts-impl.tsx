@@ -49,6 +49,7 @@ import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
   axisTicks,
+  calendarWeeks,
   chartColor as tokenColor,
   foldParts,
   funnelStages,
@@ -59,10 +60,12 @@ import {
   moneyTick,
   positionalConfig,
   rankedHeight,
+  ROW_HEIGHT,
   signedTicks,
   TONE_COLOR,
   tickEvery,
   topWithOther,
+  trailingAverage,
   truncateLabel,
   type Part,
   type Tone,
@@ -139,10 +142,16 @@ export function TrendLineChart({
   mode = "area",
   format = "number",
   height = 240,
+  average = false,
+  tipKey,
 }: {
   data: Row[];
   xKey: string;
   yKey?: string;
+  /** Single `yKey` only, daily grain: a light area of the values plus a bold trailing 7-day average line. */
+  average?: boolean;
+  /** Row field with the long date shown in the tooltip heading ("Sat, Oct 3"). */
+  tipKey?: string;
   /** "line" draws plain 2px lines (use for 2 series sharing one axis); keyed by position. */
   mode?: "area" | "line";
   /** Series name for the single-`yKey` form (tooltip, legend). */
@@ -155,6 +164,8 @@ export function TrendLineChart({
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
   const lines = series ?? (yKey ? [{ key: yKey, label }] : []);
+  if (average && yKey && !series)
+    return <AverageTrend data={data} xKey={xKey} yKey={yKey} label={label} format={format} height={height} tipKey={tipKey} />;
   if (mode === "line")
     return (
       <SeriesLines
@@ -228,6 +239,56 @@ export function TrendLineChart({
         {lines.length > 1 ? (
           <ChartLegend content={<ChartLegendContent />} />
         ) : null}
+      </AreaChart>
+    </ChartContainer>
+  );
+}
+
+/** Daily values as a light area, their trailing 7-day mean as a bold line. Keys are positional (s0, s1). */
+function AverageTrend({
+  data,
+  xKey,
+  yKey,
+  label,
+  format,
+  height,
+  tipKey,
+}: {
+  data: Row[];
+  xKey: string;
+  yKey: string;
+  label: string;
+  format: ValueFormat;
+  height: number;
+  tipKey?: string;
+}) {
+  const values = data.map((r) => Number(r[yKey]) || 0);
+  if (values.every((v) => !v)) return <EmptyChart />;
+  const avg = trailingAverage(values);
+  const rows = data.map((r, i) => ({ ...r, s0: values[i]!, s1: Math.round(avg[i]! * 100) / 100 }));
+  const config = {
+    s0: { label, color: chartColor(0) },
+    s1: { label: "7-day average", color: chartColor(0) },
+  } satisfies ChartConfig;
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <AreaChart accessibilityLayer data={rows} margin={{ top: 20, right: 12, bottom: 12, left: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={10} minTickGap={24} interval={tickEvery(rows.length)} />
+        <YAxis {...valueAxis(values, format)} />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              indicator="dot"
+              className="min-w-40 gap-2.5"
+              labelFormatter={tipHeader(tipKey)}
+              formatter={valueFormatter(format)}
+            />
+          }
+        />
+        <Area dataKey="s0" name={label} type="monotone" fill={chartColor(0)} fillOpacity={0.18} stroke={chartColor(0)} strokeOpacity={0.35} strokeWidth={1} />
+        <Area dataKey="s1" name="7-day average" type="monotone" fill="none" stroke={chartColor(0)} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
       </AreaChart>
     </ChartContainer>
   );
@@ -432,6 +493,7 @@ export function BreakdownBarChart({
   }
   const ranked = topWithOther(data, xKey, yKey, limit);
   return (
+    <div className="relative">
     <ChartContainer
       config={config}
       className="aspect-auto w-full"
@@ -441,7 +503,7 @@ export function BreakdownBarChart({
         accessibilityLayer
         data={ranked}
         layout="vertical"
-        margin={{ left: -10, right: 48 }}
+        margin={{ top: 0, bottom: 0, left: -10, right: 48 }}
         barCategoryGap="30%"
       >
         <YAxis
@@ -489,6 +551,24 @@ export function BreakdownBarChart({
         </Bar>
       </BarChart>
     </ChartContainer>
+    {hrefKey ? (
+      // The bars are mouse targets; these give each linked row a keyboard stop. Rows line up with the
+      // chart's category bands (zero vertical margin, ROW_HEIGHT each) and never take pointer events.
+      <nav aria-label={`${label} links`} className="pointer-events-none absolute inset-0">
+        {ranked.map((r, i) =>
+          typeof r[hrefKey] === "string" ? (
+            <Link
+              key={i}
+              href={r[hrefKey]}
+              aria-label={`${r[xKey]}: ${formatValue(r[yKey], format)}`}
+              className="focus-visible:ring-ring/60 absolute inset-x-0 rounded-sm outline-none focus-visible:ring-2"
+              style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
+            />
+          ) : null,
+        )}
+      </nav>
+    ) : null}
+    </div>
   );
 }
 
@@ -1204,6 +1284,113 @@ export function HeatmapGrid({
                   opacity: heatOpacity(i + 1),
                 }}
               />
+            ))}
+          </div>
+          <span>{formatValue(max, format)}</span>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+const CAL_DAY = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+const CAL_WEEK = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const calDate = (fmt: Intl.DateTimeFormat, iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`));
+
+/** Mon-Sun columns, one row per week. One hue, darker = more; each cell prints its value. */
+export function CalendarHeatmap({
+  from,
+  to,
+  today,
+  days,
+  label = "Value",
+  format = "number",
+}: {
+  /** Calendar days (YYYY-MM-DD) in the app timezone. */
+  from: string;
+  to: string;
+  today?: string;
+  /** Sparse: a day with no entry reads 0. `breakdown` lines are listed in the tooltip. */
+  days: { date: string; value: number; breakdown?: { label: string; value: number }[] }[];
+  label?: string;
+  format?: ValueFormat;
+}) {
+  const weeks = calendarWeeks(from, to);
+  const byDate = new Map(days.map((d) => [d.date, d]));
+  const inRange = weeks.flat().filter((d): d is string => d !== null);
+  const values = inRange.map((d) => byDate.get(d)?.value ?? 0);
+  if (weeks.length === 0 || values.every((v) => v <= 0)) return <EmptyChart />;
+  const positive = values.filter((v) => v > 0);
+  const min = Math.min(...positive);
+  const max = Math.max(...positive);
+  const cellText = (v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString());
+  return (
+    <TooltipProvider>
+      <div className="flex flex-col gap-3">
+        <div role="table" aria-label={`${label} by day`} className="grid items-stretch gap-0.5 text-sm" style={{ gridTemplateColumns: "minmax(0, auto) repeat(7, minmax(0, 1fr))" }}>
+          <div role="row" className="contents">
+            <div role="columnheader" />
+            {WEEKDAYS.map((d) => (
+              <div key={d} role="columnheader" className="text-muted-foreground px-1 pb-1 text-center text-xs">
+                {d}
+              </div>
+            ))}
+          </div>
+          {weeks.map((week) => (
+            <div key={week.find(Boolean) ?? "blank"} role="row" className="contents">
+              <div role="rowheader" className="text-muted-foreground flex items-center pr-2 text-xs whitespace-nowrap">
+                {calDate(CAL_WEEK, week.find((d): d is string => d !== null)!)}
+              </div>
+              {week.map((date, i) => {
+                if (!date) return <div key={`blank-${i}`} role="cell" aria-hidden className="min-h-10" />;
+                const entry = byDate.get(date);
+                const v = entry?.value ?? 0;
+                const b = heatBucket(v, min, max);
+                const parts = (entry?.breakdown ?? []).map((p) => `${p.label} ${formatValue(p.value, format)}`);
+                const text = `${calDate(CAL_DAY, date)}: ${formatValue(v, format)}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+                return (
+                  <Tooltip key={date}>
+                    <TooltipTrigger asChild>
+                      <div
+                        role="cell"
+                        tabIndex={0}
+                        aria-label={text}
+                        className={cn(
+                          "focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-1 py-2 text-xs tabular-nums outline-none focus-visible:ring-2",
+                          date === today && "outline-foreground outline-2 -outline-offset-2",
+                        )}
+                      >
+                        <span aria-hidden className="absolute inset-0" style={{ background: tokenColor(0), opacity: heatOpacity(b) }} />
+                        <span className={cn("relative", b === 0 ? "text-muted-foreground" : heatIsDense(b) ? "text-background font-medium" : "text-foreground font-medium")}>
+                          {cellText(v)}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">{calDate(CAL_DAY, date)}</span>
+                        <span>
+                          {label}: {formatValue(v, format)}
+                        </span>
+                        {(entry?.breakdown ?? []).map((p) => (
+                          <span key={p.label}>
+                            {p.label}: {formatValue(p.value, format)}
+                          </span>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="text-muted-foreground flex items-center gap-2 text-xs" aria-hidden>
+          <span>{formatValue(min, format)}</span>
+          <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
+            {Array.from({ length: HEAT_STEPS }, (_, i) => (
+              <span key={i} className="flex-1" style={{ background: tokenColor(0), opacity: heatOpacity(i + 1) }} />
             ))}
           </div>
           <span>{formatValue(max, format)}</span>

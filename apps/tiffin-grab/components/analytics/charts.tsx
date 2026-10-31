@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, type ComponentProps } from "react";
 import { ChartSkeleton } from "./skeletons";
-import { rankedHeight } from "./chart-math";
+import { calendarWeeks, rankedHeight } from "./chart-math";
 
 // recharts is about 100 KB; split it out so analytics pages paint before their charts.
 const load = () => import("./charts-impl");
@@ -32,6 +32,9 @@ const Stacked = lazy(() =>
   load().then((m) => ({ default: m.StackedBarChart })),
 );
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
+const Calendar = lazy(() =>
+  load().then((m) => ({ default: m.CalendarHeatmap })),
+);
 const Diverging = lazy(() =>
   load().then((m) => ({ default: m.DivergingBarChart })),
 );
@@ -86,3 +89,13 @@ export const FunnelChart = wrap(Funnel);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
 export const StackedBarChart = wrap(Stacked);
+
+export function CalendarHeatmap(props: ComponentProps<typeof Calendar>) {
+  // Header, one row per week, and the legend; the skeleton must match or the page shifts on load.
+  const height = 60 + calendarWeeks(props.from, props.to).length * 42;
+  return (
+    <Suspense fallback={<ChartSkeleton height={height} />}>
+      <Calendar {...props} />
+    </Suspense>
+  );
+}

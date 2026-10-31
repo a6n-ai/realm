@@ -32,11 +32,18 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
         <StatsData scope={scope} />
       </Suspense>
 
-      <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched in this range.">
-        <Suspense fallback={<ChartSkeleton />}>
-          <LeadsChart scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched in this range.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <LeadsChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Tickets resolved per rep" subtitle="Resolved or closed in this range, by resolved date.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <TicketsChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
       <ChartCard title="Per-rep breakdown" subtitle="Leads by inquiry date, tickets by resolved date. Open a count to see those inquiries or tickets.">
         <Suspense fallback={<TableRowsSkeleton />}>
@@ -93,6 +100,12 @@ async function LeadsChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getEmployeeRollup(scope);
   const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
   return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Leads worked" />;
+}
+
+async function TicketsChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getEmployeeRollup(scope);
+  const data = rows.some((r) => r.ticketsResolved > 0) ? rows.map((r) => ({ name: r.name, n: r.ticketsResolved })) : [];
+  return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Tickets resolved" />;
 }
 
 async function RollupTable({ scope }: { scope: AnalyticsScope }) {

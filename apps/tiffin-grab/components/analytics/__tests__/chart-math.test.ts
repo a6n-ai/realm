@@ -12,7 +12,11 @@ import {
   positionalConfig,
   rankedHeight,
   topWithOther,
+  trailingAverage,
+  calendarWeeks,
+  mondayIndex,
 } from "../chart-math";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 
 describe("foldParts", () => {
   const parts = Array.from({ length: 9 }, (_, i) => ({ label: `p${i}`, value: i + 1 }));
@@ -148,5 +152,48 @@ describe("signedTicks", () => {
   });
   it("handles all-positive data", () => {
     expect(signedTicks(100, 4000)[0]).toBe(0);
+  });
+});
+
+describe("trailingAverage", () => {
+  it("averages the days available for the first 6, then a 7-day window", () => {
+    const out = trailingAverage([7, 7, 7, 7, 7, 7, 7, 14]);
+    expect(out.slice(0, 7)).toEqual([7, 7, 7, 7, 7, 7, 7]);
+    expect(out[7]).toBe((7 * 6 + 14) / 7);
+    expect(trailingAverage([2, 4])).toEqual([2, 3]);
+    expect(trailingAverage([])).toEqual([]);
+  });
+});
+
+describe("calendarWeeks", () => {
+  it("pads a month starting on a Thursday with blank Mon-Wed cells", () => {
+    // 2026-10-01 is a Thursday.
+    expect(mondayIndex("2026-10-01")).toBe(3);
+    const weeks = calendarWeeks("2026-10-01", "2026-10-31");
+    expect(weeks).toHaveLength(5);
+    expect(weeks[0]!.slice(0, 4)).toEqual([null, null, null, "2026-10-01"]);
+    expect(weeks[4]!.slice(0, 5)).toEqual(["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(weeks[4]![5]).toBe("2026-10-31");
+    expect(weeks[4]![6]).toBeNull();
+    expect(weeks.flat().filter(Boolean)).toHaveLength(31);
+  });
+
+  it("keeps weeks that span a month edge in one row", () => {
+    const weeks = calendarWeeks("2026-09-28", "2026-10-11");
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]).toEqual(["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]);
+    expect(weeks[1]![0]).toBe("2026-10-05");
+  });
+
+  it("is empty for a reversed range and one row for a single day", () => {
+    expect(calendarWeeks("2026-10-05", "2026-10-01")).toEqual([]);
+    expect(calendarWeeks("2026-10-04", "2026-10-04")).toEqual([[null, null, null, null, null, null, "2026-10-04"]]);
+  });
+
+  it("places a late-evening Toronto moment on the app-timezone day, not the UTC day", () => {
+    // 2026-10-31 23:30 Toronto (EDT) is 2026-11-01 03:30 UTC.
+    const day = isoDateInZone(Date.parse("2026-11-01T03:30:00Z"), "America/Toronto");
+    expect(day).toBe("2026-10-31");
+    expect(calendarWeeks("2026-10-01", "2026-10-31").flat()).toContain(day);
   });
 });

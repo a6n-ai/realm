@@ -1,14 +1,20 @@
 import { and, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
-import { isoDateInZone } from "@/lib/analytics/profitability";
+import { eachDateInclusive, isoDateInZone } from "@/lib/analytics/profitability";
+import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
 import {
   summarizeTrialConversion,
   TRIAL_CONVERT_WINDOW_DAYS,
   type TrialConversionStats,
 } from "@/lib/analytics/trial-conversion";
-import { lastTiffinSql, laterPaidOrderSql } from "@/lib/services/orders.service";
-import { ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/services/orders.service";
+import { getComplaintDaily } from "./complaints.service";
+import { getSignupDaily } from "./customers.service";
+import { revenueBy } from "./metrics/money";
+import { scopeToOrdersCondition } from "./metrics/orders";
+import { getDeliveriesDaily } from "./operations.service";
+import { localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 export type { TrialConversionStats };
 export { TRIAL_CONVERT_WINDOW_DAYS };
@@ -40,4 +46,65 @@ export async function getTrialToPlanConversion(scope: AnalyticsScope, now = Date
     todayIso: isoDateInZone(now, scope.tz),
     trials: rows.map((r) => ({ orderId: String(r.orderId), endDate: String(r.endDate).slice(0, 10), converted: r.converted })),
   });
+}
+
+export type ScorecardRow = {
+  date: string;
+  revenue: number;
+  orders: number;
+  deliveries: number;
+  skipped: number;
+  signups: number;
+  complaints: number;
+  /** Null until Profitability excludes WP-migrated tiffins (Task C5); the page shows a dash. */
+  profit: number | null;
+  /** The Orders list for this day, current filters kept. */
+  href: string;
+};
+
+async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
+  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+  return db
+    .select({ iso: sql<string>`${localDay(orders.createdAt, scope.tz)}::text`, n: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(ordersListWhere(scopeToOrdersCondition(scope), scope.orgIds))
+    .groupBy(sql`1`);
+}
+
+/**
+ * One row per calendar day in range, newest first. Every column reuses its tab's per-day query, so a
+ * column's total equals that tab's card for the same URL.
+ */
+export async function getDailyScorecard(scope: AnalyticsScope): Promise<ScorecardRow[]> {
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const [revenue, orderDays, deliveryDays, signups, complaints] = await Promise.all([
+    revenueBy(scope, "day"),
+    getOrdersDaily(scope),
+    getDeliveriesDaily(scope),
+    getSignupDaily(scope),
+    getComplaintDaily(scope),
+  ]);
+  const revenueByDay = new Map(revenue.map((r) => [r.key, r.net]));
+  const ordersBy = new Map(orderDays.map((r) => [r.iso, r.n]));
+  const deliveriesBy = new Map(deliveryDays.map((r) => [r.iso, r]));
+  const signupsBy = new Map(signups.map((r) => [r.iso, r.n]));
+  const complaintsBy = new Map(complaints.map((r) => [r.iso, r.n]));
+  return eachDateInclusive(from, to)
+    .reverse()
+    .map((date) => {
+      const d = deliveriesBy.get(date);
+      const day = zonedRangeMs(date, date, scope.tz);
+      return {
+        date,
+        revenue: revenueByDay.get(date) ?? 0,
+        orders: ordersBy.get(date) ?? 0,
+        deliveries: d ? d.scheduled + d.paused + d.skipped + d.cancelled : 0,
+        skipped: d?.skipped ?? 0,
+        signups: signupsBy.get(date) ?? 0,
+        complaints: complaintsBy.get(date) ?? 0,
+        profit: null,
+        href: ordersDrillHref({ ...scope, fromMs: day.from, toMs: day.to }),
+      };
+    });
 }

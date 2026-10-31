@@ -6,9 +6,9 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
 import Link from "next/link";
-import { BreakdownBarChart, HoverValueBarChart, SegmentedBar } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, SegmentedBar } from "@/components/analytics/charts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
-import { grainUnitForRange } from "@/lib/analytics/revenue";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import type { Tone } from "@/components/analytics/chart-math";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
@@ -25,8 +25,8 @@ import {
   getByPlan,
   getBySubcategory,
   getByZone,
+  getComplaintDaily,
   getComplaintKpis,
-  getComplaintTrend,
   getNeedsAttention,
   getPriorityMix,
   getRepeatCustomers,
@@ -48,7 +48,6 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   const drill = sp.drill;
-  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -67,43 +66,44 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
         <NeedsAttentionSection scope={scope} />
       </Suspense>
 
-      <ChartCard title={`Complaints by ${unit}`} subtitle={`Complaints raised · ${DATE_BASIS_LABEL.tickets}. Hover a bar for that ${unit}.`}>
-        <Suspense fallback={<ChartSkeleton />}>
-          <Trend scope={scope} />
-        </Suspense>
-      </ChartCard>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title="Complaints calendar" subtitle={`Complaints raised per day · ${DATE_BASIS_LABEL.tickets}. Darker is more.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <Trend scope={scope} />
+          </Suspense>
+        </ChartCard>
         <ChartCard title="By category" subtitle="Select a bar to see its sub-categories.">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Categories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By sub-category" subtitle="Top 8 within the selected category.">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Subcategories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Status">
           <Suspense fallback={<ChartSkeleton />}>
             <Statuses scope={scope} />
           </Suspense>
         </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By plan">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(3)} />}>
             <Plans scope={scope} />
           </Suspense>
         </ChartCard>
+        <ChartCard title="By delivery zone">
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
+            <Zones scope={scope} />
+          </Suspense>
+        </ChartCard>
       </div>
-
-      <ChartCard title="By delivery zone">
-        <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-          <Zones scope={scope} />
-        </Suspense>
-      </ChartCard>
 
       <ChartCard title="Customers with repeat complaints">
         <Suspense fallback={<ChartSkeleton />}>
@@ -202,8 +202,16 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function Trend({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getComplaintTrend(scope);
-  return <HoverValueBarChart data={rows} xKey="period" tipKey="tip" yKey="n" label="Complaints" totalLabel="Complaints" />;
+  const rows = await getComplaintDaily(scope);
+  return (
+    <CalendarHeatmap
+      from={isoDateInZone(scope.fromMs, scope.tz)}
+      to={isoDateInZone(scope.toMs, scope.tz)}
+      today={isoDateInZone(Date.now(), scope.tz)}
+      label="Complaints"
+      days={rows.map((r) => ({ date: r.iso, value: r.n }))}
+    />
+  );
 }
 
 async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {

@@ -4,7 +4,7 @@ import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { HoverValueBarChart, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
+import { CalendarHeatmap, RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
@@ -12,7 +12,7 @@ import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { clockInZone } from "@/lib/analytics/profitability";
+import { clockInZone, isoDateInZone } from "@/lib/analytics/profitability";
 import { topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
@@ -54,14 +54,21 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         <Kpis scope={scope} />
       </Suspense>
 
-      <ChartCard
-        title={`Net revenue by ${unit}`}
-        subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that ${unit}.`}
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <NetByDay scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title={`Net revenue by ${unit}`}
+          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <NetByDay scope={scope} daily={unit === "day"} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Revenue calendar" subtitle={`Net revenue per day, ${DATE_BASIS_LABEL.money}. Darker is more.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <RevenueCalendar scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
       <ChartBoundary>
         <Suspense fallback={<ChartSkeleton height={160} />}>
@@ -69,7 +76,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </Suspense>
       </ChartBoundary>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="How much is still owed?"
           subtitle="Collected out of collected plus awaiting payment and needs review."
@@ -85,7 +92,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By payment method" subtitle={`Net revenue, ex tax & surcharge, ${DATE_BASIS_LABEL.money}.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <MethodChart scope={scope} />
@@ -248,10 +255,22 @@ async function Owed({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function NetByDay({ scope }: { scope: AnalyticsScope }) {
+async function NetByDay({ scope, daily }: { scope: AnalyticsScope; daily: boolean }) {
+  const report = await loadReport(scope);
+  return <TrendLineChart data={report.trend} xKey="period" tipKey="tip" yKey="netSales" label="Net revenue" format="currency" average={daily} />;
+}
+
+async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   return (
-    <HoverValueBarChart data={report.trend} xKey="period" tipKey="tip" yKey="netSales" label="Net revenue" format="currency" totalLabel="Net revenue" />
+    <CalendarHeatmap
+      from={report.from}
+      to={report.to}
+      today={isoDateInZone(Date.now(), scope.tz)}
+      label="Net revenue"
+      format="currency"
+      days={report.daily.map((d) => ({ date: d.iso, value: d.net }))}
+    />
   );
 }
 

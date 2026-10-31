@@ -5,9 +5,10 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, HoverValueBarChart, SegmentedBar } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
-import type { Tone } from "@/components/analytics/chart-math";
+import { ORDER_TONE } from "@/components/analytics/status-tones";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -15,6 +16,7 @@ import { ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   getCustomerStats,
+  getSignupDaily,
   getSignupTrend,
   getSubscriptionMix,
   getTopCities,
@@ -41,13 +43,20 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
         <StatsData scope={scope} />
       </Suspense>
 
-      <ChartCard title={`Signups by ${unit}`} subtitle={`New customer accounts created in this range. With a franchise or filter selected, only accounts with an order in scope are counted. Hover a bar for that ${unit}.`}>
-        <Suspense fallback={<ChartSkeleton />}>
-          <SignupChart scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title={`Signups by ${unit}`} subtitle={`New customer accounts created in this range.${unit === "day" ? " Line is the 7-day average." : ""} With a franchise or filter selected, only accounts with an order in scope are counted.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <SignupChart scope={scope} daily={unit === "day"} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Signups calendar" subtitle="New accounts per day. Darker is more.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <SignupCalendar scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Subscription status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <MixChart scope={scope} />
@@ -103,19 +112,23 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function SignupChart({ scope }: { scope: AnalyticsScope }) {
+async function SignupChart({ scope, daily }: { scope: AnalyticsScope; daily: boolean }) {
   const rows = await getSignupTrend(scope);
-  return <HoverValueBarChart data={rows} xKey="period" tipKey="tip" yKey="n" label="New accounts" totalLabel="New accounts" />;
+  return <TrendLineChart data={rows} xKey="period" tipKey="tip" yKey="n" label="New accounts" average={daily} />;
 }
 
-const ORDER_TONE: Record<string, Tone> = {
-  active: "success",
-  pending: "warning",
-  waitlisted: "chart",
-  paused: "muted",
-  cancelled: "destructive",
-  completed: "muted",
-};
+async function SignupCalendar({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSignupDaily(scope);
+  return (
+    <CalendarHeatmap
+      from={isoDateInZone(scope.fromMs, scope.tz)}
+      to={isoDateInZone(scope.toMs, scope.tz)}
+      today={isoDateInZone(Date.now(), scope.tz)}
+      label="New accounts"
+      days={rows.map((r) => ({ date: r.iso, value: r.n }))}
+    />
+  );
+}
 
 async function MixChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSubscriptionMix(scope);
