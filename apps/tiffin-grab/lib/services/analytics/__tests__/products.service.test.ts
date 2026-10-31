@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
@@ -26,7 +26,9 @@ let weekId = 0n;
 
 async function makeOrder(over: { planIdx: number; status?: "active" | "cancelled"; paid?: string; deploymentId: string }) {
   const planRows = await db.select({ id: plans.id }).from(plans).orderBy(plans.id);
-  const [size] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.custom, false)).limit(1);
+  const planId = planRows[Math.min(over.planIdx, planRows.length - 1)]!.id;
+  const [own] = await db.select({ id: mealSizes.id }).from(mealSizes).where(and(eq(mealSizes.custom, false), eq(mealSizes.planId, planId))).limit(1);
+  const [size] = own ? [own] : await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.custom, false)).limit(1);
   const [freq] = await db.select({ id: deliveryFrequencies.id }).from(deliveryFrequencies).limit(1);
   const [u] = await db.insert(users).values({ email: `${over.deploymentId.toLowerCase()}@x.test`, name: "Prod" }).returning();
   userIds.push(u!.id);
@@ -101,7 +103,13 @@ describe("products analytics", () => {
     // Both fixture orders use one catalog meal size, so the two size splits carry all of it too.
     expect(sum(byMeal)).toBe(net.net);
     expect(sum(byTier)).toBe(net.net);
-    expect(sum(await getPaidByTierAndDiet(payScope))).toBe(net.net);
+    const byDiet = await getPaidByTierAndDiet(payScope);
+    expect(sum(byDiet)).toBe(net.net);
+    // Each diet's money is that plan's money: a wrong diet attribution moves cash between them.
+    for (const p of byPlan) {
+      const diet = byDiet.filter((r) => r.diet === p.plan);
+      if (diet.length) expect(sum(diet)).toBe(p.paid);
+    }
   });
 
   it("dish counts leave out cancelled orders nobody paid for", async () => {

@@ -49,13 +49,11 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <SkipRateChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+      <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
+        <Suspense fallback={<ChartSkeleton />}>
+          <SkipRateChart scope={scope} />
+        </Suspense>
+      </ChartCard>
     </div>
   );
 }

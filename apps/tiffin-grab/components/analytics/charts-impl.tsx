@@ -469,10 +469,13 @@ export function GroupedBarChart({
   series,
   format = "number",
   height = 240,
+  legend = false,
 }: {
   data: Row[];
   xKey: string;
   series: { key: string; label: string }[];
+  /** Name the series even when there is only one. */
+  legend?: boolean;
   format?: ValueFormat;
   height?: number;
 }) {
@@ -499,7 +502,7 @@ export function GroupedBarChart({
         {series.map((s, i) => (
           <Bar key={s.key} dataKey={s.key} name={s.label} fill={chartColor(i)} radius={4} />
         ))}
-        {series.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
+        {legend || series.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
       </BarChart>
     </ChartContainer>
   );
@@ -539,7 +542,7 @@ export function RadialRateChart({
           dataKey={valueKey}
           background
           cornerRadius={10}
-          label={{ position: "insideStart", fill: "var(--background)", fontSize: 12, fontWeight: 600 }}
+          label={{ position: "insideStart", fill: "var(--background)", fontSize: 12, fontWeight: 600, formatter: (v: number) => `${v}%` }}
         />
         <ChartLegend content={<ChartLegendContent nameKey={nameKey} className="-translate-y-2" />} />
       </RadialBarChart>

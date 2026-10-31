@@ -16,6 +16,8 @@ import {
   getPaidByPlan,
   getPaidByTier,
   getPaidByTierAndDiet,
+  dietOrder,
+  tierOrder,
   getPaidByMealType,
 } from "@/lib/services/analytics/products.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
@@ -122,8 +124,8 @@ async function TierBarChart({ scope }: { scope: AnalyticsScope }) {
 
 async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByTierAndDiet(scope);
-  const diets = [...new Set(rows.map((r) => r.diet))];
-  const tiers = [...new Map(rows.map((r) => [r.tierKey, r.tier])).values()];
+  const diets = [...new Set(rows.map((r) => r.diet))].sort(dietOrder);
+  const tiers = [...new Map(rows.map((r) => [r.tierKey, r.tier])).entries()].sort(([a], [b]) => tierOrder(a, b)).map(([, label]) => label);
   const data = tiers.map((tier) => ({
     tier,
     ...Object.fromEntries(diets.map((d) => [d, rows.find((r) => r.tier === tier && r.diet === d)?.paid ?? 0])),
@@ -135,6 +137,7 @@ async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
       series={diets.map((d) => ({ key: d, label: d }))}
       format="currency"
       height={280}
+      legend
     />
   );
 }

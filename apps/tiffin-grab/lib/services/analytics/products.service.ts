@@ -131,6 +131,21 @@ export async function getPaidByTierAndDiet(scope: AnalyticsScope): Promise<PaidT
   return [...cells.values()];
 }
 
+const TIER_ORDER = ["budget", "medium", "premium"];
+
+/** Fixed order so a diet keeps its colour across ranges: veg, non-veg, healthy, then the rest A-Z. */
+export function dietOrder(a: string, b: string) {
+  const rank = (d: string) => {
+    const k = d.toLowerCase();
+    return /non/.test(k) ? 1 : /veg/.test(k) ? 0 : /health/.test(k) ? 2 : 3;
+  };
+  return rank(a) - rank(b) || a.localeCompare(b);
+}
+
+export function tierOrder(a: string, b: string) {
+  return TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b);
+}
+
 /** Paid money grouped by catalog meal size (Maharaja Thali, 4 Item Thali, ...). */
 export async function getPaidByMealType(scope: AnalyticsScope): Promise<PaidMealTypeRow[]> {
   return (await paidByMealSize(scope))

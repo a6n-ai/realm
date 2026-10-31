@@ -77,18 +77,27 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
   );
 }
 
+// Always rendered (empty state when no trial has ended) so the row never appears or vanishes after load.
 async function TrialRate({ scope }: { scope: AnalyticsScope }) {
   const t = await loadTrial(scope);
-  if (t.eligible === 0 || t.conversionRatePct == null) return null;
+  const has = t.eligible > 0 && t.conversionRatePct != null;
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-      <ChartCard
-        title="What share of trials became a plan?"
-        subtitle={`${t.converted} of ${t.eligible} trials that ended ${t.windowDays}+ days ago went on to a later plan.`}
-      >
-        <RadialRateChart data={[{ label: "Trial → Plan", rate: t.conversionRatePct }]} nameKey="label" valueKey="rate" />
-      </ChartCard>
-    </div>
+    <ChartCard
+      title="What share of trials became a plan?"
+      subtitle={
+        has
+          ? `${t.converted} of ${t.eligible} trials that ended ${t.windowDays}+ days ago went on to a later plan.`
+          : t.open > 0
+            ? `${t.open} still open`
+            : "No trials ended in range"
+      }
+    >
+      <RadialRateChart
+        data={has ? [{ label: "Trial → Plan", rate: t.conversionRatePct! }] : []}
+        nameKey="label"
+        valueKey="rate"
+      />
+    </ChartCard>
   );
 }
 
