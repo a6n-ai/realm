@@ -1,7 +1,8 @@
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveryZones, inquiries, mealSizes, tickets, users } from "@/db/schema";
-import { epochRangeWhere, type AnalyticsFilters } from "./shared-filters";
+import { couponRedemptions, coupons, inquiries, orders, tickets, users } from "@/db/schema";
+import { leadWhere as scopedLeadWhere } from "./leads.service";
+import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -17,34 +18,36 @@ export type EmployeeRow = {
   repDailyCoupons: number;
 };
 
-function leadWhere(filters: AnalyticsFilters): SQL | undefined {
-  const parts: (SQL | undefined)[] = [
-    isNotNull(inquiries.currentOwner),
-    epochRangeWhere(inquiries.createdAt, filters),
-  ];
-  if (filters.plans.length) parts.push(inArray(inquiries.planInterest, filters.plans));
-  if (filters.mealSizes.length) {
-    parts.push(
-      sql`${inquiries.mealSizeInterest} in (
-        select ${mealSizes.publicId} from ${mealSizes} where ${inArray(mealSizes.key, filters.mealSizes)}
-      )`,
-    );
+const leadWhere = (scope: AnalyticsScope) => and(isNotNull(inquiries.currentOwner), scopedLeadWhere(scope));
+
+// A ticket's franchise and plan / size / zone come from the order it is about, so a ticket with no
+// order matches only when no franchise or facet narrows the view.
+function ticketScope(scope: AnalyticsScope): SQL | undefined {
+  const orderScope = ordersScope(scope);
+  return orderScope ? sql`${tickets.orderId} in (select ${orders.id} from ${orders} where ${orderScope})` : undefined;
+}
+
+// Coupons have their own nullable organization_id (null = shared, so only All franchises counts it) and
+// no plan / size / zone, so a facet keeps the coupons redeemed on an in-scope order.
+function couponScope(scope: AnalyticsScope): SQL | undefined {
+  const parts: SQL[] = [];
+  if (scope.orgIds !== "all") parts.push(scope.orgIds.length ? inArray(coupons.organizationId, scope.orgIds) : sql`false`);
+  const facets = facetsWhere(scope);
+  if (facets) {
+    parts.push(sql`exists (
+      select 1 from ${couponRedemptions} inner join ${orders} on ${orders.id} = ${couponRedemptions.orderId}
+      where ${couponRedemptions.couponId} = ${coupons.id} and ${facets}
+    )`);
   }
-  if (filters.zones.length) {
-    parts.push(
-      sql`${inquiries.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, filters.zones)})`,
-    );
-  }
-  const defined = parts.filter((p): p is SQL => p != null);
-  return defined.length ? and(...defined) : undefined;
+  return parts.length ? and(...parts) : undefined;
 }
 
 // Per-rep rollup across leads/tickets/coupons — there's no dedicated staff
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
-export async function getEmployeeRollup(
-  filters: AnalyticsFilters,
-): Promise<EmployeeRow[]> {
+export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRow[]> {
+  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+  const window = { fromMs: scope.fromMs, toMs: scope.toMs };
   const [leadRows, ticketRows, couponRows, staff] = await Promise.all([
     db
       .select({
@@ -53,16 +56,23 @@ export async function getEmployeeRollup(
         converted: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'converted') as int)`,
       })
       .from(inquiries)
-      .where(leadWhere(filters))
+      .where(leadWhere(scope))
       .groupBy(inquiries.currentOwner),
     db
       .select({
         owner: tickets.currentOwner,
-        resolved: sql<number>`cast(count(*) filter (where ${tickets.status} in ('resolved','closed')) as int)`,
+        resolved: intCount,
         avgMs: sql<number | null>`avg(${tickets.closedAt} - ${tickets.createdAt}) filter (where ${tickets.closedAt} is not null)`,
       })
       .from(tickets)
-      .where(and(isNotNull(tickets.currentOwner), epochRangeWhere(tickets.createdAt, filters)))
+      .where(
+        and(
+          isNotNull(tickets.currentOwner),
+          inArray(tickets.status, ["resolved", "closed"]),
+          dateWhere(tickets.closedAt, window),
+          ticketScope(scope),
+        ),
+      )
       .groupBy(tickets.currentOwner),
     db
       .select({ owner: coupons.ownerUserId, n: intCount })
@@ -70,7 +80,8 @@ export async function getEmployeeRollup(
       .where(
         and(
           sql`${coupons.kind} in ('rep_daily', 'rep_code') and ${coupons.ownerUserId} is not null`,
-          epochRangeWhere(coupons.createdAt, filters),
+          dateWhere(coupons.createdAt, window),
+          couponScope(scope),
         ),
       )
       .groupBy(coupons.ownerUserId),

@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/purity */
-import { getSession } from "@/lib/auth/session";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
-import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
+import { paymentsHref } from "@/lib/analytics/drill";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
@@ -15,7 +16,6 @@ import {
   AnalyticsPanel,
   AnalyticsPanelHeader,
 } from "@/components/analytics/analytics-panel";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import {
   clockInZone,
@@ -23,7 +23,6 @@ import {
   type Grain,
   type ProfitabilityKpis,
 } from "@/lib/analytics/profitability";
-import { parseAnalyticsFilters } from "@/lib/services/analytics/shared-filters";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { AssumptionsForm } from "./assumptions-form";
 import { GrainNav } from "./grain-nav";
@@ -46,17 +45,14 @@ function parseMonth(raw: string | undefined, fallback: string): string {
   return raw && /^\d{4}-\d{2}$/.test(raw) ? raw : fallback;
 }
 
-type SearchParams = Promise<{
-  view?: string;
-  month?: string;
-  from?: string;
-  to?: string;
-  plan?: string;
-  mealSize?: string;
-  zone?: string;
-}>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function ProfitabilityAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ProfitabilityAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const resolved = await scopeOrAlert("/dashboard/analytics/profitability", sp);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
+  const view = { month: parseMonth(sp.month, currentMonth(scope.tz)), grain: parseGrain(sp.view), scope };
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -64,13 +60,13 @@ export default function ProfitabilityAnalyticsPage({ searchParams }: { searchPar
         description="Earned revenue minus variable and allocated costs under your assumptions."
         action={
           <Suspense fallback={<div className="bg-muted/40 h-10 w-full max-w-xl animate-pulse rounded-xl" />}>
-            <Nav searchParams={searchParams} />
+            <Nav view={view} />
           </Suspense>
         }
       />
 
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <Headline searchParams={searchParams} />
+        <Headline view={view} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
@@ -81,13 +77,13 @@ export default function ProfitabilityAnalyticsPage({ searchParams }: { searchPar
               subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid."
             />
             <Suspense fallback={<ChartSkeleton height={320} />}>
-              <Grid searchParams={searchParams} />
+              <Grid view={view} />
             </Suspense>
           </AnalyticsPanel>
         </div>
         <div className="lg:col-span-4">
           <Suspense fallback={<ChartSkeleton height={180} />}>
-            <Assumptions searchParams={searchParams} />
+            <Assumptions view={view} />
           </Suspense>
         </div>
       </div>
@@ -97,40 +93,25 @@ export default function ProfitabilityAnalyticsPage({ searchParams }: { searchPar
         subtitle="Earned revenue minus variable and allocated costs. Not cash collected."
       >
         <Suspense fallback={<ChartSkeleton />}>
-          <Trend searchParams={searchParams} />
+          <Trend view={view} />
         </Suspense>
       </ChartCard>
     </div>
   );
 }
 
-const loadReport = cache(
-  async (month: string, grain: Grain, from: string, to: string, plan: string, mealSize: string, zone: string) =>
-    getProfitabilityReport({
-      month,
-      grain,
-      filters: await parseAnalyticsFilters({ from, to, plan, mealSize, zone }, await getSession()),
-    }),
+type View = { month: string; grain: Grain; scope: AnalyticsScope };
+
+// Keyed by the scope object, so the sections of one render share a single report.
+const loadReport = cache((month: string, grain: Grain, scope: AnalyticsScope) =>
+  getProfitabilityReport({ month, grain, scope }),
 );
 
-async function reportFrom(searchParams: SearchParams) {
-  const sp = await searchParams;
-  const { timezone } = await getAppSettings();
-  const month = parseMonth(sp.month, currentMonth(timezone));
-  const grain = parseGrain(sp.view);
-  return loadReport(
-    month,
-    grain,
-    sp.from ?? "",
-    sp.to ?? "",
-    sp.plan ?? "",
-    sp.mealSize ?? "",
-    sp.zone ?? "",
-  );
-}
+const reportFrom = ({ month, grain, scope }: View) => loadReport(month, grain, scope);
 
-async function Nav({ searchParams }: { searchParams: SearchParams }) {
-  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
+async function Nav({ view }: { view: View }) {
+  const report = await reportFrom(view);
+  const timezone = view.scope.tz;
   return (
     <GrainNav
       view={report.grain}
@@ -140,14 +121,13 @@ async function Nav({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function Headline({ searchParams }: { searchParams: SearchParams }) {
-  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
-  const range = zonedRangeMs(report.from, report.to, timezone);
+async function Headline({ view }: { view: View }) {
+  const report = await reportFrom(view);
   return (
     <HeadlineCards
       kpis={report.kpis}
       grain={report.grain}
-      cashHref={paymentsHref({ statuses: SETTLED_STATUSES, fromMs: range.from, toMs: range.to })}
+      cashHref={paymentsHref(view.scope, { statuses: SETTLED_STATUSES, basis: "money" })}
     />
   );
 }
@@ -160,7 +140,7 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
     {
       label: "Cash collected",
       value: money(kpis.cashCollected),
-      hint: `What customers actually paid, incl. tax. ${rangeHint}.`,
+      hint: `Paid minus refunds, incl. tax, excl. card surcharge · ${DATE_BASIS_LABEL.money}. Equals Revenue net collected.`,
       href: cashHref,
       badge: "Settled",
       badgeTone: "neutral",
@@ -227,17 +207,17 @@ function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; gra
   return <MetricTiles cols={4} items={items} />;
 }
 
-async function Trend({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
+async function Trend({ view }: { view: View }) {
+  const report = await reportFrom(view);
   return <TrendLineChart data={report.trend} xKey="period" yKey="profit" />;
 }
 
-async function Grid({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
+async function Grid({ view }: { view: View }) {
+  const report = await reportFrom(view);
   return <ProfitTable rows={report.rows} grain={report.grain} />;
 }
 
-async function Assumptions({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
+async function Assumptions({ view }: { view: View }) {
+  const report = await reportFrom(view);
   return <AssumptionsForm current={report.assumptions} />;
 }

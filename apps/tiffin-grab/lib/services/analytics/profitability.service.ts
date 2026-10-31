@@ -1,24 +1,22 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orders, payments } from "@/db/schema";
-import { getAppSettings, getProfitabilityAssumptions } from "@/lib/services/app-settings.service";
+import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
+import { getProfitabilityAssumptions } from "@/lib/services/app-settings.service";
 import {
-  addMonths,
   decorateDay,
   eachDateInclusive,
   isoDateInZone,
   kpis,
-  monthBounds,
   periodLabel,
+  round2,
   rollup,
   type Grain,
   type ProfitabilityAssumptions,
   type ProfitabilityKpis,
   type ProfitRow,
 } from "@/lib/analytics/profitability";
-import { hasDateFilter, ordersMatchFilters, type AnalyticsFilters } from "./shared-filters";
-
-const PAID_STATUSES = ["simulated_paid", "paid"] as const;
+import { CAPTURED, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
+import { ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 function isoDate(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
@@ -40,35 +38,30 @@ export type ProfitabilityReport = {
   nextCutoffAt: number | null;
 };
 
-const SETTLED = sql`exists (
+const HAS_CAPTURED = sql`exists (
   select 1 from ${payments} where ${payments.orderId} = ${orders.id}
-  and ${payments.status} in ('paid', 'simulated_paid')
+  and ${inArray(payments.status, CAPTURED)}
 )`;
-const REFUNDED = sql`exists (
-  select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} = 'refunded'
-)`;
-// Order total net of tax, spread evenly over the plan's tiffins. Pre-tax because
-// tax is collected on the government's behalf; it is not the business's revenue.
+// What the order actually earned: its captured payments ex tax, minus ledger refunds ex tax (the
+// same expressions the Revenue tab sums). Not date-limited: it is spread over the order's tiffins.
+const ORDER_EARNED = sql`((select coalesce(sum(${netExTax()}), 0) from ${payments}
+    where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, CAPTURED)})
+  - (select coalesce(sum(${refundExTax}), 0) from ${ledgerEntries}
+    inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId}
+    where ${payments.orderId} = ${orders.id} and ${ledgerEntries.type} = 'refund'))`;
+const EARNED_PER_TIFFIN = sql`(${ORDER_EARNED} / nullif(${orders.tiffinCount}, 0))`;
+// Order total net of tax, for orders nobody has paid yet (no earned figure exists for them).
 const PER_TIFFIN = sql`((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
   / nullif(${orders.tiffinCount}, 0))`;
-
-function rangeFor(month: string, grain: Grain): { from: string; to: string } {
-  if (grain === "monthly") {
-    const start = addMonths(month, -11);
-    return { from: `${start}-01`, to: monthBounds(month).to };
-  }
-  return monthBounds(month);
-}
 
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
  * `deliveredTiffinCount` (scheduled AND confirmed delivered),
- * re-expressed in SQL so we don't load every row. Revenue is the order total
- * (excluding tax) spread across that order's tiffinCount, then attributed to the
- * delivery DATE, never the payment date.
+ * re-expressed in SQL so we don't load every row. Revenue is spread across that
+ * order's tiffinCount, then attributed to the delivery DATE, never the payment date.
  *
- * Only orders with a settled payment earn revenue. Orders still awaiting payment
- * are reported as `unpaidRevenue`, and refunded orders earn nothing. Every
+ * An order earns what it was actually paid ex tax, less refunds (partial payments earn
+ * the paid share); orders with no captured payment are reported as `unpaidRevenue`. Every
  * delivered tiffin still carries its kitchen and driver cost, because that food
  * went out whether or not it was paid for.
  */
@@ -76,22 +69,18 @@ export async function getProfitabilityReport(opts: {
   month: string;
   grain: Grain;
   now?: number;
-  filters: AnalyticsFilters;
+  scope: AnalyticsScope;
 }): Promise<ProfitabilityReport> {
   const now = opts.now ?? Date.now();
   const grain = opts.grain;
   const month = opts.month;
-  const dims = opts.filters;
-  const [{ timezone }, assumptions] = await Promise.all([getAppSettings(), getProfitabilityAssumptions()]);
-  // Shared date filter wins over the month/grain nav when set.
-  const bounds = hasDateFilter(dims)
-    ? {
-        from: dims.from != null ? isoDateInZone(dims.from, timezone) : rangeFor(month, grain).from,
-        to: dims.to != null ? isoDateInZone(dims.to, timezone) : rangeFor(month, grain).to,
-      }
-    : rangeFor(month, grain);
+  const { scope } = opts;
+  const assumptions = await getProfitabilityAssumptions();
+  const timezone = scope.tz;
+  // The scope's range always wins over the month/grain nav (it defaults to the current month).
+  const bounds = { from: isoDateInZone(scope.fromMs, timezone), to: isoDateInZone(scope.toMs, timezone) };
   const { from, to } = bounds.from <= bounds.to ? bounds : { from: bounds.to, to: bounds.from };
-  const orderWhere = ordersMatchFilters(dims);
+  const orderWhere = ordersScope(scope);
 
   const deliveredWhere = and(
     eq(deliveries.status, "scheduled"),
@@ -101,65 +90,46 @@ export async function getProfitabilityReport(opts: {
     orderWhere,
   );
 
-  const pad = 48 * 60 * 60 * 1000;
-  const cashFromMs = Date.parse(`${from}T00:00:00.000Z`) - pad;
-  const cashToMs = Date.parse(`${to}T23:59:59.999Z`) + pad;
-
-  const [earnedRows, cashPayments, [nextCutoff]] = await Promise.all([
-    db
-      .select({
-        date: deliveries.deliveryDate,
-        tiffins: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`,
-        revenue: sql<number>`coalesce(sum(case when ${SETTLED}
-          then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
-        unpaidRevenue: sql<number>`coalesce(sum(case when not ${SETTLED} and not ${REFUNDED}
-          then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
-      })
-      .from(deliveries)
-      .innerJoin(orders, eq(deliveries.orderId, orders.id))
-      .where(deliveredWhere)
-      .groupBy(deliveries.deliveryDate),
-    db
-      .select({
-        capturedAt: payments.capturedAt,
-        createdAt: payments.createdAt,
-        amount: payments.amount,
-      })
-      .from(payments)
-      .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(
-        and(
-          inArray(payments.status, PAID_STATUSES),
-          sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) >= ${cashFromMs}`,
-          sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) <= ${cashToMs}`,
-          orderWhere,
-        ),
-      ),
-    db
-      .select({ at: sql<number | null>`min(${deliveries.cutoffAt})` })
-      .from(deliveries)
-      .innerJoin(orders, eq(deliveries.orderId, orders.id))
-      .where(
-        and(
-          eq(deliveries.status, "scheduled"),
-          sql`${deliveries.cutoffAt} > ${now}`,
-          sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
-          gte(deliveries.deliveryDate, from),
-          lte(deliveries.deliveryDate, to),
-          orderWhere,
-        ),
-      ),
+  const noOrgs = scope.orgIds !== "all" && scope.orgIds.length === 0;
+  const [earnedRows, cashDays, totals, [nextCutoff]] = await Promise.all([
+    noOrgs
+      ? []
+      : db
+          .select({
+            date: deliveries.deliveryDate,
+            tiffins: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`,
+            revenue: sql<number>`coalesce(sum(case when ${HAS_CAPTURED}
+              then ${deliveries.tiffinUnits}::numeric * ${EARNED_PER_TIFFIN} end), 0)::float`,
+            unpaidRevenue: sql<number>`coalesce(sum(case when not ${HAS_CAPTURED}
+              then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
+          })
+          .from(deliveries)
+          .innerJoin(orders, eq(deliveries.orderId, orders.id))
+          .where(deliveredWhere)
+          .groupBy(deliveries.deliveryDate),
+    revenueBy(scope, "day"),
+    revenueTotals(scope),
+    noOrgs
+      ? [{ at: null }]
+      : db
+          .select({ at: sql<number | null>`min(${deliveries.cutoffAt})` })
+          .from(deliveries)
+          .innerJoin(orders, eq(deliveries.orderId, orders.id))
+          .where(
+            and(
+              eq(deliveries.status, "scheduled"),
+              sql`${deliveries.cutoffAt} > ${now}`,
+              sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
+              gte(deliveries.deliveryDate, from),
+              lte(deliveries.deliveryDate, to),
+              orderWhere,
+            ),
+          ),
   ]);
 
   const earnedByDate = new Map(earnedRows.map((r) => [isoDate(r.date), r]));
-  const cashByDate = new Map<string, number>();
-  for (const p of cashPayments) {
-    const ms = p.capturedAt ?? p.createdAt;
-    if (ms == null) continue;
-    const day = isoDateInZone(ms, timezone);
-    if (day < from || day > to) continue;
-    cashByDate.set(day, (cashByDate.get(day) ?? 0) + Number(p.amount));
-  }
+  // Cash is net collected: gross captured minus refunds on the paid basis, by capture / refund day.
+  const cashByDate = new Map(cashDays.map((d) => [d.key, d.gross - d.refundsExSurcharge]));
 
   const daily = eachDateInclusive(from, to).map((date) =>
     decorateDay(
@@ -175,7 +145,8 @@ export async function getProfitabilityReport(opts: {
   );
 
   const rows = rollup(daily, grain);
-  const stats = kpis(rows);
+  // Equal to the Revenue tab's Net collected by construction, not a sum of rounded days.
+  const stats = { ...kpis(rows), cashCollected: round2(totals.gross - totals.refundsExSurcharge) };
   return {
     grain,
     month,

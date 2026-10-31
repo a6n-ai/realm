@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth/session";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -11,14 +11,14 @@ import { BreakdownBarChart } from "@/components/analytics/charts";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function EmployeesAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function EmployeesAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/employees", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -31,26 +31,26 @@ export default function EmployeesAnalyticsPage({ searchParams }: { searchParams:
         }
       />
       <Suspense fallback={<SkeletonStatCards count={3} />}>
-        <StatsData searchParams={searchParams} />
+        <StatsData scope={scope} />
       </Suspense>
 
       <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched in this range.">
         <Suspense fallback={<ChartSkeleton />}>
-          <LeadsChart searchParams={searchParams} />
+          <LeadsChart scope={scope} />
         </Suspense>
       </ChartCard>
 
-      <ChartCard title="Per-rep breakdown" subtitle="Open a count to see those inquiries or tickets.">
+      <ChartCard title="Per-rep breakdown" subtitle="Leads by inquiry date, tickets by resolved date. Open a count to see those inquiries or tickets.">
         <Suspense fallback={<TableRowsSkeleton />}>
-          <RollupTable searchParams={searchParams} />
+          <RollupTable scope={scope} />
         </Suspense>
       </ChartCard>
     </div>
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getEmployeeRollup(scope);
   const activeReps = rows.length;
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
@@ -62,13 +62,14 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
         {
           label: "Total leads worked",
           value: totalLeadsWorked,
-          href: inquiriesHref(),
+          href: inquiriesHref(scope),
           badge: "Leads",
           badgeTone: "brand",
         },
         {
           label: "Total tickets resolved",
           value: totalTicketsResolved,
+          hint: "Resolved or closed · by resolved date",
           href: "/dashboard/tickets?status=resolved",
           badge: "Resolved",
           badgeTone: "ok",
@@ -78,15 +79,15 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function LeadsChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function LeadsChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getEmployeeRollup(scope);
   const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
   return <BreakdownBarChart data={data} xKey="name" yKey="n" />;
 }
 
-async function RollupTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getEmployeeRollup(await parseAnalyticsFilters(await searchParams, await getSession()));
-  return <EmployeeRollupTable rows={rows} />;
+async function RollupTable({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getEmployeeRollup(scope);
+  return <EmployeeRollupTable rows={rows} scope={scope} />;
 }
 
 function TableRowsSkeleton() {

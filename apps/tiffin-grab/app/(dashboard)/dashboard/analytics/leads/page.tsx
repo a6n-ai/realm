@@ -1,4 +1,6 @@
 import { getSession } from "@/lib/auth/session";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -15,14 +17,14 @@ import {
   getLostReasonBreakdown,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/leads", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -35,49 +37,49 @@ export default function LeadsAnalyticsPage({ searchParams }: { searchParams: Sea
         }
       />
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData searchParams={searchParams} />
+        <StatsData scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Leads by stage" subtitle="Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
-            <StageChart searchParams={searchParams} />
+            <StageChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
           <Suspense fallback={<ChartSkeleton />}>
-            <LostReasonChart searchParams={searchParams} />
+            <LostReasonChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
       <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
         <Suspense fallback={<ChartSkeleton />}>
-          <SourceTable searchParams={searchParams} />
+          <SourceTable scope={scope} />
         </Suspense>
       </ChartCard>
     </div>
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getLeadStats(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const [s, visible] = await Promise.all([getLeadStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
     <MetricTiles
       cols={4}
       items={[
-        { label: "Total leads", value: s.total, href: inquiriesHref(), badge: "In range", badgeTone: "neutral" },
+        { label: "Total leads", value: s.total, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
         {
           label: "Converted",
           value: s.converted,
-          href: inquiriesHref({ stage: "converted" }),
+          href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Won",
           badgeTone: "ok",
         },
         {
           label: "Lost",
           value: s.lost,
-          href: inquiriesHref({ stage: "lost" }),
+          href: inquiriesHref(scope, { stage: "lost" }, visible),
           tone: s.lost > 0 ? "warn" : "default",
           badge: "Lost",
           badgeTone: s.lost > 0 ? "warn" : "neutral",
@@ -86,7 +88,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
           label: "Conversion rate",
           value: `${s.conversionRatePct}%`,
           hint: s.total === 0 ? "No leads yet" : "Converted leads divided by all leads",
-          href: inquiriesHref({ stage: "converted" }),
+          href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Rate",
           badgeTone: "brand",
           footer:
@@ -104,30 +106,30 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function StageChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLeadsByStage(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function StageChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getLeadsByStage(scope);
   return (
     <BreakdownList
-      rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref({ stage: r.key }) }))}
+      rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref(scope, { stage: r.key }) }))}
       emptyLabel="No leads yet."
     />
   );
 }
 
-async function LostReasonChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLostReasonBreakdown(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function LostReasonChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getLostReasonBreakdown(scope);
   return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
 }
 
-async function SourceTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSourcePerformance(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function SourceTable({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSourcePerformance(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
         label: r.source,
         n: r.total,
         meta: `${r.converted} converted · ${r.conversionRatePct}%`,
-        href: inquiriesHref({ source: r.key }),
+        href: inquiriesHref(scope, { source: r.key }),
       }))}
       emptyLabel="No leads yet."
     />

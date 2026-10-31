@@ -103,7 +103,7 @@ async function RangeAndLive({ scope }: { scope: AnalyticsScope }) {
 function links(scope: AnalyticsScope) {
   const methods = scope.extra.method ?? [];
   return (statuses: readonly string[] = SETTLED_STATUSES, only: readonly string[] = methods) =>
-    paymentsHref({ statuses, methods: only, fromMs: scope.fromMs, toMs: scope.toMs, basis: "money" });
+    paymentsHref(scope, { statuses, methods: only, basis: "money" });
 }
 
 async function Kpis({ scope }: { scope: AnalyticsScope }) {

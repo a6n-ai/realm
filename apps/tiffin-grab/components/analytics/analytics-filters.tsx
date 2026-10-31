@@ -5,11 +5,12 @@ import { usePathname } from "next/navigation";
 import type { FacetDef } from "@/components/ds";
 import { DefaultDateRange } from "@/components/filters/default-date-range";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
 
 /**
  * Shared filter bar for every analytics subsection. Date sits outside the facet
- * menu (defaults to the current month). Plan / meal size / zone stay in Filter;
+ * menu (defaults to the current month). Plan / meal size / zone (and Franchise, with 2+ visible) stay in Filter;
  * Revenue / Complaints append page-only facets when the route matches.
  */
 export function AnalyticsFilters({
@@ -34,6 +35,7 @@ export function AnalyticsFilters({
         options: options.mealSizes,
       },
       { kind: "multi", field: "zone", label: "Zone", options: options.zones },
+      ...franchiseFacets(options.orgs),
     ];
     const extras = pathname.startsWith("/dashboard/analytics/revenue")
       ? revenueFacets

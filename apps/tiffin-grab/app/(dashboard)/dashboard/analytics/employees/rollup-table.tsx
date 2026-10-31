@@ -6,6 +6,7 @@ import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import type { EmployeeRow } from "@/lib/services/analytics/employees.service";
+import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
 const COLUMNS: readonly Column<"rep" | "leads" | "converted" | "rate" | "tickets" | "resolution" | "coupons">[] = [
   { key: "rep", label: "Rep" },
@@ -17,7 +18,7 @@ const COLUMNS: readonly Column<"rep" | "leads" | "converted" | "rate" | "tickets
   { key: "coupons", label: "Rep-daily coupons", align: "right" },
 ];
 
-export function EmployeeRollupTable({ rows }: { rows: EmployeeRow[] }) {
+export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scope: AnalyticsScope }) {
   return (
     <DataTable
       pagination="client"
@@ -30,18 +31,18 @@ export function EmployeeRollupTable({ rows }: { rows: EmployeeRow[] }) {
       renderRow={(r) => (
         <>
           <TableCell className="font-medium">
-            {r.publicId ? <Link href={inquiriesHref({ owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
+            {r.publicId ? <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
           </TableCell>
           <TableCell className="text-right tabular-nums">
             {r.publicId ? (
-              <Link href={inquiriesHref({ owner: r.publicId })} className="hover:underline">{r.leadsWorked}</Link>
+              <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.leadsWorked}</Link>
             ) : (
               r.leadsWorked
             )}
           </TableCell>
           <TableCell className="text-right tabular-nums">
             {r.publicId ? (
-              <Link href={inquiriesHref({ owner: r.publicId, stage: "converted" })} className="hover:underline">
+              <Link href={inquiriesHref(scope, { owner: r.publicId, stage: "converted" })} className="hover:underline">
                 {r.leadsConverted}
               </Link>
             ) : (

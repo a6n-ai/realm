@@ -1,17 +1,12 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, mealSizes, orders, payments, plans } from "@/db/schema";
-import {
-  epochRangeWhere,
-  hasDateFilter,
-  hasDimensionFilters,
-  ordersMatchFilters,
-  type AnalyticsFilters,
-} from "./shared-filters";
-
-const SETTLED = ["paid", "simulated_paid"] as const;
+import { revenueBy } from "./metrics/money";
+import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
+
+const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
 export type ProductStats = {
   totalSelections: number;
@@ -19,16 +14,23 @@ export type ProductStats = {
   topDish: string | null;
 };
 
-function matchingOrderIds(filters: AnalyticsFilters) {
+/** Orders created in range and scope, minus cancelled orders nobody paid for (they never ran). */
+function selectionOrderIds(scope: AnalyticsScope) {
   return sql`${mealSelections.orderId} in (
     select ${orders.id} from ${orders}
-    where ${and(ordersMatchFilters(filters), epochRangeWhere(orders.createdAt, filters)) ?? sql`true`}
+    where ${and(
+      ordersScope(scope),
+      dateWhere(orders.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
+      sql`not (${orders.status} = 'cancelled' and not exists (
+        select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} in ('paid', 'simulated_paid')
+      ))`,
+    )}
   )`;
 }
 
-export async function getProductStats(filters: AnalyticsFilters): Promise<ProductStats> {
-  const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
-  const selectionWhere = narrowed ? matchingOrderIds(filters) : undefined;
+export async function getProductStats(scope: AnalyticsScope): Promise<ProductStats> {
+  if (noOrgs(scope)) return { totalSelections: 0, distinctDishes: 0, topDish: null };
+  const selectionWhere = selectionOrderIds(scope);
   const [[{ n: totalSelections }], [{ n: distinctDishes }], top] = await Promise.all([
     db.select({ n: intCount }).from(mealSelections).where(selectionWhere),
     db
@@ -47,110 +49,77 @@ export async function getProductStats(filters: AnalyticsFilters): Promise<Produc
   return { totalSelections, distinctDishes, topDish: top[0]?.name ?? null };
 }
 
-export async function getTopDishes(limit = 8, filters: AnalyticsFilters) {
-  const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
+export async function getTopDishes(limit = 8, scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
   return db
     .select({ dish: dishes.name, n: intCount })
     .from(mealSelections)
     .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
-    .where(narrowed ? matchingOrderIds(filters) : undefined)
+    .where(selectionOrderIds(scope))
     .groupBy(dishes.name)
     .orderBy(sql`count(*) desc`)
     .limit(limit);
 }
 
-export type PaidPlanRow = { plan: string; key: string; orders: number; paid: number };
+// "Paid by ..." is Revenue's definition (net ex tax and surcharge, after refunds, by capture date),
+// so each split sums to the Revenue tab's net. `payments` counts captured payments, not orders.
+export type PaidPlanRow = { plan: string; key: string; payments: number; paid: number };
 
-/** Orders that have a settled payment, with the money those payments brought in. */
-export async function getOrdersByPlan(filters: AnalyticsFilters): Promise<PaidPlanRow[]> {
-  const rows = await db
-    .select({
-      plan: plans.name,
-      key: plans.key,
-      orders: sql<number>`cast(count(distinct ${orders.id}) as int)`,
-      paid: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
-    })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .innerJoin(payments, eq(payments.orderId, orders.id))
-    .where(
-      and(
-        inArray(payments.status, [...SETTLED]),
-        ordersMatchFilters(filters),
-        epochRangeWhere(payments.createdAt, filters),
-      ),
-    )
-    .groupBy(plans.name, plans.key)
-    .orderBy(sql`sum(${payments.amount}) desc`);
-  return rows.map((r) => ({ ...r, paid: Math.round(Number(r.paid) * 100) / 100 }));
+export async function getPaidByPlan(scope: AnalyticsScope): Promise<PaidPlanRow[]> {
+  const [buckets, planRows] = await Promise.all([
+    revenueBy(scope, "plan"),
+    db.select({ key: plans.key, name: plans.name }).from(plans),
+  ]);
+  const names = new Map(planRows.map((p) => [p.key, p.name]));
+  return buckets
+    .filter((b) => b.net !== 0 || b.payments > 0)
+    .map((b) => ({ plan: names.get(b.key) ?? b.key, key: b.key, payments: b.payments, paid: b.net }))
+    .sort((a, b) => b.paid - a.paid);
 }
 
 const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium", premium: "Premium" };
 
-export type PaidTierRow = { tier: string; key: string; orders: number; paid: number };
-
-export async function getOrdersByTier(filters: AnalyticsFilters): Promise<PaidTierRow[]> {
-  const rows = await db
-    .select({
-      tier: mealSizes.tier,
-      orders: sql<number>`cast(count(distinct ${orders.id}) as int)`,
-      paid: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
-    })
-    .from(orders)
-    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .innerJoin(payments, eq(payments.orderId, orders.id))
-    .where(
-      and(
-        inArray(payments.status, [...SETTLED]),
-        eq(mealSizes.custom, false),
-        ordersMatchFilters(filters),
-        epochRangeWhere(payments.createdAt, filters),
-      ),
-    )
-    .groupBy(mealSizes.tier)
-    .orderBy(sql`sum(${payments.amount}) desc`);
-  return rows.map((r) => ({
-    tier: TIER_LABELS[r.tier] ?? r.tier,
-    key: r.tier,
-    orders: r.orders,
-    paid: Math.round(Number(r.paid) * 100) / 100,
-  }));
-}
+export type PaidTierRow = { tier: string; key: string; payments: number; paid: number };
 
 export type PaidMealTypeRow = {
   mealType: string;
   key: string;
   plan: string;
-  orders: number;
+  payments: number;
   paid: number;
 };
 
-/** Settled payments grouped by catalog meal size (Maharaja Thali, 4 Item Thali, …). */
-export async function getOrdersByMealType(filters: AnalyticsFilters): Promise<PaidMealTypeRow[]> {
-  const rows = await db
-    .select({
-      mealType: mealSizes.name,
-      key: mealSizes.key,
-      plan: plans.name,
-      orders: sql<number>`cast(count(distinct ${orders.id}) as int)`,
-      paid: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
-    })
-    .from(orders)
-    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .innerJoin(payments, eq(payments.orderId, orders.id))
-    .where(
-      and(
-        inArray(payments.status, [...SETTLED]),
-        eq(mealSizes.custom, false),
-        ordersMatchFilters(filters),
-        epochRangeWhere(payments.createdAt, filters),
-      ),
-    )
-    .groupBy(mealSizes.name, mealSizes.key, plans.name)
-    .orderBy(sql`sum(${payments.amount}) desc`);
-  return rows.map((r) => ({
-    ...r,
-    paid: Math.round(Number(r.paid) * 100) / 100,
-  }));
+/** Catalog meal sizes only; custom sizes stay out of both splits, as the card subtitles say. */
+async function paidByMealSize(scope: AnalyticsScope) {
+  const [buckets, sizes] = await Promise.all([
+    revenueBy(scope, "mealSize"),
+    db
+      .select({ key: mealSizes.key, name: mealSizes.name, tier: mealSizes.tier, plan: plans.name })
+      .from(mealSizes)
+      .innerJoin(plans, eq(mealSizes.planId, plans.id))
+      .where(eq(mealSizes.custom, false)),
+  ]);
+  const byKey = new Map(sizes.map((s) => [s.key, s]));
+  return buckets.flatMap((b) => {
+    const size = byKey.get(b.key);
+    return size ? [{ size, bucket: b }] : [];
+  });
+}
+
+export async function getPaidByTier(scope: AnalyticsScope): Promise<PaidTierRow[]> {
+  const byTier = new Map<string, PaidTierRow>();
+  for (const { size, bucket } of await paidByMealSize(scope)) {
+    const row = byTier.get(size.tier) ?? { tier: TIER_LABELS[size.tier] ?? size.tier, key: size.tier, payments: 0, paid: 0 };
+    row.payments += bucket.payments;
+    row.paid = Math.round((row.paid + bucket.net) * 100) / 100;
+    byTier.set(size.tier, row);
+  }
+  return [...byTier.values()].sort((a, b) => b.paid - a.paid);
+}
+
+/** Paid money grouped by catalog meal size (Maharaja Thali, 4 Item Thali, ...). */
+export async function getPaidByMealType(scope: AnalyticsScope): Promise<PaidMealTypeRow[]> {
+  return (await paidByMealSize(scope))
+    .map(({ size, bucket }) => ({ mealType: size.name, key: size.key, plan: size.plan, payments: bucket.payments, paid: bucket.net }))
+    .sort((a, b) => b.paid - a.paid);
 }

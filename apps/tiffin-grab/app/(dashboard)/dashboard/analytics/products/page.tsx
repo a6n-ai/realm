@@ -1,4 +1,3 @@
-import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -8,22 +7,25 @@ import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { BreakdownBarChart } from "@/components/analytics/charts";
-import { ordersHref } from "@/lib/analytics/drill";
+import { getSession } from "@/lib/auth/session";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { ordersDrillHref } from "@/lib/analytics/drill";
 import {
   getProductStats,
   getTopDishes,
-  getOrdersByPlan,
-  getOrdersByTier,
-  getOrdersByMealType,
+  getPaidByPlan,
+  getPaidByTier,
+  getPaidByMealType,
 } from "@/lib/services/analytics/products.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/products", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -37,34 +39,34 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
         }
       />
       <Suspense fallback={<SkeletonStatCards count={3} />}>
-        <StatsData searchParams={searchParams} />
+        <StatsData scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Most-picked dishes" subtitle="Meal selections in this range.">
+        <ChartCard title="Most-picked dishes" subtitle={`Meal selections on orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <TopDishesChart searchParams={searchParams} />
+            <TopDishesChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
+        <ChartCard title="Paid by meal size" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <TierBarChart searchParams={searchParams} />
+            <TierBarChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
+        <ChartCard title="Paid by plan" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, ex tax and surcharge, after refunds. Open a plan to see its orders.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <PlanChart searchParams={searchParams} />
+            <PlanChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard
-          title="Paid orders by meal type"
-          subtitle="Maharaja Thali, 4 Item Thali, and other catalog sizes. Custom sizes are not included."
+          title="Paid by meal type"
+          subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Maharaja Thali, 4 Item Thali, and other catalog sizes; custom sizes are not included.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
-            <MealTypeList searchParams={searchParams} />
+            <MealTypeList scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -72,8 +74,8 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getProductStats(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const s = await getProductStats(scope);
   return (
     <MetricTiles
       cols={3}
@@ -92,13 +94,13 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function TopDishesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopDishes(8, await parseAnalyticsFilters(await searchParams, await getSession()));
+async function TopDishesChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getTopDishes(8, scope);
   return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
 }
 
-async function TierBarChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function TierBarChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getPaidByTier(scope);
   return (
     <BreakdownBarChart
       data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
@@ -114,33 +116,33 @@ function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
 
-async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByPlan(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function PlanChart({ scope }: { scope: AnalyticsScope }) {
+  const [rows, visible] = await Promise.all([getPaidByPlan(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
         label: r.plan,
         n: r.paid,
         aside: money(r.paid),
-        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
-        href: ordersHref({ plan: r.key }),
+        meta: `${r.payments} ${r.payments === 1 ? "payment" : "payments"}`,
+        href: ordersDrillHref({ ...scope, plans: [r.key] }, {}, visible),
       }))}
-      emptyLabel="No paid orders yet."
+      emptyLabel="No payments in this range."
     />
   );
 }
 
-async function MealTypeList({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function MealTypeList({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getPaidByMealType(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
         label: r.mealType,
         n: r.paid,
         aside: money(r.paid),
-        meta: `${r.plan} · ${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
+        meta: `${r.plan} · ${r.payments} ${r.payments === 1 ? "payment" : "payments"}`,
       }))}
-      emptyLabel="No paid orders yet."
+      emptyLabel="No payments in this range."
     />
   );
 }

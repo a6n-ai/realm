@@ -1,4 +1,3 @@
-import { getSession } from "@/lib/auth/session";
 import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -20,10 +19,7 @@ import { getProfitabilityReport } from "@/lib/services/analytics/profitability.s
 import { getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -84,7 +80,6 @@ function analyticsHref(path: string, sp: AnalyticsSearchParams): string {
 }
 
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
-  const filters = await parseAnalyticsFilters(sp, await getSession());
   const { timezone } = await getAppSettings();
   const [revenue, activePlans, complaints, profit, trialConv] = await Promise.all([
     loadReport(scope),
@@ -93,11 +88,11 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
     getProfitabilityReport({
       month: currentMonth(timezone),
       grain: "daily",
-      filters,
+      scope,
     }),
     getTrialToPlanConversion(scope),
   ]);
-  const paid = paymentsHref({ statuses: SETTLED_STATUSES, methods: scope.extra.method, fromMs: scope.fromMs, toMs: scope.toMs, basis: "money" });
+  const paid = paymentsHref(scope, { statuses: SETTLED_STATUSES, methods: scope.extra.method, basis: "money" });
   const complaintFilters = scopeToComplaintFilters(scope);
 
   return (
@@ -130,7 +125,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
         {
           label: "Net profit",
           value: money(profit.kpis.profit),
-          hint: "Under current cost assumptions",
+          hint: `Under current cost assumptions · ${DATE_BASIS_LABEL.deliveries}`,
           href: analyticsHref("/dashboard/analytics/profitability", sp),
           tone: profit.kpis.profit < 0 ? "bad" : "ok",
           badge: profit.kpis.profit < 0 ? "Below target" : "Net",

@@ -1,26 +1,32 @@
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, mealSizes } from "@/db/schema";
-import { epochRangeWhere, type AnalyticsFilters } from "./shared-filters";
+import { dateWhere, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
 export type LeadStats = { total: number; converted: number; lost: number; conversionRatePct: number };
 
-function leadWhere(filters: AnalyticsFilters): SQL | undefined {
-  const parts: (SQL | undefined)[] = [epochRangeWhere(inquiries.createdAt, filters)];
-  if (filters.plans.length) parts.push(inArray(inquiries.planInterest, filters.plans));
+/**
+ * Inquiries carry their own nullable organization_id (filled during the franchise backfill; there is no
+ * order to join through). A franchise-scoped view counts only inquiries stamped with one of its orgs;
+ * unstamped ones appear under All franchises only.
+ */
+export function leadWhere(scope: AnalyticsScope): SQL | undefined {
+  const parts: (SQL | undefined)[] = [dateWhere(inquiries.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs })];
+  if (scope.orgIds !== "all") parts.push(scope.orgIds.length ? inArray(inquiries.organizationId, scope.orgIds) : sql`false`);
+  if (scope.plans.length) parts.push(inArray(inquiries.planInterest, scope.plans));
   // Interest stores meal size publicId; shared filters use meal size keys.
-  if (filters.mealSizes.length) {
+  if (scope.mealSizes.length) {
     parts.push(
       sql`${inquiries.mealSizeInterest} in (
-        select ${mealSizes.publicId} from ${mealSizes} where ${inArray(mealSizes.key, filters.mealSizes)}
+        select ${mealSizes.publicId} from ${mealSizes} where ${inArray(mealSizes.key, scope.mealSizes)}
       )`,
     );
   }
-  if (filters.zones.length) {
+  if (scope.zones.length) {
     parts.push(
-      sql`${inquiries.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, filters.zones)})`,
+      sql`${inquiries.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, scope.zones)})`,
     );
   }
   const defined = parts.filter((p): p is SQL => p != null);
@@ -28,13 +34,13 @@ function leadWhere(filters: AnalyticsFilters): SQL | undefined {
 }
 
 export async function getLeadStats(
-  filters: AnalyticsFilters,
+  scope: AnalyticsScope,
 ): Promise<LeadStats> {
-  const scope = leadWhere(filters);
+  const where = leadWhere(scope);
   const [[{ n: total }], [{ n: converted }], [{ n: lost }]] = await Promise.all([
-    db.select({ n: intCount }).from(inquiries).where(scope),
-    db.select({ n: intCount }).from(inquiries).where(and(eq(inquiries.stage, "converted"), scope)),
-    db.select({ n: intCount }).from(inquiries).where(and(eq(inquiries.stage, "lost"), scope)),
+    db.select({ n: intCount }).from(inquiries).where(where),
+    db.select({ n: intCount }).from(inquiries).where(and(eq(inquiries.stage, "converted"), where)),
+    db.select({ n: intCount }).from(inquiries).where(and(eq(inquiries.stage, "lost"), where)),
   ]);
   return {
     total,
@@ -53,11 +59,11 @@ const STAGE_LABELS: Record<string, string> = {
   lost: "Lost",
 };
 
-export async function getLeadsByStage(filters: AnalyticsFilters) {
+export async function getLeadsByStage(scope: AnalyticsScope) {
   const rows = await db
     .select({ stage: inquiries.stage, n: intCount })
     .from(inquiries)
-    .where(leadWhere(filters))
+    .where(leadWhere(scope))
     .groupBy(inquiries.stage);
   return rows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, key: r.stage, n: r.n }));
 }
@@ -72,12 +78,12 @@ const LOST_REASON_LABELS: Record<string, string> = {
 };
 
 export async function getLostReasonBreakdown(
-  filters: AnalyticsFilters,
+  scope: AnalyticsScope,
 ) {
   const rows = await db
     .select({ reason: inquiries.lostReason, n: intCount })
     .from(inquiries)
-    .where(and(eq(inquiries.stage, "lost"), leadWhere(filters)))
+    .where(and(eq(inquiries.stage, "lost"), leadWhere(scope)))
     .groupBy(inquiries.lostReason);
   return rows
     .filter((r) => r.reason != null)
@@ -87,7 +93,7 @@ export async function getLostReasonBreakdown(
 export type SourcePerf = { key: string; source: string; total: number; converted: number; conversionRatePct: number };
 
 export async function getSourcePerformance(
-  filters: AnalyticsFilters,
+  scope: AnalyticsScope,
 ): Promise<SourcePerf[]> {
   const rows = await db
     .select({
@@ -98,7 +104,7 @@ export async function getSourcePerformance(
     })
     .from(inquiries)
     .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-    .where(leadWhere(filters))
+    .where(leadWhere(scope))
     .groupBy(leadSources.key, leadSources.label)
     .orderBy(sql`count(*) desc`);
   return rows.map((r) => ({

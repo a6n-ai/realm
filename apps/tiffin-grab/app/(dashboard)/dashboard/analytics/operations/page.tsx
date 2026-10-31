@@ -1,4 +1,3 @@
-import { getSession } from "@/lib/auth/session";
 import { Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -12,14 +11,15 @@ import {
   getDeliveryStatusMix,
   getRouteLoadByDriver,
 } from "@/lib/services/analytics/operations.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function OperationsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function OperationsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/operations", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader
@@ -32,18 +32,18 @@ export default function OperationsAnalyticsPage({ searchParams }: { searchParams
         }
       />
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData searchParams={searchParams} />
+        <StatsData scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Delivery status mix" subtitle="Each status in this range.">
+        <ChartCard title="Delivery status mix" subtitle={`Each status · ${DATE_BASIS_LABEL.deliveries}`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <MixChart searchParams={searchParams} />
+            <MixChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Route load per driver" subtitle="Deliveries synced from OptimoRoute">
+        <ChartCard title="Route load per driver" subtitle={`Deliveries synced from OptimoRoute · ${DATE_BASIS_LABEL.deliveries}`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <DriverChart searchParams={searchParams} />
+            <DriverChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -51,13 +51,13 @@ export default function OperationsAnalyticsPage({ searchParams }: { searchParams
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getOperationsStats(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const s = await getOperationsStats(scope);
   return (
     <MetricTiles
       cols={4}
       items={[
-        { label: "Total deliveries", value: s.totalDeliveries, badge: "Scheduled", badgeTone: "neutral" },
+        { label: "Total deliveries", value: s.totalDeliveries, hint: DATE_BASIS_LABEL.deliveries, badge: "Scheduled", badgeTone: "neutral" },
         {
           label: "Skipped",
           value: s.skipped,
@@ -78,12 +78,12 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getDeliveryStatusMix(await parseAnalyticsFilters(await searchParams, await getSession()));
+async function MixChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getDeliveryStatusMix(scope);
   return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
 }
 
-async function DriverChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getRouteLoadByDriver(10, await parseAnalyticsFilters(await searchParams, await getSession()));
+async function DriverChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getRouteLoadByDriver(10, scope);
   return <BreakdownBarChart data={rows} xKey="driver" yKey="n" />;
 }

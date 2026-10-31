@@ -1,19 +1,15 @@
 import { Suspense } from "react";
-import { and, eq, isNull, like, not, sql, type SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
 import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { getNotificationBuckets } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
 
 const intCount = sql<number>`cast(count(*) as int)`;
-
-async function countRows(where?: SQL): Promise<number> {
-  const [row] = await db.select({ n: intCount }).from(notificationOutbox).where(where);
-  return row?.n ?? 0;
-}
 
 // Single source of truth for the stat cards, in display order. StatsData maps
 // these labels onto the queried values to build the StatGrid `items` array.
@@ -57,18 +53,7 @@ export default function NotificationAnalyticsPage({ searchParams }: { searchPara
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const SKIPPED = like(notificationOutbox.lastError, "skipped%");
-  const created = await createdWhere(searchParams);
-
-  const [total, sent, skipped, failed, inFlight] = await Promise.all([
-    countRows(created),
-    countRows(and(created, eq(notificationOutbox.status, "sent"), isNull(notificationOutbox.lastError))),
-    countRows(and(created, eq(notificationOutbox.status, "sent"), SKIPPED)),
-    countRows(and(created, eq(notificationOutbox.status, "failed"))),
-    countRows(and(created, not(sql`${notificationOutbox.status} in ('sent','failed')`))),
-  ]);
-
-  const values: Record<StatKey, number> = { total, sent, skipped, failed, inFlight };
+  const values: Record<StatKey, number> = await getNotificationBuckets(await createdWhere(searchParams));
   const items = STAT_CARDS.map((s) => ({ label: s.label, value: values[s.key] }));
 
   return <StatGrid cols={5} items={items} />;

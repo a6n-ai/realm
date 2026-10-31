@@ -37,7 +37,7 @@ export function netExTax(): SQL {
 // refund both write it. Revenue excludes the surcharge, so a refund row reduces revenue by
 // refund x amount/(amount+surcharge) x (1 - tax/total), all from the refunded payment's own quote.
 const refundExSurcharge = sql`coalesce(${ledgerEntries.amount} * (${payments.amount} / nullif(${payments.amount} + ${payments.surchargeAmount}, 0)), 0)`;
-const refundExTax = sql`coalesce(${refundExSurcharge} * (1 - ${taxShare}), 0)`;
+export const refundExTax = sql`coalesce(${refundExSurcharge} * (1 - ${taxShare}), 0)`;
 
 const sqlList = (v: readonly string[]) => sql.join(v.map((s) => sql`${s}`), sql`, `);
 const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
@@ -119,7 +119,7 @@ export async function revenueTotals(scope: AnalyticsScope): Promise<RevenueTotal
 }
 
 export type RevenueDim = "day" | "method" | "plan" | "mealSize" | "cohort";
-export type RevenueBucket = { key: string; gross: number; net: number; refundsExTax: number; payments: number; settledPayments: number };
+export type RevenueBucket = { key: string; gross: number; net: number; refundsExTax: number; refundsExSurcharge: number; payments: number; settledPayments: number };
 
 // Cohort: trial wins; otherwise renewal when the customer had an earlier non-cancelled, non-trial order
 // (a trial customer's first plan is still new); otherwise new.
@@ -147,10 +147,10 @@ export async function revenueBy(scope: AnalyticsScope, dim: RevenueDim): Promise
     await db.execute(sql`
       with u as (${moneyRows(scope, bucketKey(dim, scope.tz, moneyDate), bucketKey(dim, scope.tz, ledgerEntries.createdAt))})
       select coalesce(key, 'unknown') as key, round(sum(gross), 2)::text as gross, round(sum(net) - sum(refund_ex), 2)::text as net,
-        round(sum(refund_ex), 2)::text as refunds_ex_tax, sum(pay_cnt)::int::text as payments, sum(settled_cnt)::int::text as settled_payments
+        round(sum(refund_ex), 2)::text as refunds_ex_tax, round(sum(refund_ex_sur), 2)::text as refunds_ex_sur, sum(pay_cnt)::int::text as payments, sum(settled_cnt)::int::text as settled_payments
       from u group by key order by key`),
   );
-  return rows.map((r) => ({ key: String(r.key), gross: n2(r.gross), net: n2(r.net), refundsExTax: n2(r.refunds_ex_tax), payments: n2(r.payments), settledPayments: n2(r.settled_payments) }));
+  return rows.map((r) => ({ key: String(r.key), gross: n2(r.gross), net: n2(r.net), refundsExTax: n2(r.refunds_ex_tax), refundsExSurcharge: n2(r.refunds_ex_sur), payments: n2(r.payments), settledPayments: n2(r.settled_payments) }));
 }
 
 export type PaymentStatusRow = { status: string; count: number; amount: number };
