@@ -8,10 +8,9 @@ import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { DivergingBarChart, PartsDonut } from "@/components/analytics/charts";
-import { slotTone } from "@/components/analytics/chart-math";
+import { DivergingBarChart, WaterfallChart } from "@/components/analytics/charts";
+import { buildProfitWaterfall } from "@/lib/analytics/waterfall";
 
-const COST_SLOTS = ["Kitchen", "Driver", "Marketing", "Salaries"];
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
@@ -98,7 +97,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
             <Trend view={view} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Where the money goes" subtitle="Total costs by kind" info="Total costs in this range, under your assumptions.">
+        <ChartCard title="Where the money goes" subtitle="Revenue less each cost, down to profit" info="Revenue in this range less kitchen, driver, marketing, salaries and other costs, under your assumptions. It ends at the profit shown above.">
           <Suspense fallback={<ChartSkeleton />}>
             <Costs view={view} />
           </Suspense>
@@ -230,7 +229,7 @@ async function Cards({ view }: { view: View }) {
 
 async function Costs({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <PartsDonut format="currency" caption="Total costs" max={6} parts={report.costParts.map((c) => ({ ...c, tone: slotTone(c.label, COST_SLOTS) }))} />;
+  return <WaterfallChart format="currency" {...buildProfitWaterfall(report.kpis, report.costParts)} />;
 }
 
 async function MigratedNote({ view }: { view: View }) {

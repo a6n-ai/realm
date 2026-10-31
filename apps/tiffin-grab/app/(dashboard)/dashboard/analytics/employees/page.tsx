@@ -6,8 +6,8 @@ import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/st
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { PartsDonut } from "@/components/analytics/charts";
-import { slotTone, type Part } from "@/components/analytics/chart-math";
+import { PartsDonut, TreemapChart } from "@/components/analytics/charts";
+import { slotTone, TONE_COLOR } from "@/components/analytics/chart-math";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
@@ -146,11 +146,12 @@ const repTone = (rows: { userId: string }[], r: { userId: string }) => slotTone(
 
 async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
   const { rows, unassignedRevenue } = await getEmployeeRollup(scope);
-  const parts: Part[] = [
-    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ label: r.name, value: r.revenueOwned, tone: repTone(rows, r) })),
-    ...(unassignedRevenue > 0 ? [{ label: "Unassigned", value: unassignedRevenue, tone: "muted" as const }] : []),
+  const boxes = [
+    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ name: r.name, value: r.revenueOwned, tone: repTone(rows, r) })),
+    ...(unassignedRevenue > 0 ? [{ name: "Unassigned", value: unassignedRevenue, tone: "muted" as const }] : []),
   ];
-  return <PartsDonut format="currency" caption="Revenue" max={5} emptyLabel="No revenue in this range." parts={parts} />;
+  const data = boxes.map((b) => ({ name: b.name, children: [{ name: b.name, value: b.value, color: TONE_COLOR[b.tone as keyof typeof TONE_COLOR] }] }));
+  return <TreemapChart format="currency" data={data} />;
 }
 
 async function WorkloadDonut({ scope }: { scope: AnalyticsScope }) {

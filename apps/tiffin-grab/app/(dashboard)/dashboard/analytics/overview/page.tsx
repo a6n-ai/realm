@@ -7,7 +7,7 @@ import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { PartsDonut, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { GaugeChart, PartsDonut, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { DailyScorecard } from "@/components/analytics/daily-scorecard";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
@@ -118,11 +118,13 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
       }
       info={has ? `Trials that ended ${t.windowDays}+ days ago and went on to a later plan.` : undefined}
     >
-      <PartsDonut
+      <GaugeChart
         caption="converted"
-        label={has ? `${t.conversionRatePct}%` : undefined}
+        value={t.converted}
+        total={has ? t.eligible : 0}
+        tone="success"
         footnote={has ? `${t.converted} of ${t.eligible} trials converted` : undefined}
-        parts={has ? [{ label: "Converted", value: t.converted, tone: "success" }, { label: "Not converted", value: t.eligible - t.converted, tone: "muted" }] : []}
+        rows={[{ label: "Converted", value: t.converted, tone: "success" }, { label: "Not converted", value: t.eligible - t.converted, tone: "muted" }]}
       />
     </ChartCard>
   );

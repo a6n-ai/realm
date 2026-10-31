@@ -1,6 +1,6 @@
 export type SizeSale = { plan: string; size: string; custom: boolean; revenue: number; tiffins: number };
 export type SizeMetric = "revenue" | "tiffins";
-export type TreemapGroup = { name: string; children: { name: string; value: number }[] };
+export type TreemapGroup = { name: string; children: { name: string; value: number; color?: string }[] };
 
 export const CUSTOM_SIZES_LABEL = "Custom sizes";
 

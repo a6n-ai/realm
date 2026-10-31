@@ -90,7 +90,7 @@ export async function getLostReasonBreakdown(
     .map((r) => ({ reason: LOST_REASON_LABELS[r.reason!] ?? r.reason!, n: r.n }));
 }
 
-export type SourcePerf = { key: string; source: string; total: number; converted: number; conversionRatePct: number };
+export type SourcePerf = { key: string; source: string; total: number; converted: number; lost: number; conversionRatePct: number };
 
 export async function getSourcePerformance(
   scope: AnalyticsScope,
@@ -101,6 +101,7 @@ export async function getSourcePerformance(
       source: leadSources.label,
       total: intCount,
       converted: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'converted') as int)`,
+      lost: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'lost') as int)`,
     })
     .from(inquiries)
     .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))

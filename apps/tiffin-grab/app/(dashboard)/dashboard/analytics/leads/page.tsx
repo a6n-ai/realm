@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth/session";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { Skeleton } from "@foundry/ui/skeleton";
+import Link from "next/link";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
@@ -9,8 +10,9 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, PartsDonut, SegmentedBar } from "@/components/analytics/charts";
+import { BreakdownBarChart, FunnelChart, SankeyChart } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
+import { buildSourceFlow } from "@/lib/analytics/source-flow";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
   getLeadStats,
@@ -41,12 +43,12 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Lead stages" subtitle="Where every lead in range sits" info="Open a stage to see those inquiries.">
+        <ChartCard title="Lead stages" subtitle="Where each lead sits now" info="Each lead counts once, at its current stage (not every stage it passed through). Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Conversion rate" subtitle="Converted leads out of all leads">
+        <ChartCard title="Where each source's leads went" subtitle="Source to converted, lost or still open" info="Leads in range by source and where they are now. Top 5 sources, the rest folded into Other. Overall conversion is in the cards above.">
           <Suspense fallback={<ChartSkeleton />}>
             <ConversionChart scope={scope} />
           </Suspense>
@@ -114,32 +116,35 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-const STAGE_ORDER = ["new", "contacted", "quoted", "follow_up", "converted", "lost"];
 const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "success", lost: "destructive" };
+
+const FUNNEL = ["new", "contacted", "quoted", "follow_up", "converted"] as const;
 
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
+  const by = new Map(rows.map((r) => [r.key, r]));
+  const lost = by.get("lost")?.n ?? 0;
   return (
-    <SegmentedBar
-      withList
-      max={6}
-      parts={[...rows]
-        .sort((a, b) => STAGE_ORDER.indexOf(a.key) - STAGE_ORDER.indexOf(b.key))
-        .map((r) => ({ label: r.stage, value: r.n, tone: STAGE_TONE[r.key] ?? "chart", href: inquiriesHref(scope, { stage: r.key }) }))}
+    <FunnelChart
+      steps={FUNNEL.map((k) => {
+        const r = by.get(k);
+        return { label: r?.stage ?? STAGE_NAME[k]!, value: r?.n ?? 0, tone: STAGE_TONE[k], href: inquiriesHref(scope, { stage: k }) };
+      })}
+      footnote={
+        <Link href={inquiriesHref(scope, { stage: "lost" })} className="hover:text-foreground transition-colors">
+          {lost.toLocaleString()} lost
+        </Link>
+      }
     />
   );
 }
 
+const STAGE_NAME: Record<string, string> = { new: "New", contacted: "Contacted", quoted: "Quoted", follow_up: "Follow-up", converted: "Converted" };
+
 async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
-  const s = await getLeadStats(scope);
-  return (
-    <PartsDonut
-      caption="converted"
-      label={s.total > 0 ? `${s.conversionRatePct}%` : undefined}
-      footnote={s.total > 0 ? `${s.converted.toLocaleString()} of ${s.total.toLocaleString()} leads converted` : undefined}
-      parts={s.total > 0 ? [{ label: "Converted", value: s.converted, tone: "success" }, { label: "Not converted", value: s.total - s.converted, tone: "muted" }] : []}
-    />
-  );
+  const rows = await getSourcePerformance(scope);
+  const { nodes, links } = buildSourceFlow(rows);
+  return <SankeyChart nodes={nodes} links={links} />;
 }
 
 async function LostReasonChart({ scope }: { scope: AnalyticsScope }) {

@@ -6,7 +6,7 @@ import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, GaugeChart, PartsDonut } from "@/components/analytics/charts";
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import {
@@ -73,11 +73,13 @@ async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
   const s = await loadStats(scope);
   const has = s.totalDeliveries > 0;
   return (
-    <PartsDonut
+    <GaugeChart
       caption="skipped"
-      label={has ? `${s.skipRatePct}%` : undefined}
+      value={s.skipped}
+      total={s.totalDeliveries}
+      tone="warning"
       footnote={has ? `${s.skipped.toLocaleString()} of ${s.totalDeliveries.toLocaleString()} deliveries skipped` : undefined}
-      parts={has ? [{ label: "Skipped", value: s.skipped, tone: "warning" }, { label: "Not skipped", value: s.totalDeliveries - s.skipped, tone: "muted" }] : []}
+      rows={[{ label: "Skipped", value: s.skipped, tone: "warning" }, { label: "Not skipped", value: s.totalDeliveries - s.skipped, tone: "muted" }]}
     />
   );
 }

@@ -10,7 +10,7 @@ const {
   orderActivities, orders, organization, plans, tickets, users,
 } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
-const { getLeadStats, getLeadsByStage } = await import("../leads.service");
+const { getLeadStats, getLeadsByStage, getSourcePerformance } = await import("../leads.service");
 const { getEmployeeRollup } = await import("../employees.service");
 const { getDeliveriesDaily, getOperationsStats } = await import("../operations.service");
 const { getNotificationBuckets } = await import("../notifications.service");
@@ -93,7 +93,7 @@ describe("franchise-scoped analytics tabs (integration)", () => {
   it("scopes leads by the inquiry's own franchise; unstamped leads appear under All only", async () => {
     let [source] = await db.select({ id: leadSources.id }).from(leadSources).limit(1);
     source ??= (await db.insert(leadSources).values({ key: `src-${suffix}`, label: "Src" }).returning({ id: leadSources.id }))[0]!;
-    const mk = async (org: string | null, stage: "new" | "converted") => {
+    const mk = async (org: string | null, stage: "new" | "converted" | "lost") => {
       const k = n++;
       const [i] = await db
         .insert(inquiries)
@@ -104,17 +104,21 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     await mk(orgA, "new");
     await mk(orgA, "converted");
     await mk(orgB, "new");
+    await mk(orgB, "lost");
     await mk(null, "new");
 
     const total = async (orgIds: "all" | string[]) => (await getLeadStats(scopeFor(orgIds))).total;
     const base = await total("all");
     expect(await total([orgA])).toBe(2);
-    expect(await total([orgB])).toBe(1);
-    expect(await total([orgA, orgB])).toBe(3);
-    expect(base).toBeGreaterThanOrEqual(4);
+    expect(await total([orgB])).toBe(2);
+    expect(await total([orgA, orgB])).toBe(4);
+    expect(base).toBeGreaterThanOrEqual(5);
     expect(await total([])).toBe(0);
     expect((await getLeadStats(scopeFor([orgA]))).converted).toBe(1);
     expect((await getLeadsByStage(scopeFor([orgA]))).reduce((s, r) => s + r.n, 0)).toBe(2);
+    const perf = await getSourcePerformance(scopeFor([orgA, orgB]));
+    const sum = (k: "total" | "converted" | "lost") => perf.reduce((t, r) => t + r[k], 0);
+    expect([sum("total"), sum("converted"), sum("lost")]).toEqual([4, 1, 1]);
   });
 
   it("scopes deliveries through the order's franchise", async () => {

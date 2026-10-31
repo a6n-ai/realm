@@ -15,6 +15,10 @@ const Breakdown = lazy(() =>
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
 const Parts = lazy(() => load().then((m) => ({ default: m.PartsDonut })));
 const Treemap = lazy(() => load().then((m) => ({ default: m.TreemapChart })));
+const Gauge = lazy(() => load().then((m) => ({ default: m.GaugeChart })));
+const Funnel = lazy(() => load().then((m) => ({ default: m.FunnelChart })));
+const Sankey = lazy(() => load().then((m) => ({ default: m.SankeyChart })));
+const Waterfall = lazy(() => load().then((m) => ({ default: m.WaterfallChart })));
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
 const Calendar = lazy(() =>
   load().then((m) => ({ default: m.CalendarHeatmap })),
@@ -66,6 +70,10 @@ export const BreakdownBarChart = wrap(Breakdown, true);
 export const SegmentedBar = wrap(Segmented);
 export const PartsDonut = wrap(Parts);
 export const TreemapChart = wrap(Treemap);
+export const GaugeChart = wrap(Gauge);
+export const FunnelChart = wrap(Funnel);
+export const SankeyChart = wrap(Sankey);
+export const WaterfallChart = wrap(Waterfall);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
 

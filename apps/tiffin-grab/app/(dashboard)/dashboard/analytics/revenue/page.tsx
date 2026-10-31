@@ -7,7 +7,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
+import { CalendarHeatmap, GaugeChart, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -246,13 +246,14 @@ async function Statuses({ scope }: { scope: AnalyticsScope }) {
 async function Owed({ scope }: { scope: AnalyticsScope }) {
   const { kpis: k } = await loadReport(scope);
   const total = k.netCollected + k.pendingAmount;
-  const rate = total > 0 ? (k.netCollected / total) * 100 : 0;
   return (
-    <PartsDonut
+    <GaugeChart
       format="currency"
       caption="collected"
-      label={total > 0 ? `${rate.toFixed(rate < 10 ? 1 : 0)}%` : undefined}
-      parts={[{ label: "Collected", value: k.netCollected, tone: "success" }, { label: "Still owed", value: k.pendingAmount, tone: "warning" }]}
+      value={k.netCollected}
+      total={total}
+      tone="success"
+      rows={[{ label: "Collected", value: k.netCollected, tone: "success" }, { label: "Still owed", value: k.pendingAmount, tone: "warning" }]}
     />
   );
 }

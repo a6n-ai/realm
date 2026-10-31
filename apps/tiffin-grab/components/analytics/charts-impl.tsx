@@ -16,6 +16,10 @@ import {
   CartesianGrid,
   Cell,
   Label,
+  PolarAngleAxis,
+  RadialBar,
+  RadialBarChart,
+  Sankey,
   LabelList,
   Line,
   LineChart,
@@ -42,6 +46,8 @@ import {
 } from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
 import { ChartTip } from "@/components/analytics/chart-tip";
+import type { FlowLink, FlowNode } from "@/lib/analytics/source-flow";
+import type { WaterfallData } from "@/lib/analytics/waterfall";
 import type { TreemapGroup } from "@/lib/analytics/size-treemap";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
@@ -624,6 +630,61 @@ export function SegmentedBar({
   );
 }
 
+type ListRow = { label: string; meta?: string; tip?: ReactNode; href?: string; color: string; text: string; share: number };
+
+/** Dot, label, value and share per row; the figures under a donut or gauge. */
+function PartsList({ rows, footnote }: { rows: ListRow[]; footnote?: ReactNode }) {
+  const listRows = rows;
+  return (
+  <div className="flex w-full min-w-0 flex-1 flex-col">
+  <ul className="divide-border/60 w-full divide-y">
+    {listRows.map((p, i) => {
+      const row = (
+        <>
+          <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">{p.label}</span>
+            {p.meta ? <span className="text-muted-foreground block truncate text-xs">{p.meta}</span> : null}
+          </span>
+          <span className="font-semibold tabular-nums">{p.text}</span>
+          <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(p.share)}</span>
+        </>
+      );
+      const cls = "flex items-center gap-2 py-2 text-sm";
+      return (
+        <li key={`${p.label}-${i}`}>
+          {p.tip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div tabIndex={0} className={cn(cls, "focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2")}>
+                    {row}
+                  </div>
+                </TooltipTrigger>
+                <ChartTip side="left" className="max-w-xs">
+                  {p.tip}
+                </ChartTip>
+              </Tooltip>
+            </TooltipProvider>
+          ) : p.href ? (
+            <Link
+              href={p.href}
+              className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors focus-visible:ring-2"
+            >
+              {row}
+            </Link>
+          ) : (
+            <div className={cls}>{row}</div>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+  {footnote ? <div className="text-muted-foreground pt-2 text-xs">{footnote}</div> : null}
+  </div>
+  );
+}
+
 /**
  * Part-to-whole as a donut with the total in the centre, beside the figures list (name, value, share).
  * The list keeps small parts readable and carries the drill links; slices link too.
@@ -705,52 +766,7 @@ export function PartsDonut({
           </Pie>
         </PieChart>
       </ChartContainer>
-      <div className="flex w-full min-w-0 flex-1 flex-col">
-      <ul className="divide-border/60 w-full divide-y">
-        {listRows.map((p, i) => {
-          const row = (
-            <>
-              <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{p.label}</span>
-                {p.meta ? <span className="text-muted-foreground block truncate text-xs">{p.meta}</span> : null}
-              </span>
-              <span className="font-semibold tabular-nums">{p.text}</span>
-              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(p.share)}</span>
-            </>
-          );
-          const cls = "flex items-center gap-2 py-2 text-sm";
-          return (
-            <li key={`${p.label}-${i}`}>
-              {p.tip ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div tabIndex={0} className={cn(cls, "focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2")}>
-                        {row}
-                      </div>
-                    </TooltipTrigger>
-                    <ChartTip side="left" className="max-w-xs">
-                      {p.tip}
-                    </ChartTip>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : p.href ? (
-                <Link
-                  href={p.href}
-                  className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors focus-visible:ring-2"
-                >
-                  {row}
-                </Link>
-              ) : (
-                <div className={cls}>{row}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {footnote ? <div className="text-muted-foreground pt-2 text-xs">{footnote}</div> : null}
-      </div>
+      <PartsList rows={listRows} footnote={footnote} />
     </div>
   );
 }
@@ -806,7 +822,7 @@ export function TreemapChart({
     children: g.children.map((c, ci) => ({
       ...c,
       plan: g.name,
-      color: `color-mix(in oklch, ${chartColor(gi)} ${Math.round(100 - ((100 - SHADE_FLOOR) * ci) / Math.max(1, g.children.length - 1))}%, var(--card))`,
+      color: c.color ?? `color-mix(in oklch, ${chartColor(gi)} ${Math.round(100 - ((100 - SHADE_FLOOR) * ci) / Math.max(1, g.children.length - 1))}%, var(--card))`,
     })),
   }));
   const config = Object.fromEntries(data.map((g, i) => [`p${i}`, { label: g.name, color: chartColor(i) }])) satisfies ChartConfig;
@@ -842,7 +858,7 @@ export function TreemapChart({
       <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {data.map((g, i) => (
           <li key={`${g.name}-${i}`} className="flex items-center gap-1.5">
-            <span className="size-2.5 shrink-0 rounded-full" style={{ background: chartColor(i) }} />
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: g.children[0]?.color ?? chartColor(i) }} />
             {g.name}
           </li>
         ))}
@@ -1151,3 +1167,271 @@ export function DivergingBarChart({
   );
 }
 
+
+const toneColor = (t: Tone | undefined, fallback = TONE_COLOR.muted) => (t && t !== "chart" ? TONE_COLOR[t] : fallback);
+
+/** A share-of-total meter: 180-degree arc on a muted track, the figure in the middle, the same figures list as a donut below. */
+export function GaugeChart({
+  value,
+  total,
+  tone = "success",
+  caption,
+  rows,
+  footnote,
+  format = "number",
+}: {
+  value: number;
+  total: number;
+  tone?: Tone;
+  caption: string;
+  /** Rows under the arc, usually the filled part and the rest. */
+  rows: { label: string; value: number; tone?: Tone; href?: string }[];
+  footnote?: ReactNode;
+  format?: ValueFormat;
+}) {
+  if (!(total > 0)) return <EmptyChart />;
+  const pct = (value / total) * 100;
+  const fill = toneColor(tone);
+  const config = { v: { label: caption, color: fill } } satisfies ChartConfig;
+  const listTotal = rows.reduce((s, r) => s + r.value, 0);
+  return (
+    <div className="flex h-full flex-col items-center gap-4">
+      <div className="relative w-full max-w-64 shrink-0" style={{ height: DONUT_PX * 0.62 }}>
+        <ChartContainer config={config} className="aspect-auto size-full" >
+          <RadialBarChart
+            data={[{ name: caption, v: value, fill }]}
+            startAngle={180}
+            endAngle={0}
+            cx="50%"
+            cy="100%"
+            innerRadius="150%"
+            outerRadius="200%"
+            barSize={18}
+          >
+            <PolarAngleAxis type="number" domain={[0, total]} tick={false} axisLine={false} />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  className="min-w-40 gap-2.5"
+                  formatter={() => (
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <span className="text-muted-foreground">{caption}</span>
+                      <span className="text-foreground font-semibold tabular-nums">
+                        {formatValue(value, format)} of {formatValue(total, format)}
+                      </span>
+                    </div>
+                  )}
+                />
+              }
+            />
+            <RadialBar dataKey="v" cornerRadius={9} background={{ fill: "var(--muted)" }} />
+          </RadialBarChart>
+        </ChartContainer>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
+          <span className="text-foreground text-3xl font-semibold tabular-nums">{`${pct.toFixed(pct < 10 && pct > 0 ? 1 : 0)}%`}</span>
+          <span className="text-muted-foreground text-xs">{caption}</span>
+        </div>
+      </div>
+      <PartsList
+        footnote={footnote}
+        rows={rows.map((r) => ({
+          label: r.label,
+          href: r.href,
+          color: toneColor(r.tone),
+          text: formatValue(r.value, format),
+          share: listTotal > 0 ? Math.round((r.value / listTotal) * 100) : 0,
+        }))}
+      />
+    </div>
+  );
+}
+
+export type FunnelStep = { label: string; value: number; tone?: Tone; href?: string };
+
+/** Stacked centred bars, each as wide as its share of the first step, with the step-to-step conversion between them. */
+export function FunnelChart({ steps, footnote }: { steps: FunnelStep[]; footnote?: ReactNode }) {
+  const first = steps[0]?.value ?? 0;
+  if (!(first > 0)) return <EmptyChart />;
+  return (
+    <div className="flex flex-col gap-1">
+      {steps.map((s, i) => {
+        const prev = steps[i - 1]?.value ?? 0;
+        const width = Math.max(2, (s.value / first) * 100);
+        const bar = (
+          <div className="flex flex-col gap-1 py-1">
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="truncate">{s.label}</span>
+              <span className="flex items-baseline gap-2">
+                <span className="font-semibold tabular-nums">{s.value.toLocaleString()}</span>
+                <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(Math.round((s.value / first) * 100))}</span>
+              </span>
+            </div>
+            <div className="flex justify-center">
+              <div className="h-6 rounded-sm" style={{ width: `${width}%`, background: toneColor(s.tone, "var(--chart-1)") }} />
+            </div>
+          </div>
+        );
+        return (
+          <div key={`${s.label}-${i}`} className="flex flex-col">
+            {i > 0 ? (
+              <div className="text-muted-foreground text-center text-xs tabular-nums">
+                {prev > 0 ? `${Math.round((s.value / prev) * 100)}% of ${steps[i - 1]!.label}` : "-"}
+              </div>
+            ) : null}
+            {s.href ? (
+              <Link href={s.href} className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 rounded-md px-2 outline-none transition-colors focus-visible:ring-2">
+                {bar}
+              </Link>
+            ) : (
+              bar
+            )}
+          </div>
+        );
+      })}
+      {footnote ? <div className="text-muted-foreground pt-2 text-xs">{footnote}</div> : null}
+    </div>
+  );
+}
+
+type SankeyLinkShape = {
+  sourceX: number;
+  targetX: number;
+  sourceY: number;
+  targetY: number;
+  sourceControlX: number;
+  targetControlX: number;
+  linkWidth: number;
+  index: number;
+};
+type SankeyNodeShape = { x: number; y: number; width: number; height: number; index: number };
+
+/** Sources on the left (slot colours), outcomes on the right (status colours); link width is the lead count. */
+export function SankeyChart({ nodes, links, height = 300 }: { nodes: FlowNode[]; links: FlowLink[]; height?: number }) {
+  if (links.length === 0) return <EmptyChart />;
+  const colors = nodes.map((n) => toneColor(n.tone));
+  const data = { nodes: nodes.map((n) => ({ name: n.name })), links };
+  const config = Object.fromEntries(nodes.map((n, i) => [`n${i}`, { label: n.name, color: colors[i] }])) satisfies ChartConfig;
+  const leftCount = links.reduce((m, l) => Math.max(m, l.source), 0) + 1;
+  const sums = nodes.map((_, i) => links.filter((l) => l.source === i || l.target === i).reduce((s, l) => s + l.value, 0));
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <Sankey
+        data={data}
+        nodeWidth={10}
+        nodePadding={14}
+        margin={{ top: 8, right: 88, bottom: 8, left: 88 }}
+        link={(p: SankeyLinkShape) => (
+          <path
+            d={`M${p.sourceX},${p.sourceY} C${p.sourceControlX},${p.sourceY} ${p.targetControlX},${p.targetY} ${p.targetX},${p.targetY}`}
+            fill="none"
+            stroke={colors[links[p.index]!.source]}
+            strokeOpacity={0.3}
+            strokeWidth={p.linkWidth}
+          />
+        )}
+        node={(p: SankeyNodeShape) => {
+          const left = p.index < leftCount;
+          return (
+            <g>
+              <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={2} fill={colors[p.index]} />
+              <text
+                x={left ? p.x - 6 : p.x + p.width + 6}
+                y={p.y + p.height / 2}
+                textAnchor={left ? "end" : "start"}
+                dominantBaseline="middle"
+                className="fill-foreground text-xs"
+              >
+                {fitLabel(nodes[p.index]!.name, 80)} <tspan className="fill-muted-foreground tabular-nums">{sums[p.index]!.toLocaleString()}</tspan>
+              </text>
+            </g>
+          );
+        }}
+      >
+        <ChartTooltip
+          content={({ active, payload }) => {
+            const item = payload?.[0]?.payload as { source?: { name: string }; target?: { name: string }; value?: number; name?: string } | undefined;
+            if (!active || !item) return null;
+            const isLink = item.source && item.target;
+            return (
+              <div className="bg-background border-border/50 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+                <span className="font-medium">{isLink ? `${item.source!.name} → ${item.target!.name}` : item.name}</span>
+                {isLink ? <span className="text-foreground ml-2 font-semibold tabular-nums">{item.value?.toLocaleString()}</span> : null}
+              </div>
+            );
+          }}
+        />
+      </Sankey>
+    </ChartContainer>
+  );
+}
+
+/** Start bar, signed steps, end bar on one y axis. Bars are floating ranges, so a running total that dips below zero still draws. */
+export function WaterfallChart({ start, steps, end, format = "currency", height = 300 }: WaterfallData & { format?: ValueFormat; height?: number }) {
+  if (start.value === 0 && steps.length === 0 && end.value === 0) return <EmptyChart />;
+  let run = start.value;
+  const bars = [
+    { label: start.label, range: [Math.min(0, start.value), Math.max(0, start.value)] as [number, number], delta: start.value, fill: "var(--chart-2)" },
+    ...steps.map((s) => {
+      const from = run;
+      run += s.value;
+      return {
+        label: s.label,
+        range: [Math.min(from, run), Math.max(from, run)] as [number, number],
+        delta: s.value,
+        fill: s.value < 0 ? "var(--chart-bad)" : "var(--chart-good)",
+      };
+    }),
+    { label: end.label, range: [Math.min(0, end.value), Math.max(0, end.value)] as [number, number], delta: end.value, fill: end.value >= 0 ? "var(--chart-good)" : "var(--chart-bad)" },
+  ];
+  const ticks = signedTicks(Math.min(0, ...bars.map((b) => b.range[0])), Math.max(0, ...bars.map((b) => b.range[1])));
+  const config = { range: { label: "Amount", color: "var(--chart-2)" } } satisfies ChartConfig;
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <BarChart accessibilityLayer data={bars} margin={{ top: 20 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+        <YAxis
+          ticks={ticks}
+          domain={[ticks[0]!, ticks.at(-1)!]}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={4}
+          width={48}
+          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString())}
+        />
+        <ReferenceLine y={0} stroke="var(--border)" />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              className="min-w-40 gap-2.5"
+              formatter={(_v, _n, item) => (
+                <div className="flex w-full items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 shrink-0 rounded-xs" style={{ background: item?.payload?.fill }} />
+                    <span className="text-muted-foreground">{item?.payload?.label}</span>
+                  </div>
+                  <span className="text-foreground font-semibold tabular-nums">{formatValue(item?.payload?.delta, format)}</span>
+                </div>
+              )}
+            />
+          }
+        />
+        <Bar dataKey="range" radius={4} maxBarSize={56} stroke="var(--card)" strokeWidth={2}>
+          {bars.map((b, i) => (
+            <Cell key={i} fill={b.fill} />
+          ))}
+          <LabelList
+            dataKey="delta"
+            position="top"
+            className="fill-foreground text-xs tabular-nums"
+            formatter={(v: unknown) => (format === "currency" ? moneyTick(Number(v)) : Number(v).toLocaleString())}
+          />
+        </Bar>
+      </BarChart>
+    </ChartContainer>
+  );
+}
