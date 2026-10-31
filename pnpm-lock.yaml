@@ -2068,7 +2068,7 @@ packages:
       react-dom: ^19
 
   '@foundry/eslint-config@https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460#path:tooling/eslint-config':
-    resolution: {gitHosted: true, integrity: sha512-RJFKJobpCQ8oti75lRwDATFlPYsG4BolwSZNZvcHrr9Y3Zp/90x2vBa4XjExUAEXj35guoaJAERfo2Fp/5HFjg==, path: tooling/eslint-config, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460}
+    resolution: {gitHosted: true, integrity: sha512-500eEJMlfmIiXJOJnsFAAbtHoS6hqnKCrhV0fTt4OJ7yUu7SfQpnJa8aQK+REwgQJiI6EiMc8crimdK7CaEG/g==, path: tooling/eslint-config, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460}
     version: 0.0.0
     peerDependencies:
       eslint: ^9
@@ -2104,7 +2104,7 @@ packages:
       react: ^19
 
   '@foundry/realtime-worker@https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460#path:services/realtime':
-    resolution: {gitHosted: true, integrity: sha512-RJFKJobpCQ8oti75lRwDATFlPYsG4BolwSZNZvcHrr9Y3Zp/90x2vBa4XjExUAEXj35guoaJAERfo2Fp/5HFjg==, path: services/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460}
+    resolution: {gitHosted: true, integrity: sha512-500eEJMlfmIiXJOJnsFAAbtHoS6hqnKCrhV0fTt4OJ7yUu7SfQpnJa8aQK+REwgQJiI6EiMc8crimdK7CaEG/g==, path: services/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460}
     version: 0.0.0
 
   '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/341f39b9a034c2ab0eb9cafaa87f1df3a5d0c460#path:packages/realtime':
