@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, SectionCard, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -214,7 +215,7 @@ export function GroupView({
                   </div>
                 }
                 rowKey={(m) => m.publicId}
-                serial={false}
+                pagination="client"
                 emptyIcon={UsersIcon}
                 emptyMessage={memberTerm ? `No matches for "${memberTerm}"` : memberFiltered ? "No customers match these filters." : "This group has no customers yet."}
                 emptyAction={
@@ -236,15 +237,13 @@ export function GroupView({
                     <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>
                     <TableCell className="tabular-nums">{m.lastTiffin ?? ""}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove ${m.name ?? "customer"}`}
+                      <RowActionTooltipButton
+                        icon={Trash2Icon}
+                        label={`Remove ${m.name ?? "customer"}`}
+                        hint="Remove from group"
                         disabled={busy === `rm-${m.publicId}`}
                         onClick={() => void remove(m)}
-                      >
-                        <Trash2Icon />
-                      </Button>
+                      />
                     </TableCell>
                   </>
                 )}
@@ -264,7 +263,7 @@ export function GroupView({
                 </div>
               }
               rowKey={(a) => a.publicId}
-              serial={false}
+              pagination="client"
               emptyIcon={CoinsIcon}
               emptyMessage={activityTerm ? `No matches for "${activityTerm}"` : activityFiltered ? "No activity matches these filters." : "Nothing has been done to this group yet."}
               emptyAction={

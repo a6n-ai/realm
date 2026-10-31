@@ -74,7 +74,8 @@ export function MemberStatuses({ actionPublicId }: { actionPublicId: string }) {
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
-        serial={false}
+        pagination="client"
+        pageSize={10}
         emptyIcon={UsersIcon}
         emptyMessage="No members were recorded for this action."
         renderRow={(r) => (
