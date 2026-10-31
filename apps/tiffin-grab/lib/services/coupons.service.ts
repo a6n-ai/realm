@@ -394,6 +394,22 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     });
   }
 
+  // Money back means the coupon goes back: drops the order's redemptions so the
+  // customer's per-user cap and the global count free up. The ledger keeps its
+  // discount debit (append-only).
+  async releaseForOrder(tx: Tx, orderId: bigint): Promise<void> {
+    const released = await tx
+      .delete(couponRedemptions)
+      .where(eq(couponRedemptions.orderId, orderId))
+      .returning({ couponId: couponRedemptions.couponId });
+    for (const r of released) {
+      await tx
+        .update(coupons)
+        .set({ redemptionCount: sql`greatest(${coupons.redemptionCount} - 1, 0)` })
+        .where(eq(coupons.id, r.couponId));
+    }
+  }
+
   // Cron mint: idempotent via the partial unique index (one per rep per allowance day).
   // Returns true when a row was actually inserted, false when the rep already had
   // today's coupon (the conflict path) — lets the caller report minted vs skipped.

@@ -1160,6 +1160,7 @@ export async function refundPaymentInTx(
     // Money back means coins back: a refunded order's spent coins return too.
     await reverseCoinRedemption(tx, { userId: i.userId, orderId: i.orderId });
   }
+  await couponsService.releaseForOrder(tx, i.orderId);
   await reverseReferral(tx, { id: i.orderId });
 }
 
