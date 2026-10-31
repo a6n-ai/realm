@@ -22,6 +22,7 @@ import {
   ReferenceLine,
   Pie,
   PieChart,
+  Treemap,
   XAxis,
   YAxis,
 } from "recharts";
@@ -33,6 +34,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import type { TreemapNode } from "recharts";
 import {
   Tooltip,
   TooltipContent,
@@ -40,11 +42,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
+import type { TreemapGroup } from "@/lib/analytics/size-treemap";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
   axisTicks,
   calendarWeeks,
+  categoricalColor,
   chartColor as tokenColor,
   foldParts,
   heatBucket,
@@ -747,6 +751,94 @@ export function PartsDonut({
       </ul>
       {footnote ? <p className="text-muted-foreground pt-2 text-xs">{footnote}</p> : null}
       </div>
+    </div>
+  );
+}
+
+/** Lowest a size shade goes: the plan colour mixed this far toward the card. */
+const SHADE_FLOOR = 55;
+
+function TreemapCell({ node, format }: { node: TreemapNode; format: ValueFormat }) {
+  if (node.depth !== 2) return <g />;
+  const { x, y, width, height, name, value } = node;
+  const label = truncateLabel(name, Math.floor((width - 12) / 6.5));
+  const room = width > 56 && height > 24;
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={String(node.color)} stroke="var(--card)" strokeWidth={2} />
+      {room ? (
+        <text x={x + 6} y={y + 16} className="fill-foreground text-xs font-medium" style={{ paintOrder: "stroke", stroke: "var(--card)", strokeWidth: 3 }}>
+          {label}
+        </text>
+      ) : null}
+      {room && height > 40 ? (
+        <text x={x + 6} y={y + 31} className="fill-foreground text-xs tabular-nums" style={{ paintOrder: "stroke", stroke: "var(--card)", strokeWidth: 3 }}>
+          {formatValue(value, format)}
+        </text>
+      ) : null}
+    </g>
+  );
+}
+
+/** Plan groups in categorical colours, each plan's sizes in shades of it (largest = full colour). Boxes truncate; the tooltip has the full name. */
+export function TreemapChart({
+  data,
+  format = "number",
+  height = 320,
+}: {
+  data: TreemapGroup[];
+  format?: ValueFormat;
+  height?: number;
+}) {
+  if (data.length === 0) return <EmptyChart />;
+  const total = data.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0);
+  const nodes = data.map((g, gi) => ({
+    name: g.name,
+    plan: g.name,
+    children: g.children.map((c, ci) => ({
+      ...c,
+      plan: g.name,
+      color: `color-mix(in oklch, ${categoricalColor(gi)} ${Math.round(100 - ((100 - SHADE_FLOOR) * ci) / Math.max(1, g.children.length - 1))}%, var(--card))`,
+    })),
+  }));
+  const config = Object.fromEntries(data.map((g, i) => [`p${i}`, { label: g.name, color: categoricalColor(i) }])) satisfies ChartConfig;
+  return (
+    <div className="flex flex-col gap-3">
+      <ChartContainer config={config} className="w-full" style={{ height }}>
+        <Treemap
+          data={nodes}
+          dataKey="value"
+          nameKey="name"
+          isAnimationActive={false}
+          content={(node) => <TreemapCell node={node} format={format} />}
+        >
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                hideLabel
+                className="min-w-40 gap-2.5"
+                formatter={(value, name, item) => (
+                  <div className="flex w-full flex-col gap-0.5">
+                    <span className="font-medium">{name}</span>
+                    <span className="text-muted-foreground">{item?.payload?.plan}</span>
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {formatValue(value, format)} · {fmtPct(total > 0 ? Math.round((Number(value) / total) * 100) : 0)}
+                    </span>
+                  </div>
+                )}
+              />
+            }
+          />
+        </Treemap>
+      </ChartContainer>
+      <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {data.map((g, i) => (
+          <li key={`${g.name}-${i}`} className="flex items-center gap-1.5">
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: categoricalColor(i) }} />
+            {g.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

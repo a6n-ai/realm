@@ -14,7 +14,7 @@ export type OperationsStats = {
 };
 
 /** Deliveries by delivery date, for orders in the franchise / facet scope (the order's own organization_id). */
-function deliveryWhere(scope: AnalyticsScope) {
+export function deliveryWhere(scope: AnalyticsScope) {
   const orderScope = ordersScope(scope);
   return and(
     dateWhereCalendar(deliveries.deliveryDate, { fromMs: scope.fromMs, toMs: scope.toMs, tz: scope.tz }),

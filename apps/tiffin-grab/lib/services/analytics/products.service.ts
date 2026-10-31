@@ -1,8 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, mealSizes, orders, payments, plans } from "@/db/schema";
+import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orders, payments, plans } from "@/db/schema";
+import type { SizeSale } from "@/lib/analytics/size-treemap";
 import { revenueBy } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { deliveryWhere } from "./operations.service";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -58,13 +60,89 @@ export async function getProductStats(scope: AnalyticsScope): Promise<ProductSta
 export async function getTopDishes(limit = 8, scope: AnalyticsScope) {
   if (noOrgs(scope)) return [];
   return db
-    .select({ dish: dishes.name, n: intCount })
+    .select({ dish: dishes.name, category: sql<string>`min(${dishCategories.label})`, n: intCount })
     .from(mealSelections)
     .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
+    .innerJoin(dishCategories, eq(mealSelections.categoryId, dishCategories.id))
     .where(selectionOrderIds(scope))
     .groupBy(dishes.name)
     .orderBy(sql`count(*) desc`)
     .limit(limit);
+}
+
+/** Picks per dish category, most picked first; sums to ProductStats.totalSelections. */
+export async function picksByCategory(scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
+  return db
+    .select({ label: dishCategories.label, n: intCount })
+    .from(mealSelections)
+    .innerJoin(dishCategories, eq(mealSelections.categoryId, dishCategories.id))
+    .where(selectionOrderIds(scope))
+    .groupBy(dishCategories.label)
+    .orderBy(sql`count(*) desc`);
+}
+
+const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;
+
+/** Customers who picked dishes on orders in range, against customers with a scheduled delivery in range. */
+export async function getPickers(scope: AnalyticsScope) {
+  if (noOrgs(scope)) return { pickers: 0, customers: 0 };
+  const [[{ n: pickers }], [{ n: customers }]] = await Promise.all([
+    db.select({ n: distinctUsers }).from(mealSelections).innerJoin(orders, eq(mealSelections.orderId, orders.id)).where(selectionOrderIds(scope)),
+    db
+      .select({ n: distinctUsers })
+      .from(deliveries)
+      .innerJoin(orders, eq(deliveries.orderId, orders.id))
+      .where(and(eq(deliveries.status, "scheduled"), deliveryWhere(scope))),
+  ]);
+  return { pickers, customers };
+}
+
+/** Tiffins delivered (scheduled units, by delivery date) per plan and meal size, custom sizes included. */
+export async function tiffinsBySize(scope: AnalyticsScope) {
+  if (noOrgs(scope)) return [];
+  return db
+    .select({
+      plan: plans.name,
+      key: mealSizes.key,
+      name: mealSizes.name,
+      custom: mealSizes.custom,
+      tiffins: sql<number>`cast(coalesce(sum(${deliveries.tiffinUnits}), 0) as int)`,
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(plans, eq(mealSizes.planId, plans.id))
+    .where(and(eq(deliveries.status, "scheduled"), deliveryWhere(scope)))
+    .groupBy(plans.name, mealSizes.key, mealSizes.name, mealSizes.custom);
+}
+
+/**
+ * Net revenue (payment date) and tiffins (delivery date) per meal size, custom sizes included, so the revenue column
+ * sums to the Revenue tab's net. A size with money but no deliveries in range (or the reverse) still gets a row.
+ */
+export async function getSizeSales(scope: AnalyticsScope): Promise<SizeSale[]> {
+  const [buckets, tiffins, sizes] = await Promise.all([
+    revenueBy(scope, "mealSize"),
+    tiffinsBySize(scope),
+    db
+      .select({ key: mealSizes.key, name: mealSizes.name, custom: mealSizes.custom, plan: plans.name })
+      .from(mealSizes)
+      .innerJoin(plans, eq(mealSizes.planId, plans.id)),
+  ]);
+  const byKey = new Map(sizes.map((s) => [s.key, s]));
+  const out = new Map<string, SizeSale>();
+  const row = (key: string) => {
+    const s = byKey.get(key);
+    const existing = out.get(key);
+    if (existing) return existing;
+    const made = { plan: s?.plan ?? "Other", size: s?.name ?? "Unknown size", custom: s?.custom ?? false, revenue: 0, tiffins: 0 };
+    out.set(key, made);
+    return made;
+  };
+  for (const b of buckets) row(b.key).revenue += b.net;
+  for (const t of tiffins) row(t.key).tiffins += t.tiffins;
+  return [...out.values()];
 }
 
 // "Paid by ..." is Revenue's definition (net ex tax and surcharge, after refunds, by capture date),

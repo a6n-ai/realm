@@ -5,11 +5,15 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { db } = await import("@/db/client");
-const { dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, menuWeeks, orders, payments, plans, users } =
+const { deliveries, dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, menuWeeks, orders, payments, plans, users } =
   await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { revenueBy, revenueTotals } = await import("../metrics/money");
-const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes } = await import("../products.service");
+const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes, getSizeSales, picksByCategory, tiffinsBySize, getPickers } =
+  await import("../products.service");
+const { getDeliveryStatusMix } = await import("../operations.service");
+const { buildSizeTreemap, treemapTotal } = await import("@/lib/analytics/size-treemap");
+const { isoDateInZone } = await import("@/lib/analytics/profitability");
 
 const TZ = "America/Toronto";
 const now = Date.now();
@@ -126,6 +130,34 @@ describe("products analytics", () => {
     expect(stats.ordersWithPicks).toBe(2);
     const top = await getTopDishes(5, scope);
     expect(top.find((d) => d.dish.startsWith("Fixture dish"))?.n).toBe(2);
+  });
+
+  it("size treemap, tiffins and category picks tie back to the other tabs", async () => {
+    await cleanOrders();
+    const a = await makeOrder({ planIdx: 0, paid: "113.00", deploymentId: "PRD-F" });
+    const b = await makeOrder({ planIdx: 1, paid: "56.50", deploymentId: "PRD-G" });
+    const day = isoDateInZone(now, TZ);
+    for (const o of [a, b]) {
+      await db.insert(deliveries).values({ orderId: o.id, deliveryDate: day, cutoffAt: now, status: "scheduled", tiffinUnits: 1 });
+    }
+
+    const sales = await getSizeSales(payScope);
+    const net = (await revenueTotals(payScope)).net;
+    const order = () => 0;
+    expect(treemapTotal(buildSizeTreemap(sales, "revenue", order))).toBeCloseTo(net, 2);
+
+    const bySize = await tiffinsBySize(scope);
+    const delivered = bySize.reduce((s, r) => s + r.tiffins, 0);
+    const scheduled = (await getDeliveryStatusMix(scope)).find((r) => r.key === "scheduled")?.n ?? 0;
+    expect(delivered).toBe(scheduled);
+    expect(treemapTotal(buildSizeTreemap(await getSizeSales(scope), "tiffins", order))).toBe(delivered);
+
+    const picks = (await picksByCategory(scope)).reduce((s, r) => s + r.n, 0);
+    expect(picks).toBe((await getProductStats(scope)).totalSelections);
+
+    const { pickers, customers } = await getPickers(scope);
+    expect(pickers).toBeGreaterThanOrEqual(2);
+    expect(customers).toBeGreaterThanOrEqual(2);
   });
 
   it("is empty for a scope with no franchise", async () => {

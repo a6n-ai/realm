@@ -14,6 +14,7 @@ const Breakdown = lazy(() =>
 
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
 const Parts = lazy(() => load().then((m) => ({ default: m.PartsDonut })));
+const Treemap = lazy(() => load().then((m) => ({ default: m.TreemapChart })));
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
 const Calendar = lazy(() =>
   load().then((m) => ({ default: m.CalendarHeatmap })),
@@ -64,6 +65,7 @@ export const TrendLineChart = wrap(Trend);
 export const BreakdownBarChart = wrap(Breakdown, true);
 export const SegmentedBar = wrap(Segmented);
 export const PartsDonut = wrap(Parts);
+export const TreemapChart = wrap(Treemap);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
 

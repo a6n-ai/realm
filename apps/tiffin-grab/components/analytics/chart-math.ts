@@ -23,6 +23,9 @@ export const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;
 // --chart-4 is red and would read as a status, so categorical parts always skip it.
 const CATEGORICAL = [1, 2, 3, 5];
 
+/** The i-th categorical colour, skipping the status red. */
+export const categoricalColor = (i: number) => `var(--chart-${CATEGORICAL[i % CATEGORICAL.length]})`;
+
 /** Largest-remainder rounding so whole-number shares always add to exactly 100. */
 function shares(values: number[]): number[] {
   const total = values.reduce((a, b) => a + b, 0);
