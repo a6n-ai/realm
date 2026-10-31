@@ -33,3 +33,4 @@ export * from "./discounts";
 export * from "./delivery";
 export * from "./addresses";
 export * from "./stripe-events";
+export * from "./coin-grants";
