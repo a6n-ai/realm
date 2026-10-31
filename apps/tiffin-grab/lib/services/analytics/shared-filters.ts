@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones, mealSizes, organization, plans } from "@/db/schema";
+import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { ticketOrgWhere } from "./complaint-filters";
 import { dateWhere, dateWhereCalendar, ordersScope, resolveAnalyticsScope } from "./metrics/scope";
 import {
   parseAnalyticsFilters as parseAnalyticsFiltersSync,
@@ -67,7 +68,11 @@ export function ordersMatchFilters(f: AnalyticsFilters): SQL | undefined {
 export async function getAnalyticsFilterOptions(
   visibleOrgIds: "all" | string[],
 ): Promise<AnalyticsFilterOptions> {
-  const [planRows, sizeRows, zoneRows, orgRows] = await Promise.all([
+  const noOrgs = visibleOrgIds !== "all" && visibleOrgIds.length === 0;
+  const orderOrg = visibleOrgIds === "all" ? undefined : noOrgs ? sql`false` : inArray(orders.organizationId, visibleOrgIds);
+  const hasOrder = (col: typeof orders.mealSizeId | typeof orders.zoneId, id: typeof mealSizes.id | typeof deliveryZones.id) =>
+    exists(db.select({ one: orders.id }).from(orders).where(and(eq(col, id), orderOrg)));
+  const [planRows, sizeRows, zoneRows, orgRows, ticketRows] = await Promise.all([
     db
       .select({ value: plans.key, label: plans.name })
       .from(plans)
@@ -77,7 +82,7 @@ export async function getAnalyticsFilterOptions(
       .select({ value: mealSizes.key, label: mealSizes.name, parent: plans.key })
       .from(mealSizes)
       .innerJoin(plans, eq(mealSizes.planId, plans.id))
-      .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false)))
+      .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false), hasOrder(orders.mealSizeId, mealSizes.id)))
       .orderBy(asc(mealSizes.name)),
     visibleOrgIds !== "all" && visibleOrgIds.length === 0
       ? Promise.resolve([])
@@ -87,6 +92,7 @@ export async function getAnalyticsFilterOptions(
           .where(
             and(
               eq(deliveryZones.active, true),
+              hasOrder(orders.zoneId, deliveryZones.id),
               visibleOrgIds === "all" ? undefined : inArray(deliveryZones.organizationId, visibleOrgIds),
             ),
           )
@@ -98,6 +104,19 @@ export async function getAnalyticsFilterOptions(
           .from(organization)
           .where(visibleOrgIds === "all" ? undefined : inArray(organization.id, visibleOrgIds))
           .orderBy(asc(organization.name)),
+    noOrgs
+      ? Promise.resolve([])
+      : db
+          .selectDistinct({ category: tickets.category, subcategory: tickets.subcategory })
+          .from(tickets)
+          .leftJoin(orders, eq(tickets.orderId, orders.id))
+          .where(ticketOrgWhere(visibleOrgIds)),
   ]);
-  return { plans: planRows, mealSizes: sizeRows, zones: zoneRows, orgs: orgRows };
+  return {
+    plans: planRows,
+    mealSizes: sizeRows,
+    zones: zoneRows,
+    orgs: orgRows,
+    tickets: ticketRows.flatMap((t) => (t.subcategory ? [{ category: t.category, subcategory: t.subcategory }] : [{ category: t.category }])),
+  };
 }

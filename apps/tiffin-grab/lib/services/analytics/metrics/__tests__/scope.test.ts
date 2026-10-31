@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { isoDateInZone } from "@/lib/analytics/profitability";
+import { DATE_PRESETS, presetRange } from "@/lib/analytics/date-presets";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { parseAnalyticsFilters } from "../../shared-filters";
 import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
@@ -107,5 +108,14 @@ describe("parseAnalyticsFilters (session required)", () => {
   it("throws no_visible_orgs for a null session", async () => {
     visibleMock.mockResolvedValue([]);
     await expect(parseAnalyticsFilters({}, null)).rejects.toMatchObject({ reason: "no_visible_orgs" });
+  });
+});
+
+describe("date presets round-trip through the scope parser", () => {
+  it.each(DATE_PRESETS.map((p) => p.key))("%s keeps its from/to", (key) => {
+    const now = Date.parse("2026-10-20T15:00:00Z");
+    const r = presetRange(key, TZ, now);
+    const scope = buildAnalyticsScope({ from: String(r.from), to: String(r.to) }, "all", TZ, now);
+    expect([scope.fromMs, scope.toMs]).toEqual([r.from, r.to]);
   });
 });

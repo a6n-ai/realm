@@ -5,6 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { RangeCalendarPicker } from "@/components/filters/range-calendar-picker";
 import { useListNav } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { activePreset, DATE_PRESETS, presetRange, type DatePresetKey } from "@/lib/analytics/date-presets";
 import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-params";
 
 /**
@@ -12,7 +14,7 @@ import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-p
  * set, fills the current month in the business timezone so the picker and the
  * server query describe the same window.
  */
-export function DefaultDateRange() {
+export function DefaultDateRange({ presets = false }: { presets?: boolean }) {
   const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -46,13 +48,30 @@ export function DefaultDateRange() {
     nav(`${pathname}?${sp.toString()}`);
   };
 
+  const shown = hasUrlRange ? { from, to } : defaults;
+  const active = activePreset(shown, timezone);
+
   return (
-    <RangeCalendarPicker
-      label="Date"
-      from={hasUrlRange ? from : defaults.from}
-      to={hasUrlRange ? to : defaults.to}
-      timeZone={timezone}
-      onChange={writeRange}
-    />
+    <>
+      <RangeCalendarPicker label="Date" from={shown.from} to={shown.to} timeZone={timezone} onChange={writeRange} />
+      {presets && (
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        aria-label="Date presets"
+        value={active ?? ""}
+        onValueChange={(key) => {
+          if (key) writeRange(presetRange(key as DatePresetKey, timezone));
+        }}
+      >
+        {DATE_PRESETS.map((p) => (
+          <ToggleGroupItem key={p.key} value={p.key}>
+            {p.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      )}
+    </>
   );
 }

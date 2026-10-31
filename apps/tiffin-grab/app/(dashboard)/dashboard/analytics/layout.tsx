@@ -6,6 +6,7 @@ import { BarChart3Icon } from "lucide-react";
 import { PageShell, PageHeader, type FacetDef } from "@/components/ds";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
 import { getAnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
+import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
 import { REVENUE_METHODS } from "@/lib/services/analytics/revenue.service";
 import { methodLabel } from "@/lib/analytics/revenue";
 import { categoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
@@ -24,25 +25,30 @@ const REVENUE_FACETS: FacetDef[] = [
   },
 ];
 
-const COMPLAINT_FACETS: FacetDef[] = [
-  {
-    kind: "multi",
-    field: "category",
-    label: "Category",
-    options: TICKET_CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) })),
-  },
-  {
-    kind: "multi",
-    field: "subcategory",
-    label: "Sub-category",
-    dependsOn: "category",
-    options: TICKET_CATEGORIES.flatMap((c) =>
-      SUBCATEGORIES[c].map((s) => ({ value: s.value, label: s.label, parent: c })),
-    ),
-  },
-  { kind: "multi", field: "status", label: "Status", options: STATUS_OPTIONS.map((s) => ({ ...s })) },
-  { kind: "multi", field: "priority", label: "Priority", options: PRIORITY_OPTIONS.map((p) => ({ ...p })) },
-];
+/** Only categories and sub-categories that have tickets in the viewer's franchises. */
+function complaintFacets(tickets: AnalyticsFilterOptions["tickets"]): FacetDef[] {
+  const cats = new Set(tickets.map((t) => t.category));
+  const pairs = new Set(tickets.flatMap((t) => (t.subcategory ? [`${t.category}/${t.subcategory}`] : [])));
+  return [
+    {
+      kind: "select",
+      field: "category",
+      label: "Category",
+      options: TICKET_CATEGORIES.filter((c) => cats.has(c)).map((c) => ({ value: c, label: categoryLabel(c) })),
+    },
+    {
+      kind: "multi",
+      field: "subcategory",
+      label: "Sub-category",
+      dependsOn: "category",
+      options: TICKET_CATEGORIES.flatMap((c) =>
+        SUBCATEGORIES[c].filter((s) => pairs.has(`${c}/${s.value}`)).map((s) => ({ value: s.value, label: s.label, parent: c })),
+      ),
+    },
+    { kind: "multi", field: "status", label: "Status", options: STATUS_OPTIONS.map((s) => ({ ...s })) },
+    { kind: "multi", field: "priority", label: "Priority", options: PRIORITY_OPTIONS.map((p) => ({ ...p })) },
+  ];
+}
 
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
@@ -81,7 +87,7 @@ async function SharedFilters({ visible }: { visible: "all" | string[] }) {
     <AnalyticsFilters
       options={options}
       revenueFacets={REVENUE_FACETS}
-      complaintFacets={COMPLAINT_FACETS}
+      complaintFacets={complaintFacets(options.tickets)}
     />
   );
 }

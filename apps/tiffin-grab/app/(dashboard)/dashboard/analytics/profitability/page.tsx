@@ -230,10 +230,12 @@ async function Costs({ view }: { view: View }) {
 
 async function MigratedNote({ view }: { view: View }) {
   const { migratedTiffinsExcluded: n, migratedAddonPayments: addons } = await reportFrom(view);
-  if (n === 0) return null;
+  if (n === 0 && addons === 0) return null;
   return (
     <p className="text-muted-foreground text-xs">
-      {n} {n === 1 ? "tiffin" : "tiffins"} from orders migrated from the old site {n === 1 ? "is" : "are"} not counted (paid on the old site, no price stored).{addons > 0 ? " Add-on payments on these orders are also not counted." : ""}
+      {n > 0 ? `${n} ${n === 1 ? "tiffin" : "tiffins"} from orders migrated from the old site ${n === 1 ? "is" : "are"} not counted (paid on the old site, no price stored).` : null}
+      {n > 0 && addons > 0 ? " " : null}
+      {addons > 0 ? "Add-on payments on these orders are also not counted in earned revenue." : null}
     </p>
   );
 }

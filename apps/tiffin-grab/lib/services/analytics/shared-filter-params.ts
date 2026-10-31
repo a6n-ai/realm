@@ -86,6 +86,8 @@ export type AnalyticsFilterOptions = {
   mealSizes: { value: string; label: string; parent: string }[];
   zones: { value: string; label: string }[];
   orgs: { value: string; label: string }[];
+  /** Ticket category / sub-category pairs that have rows in the visible orgs (complaints facets). */
+  tickets: { category: string; subcategory?: string }[];
 };
 
 /** Carries every analytics filter param (including org) onto another analytics path. */
