@@ -91,17 +91,28 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
       title="What share of trials became a plan?"
       subtitle={
         has
-          ? `${t.converted} of ${t.eligible} trials that ended ${t.windowDays}+ days ago went on to a later plan.`
+          ? `Trials that ended ${t.windowDays}+ days ago and went on to a later plan.`
           : t.open > 0
             ? `${t.open} still open`
             : "No trials ended in range"
       }
     >
-      <RadialRateChart
-        data={has ? [{ label: "Trial → Plan", rate: t.conversionRatePct! }] : []}
-        nameKey="label"
-        valueKey="rate"
-      />
+      <div className="flex flex-col gap-3">
+        <RadialRateChart
+          data={has ? [{ label: "Trial → Plan", rate: t.conversionRatePct! }] : []}
+          nameKey="label"
+          valueKey="rate"
+          caption="converted"
+        />
+        {has ? (
+          <p className="text-muted-foreground text-center text-sm">
+            <span className="text-foreground font-semibold tabular-nums">
+              {t.converted} of {t.eligible}
+            </span>{" "}
+            trials converted
+          </p>
+        ) : null}
+      </div>
     </ChartCard>
   );
 }

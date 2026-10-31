@@ -211,12 +211,13 @@ const STATUS_TONE: Record<string, Tone> = {
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
+  const href = links(scope);
   return (
     <SegmentedBar
       format="currency"
       withList
       max={7}
-      parts={report.byStatus.map((s) => ({ label: s.label, value: s.amount, tone: STATUS_TONE[s.status] ?? "muted" }))}
+      parts={report.byStatus.map((s) => ({ label: s.label, value: s.amount, tone: STATUS_TONE[s.status] ?? "muted", href: href([s.status]) }))}
     />
   );
 }
@@ -231,6 +232,7 @@ async function Owed({ scope }: { scope: AnalyticsScope }) {
         data={total > 0 ? [{ label: "Collected", rate: Number(rate.toFixed(rate < 10 ? 1 : 0)) }] : []}
         nameKey="label"
         valueKey="rate"
+        caption="collected"
       />
       <dl className="flex flex-col gap-1.5 text-sm">
         <div className="flex items-baseline justify-between gap-2">
@@ -255,7 +257,8 @@ async function NetByDay({ scope }: { scope: AnalyticsScope }) {
 
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
-  return <SegmentedBar format="currency" withList parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount }))} />;
+  const href = links(scope);
+  return <SegmentedBar format="currency" withList parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, href: href(SETTLED_STATUSES, [m.key]) }))} />;
 }
 
 const SOURCE_LABEL: Record<DiscountSource, string> = {

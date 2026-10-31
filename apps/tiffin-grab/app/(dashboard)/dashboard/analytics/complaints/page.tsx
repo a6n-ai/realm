@@ -13,6 +13,7 @@ import type { Tone } from "@/components/analytics/chart-math";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import {
+  NOT_LINKED,
   complaintHref,
   scopeToComplaintFilters,
   type ComplaintFilters,
@@ -205,7 +206,7 @@ async function Trend({ scope }: { scope: AnalyticsScope }) {
   return <HoverValueBarChart data={rows} xKey="period" tipKey="tip" yKey="n" label="Complaints" totalLabel="Complaints" />;
 }
 
-async function Categories({ scope }: { scope: AnalyticsScope; drill?: string }) {
+async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {
   const rows = await getByCategory(scope);
   return (
     <BreakdownBarChart
@@ -214,11 +215,16 @@ async function Categories({ scope }: { scope: AnalyticsScope; drill?: string }) 
         n: r.n,
         // Selecting a category drills in place; the link keeps every other filter.
         href: `?${new URLSearchParams([...scopeToSearchParams(scope), ["drill", r.value]])}`,
+        active: drill === r.value ? 1 : 0,
+        // Feedback and suggestions are shown but not counted as complaints.
+        muted: r.isComplaint ? 0 : 1,
       }))}
       xKey="category"
       yKey="n"
       label="Complaints"
       hrefKey="href"
+      activeKey="active"
+      mutedKey="muted"
     />
   );
 }
@@ -227,19 +233,33 @@ async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope
   if (!category) {
     return <p className="text-muted-foreground py-8 text-center text-sm">Pick a category to break it down.</p>;
   }
+  const filters = scopeToComplaintFilters(scope);
   const rows = await getBySubcategory(scope, category);
-  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
+  return (
+    <BreakdownBarChart
+      data={rows.map((r) => ({
+        label: r.label,
+        n: r.n,
+        href: ticketsHref(filters, { categories: [category], subcategories: r.value ? [r.value] : [] }),
+      }))}
+      xKey="label"
+      yKey="n"
+      label="Complaints"
+      hrefKey="href"
+    />
+  );
 }
 
 const TICKET_TONE: Record<string, Tone> = { new: "warning", resolved: "success", closed: "muted" };
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
   const rows = await getStatusMix(scope);
   return (
     <SegmentedBar
       withList
       max={6}
-      parts={rows.map((r) => ({ label: r.status, value: r.n, tone: TICKET_TONE[r.value] ?? "chart" }))}
+      parts={rows.map((r) => ({ label: r.status, value: r.n, tone: TICKET_TONE[r.value] ?? "chart", href: ticketsHref(filters, { statuses: [r.value] }) }))}
     />
   );
 }
@@ -276,11 +296,31 @@ async function RepeatCustomers({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function Plans({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
   const rows = await getByPlan(scope);
-  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
+  return (
+    <BreakdownBarChart
+      data={rows.map((r) => ({ label: r.label, n: r.n, href: ticketsHref(filters, { plans: [r.value] }), muted: r.value === NOT_LINKED ? 1 : 0 }))}
+      xKey="label"
+      yKey="n"
+      label="Complaints"
+      hrefKey="href"
+      mutedKey="muted"
+    />
+  );
 }
 
 async function Zones({ scope }: { scope: AnalyticsScope }) {
+  const filters = scopeToComplaintFilters(scope);
   const rows = await getByZone(scope);
-  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
+  return (
+    <BreakdownBarChart
+      data={rows.map((r) => ({ label: r.label, n: r.n, href: ticketsHref(filters, { zones: [r.value] }), muted: r.value === NOT_LINKED ? 1 : 0 }))}
+      xKey="label"
+      yKey="n"
+      label="Complaints"
+      hrefKey="href"
+      mutedKey="muted"
+    />
+  );
 }

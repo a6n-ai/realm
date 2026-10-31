@@ -41,7 +41,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Lead stages" subtitle="Where every lead in range sits in the pipeline.">
+        <ChartCard title="Lead stages" subtitle="Where every lead in range sits in the pipeline. Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
           </Suspense>
@@ -125,7 +125,7 @@ async function StageChart({ scope }: { scope: AnalyticsScope }) {
       max={6}
       parts={[...rows]
         .sort((a, b) => STAGE_ORDER.indexOf(a.key) - STAGE_ORDER.indexOf(b.key))
-        .map((r) => ({ label: r.stage, value: r.n, tone: STAGE_TONE[r.key] ?? "chart" }))}
+        .map((r) => ({ label: r.stage, value: r.n, tone: STAGE_TONE[r.key] ?? "chart", href: inquiriesHref(scope, { stage: r.key }) }))}
     />
   );
 }
@@ -138,6 +138,7 @@ async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
         data={s.total === 0 ? [] : [{ label: "Converted", rate: s.conversionRatePct }]}
         nameKey="label"
         valueKey="rate"
+        caption="converted"
       />
       {s.total > 0 ? (
         <p className="text-muted-foreground text-center text-sm">

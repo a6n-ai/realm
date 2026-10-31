@@ -48,7 +48,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Subscription status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. `}>
+        <ChartCard title="Subscription status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <MixChart scope={scope} />
           </Suspense>
@@ -119,7 +119,7 @@ const ORDER_TONE: Record<string, Tone> = {
 
 async function MixChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSubscriptionMix(scope);
-  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart" }))} />;
+  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
 }
 
 async function CitiesChart({ scope }: { scope: AnalyticsScope }) {

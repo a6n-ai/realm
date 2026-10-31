@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   axisTicks,
+  signedTicks,
   moneyTick,
   tickEvery,
   truncateLabel,
@@ -134,5 +135,18 @@ describe("axis helpers", () => {
   it("truncates long names to 18 characters", () => {
     expect(truncateLabel("Short")).toBe("Short");
     expect(truncateLabel("Maharaja Thali with extras")).toHaveLength(18);
+  });
+});
+
+describe("signedTicks", () => {
+  it("spans negative and positive values on one step and includes 0", () => {
+    const t = signedTicks(-300, 900);
+    expect(t).toContain(0);
+    expect(t[0]!).toBeLessThanOrEqual(-300);
+    expect(t.at(-1)!).toBeGreaterThanOrEqual(900);
+    expect(t.length).toBeLessThanOrEqual(9);
+  });
+  it("handles all-positive data", () => {
+    expect(signedTicks(100, 4000)[0]).toBe(0);
   });
 });

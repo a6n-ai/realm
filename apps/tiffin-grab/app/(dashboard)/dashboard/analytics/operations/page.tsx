@@ -65,7 +65,7 @@ async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
   const data = s.totalDeliveries === 0 ? [] : [{ label: "Skip rate", rate: s.skipRatePct }];
   return (
     <div className="flex flex-col gap-3">
-      <RadialRateChart data={data} nameKey="label" valueKey="rate" />
+      <RadialRateChart data={data} nameKey="label" valueKey="rate" caption="skipped" />
       {s.totalDeliveries > 0 ? (
         <p className="text-muted-foreground text-center text-sm">
           <span className="text-foreground font-semibold tabular-nums">

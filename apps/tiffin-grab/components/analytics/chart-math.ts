@@ -1,5 +1,5 @@
 export type Tone = "success" | "warning" | "destructive" | "muted" | "chart";
-export type Part = { label: string; value: number; tone?: Tone };
+export type Part = { label: string; value: number; tone?: Tone; href?: string };
 export type SharedPart = Part & { share: number; color: string };
 
 export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
@@ -141,4 +141,12 @@ export const tickEvery = (points: number) => Math.max(0, Math.ceil(points / 8) -
 export function truncateLabel(v: unknown, max = 18): string {
   const s = String(v ?? "");
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+/** Ticks for a chart that can go negative: nice min and max on one step, always including 0. */
+export function signedTicks(min: number, max: number): number[] {
+  const step = axisStep(Math.max(max, -min, 1) * 2, 6) / 1;
+  const lo = Math.floor(Math.min(min, 0) / step) * step;
+  const hi = Math.ceil(Math.max(max, 0) / step) * step;
+  return Array.from({ length: Math.round((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
 }

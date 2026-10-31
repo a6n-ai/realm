@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useId,
   useState,
   type ComponentProps,
   type ReactNode,
-  type SVGProps,
 } from "react";
 import {
   Area,
@@ -59,6 +59,7 @@ import {
   moneyTick,
   positionalConfig,
   rankedHeight,
+  signedTicks,
   TONE_COLOR,
   tickEvery,
   topWithOther,
@@ -364,6 +365,8 @@ export function BreakdownBarChart({
   height = 240,
   limit = 8,
   hrefKey,
+  activeKey,
+  mutedKey,
 }: {
   data: Row[];
   xKey: string;
@@ -372,6 +375,10 @@ export function BreakdownBarChart({
   format?: ValueFormat;
   /** Horizontal charts only: row field holding a URL; clicking that bar navigates there. */
   hrefKey?: string;
+  /** Horizontal charts only: row field that is 1 for the picked row; the others dim. */
+  activeKey?: string;
+  /** Horizontal charts only: row field that is 1 for rows drawn in the muted tone. */
+  mutedKey?: string;
   orientation?: "horizontal" | "vertical";
   /** Vertical charts only; horizontal height follows the row count. */
   height?: number;
@@ -466,6 +473,13 @@ export function BreakdownBarChart({
             if (typeof href === "string") router.push(href);
           }}
         >
+          {ranked.map((r, i) => (
+            <Cell
+              key={i}
+              fill={r[mutedKey ?? ""] ? "var(--muted-foreground)" : chartColor(0)}
+              fillOpacity={ranked.some((x) => x[activeKey ?? ""]) && !r[activeKey ?? ""] ? 0.45 : 1}
+            />
+          ))}
           <LabelList
             dataKey={yKey}
             position="right"
@@ -676,46 +690,7 @@ export function ActiveSegmentDonutChart(props: DonutProps) {
   );
 }
 
-const COLLAPSED_WIDTH = 6;
-
-type HoverBarProps = SVGProps<SVGRectElement> & {
-  index?: number;
-  activeIndex?: number;
-  onActive: (index?: number) => void;
-};
-
-// Resting bars are slim; the hovered one widens. scaleX (not width) keeps it a transform-only animation.
-function HoverBar({
-  x,
-  y,
-  width,
-  height,
-  fill,
-  index,
-  activeIndex,
-  onActive,
-}: HoverBarProps) {
-  const w = Number(width || 0);
-  const active = index === activeIndex;
-  return (
-    <g onMouseEnter={() => onActive(index)}>
-      <rect
-        x={Number(x || 0)}
-        y={y}
-        width={w}
-        height={height}
-        fill={fill}
-        rx={3}
-        className="origin-center transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [transform-box:fill-box] motion-reduce:transition-none"
-        style={{
-          transform: `scaleX(${active || w === 0 ? 1 : Math.min(1, COLLAPSED_WIDTH / w)})`,
-        }}
-      />
-    </g>
-  );
-}
-
-/** c-chart-11: slim bars; the figure above follows the hovered bar (the total otherwise). */
+/** c-chart-11: bars; the figure above follows the hovered bar (the total otherwise). */
 export function HoverValueBarChart({
   data,
   xKey,
@@ -791,14 +766,19 @@ export function HoverValueBarChart({
             dataKey={yKey}
             name={yKey}
             fill={chartColor(0)}
-            shape={(p: unknown) => (
-              <HoverBar
-                {...(p as HoverBarProps)}
-                activeIndex={activeIndex}
-                onActive={setActiveIndex}
+            radius={3}
+            maxBarSize={32}
+            onMouseEnter={(_: unknown, i: number) => setActiveIndex(i)}
+          >
+            {data.map((_, i) => (
+              <Cell
+                key={i}
+                fill={chartColor(0)}
+                fillOpacity={activeIndex === undefined || activeIndex === i ? 1 : 0.5}
+                className="transition-opacity motion-reduce:transition-none"
               />
-            )}
-          />
+            ))}
+          </Bar>
         </BarChart>
       </ChartContainer>
     </div>
@@ -873,16 +853,19 @@ export function GroupedBarChart({
   );
 }
 
-/** c-chart-25: radial bars on a 0-100 track. Values are percentages. */
+/** c-chart-25: one radial bar on a 0-100 track with the % in the centre. Values are percentages. */
 export function RadialRateChart({
   data,
   nameKey,
   valueKey,
-  height = 260,
+  caption,
+  height = 220,
 }: {
   data: Row[];
   nameKey: string;
   valueKey: string;
+  /** Small word under the figure: "collected", "converted", "skipped". */
+  caption?: string;
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
@@ -891,52 +874,37 @@ export function RadialRateChart({
     rows.map((r) => [String(r[nameKey]), { label: String(r[nameKey] ?? "") }]),
   ) satisfies ChartConfig;
   return (
-    <ChartContainer
-      config={config}
-      className="mx-auto aspect-square"
-      style={{ height }}
-    >
-      <RadialBarChart
-        accessibilityLayer
-        data={rows}
-        innerRadius="30%"
-        outerRadius="100%"
-        barSize={22}
-      >
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              className="min-w-40 gap-2.5"
-              nameKey={nameKey}
-              formatter={valueFormatter("number", "%")}
-            />
-          }
-        />
-        <PolarAngleAxis
-          type="number"
-          domain={[0, 100]}
-          angleAxisId={0}
-          tick={false}
-        />
-        <RadialBar
-          dataKey={valueKey}
-          background
-          cornerRadius={10}
-          label={{
-            position: "insideStart",
-            fill: "var(--background)",
-            fontSize: 12,
-            fontWeight: 600,
-            formatter: (v: unknown) => `${v}%`,
-          }}
-        />
-        <ChartLegend
-          content={
-            <ChartLegendContent nameKey={nameKey} className="-translate-y-2" />
-          }
-        />
-      </RadialBarChart>
-    </ChartContainer>
+    <div className="relative mx-auto aspect-square" style={{ height }}>
+      <ChartContainer config={config} className="aspect-square h-full w-full">
+        <RadialBarChart
+          accessibilityLayer
+          data={rows}
+          innerRadius="70%"
+          outerRadius="100%"
+          barSize={18}
+          startAngle={90}
+          endAngle={-270}
+        >
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                className="min-w-40 gap-2.5"
+                nameKey={nameKey}
+                formatter={valueFormatter("number", "%")}
+              />
+            }
+          />
+          <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+          <RadialBar dataKey={valueKey} background cornerRadius={10} />
+        </RadialBarChart>
+      </ChartContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-semibold tracking-tight tabular-nums">
+          {Number(rows[0]![valueKey])}%
+        </span>
+        {caption ? <span className="text-muted-foreground text-xs">{caption}</span> : null}
+      </div>
+    </div>
   );
 }
 
@@ -972,19 +940,35 @@ export function SegmentedBar({
             return (
               <Tooltip key={`${p.label}-${i}`}>
                 <TooltipTrigger asChild>
-                  <div
-                    tabIndex={0}
-                    aria-label={text}
-                    className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
-                    style={{
-                      width: `${(p.value / total) * 100}%`,
-                      background: p.color,
-                      opacity: hover === null || hover === i ? 1 : 0.45,
-                    }}
-                    onMouseEnter={() => setHover(i)}
-                    onFocus={() => setHover(i)}
-                    onBlur={() => setHover(null)}
-                  />
+                  {p.href ? (
+                    <Link
+                      href={p.href}
+                      aria-label={text}
+                      className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
+                      style={{
+                        width: `${(p.value / total) * 100}%`,
+                        background: p.color,
+                        opacity: hover === null || hover === i ? 1 : 0.45,
+                      }}
+                      onMouseEnter={() => setHover(i)}
+                      onFocus={() => setHover(i)}
+                      onBlur={() => setHover(null)}
+                    />
+                  ) : (
+                    <div
+                      tabIndex={0}
+                      aria-label={text}
+                      className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
+                      style={{
+                        width: `${(p.value / total) * 100}%`,
+                        background: p.color,
+                        opacity: hover === null || hover === i ? 1 : 0.45,
+                      }}
+                      onMouseEnter={() => setHover(i)}
+                      onFocus={() => setHover(i)}
+                      onBlur={() => setHover(null)}
+                    />
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>{text}</TooltipContent>
               </Tooltip>
@@ -994,26 +978,41 @@ export function SegmentedBar({
       </TooltipProvider>
       {withList ? (
         <ul className="divide-border/60 divide-y">
-          {folded.map((p, i) => (
-            <li
-              key={`${p.label}-${i}`}
-              className="flex items-center gap-2 py-2 text-sm"
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-            >
-              <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ background: p.color }}
-              />
-              <span className="min-w-0 flex-1 truncate">{p.label}</span>
-              <span className="font-semibold tabular-nums">
-                {formatValue(p.value, format)}
-              </span>
-              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">
-                {fmtPct(p.share)}
-              </span>
-            </li>
-          ))}
+          {folded.map((p, i) => {
+            const row = (
+              <>
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ background: p.color }}
+                />
+                <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                <span className="font-semibold tabular-nums">
+                  {formatValue(p.value, format)}
+                </span>
+                <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">
+                  {fmtPct(p.share)}
+                </span>
+              </>
+            );
+            return (
+              <li
+                key={`${p.label}-${i}`}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+              >
+                {p.href ? (
+                  <Link
+                    href={p.href}
+                    className="hover:bg-muted/50 -mx-2 flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors"
+                  >
+                    {row}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2 py-2 text-sm">{row}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <ul
@@ -1238,6 +1237,7 @@ export function DivergingBarChart({
     return { ...r, s0, fill: s0 < 0 ? "var(--destructive)" : "var(--success)" };
   });
   const config = positionalConfig([{ label }]) satisfies ChartConfig;
+  const dticks = signedTicks(Math.min(0, ...rows.map((r) => r.s0)), Math.max(0, ...rows.map((r) => r.s0)));
   return (
     <ChartContainer
       config={config}
@@ -1255,7 +1255,8 @@ export function DivergingBarChart({
           interval={tickEvery(rows.length)}
         />
         <YAxis
-          domain={["auto", "auto"]}
+          ticks={dticks}
+          domain={[dticks[0]!, dticks.at(-1)!]}
           tickLine={false}
           axisLine={false}
           tickMargin={4}
