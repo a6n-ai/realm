@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
-import type { FacetDef } from "@foundry/design-system";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { TODAY_KINDS, kindOptionLabel, type TodayItem } from "@/lib/today/types";
 
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: () => {}, push: () => {}, refresh: () => {} }),
+  useRouter: () => ({ replace: () => {}, push, refresh: () => {} }),
   usePathname: () => "/dashboard",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -26,14 +26,12 @@ const rows: TodayItem[] = [
   { ...base, kind: "inquiry", key: "inquiry:1", who: "Cy Lead", what: "New lead · Web", urgency: 3, href: "/dashboard/inquiries/inq_1" },
 ];
 
-const spec: FacetDef[] = [
-  { kind: "select", field: "type", label: "Type", options: TODAY_KINDS.map((k) => ({ value: k, label: kindOptionLabel(k, 0) })) },
-];
+const pills = TODAY_KINDS.map((kind) => ({ kind, count: 0 }));
 
 const mount = (over: Partial<Parameters<typeof TodayQueue>[0]> = {}) =>
   render(
     <TimezoneProvider tz="America/Toronto">
-      <TodayQueue rows={rows} now={NOW} spec={spec} failed={[]} activeType={null} {...over} />
+      <TodayQueue rows={rows} now={NOW} pills={pills} failed={[]} activeType={null} {...over} />
     </TimezoneProvider>,
   );
 
@@ -51,17 +49,18 @@ describe("TodayQueue", () => {
     for (const name of ["Ada Verify", "Bo Card", "Cy Lead"]) expect(screen.getAllByText(name).length).toBeGreaterThan(0);
   });
 
-  it("offers Verify on a row that can be verified", () => {
+  it("offers the Verify icon on a row that can be verified, beside Open", () => {
     mount({ rows: [rows[0]!] });
-    expect(screen.getAllByRole("button", { name: "Verify" }).length).toBeGreaterThan(0);
-    expect(screen.queryAllByRole("link", { name: "Open" })).toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: "Verify payment" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Open" }).length).toBeGreaterThan(0);
   });
 
-  it("offers only Open on a row that cannot (card payment, inquiry)", () => {
+  it("offers only the Open icon on a row that cannot (card payment, inquiry), and it opens the record", () => {
     mount({ rows: rows.slice(1) });
-    expect(screen.queryAllByRole("button", { name: "Verify" })).toHaveLength(0);
-    const links = new Set(screen.getAllByRole("link", { name: "Open" }).map((a) => a.getAttribute("href")));
-    expect(links).toEqual(new Set(["/dashboard/orders/ord_1", "/dashboard/inquiries/inq_1"]));
+    expect(screen.queryAllByRole("button", { name: "Verify payment" })).toHaveLength(0);
+    const open = screen.getAllByRole("button", { name: "Open" });
+    open.forEach((b) => fireEvent.click(b));
+    expect(new Set(push.mock.calls.map((c) => c[0]))).toEqual(new Set(["/dashboard/orders/ord_1", "/dashboard/inquiries/inq_1"]));
   });
 
   it("says nothing is waiting, with a way on to Orders", () => {

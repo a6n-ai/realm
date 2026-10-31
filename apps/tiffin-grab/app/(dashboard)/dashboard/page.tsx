@@ -18,11 +18,11 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
-import { TODAY_KINDS, isTodayKind, kindOptionLabel, type TodayKind } from "@/lib/today/types";
+import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import {
   PageShell,
   PageHeader,
@@ -37,9 +37,15 @@ import {
   DataTableSkeleton,
   type FacetDef,
 } from "@/components/ds";
-import { TodayTiles } from "./_overview/today-tiles";
-import { NextDayCard } from "./_overview/next-day-card";
-import { TodayDeliveriesCard } from "./_overview/today-deliveries-card";
+import { mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
+import { GlanceCard } from "./_overview/glance-card";
+import { ServiceCard } from "./_overview/service-card";
+import { NeedsActionCard } from "./_overview/needs-action-card";
+import { RouteCard } from "./_overview/route-card";
+import { LanesCard } from "./_overview/lanes-card";
+import { MenusCard } from "./_overview/menus-card";
+import { CookingCard } from "./_overview/cooking-card";
+import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -69,7 +75,8 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
-  const { type } = await searchParams;
+  const isAdmin = session.user.role === Role.ADMIN;
+  const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
@@ -77,6 +84,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   const today = zonedDateIso(now, timezone);
 
   const seesAll = await coversAllOrgs(visible);
+  const weekStart = parseWeekParam(week) ?? mondayOf(today);
 
   if (visible !== "all" && visible.length === 0) {
     return (
@@ -98,26 +106,59 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
       <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
-        <TodayTiles visible={visible} today={today} seesAll={seesAll} />
+        <GlanceCard visible={visible} today={today} now={now} />
       </Suspense>
 
-      {seesAll ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Suspense fallback={<ChartSkeleton height={160} />}>
-            <NextDayCard today={today} />
-          </Suspense>
-          <Suspense fallback={<ChartSkeleton height={160} />}>
-            <TodayDeliveriesCard today={today} />
-          </Suspense>
-        </div>
-      ) : null}
+      {/* Act first: what needs doing, how today is going, the menus to release. */}
+      <CardGrid
+        cards={[
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} isAdmin={isAdmin} />, h: 260 },
+          seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
+          // Menu pages are admin-only, so the menu card is too.
+          isAdmin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
+        ]}
+      />
 
-      <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
-        <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
-          <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
-        </Suspense>
-      </SectionCard>
+      <div id="queue">
+        <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
+          <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
+            <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
+          </Suspense>
+        </SectionCard>
+      </div>
+
+      {/* Then dispatch and kitchen: tomorrow's route, drivers, what to cook. */}
+      <CardGrid
+        cards={[
+          seesAll && { key: "route", node: <RouteCard today={today} />, h: 260 },
+          seesAll && { key: "lanes", node: <LanesCard today={today} />, h: 260 },
+          seesAll && { key: "cooking", node: <CookingCard today={today} />, h: 260 },
+        ]}
+      />
+
+      <Suspense fallback={<ChartSkeleton height={260} />}>
+        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} />
+      </Suspense>
+
     </PageShell>
+  );
+}
+
+type GridCard = { key: string; node: React.ReactNode; h: number };
+
+/**
+ * Cards fill the row: auto-fit columns of at least 20rem, so two cards share the width a third
+ * would have used (no empty cell when a card renders nothing, e.g. Tomorrow's route without OptimoRoute).
+ */
+function CardGrid({ cards }: { cards: (GridCard | false)[] }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-4">
+      {cards.filter((c): c is GridCard => Boolean(c)).map((c) => (
+        <Suspense key={c.key} fallback={<ChartSkeleton height={c.h} />}>
+          {c.node}
+        </Suspense>
+      ))}
+    </div>
   );
 }
 
@@ -134,16 +175,9 @@ async function TodayQueueSection({ visible, today, now, activeType }: { visible:
     getTodayCounts(visible, today),
     getTodayQueue(visible, now, activeType ? [activeType] : undefined),
   ]);
-  // Totals stay exact in the facet; picking a type filters on the server before the 50 cap.
-  const spec: FacetDef[] = [
-    {
-      kind: "select",
-      field: "type",
-      label: "Type",
-      options: TODAY_KINDS.map((k) => ({ value: k, label: kindOptionLabel(k, counts.byKind[k]) })),
-    },
-  ];
-  return <TodayQueue rows={queue.items} now={now} spec={spec} failed={queue.failed} activeType={activeType} />;
+  // Pills are quick filters: each carries the exact total; picking one filters on the server before the 50 cap.
+  const pills = OVERVIEW_KINDS.map((k) => ({ kind: k, count: counts.byKind[k] }));
+  return <TodayQueue rows={queue.items} now={now} pills={pills} failed={queue.failed} activeType={activeType} />;
 }
 
 const CUSTOMER_LINKS = [
