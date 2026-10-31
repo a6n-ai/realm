@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { inArray, ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -313,14 +313,29 @@ describe("needs attention", () => {
 });
 
 describe("complaint scope", () => {
+  const orgIds: string[] = [];
   beforeEach(reset);
-  afterAll(reset);
+  afterAll(async () => {
+    await reset();
+    if (orgIds.length) await db.delete(organization).where(inArray(organization.id, orgIds));
+  });
 
   const suffix = Math.random().toString(36).slice(2);
   const makeOrg = async (name: string) => {
     const [org] = await db.insert(organization).values({ name, clientCode: `CS-${name}-${suffix}` }).returning({ id: organization.id });
+    orgIds.push(org!.id);
     return org!.id;
   };
+
+  it("narrows the count by the Priority filter carried in the scope", async () => {
+    const u = await makeUser("prio@x.test");
+    await makeTicket(u.id, { priority: "urgent" });
+    await makeTicket(u.id, { priority: "normal" });
+    const scope = (priority?: string) => ({ ...NO_FILTERS, ...buildAnalyticsScope(priority ? { priority } : {}, "all", TZ, now), fromMs: 0, toMs: now + 365 * DAY });
+
+    expect((await getComplaintKpis(scope())).total).toBe(2);
+    expect((await getComplaintKpis(scope("urgent"))).total).toBe(1);
+  });
 
   it("counts an orderless ticket only when every franchise is in scope", async () => {
     const orgA = await makeOrg("A");

@@ -67,7 +67,7 @@ export function parseComplaintFilters(sp: ComplaintSearchParams): ComplaintFilte
   };
 }
 
-/** Analytics pages read the shared scope; category/subcategory/status arrive via `scope.extra`. */
+/** Analytics pages read the shared scope; category/subcategory/status/priority arrive via `scope.extra`. */
 export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters {
   return {
     from: scope.fromMs,
@@ -75,7 +75,7 @@ export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters
     categories: (scope.extra.category ?? []).filter((c) => isTicketCategory(c)),
     subcategories: scope.extra.subcategory ?? [],
     statuses: scope.extra.status ?? [],
-    priorities: [],
+    priorities: scope.extra.priority ?? [],
     plans: scope.plans,
     mealSizes: scope.mealSizes,
     zones: scope.zones,

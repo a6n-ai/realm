@@ -6,7 +6,7 @@ import { orders } from "@/db/schema";
 import { ordersListWhere } from "@/lib/services/orders.service";
 import type { AnalyticsScope } from "./scope";
 
-// Server-safe plain TS: no db import. Shared by the Orders page and analytics drill links.
+// ORDER_FACET_FIELDS is type-imported by orders-spec.ts, so keep it a plain const. Shared by the Orders page and analytics drill links.
 export const ORDER_FACET_FIELDS = ["status", "plan", "tier", "mealSize", "zone", "org", "createdAt"] as const;
 export type OrderFacetField = (typeof ORDER_FACET_FIELDS)[number];
 

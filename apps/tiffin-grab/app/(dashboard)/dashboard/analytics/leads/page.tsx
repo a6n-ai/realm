@@ -17,7 +17,7 @@ import {
   getLostReasonBreakdown,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -87,7 +87,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Conversion rate",
           value: `${s.conversionRatePct}%`,
-          hint: s.total === 0 ? "No leads yet" : "Converted leads divided by all leads",
+          hint: s.total === 0 ? "No leads yet" : `Converted leads divided by all leads · ${DATE_BASIS_LABEL.leads}`,
           href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Rate",
           badgeTone: "brand",

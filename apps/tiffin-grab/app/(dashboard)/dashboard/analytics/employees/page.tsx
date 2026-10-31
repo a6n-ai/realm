@@ -11,7 +11,7 @@ import { BreakdownBarChart } from "@/components/analytics/charts";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -62,6 +62,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Total leads worked",
           value: totalLeadsWorked,
+          hint: DATE_BASIS_LABEL.leads,
           href: inquiriesHref(scope),
           badge: "Leads",
           badgeTone: "brand",

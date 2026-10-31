@@ -20,6 +20,7 @@ import { getProfitabilityReport } from "@/lib/services/analytics/profitability.s
 import {
   clockInZone,
   currentMonth,
+  navScope,
   type Grain,
   type ProfitabilityKpis,
 } from "@/lib/analytics/profitability";
@@ -51,8 +52,11 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
   const sp = await searchParams;
   const resolved = await scopeOrAlert("/dashboard/analytics/profitability", sp);
   if (!resolved.scope) return resolved.alert;
-  const { scope } = resolved;
-  const view = { month: parseMonth(sp.month, currentMonth(scope.tz)), grain: parseGrain(sp.view), scope };
+  const month = parseMonth(sp.month, currentMonth(resolved.scope.tz));
+  const grain = parseGrain(sp.view);
+  // GrainNav writes ?view=&month= with no from/to; an explicit date filter wins over it.
+  const scope = navScope(resolved.scope, sp.from != null || sp.to != null, month, grain);
+  const view = { month, grain, scope };
   return (
     <div className="flex flex-col gap-5">
       <AnalyticsPageHeader

@@ -79,11 +79,18 @@ export async function getAnalyticsFilterOptions(
       .innerJoin(plans, eq(mealSizes.planId, plans.id))
       .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false)))
       .orderBy(asc(mealSizes.name)),
-    db
-      .select({ value: deliveryZones.name, label: deliveryZones.name })
-      .from(deliveryZones)
-      .where(eq(deliveryZones.active, true))
-      .orderBy(asc(deliveryZones.name)),
+    visibleOrgIds !== "all" && visibleOrgIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .selectDistinct({ value: deliveryZones.name, label: deliveryZones.name })
+          .from(deliveryZones)
+          .where(
+            and(
+              eq(deliveryZones.active, true),
+              visibleOrgIds === "all" ? undefined : inArray(deliveryZones.organizationId, visibleOrgIds),
+            ),
+          )
+          .orderBy(asc(deliveryZones.name)),
     visibleOrgIds !== "all" && visibleOrgIds.length === 0
       ? Promise.resolve([])
       : db

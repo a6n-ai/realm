@@ -15,19 +15,20 @@ export type AnalyticsScope = {
   plans: string[];
   mealSizes: string[];
   zones: string[];
-  /** Tab-only params (method, complaint category/subcategory/status) carried through drill links. */
+  /** Tab-only params (method, complaint category/subcategory/status/priority) carried through drill links. */
   extra: Record<string, string[]>;
 };
 
 export type ScopeSearchParams = Record<string, string | undefined>;
 
-const EXTRA_PARAMS = ["method", "category", "subcategory", "status"];
+const EXTRA_PARAMS = ["method", "category", "subcategory", "status", "priority"];
 
 export const DATE_BASIS_LABEL = {
   money: "by payment date",
   orders: "by order date",
   deliveries: "by delivery date",
   tickets: "by ticket date",
+  leads: "by inquiry date",
 } as const;
 
 /** Visible orgs narrowed by the `org` URL value. A value outside the visible set yields [] (never widens). */

@@ -4,6 +4,8 @@ import {
   isoDateInZone,
   isoWeekMonday,
   kpis,
+  navScope,
+  rangeFor,
   parseAssumptions,
   periodKey,
   rollup,
@@ -79,5 +81,30 @@ describe("isoDateInZone", () => {
     // 04:00 UTC is still 1 Jan in Toronto (EST, UTC-5).
     expect(isoDateInZone(Date.parse("2035-01-02T04:00:00Z"), "America/Toronto")).toBe("2035-01-01");
     expect(isoDateInZone(Date.parse("2035-01-02T05:00:00Z"), "America/Toronto")).toBe("2035-01-02");
+  });
+});
+
+describe("navScope", () => {
+  const TZ = "America/Toronto";
+  const base = { tz: TZ, fromMs: 1, toMs: 2 };
+  const ymd = (ms: number) => isoDateInZone(ms, TZ);
+
+  it("rangeFor spans one month, or 12 months ending at it for the monthly grain", () => {
+    expect(rangeFor("2035-02", "daily")).toEqual({ from: "2035-02-01", to: "2035-02-28" });
+    expect(rangeFor("2035-02", "monthly")).toEqual({ from: "2034-03-01", to: "2035-02-28" });
+  });
+
+  it("month param selects that month", () => {
+    const s = navScope(base, false, "2035-01", "daily");
+    expect([ymd(s.fromMs), ymd(s.toMs)]).toEqual(["2035-01-01", "2035-01-31"]);
+  });
+
+  it("monthly view selects the trailing 12 months", () => {
+    const s = navScope(base, false, "2035-02", "monthly");
+    expect([ymd(s.fromMs), ymd(s.toMs)]).toEqual(["2034-03-01", "2035-02-28"]);
+  });
+
+  it("an explicit from/to wins", () => {
+    expect(navScope(base, true, "2035-01", "monthly")).toBe(base);
   });
 });

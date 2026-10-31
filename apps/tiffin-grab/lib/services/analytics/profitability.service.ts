@@ -80,7 +80,7 @@ export async function getProfitabilityReport(opts: {
   const { scope } = opts;
   const assumptions = await getProfitabilityAssumptions();
   const timezone = scope.tz;
-  // The scope's range always wins over the month/grain nav (it defaults to the current month).
+  // The page folds the month/grain nav into the scope (navScope), so the scope's range is the one shown.
   const bounds = { from: isoDateInZone(scope.fromMs, timezone), to: isoDateInZone(scope.toMs, timezone) };
   const { from, to } = bounds.from <= bounds.to ? bounds : { from: bounds.to, to: bounds.from };
   const orderWhere = ordersScope(scope);
