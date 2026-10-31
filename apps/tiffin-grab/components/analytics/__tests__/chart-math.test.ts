@@ -221,3 +221,14 @@ describe("fitLabel", () => {
     expect(fitLabel("Brampton", 110)).toBe("Brampton");
   });
 });
+
+describe("slotTone", () => {
+  it("pins a key to its fixed slot whatever the rank, and mutes unknown or 6th+ keys", async () => {
+    const { slotTone } = await import("../chart-math");
+    const order = ["a", "b", "c", "d", "e", "f"];
+    expect(slotTone("b", order)).toBe("c2");
+    expect(slotTone("e", order)).toBe("c5");
+    expect(slotTone("f", order)).toBe("muted");
+    expect(slotTone("zz", order)).toBe("muted");
+  });
+});

@@ -7,7 +7,7 @@ import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { PartsDonut } from "@/components/analytics/charts";
-import type { Part } from "@/components/analytics/chart-math";
+import { slotTone, type Part } from "@/components/analytics/chart-math";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
@@ -141,10 +141,13 @@ async function RepCards({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
+// A rep keeps one colour in every donut on the page: their rank by revenue owned (the rollup's order).
+const repTone = (rows: { userId: string }[], r: { userId: string }) => slotTone(r.userId, rows.map((x) => x.userId));
+
 async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
   const { rows, unassignedRevenue } = await getEmployeeRollup(scope);
   const parts: Part[] = [
-    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ label: r.name, value: r.revenueOwned })),
+    ...rows.filter((r) => r.revenueOwned > 0).map((r) => ({ label: r.name, value: r.revenueOwned, tone: repTone(rows, r) })),
     ...(unassignedRevenue > 0 ? [{ label: "Unassigned", value: unassignedRevenue, tone: "muted" as const }] : []),
   ];
   return <PartsDonut format="currency" caption="Revenue" max={5} emptyLabel="No revenue in this range." parts={parts} />;
@@ -152,19 +155,19 @@ async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
 
 async function WorkloadDonut({ scope }: { scope: AnalyticsScope }) {
   const { rows } = await getEmployeeRollup(scope);
-  const parts = rows.filter((r) => r.actions > 0).map((r) => ({ label: r.name, value: r.actions }));
+  const parts = rows.filter((r) => r.actions > 0).map((r) => ({ label: r.name, value: r.actions, tone: repTone(rows, r) }));
   return <PartsDonut caption="Actions" max={5} emptyLabel="No order actions in this range." parts={parts} />;
 }
 
 async function LeadsChart({ scope }: { scope: AnalyticsScope }) {
   const { rows } = await getEmployeeRollup(scope);
-  const parts = rows.map((r) => ({ label: r.name, value: r.leadsWorked }));
+  const parts = rows.map((r) => ({ label: r.name, value: r.leadsWorked, tone: repTone(rows, r) }));
   return <PartsDonut caption="Leads" max={5} emptyLabel="No leads worked in this range." parts={parts} />;
 }
 
 async function TicketsChart({ scope }: { scope: AnalyticsScope }) {
   const { rows } = await getEmployeeRollup(scope);
-  const parts = rows.map((r) => ({ label: r.name, value: r.ticketsResolved }));
+  const parts = rows.map((r) => ({ label: r.name, value: r.ticketsResolved, tone: repTone(rows, r) }));
   return <PartsDonut caption="Tickets" max={5} emptyLabel="No tickets resolved in this range." parts={parts} />;
 }
 

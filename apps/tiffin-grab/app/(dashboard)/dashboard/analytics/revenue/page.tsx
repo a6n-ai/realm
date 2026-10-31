@@ -15,7 +15,7 @@ import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { clockInZone, isoDateInZone } from "@/lib/analytics/profitability";
-import { topWithOther, type Tone } from "@/components/analytics/chart-math";
+import { slotTone, topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
@@ -221,7 +221,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
 }
 
 const STATUS_TONE: Record<string, Tone> = {
-  paid: "c1",
+  paid: "success",
   simulated_paid: "muted",
   awaiting_payment: "warning",
   pending_verification: "c2",
@@ -252,7 +252,7 @@ async function Owed({ scope }: { scope: AnalyticsScope }) {
       format="currency"
       caption="collected"
       label={total > 0 ? `${rate.toFixed(rate < 10 ? 1 : 0)}%` : undefined}
-      parts={[{ label: "Collected", value: k.netCollected, tone: "chart" }, { label: "Still owed", value: k.pendingAmount, tone: "muted" }]}
+      parts={[{ label: "Collected", value: k.netCollected, tone: "success" }, { label: "Still owed", value: k.pendingAmount, tone: "warning" }]}
     />
   );
 }
@@ -279,8 +279,12 @@ async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   const href = links(scope);
-  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, href: href(SETTLED_STATUSES, [m.key]) }))} />;
+  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, tone: slotTone(m.key, METHOD_SLOTS), href: href(SETTLED_STATUSES, [m.key]) }))} />;
 }
+
+// Fixed slots so a method or discount source keeps its colour whatever its rank in the range.
+const METHOD_SLOTS = ["stripe", "etransfer", "cash", "manual"];
+const DISCOUNT_SLOTS = ["catalog", "coupon", "staff", "coins"];
 
 const SOURCE_LABEL: Record<DiscountSource, string> = {
   catalog: "Plan discount",
@@ -304,7 +308,7 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
       max={5}
       emptyLabel="No discounts in this range."
       footnote={<TotalLine label="Total discounts" value={money(discounts.reduce((s, d) => s + d.amount, 0))} />}
-      parts={discounts.map((d: DiscountLine) => ({ label: d.label, value: d.amount }))}
+      parts={discounts.map((d: DiscountLine) => ({ label: d.label, value: d.amount, tone: slotTone(d.source, DISCOUNT_SLOTS) }))}
       listParts={topWithOther(
         discounts.map((d: DiscountLine) => ({ label: d.label, amount: d.amount, meta: meta(d) })),
         "label",

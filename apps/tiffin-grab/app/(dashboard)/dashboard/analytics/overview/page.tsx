@@ -122,7 +122,7 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
         caption="converted"
         label={has ? `${t.conversionRatePct}%` : undefined}
         footnote={has ? `${t.converted} of ${t.eligible} trials converted` : undefined}
-        parts={has ? [{ label: "Converted", value: t.converted, tone: "chart" }, { label: "Not converted", value: t.eligible - t.converted, tone: "muted" }] : []}
+        parts={has ? [{ label: "Converted", value: t.converted, tone: "success" }, { label: "Not converted", value: t.eligible - t.converted, tone: "muted" }] : []}
       />
     </ChartCard>
   );

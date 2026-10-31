@@ -77,7 +77,7 @@ async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
       caption="skipped"
       label={has ? `${s.skipRatePct}%` : undefined}
       footnote={has ? `${s.skipped.toLocaleString()} of ${s.totalDeliveries.toLocaleString()} deliveries skipped` : undefined}
-      parts={has ? [{ label: "Skipped", value: s.skipped, tone: "chart" }, { label: "Not skipped", value: s.totalDeliveries - s.skipped, tone: "muted" }] : []}
+      parts={has ? [{ label: "Skipped", value: s.skipped, tone: "warning" }, { label: "Not skipped", value: s.totalDeliveries - s.skipped, tone: "muted" }] : []}
     />
   );
 }

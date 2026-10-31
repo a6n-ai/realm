@@ -7,7 +7,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { chartColor } from "@/components/analytics/chart-math";
+import { chartColor, slotTone } from "@/components/analytics/chart-math";
 import { RankCards } from "@/components/analytics/rank-cards";
 import { HeatmapGrid, PartsDonut, TreemapChart } from "@/components/analytics/charts";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -219,9 +219,11 @@ async function PlanSplit({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
+const TIER_SLOTS = ["budget", "medium", "premium", "custom"];
+
 async function TierDonut({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByTier(scope);
-  return <PartsDonut format="currency" parts={rows.map((r) => ({ label: r.tier, value: r.paid }))} />;
+  return <PartsDonut format="currency" parts={rows.map((r) => ({ label: r.tier, value: r.paid, tone: slotTone(r.key, TIER_SLOTS) }))} />;
 }
 
 async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {

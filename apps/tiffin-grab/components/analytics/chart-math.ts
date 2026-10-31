@@ -3,6 +3,12 @@ export type Tone = "success" | "warning" | "destructive" | "muted" | "chart" | "
 export type Part = { label: string; value: number; tone?: Tone; href?: string };
 export type SharedPart = Part & { share: number; color: string };
 
+/** Pins `key` to the slot of its position in a fixed `order`, so it keeps one colour across charts and ranges; unknown or 6th+ keys are muted. */
+export function slotTone(key: string, order: readonly string[]): Tone {
+  const i = order.indexOf(key);
+  return i >= 0 && i < 5 ? (`c${i + 1}` as Tone) : "muted";
+}
+
 export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
   c1: "var(--chart-1)",
   c2: "var(--chart-2)",

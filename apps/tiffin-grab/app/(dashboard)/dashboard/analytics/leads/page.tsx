@@ -115,7 +115,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 }
 
 const STAGE_ORDER = ["new", "contacted", "quoted", "follow_up", "converted", "lost"];
-const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "c1", lost: "muted" };
+const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "success", lost: "destructive" };
 
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
@@ -137,7 +137,7 @@ async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
       caption="converted"
       label={s.total > 0 ? `${s.conversionRatePct}%` : undefined}
       footnote={s.total > 0 ? `${s.converted.toLocaleString()} of ${s.total.toLocaleString()} leads converted` : undefined}
-      parts={s.total > 0 ? [{ label: "Converted", value: s.converted, tone: "chart" }, { label: "Not converted", value: s.total - s.converted, tone: "muted" }] : []}
+      parts={s.total > 0 ? [{ label: "Converted", value: s.converted, tone: "success" }, { label: "Not converted", value: s.total - s.converted, tone: "muted" }] : []}
     />
   );
 }

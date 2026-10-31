@@ -303,7 +303,7 @@ async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope
   );
 }
 
-const TICKET_TONE: Record<string, Tone> = { open: "warning", in_progress: "c2", waiting_on_customer: "c3", resolved: "c1", closed: "muted" };
+const TICKET_TONE: Record<string, Tone> = { open: "warning", in_progress: "c2", waiting_on_customer: "c3", resolved: "success", closed: "muted" };
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);

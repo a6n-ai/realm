@@ -9,6 +9,9 @@ import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { DivergingBarChart, PartsDonut } from "@/components/analytics/charts";
+import { slotTone } from "@/components/analytics/chart-math";
+
+const COST_SLOTS = ["Kitchen", "Driver", "Marketing", "Salaries"];
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
@@ -227,7 +230,7 @@ async function Cards({ view }: { view: View }) {
 
 async function Costs({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <PartsDonut format="currency" caption="Total costs" max={6} parts={report.costParts.map((c) => ({ ...c, tone: c.label === "Other" ? ("muted" as const) : undefined }))} />;
+  return <PartsDonut format="currency" caption="Total costs" max={6} parts={report.costParts.map((c) => ({ ...c, tone: slotTone(c.label, COST_SLOTS) }))} />;
 }
 
 async function MigratedNote({ view }: { view: View }) {
