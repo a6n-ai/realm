@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
+import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
@@ -26,6 +26,7 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
@@ -43,7 +44,7 @@ import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// The work-queue tabs mark "ignores the date range" with an icon on the tab itself (orders-view-tabs).
+// The work-queue tabs mark "ignores the date range" with an icon beside the date filter.
 function listNote(view?: string) {
   if (view === "free") return "Orders with a free tiffin delivered in the date range";
   return undefined;
@@ -76,7 +77,17 @@ export default async function OrdersPage({
       {/* The date range filters the cards: one group, tighter than the page rhythm. */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionDateRange />
+          <div className="flex items-center gap-2">
+            <SectionDateRange />
+            {raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Filter ignored" />
+                </TooltipTrigger>
+                <TooltipContent>Filter ignored: this tab shows every date</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </div>
           <OrderTagsLegend />
         </div>
         <Suspense fallback={<StatCardsSkeleton count={5} />}>

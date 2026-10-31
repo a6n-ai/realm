@@ -2,24 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CalendarOffIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 
 const VIEWS = ["lookout", "payment", "free", "missed"] as const;
-
-/** Work-queue tabs list every date; the picker only changes the cards above. */
-function AllDates() {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <CalendarOffIcon className="text-muted-foreground size-3.5" aria-label="Ignores the date range" />
-      </TooltipTrigger>
-      <TooltipContent>Ignores the date range: shows every date</TooltipContent>
-    </Tooltip>
-  );
-}
 
 /** All orders, the ones a team member marked "Look out for", payments waiting on review, or past days nobody confirmed went out. Switching drops the other tab's filters. */
 export function OrdersViewTabs({ lookOutCount, missedCount, paymentReviewCount, freeCount }: { lookOutCount: number; missedCount: number; paymentReviewCount: number; freeCount: number }) {
@@ -34,14 +20,12 @@ export function OrdersViewTabs({ lookOutCount, missedCount, paymentReviewCount, 
         <TabsTrigger value="lookout" asChild className="gap-1.5">
           <Link href="/dashboard/orders?view=lookout" prefetch={false}>
             Look out for
-            <AllDates />
             {lookOutCount > 0 && <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">{lookOutCount}</Badge>}
           </Link>
         </TabsTrigger>
         <TabsTrigger value="payment" asChild className="gap-1.5">
           <Link href="/dashboard/orders?view=payment" prefetch={false}>
             Payment review
-            <AllDates />
             {paymentReviewCount > 0 && <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">{paymentReviewCount}</Badge>}
           </Link>
         </TabsTrigger>
@@ -54,7 +38,6 @@ export function OrdersViewTabs({ lookOutCount, missedCount, paymentReviewCount, 
         <TabsTrigger value="missed" asChild className="gap-1.5">
           <Link href="/dashboard/orders?view=missed" prefetch={false}>
             Missed deliveries
-            <AllDates />
             {missedCount > 0 && <Badge variant="destructive" className="h-5 px-1.5 tabular-nums">{missedCount}</Badge>}
           </Link>
         </TabsTrigger>
