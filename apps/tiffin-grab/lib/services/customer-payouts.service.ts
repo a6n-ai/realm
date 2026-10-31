@@ -26,6 +26,7 @@ export type PayoutCandidateFilters = {
   lapsed?: boolean | null; // latest plan ended before today and was not renewed
   lapsedFrom?: string | null;
   lapsedTo?: string | null;
+  userIds?: bigint[]; // restrict to these users
 };
 
 export type PayoutCandidate = {
@@ -93,6 +94,7 @@ export async function listPayoutCandidates(
     if (filters.lapsedFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lapsedFrom));
     if (filters.lapsedTo) conditions.push(lte(latestPlan.lastTiffin, filters.lapsedTo));
   }
+  if (filters.userIds) conditions.push(inArray(users.id, filters.userIds));
   if (filters.accountPublicId) conditions.push(eq(users.publicId, filters.accountPublicId));
   if (filters.startDateFrom) conditions.push(gte(orderAgg.firstOrderDate, filters.startDateFrom));
   if (filters.startDateTo) conditions.push(lte(orderAgg.firstOrderDate, filters.startDateTo));

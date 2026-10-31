@@ -168,6 +168,12 @@ export async function getCustomerGroup(publicId: string): Promise<{
 
 // Revenue/first order/last tiffin come from the payout-candidate query; members who never ordered
 // are absent there, so they fall back to blanks.
+async function memberIds(groupId: bigint) {
+  return (
+    await db.select({ userId: customerGroupMembers.userId }).from(customerGroupMembers).where(eq(customerGroupMembers.groupId, groupId))
+  ).map((r) => r.userId);
+}
+
 async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
   const base = await db
     .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
@@ -175,7 +181,7 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
     .innerJoin(users, eq(users.id, customerGroupMembers.userId))
     .where(eq(customerGroupMembers.groupId, groupId))
     .orderBy(users.name);
-  const { rows } = await listPayoutCandidates({}, { limit: 1_000_000 });
+  const { rows } = await listPayoutCandidates({ userIds: await memberIds(groupId) }, { limit: 1_000_000 });
   const stats = new Map(rows.map((r) => [r.publicId, r]));
   return base.map((u) => {
     const s = stats.get(u.publicId);
@@ -277,7 +283,7 @@ async function fillList(listId: string, people: { name: string | null; email: st
     const res = await addContactListMembers(
       deps,
       listId,
-      slice.map((u) => ({ name: u.name?.trim() || u.email!, email: u.email! })),
+      slice.map((u) => ({ name: u.name?.trim() || u.email!.trim(), email: u.email!.trim() })),
     );
     if ("error" in res) throw new Error(res.error);
   }
@@ -286,28 +292,18 @@ async function fillList(listId: string, people: { name: string | null; email: st
 const emailable = <T extends { notifyEmail: boolean; email: string | null }>(xs: T[]) =>
   xs.filter((u) => u.notifyEmail && u.email?.trim());
 
-export async function ensureGroupContactList(
-  groupPublicId: string,
-): Promise<{ contactListPublicId: string; noEmail: number }> {
-  const group = await groupByPublicId(groupPublicId);
-  let listId = group.contactListPublicId;
-  if (!listId) {
-    ({ publicId: listId } = await createContactList(deps, {
-      name: group.name,
-      consentSource: "purchase",
-      consentAt: Date.now(),
-      consentNote: `Customer group ${group.publicId}`,
-    }));
-    await db.update(customerGroups).set({ contactListPublicId: listId }).where(eq(customerGroups.id, group.id));
-  }
-  const members = await db
-    .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
-    .from(customerGroupMembers)
-    .innerJoin(users, eq(users.id, customerGroupMembers.userId))
-    .where(eq(customerGroupMembers.groupId, group.id));
-  const ok = emailable(members);
-  await fillList(listId, ok);
-  return { contactListPublicId: listId, noEmail: members.length - ok.length };
+// A fresh list per send, so removed members and later opt-outs are never reached.
+async function buildSendList(name: string, note: string, people: { name: string | null; email: string | null; notifyEmail: boolean }[]) {
+  const ok = emailable(people);
+  if (ok.length === 0) throw new ValidationError("No members with email to send to");
+  const { publicId } = await createContactList(deps, {
+    name,
+    consentSource: "purchase",
+    consentAt: Date.now(),
+    consentNote: note,
+  });
+  await fillList(publicId, ok);
+  return publicId;
 }
 
 async function recordEmailAction(
@@ -328,13 +324,18 @@ async function recordEmailAction(
 
 export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {
   const group = await groupByPublicId(groupPublicId);
-  const { contactListPublicId } = await ensureGroupContactList(groupPublicId);
+  const members = await db
+    .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
+    .from(customerGroupMembers)
+    .innerJoin(users, eq(users.id, customerGroupMembers.userId))
+    .where(eq(customerGroupMembers.groupId, group.id));
+  const listId = await buildSendList(`${group.name} ${new Date().toISOString()}`, `Customer group ${group.publicId}`, members);
   const { publicId } = await createCampaign(deps, {
     name: `${group.name} email`,
     channels: ["email"],
-    audience: { listIds: [contactListPublicId] },
+    audience: { listIds: [listId] },
   });
-  await recordEmailAction(group.id, { listPublicId: contactListPublicId }, publicId, actorId);
+  await recordEmailAction(group.id, { listPublicId: listId }, publicId, actorId);
   return { campaignPublicId: publicId };
 }
 
@@ -350,13 +351,11 @@ export async function emailAwardedMembers(
         .from(users)
         .where(inArray(users.id, awarded))
     : [];
-  const { publicId: listId } = await createContactList(deps, {
-    name: `${group.name} coins ${actionPublicId}`,
-    consentSource: "purchase",
-    consentAt: Date.now(),
-    consentNote: `Customer group ${group.publicId} action ${actionPublicId}`,
-  });
-  await fillList(listId, emailable(people));
+  const listId = await buildSendList(
+    `${group.name} coins ${actionPublicId}`,
+    `Customer group ${group.publicId} action ${actionPublicId}`,
+    people,
+  );
   const { publicId } = await createCampaign(deps, {
     name: `${group.name} coins email`,
     channels: ["email"],

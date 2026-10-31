@@ -16,7 +16,6 @@ import {
   createCustomerGroup,
   emailAwardedMembers,
   emailGroup,
-  ensureGroupContactList,
   getCoinsActionMembers,
   getCustomerGroup,
   giveGroupCoins,
@@ -35,6 +34,7 @@ let uOk: bigint;
 let uCapped: bigint;
 let uNoEmail: bigint;
 let uOkPublic: string;
+let uCappedPublic: string;
 const groupIds: bigint[] = [];
 
 beforeAll(async () => {
@@ -45,6 +45,7 @@ beforeAll(async () => {
   ]).returning();
   [uOk, uCapped, uNoEmail] = rows.map((r) => r.id);
   uOkPublic = rows[0].publicId;
+  uCappedPublic = rows[1].publicId;
   await db.insert(walletLedger).values({
     userId: uCapped, direction: "credit", sourceType: "test_fill", sourceId: `cg-test:${uCapped}`, coins: 100,
   });
@@ -52,8 +53,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const ids = [uOk, uCapped, uNoEmail];
-  const groups = groupIds.length ? await db.select().from(customerGroups).where(inArray(customerGroups.id, groupIds)) : [];
-  const listPublicIds = groups.map((g) => g.contactListPublicId).filter((x): x is string => !!x);
+  const acts = groupIds.length
+    ? await db.select().from(customerGroupActions).where(inArray(customerGroupActions.groupId, groupIds))
+    : [];
+  const listPublicIds = acts.map((a) => a.params.listPublicId).filter((x): x is string => typeof x === "string");
   const camps = await db.select().from(campaigns);
   const mine = camps.filter((c) => (c.audience as { listIds?: string[] } | null)?.listIds?.some((l) => listPublicIds.includes(l)));
   if (mine.length) await db.delete(campaigns).where(inArray(campaigns.id, mine.map((c) => c.id)));
@@ -130,23 +133,27 @@ describe("customer groups", () => {
     await expect(giveGroupCoins(g.publicId, { coins: 0 }, null)).rejects.toThrow(ValidationError);
   });
 
-  it("ensureGroupContactList is idempotent and holds all emailable members", async () => {
-    const g = await mk("g5", [uOk, uCapped, uNoEmail]);
-    const a = await ensureGroupContactList(g.publicId);
-    const b = await ensureGroupContactList(g.publicId);
-    expect(b.contactListPublicId).toBe(a.contactListPublicId);
-    expect(a.noEmail).toBe(1);
-    expect(await listMemberCount(a.contactListPublicId)).toBe(2);
+  it("emailGroup builds a fresh list of current emailable members and records an action", async () => {
+    const g = await mk("g6", [uOk, uCapped, uNoEmail]);
+    await removeGroupMember(g.publicId, uCappedPublic);
+    const { campaignPublicId } = await emailGroup(g.publicId, uOk);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
+    const listIds = (c.audience as { listIds: string[] }).listIds;
+    expect(listIds).toHaveLength(1);
+    // Capped was removed, NoEmail has notifyEmail=false: only Ok is on the list.
+    expect(await listMemberCount(listIds[0])).toBe(1);
+    expect((await listGroupActions(g.publicId)).map((a) => a.kind)).toEqual(["email"]);
+    await emailGroup(g.publicId, uOk);
+    expect((await listGroupActions(g.publicId)).filter((a) => a.kind === "email")).toHaveLength(2);
   });
 
-  it("emailGroup creates a campaign on the group list and records an action", async () => {
-    const g = await mk("g6", [uOk]);
-    const { campaignPublicId } = await emailGroup(g.publicId, uOk);
-    const { contactListPublicId } = await ensureGroupContactList(g.publicId);
-    const [c] = await db.select().from(campaigns).where(eq(campaigns.publicId, campaignPublicId));
-    expect((c.audience as { listIds: string[] }).listIds).toEqual([contactListPublicId]);
-    const actions = await listGroupActions(g.publicId);
-    expect(actions.map((a) => a.kind)).toEqual(["email"]);
+  it("emailing with no eligible recipients is rejected", async () => {
+    const g = await mk("g6b", [uNoEmail]);
+    await expect(emailGroup(g.publicId, null)).rejects.toThrow(ValidationError);
+    const g2 = await mk("g6c", [uCapped]);
+    const r = await giveGroupCoins(g2.publicId, { coins: 10 }, null);
+    expect(r.awarded).toBe(0);
+    await expect(emailAwardedMembers(r.actionPublicId, null)).rejects.toThrow(ValidationError);
   });
 
   it("emailAwardedMembers lists only awarded members", async () => {
