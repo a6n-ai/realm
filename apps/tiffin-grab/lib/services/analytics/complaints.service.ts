@@ -262,10 +262,7 @@ export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
       email: users.email,
       n: intCount,
       lastAt: sql<number>`max(${tickets.createdAt})`,
-      // Most common category for this customer; ties go to the alphabetically first.
-      topCategory: sql<string | null>`(
-        select t2.category from tickets t2 where t2.raised_by = ${users.id} and t2.created_at >= ${scope.fromMs} and t2.created_at <= ${scope.toMs}
-        group by t2.category order by count(*) desc, t2.category asc limit 1)`,
+      userId: users.id,
     })
     .from(tickets)
     .innerJoin(users, eq(tickets.raisedBy, users.id))
@@ -278,7 +275,28 @@ export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
     .having(sql`count(*) > 1`)
     .orderBy(desc(intCount))
     .limit(limit);
-  return rows.map((r) => ({ ...r, topCategoryLabel: r.topCategory ? categoryLabel(r.topCategory) : null }));
+  if (rows.length === 0) return [];
+
+  // Most common category per customer, under the same scope as the counts (org, filters, complaints only).
+  const cats = await db
+    .select({ userId: tickets.raisedBy, category: tickets.category, n: intCount })
+    .from(tickets)
+    .leftJoin(orders, eq(tickets.orderId, orders.id))
+    .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
+    .where(and(where(scope), inArray(tickets.raisedBy, rows.map((r) => r.userId))))
+    .groupBy(tickets.raisedBy, tickets.category);
+  const top = new Map<bigint, { category: string; n: number }>();
+  for (const c of cats) {
+    const cur = top.get(c.userId);
+    // Ties go to the alphabetically first category.
+    if (!cur || c.n > cur.n || (c.n === cur.n && c.category < cur.category)) top.set(c.userId, { category: c.category, n: c.n });
+  }
+  return rows.map(({ userId, ...r }) => {
+    const topCategory = top.get(userId)?.category ?? null;
+    return { ...r, topCategory, topCategoryLabel: topCategory ? categoryLabel(topCategory) : null };
+  });
 }
 
 /** Plan and zone splits, each with an explicit unlinked bucket. */
