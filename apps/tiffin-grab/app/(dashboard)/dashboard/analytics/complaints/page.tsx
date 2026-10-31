@@ -2,6 +2,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
@@ -68,7 +69,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Complaints calendar" subtitle={`Complaints raised per day · ${DATE_BASIS_LABEL.tickets}. Darker is more.`}>
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <Trend scope={scope} />
           </Suspense>
         </ChartCard>

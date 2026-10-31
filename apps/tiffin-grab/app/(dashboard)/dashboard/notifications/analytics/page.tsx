@@ -7,7 +7,7 @@ import { getNotificationBuckets } from "@/lib/services/analytics/notifications.s
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { SegmentedBar } from "@/components/analytics/charts";
+import { PartsDonut, SegmentedBar } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 
 const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
@@ -97,5 +97,5 @@ async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
     .from(notificationOutbox)
     .where(await createdWhere(searchParams))
     .groupBy(notificationOutbox.status);
-  return <SegmentedBar withList parts={rows.map((r) => ({ label: r.status, value: r.n, tone: STATUS_TONE[r.status] ?? "chart" }))} />;
+  return <PartsDonut caption="Notifications" parts={rows.map((r) => ({ label: r.status, value: r.n, tone: STATUS_TONE[r.status] ?? "chart" }))} />;
 }

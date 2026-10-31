@@ -1,6 +1,5 @@
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
-import { bucketCounts } from "@/lib/analytics/buckets";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -128,11 +127,6 @@ export async function getComplaintDaily(scope: AnalyticsScope): Promise<{ iso: s
     .groupBy(sql`1`)
     .orderBy(sql`1`);
   return rows.map((r) => ({ iso: r.day, n: r.n }));
-}
-
-/** Complaints per bucket, for the trend; the grain follows the range. */
-export async function getComplaintTrend(scope: AnalyticsScope) {
-  return bucketCounts(await getComplaintDaily(scope), ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
 }
 
 /**

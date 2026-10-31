@@ -2,9 +2,10 @@
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { CalendarHeatmap, RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { CalendarHeatmap, PartsDonut, RadialRateChart, TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
@@ -64,7 +65,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
           </Suspense>
         </ChartCard>
         <ChartCard title="Revenue calendar" subtitle={`Net revenue per day, ${DATE_BASIS_LABEL.money}. Darker is more.`}>
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <RevenueCalendar scope={scope} />
           </Suspense>
         </ChartCard>
@@ -220,9 +221,9 @@ async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   const href = links(scope);
   return (
-    <SegmentedBar
+    <PartsDonut
       format="currency"
-      withList
+      caption="Payments"
       max={7}
       parts={report.byStatus.map((s) => ({ label: s.label, value: s.amount, tone: STATUS_TONE[s.status] ?? "muted", href: href([s.status]) }))}
     />
@@ -277,7 +278,7 @@ async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   const href = links(scope);
-  return <SegmentedBar format="currency" withList parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, href: href(SETTLED_STATUSES, [m.key]) }))} />;
+  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, href: href(SETTLED_STATUSES, [m.key]) }))} />;
 }
 
 const SOURCE_LABEL: Record<DiscountSource, string> = {

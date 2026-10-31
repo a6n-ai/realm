@@ -7,7 +7,7 @@ import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { PartsDonut, RadialRateChart, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { DailyScorecard } from "@/components/analytics/daily-scorecard";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
@@ -258,11 +258,13 @@ async function RevenueChart({ scope, daily }: { scope: AnalyticsScope; daily: bo
 
 async function StatusSplit({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSubscriptionMix(scope);
-  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
+  return <PartsDonut caption="Orders" max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
 }
 
 async function Scorecard({ scope }: { scope: AnalyticsScope }) {
-  return <DailyScorecard rows={await getDailyScorecard(scope)} />;
+  const rows = await getDailyScorecard(scope);
+  if (!rows) return <p className="text-muted-foreground py-8 text-center text-sm">Pick a range up to 3 months to see day by day.</p>;
+  return <DailyScorecard rows={rows} />;
 }
 
 async function CohortChart({ scope }: { scope: AnalyticsScope }) {

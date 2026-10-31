@@ -7,7 +7,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, mealSizes, orders, organization, payments, plans, tickets, users } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
-const { getDailyScorecard } = await import("../overview.service");
+const { getDailyScorecard, SCORECARD_MAX_DAYS } = await import("../overview.service");
 const { getRevenueReport } = await import("../revenue.service");
 const { countOrders } = await import("../metrics/orders");
 const { getOperationsStats } = await import("../operations.service");
@@ -87,7 +87,7 @@ describe("daily scorecard (integration)", () => {
     }
 
     const sc = scope([org]);
-    const rows = await getDailyScorecard(sc);
+    const rows = (await getDailyScorecard(sc))!;
     const sum = (k: "revenue" | "orders" | "deliveries" | "skipped" | "signups" | "complaints") => rows.reduce((t, r) => t + r[k], 0);
     const [report, orderCount, ops, signups, complaints] = await Promise.all([
       getRevenueReport(sc),
@@ -117,7 +117,14 @@ describe("daily scorecard (integration)", () => {
   });
 
   it("is empty for a franchise with no access", async () => {
-    const rows = await getDailyScorecard(scope([]));
+    const rows = (await getDailyScorecard(scope([])))!;
     expect(rows.every((r) => r.revenue === 0 && r.orders === 0 && r.deliveries === 0 && r.signups === 0 && r.complaints === 0)).toBe(true);
+  });
+
+  it("returns null past the day cap and rows at the cap", async () => {
+    const capped = (days: number) =>
+      buildAnalyticsScope({ from: String(now - (days - 1) * DAY), to: String(now) }, [], TZ, now);
+    expect(await getDailyScorecard(capped(SCORECARD_MAX_DAYS + 2))).toBeNull();
+    expect((await getDailyScorecard(capped(SCORECARD_MAX_DAYS - 1)))!.length).toBeGreaterThanOrEqual(SCORECARD_MAX_DAYS - 1);
   });
 });

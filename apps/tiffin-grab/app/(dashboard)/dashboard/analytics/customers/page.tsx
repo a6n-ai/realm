@@ -2,10 +2,11 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, CalendarHeatmap, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { isoDateInZone } from "@/lib/analytics/profitability";
@@ -50,7 +51,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
           </Suspense>
         </ChartCard>
         <ChartCard title="Signups calendar" subtitle="New accounts per day. Darker is more.">
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <SignupCalendar scope={scope} />
           </Suspense>
         </ChartCard>
@@ -132,7 +133,7 @@ async function SignupCalendar({ scope }: { scope: AnalyticsScope }) {
 
 async function MixChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSubscriptionMix(scope);
-  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
+  return <PartsDonut caption="Orders" max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
 }
 
 async function CitiesChart({ scope }: { scope: AnalyticsScope }) {

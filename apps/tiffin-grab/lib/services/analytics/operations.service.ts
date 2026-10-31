@@ -1,7 +1,6 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { bucketCounts } from "@/lib/analytics/buckets";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhereCalendar, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
@@ -90,14 +89,4 @@ export async function getDeliveriesDaily(scope: AnalyticsScope) {
     byDay.set(r.iso, d);
   }
   return [...byDay].map(([iso, d]) => ({ iso, ...d }));
-}
-
-/** Deliveries per bucket (grain follows the range) split by status. */
-export async function getDeliveriesByDay(scope: AnalyticsScope) {
-  return bucketCounts(
-    await getDeliveriesDaily(scope),
-    DELIVERY_DAY_STATUSES,
-    isoDateInZone(scope.fromMs, scope.tz),
-    isoDateInZone(scope.toMs, scope.tz),
-  );
 }

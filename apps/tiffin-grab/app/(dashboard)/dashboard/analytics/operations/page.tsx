@@ -2,10 +2,11 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, CalendarHeatmap, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut, RadialRateChart } from "@/components/analytics/charts";
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import {
@@ -41,7 +42,7 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="Deliveries calendar" subtitle={`Deliveries per day · ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <DeliveriesCalendar scope={scope} />
           </Suspense>
         </ChartCard>
@@ -138,7 +139,7 @@ async function DeliveriesCalendar({ scope }: { scope: AnalyticsScope }) {
 
 async function StatusSplit({ scope }: { scope: AnalyticsScope }) {
   const rows = await getDeliveryStatusMix(scope);
-  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: DELIVERY_TONE[r.key] ?? "chart" }))} />;
+  return <PartsDonut caption="Deliveries" max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: DELIVERY_TONE[r.key] ?? "chart" }))} />;
 }
 
 async function DriverChart({ scope }: { scope: AnalyticsScope }) {

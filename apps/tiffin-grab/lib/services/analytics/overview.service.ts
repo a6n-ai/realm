@@ -62,6 +62,9 @@ export type ScorecardRow = {
   href: string;
 };
 
+/** Longer ranges would be hundreds of rows; the card asks for a shorter range instead. */
+export const SCORECARD_MAX_DAYS = 92;
+
 async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
   if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
   return db
@@ -72,12 +75,13 @@ async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: 
 }
 
 /**
- * One row per calendar day in range, newest first. Every column reuses its tab's per-day query, so a
+ * One row per calendar day in range, newest first; null when the range is over SCORECARD_MAX_DAYS. Every column reuses its tab's per-day query, so a
  * column's total equals that tab's card for the same URL.
  */
-export async function getDailyScorecard(scope: AnalyticsScope): Promise<ScorecardRow[]> {
+export async function getDailyScorecard(scope: AnalyticsScope): Promise<ScorecardRow[] | null> {
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
+  if (eachDateInclusive(from, to).length > SCORECARD_MAX_DAYS) return null;
   const [revenue, orderDays, deliveryDays, signups, complaints] = await Promise.all([
     revenueBy(scope, "day"),
     getOrdersDaily(scope),

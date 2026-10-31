@@ -12,7 +12,7 @@ const {
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { getLeadStats, getLeadsByStage } = await import("../leads.service");
 const { getEmployeeRollup } = await import("../employees.service");
-const { getDeliveriesByDay, getOperationsStats } = await import("../operations.service");
+const { getDeliveriesDaily, getOperationsStats } = await import("../operations.service");
 const { getNotificationBuckets } = await import("../notifications.service");
 
 const TZ = "America/Toronto";
@@ -127,11 +127,11 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     expect((await getOperationsStats(scopeFor([orgB]))).totalDeliveries).toBe(1);
     expect((await getOperationsStats(scopeFor([]))).totalDeliveries).toBe(0);
 
-    const sum = (rows: Awaited<ReturnType<typeof getDeliveriesByDay>>, k: "scheduled" | "paused" | "skipped" | "cancelled") =>
+    const sum = (rows: Awaited<ReturnType<typeof getDeliveriesDaily>>, k: "scheduled" | "paused" | "skipped" | "cancelled") =>
       rows.reduce((t, r) => t + r[k], 0);
     for (const orgIds of [[orgA], [orgB], []] as string[][]) {
       const stats = await getOperationsStats(scopeFor(orgIds));
-      const rows = await getDeliveriesByDay(scopeFor(orgIds));
+      const rows = await getDeliveriesDaily(scopeFor(orgIds));
       const total = sum(rows, "scheduled") + sum(rows, "paused") + sum(rows, "skipped") + sum(rows, "cancelled");
       expect(total).toBe(stats.totalDeliveries);
       expect(sum(rows, "skipped")).toBe(stats.skipped);

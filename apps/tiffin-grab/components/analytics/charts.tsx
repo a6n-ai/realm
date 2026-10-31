@@ -2,7 +2,8 @@
 
 import { lazy, Suspense, type ComponentProps } from "react";
 import { ChartSkeleton } from "./skeletons";
-import { calendarWeeks, rankedHeight } from "./chart-math";
+import { calendarHeight } from "./calendar-height";
+import { rankedHeight } from "./chart-math";
 
 // recharts is about 100 KB; split it out so analytics pages paint before their charts.
 const load = () => import("./charts-impl");
@@ -12,9 +13,6 @@ const Breakdown = lazy(() =>
 );
 const Distribution = lazy(() =>
   load().then((m) => ({ default: m.DistributionDonutChart })),
-);
-const HoverValue = lazy(() =>
-  load().then((m) => ({ default: m.HoverValueBarChart })),
 );
 const Grouped = lazy(() =>
   load().then((m) => ({ default: m.GroupedBarChart })),
@@ -27,10 +25,8 @@ const ActiveDonut = lazy(() =>
 );
 
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
+const Parts = lazy(() => load().then((m) => ({ default: m.PartsDonut })));
 const Funnel = lazy(() => load().then((m) => ({ default: m.FunnelChart })));
-const Stacked = lazy(() =>
-  load().then((m) => ({ default: m.StackedBarChart })),
-);
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
 const Calendar = lazy(() =>
   load().then((m) => ({ default: m.CalendarHeatmap })),
@@ -80,19 +76,17 @@ function wrap<C extends React.ComponentType<any>>(Inner: C, sized = false) {
 export const TrendLineChart = wrap(Trend);
 export const BreakdownBarChart = wrap(Breakdown, true);
 export const DistributionDonutChart = wrap(Distribution);
-export const HoverValueBarChart = wrap(HoverValue);
 export const GroupedBarChart = wrap(Grouped);
 export const RadialRateChart = wrap(RadialRate);
 export const ActiveSegmentDonutChart = wrap(ActiveDonut);
 export const SegmentedBar = wrap(Segmented);
+export const PartsDonut = wrap(Parts);
 export const FunnelChart = wrap(Funnel);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
-export const StackedBarChart = wrap(Stacked);
 
 export function CalendarHeatmap(props: ComponentProps<typeof Calendar>) {
-  // Header, one row per week, and the legend; the skeleton must match or the page shifts on load.
-  const height = 60 + calendarWeeks(props.from, props.to).length * 42;
+  const height = calendarHeight(props.from, props.to);
   return (
     <Suspense fallback={<ChartSkeleton height={height} />}>
       <Calendar {...props} />

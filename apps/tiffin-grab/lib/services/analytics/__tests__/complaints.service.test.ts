@@ -11,7 +11,7 @@ const {
   getByCategory,
   getBySubcategory,
   getComplaintKpis,
-  getComplaintTrend,
+  getComplaintDaily,
   getNeedsAttention,
   getRepeatCustomers,
   getStatusMix,
@@ -360,11 +360,10 @@ describe("complaint scope", () => {
     // 23:30 Toronto (EDT, UTC-4) on Mar 31 is already Apr 1 in UTC.
     await makeTicket(u.id, { createdAt: Date.parse("2026-04-01T03:30:00Z") });
     await makeTicket(u.id, { createdAt: Date.parse("2026-04-01T15:00:00Z") });
-    const rows = await getComplaintTrend({ ...NO_FILTERS, fromMs: Date.parse("2026-03-30T04:00:00Z"), toMs: Date.parse("2026-04-02T03:59:00Z") });
-    expect(rows.map((r) => [r.period, r.n])).toEqual([
-      ["Mar 30", 0],
-      ["Mar 31", 1],
-      ["Apr 1", 1],
+    const rows = await getComplaintDaily({ ...NO_FILTERS, fromMs: Date.parse("2026-03-30T04:00:00Z"), toMs: Date.parse("2026-04-02T03:59:00Z") });
+    expect(rows.map((r) => [r.iso, r.n])).toEqual([
+      ["2026-03-31", 1],
+      ["2026-04-01", 1],
     ]);
   });
 
