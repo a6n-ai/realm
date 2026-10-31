@@ -1327,7 +1327,7 @@ export function SankeyChart({ nodes, links, height = 300 }: { nodes: FlowNode[];
             d={`M${p.sourceX},${p.sourceY} C${p.sourceControlX},${p.sourceY} ${p.targetControlX},${p.targetY} ${p.targetX},${p.targetY}`}
             fill="none"
             stroke={colors[links[p.index]!.source]}
-            strokeOpacity={0.3}
+            strokeOpacity={0.55}
             strokeWidth={p.linkWidth}
           />
         )}
