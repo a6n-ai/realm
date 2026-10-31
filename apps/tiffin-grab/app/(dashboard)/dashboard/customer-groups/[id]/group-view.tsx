@@ -19,11 +19,9 @@ import { addGroupMemberAction, removeGroupMemberAction } from "../actions";
 import { GroupHeaderActions } from "../group-quick-actions";
 import { MemberStatuses } from "./member-statuses";
 
-type MemberColumn = "name" | "email" | "phone" | "coins" | "revenue" | "since" | "last" | "remove";
+type MemberColumn = "name" | "coins" | "revenue" | "since" | "last" | "remove";
 const MEMBER_COLUMNS = [
   { key: "name", label: "Customer" },
-  { key: "email", label: "Email" },
-  { key: "phone", label: "Phone" },
   { key: "coins", label: "Wallet coins", align: "right" },
   { key: "revenue", label: "Revenue", align: "right" },
   { key: "since", label: "Ordering since" },
@@ -229,9 +227,9 @@ export function GroupView({
                 }
                 renderRow={(m) => (
                   <>
-                    <TableCell className="font-medium">{m.name ?? "Unnamed"}</TableCell>
-                    <TableCell className="text-muted-foreground">{m.email ?? ""}</TableCell>
-                    <TableCell className="text-muted-foreground">{m.phone ?? ""}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/dashboard/customers/${m.publicId}`} className="hover:underline">{m.name ?? "Unnamed"}</Link>
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>
                     <TableCell className="text-right tabular-nums">${Number(m.revenue).toFixed(2)}</TableCell>
                     <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>

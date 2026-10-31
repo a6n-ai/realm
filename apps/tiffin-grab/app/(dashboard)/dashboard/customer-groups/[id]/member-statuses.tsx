@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MailIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -16,7 +17,6 @@ type Status = { publicId: string; name: string | null; email: string | null; sta
 
 const COLUMNS = [
   { key: "name", label: "Customer" },
-  { key: "email", label: "Email" },
   { key: "status", label: "Result" },
 ] as const;
 
@@ -80,8 +80,9 @@ export function MemberStatuses({ actionPublicId }: { actionPublicId: string }) {
         emptyMessage="No members were recorded for this action."
         renderRow={(r) => (
           <>
-            <TableCell className="font-medium">{r.name ?? "Unnamed"}</TableCell>
-            <TableCell className="text-muted-foreground">{r.email ?? ""}</TableCell>
+            <TableCell className="font-medium">
+              <Link href={`/dashboard/customers/${r.publicId}`} className="hover:underline">{r.name ?? "Unnamed"}</Link>
+            </TableCell>
             <TableCell>
               {r.status === "awarded" ? (
                 <Badge variant="success-light">Awarded</Badge>
