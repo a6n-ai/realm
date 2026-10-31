@@ -95,12 +95,13 @@ async function BalancesData({ searchParams }: { searchParams: SearchParams }) {
         rows={rows.map((r) => ({
           publicId: r.publicId,
           name: r.name || r.email,
-          contact: [r.email, r.phone].filter(Boolean).join(" · "),
+          email: r.email,
+          phone: r.phone,
           balance: r.balance,
           value: money(r.value),
           earned: r.earned,
           redeemed: r.redeemed,
-          last: formatEpoch(r.last, { mode: "datetime", timeZone: timezone }),
+          last: formatEpoch(r.last, { mode: "date", timeZone: timezone }),
         }))}
       />
   );

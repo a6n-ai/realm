@@ -11,10 +11,20 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { AccountSearch, type AccountResult } from "../../customer-groups/new/account-search";
 import { broadcastCustomerPayout, type CustomerBroadcastResult } from "../actions";
 
-export function GiveOneCustomerDialog() {
+type Customer = Pick<AccountResult, "publicId" | "fullName" | "phone" | "email">;
+
+/** Standalone (own trigger) or, with `customer` + `open`, a controlled dialog preselected on that customer. */
+export function GiveOneCustomerDialog({ customer, open: openProp, onOpenChange }: {
+  customer?: Customer;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [account, setAccount] = useState<AccountResult | null>(null);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : ownOpen;
+  const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setOwnOpen(v));
+  const [account, setAccount] = useState<Customer | null>(customer ?? null);
   const [coins, setCoins] = useState("0");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -28,7 +38,7 @@ export function GiveOneCustomerDialog() {
     if (submitting) return;
     setOpen(next);
     if (!next) {
-      setAccount(null);
+      setAccount(customer ?? null);
       setOutcome(null);
       setFailure(null);
       setMemo("");
@@ -94,9 +104,11 @@ export function GiveOneCustomerDialog() {
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        <UserIcon /> One customer
-      </Button>
+      {!controlled && (
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          <UserIcon /> One customer
+        </Button>
+      )}
       <ResponsiveDialog
         open={open}
         onOpenChange={change}
