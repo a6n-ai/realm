@@ -41,12 +41,12 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Deliveries calendar" subtitle={`Deliveries per day · ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
+        <ChartCard title="Deliveries calendar" subtitle="Deliveries per day" info={`Counted ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope, false)} />}>
             <DeliveriesCalendar scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Route load per driver" subtitle={`Deliveries synced from OptimoRoute · ${DATE_BASIS_LABEL.deliveries}`}>
+        <ChartCard title="Route load per driver" subtitle="Deliveries synced from OptimoRoute" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <DriverChart scope={scope} />
           </Suspense>
@@ -54,12 +54,12 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
+        <ChartCard title="What share of deliveries was skipped?" subtitle="Skipped out of all scheduled" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <SkipRateChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Delivery status" subtitle={`Every delivery in range · ${DATE_BASIS_LABEL.deliveries}`}>
+        <ChartCard title="Delivery status" subtitle="Every delivery in range" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <StatusSplit scope={scope} />
           </Suspense>

@@ -79,7 +79,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
 
       <ChartCard
         title={CARDS_TITLE[grain]}
-        subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown."
+        subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown. Each column is shaded on its own scale; weekends and days without deliveries are muted. Monthly costs are company-wide."
       >
         <Suspense fallback={<ChartSkeleton height={320} />}>
           <Cards view={view} />
@@ -89,13 +89,13 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title={`Profit by ${PERIOD[grain]}`}
-          subtitle="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+          subtitle="Earned revenue minus costs, not cash" info="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
         >
           <Suspense fallback={<ChartSkeleton />}>
             <Trend view={view} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Where the money goes" subtitle="Total costs in this range by kind, under your assumptions.">
+        <ChartCard title="Where the money goes" subtitle="Total costs by kind" info="Total costs in this range, under your assumptions.">
           <Suspense fallback={<ChartSkeleton />}>
             <Costs view={view} />
           </Suspense>

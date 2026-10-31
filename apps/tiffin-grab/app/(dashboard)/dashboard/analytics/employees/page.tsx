@@ -33,19 +33,19 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched in this range.">
+        <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched">
           <Suspense fallback={<ChartSkeleton />}>
             <LeadsChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Tickets resolved per rep" subtitle="Resolved or closed in this range, by resolved date.">
+        <ChartCard title="Tickets resolved per rep" subtitle="Resolved or closed tickets" info="In this range, by resolved date.">
           <Suspense fallback={<ChartSkeleton />}>
             <TicketsChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
-      <ChartCard title="Per-rep breakdown" subtitle="Leads by inquiry date, tickets by resolved date. Open a count to see those inquiries or tickets.">
+      <ChartCard title="Per-rep breakdown" subtitle="Leads and tickets worked by each rep" info="Leads by inquiry date, tickets by resolved date. Open a count to see those inquiries or tickets.">
         <Suspense fallback={<TableRowsSkeleton />}>
           <RollupTable scope={scope} />
         </Suspense>

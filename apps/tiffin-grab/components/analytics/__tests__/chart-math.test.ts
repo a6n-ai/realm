@@ -43,18 +43,20 @@ describe("foldParts", () => {
       { label: "c", value: 1 },
     ]);
     expect(out.reduce((s, p) => s + p.share, 0)).toBe(100);
-    expect(out.map((p) => p.color)).toEqual(["var(--success)", "var(--destructive)", "var(--chart-1)"]);
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-good)", "var(--chart-bad)", "var(--chart-2)"]);
   });
-  it("skips the red chart-4 when status colours are present", () => {
+  it("starts categorical parts at blue, never orange, when any part has a status tone", () => {
     const out = foldParts([
-      { label: "ok", value: 5, tone: "success" },
-      ...["a", "b", "c", "d"].map((label) => ({ label, value: 1 })),
+      { label: "ok", value: 5, tone: "warning" },
+      ...["a", "b", "c"].map((label) => ({ label, value: 1 })),
     ]);
-    expect(out.map((p) => p.color)).not.toContain("var(--chart-4)");
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-warn)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]);
   });
-  it("never uses the red chart-4 for categorical parts", () => {
+  it("pure categorical donuts and chart+muted meters start at orange and use all five slots", () => {
     const out = foldParts(Array.from({ length: 5 }, (_, i) => ({ label: `p${i}`, value: i + 1 })));
-    expect(out.map((p) => p.color)).not.toContain("var(--chart-4)");
+    expect(out.map((p) => p.color)).toContain("var(--chart-1)");
+    const two = foldParts([{ label: "a", value: 1, tone: "chart" }, { label: "b", value: 1, tone: "muted" }]);
+    expect(two.map((p) => p.color)).toEqual(["var(--chart-1)", "var(--muted-foreground)"]);
   });
   it("is empty for all-zero input", () => {
     expect(foldParts([{ label: "a", value: 0 }])).toEqual([]);

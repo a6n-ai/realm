@@ -41,12 +41,12 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Lead stages" subtitle="Where every lead in range sits in the pipeline. Open a stage to see those inquiries.">
+        <ChartCard title="Lead stages" subtitle="Where every lead in range sits" info="Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Conversion rate" subtitle="Converted leads out of all leads.">
+        <ChartCard title="Conversion rate" subtitle="Converted leads out of all leads">
           <Suspense fallback={<ChartSkeleton />}>
             <ConversionChart scope={scope} />
           </Suspense>
@@ -54,7 +54,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
+        <ChartCard title="Source performance" subtitle="Leads and conversion rate by source" info="Open a source to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
             <SourceTable scope={scope} />
           </Suspense>

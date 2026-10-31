@@ -10,7 +10,7 @@ export async function NeedsReview({ scope }: { scope: AnalyticsScope }) {
   return (
     <SectionCard
       title="Needs review"
-      subtitle="Cancelled-but-paid money is included in revenue."
+      subtitle="Cancelled-but-paid money counts in revenue"
       action={rows.length > 0 ? <Badge variant="warning-light">{rows.length}</Badge> : undefined}
     >
       {rows.length === 0 ? (

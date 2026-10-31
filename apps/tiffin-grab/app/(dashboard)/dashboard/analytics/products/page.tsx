@@ -63,13 +63,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="What sells?"
-          subtitle={`Every meal size by plan. Revenue is net ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
+          subtitle="Every meal size by plan" info={`Revenue is net, counted ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
         >
           <Suspense fallback={<ChartSkeleton height={340} />}>
             <SizeTreemap scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Which meal size tier earns the most?" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included.`}>
+        <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <TierDonut scope={scope} />
           </Suspense>
@@ -79,13 +79,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="Which sizes sell in which diet?"
-          subtitle={`Net revenue ${DATE_BASIS_LABEL.money} by meal size tier and plan. Custom sizes are not included.`}
+          subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are not included.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
             <TierByDietChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Veg or non-veg?" subtitle="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
+        <ChartCard title="Veg or non-veg?" subtitle="Net revenue or tiffins delivered" info="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
           <Suspense fallback={<ChartSkeleton />}>
             <PlanSplit scope={scope} />
           </Suspense>
@@ -93,12 +93,12 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Picks by category" subtitle={`Dish picks on orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out. Top four categories and the rest.`}>
+        <ChartCard title="Picks by category" subtitle="Dish picks, top four categories and the rest" info={`On orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <CategoryDonut scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Most-picked dishes" subtitle={`Share of all dish picks, top 10 and the rest. Orders ${DATE_BASIS_LABEL.orders}.`}>
+        <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10 and the rest" info={`On orders ${DATE_BASIS_LABEL.orders}.`}>
           <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
             <TopDishesList scope={scope} />
           </Suspense>

@@ -48,8 +48,7 @@ import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
   axisTicks,
   calendarWeeks,
-  categoricalColor,
-  chartColor as tokenColor,
+  chartColor,
   foldParts,
   heatBucket,
   heatOpacity,
@@ -87,9 +86,6 @@ function formatValue(v: unknown, format: ValueFormat): string {
   if (typeof v !== "number") return String(v);
   return format === "currency" ? CURRENCY.format(v) : v.toLocaleString();
 }
-
-// The five theme-aware chart tokens (light/dark are handled by the CSS vars).
-const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;
 
 type TooltipFormatter = NonNullable<
   ComponentProps<typeof ChartTooltipContent>["formatter"]
@@ -809,10 +805,10 @@ export function TreemapChart({
     children: g.children.map((c, ci) => ({
       ...c,
       plan: g.name,
-      color: `color-mix(in oklch, ${categoricalColor(gi)} ${Math.round(100 - ((100 - SHADE_FLOOR) * ci) / Math.max(1, g.children.length - 1))}%, var(--card))`,
+      color: `color-mix(in oklch, ${chartColor(gi)} ${Math.round(100 - ((100 - SHADE_FLOOR) * ci) / Math.max(1, g.children.length - 1))}%, var(--card))`,
     })),
   }));
-  const config = Object.fromEntries(data.map((g, i) => [`p${i}`, { label: g.name, color: categoricalColor(i) }])) satisfies ChartConfig;
+  const config = Object.fromEntries(data.map((g, i) => [`p${i}`, { label: g.name, color: chartColor(i) }])) satisfies ChartConfig;
   return (
     <div className="flex flex-col gap-3">
       <ChartContainer config={config} className="w-full" style={{ height }}>
@@ -845,7 +841,7 @@ export function TreemapChart({
       <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {data.map((g, i) => (
           <li key={`${g.name}-${i}`} className="flex items-center gap-1.5">
-            <span className="size-2.5 shrink-0 rounded-full" style={{ background: categoricalColor(i) }} />
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: chartColor(i) }} />
             {g.name}
           </li>
         ))}
@@ -922,7 +918,7 @@ export function HeatmapGrid({
                           aria-hidden
                           className="absolute inset-0"
                           style={{
-                            background: tokenColor(0),
+                            background: chartColor(0),
                             opacity: heatOpacity(b),
                           }}
                         />
@@ -958,7 +954,7 @@ export function HeatmapGrid({
                 key={i}
                 className="flex-1"
                 style={{
-                  background: tokenColor(0),
+                  background: chartColor(0),
                   opacity: heatOpacity(i + 1),
                 }}
               />
@@ -1042,7 +1038,7 @@ export function CalendarHeatmap({
                           date === today && "outline-foreground outline-2 -outline-offset-2",
                         )}
                       >
-                        <span aria-hidden className="absolute inset-0" style={{ background: tokenColor(0), opacity: heatOpacity(b) }} />
+                        <span aria-hidden className="absolute inset-0" style={{ background: chartColor(0), opacity: heatOpacity(b) }} />
                         <span className={cn("relative", b === 0 ? "text-muted-foreground" : heatIsDense(b) ? "text-background font-medium" : "text-foreground font-medium")}>
                           {v > 0 ? cellText(v) : null}
                         </span>
@@ -1071,7 +1067,7 @@ export function CalendarHeatmap({
           <span>{cellText(0)}</span>
           <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
             {Array.from({ length: HEAT_STEPS }, (_, i) => (
-              <span key={i} className="flex-1" style={{ background: tokenColor(0), opacity: heatOpacity(i + 1) }} />
+              <span key={i} className="flex-1" style={{ background: chartColor(0), opacity: heatOpacity(i + 1) }} />
             ))}
           </div>
           <span>{cellText(max)}</span>
@@ -1102,7 +1098,7 @@ export function DivergingBarChart({
   if (data.length === 0) return <EmptyChart />;
   const rows = data.map((r) => {
     const s0 = Number(r[yKey]) || 0;
-    return { ...r, s0, fill: s0 < 0 ? "var(--destructive)" : "var(--success)" };
+    return { ...r, s0, fill: s0 < 0 ? "var(--chart-bad)" : "var(--chart-good)" };
   });
   const config = positionalConfig([{ label }]) satisfies ChartConfig;
   const dticks = signedTicks(Math.min(0, ...rows.map((r) => r.s0)), Math.max(0, ...rows.map((r) => r.s0)));

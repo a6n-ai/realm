@@ -45,12 +45,12 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title={`Signups by ${unit}`} subtitle={`New customer accounts created in this range.${unit === "day" ? " Line is the 7-day average." : ""} With a franchise or filter selected, only accounts with an order in scope are counted.`}>
+        <ChartCard title={`Signups by ${unit}`} subtitle="New customer accounts created" info={`${unit === "day" ? "Line is the 7-day average. " : ""}With a franchise or filter selected, only accounts with an order in scope are counted.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <SignupChart scope={scope} daily={unit === "day"} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Signups calendar" subtitle="New accounts per day. Darker is more.">
+        <ChartCard title="Signups calendar" subtitle="New accounts per day" info="Darker is more.">
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <SignupCalendar scope={scope} />
           </Suspense>
@@ -58,12 +58,12 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Subscription status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
+        <ChartCard title="Subscription status" subtitle="Orders by status" info={`Counted ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <MixChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Top cities" subtitle={`Customers grouped by city, top 8 and the rest · ${DATE_BASIS_LABEL.orders}`}>
+        <ChartCard title="Top cities" subtitle="Customers by city, top 8 and the rest" info={`Counted ${DATE_BASIS_LABEL.orders}.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <CitiesChart scope={scope} />
           </Suspense>

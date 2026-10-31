@@ -3,9 +3,9 @@ export type Part = { label: string; value: number; tone?: Tone; href?: string };
 export type SharedPart = Part & { share: number; color: string };
 
 export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
-  success: "var(--success)",
-  warning: "var(--warning)",
-  destructive: "var(--destructive)",
+  success: "var(--chart-good)",
+  warning: "var(--chart-warn)",
+  destructive: "var(--chart-bad)",
   muted: "var(--muted-foreground)",
 };
 
@@ -18,13 +18,8 @@ export const DONUT_CAPTION_CLASS = "fill-muted-foreground text-xs";
 export const DONUT_VALUE_TEXT_CLASS = "text-foreground text-2xl font-bold tabular-nums";
 export const DONUT_CAPTION_TEXT_CLASS = "text-muted-foreground text-xs";
 
+/** The i-th categorical colour; all five chart slots are categorical, status uses --chart-good/warn/bad. */
 export const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;
-
-// --chart-4 is red and would read as a status, so categorical parts always skip it.
-const CATEGORICAL = [1, 2, 3, 5];
-
-/** The i-th categorical colour, skipping the status red. */
-export const categoricalColor = (i: number) => `var(--chart-${CATEGORICAL[i % CATEGORICAL.length]})`;
 
 /** Largest-remainder rounding so whole-number shares always add to exactly 100. */
 function shares(values: number[]): number[] {
@@ -57,11 +52,12 @@ export function foldParts(input: Part[], max = 5): SharedPart[] {
   }
   const pct = shares(kept.map((p) => p.value));
   const isStatus = (p: Part) => !!p.tone && p.tone !== "chart";
-  let cat = 0;
+  // A status donut must not contain the orange that reads as warning, so its categories start at blue.
+  let cat = kept.some((p) => p.tone === "success" || p.tone === "warning" || p.tone === "destructive") ? 1 : 0;
   return kept.map((p, i) => ({
     ...p,
     share: pct[i]!,
-    color: isStatus(p) ? TONE_COLOR[p.tone as keyof typeof TONE_COLOR] : `var(--chart-${CATEGORICAL[cat++ % CATEGORICAL.length]})`,
+    color: isStatus(p) ? TONE_COLOR[p.tone as keyof typeof TONE_COLOR] : chartColor(cat++),
   }));
 }
 

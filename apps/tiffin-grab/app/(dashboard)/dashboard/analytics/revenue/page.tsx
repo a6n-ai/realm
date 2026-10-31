@@ -58,13 +58,13 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title={`Net revenue by ${unit}`}
-          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
+          subtitle="Ex tax and surcharge, after refunds" info={`Counted ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
         >
           <Suspense fallback={<ChartSkeleton />}>
             <NetByDay scope={scope} daily={unit === "day"} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Revenue calendar" subtitle={`Net revenue per day, ${DATE_BASIS_LABEL.money}. Darker is more.`}>
+        <ChartCard title="Revenue calendar" subtitle="Net revenue per day" info={`Counted ${DATE_BASIS_LABEL.money}. Darker is more.`}>
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <RevenueCalendar scope={scope} />
           </Suspense>
@@ -80,13 +80,13 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="How much is still owed?"
-          subtitle="Collected out of collected plus awaiting payment and needs review."
+          subtitle="Collected out of everything billed" info="Collected out of collected plus awaiting payment and needs review."
         >
           <Suspense fallback={<ChartSkeleton />}>
             <Owed scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Payments" subtitle={`Every payment ${DATE_BASIS_LABEL.money}, by amount. Methods show net revenue, ex tax & surcharge.`}>
+        <ChartCard title="Payments" subtitle="Every payment, by amount" info={`Counted ${DATE_BASIS_LABEL.money}. Methods show net revenue, ex tax & surcharge.`}>
           <Tabs defaultValue="status" className="gap-4">
             <TabsList>
               <TabsTrigger value="status">By status</TabsTrigger>
@@ -107,7 +107,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Discounts given" subtitle="Across settled orders in this range.">
+        <ChartCard title="Discounts given" subtitle="Across settled orders in this range">
           <Suspense fallback={<ChartSkeleton />}>
             <Discounts scope={scope} />
           </Suspense>
@@ -350,7 +350,7 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
   return (
     <ChartCard
       title="Free tiffins"
-      subtitle={`${plural(free.count, "tiffin", "tiffins")} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`}
+      subtitle={plural(free.count, "tiffin", "tiffins")} info={`Counted ${DATE_BASIS_LABEL.deliveries}. ${free.notValued} not valued (no stored price).`}
     >
       <PartsDonut
         caption={valued ? "free tiffins" : "tiffins"}

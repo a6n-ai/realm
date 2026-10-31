@@ -34,6 +34,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-good: var(--chart-good);
+  --color-chart-warn: var(--chart-warn);
+  --color-chart-bad: var(--chart-bad);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -113,10 +116,13 @@
   --input: #E3DFD1;
   --ring: #FB801C;
   --chart-1: #f06b1a;
-  --chart-2: #185936;
-  --chart-3: #0e7490;
-  --chart-4: #c23b3b;
-  --chart-5: #b45309;
+  --chart-2: #2a78d6;
+  --chart-3: #c2549b;
+  --chart-4: #7c5cd6;
+  --chart-5: #0e9aa7;
+  --chart-good: #10a36b;
+  --chart-warn: #b87800;
+  --chart-bad: #dc3d3d;
   --radius: 0.625rem;
   /* Sidebar: cream panel; the active nav item is a soft orange wash — orange means
      "where I am," matching the brand swap above. */
@@ -207,11 +213,14 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #FF9843;
-  --chart-1: #ff9843;
-  --chart-2: #5cba7d;
-  --chart-3: #38bdf8;
-  --chart-4: #fb7185;
-  --chart-5: #f5b942;
+  --chart-1: #dd7226;
+  --chart-2: #4a8fe0;
+  --chart-3: #d9649f;
+  --chart-4: #8f7ae8;
+  --chart-5: #009a92;
+  --chart-good: #10b077;
+  --chart-warn: #c08412;
+  --chart-bad: #e5534b;
   --sidebar: #18261F;
   --sidebar-foreground: #F3EFE4;
   --sidebar-primary: #FF9843;

@@ -70,12 +70,12 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Complaints calendar" subtitle={`Complaints raised per day · ${DATE_BASIS_LABEL.tickets}. Darker is more.`}>
+        <ChartCard title="Complaints calendar" subtitle="Complaints raised per day" info={`Counted ${DATE_BASIS_LABEL.tickets}. Darker is more.`}>
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <Trend scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="By category" subtitle="Select a bar to see its sub-categories.">
+        <ChartCard title="By category" subtitle="Tickets per category" info="Select a bar to see its sub-categories.">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Categories scope={scope} drill={drill} />
           </Suspense>
@@ -83,7 +83,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="By sub-category" subtitle="Top 8 within the selected category.">
+        <ChartCard title="By sub-category" subtitle="Top 8 in the selected category">
           <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Subcategories scope={scope} drill={drill} />
           </Suspense>
@@ -109,7 +109,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
       </div>
 
       <div id="repeat-customers" className="scroll-mt-20">
-        <ChartCard title="Customers with repeat complaints" subtitle="Top 10 in this range.">
+        <ChartCard title="Customers with repeat complaints" subtitle="Top 10 in this range">
           <Suspense fallback={<ChartSkeleton />}>
             <RepeatCustomers scope={scope} />
           </Suspense>

@@ -84,7 +84,7 @@ export function BreakdownList({
                 {r.meta ? <p className="text-muted-foreground truncate text-xs">{r.meta}</p> : null}
                 <div className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
                   <div
-                    className={cn("h-full rounded-full", r.muted ? "bg-muted-foreground/40" : "bg-primary")}
+                    className={cn("h-full rounded-full", r.muted ? "bg-muted-foreground/40" : "bg-chart-1")}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
