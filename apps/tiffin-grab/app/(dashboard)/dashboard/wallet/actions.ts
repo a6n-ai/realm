@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inArray } from "drizzle-orm";
+import { unexpired } from "@foundry/wallet";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createCampaign } from "@relay/engine";
-import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { coinGrantGroups, coinRate, users } from "@/db/schema";
+import { coinGrantGroups, coinRate, users, walletLedger } from "@/db/schema";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { createCoinGrant, ensureGrantContactList, getCoinGrantGroup } from "@/lib/services/coin-grants.service";
@@ -42,7 +42,20 @@ export async function saveCoinRate(input: unknown) {
 
 export async function searchAccounts(query: string) {
   await requireAdmin();
-  return searchCustomers(query);
+  const rows = await searchCustomers(query);
+  if (rows.length === 0) return [];
+  // Spendable balance for the give-coins review table when staff add someone by hand.
+  const bals = await db
+    .select({
+      publicId: users.publicId,
+      walletCoins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.mapWith(Number),
+    })
+    .from(users)
+    .leftJoin(walletLedger, and(eq(walletLedger.userId, users.id), unexpired(walletLedger, Date.now())))
+    .where(inArray(users.publicId, rows.map((r) => r.publicId)))
+    .groupBy(users.publicId);
+  const byId = new Map(bals.map((b) => [b.publicId, b.walletCoins]));
+  return rows.map((r) => ({ ...r, walletCoins: byId.get(r.publicId) ?? 0 }));
 }
 
 export async function getOrderCities(): Promise<string[]> {

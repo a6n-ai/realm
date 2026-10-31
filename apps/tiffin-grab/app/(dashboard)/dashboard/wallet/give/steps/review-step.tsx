@@ -13,6 +13,7 @@ const COLUMNS = [
   { key: "name", label: "Customer" },
   { key: "contact", label: "Contact" },
   { key: "revenue", label: "Revenue", align: "right" },
+  { key: "wallet", label: "Wallet coins", align: "right" },
   { key: "since", label: "Ordering since" },
   { key: "last", label: "Last tiffin" },
 ] as const;
@@ -20,7 +21,17 @@ const COLUMNS = [
 const money = (v: string) => `$${Number(v).toFixed(2)}`;
 
 export function toCandidate(a: AccountResult): Candidate {
-  return { publicId: a.publicId, name: a.fullName, phone: a.phone, email: a.email, revenue: "0", firstOrderDate: "-", lastTiffin: null, added: true };
+  return {
+    publicId: a.publicId,
+    name: a.fullName,
+    phone: a.phone,
+    email: a.email,
+    revenue: "0",
+    firstOrderDate: "-",
+    lastTiffin: null,
+    walletCoins: a.walletCoins,
+    added: true,
+  };
 }
 
 export function ReviewStep({
@@ -84,6 +95,7 @@ export function ReviewStep({
             <TableCell className="font-medium">{r.name ?? "Customer"}</TableCell>
             <TableCell className="text-muted-foreground">{r.phone ?? r.email ?? "-"}</TableCell>
             <TableCell className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : money(r.revenue)}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.walletCoins}</TableCell>
             <TableCell className="tabular-nums">{r.added ? "" : r.firstOrderDate}</TableCell>
             <TableCell className="tabular-nums">{r.added ? "" : (r.lastTiffin ?? "-")}</TableCell>
           </>
