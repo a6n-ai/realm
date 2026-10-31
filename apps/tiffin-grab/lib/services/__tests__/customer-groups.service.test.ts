@@ -18,6 +18,7 @@ import {
   emailGroup,
   getCoinsActionMembers,
   getCustomerGroup,
+  groupMembersCsv,
   giveGroupCoins,
   listCustomerGroups,
   listGroupActions,
@@ -197,5 +198,18 @@ describe("customer groups", () => {
     expect(b.length).toBeGreaterThan(0);
     expect(a.filter((id) => b.includes(id))).toEqual([]);
     expect(p0.total).toBeGreaterThanOrEqual(3);
+  });
+
+  it("exports members as RFC 4180 CSV with quoted special characters", async () => {
+    const [u] = await db.insert(users).values({ email: "cg-csv@throwaway.local", name: 'Doe, "Jo"\nX' }).returning();
+    try {
+      const g = await mk("csv-group", [u.id]);
+      const csv = await groupMembersCsv(g.publicId);
+      expect(csv.split("\r\n")[0]).toBe("Name,Email,Phone,Revenue,Ordering since,Last tiffin");
+      expect(csv).toContain('"Doe, ""Jo""\nX",cg-csv@throwaway.local,');
+    } finally {
+      await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
   });
 });

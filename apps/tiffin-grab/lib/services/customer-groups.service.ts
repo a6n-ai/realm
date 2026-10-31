@@ -1,7 +1,7 @@
 import "server-only";
 import { ValidationError } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList } from "@relay/engine";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -188,6 +188,21 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
     const s = stats.get(u.publicId);
     return { ...u, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
   });
+}
+
+const csvCell = (v: string | null) => {
+  const t = v ?? "";
+  return /[",\r\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t;
+};
+
+export async function groupMembersCsv(groupPublicId: string): Promise<string> {
+  const detail = await getCustomerGroup(groupPublicId);
+  if (!detail) throw new ValidationError("Group not found");
+  const lines = [
+    ["Name", "Email", "Phone", "Revenue", "Ordering since", "Last tiffin"],
+    ...detail.members.map((m) => [m.name, m.email, m.phone, m.revenue, m.firstOrderDate, m.lastTiffin]),
+  ];
+  return lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
 export async function listGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {
@@ -388,4 +403,19 @@ export async function applyGroupCoupon(groupPublicId: string, couponPublicId: st
       updatedBy: actorId,
     });
   });
+}
+
+export async function listGroupableCoupons(): Promise<{ publicId: string; code: string; name: string }[]> {
+  return db
+    .select({ publicId: coupons.publicId, code: coupons.code, name: coupons.name })
+    .from(coupons)
+    .where(
+      and(
+        eq(coupons.active, true),
+        eq(coupons.autoApply, false),
+        isNull(coupons.customerGroupId),
+        notInArray(coupons.kind, ["rep_daily", "rep_code"]),
+      ),
+    )
+    .orderBy(coupons.code);
 }

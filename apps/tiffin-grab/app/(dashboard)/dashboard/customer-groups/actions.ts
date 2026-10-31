@@ -1,14 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
-import { createCustomerGroup } from "@/lib/services/customer-groups.service";
+import {
+  addGroupMembers,
+  applyGroupCoupon,
+  createCustomerGroup,
+  emailAwardedMembers,
+  emailGroup,
+  getCoinsActionMembers,
+  giveGroupCoins,
+  groupMembersCsv,
+  listGroupableCoupons,
+  removeGroupMember,
+} from "@/lib/services/customer-groups.service";
 import {
   listOrderCities,
   listPayoutCandidates,
@@ -62,4 +73,84 @@ export async function createGroupAction(input: unknown): Promise<{ publicId: str
   );
   revalidatePath("/dashboard/customer-groups");
   return group;
+}
+
+// Server-action errors are masked in production, so expected failures travel as values.
+export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  await requireAdmin();
+  try {
+    return { ok: true, data: await fn() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
+  }
+}
+
+const idSchema = z.string().trim().min(1);
+
+export async function addGroupMemberAction(groupPublicId: string, userPublicId: string) {
+  return run(async () => {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, idSchema.parse(userPublicId)));
+    if (!u) throw new Error("Customer not found");
+    await addGroupMembers(idSchema.parse(groupPublicId), [u.id]);
+    revalidatePath("/dashboard/customer-groups");
+  });
+}
+
+export async function removeGroupMemberAction(groupPublicId: string, userPublicId: string) {
+  return run(async () => {
+    await removeGroupMember(idSchema.parse(groupPublicId), idSchema.parse(userPublicId));
+    revalidatePath("/dashboard/customer-groups");
+  });
+}
+
+const giveCoinsSchema = z.object({
+  groupPublicId: idSchema,
+  coins: z.number().int().min(1, "Coins must be at least 1"),
+  memo: z.string().trim().max(200).optional(),
+});
+
+export async function giveGroupCoinsAction(input: unknown) {
+  return run(async () => {
+    const d = giveCoinsSchema.parse(input);
+    const res = await giveGroupCoins(d.groupPublicId, { coins: d.coins, memo: d.memo }, await currentUserId());
+    revalidatePath("/dashboard/customer-groups");
+    return res;
+  });
+}
+
+export async function getCoinsActionMembersAction(actionPublicId: string) {
+  return run(() => getCoinsActionMembers(idSchema.parse(actionPublicId)));
+}
+
+export async function emailGroupAction(groupPublicId: string) {
+  return run(async () => {
+    const res = await emailGroup(idSchema.parse(groupPublicId), await currentUserId());
+    revalidatePath("/dashboard/customer-groups");
+    return res;
+  });
+}
+
+export async function emailAwardedMembersAction(actionPublicId: string) {
+  return run(async () => {
+    const res = await emailAwardedMembers(idSchema.parse(actionPublicId), await currentUserId());
+    revalidatePath("/dashboard/customer-groups");
+    return res;
+  });
+}
+
+export async function listGroupableCouponsAction() {
+  return run(listGroupableCoupons);
+}
+
+export async function applyGroupCouponAction(groupPublicId: string, couponPublicId: string) {
+  return run(async () => {
+    await applyGroupCoupon(idSchema.parse(groupPublicId), idSchema.parse(couponPublicId), await currentUserId());
+    revalidatePath("/dashboard/customer-groups");
+  });
+}
+
+export async function exportGroupCsvAction(groupPublicId: string) {
+  return run(() => groupMembersCsv(idSchema.parse(groupPublicId)));
 }
