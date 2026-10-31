@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
+import { catchError, type ErrorInfo } from "next/error";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { AlertCircleIcon, FilterXIcon, InboxIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -38,22 +38,16 @@ export function ChartEmpty({ message = "Nothing in this range." }: { message?: s
   return <EmptyState icon={InboxIcon} message={message} action={<ClearFiltersButton />} />;
 }
 
-function ChartError({ onRetry }: { onRetry: () => void }) {
-  const router = useRouter();
+// catchError's retry() re-fetches the server children inside a transition, then clears the error.
+// A hand-rolled boundary's setState would re-render the same rejected children first.
+function ChartError(_props: object, { retry }: ErrorInfo) {
   return (
     <Alert variant="destructive">
       <AlertCircleIcon aria-hidden />
       <AlertTitle>Could not load this card</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-2">
         <p>Something went wrong fetching the numbers.</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            onRetry();
-            router.refresh();
-          }}
-        >
+        <Button variant="outline" size="sm" onClick={() => retry()}>
           Retry
         </Button>
       </AlertDescription>
@@ -61,14 +55,5 @@ function ChartError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** Class boundary: keeps one failed chart from blanking the whole tab. */
-export class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    if (this.state.failed) return <ChartError onRetry={() => this.setState({ failed: false })} />;
-    return this.props.children;
-  }
-}
+/** Keeps one failed chart from blanking the whole tab. */
+export const ChartBoundary = catchError(ChartError);

@@ -44,10 +44,10 @@ const BADGE = {
   primary: "default",
 } as const;
 
-/** Soft bar under a card's hint, for a second fact such as a rate or a total. */
+/** Second fact row under a card's hint, for a second fact such as a rate or a total. */
 export function StatFootnote({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-muted/60 flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs">
+    <div className="flex items-center justify-between gap-2 text-xs">
       {children}
     </div>
   );

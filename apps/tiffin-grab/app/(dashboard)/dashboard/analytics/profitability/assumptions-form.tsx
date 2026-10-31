@@ -8,6 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { NumberField } from "@/app/(dashboard)/dashboard/discounts/controls";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
 import { SectionCard } from "@/components/ds";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { saveAssumptionsAction } from "./actions";
 
@@ -91,19 +92,17 @@ export function AssumptionsForm({
               ))}
             </div>
 
-            <div className="bg-muted/60 flex flex-col gap-1 rounded-lg p-3">
-              <span className="text-foreground text-xs font-medium">
-                How these feed profit
-              </span>
-              <p className="text-muted-foreground text-xs text-pretty">
+            <Alert>
+              <AlertTitle>How these feed profit</AlertTitle>
+              <AlertDescription>
                 Saving recalculates net profit, margin, and average profit per
                 tiffin for the selected period.
-              </p>
-            </div>
+              </AlertDescription>
+            </Alert>
           </div>
 
-          <Button onClick={save} disabled={pending} className="w-full gap-1.5">
-            <CalculatorIcon className="size-4" aria-hidden />
+          <Button onClick={save} disabled={pending} className="w-full">
+            <CalculatorIcon aria-hidden />
             {pending ? "Saving…" : "Save assumptions"}
           </Button>
         </div>

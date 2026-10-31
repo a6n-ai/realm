@@ -1,6 +1,5 @@
 "use client";
 
-import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { useId, useState, type ComponentProps, type ReactNode, type SVGProps } from "react";
 import {
   Area,
@@ -28,6 +27,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartEmpty } from "@/components/analytics/chart-boundary";
 
 // A string, not a formatter function: these charts are rendered from server
 // components, and functions cannot cross that boundary as props.
@@ -76,8 +76,7 @@ const headerLabel = (value: ReactNode) => (
   </div>
 );
 
-// Height is kept in the signature so callers read the same; the empty state sizes itself.
-function EmptyChart(_: { height: number }) {
+function EmptyChart() {
   return <ChartEmpty message="No data in this range." />;
 }
 
@@ -104,7 +103,7 @@ export function TrendLineChart({
   height?: number;
 }) {
   const uid = useId().replace(/:/g, "");
-  if (data.length === 0) return <EmptyChart height={height} />;
+  if (data.length === 0) return <EmptyChart />;
   const lines = series ?? (yKey ? [{ key: yKey, label: yKey }] : []);
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
@@ -175,7 +174,7 @@ export function BreakdownBarChart({
   orientation?: "horizontal" | "vertical";
   height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart height={height} />;
+  if (data.length === 0) return <EmptyChart />;
   const config = { [yKey]: { label: yKey, color: chartColor(0) } } satisfies ChartConfig;
   const tooltip = (
     <ChartTooltip
@@ -298,7 +297,7 @@ function useSlices({ data, nameKey, valueKey, colorKey }: DonutProps) {
 export function DistributionDonutChart(props: DonutProps) {
   const { nameKey, valueKey, format = "number", legend = true, height = 240 } = props;
   const { slices, total, config } = useSlices(props);
-  if (slices.length === 0) return <EmptyChart height={height} />;
+  if (slices.length === 0) return <EmptyChart />;
   return (
     <div>
       <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
@@ -342,7 +341,7 @@ export function DistributionDonutChart(props: DonutProps) {
 export function ActiveSegmentDonutChart(props: DonutProps) {
   const { nameKey, valueKey, format = "number", height = 280 } = props;
   const { slices, total, config } = useSlices(props);
-  if (slices.length === 0) return <EmptyChart height={height} />;
+  if (slices.length === 0) return <EmptyChart />;
   return (
     <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
       <PieChart accessibilityLayer>
@@ -418,7 +417,7 @@ export function HoverValueBarChart({
   totalLabel?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
-  if (data.length === 0) return <EmptyChart height={height} />;
+  if (data.length === 0) return <EmptyChart />;
   const config = { [yKey]: { label: yKey, color: chartColor(0) } } satisfies ChartConfig;
   const active = activeIndex === undefined ? undefined : data[activeIndex];
   const figure = active
@@ -477,7 +476,7 @@ export function GroupedBarChart({
   format?: ValueFormat;
   height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart height={height} />;
+  if (data.length === 0) return <EmptyChart />;
   const config = Object.fromEntries(
     series.map((s, i) => [s.key, { label: s.label, color: chartColor(i) }]),
   ) satisfies ChartConfig;
@@ -518,7 +517,7 @@ export function RadialRateChart({
   valueKey: string;
   height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart height={height} />;
+  if (data.length === 0) return <EmptyChart />;
   const rows = data.map((r, i): Row => ({ ...r, fill: chartColor(i) }));
   const config = Object.fromEntries(
     rows.map((r) => [String(r[nameKey]), { label: String(r[nameKey] ?? "") }]),

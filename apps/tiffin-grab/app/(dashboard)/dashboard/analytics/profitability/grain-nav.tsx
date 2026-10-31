@@ -34,7 +34,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
   const router = useRouter();
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="bg-muted text-foreground inline-flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium">
+      <div className="text-foreground inline-flex flex-wrap items-center gap-2 text-sm font-medium">
         <CalendarRangeIcon className="text-primary size-4 shrink-0" aria-hidden />
         <span>{monthLabel(month)}</span>
         <span className="bg-success size-1.5 rounded-full" aria-hidden />
@@ -42,16 +42,16 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="bg-muted flex rounded-lg p-1">
+        <div className="flex gap-1">
           {GRAINS.map((g) => (
             <Link
               key={g.id}
               href={href(g.id, month)}
               prefetch={false}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                "px-3 py-1.5 text-sm font-medium transition-colors",
                 view === g.id
-                  ? "bg-card text-foreground"
+                  ? "text-foreground underline decoration-2 underline-offset-8"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
