@@ -202,6 +202,18 @@ describe("customer groups", () => {
     expect(p0.total).toBeGreaterThanOrEqual(3);
   });
 
+  it("neutralises spreadsheet formulas in exported cells", async () => {
+    const [u] = await db.insert(users).values({ email: "cg-csv-f@throwaway.local", name: '=HYPERLINK("x")' }).returning();
+    try {
+      const g = await mk("csv-formula-group", [u.id]);
+      const csv = await groupMembersCsv(g.publicId);
+      expect(csv).toContain('"\'=HYPERLINK(""x"")",cg-csv-f@throwaway.local,');
+    } finally {
+      await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
+  });
+
   it("exports members as RFC 4180 CSV with quoted special characters", async () => {
     const [u] = await db.insert(users).values({ email: "cg-csv@throwaway.local", name: 'Doe, "Jo"\nX' }).returning();
     try {

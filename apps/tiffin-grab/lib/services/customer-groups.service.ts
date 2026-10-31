@@ -263,7 +263,8 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
 }
 
 const csvCell = (v: string | null) => {
-  const t = v ?? "";
+  const raw = v ?? "";
+  const t = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t;
 };
 

@@ -97,7 +97,7 @@ export function GroupView({
       a.href = url;
       a.download = `${group.name.replace(/[\\/:*?"<>|]+/g, "_")}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
       return null;
     });
 
@@ -213,7 +213,7 @@ export function GroupView({
                   <TableCell className="text-muted-foreground">{a.createdBy ?? ""}</TableCell>
                   <TableCell>
                     {a.kind === "coins" ? (
-                      <Button variant="link" className="h-auto p-0" onClick={() => setViewing(a.publicId)}>{summary(a)}</Button>
+                      <Button variant="link" onClick={() => setViewing(a.publicId)}>{summary(a)}</Button>
                     ) : (
                       summary(a)
                     )}
