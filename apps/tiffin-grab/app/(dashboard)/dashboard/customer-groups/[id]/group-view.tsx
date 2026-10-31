@@ -75,6 +75,8 @@ export function GroupView({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = () => router.refresh();
+  const memberTerm = memberQ.trim();
+  const activityTerm = activityQ.trim();
 
   async function guarded(key: string, fn: () => Promise<string | null>) {
     setBusy(key);
@@ -148,12 +150,17 @@ export function GroupView({
                 columns={MEMBER_COLUMNS}
                 rows={members.filter((m) => matches(memberQ, m.name, m.email, m.phone))}
                 filters={<SearchInput value={memberQ} onChange={setMemberQ} placeholder="Search by name, email or phone" shortPlaceholder="Search customers" />}
-                emptySearchMessage="No customers match your search."
                 rowKey={(m) => m.publicId}
                 serial={false}
                 emptyIcon={UsersIcon}
-                emptyMessage="This group has no customers yet."
-                emptyAction={<Button onClick={() => setAdding(true)}><PlusIcon /> Add customer</Button>}
+                emptyMessage={memberTerm ? `No matches for "${memberTerm}"` : "This group has no customers yet."}
+                emptyAction={
+                  memberTerm ? (
+                    <Button variant="outline" size="sm" onClick={() => setMemberQ("")}>Clear search</Button>
+                  ) : (
+                    <Button onClick={() => setAdding(true)}><PlusIcon /> Add customer</Button>
+                  )
+                }
                 renderRow={(m) => (
                   <>
                     <TableCell className="font-medium">{m.name ?? "Unnamed"}</TableCell>
@@ -185,16 +192,19 @@ export function GroupView({
               columns={ACTIVITY_COLUMNS}
               rows={actions.filter((a) => matches(activityQ, ACTION_LABEL[a.kind] ?? a.kind, a.createdBy, summary(a)))}
               filters={<SearchInput value={activityQ} onChange={setActivityQ} placeholder="Search action, person or campaign" shortPlaceholder="Search activity" />}
-              emptySearchMessage="No activity matches your search."
               rowKey={(a) => a.publicId}
               serial={false}
               emptyIcon={CoinsIcon}
-              emptyMessage="Nothing has been done to this group yet."
+              emptyMessage={activityTerm ? `No matches for "${activityTerm}"` : "Nothing has been done to this group yet."}
               emptyAction={
-                <div className="flex gap-2">
-                  <Button asChild><Link href="/dashboard/wallet/give"><CoinsIcon /> Give coins</Link></Button>
-                  <Button asChild variant="outline"><Link href="/dashboard/notifications/campaigns"><MailIcon /> Email a group</Link></Button>
-                </div>
+                activityTerm ? (
+                  <Button variant="outline" size="sm" onClick={() => setActivityQ("")}>Clear search</Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button asChild><Link href="/dashboard/wallet/give"><CoinsIcon /> Give coins</Link></Button>
+                    <Button asChild variant="outline"><Link href="/dashboard/notifications/campaigns"><MailIcon /> Email a group</Link></Button>
+                  </div>
+                )
               }
               renderRow={(a) => (
                 <>
