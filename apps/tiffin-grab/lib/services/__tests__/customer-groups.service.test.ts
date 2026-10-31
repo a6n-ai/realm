@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import {
   addGroupMembers,
+  syncGroupContactList,
   customerGroupStats,
   giveCoinsStats,
   createCustomerGroup,
@@ -63,7 +64,11 @@ afterAll(async () => {
   const acts = groupIds.length
     ? await db.select().from(customerGroupActions).where(inArray(customerGroupActions.groupId, groupIds))
     : [];
-  const listPublicIds = acts.map((a) => a.params.listPublicId).filter((x): x is string => typeof x === "string");
+  const gl = groupIds.length ? await db.select().from(customerGroups).where(inArray(customerGroups.id, groupIds)) : [];
+  const listPublicIds = [
+    ...acts.map((a) => a.params.listPublicId).filter((x): x is string => typeof x === "string"),
+    ...gl.map((g) => g.contactListPublicId).filter((x): x is string => !!x),
+  ];
   const camps = await db.select().from(campaigns);
   const mine = camps.filter((c) => (c.audience as { listIds?: string[] } | null)?.listIds?.some((l) => listPublicIds.includes(l)));
   if (mine.length) await db.delete(campaignContent).where(inArray(campaignContent.campaignId, mine.map((c) => c.id)));
@@ -154,6 +159,44 @@ describe("customer groups", () => {
     expect((await listGroupActions(g.publicId)).map((a) => a.kind)).toEqual(["email"]);
     await emailGroup(g.publicId, uOk);
     expect((await listGroupActions(g.publicId)).filter((a) => a.kind === "email")).toHaveLength(2);
+    // The synced group list is reused, not rebuilt per send.
+    const [row] = await db.select().from(customerGroups).where(eq(customerGroups.id, g.id));
+    expect(listIds[0]).toBe(row.contactListPublicId);
+  });
+
+  it("syncGroupContactList creates once, drops removed and opted-out members, never duplicates", async () => {
+    const g = await mk("g7", [uOk, uCapped]);
+    const first = await syncGroupContactList(g.publicId);
+    expect(await listMemberCount(first.contactListPublicId)).toBe(2);
+    expect((await syncGroupContactList(g.publicId)).contactListPublicId).toBe(first.contactListPublicId);
+    expect(await listMemberCount(first.contactListPublicId)).toBe(2);
+    const [l] = await db.select().from(contactList).where(eq(contactList.publicId, first.contactListPublicId));
+    expect(l.name).toBe("Customer group · g7");
+    await removeGroupMember(g.publicId, uCappedPublic);
+    expect(await listMemberCount(first.contactListPublicId)).toBe(1);
+    await db.update(users).set({ notifyEmail: false }).where(eq(users.id, uOk));
+    try {
+      await syncGroupContactList(g.publicId);
+      expect(await listMemberCount(first.contactListPublicId)).toBe(0);
+    } finally {
+      await db.update(users).set({ notifyEmail: true }).where(eq(users.id, uOk));
+    }
+  });
+
+  it("activity includes a campaign that targets the group list, once", async () => {
+    const g = await mk("g8", [uOk]);
+    const { contactListPublicId } = await syncGroupContactList(g.publicId);
+    const [c] = await db
+      .insert(campaigns)
+      .values({ name: `cg-audience-${run}`, channels: ["email"], audience: { listIds: [contactListPublicId] } })
+      .returning();
+    const viaPicker = (await listGroupActions(g.publicId)).filter((a) => a.kind === "campaign");
+    expect(viaPicker).toHaveLength(1);
+    expect(viaPicker[0].result.campaignPublicId).toBe(c.publicId);
+    await emailGroup(g.publicId, uOk);
+    const all = await listGroupActions(g.publicId);
+    expect(all.filter((a) => a.kind === "campaign")).toHaveLength(1);
+    expect(all.filter((a) => a.kind === "email")).toHaveLength(1);
   });
 
   it("emailing with no eligible recipients is rejected", async () => {

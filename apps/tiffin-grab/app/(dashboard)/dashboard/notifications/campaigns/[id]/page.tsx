@@ -10,6 +10,7 @@ import { db } from "@/db/client";
 import { campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
+import { syncAllGroupContactLists } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import { CampaignAnalytics } from "@relay/engine/ui/campaign-analytics";
@@ -75,6 +76,7 @@ export default async function CampaignPage({
   const retriggerable =
     !isSystem &&
     (row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled");
+  await syncAllGroupContactLists();
   const [content, lists, { timezone }, unsubscribes] = await Promise.all([
     db
       .select({

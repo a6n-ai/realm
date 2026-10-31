@@ -35,7 +35,7 @@ const ACTIVITY_COLUMNS = [
   { key: "result", label: "Result" },
 ] as const satisfies readonly { key: ActivityColumn; label: string }[];
 
-const ACTION_LABEL: Record<string, string> = { coins: "Gave coins", email: "Emailed", discount: "Applied coupon" };
+const ACTION_LABEL: Record<string, string> = { coins: "Gave coins", email: "Emailed", campaign: "Campaign", discount: "Applied coupon" };
 
 function summary(a: GroupActionRow): string {
   const ids = (k: string) => (Array.isArray(a.result[k]) ? (a.result[k] as unknown[]).length : 0);
@@ -44,8 +44,11 @@ function summary(a: GroupActionRow): string {
     return `${a.params.coins} coins to ${ids("awardedUserIds")}${capped ? `, ${capped} blocked by cap` : ""}`;
   }
   if (a.kind === "discount") return String(a.params.couponCode ?? "");
+  if (a.kind === "campaign") return `${a.params.name} (${a.params.status})`;
   return "Campaign created";
 }
+
+const campaignId = (a: GroupActionRow) => (typeof a.result.campaignPublicId === "string" ? a.result.campaignPublicId : null);
 
 export function GroupView({
   group,
@@ -203,6 +206,10 @@ export function GroupView({
                   <TableCell>
                     {a.kind === "coins" ? (
                       <Button variant="link" onClick={() => setViewing(a.publicId)}>{summary(a)}</Button>
+                    ) : campaignId(a) ? (
+                      <Button asChild variant="link">
+                        <Link href={`/dashboard/notifications/campaigns/${campaignId(a)}`}>{summary(a)}</Link>
+                      </Button>
                     ) : (
                       summary(a)
                     )}

@@ -5,6 +5,9 @@ import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, sql } from
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
+  campaign,
+  contactList,
+  contactListMember,
   customerGroupActions,
   customerGroupMembers,
   coupons,
@@ -47,6 +50,7 @@ export type GroupActionRow = {
   createdAt: number;
   createdBy: string | null;
 };
+export type GroupCampaignRow = { publicId: string; name: string; status: string; createdAt: number };
 
 function chunks<T>(xs: T[]): T[][] {
   const out: T[][] = [];
@@ -75,7 +79,7 @@ export async function createCustomerGroup(
 ): Promise<{ publicId: string }> {
   const userIds = [...new Set(input.userIds)];
   if (userIds.length === 0) throw new ValidationError("Pick at least one customer");
-  return db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     const [g] = await tx
       .insert(customerGroups)
       .values({ name: input.name, filters: input.filters, memberCount: userIds.length, createdBy: actorId, updatedBy: actorId })
@@ -85,6 +89,8 @@ export async function createCustomerGroup(
     }
     return { publicId: g.publicId };
   });
+  await syncGroupContactList(created.publicId);
+  return created;
 }
 
 export async function addGroupMembers(groupPublicId: string, userIds: bigint[]): Promise<void> {
@@ -96,6 +102,7 @@ export async function addGroupMembers(groupPublicId: string, userIds: bigint[]):
       .onConflictDoNothing();
   }
   await recountMembers(g.id);
+  await syncGroupContactList(groupPublicId);
 }
 
 export async function removeGroupMember(groupPublicId: string, userPublicId: string): Promise<void> {
@@ -107,6 +114,7 @@ export async function removeGroupMember(groupPublicId: string, userPublicId: str
     ),
   );
   await recountMembers(g.id);
+  await syncGroupContactList(groupPublicId);
 }
 
 const creator = alias(users, "creator");
@@ -281,7 +289,7 @@ export async function groupMembersCsv(groupPublicId: string): Promise<string> {
 
 export async function listGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {
   const g = await groupByPublicId(groupPublicId);
-  return db
+  const actions = await db
     .select({
       publicId: customerGroupActions.publicId,
       kind: customerGroupActions.kind,
@@ -294,6 +302,33 @@ export async function listGroupActions(groupPublicId: string): Promise<GroupActi
     .leftJoin(creator, eq(creator.id, customerGroupActions.createdBy))
     .where(eq(customerGroupActions.groupId, g.id))
     .orderBy(desc(customerGroupActions.createdAt), desc(customerGroupActions.id));
+  if (!g.contactListPublicId) return actions;
+
+  // Campaigns created straight from the audience picker leave no action row. An email action already
+  // names its campaign, so those are skipped here and each campaign shows once.
+  const recorded = new Set(actions.map((a) => a.result.campaignPublicId).filter((x) => typeof x === "string"));
+  const targeting = await db
+    .select({
+      publicId: campaign.publicId,
+      name: campaign.name,
+      status: campaign.status,
+      createdAt: campaign.createdAt,
+      scheduledAt: campaign.scheduledAt,
+      sentAt: campaign.sentAt,
+    })
+    .from(campaign)
+    .where(sql`${campaign.audience} -> 'listIds' @> ${JSON.stringify([g.contactListPublicId])}::jsonb`);
+  const fromCampaigns: GroupActionRow[] = targeting
+    .filter((c) => !recorded.has(c.publicId))
+    .map((c) => ({
+      publicId: c.publicId,
+      kind: "campaign",
+      params: { name: c.name, status: c.status },
+      result: { campaignPublicId: c.publicId },
+      createdAt: Number(c.sentAt ?? c.scheduledAt ?? c.createdAt),
+      createdBy: null,
+    }));
+  return [...actions, ...fromCampaigns].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function giveGroupCoins(
@@ -412,14 +447,65 @@ async function recordEmailAction(
   });
 }
 
-export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {
+/**
+ * Keeps the group's Relay contact list equal to its current emailable members, so the campaign
+ * audience picker can offer the group as a list. Members are replaced wholesale: removals and opt-outs drop off.
+ */
+export async function syncGroupContactList(groupPublicId: string): Promise<{ contactListPublicId: string }> {
   const group = await groupByPublicId(groupPublicId);
-  const members = await db
-    .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
-    .from(customerGroupMembers)
-    .innerJoin(users, eq(users.id, customerGroupMembers.userId))
-    .where(eq(customerGroupMembers.groupId, group.id));
-  const listId = await buildSendList(`${group.name} ${new Date().toISOString()}`, `Customer group ${group.publicId}`, members);
+  let listPublicId = group.contactListPublicId;
+  if (!listPublicId) {
+    const created = await createContactList(deps, {
+      name: `Customer group · ${group.name}`,
+      consentSource: "purchase",
+      consentAt: Date.now(),
+      consentNote: `Customer group ${group.publicId}`,
+    });
+    const claimed = await db
+      .update(customerGroups)
+      .set({ contactListPublicId: created.publicId })
+      .where(and(eq(customerGroups.id, group.id), isNull(customerGroups.contactListPublicId)))
+      .returning({ id: customerGroups.id });
+    if (claimed.length) listPublicId = created.publicId;
+    else {
+      // A concurrent sync won; discard our empty list.
+      await db.delete(contactList).where(eq(contactList.publicId, created.publicId));
+      listPublicId = (await groupByPublicId(groupPublicId)).contactListPublicId!;
+    }
+  }
+  const [list] = await db.select({ id: contactList.id }).from(contactList).where(eq(contactList.publicId, listPublicId));
+  const people = emailable(
+    await db
+      .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
+      .from(customerGroupMembers)
+      .innerJoin(users, eq(users.id, customerGroupMembers.userId))
+      .where(eq(customerGroupMembers.groupId, group.id)),
+  );
+  await db.delete(contactListMember).where(eq(contactListMember.listId, list.id));
+  await fillList(listPublicId, people);
+  // fillList recounts only when it inserts, so an emptied list needs this.
+  await db
+    .update(contactList)
+    .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${list.id})` })
+    .where(eq(contactList.id, list.id));
+  return { contactListPublicId: listPublicId };
+}
+
+/** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. */
+export async function syncAllGroupContactLists(): Promise<void> {
+  const groups = await db.select({ publicId: customerGroups.publicId }).from(customerGroups);
+  for (const g of groups) await syncGroupContactList(g.publicId);
+}
+
+export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {
+  const { contactListPublicId: listId } = await syncGroupContactList(groupPublicId);
+  const group = await groupByPublicId(groupPublicId);
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(contactListMember)
+    .innerJoin(contactList, eq(contactList.id, contactListMember.listId))
+    .where(eq(contactList.publicId, listId));
+  if (n === 0) throw new ValidationError("No members with email to send to");
   const { publicId } = await createCampaign(deps, {
     name: `${group.name} email`,
     channels: ["email"],
