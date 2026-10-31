@@ -23,7 +23,6 @@ import {
   sendVerification,
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
-import { syncGroupsForUser } from "@/lib/services/customer-groups.service";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
 
@@ -237,6 +236,7 @@ export const auth = betterAuth({
       update: {
         after: async (u) => {
           try {
+            const { syncGroupsForUser } = await import("@/lib/services/customer-groups.service");
             await syncGroupsForUser(BigInt(u.id));
           } catch (e) {
             log.error({ err: e }, "group list sync after user update failed");

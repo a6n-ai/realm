@@ -22,6 +22,11 @@ export async function setup() {
   const client = postgres(dbUrl, { prepare: false, max: 1 });
   try {
     await client`TRUNCATE wallet_ledger, event_payout`;
+    // Customer-group rows left by an aborted run block every suite's user delete.
+    await client`UPDATE coupons SET customer_group_id = NULL WHERE customer_group_id IS NOT NULL`;
+    await client`DELETE FROM customer_group_actions`;
+    await client`DELETE FROM coin_grant_group_members`;
+    await client`DELETE FROM coin_grant_groups`;
   } catch (err) {
     // Unit-only worktrees / cold laptops may not have the local DB yet.
     // Live-DB suites will fail on their own connection; pure UI tests can proceed.

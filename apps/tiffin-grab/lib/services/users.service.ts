@@ -8,7 +8,6 @@ import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
 import { createLogger } from "@foundry/commons/logger";
-import { syncGroupsForUser } from "./customer-groups.service";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
 // the internal pin_attempts counter from audit noise. The real values are still
@@ -212,6 +211,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
     if (!u) return;
     try {
+      // Lazy: customer-groups.service pulls app-settings, which imports back through session-service.
+      const { syncGroupsForUser } = await import("./customer-groups.service");
       await syncGroupsForUser(u.id);
     } catch (e) {
       // The preference already saved; the next sync catches up.
