@@ -7,8 +7,8 @@ import { parseSort, type SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listOrderCities } from "@/lib/services/customer-payouts.service";
-import { CustomerPayoutPanel } from "../customer-payout-panel";
+import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
+import { GiveCoinsWizard } from "./give-coins-wizard";
 import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -17,7 +17,7 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
   return (
     <div className="space-y-6">
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <GiveCoinsData />
+        <GiveCoinsData searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<WalletLedgerTableSkeleton />}>
         <GrantHistory searchParams={searchParams} />
@@ -26,10 +26,10 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
   );
 }
 
-async function GiveCoinsData() {
+async function GiveCoinsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const cities = await listOrderCities();
-  return <CustomerPayoutPanel cities={cities} />;
+  const [cities, sp] = await Promise.all([listOrderCities(), searchParams]);
+  return <GiveCoinsWizard cities={cities} maxRows={MAX_REVIEW_ROWS} initialGroup={sp.group ?? null} />;
 }
 
 // Every past Give coins grant, with the staff member who saved it. Grants never

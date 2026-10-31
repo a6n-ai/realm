@@ -10,7 +10,7 @@ import { db } from "@/db/client";
 import { coinGrantGroups, coinRate, users } from "@/db/schema";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { createCoinGrant, ensureGrantContactList } from "@/lib/services/coin-grants.service";
+import { createCoinGrant, ensureGrantContactList, getCoinGrantGroup } from "@/lib/services/coin-grants.service";
 import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
 import {
@@ -130,4 +130,9 @@ export async function createGrantEmail(groupPublicId: string): Promise<{ campaig
   );
   revalidatePath(PATH, "layout");
   return { campaignPublicId: publicId };
+}
+
+export async function getCoinGrantGroupAction(publicId: string) {
+  await requireAdmin();
+  return getCoinGrantGroup(z.string().min(1).parse(publicId));
 }
