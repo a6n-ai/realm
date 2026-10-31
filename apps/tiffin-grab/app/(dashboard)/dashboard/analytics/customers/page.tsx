@@ -1,11 +1,11 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
@@ -26,17 +26,16 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Customers"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Who is subscribed, who is paused, and where new accounts are coming from."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -65,7 +64,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const [s, visible] = await Promise.all([getCustomerStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <MetricTiles
+    <StatCards
       cols={4}
       items={[
         {
@@ -86,7 +85,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           label: "Paused customers",
           value: s.pausedToday,
           hint: "Active plan with a paused delivery · today",
-          tone: s.pausedToday > 0 ? "warn" : "default",
+          tone: s.pausedToday > 0 ? "warn" : undefined,
           badge: "Paused",
           badgeTone: s.pausedToday > 0 ? "warn" : "neutral",
         },

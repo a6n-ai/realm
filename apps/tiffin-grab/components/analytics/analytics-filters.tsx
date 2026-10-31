@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import type { FacetDef } from "@/components/ds";
-import { DefaultDateRange } from "@/components/filters/default-date-range";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
@@ -47,7 +47,7 @@ export function AnalyticsFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DefaultDateRange />
+      <SectionDateRange />
       <ReuiFacetFilters spec={spec} />
     </div>
   );

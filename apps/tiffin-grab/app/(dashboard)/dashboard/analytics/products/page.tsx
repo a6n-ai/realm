@@ -1,9 +1,9 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { BreakdownBarChart } from "@/components/analytics/charts";
@@ -27,18 +27,16 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Products & Menu"
-        title="Products & Menu"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="What people pick, and how paid orders split across plans, sizes, and meal types."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={3} />}>
+      <Suspense fallback={<StatCardsSkeleton count={3} cols={3} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -77,7 +75,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const s = await getProductStats(scope);
   return (
-    <MetricTiles
+    <StatCards
       cols={3}
       items={[
         { label: "Meal selections", value: s.totalSelections, badge: "Picks", badgeTone: "neutral" },

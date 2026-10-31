@@ -1,14 +1,14 @@
 import { getSession } from "@/lib/auth/session";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { DistributionDonutChart } from "@/components/analytics/charts";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
@@ -26,17 +26,16 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Leads"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Inquiries by stage, why they were lost, and which sources convert."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -65,7 +64,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const [s, visible] = await Promise.all([getLeadStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <MetricTiles
+    <StatCards
       cols={4}
       items={[
         { label: "Total leads", value: s.total, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
@@ -80,7 +79,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           label: "Lost",
           value: s.lost,
           href: inquiriesHref(scope, { stage: "lost" }, visible),
-          tone: s.lost > 0 ? "warn" : "default",
+          tone: s.lost > 0 ? "warn" : undefined,
           badge: "Lost",
           badgeTone: s.lost > 0 ? "warn" : "neutral",
         },
@@ -93,12 +92,12 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           badgeTone: "brand",
           footer:
             s.total === 0 ? undefined : (
-              <MetricFootnote>
+              <StatFootnote>
                 <span className="text-muted-foreground">Converted</span>
                 <span className="text-foreground font-semibold tabular-nums">
                   {s.converted} of {s.total}
                 </span>
-              </MetricFootnote>
+              </StatFootnote>
             ),
         },
       ]}

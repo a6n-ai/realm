@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { useId, useState, type ComponentProps, type ReactNode, type SVGProps } from "react";
 import {
   Area,
@@ -75,12 +76,9 @@ const headerLabel = (value: ReactNode) => (
   </div>
 );
 
-function EmptyChart({ height }: { height: number }) {
-  return (
-    <div className="text-muted-foreground flex items-center justify-center text-sm" style={{ height }}>
-      No data yet.
-    </div>
-  );
+// Height is kept in the signature so callers read the same; the empty state sizes itself.
+function EmptyChart(_: { height: number }) {
+  return <ChartEmpty message="No data in this range." />;
 }
 
 function sliceColor(row: Row, index: number, colorKey?: string): string {

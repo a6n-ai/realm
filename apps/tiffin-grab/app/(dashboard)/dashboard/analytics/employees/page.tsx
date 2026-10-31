@@ -1,9 +1,8 @@
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
@@ -20,17 +19,16 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Employees"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="What each rep worked, converted, and closed."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={3} />}>
+      <Suspense fallback={<StatCardsSkeleton count={3} cols={3} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -55,7 +53,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
   return (
-    <MetricTiles
+    <StatCards
       cols={3}
       items={[
         { label: "Active reps", value: activeReps, badge: "Reps", badgeTone: "neutral" },
@@ -93,7 +91,7 @@ async function RollupTable({ scope }: { scope: AnalyticsScope }) {
 
 function TableRowsSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} className="h-8 w-full" />
       ))}

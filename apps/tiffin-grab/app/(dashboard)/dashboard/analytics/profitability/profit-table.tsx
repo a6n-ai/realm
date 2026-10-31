@@ -55,7 +55,7 @@ export function ProfitTable({ rows, grain }: { rows: ProfitRow[]; grain: Grain }
             <TableCell
               className={cn(
                 "text-right font-semibold tabular-nums",
-                r.profit < 0 ? "text-destructive" : "text-[var(--accent-badge)]",
+                r.profit < 0 ? "text-destructive" : "text-success-foreground dark:text-success",
               )}
             >
               {money(r.profit)}

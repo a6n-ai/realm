@@ -1,10 +1,10 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -26,6 +26,9 @@ function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
 
+// Matches the donut card (240px donut + three legend rows) so the paired cards share one row height.
+const TREND_HEIGHT = 340;
+
 type SearchParams = Promise<AnalyticsSearchParams>;
 
 const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
@@ -36,24 +39,23 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Overview"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Sales, profit, customers, and tickets for the selected range."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
 
-      <Suspense fallback={<SkeletonStatCards count={7} />}>
+      <Suspense fallback={<StatCardsSkeleton count={7} cols={4} />}>
         <StatsData sp={sp} scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Net revenue" subtitle={`Ex tax & surcharge, after refunds, by day · ${DATE_BASIS_LABEL.money}`}>
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={TREND_HEIGHT} />}>
             <RevenueChart scope={scope} />
           </Suspense>
         </ChartCard>
@@ -87,7 +89,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
   const complaintFilters = scopeToComplaintFilters(scope);
 
   return (
-    <MetricTiles
+    <StatCards
       cols={4}
       items={[
         {
@@ -107,10 +109,10 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
           badgeTone: "brand",
           footer:
             revenue.kpis.discountRatePct == null ? undefined : (
-              <MetricFootnote>
+              <StatFootnote>
                 <span className="text-muted-foreground">Share of list price</span>
                 <span className="text-foreground font-semibold tabular-nums">{revenue.kpis.discountRatePct}%</span>
-              </MetricFootnote>
+              </StatFootnote>
             ),
         },
         {
@@ -144,12 +146,12 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
           badgeTone: "brand",
           footer:
             trialConv.eligible === 0 ? undefined : (
-              <MetricFootnote>
+              <StatFootnote>
                 <span className="text-muted-foreground">Converted</span>
                 <span className="text-foreground font-semibold tabular-nums">
                   {trialConv.converted} of {trialConv.eligible}
                 </span>
-              </MetricFootnote>
+              </StatFootnote>
             ),
         },
         {
@@ -159,7 +161,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
             ...complaintFilters,
             statuses: ["open", "in_progress", "waiting_on_customer"],
           }),
-          tone: complaints.open > 0 ? "warn" : "default",
+          tone: complaints.open > 0 ? "warn" : undefined,
           badge: "Open",
           badgeTone: complaints.open > 0 ? "warn" : "neutral",
         },
@@ -178,14 +180,14 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
 
 async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
-  return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" format="currency" />;
+  return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" format="currency" height={TREND_HEIGHT} />;
 }
 
 async function CohortChart({ scope }: { scope: AnalyticsScope }) {
   const { slices } = await getRevenueCohortMix(scope);
   const chartRows = slices.filter((s) => s.amount > 0);
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <DistributionDonutChart
         data={chartRows}
         nameKey="label"
@@ -201,7 +203,7 @@ async function CohortChart({ scope }: { scope: AnalyticsScope }) {
 
 function CohortLegend({ slices }: { slices: RevenueCohortSlice[] }) {
   return (
-    <ul className="space-y-1.5 text-sm">
+    <ul className="flex flex-col gap-1.5 text-sm">
       {slices.map((s) => (
         <li key={s.key} className="flex items-center gap-2">
           <span className="size-2.5 shrink-0 rounded-full" style={{ background: s.color }} />

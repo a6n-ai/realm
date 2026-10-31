@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { getNotificationBuckets } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ChartCard } from "@/components/analytics/chart-card";
@@ -31,8 +31,8 @@ async function createdWhere(searchParams: SearchParams) {
 
 export default function NotificationAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<SkeletonStatCards count={5} />}>
+    <div className="flex flex-col gap-6">
+      <Suspense fallback={<StatCardsSkeleton count={5} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
@@ -56,7 +56,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   const values: Record<StatKey, number> = await getNotificationBuckets(await createdWhere(searchParams));
   const items = STAT_CARDS.map((s) => ({ label: s.label, value: values[s.key] }));
 
-  return <StatGrid cols={5} items={items} />;
+  return <StatCards items={items} />;
 }
 
 async function ChannelChart({ searchParams }: { searchParams: SearchParams }) {

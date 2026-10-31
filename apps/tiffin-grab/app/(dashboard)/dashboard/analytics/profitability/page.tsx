@@ -1,21 +1,17 @@
 /* eslint-disable react-hooks/purity */
+import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
-import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
-import { MetricFootnote, MetricTiles, type MetricTile } from "@/components/analytics/metric-tiles";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
-import {
-  AnalyticsBadge,
-  AnalyticsPanel,
-  AnalyticsPanelHeader,
-} from "@/components/analytics/analytics-panel";
+import { StatCards, StatCardsSkeleton, StatFootnote, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { Badge } from "@/components/reui/badge";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import {
   clockInZone,
@@ -58,32 +54,30 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
   const scope = navScope(resolved.scope, sp.from != null || sp.to != null, month, grain);
   const view = { month, grain, scope };
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Profitability"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Earned revenue minus variable and allocated costs under your assumptions."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-10 w-full max-w-xl animate-pulse rounded-xl" />}>
+          <Suspense fallback={<Skeleton className="h-10 w-full max-w-xl" />}>
             <Nav view={view} />
           </Suspense>
         }
       />
 
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <Headline view={view} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
         <div className="lg:col-span-8">
-          <AnalyticsPanel padding="lg" className="flex flex-col gap-4">
-            <AnalyticsPanelHeader
-              title="By period"
-              subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid."
-            />
+          <ChartCard
+            title="By period"
+            subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid."
+          >
             <Suspense fallback={<ChartSkeleton height={320} />}>
               <Grid view={view} />
             </Suspense>
-          </AnalyticsPanel>
+          </ChartCard>
         </div>
         <div className="lg:col-span-4">
           <Suspense fallback={<ChartSkeleton height={180} />}>
@@ -139,7 +133,7 @@ async function Headline({ view }: { view: View }) {
 function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; range: string; cashHref: string }) {
   const rangeHint = range;
 
-  const items: MetricTile[] = [
+  const items: StatCardItem[] = [
     {
       label: "Cash collected",
       value: money(kpis.cashCollected),
@@ -148,12 +142,12 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
       badge: "Settled",
       badgeTone: "neutral",
       footer: (
-        <MetricFootnote>
+        <StatFootnote>
           <span className="text-muted-foreground inline-flex items-center gap-1.5">
             <BanknoteIcon className="size-3.5" aria-hidden />
             Open settled payments
           </span>
-        </MetricFootnote>
+        </StatFootnote>
       ),
     },
     {
@@ -164,15 +158,15 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
       badgeTone: "ok",
       footer:
         kpis.unpaidRevenue > 0 ? (
-          <MetricFootnote>
+          <StatFootnote>
             <span className="text-muted-foreground">Not paid yet</span>
-            <span className="text-warn font-semibold tabular-nums">{money(kpis.unpaidRevenue)}</span>
-          </MetricFootnote>
+            <span className="text-warning-foreground dark:text-warning font-semibold tabular-nums">{money(kpis.unpaidRevenue)}</span>
+          </StatFootnote>
         ) : (
-          <MetricFootnote>
+          <StatFootnote>
             <span className="text-muted-foreground">Allocated on delivery day</span>
-            <AnalyticsBadge tone="ok">Current</AnalyticsBadge>
-          </MetricFootnote>
+            <Badge variant="success-light">Current</Badge>
+          </StatFootnote>
         ),
     },
     {
@@ -183,31 +177,31 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
       badge: kpis.profit < 0 ? "Below target" : "Net",
       badgeTone: kpis.profit < 0 ? "warn" : "ok",
       footer: (
-        <MetricFootnote>
+        <StatFootnote>
           <span className="text-muted-foreground">Total costs</span>
           <span className="text-foreground font-semibold tabular-nums">{money(kpis.costs)}</span>
-        </MetricFootnote>
+        </StatFootnote>
       ),
     },
     {
       label: "Avg profit / tiffin",
       value: kpis.profitPerTiffin == null ? "—" : money(kpis.profitPerTiffin),
       hint: "Earned revenue minus costs, per delivered tiffin.",
-      tone: kpis.profitPerTiffin != null && kpis.profitPerTiffin < 0 ? "bad" : "default",
+      tone: kpis.profitPerTiffin != null && kpis.profitPerTiffin < 0 ? "bad" : undefined,
       badge: "Per tiffin",
       badgeTone: "brand",
       footer: (
-        <MetricFootnote>
+        <StatFootnote>
           <span className="text-muted-foreground inline-flex items-center gap-1.5">
             <TrendingUpIcon className="size-3.5" aria-hidden />
             Under current assumptions
           </span>
-        </MetricFootnote>
+        </StatFootnote>
       ),
     },
   ];
 
-  return <MetricTiles cols={4} items={items} />;
+  return <StatCards cols={4} items={items} />;
 }
 
 async function Trend({ view }: { view: View }) {

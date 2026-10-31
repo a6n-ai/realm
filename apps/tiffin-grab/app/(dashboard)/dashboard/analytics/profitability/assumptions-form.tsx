@@ -7,11 +7,8 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "@/app/(dashboard)/dashboard/discounts/controls";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
-import {
-  AnalyticsBadge,
-  AnalyticsEyebrow,
-  AnalyticsPanel,
-} from "@/components/analytics/analytics-panel";
+import { SectionCard } from "@/components/ds";
+import { Badge } from "@/components/reui/badge";
 import { saveAssumptionsAction } from "./actions";
 
 const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
@@ -23,7 +20,9 @@ const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
   { key: "otherMonthly", label: "Other expenses / month" },
 ];
 
-function asFields(current: ProfitabilityAssumptions): Record<keyof ProfitabilityAssumptions, string> {
+function asFields(
+  current: ProfitabilityAssumptions,
+): Record<keyof ProfitabilityAssumptions, string> {
   return {
     kitchenCostPerTiffin: String(current.kitchenCostPerTiffin || ""),
     driverCostPerTiffin: String(current.driverCostPerTiffin || ""),
@@ -34,7 +33,11 @@ function asFields(current: ProfitabilityAssumptions): Record<keyof Profitability
   };
 }
 
-export function AssumptionsForm({ current }: { current: ProfitabilityAssumptions }) {
+export function AssumptionsForm({
+  current,
+}: {
+  current: ProfitabilityAssumptions;
+}) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [fields, setFields] = React.useState(() => asFields(current));
@@ -64,48 +67,47 @@ export function AssumptionsForm({ current }: { current: ProfitabilityAssumptions
   }
 
   return (
-    <AnalyticsPanel padding="lg" className="flex h-full flex-col justify-between gap-5">
-      <div className="flex flex-col gap-4">
-        <div>
-          <div className="flex items-center justify-between gap-2 pb-1">
-            <h3 className="text-foreground text-lg font-semibold tracking-tight">Cost assumptions</h3>
-            <AnalyticsBadge tone="brand">Editable</AnalyticsBadge>
+    <div className="h-full [&>*]:h-full">
+      <SectionCard
+        title="Cost assumptions"
+        subtitle="Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every day of that month, including days with no deliveries."
+        action={<Badge variant="primary-light">Editable</Badge>}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              {FIELDS.map((f) => (
+                <NumberField
+                  key={f.key}
+                  id={f.key}
+                  label={f.label}
+                  prefix="$"
+                  min={0}
+                  step={0.01}
+                  value={fields[f.key]}
+                  onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
+                  placeholder="0"
+                />
+              ))}
+            </div>
+
+            <div className="bg-muted/60 flex flex-col gap-1 rounded-lg p-3">
+              <span className="text-foreground text-xs font-medium">
+                How these feed profit
+              </span>
+              <p className="text-muted-foreground text-xs text-pretty">
+                Saving recalculates net profit, margin, and average profit per
+                tiffin for the selected period.
+              </p>
+            </div>
           </div>
-          <p className="text-muted-foreground text-xs text-pretty">
-            Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every
-            day of that month, including days with no deliveries.
-          </p>
-        </div>
 
-        <div className="flex flex-col gap-3">
-          {FIELDS.map((f) => (
-            <NumberField
-              key={f.key}
-              id={f.key}
-              label={f.label}
-              prefix="$"
-              min={0}
-              step={0.01}
-              value={fields[f.key]}
-              onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
-              placeholder="0"
-            />
-          ))}
+          <Button onClick={save} disabled={pending} className="w-full gap-1.5">
+            <CalculatorIcon className="size-4" aria-hidden />
+            {pending ? "Saving…" : "Save assumptions"}
+          </Button>
         </div>
-
-        <div className="bg-muted/60 flex flex-col gap-1 rounded-xl p-3">
-          <AnalyticsEyebrow>How these feed profit</AnalyticsEyebrow>
-          <p className="text-muted-foreground text-xs text-pretty">
-            Saving recalculates net profit, margin, and average profit per tiffin for the selected
-            period.
-          </p>
-        </div>
-      </div>
-
-      <Button onClick={save} disabled={pending} className="w-full gap-1.5">
-        <CalculatorIcon className="size-4" aria-hidden />
-        {pending ? "Saving…" : "Save assumptions"}
-      </Button>
-    </AnalyticsPanel>
+      </SectionCard>
+    </div>
   );
 }

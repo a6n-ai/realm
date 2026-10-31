@@ -1,10 +1,10 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
 import {
   getOperationsStats,
@@ -21,17 +21,16 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Operations"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Deliveries by status, and how many stops each driver is carrying."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -54,21 +53,21 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const s = await getOperationsStats(scope);
   return (
-    <MetricTiles
+    <StatCards
       cols={4}
       items={[
         { label: "Total deliveries", value: s.totalDeliveries, hint: DATE_BASIS_LABEL.deliveries, badge: "Scheduled", badgeTone: "neutral" },
         {
           label: "Skipped",
           value: s.skipped,
-          tone: s.skipped > 0 ? "warn" : "default",
+          tone: s.skipped > 0 ? "warn" : undefined,
           badge: "Skipped",
           badgeTone: s.skipped > 0 ? "warn" : "neutral",
         },
         {
           label: "Cancelled",
           value: s.cancelled,
-          tone: s.cancelled > 0 ? "warn" : "default",
+          tone: s.cancelled > 0 ? "warn" : undefined,
           badge: "Cancelled",
           badgeTone: s.cancelled > 0 ? "warn" : "neutral",
         },

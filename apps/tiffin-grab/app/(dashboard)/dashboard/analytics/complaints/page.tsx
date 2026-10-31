@@ -1,12 +1,13 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
 import { AlertTriangleIcon, ClockIcon, InboxIcon, RepeatIcon } from "lucide-react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { priorityLabel } from "@/lib/support/ticket-priority";
 import {
@@ -47,12 +48,11 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   const { scope } = resolved;
   const drill = sp.drill;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Complaints"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Tickets raised in this range, and which ones still need a reply."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
@@ -130,7 +130,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
   const k = await getComplaintKpis(scope);
   return (
-    <MetricTiles
+    <StatCards
       cols={3}
       items={[
         {
@@ -145,7 +145,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
           label: "Open",
           value: k.open,
           href: ticketsHref(filters, { statuses: ["open", "in_progress", "waiting_on_customer"] }),
-          tone: k.open > 0 ? "warn" : "default",
+          tone: k.open > 0 ? "warn" : undefined,
           badge: "Open",
           badgeTone: k.open > 0 ? "warn" : "neutral",
         },
@@ -178,10 +178,10 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
           badgeTone: "brand",
           footer:
             k.perHundredTiffins == null ? undefined : (
-              <MetricFootnote>
+              <StatFootnote>
                 <span className="text-muted-foreground">Tiffins delivered</span>
                 <span className="text-foreground font-semibold tabular-nums">{k.deliveredTiffins.toLocaleString()}</span>
-              </MetricFootnote>
+              </StatFootnote>
             ),
         },
       ]}
@@ -225,7 +225,7 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
         <h3 className="text-foreground text-lg font-semibold tracking-tight">Needs attention</h3>
         <p className="text-muted-foreground mt-0.5 text-xs text-pretty">Complaints that should not wait.</p>
       </div>
-      <MetricTiles
+      <StatCards
         cols={4}
         items={cards.map((c) => ({
           label: c.label,
@@ -235,12 +235,12 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
           badge: "Now",
           badgeTone: "warn" as const,
           footer: (
-            <MetricFootnote>
+            <StatFootnote>
               <span className="text-muted-foreground inline-flex items-center gap-1.5">
                 <c.icon className="size-3.5" aria-hidden />
                 Open these first
               </span>
-            </MetricFootnote>
+            </StatFootnote>
           ),
         }))}
       />

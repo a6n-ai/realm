@@ -1,12 +1,12 @@
 /* eslint-disable react-hooks/purity */
+import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton, ListSkeleton } from "@/components/analytics/skeletons";
+import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricTiles, type MetricTile } from "@/components/analytics/metric-tiles";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
@@ -37,18 +37,17 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Revenue"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Money kept after refunds, excluding tax and card surcharge, by payment date."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-8 w-full max-w-xl animate-pulse rounded-lg" />}>
+          <Suspense fallback={<Skeleton className="h-8 w-64" />}>
             <RangeAndLive scope={scope} />
           </Suspense>
         }
       />
 
-      <Suspense fallback={<SkeletonStatCards count={8} />}>
+      <Suspense fallback={<StatCardsSkeleton count={8} cols={4} />}>
         <Kpis scope={scope} />
       </Suspense>
 
@@ -61,7 +60,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </Suspense>
       </ChartCard>
 
-      <Suspense fallback={<ListSkeleton />}>
+      <Suspense fallback={<ChartSkeleton />}>
         <NeedsReview scope={scope} />
       </Suspense>
 
@@ -69,19 +68,19 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         title="Payments by status"
         subtitle={`Every payment ${DATE_BASIS_LABEL.money}. Open a row to see those payments.`}
       >
-        <Suspense fallback={<ListSkeleton />}>
+        <Suspense fallback={<ChartSkeleton />}>
           <Statuses scope={scope} />
         </Suspense>
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By payment method" subtitle={`Net revenue, ex tax & surcharge, ${DATE_BASIS_LABEL.money}.`}>
-          <Suspense fallback={<ListSkeleton />}>
+          <Suspense fallback={<ChartSkeleton />}>
             <MethodChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Discounts given" subtitle="Across settled orders in this range.">
-          <Suspense fallback={<ListSkeleton />}>
+          <Suspense fallback={<ChartSkeleton />}>
             <Discounts scope={scope} />
           </Suspense>
         </ChartCard>
@@ -111,7 +110,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
   const href = links(scope);
   const paid = href();
   const basis = DATE_BASIS_LABEL.money;
-  const second: MetricTile[] = [
+  const second: StatCardItem[] = [
     {
       label: "Net collected",
       value: money(k.netCollected),
@@ -123,7 +122,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
     {
       label: "Awaiting payment",
       value: money(k.pendingAmount),
-      tone: k.pendingCount > 0 ? "warn" : "default",
+      tone: k.pendingCount > 0 ? "warn" : undefined,
       hint: `${k.pendingCount} ${k.pendingCount === 1 ? "payment" : "payments"} not yet verified · ${basis}`,
       href: href(["awaiting_payment", "pending_verification"]),
       badge: "Pending",
@@ -149,8 +148,8 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
     });
   }
   return (
-    <div className="space-y-3">
-      <MetricTiles
+    <div className="flex flex-col gap-3">
+      <StatCards
         cols={4}
         items={[
           {
@@ -180,7 +179,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
           {
             label: "Refunded",
             value: money(k.refunds),
-            tone: k.refunds > 0 ? "warn" : "default",
+            tone: k.refunds > 0 ? "warn" : undefined,
             hint: "By refund date",
             footer:
               k.unlinkedRefunds > 0 ? (
@@ -194,7 +193,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
           },
         ]}
       />
-      <MetricTiles cols={4} items={second} />
+      <StatCards cols={4} items={second} />
     </div>
   );
 }
