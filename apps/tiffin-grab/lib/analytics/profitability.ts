@@ -301,16 +301,14 @@ export function kpis(rows: ProfitRow[]): ProfitabilityKpis {
 
 export type CostPart = { label: string; value: number };
 
-/** Total costs by kind. "Other per tiffin" and "Other monthly" are the two halves of each row's `other`. */
-export function costBreakdown(rows: ProfitRow[], a: ProfitabilityAssumptions): CostPart[] {
+/** Total costs by kind (five parts, so the donut never folds). */
+export function costBreakdown(rows: ProfitRow[]): CostPart[] {
   const sum = (k: "kitchen" | "driver" | "marketing" | "salaries" | "other") => round2(rows.reduce((s, r) => s + r[k], 0));
-  const otherPerTiffin = round2(rows.reduce((s, r) => s + r.tiffins, 0) * a.otherCostPerTiffin);
   return [
     { label: "Kitchen", value: sum("kitchen") },
     { label: "Driver", value: sum("driver") },
-    { label: "Other per tiffin", value: otherPerTiffin },
     { label: "Marketing", value: sum("marketing") },
     { label: "Salaries", value: sum("salaries") },
-    { label: "Other monthly", value: round2(sum("other") - otherPerTiffin) },
+    { label: "Other", value: sum("other") },
   ];
 }

@@ -17,8 +17,9 @@ import {
   type ProfitRow,
 } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
-import { CAPTURED, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
-import { ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { CAPTURED, moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
+import { WP_MIGRATED } from "./metrics/migrated";
+import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 function isoDate(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
@@ -39,6 +40,8 @@ export type ProfitabilityReport = {
   costParts: CostPart[];
   /** Delivered tiffins on WP-migrated orders (no stored price, no payment here): left out of revenue and per-tiffin costs. */
   migratedTiffinsExcluded: number;
+  /** Captured add-on payments on migrated orders in range: their money is not in earned revenue either. */
+  migratedAddonPayments: number;
   trend: { period: string; profit: number; revenue: number }[];
   /** Next delivery cutoff in range; when it passes, those tiffins count as delivered. */
   nextCutoffAt: number | null;
@@ -48,8 +51,6 @@ const HAS_CAPTURED = sql`exists (
   select 1 from ${payments} where ${payments.orderId} = ${orders.id}
   and ${inArray(payments.status, CAPTURED)}
 )`;
-// Imported from WordPress and never paid in this system: it was paid on the old site and has no price here.
-const WP_MIGRATED = sql`(jsonb_exists(${orders.pricingSnapshot}, 'wordpress') and not ${HAS_CAPTURED})`;
 // What the order actually earned: its captured payments ex tax, minus ledger refunds ex tax (the
 // same expressions the Revenue tab sums). Not date-limited: it is spread over the order's tiffins.
 const CAPTURED_NET = sql`(select coalesce(sum(${netExTax()}), 0) from ${payments}
@@ -103,16 +104,18 @@ export async function getProfitabilityReport(opts: {
   const deliveredWhere = and(...delivered, sql`not ${WP_MIGRATED}`);
 
   const noOrgs = scope.orgIds !== "all" && scope.orgIds.length === 0;
-  const [earnedRows, cashDays, totals, [nextCutoff], [migrated]] = await Promise.all([
+  const [earnedRows, cashDays, totals, [nextCutoff], [migrated], [migratedAddons]] = await Promise.all([
     noOrgs
       ? []
       : db
           .select({
             date: deliveries.deliveryDate,
             tiffins: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`,
-            revenue: sql<number>`coalesce(sum(case when ${HAS_CAPTURED}
+            // A free tiffin earns nothing (and is not owed), but stays in `tiffins` so its food and driver cost count.
+            revenue: sql<number>`coalesce(sum(case when ${HAS_CAPTURED} and ${deliveries.complimentaryNote} is null
               then ${deliveries.tiffinUnits}::numeric * ${EARNED_PER_TIFFIN} end), 0)::float`,
-            unpaidRevenue: sql<number>`round(coalesce(sum(${deliveries.tiffinUnits}::numeric * ${UNPAID_PER_TIFFIN}), 0), 2)::float`,
+            unpaidRevenue: sql<number>`round(coalesce(sum(case when ${deliveries.complimentaryNote} is null
+              then ${deliveries.tiffinUnits}::numeric * ${UNPAID_PER_TIFFIN} end), 0), 2)::float`,
           })
           .from(deliveries)
           .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -143,6 +146,13 @@ export async function getProfitabilityReport(opts: {
           .from(deliveries)
           .innerJoin(orders, eq(deliveries.orderId, orders.id))
           .where(and(...delivered, WP_MIGRATED)),
+    noOrgs
+      ? [{ n: 0 }]
+      : db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(payments)
+          .innerJoin(orders, eq(payments.orderId, orders.id))
+          .where(and(orderWhere, WP_MIGRATED, inArray(payments.status, CAPTURED), sql`${payments.addonRequest} is not null`, dateWhere(moneyDate, scope))),
   ]);
 
   const earnedByDate = new Map(earnedRows.map((r) => [isoDate(r.date), r]));
@@ -173,8 +183,9 @@ export async function getProfitabilityReport(opts: {
     assumptions,
     kpis: stats,
     rows,
-    costParts: costBreakdown(rows, assumptions),
+    costParts: costBreakdown(rows),
     migratedTiffinsExcluded: Number(migrated?.n ?? 0),
+    migratedAddonPayments: Number(migratedAddons?.n ?? 0),
     trend: rows.map((r) => ({
       ...chartPeriod(r.date, grain),
       profit: r.profit,

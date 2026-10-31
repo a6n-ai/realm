@@ -225,15 +225,15 @@ async function Cards({ view }: { view: View }) {
 
 async function Costs({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <PartsDonut format="currency" caption="Total costs" max={5} parts={report.costParts} />;
+  return <PartsDonut format="currency" caption="Total costs" max={6} parts={report.costParts.map((c) => ({ ...c, tone: c.label === "Other" ? ("muted" as const) : undefined }))} />;
 }
 
 async function MigratedNote({ view }: { view: View }) {
-  const { migratedTiffinsExcluded: n } = await reportFrom(view);
+  const { migratedTiffinsExcluded: n, migratedAddonPayments: addons } = await reportFrom(view);
   if (n === 0) return null;
   return (
     <p className="text-muted-foreground text-xs">
-      {n} {n === 1 ? "tiffin" : "tiffins"} from orders migrated from the old site {n === 1 ? "is" : "are"} not counted (paid on the old site, no price stored).
+      {n} {n === 1 ? "tiffin" : "tiffins"} from orders migrated from the old site {n === 1 ? "is" : "are"} not counted (paid on the old site, no price stored).{addons > 0 ? " Add-on payments on these orders are also not counted." : ""}
     </p>
   );
 }

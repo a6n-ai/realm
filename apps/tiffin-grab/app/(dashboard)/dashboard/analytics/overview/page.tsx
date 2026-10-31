@@ -91,7 +91,7 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
 
       <ChartCard
         title="Day by day"
-        subtitle="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders."
+        subtitle="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders. Monthly costs are company-wide."
       >
         <Suspense fallback={<ChartSkeleton height={320} />}>
           <Scorecard scope={scope} />

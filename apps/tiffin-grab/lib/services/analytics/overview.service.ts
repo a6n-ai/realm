@@ -91,6 +91,7 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
     getComplaintDaily(scope),
     getProfitabilityReport({ month: from.slice(0, 7), grain: "daily", scope }),
   ]);
+  const noAccess = scope.orgIds !== "all" && scope.orgIds.length === 0;
   const profitBy = new Map(profitReport.rows.map((r) => [r.date, r.profit]));
   const revenueByDay = new Map(revenue.map((r) => [r.key, r.net]));
   const ordersBy = new Map(orderDays.map((r) => [r.iso, r.n]));
@@ -110,7 +111,7 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
         skipped: d?.skipped ?? 0,
         signups: signupsBy.get(date) ?? 0,
         complaints: complaintsBy.get(date) ?? 0,
-        profit: profitBy.get(date) ?? 0,
+        profit: noAccess ? null : (profitBy.get(date) ?? 0),
         href: ordersDrillHref({ ...scope, fromMs: day.from, toMs: day.to }),
       };
     });

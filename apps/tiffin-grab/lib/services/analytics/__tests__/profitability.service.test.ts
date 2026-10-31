@@ -75,13 +75,14 @@ async function makeOrder(over: { total: string; tiffinCount: number; deploymentI
   return o!;
 }
 
-async function makeDelivery(orderId: bigint, date: string, over: { status?: "scheduled" | "skipped"; tiffinUnits?: number } = {}) {
+async function makeDelivery(orderId: bigint, date: string, over: { status?: "scheduled" | "skipped"; tiffinUnits?: number; free?: boolean } = {}) {
   await db.insert(deliveries).values({
     orderId,
     deliveryDate: date,
     status: over.status ?? "scheduled",
     cutoffAt: NOW - 1,
     tiffinUnits: over.tiffinUnits ?? 1,
+    complimentaryNote: over.free ? "Free tiffin" : null,
     // Delivered means confirmed (OptimoRoute or an admin); a passed cutoff alone earns nothing.
     optimoCompletionStatus: (over.status ?? "scheduled") === "scheduled" ? "success" : null,
   });
@@ -355,7 +356,39 @@ describe("profitability report", () => {
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
     const parts = Object.fromEntries(report.costParts.map((p) => [p.label, p.value]));
     expect(parts["Kitchen"]).toBe(8);
-    expect(parts["Other per tiffin"]).toBe(2);
-    expect(parts["Other monthly"]).toBe(310);
+    expect(parts["Other"]).toBe(312);
+  });
+
+  it("a migrated order stays excluded when only an add-on payment was captured", async () => {
+    const wp = await makeOrder({
+      total: "50.00",
+      tiffinCount: 5,
+      deploymentId: "PROF-WPADD",
+      snapshot: { wordpress: { orderId: 2, mergedOrderIds: [], lastDeliveredDate: null, deliveredCount: 0, refreshedOn: "2035-01-01" } },
+    });
+    const [addon] = await db.insert(payments).values({
+      orderId: wp.id, status: "paid", method: "etransfer", amount: "10.00", capturedAt: Date.parse("2035-01-03T15:00:00Z"),
+      addonRequest: { taxTotal: 0, amountDue: 10 } as never,
+    }).returning();
+    expect(addon).toBeTruthy();
+    await makeDelivery(wp.id, "2035-01-05");
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    expect(report.migratedTiffinsExcluded).toBe(1);
+    expect(report.migratedAddonPayments).toBe(1);
+    expect(report.kpis.tiffins).toBe(0);
+    expect(report.kpis.revenue).toBe(0);
+  });
+
+  it("a free tiffin earns nothing but still carries its food cost", async () => {
+    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 3 });
+    const order = await makeOrder({ total: "200.00", tiffinCount: 20, deploymentId: "PROF-FREE" });
+    await makePayment(order.id, "200.00", Date.parse("2034-12-20T15:00:00Z"));
+    for (let d = 1; d <= 20; d++) await makeDelivery(order.id, `2035-01-${String(d).padStart(2, "0")}`);
+    await makeDelivery(order.id, "2035-01-21", { free: true });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    expect(report.kpis.tiffins).toBe(21);
+    expect(report.kpis.revenue).toBe(200);
+    expect(report.rows.find((r) => r.date === "2035-01-21")?.revenue).toBe(0);
+    expect(report.kpis.costs).toBe(63);
   });
 });

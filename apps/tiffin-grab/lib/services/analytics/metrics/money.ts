@@ -3,6 +3,7 @@ import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { WP_MIGRATED } from "./migrated";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 
@@ -175,10 +176,11 @@ export type FreeTiffins = { count: number; valued: number; notValued: number; am
 const snapNum = (key: string) => sql`coalesce((${orders.pricingSnapshot}->>${sql.raw(`'${key}'`)})::numeric, 0)`;
 const FREE_PRICE = sql`((${snapNum("total")} - ${snapNum("taxTotal")} - ${appliedAddon("amountDue")} + ${appliedAddon("taxTotal")}) / nullif(${snapNum("tiffinCount")}, 0))`;
 // No price to show: a zero total, no tiffin count, or a WP-migrated order (paid on the old site).
-const FREE_VALUED = sql`(${snapNum("total")} > 0 and ${snapNum("tiffinCount")} > 0 and not jsonb_exists(${orders.pricingSnapshot}, 'wordpress'))`;
+const FREE_VALUED = sql`(${snapNum("total")} > 0 and ${snapNum("tiffinCount")} > 0 and not ${WP_MIGRATED})`;
 
 /**
- * Complimentary tiffins (one delivery row each, not cancelled) dated by delivery date, valued at the order's
+ * Complimentary tiffins given (scheduled deliveries; paused or skipped ones are on hold, cancelled never went) counted in
+ * units and dated by delivery date, valued at the order's
  * per-tiffin price. No payment exists for them, so this is shown beside revenue, never inside it.
  */
 export async function freeTiffins(scope: AnalyticsScope): Promise<FreeTiffins> {
@@ -187,13 +189,13 @@ export async function freeTiffins(scope: AnalyticsScope): Promise<FreeTiffins> {
   const to = isoDateInZone(scope.toMs, scope.tz);
   const [r] = rowsOf(
     await db.execute(sql`
-      select count(*)::int::text as count,
-        (count(*) filter (where ${FREE_VALUED}))::int::text as valued,
-        round(coalesce(sum(case when ${FREE_VALUED} then ${FREE_PRICE} end), 0), 2)::text as amount
+      select coalesce(sum(${deliveries.tiffinUnits}), 0)::int::text as count,
+        (coalesce(sum(${deliveries.tiffinUnits}) filter (where ${FREE_VALUED}), 0))::int::text as valued,
+        round(coalesce(sum(case when ${FREE_VALUED} then ${deliveries.tiffinUnits}::numeric * ${FREE_PRICE} end), 0), 2)::text as amount
       from ${deliveries} inner join ${orders} on ${orders.id} = ${deliveries.orderId}
       where ${and(
         sql`${deliveries.complimentaryNote} is not null`,
-        sql`${deliveries.status} <> 'cancelled'`,
+        sql`${deliveries.status} = 'scheduled'`,
         sql`${deliveries.deliveryDate} >= ${from}`,
         sql`${deliveries.deliveryDate} <= ${to}`,
         ordersScope(scope),

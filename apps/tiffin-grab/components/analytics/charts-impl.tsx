@@ -25,10 +25,8 @@ import {
   PieChart,
   RadialBar,
   RadialBarChart,
-  Sector,
   XAxis,
   YAxis,
-  type PieSectorDataItem,
 } from "recharts";
 import {
   ChartContainer,

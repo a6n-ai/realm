@@ -198,7 +198,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
     {
       label: "Free tiffins",
       value: money(free.amount),
-      hint: `${free.count} ${free.count === 1 ? "tiffin" : "tiffins"} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} on migrated orders not valued`,
+      hint: `${free.count} ${free.count === 1 ? "tiffin" : "tiffins"} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`,
       badge: "Given away",
       badgeTone: "neutral",
     },

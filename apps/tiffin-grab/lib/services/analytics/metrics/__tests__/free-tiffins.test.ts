@@ -43,9 +43,9 @@ async function makeOrder(org: string, snapshot: Record<string, unknown>, tiffinC
   return o!;
 }
 
-const free = (orderId: bigint, date: string, over: { note?: string | null; status?: "scheduled" | "cancelled" } = {}) =>
+const free = (orderId: bigint, date: string, over: { note?: string | null; status?: "scheduled" | "cancelled" | "paused" | "skipped"; units?: number } = {}) =>
   db.insert(deliveries).values({
-    orderId, deliveryDate: date, status: over.status ?? "scheduled", cutoffAt: 0, tiffinUnits: 1,
+    orderId, deliveryDate: date, status: over.status ?? "scheduled", cutoffAt: 0, tiffinUnits: over.units ?? 1,
     complimentaryNote: over.note === undefined ? "Free tiffin" : over.note,
   });
 
@@ -66,14 +66,16 @@ describe("freeTiffins", () => {
     const noPrice = await makeOrder(org, { total: 0, taxTotal: 0, tiffinCount: 10 });
     const migrated = await makeOrder(org, { total: 100, taxTotal: 0, tiffinCount: 10, wordpress: { orderId: 1 } });
     await free(priced.id, "2035-03-05");
-    await free(priced.id, "2035-03-06");
+    await free(priced.id, "2035-03-06", { units: 2 });
     await free(priced.id, "2035-03-07", { status: "cancelled" });
     await free(priced.id, "2035-03-08", { note: null });
+    await free(priced.id, "2035-03-09", { status: "paused" });
+    await free(priced.id, "2035-03-10", { status: "skipped" });
     await free(priced.id, "2035-04-02");
     await free(noPrice.id, "2035-03-05");
     await free(migrated.id, "2035-03-05");
 
-    expect(await freeTiffins(scopeFor([org]))).toEqual({ count: 4, valued: 2, notValued: 2, amount: 16.4 });
+    expect(await freeTiffins(scopeFor([org]))).toEqual({ count: 5, valued: 3, notValued: 2, amount: 24.6 });
   });
 
   it("is scoped through the order's franchise", async () => {

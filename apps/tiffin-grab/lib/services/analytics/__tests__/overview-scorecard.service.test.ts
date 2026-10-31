@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { inArray } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -58,8 +58,12 @@ describe("daily scorecard (integration)", () => {
     [{ id: org }] = await db.insert(organization).values({ name: "Scorecard", clientCode: `SCD-${suffix}` }).returning({ id: organization.id });
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     if (prior) await setProfitabilityAssumptions(prior);
+    prior = null;
+  });
+
+  afterAll(async () => {
     if (ticketIds.length) await db.delete(tickets).where(inArray(tickets.id, ticketIds));
     if (orderIds.length) {
       await db.delete(deliveries).where(inArray(deliveries.orderId, orderIds));
@@ -127,6 +131,7 @@ describe("daily scorecard (integration)", () => {
 
   it("is empty for a franchise with no access", async () => {
     const rows = (await getDailyScorecard(scope([])))!;
+    expect(rows.every((r) => r.profit === null)).toBe(true);
     expect(rows.every((r) => r.revenue === 0 && r.orders === 0 && r.deliveries === 0 && r.signups === 0 && r.complaints === 0)).toBe(true);
   });
 
