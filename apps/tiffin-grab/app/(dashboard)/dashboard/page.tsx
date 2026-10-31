@@ -17,7 +17,7 @@ import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
+import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
 import { TODAY_KINDS, isTodayKind, kindOptionLabel, type TodayKind } from "@/lib/today/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
@@ -76,6 +76,8 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
 
+  const seesAll = await coversAllOrgs(visible);
+
   if (visible !== "all" && visible.length === 0) {
     return (
       <PageShell>
@@ -96,10 +98,10 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       <PageHeader icon={LayoutDashboardIcon} title="Overview" subtitle="What is waiting on us today." />
 
       <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
-        <TodayTiles visible={visible} today={today} />
+        <TodayTiles visible={visible} today={today} seesAll={seesAll} />
       </Suspense>
 
-      {visible === "all" ? (
+      {seesAll ? (
         <div className="grid gap-4 md:grid-cols-2">
           <Suspense fallback={<ChartSkeleton height={160} />}>
             <NextDayCard today={today} />

@@ -13,7 +13,7 @@ const { getAppSettings } = await import("../app-settings.service");
 const { countMissedDeliveries } = await import("../missed-deliveries.service");
 const { inquiriesService } = await import("../inquiries.service");
 const { countPaymentReviewOrders } = await import("../orders.service");
-const { countReviewPayments, getTodayCounts, getTodayQueue } = await import("../today.service");
+const { PER_KIND_MIXED, countReviewPayments, coversAllOrgs, getTodayCounts, getTodayQueue } = await import("../today.service");
 
 const suffix = Math.random().toString(36).slice(2);
 const DAY = 864e5;
@@ -186,5 +186,15 @@ describe("today queue (integration)", () => {
     const { items } = await getTodayQueue([orgB], Date.now(), ["inquiry"]);
     expect(items).toHaveLength(50);
     expect((await getTodayCounts([orgB], today)).byKind.inquiry).toBe(53);
+
+    // Mixed view (every type): a large backlog of one type is capped so the others still show.
+    const mixed = await getTodayQueue([orgB], Date.now());
+    expect(mixed.items.filter((i) => i.kind === "inquiry")).toHaveLength(PER_KIND_MIXED);
+  });
+
+  it("covers every franchise only when the user sees all of them", async () => {
+    expect(await coversAllOrgs("all")).toBe(true);
+    expect(await coversAllOrgs([])).toBe(false);
+    expect(await coversAllOrgs([orgB])).toBe(false);
   });
 });

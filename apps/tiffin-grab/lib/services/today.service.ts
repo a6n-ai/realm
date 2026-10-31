@@ -2,7 +2,7 @@ import { cache } from "react";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { formatMoney, tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { orders, payments } from "@/db/schema";
+import { orders, organization, payments } from "@/db/schema";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -16,6 +16,21 @@ import { TODAY_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/
 
 type Visible = "all" | string[];
 const empty = (visible: Visible) => visible !== "all" && visible.length === 0;
+
+/**
+ * True when the user sees every franchise that exists. Day deliveries and the route push are not
+ * scoped by franchise, so only these users get them. A member of the only franchise counts: "all"
+ * alone is reserved for platform admins, which would hide the push card from every franchise admin.
+ */
+export async function coversAllOrgs(visible: Visible): Promise<boolean> {
+  if (visible === "all") return true;
+  if (visible.length === 0) return false;
+  const ids = await db.select({ id: organization.id }).from(organization);
+  return ids.every((o) => visible.includes(o.id));
+}
+
+/** Rows per type in the mixed queue, so one large backlog cannot hide every other type. */
+export const PER_KIND_MIXED = 8;
 
 /** Midnight of a calendar date (YYYY-MM-DD) in `tz`, as epoch ms. */
 export function dayStartMs(iso: string, tz: string): number {
@@ -166,7 +181,12 @@ export async function getTodayQueue(visible: Visible, now: number, kinds: readon
       console.error(`[today] ${kinds[i]} source failed`, r.reason);
     }
   });
-  return { items: rankTodayItems(items).slice(0, TODAY_LIMIT), failed };
+  // Mixed view: the most urgent few of each type. A single type (the facet) lists up to 50.
+  const mixed = kinds.length > 1;
+  const shown = mixed
+    ? TODAY_KINDS.flatMap((k) => rankTodayItems(items.filter((i) => i.kind === k)).slice(0, PER_KIND_MIXED))
+    : items;
+  return { items: rankTodayItems(shown).slice(0, TODAY_LIMIT), failed };
 }
 
 // ---- totals ----

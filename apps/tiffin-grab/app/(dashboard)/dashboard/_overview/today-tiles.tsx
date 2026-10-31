@@ -16,7 +16,7 @@ async function safe<T>(p: Promise<T>): Promise<T | null> {
   }
 }
 
-export async function TodayTiles({ visible, today }: { visible: "all" | string[]; today: string }) {
+export async function TodayTiles({ visible, today, seesAll }: { visible: "all" | string[]; today: string; seesAll: boolean }) {
   const c = await getTodayCounts(visible, today);
 
   const verify: AnalyticsStatCardItem = {
@@ -39,7 +39,7 @@ export async function TodayTiles({ visible, today }: { visible: "all" | string[]
   };
 
   let rest: AnalyticsStatCardItem[];
-  if (visible === "all") {
+  if (seesAll) {
     const [status, push, deliveries] = await Promise.all([
       safe(getOptimoRouteStatus()),
       safe(nextRoutePushStatus(today)),
