@@ -8,7 +8,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { DistributionDonutChart } from "@/components/analytics/charts";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
@@ -64,13 +64,13 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const [s, visible] = await Promise.all([getLeadStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <StatCards
-      cols={4}
+    <AnalyticsStatCards
       items={[
-        { label: "Total leads", value: s.total, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
+        { label: "Total leads", value: s.total, hint: `Inquiries received · ${DATE_BASIS_LABEL.leads}`, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
         {
           label: "Converted",
           value: s.converted,
+          hint: `Inquiries that became an order · ${DATE_BASIS_LABEL.leads}`,
           href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Won",
           badgeTone: "ok",
@@ -78,6 +78,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Lost",
           value: s.lost,
+          hint: `Inquiries marked lost · ${DATE_BASIS_LABEL.leads}`,
           href: inquiriesHref(scope, { stage: "lost" }, visible),
           tone: s.lost > 0 ? "warn" : undefined,
           badge: "Lost",

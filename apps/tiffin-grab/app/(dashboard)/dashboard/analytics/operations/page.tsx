@@ -4,7 +4,7 @@ import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp"
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, DistributionDonutChart, RadialRateChart } from "@/components/analytics/charts";
 import {
   getOperationsStats,
@@ -67,13 +67,13 @@ async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const s = await loadStats(scope);
   return (
-    <StatCards
-      cols={4}
+    <AnalyticsStatCards
       items={[
-        { label: "Total deliveries", value: s.totalDeliveries, hint: DATE_BASIS_LABEL.deliveries, badge: "Scheduled", badgeTone: "neutral" },
+        { label: "Total deliveries", value: s.totalDeliveries, hint: `Scheduled deliveries in range · ${DATE_BASIS_LABEL.deliveries}`, badge: "Scheduled", badgeTone: "neutral" },
         {
           label: "Skipped",
           value: s.skipped,
+          hint: `Held or skipped by the customer · ${DATE_BASIS_LABEL.deliveries}`,
           tone: s.skipped > 0 ? "warn" : undefined,
           badge: "Skipped",
           badgeTone: s.skipped > 0 ? "warn" : "neutral",
@@ -81,11 +81,12 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Cancelled",
           value: s.cancelled,
+          hint: `Cancelled before going out · ${DATE_BASIS_LABEL.deliveries}`,
           tone: s.cancelled > 0 ? "warn" : undefined,
           badge: "Cancelled",
           badgeTone: s.cancelled > 0 ? "warn" : "neutral",
         },
-        { label: "Skip rate", value: `${s.skipRatePct}%`, badge: "Rate", badgeTone: "brand" },
+        { label: "Skip rate", value: `${s.skipRatePct}%`, hint: `Skipped deliveries divided by all deliveries · ${DATE_BASIS_LABEL.deliveries}`, badge: "Rate", badgeTone: "brand" },
       ]}
     />
   );
@@ -98,5 +99,5 @@ async function MixChart({ scope }: { scope: AnalyticsScope }) {
 
 async function DriverChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getRouteLoadByDriver(10, scope);
-  return <BreakdownBarChart data={rows} xKey="driver" yKey="n" />;
+  return <BreakdownBarChart data={rows} xKey="driver" yKey="n" label="Stops" />;
 }

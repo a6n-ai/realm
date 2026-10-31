@@ -120,13 +120,14 @@ describe("products analytics", () => {
 
     const stats = await getProductStats(scope);
     expect(stats.totalSelections).toBe(2);
+    expect(stats.ordersWithPicks).toBe(2);
     const top = await getTopDishes(5, scope);
     expect(top.find((d) => d.dish.startsWith("Fixture dish"))?.n).toBe(2);
   });
 
   it("is empty for a scope with no franchise", async () => {
     const none = { ...scope, orgIds: [] as string[] };
-    expect(await getProductStats(none)).toEqual({ totalSelections: 0, distinctDishes: 0, topDish: null });
+    expect(await getProductStats(none)).toEqual({ totalSelections: 0, distinctDishes: 0, ordersWithPicks: 0, topDish: null });
     expect(await getPaidByPlan(none)).toEqual([]);
   });
 });

@@ -9,7 +9,7 @@ import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
-import { StatCards, StatCardsSkeleton, StatFootnote, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
@@ -133,7 +133,7 @@ async function Headline({ view }: { view: View }) {
 function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; range: string; cashHref: string }) {
   const rangeHint = range;
 
-  const items: StatCardItem[] = [
+  const items: AnalyticsStatCardItem[] = [
     {
       label: "Cash collected",
       value: money(kpis.cashCollected),
@@ -201,12 +201,12 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
     },
   ];
 
-  return <StatCards cols={4} items={items} />;
+  return <AnalyticsStatCards items={items} />;
 }
 
 async function Trend({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <TrendLineChart data={report.trend} xKey="period" yKey="profit" />;
+  return <TrendLineChart data={report.trend} xKey="period" yKey="profit" label="Profit" format="currency" />;
 }
 
 async function Grid({ view }: { view: View }) {

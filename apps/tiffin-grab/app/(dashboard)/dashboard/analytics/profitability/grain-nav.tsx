@@ -48,6 +48,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
               key={g.id}
               href={href(g.id, month)}
               prefetch={false}
+              aria-current={view === g.id ? "true" : undefined}
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors",
                 view === g.id
@@ -62,7 +63,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
 
         <div className="flex flex-wrap items-center gap-1">
           {aside ? <div className="mr-1">{aside}</div> : null}
-          <Button variant="ghost" size="icon" className="size-8" asChild>
+          <Button variant="ghost" size="icon-sm" asChild>
             <Link href={href(view, addMonths(month, -1))} prefetch={false} aria-label="Previous month">
               <ChevronLeftIcon className="size-4" />
             </Link>
@@ -75,7 +76,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
               if (v) router.push(href(view, v));
             }}
           />
-          <Button variant="ghost" size="icon" className="size-8" asChild>
+          <Button variant="ghost" size="icon-sm" asChild>
             <Link href={href(view, addMonths(month, 1))} prefetch={false} aria-label="Next month">
               <ChevronRightIcon className="size-4" />
             </Link>

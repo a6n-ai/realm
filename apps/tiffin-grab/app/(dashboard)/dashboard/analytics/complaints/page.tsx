@@ -1,13 +1,12 @@
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { AlertTriangleIcon, ClockIcon, InboxIcon, RepeatIcon } from "lucide-react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { priorityLabel } from "@/lib/support/ticket-priority";
 import {
@@ -57,7 +56,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
           </Suspense>
         }
       />
-      <Suspense fallback={<ChartSkeleton />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <Kpis scope={scope} />
       </Suspense>
 
@@ -129,51 +128,44 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
 async function Kpis({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
   const k = await getComplaintKpis(scope);
+  const basis = DATE_BASIS_LABEL.tickets;
   return (
-    <StatCards
-      cols={3}
+    <AnalyticsStatCards
       items={[
         {
           label: "Total complaints",
           value: k.total,
-          hint: DATE_BASIS_LABEL.tickets,
+          hint: `${k.open} open · raised in range, ${basis}`,
           href: ticketsHref(filters),
           badge: "In range",
           badgeTone: "neutral",
-        },
-        {
-          label: "Open",
-          value: k.open,
-          href: ticketsHref(filters, { statuses: ["open", "in_progress", "waiting_on_customer"] }),
           tone: k.open > 0 ? "warn" : undefined,
-          badge: "Open",
-          badgeTone: k.open > 0 ? "warn" : "neutral",
-        },
-        {
-          label: "Resolved",
-          value: k.resolved,
-          href: ticketsHref(filters, { statuses: ["resolved", "closed"] }),
-          badge: "Resolved",
-          badgeTone: "ok",
         },
         {
           label: "Resolution rate",
           value: k.resolutionRatePct != null ? `${k.resolutionRatePct}%` : "—",
-          hint: k.resolutionRatePct == null ? "No complaints in range" : "Resolved or closed, of all complaints",
+          hint:
+            k.resolutionRatePct == null
+              ? `No complaints in range · ${basis}`
+              : `${k.resolved} resolved or closed, of all complaints · ${basis}`,
+          href: ticketsHref(filters, { statuses: ["resolved", "closed"] }),
           badge: "Rate",
           badgeTone: "brand",
         },
         {
           label: "Avg. resolution time",
           value: k.avgResolutionHours != null ? `${k.avgResolutionHours}h` : "—",
-          hint: k.avgResolutionHours == null ? "Nothing resolved yet" : "From open to resolved",
+          hint: k.avgResolutionHours == null ? "Nothing resolved yet" : `From open to resolved · ${basis}`,
           badge: "Time",
           badgeTone: "neutral",
         },
         {
           label: "Per 100 tiffins",
           value: k.perHundredTiffins != null ? k.perHundredTiffins : "—",
-          hint: k.perHundredTiffins == null ? "No tiffins delivered in range" : "Complaints against delivered tiffins",
+          hint:
+            k.perHundredTiffins == null
+              ? "No tiffins delivered in range"
+              : "Complaints against delivered tiffins · by ticket date",
           badge: "Rate",
           badgeTone: "brand",
           footer:
@@ -194,16 +186,10 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
   const a = await getNeedsAttention(scope);
   if (a.urgent + a.overdue + a.unanswered + a.repeatCustomers === 0) return null;
 
-  const cards: {
-    label: string;
-    value: number;
-    icon: typeof AlertTriangleIcon;
-    href?: string;
-  }[] = [
+  const rows = [
     {
       label: "High & critical, still open",
-      value: a.urgent,
-      icon: AlertTriangleIcon,
+      n: a.urgent,
       href: ticketsHref(filters, {
         priorities: ["high", "urgent"],
         statuses: ["open", "in_progress", "waiting_on_customer"],
@@ -211,40 +197,17 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
     },
     {
       label: "Overdue (no reply in 24h)",
-      value: a.overdue,
-      icon: ClockIcon,
+      n: a.overdue,
       href: ticketsHref(filters, { statuses: ["open", "in_progress"] }),
     },
-    { label: "Never answered", value: a.unanswered, icon: InboxIcon, href: ticketsHref(filters, { statuses: ["new"] }) },
-    { label: "Customers complaining repeatedly", value: a.repeatCustomers, icon: RepeatIcon },
-  ].filter((c) => c.value > 0);
+    { label: "Never answered", n: a.unanswered, href: ticketsHref(filters, { statuses: ["new"] }) },
+    { label: "Customers complaining repeatedly", n: a.repeatCustomers },
+  ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <h3 className="text-foreground text-lg font-semibold tracking-tight">Needs attention</h3>
-        <p className="text-muted-foreground mt-0.5 text-xs text-pretty">Complaints that should not wait.</p>
-      </div>
-      <StatCards
-        cols={4}
-        items={cards.map((c) => ({
-          label: c.label,
-          value: c.value,
-          href: c.href,
-          tone: "warn" as const,
-          badge: "Now",
-          badgeTone: "warn" as const,
-          footer: (
-            <StatFootnote>
-              <span className="text-muted-foreground inline-flex items-center gap-1.5">
-                <c.icon className="size-3.5" aria-hidden />
-                Open these first
-              </span>
-            </StatFootnote>
-          ),
-        }))}
-      />
-    </div>
+    <ChartCard title="Needs attention" subtitle="Complaints that should not wait. Open these first.">
+      <BreakdownList rows={rows} />
+    </ChartCard>
   );
 }
 
@@ -254,7 +217,7 @@ async function Trend({ scope }: { scope: AnalyticsScope }) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No complaints in this range.</p>;
   }
-  return <TrendLineChart data={rows} xKey="day" yKey="n" />;
+  return <TrendLineChart data={rows} xKey="day" yKey="n" label="Complaints" />;
 }
 
 async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {

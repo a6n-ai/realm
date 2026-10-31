@@ -6,14 +6,15 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { GroupedBarChart, HoverValueBarChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { clockInZone } from "@/lib/analytics/profitability";
-import { SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
+import { ChartBoundary } from "@/components/analytics/chart-boundary";
+import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
 
 function money(n: number) {
@@ -36,6 +37,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
   const resolved = await scopeOrAlert("/dashboard/analytics/revenue", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -53,8 +55,8 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard
-          title="Net revenue by day"
-          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that day.`}
+          title={`Net revenue by ${unit}`}
+          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that ${unit}.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
             <NetByDay scope={scope} />
@@ -70,9 +72,11 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </ChartCard>
       </div>
 
-      <Suspense fallback={<ChartSkeleton />}>
-        <NeedsReview scope={scope} />
-      </Suspense>
+      <ChartBoundary>
+        <Suspense fallback={<ChartSkeleton height={160} />}>
+          <NeedsReview scope={scope} />
+        </Suspense>
+      </ChartBoundary>
 
       <ChartCard
         title="Payments by status"
@@ -120,7 +124,46 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
   const href = links(scope);
   const paid = href();
   const basis = DATE_BASIS_LABEL.money;
-  const second: StatCardItem[] = [
+  const items: AnalyticsStatCardItem[] = [
+    {
+      label: "Net revenue",
+      value: money(k.netRevenue),
+      hint: `${basis} · ex tax & surcharge`,
+      href: paid,
+      badge: "Settled",
+      badgeTone: "ok",
+    },
+    {
+      label: "Discounts",
+      value: money(k.discounts),
+      hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of list price · ${basis}`,
+      href: paid,
+      badge: "Given",
+      badgeTone: "brand",
+    },
+    {
+      label: "Tax held",
+      value: money(k.tax),
+      hint: `Owed to the government, not revenue · ${basis}`,
+      href: paid,
+      badge: "Tax",
+      badgeTone: "neutral",
+    },
+    {
+      label: "Refunded",
+      value: money(k.refunds),
+      tone: k.refunds > 0 ? "warn" : undefined,
+      hint: "By refund date",
+      footer:
+        k.unlinkedRefunds > 0 ? (
+          <p className="text-muted-foreground text-xs">
+            {k.unlinkedRefunds} {k.unlinkedRefunds === 1 ? "refund" : "refunds"} not linked to a payment{" "}
+            {k.unlinkedRefunds === 1 ? "is" : "are"} not deducted
+          </p>
+        ) : undefined,
+      badge: "Refunds",
+      badgeTone: k.refunds > 0 ? "warn" : "neutral",
+    },
     {
       label: "Net collected",
       value: money(k.netCollected),
@@ -146,66 +189,16 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
       badge: "Average",
       badgeTone: "brand",
     },
-  ];
-  if (k.surcharge > 0) {
-    second.push({
+    {
       label: "Card surcharge",
       value: money(k.surcharge),
-      hint: `Charged on top of the price, not revenue · ${basis}`,
+      hint: `Charged on top of card payments, not revenue · ${basis}`,
       href: paid,
       badge: "Surcharge",
       badgeTone: "neutral",
-    });
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      <StatCards
-        cols={4}
-        items={[
-          {
-            label: "Net revenue",
-            value: money(k.netRevenue),
-            hint: `${basis} · ex tax & surcharge`,
-            href: paid,
-            badge: "Settled",
-            badgeTone: "ok",
-          },
-          {
-            label: "Discounts",
-            value: money(k.discounts),
-            hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of list price`,
-            href: paid,
-            badge: "Given",
-            badgeTone: "brand",
-          },
-          {
-            label: "Tax held",
-            value: money(k.tax),
-            hint: `Owed to the government, not revenue · ${basis}`,
-            href: paid,
-            badge: "Tax",
-            badgeTone: "neutral",
-          },
-          {
-            label: "Refunded",
-            value: money(k.refunds),
-            tone: k.refunds > 0 ? "warn" : undefined,
-            hint: "By refund date",
-            footer:
-              k.unlinkedRefunds > 0 ? (
-                <p className="text-muted-foreground text-xs">
-                  {k.unlinkedRefunds} {k.unlinkedRefunds === 1 ? "refund" : "refunds"} not linked to a payment{" "}
-                  {k.unlinkedRefunds === 1 ? "is" : "are"} not deducted
-                </p>
-              ) : undefined,
-            badge: "Refunds",
-            badgeTone: k.refunds > 0 ? "warn" : "neutral",
-          },
-        ]}
-      />
-      <StatCards cols={4} items={second} />
-    </div>
-  );
+    },
+  ];
+  return <AnalyticsStatCards items={items} />;
 }
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
@@ -228,7 +221,7 @@ async function Statuses({ scope }: { scope: AnalyticsScope }) {
 async function NetByDay({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   return (
-    <HoverValueBarChart data={report.trend} xKey="period" yKey="netSales" format="currency" totalLabel="Net revenue" />
+    <HoverValueBarChart data={report.trend} xKey="period" yKey="netSales" label="Net revenue" format="currency" totalLabel="Net revenue" />
   );
 }
 

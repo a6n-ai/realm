@@ -28,6 +28,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
+import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 
 // A string, not a formatter function: these charts are rendered from server
 // components, and functions cannot cross that boundary as props.
@@ -90,6 +91,7 @@ export function TrendLineChart({
   data,
   xKey,
   yKey,
+  label = "Value",
   series,
   format = "number",
   height = 240,
@@ -97,6 +99,8 @@ export function TrendLineChart({
   data: Row[];
   xKey: string;
   yKey?: string;
+  /** Series name for the single-`yKey` form (tooltip, legend). */
+  label?: string;
   /** Several named series; takes precedence over `yKey`. */
   series?: { key: string; label: string }[];
   format?: ValueFormat;
@@ -104,7 +108,7 @@ export function TrendLineChart({
 }) {
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
-  const lines = series ?? (yKey ? [{ key: yKey, label: yKey }] : []);
+  const lines = series ?? (yKey ? [{ key: yKey, label }] : []);
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
   ) satisfies ChartConfig;
@@ -163,6 +167,7 @@ export function BreakdownBarChart({
   data,
   xKey,
   yKey,
+  label = "Value",
   format = "number",
   orientation = "horizontal",
   height = 240,
@@ -170,12 +175,13 @@ export function BreakdownBarChart({
   data: Row[];
   xKey: string;
   yKey: string;
+  label?: string;
   format?: ValueFormat;
   orientation?: "horizontal" | "vertical";
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
-  const config = { [yKey]: { label: yKey, color: chartColor(0) } } satisfies ChartConfig;
+  const config = { [yKey]: { label, color: chartColor(0) } } satisfies ChartConfig;
   const tooltip = (
     <ChartTooltip
       cursor={false}
@@ -196,7 +202,7 @@ export function BreakdownBarChart({
           <CartesianGrid vertical={false} />
           <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} />
           {tooltip}
-          <Bar dataKey={yKey} name={yKey} fill={chartColor(0)} radius={4} />
+          <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={4} />
         </BarChart>
       </ChartContainer>
     );
@@ -225,7 +231,7 @@ export function BreakdownBarChart({
         />
         <XAxis type="number" tickLine={false} tickMargin={10} axisLine={false} hide />
         {tooltip}
-        <Bar dataKey={yKey} name={yKey} fill={chartColor(0)} radius={2} />
+        <Bar dataKey={yKey} name={label} fill={chartColor(0)} radius={2} />
       </BarChart>
     </ChartContainer>
   );
@@ -394,7 +400,7 @@ function HoverBar({ x, y, width, height, fill, index, activeIndex, onActive }: H
         fill={fill}
         rx={3}
         className="origin-center transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [transform-box:fill-box] motion-reduce:transition-none"
-        style={{ transform: `scaleX(${active || w === 0 ? 1 : COLLAPSED_WIDTH / w})` }}
+        style={{ transform: `scaleX(${active || w === 0 ? 1 : Math.min(1, COLLAPSED_WIDTH / w)})` }}
       />
     </g>
   );
@@ -405,6 +411,7 @@ export function HoverValueBarChart({
   data,
   xKey,
   yKey,
+  label = "Value",
   format = "number",
   height = 240,
   totalLabel = "Total",
@@ -412,13 +419,14 @@ export function HoverValueBarChart({
   data: Row[];
   xKey: string;
   yKey: string;
+  label?: string;
   format?: ValueFormat;
   height?: number;
   totalLabel?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   if (data.length === 0) return <EmptyChart />;
-  const config = { [yKey]: { label: yKey, color: chartColor(0) } } satisfies ChartConfig;
+  const config = { [yKey]: { label, color: chartColor(0) } } satisfies ChartConfig;
   const active = activeIndex === undefined ? undefined : data[activeIndex];
   const figure = active
     ? Number(active[yKey]) || 0
@@ -480,12 +488,13 @@ export function GroupedBarChart({
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart />;
+  const { rows } = keySeries(data, series);
   const config = Object.fromEntries(
-    series.map((s, i) => [s.key, { label: s.label, color: chartColor(i) }]),
+    series.map((s, i) => [seriesKey(i), { label: s.label, color: chartColor(i) }]),
   ) satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
-      <BarChart accessibilityLayer data={data}>
+      <BarChart accessibilityLayer data={rows}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey={xKey} tickLine={false} tickMargin={10} axisLine={false} minTickGap={24} />
         <ChartTooltip
@@ -500,7 +509,7 @@ export function GroupedBarChart({
           }
         />
         {series.map((s, i) => (
-          <Bar key={s.key} dataKey={s.key} name={s.label} fill={chartColor(i)} radius={4} />
+          <Bar key={seriesKey(i)} dataKey={seriesKey(i)} name={s.label} fill={chartColor(i)} radius={4} />
         ))}
         {legend || series.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
       </BarChart>
@@ -527,7 +536,7 @@ export function RadialRateChart({
   ) satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="mx-auto aspect-square" style={{ height }}>
-      <RadialBarChart data={rows} innerRadius="30%" outerRadius="100%" barSize={22}>
+      <RadialBarChart accessibilityLayer data={rows} innerRadius="30%" outerRadius="100%" barSize={22}>
         <ChartTooltip
           content={
             <ChartTooltipContent

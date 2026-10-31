@@ -5,7 +5,7 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
@@ -64,8 +64,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const [s, visible] = await Promise.all([getCustomerStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <StatCards
-      cols={4}
+    <AnalyticsStatCards
       items={[
         {
           label: "Customers",
@@ -104,7 +103,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 
 async function SignupChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSignupTrend(scope);
-  return <TrendLineChart data={rows} xKey="day" yKey="n" />;
+  return <TrendLineChart data={rows} xKey="day" yKey="n" label="New accounts" />;
 }
 
 async function MixChart({ scope }: { scope: AnalyticsScope }) {
@@ -123,5 +122,5 @@ async function MixChart({ scope }: { scope: AnalyticsScope }) {
 
 async function CitiesChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getTopCities(8, scope);
-  return <BreakdownBarChart data={rows} xKey="city" yKey="n" />;
+  return <BreakdownBarChart data={rows} xKey="city" yKey="n" label="Customers" />;
 }

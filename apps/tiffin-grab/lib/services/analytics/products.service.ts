@@ -11,6 +11,8 @@ const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds
 export type ProductStats = {
   totalSelections: number;
   distinctDishes: number;
+  /** Orders in scope that have at least one meal selection. */
+  ordersWithPicks: number;
   topDish: string | null;
 };
 
@@ -29,12 +31,16 @@ function selectionOrderIds(scope: AnalyticsScope) {
 }
 
 export async function getProductStats(scope: AnalyticsScope): Promise<ProductStats> {
-  if (noOrgs(scope)) return { totalSelections: 0, distinctDishes: 0, topDish: null };
+  if (noOrgs(scope)) return { totalSelections: 0, distinctDishes: 0, ordersWithPicks: 0, topDish: null };
   const selectionWhere = selectionOrderIds(scope);
-  const [[{ n: totalSelections }], [{ n: distinctDishes }], top] = await Promise.all([
+  const [[{ n: totalSelections }], [{ n: distinctDishes }], [{ n: ordersWithPicks }], top] = await Promise.all([
     db.select({ n: intCount }).from(mealSelections).where(selectionWhere),
     db
       .select({ n: sql<number>`cast(count(distinct ${mealSelections.dishId}) as int)` })
+      .from(mealSelections)
+      .where(selectionWhere),
+    db
+      .select({ n: sql<number>`cast(count(distinct ${mealSelections.orderId}) as int)` })
       .from(mealSelections)
       .where(selectionWhere),
     db
@@ -46,7 +52,7 @@ export async function getProductStats(scope: AnalyticsScope): Promise<ProductSta
       .orderBy(sql`count(*) desc`)
       .limit(1),
   ]);
-  return { totalSelections, distinctDishes, topDish: top[0]?.name ?? null };
+  return { totalSelections, distinctDishes, ordersWithPicks, topDish: top[0]?.name ?? null };
 }
 
 export async function getTopDishes(limit = 8, scope: AnalyticsScope) {
@@ -143,7 +149,11 @@ export function dietOrder(a: string, b: string) {
 }
 
 export function tierOrder(a: string, b: string) {
-  return TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b);
+  const rank = (k: string) => {
+    const i = TIER_ORDER.indexOf(k);
+    return i < 0 ? TIER_ORDER.length : i;
+  };
+  return rank(a) - rank(b);
 }
 
 /** Paid money grouped by catalog meal size (Maharaja Thali, 4 Item Thali, ...). */

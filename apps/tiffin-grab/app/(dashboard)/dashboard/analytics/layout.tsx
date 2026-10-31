@@ -52,16 +52,16 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   return (
     <PageShell>
       <PageHeader icon={BarChart3Icon} title="Analytics" subtitle="Business performance across the app." />
-        {noAccess ? (
-          <Alert variant="destructive">
-            <AlertTitle>No franchise access</AlertTitle>
-            <AlertDescription>
-              Your account isn&apos;t linked to any franchise, so there is no analytics to show. Ask an admin to add
-              you to a franchise.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <>
+      {noAccess ? (
+        <Alert variant="destructive">
+          <AlertTitle>No franchise access</AlertTitle>
+          <AlertDescription>
+            Your account isn&apos;t linked to any franchise, so there is no analytics to show. Ask an admin to add
+            you to a franchise.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <>
           <Suspense fallback={null}>
             <AnalyticsTabs />
           </Suspense>
@@ -69,8 +69,8 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
             <SharedFilters visible={visible} />
           </Suspense>
           <div className="flex min-w-0 flex-col gap-6">{children}</div>
-          </>
-        )}
+        </>
+      )}
     </PageShell>
   );
 }

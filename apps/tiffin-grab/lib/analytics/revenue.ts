@@ -5,7 +5,7 @@
  * share of the order a payment covers and capped at the list price.
  */
 
-import { eachDateInclusive, round2, type Grain } from "./profitability";
+import { eachDateInclusive, isoDateInZone, round2, type Grain } from "./profitability";
 
 export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
 export const PENDING_STATUSES = ["awaiting_payment", "pending_verification"] as const;
@@ -135,6 +135,13 @@ export function grainForRange(from: string, to: string): Grain {
   if (days <= 62) return "daily";
   if (days <= 190) return "weekly";
   return "monthly";
+}
+
+const GRAIN_UNIT = { daily: "day", weekly: "week", monthly: "month" } as const;
+
+/** "day" | "week" | "month": the bucket the revenue charts use for this range. */
+export function grainUnitForRange(fromMs: number, toMs: number, tz: string): (typeof GRAIN_UNIT)[Grain] {
+  return GRAIN_UNIT[grainForRange(isoDateInZone(fromMs, tz), isoDateInZone(toMs, tz))];
 }
 
 const METHOD_LABELS: Record<string, string> = {

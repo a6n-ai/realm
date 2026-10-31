@@ -2,7 +2,7 @@ import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
@@ -28,7 +28,7 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
           </Suspense>
         }
       />
-      <Suspense fallback={<StatCardsSkeleton count={3} cols={3} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -52,11 +52,15 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const activeReps = rows.length;
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
+  const totalCoupons = rows.reduce((s, r) => s + r.repDailyCoupons, 0);
   return (
-    <StatCards
-      cols={3}
+    <AnalyticsStatCards
       items={[
-        { label: "Active reps", value: activeReps, badge: "Reps", badgeTone: "neutral" },
+        {
+          label: "Active reps",
+          value: activeReps,
+          hint: "Reps with leads, tickets or coupons in range",
+          badge: "Reps", badgeTone: "neutral" },
         {
           label: "Total leads worked",
           value: totalLeadsWorked,
@@ -73,6 +77,13 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           badge: "Resolved",
           badgeTone: "ok",
         },
+        {
+          label: "Rep coupons",
+          value: totalCoupons,
+          hint: "Rep-daily and rep-code coupons issued in range · by coupon date",
+          badge: "Coupons",
+          badgeTone: "neutral",
+        },
       ]}
     />
   );
@@ -81,7 +92,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 async function LeadsChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getEmployeeRollup(scope);
   const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
-  return <BreakdownBarChart data={data} xKey="name" yKey="n" />;
+  return <BreakdownBarChart data={data} xKey="name" yKey="n" label="Leads worked" />;
 }
 
 async function RollupTable({ scope }: { scope: AnalyticsScope }) {

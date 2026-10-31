@@ -12,6 +12,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { FacetDef } from "@/components/ds";
+import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
@@ -80,7 +81,12 @@ export function PaymentsTable({
       idAccessor={(r) => r.publicId}
       onRowClick={setViewing}
       rowClassName={() => "group/row"}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
+      filters={
+        <>
+          <ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />
+          <DatedByChip />
+        </>
+      }
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
       emptySearchMessage="No payments match your search."

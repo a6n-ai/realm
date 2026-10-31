@@ -3,13 +3,15 @@ import { cache, Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
+import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { StatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { grainUnitForRange } from "@/lib/analytics/revenue";
+import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { DistributionDonutChart, RadialRateChart, TrendLineChart } from "@/components/analytics/charts";
 import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
-import { countOrders, ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
+import { countCustomers, countOrders, ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import type { RevenueCohortSlice } from "@/lib/analytics/revenue-cohorts";
 import { currentMonth } from "@/lib/analytics/profitability";
@@ -39,6 +41,7 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
   const resolved = await scopeOrAlert("/dashboard/analytics/overview", sp);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -50,12 +53,12 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
         }
       />
 
-      <Suspense fallback={<StatCardsSkeleton count={7} cols={4} />}>
+      <Suspense fallback={<StatCardsSkeleton count={8} cols={4} />}>
         <StatsData sp={sp} scope={scope} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Net revenue" subtitle={`Ex tax & surcharge, after refunds, by day · ${DATE_BASIS_LABEL.money}`}>
+        <ChartCard title="Net revenue" subtitle={`Ex tax & surcharge, after refunds, by ${unit} · ${DATE_BASIS_LABEL.money}`}>
           <Suspense fallback={<ChartSkeleton height={TREND_HEIGHT} />}>
             <RevenueChart scope={scope} />
           </Suspense>
@@ -70,9 +73,11 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
         </ChartCard>
       </div>
 
-      <Suspense fallback={<ChartSkeleton />}>
-        <TrialRate scope={scope} />
-      </Suspense>
+      <ChartBoundary>
+        <Suspense fallback={<ChartSkeleton height={300} />}>
+          <TrialRate scope={scope} />
+        </Suspense>
+      </ChartBoundary>
     </div>
   );
 }
@@ -103,9 +108,10 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
 
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
   const { timezone } = await getAppSettings();
-  const [revenue, activePlans, complaints, profit, trialConv] = await Promise.all([
+  const [revenue, activePlans, customers, complaints, profit, trialConv] = await Promise.all([
     loadReport(scope),
     countOrders(scope, { status: ["active"] }),
+    countCustomers(scope),
     getComplaintKpis(scope),
     getProfitabilityReport({
       month: currentMonth(timezone),
@@ -118,8 +124,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
   const complaintFilters = scopeToComplaintFilters(scope);
 
   return (
-    <StatCards
-      cols={4}
+    <AnalyticsStatCards
       items={[
         {
           label: "Net revenue",
@@ -184,12 +189,21 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
             ),
         },
         {
+          label: "Customers",
+          value: customers,
+          hint: `Distinct people with an order · ${DATE_BASIS_LABEL.orders}`,
+          href: analyticsHref("/dashboard/analytics/customers", sp),
+          badge: "People",
+          badgeTone: "neutral",
+        },
+        {
           label: "Open tickets",
           value: complaints.open,
           href: complaintHref("/dashboard/tickets", {
             ...complaintFilters,
             statuses: ["open", "in_progress", "waiting_on_customer"],
           }),
+          hint: `Not yet resolved · ${DATE_BASIS_LABEL.tickets}`,
           tone: complaints.open > 0 ? "warn" : undefined,
           badge: "Open",
           badgeTone: complaints.open > 0 ? "warn" : "neutral",
@@ -209,7 +223,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
 
 async function RevenueChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
-  return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" format="currency" height={TREND_HEIGHT} />;
+  return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" label="Net revenue" format="currency" height={TREND_HEIGHT} />;
 }
 
 async function CohortChart({ scope }: { scope: AnalyticsScope }) {

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { StatCards, StatCardsSkeleton,  } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { ActiveSegmentDonutChart, BreakdownBarChart, GroupedBarChart } from "@/components/analytics/charts";
@@ -39,7 +39,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </Suspense>
         }
       />
-      <Suspense fallback={<StatCardsSkeleton count={3} cols={3} />}>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -86,15 +86,35 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const s = await getProductStats(scope);
+  const basis = DATE_BASIS_LABEL.orders;
   return (
-    <StatCards
-      cols={3}
+    <AnalyticsStatCards
       items={[
-        { label: "Meal selections", value: s.totalSelections, badge: "Picks", badgeTone: "neutral" },
-        { label: "Distinct dishes ordered", value: s.distinctDishes, badge: "Dishes", badgeTone: "brand" },
+        {
+          label: "Meal selections",
+          value: s.totalSelections,
+          hint: `Dishes picked on orders · ${basis}`,
+          badge: "Picks",
+          badgeTone: "neutral",
+        },
+        {
+          label: "Distinct dishes ordered",
+          value: s.distinctDishes,
+          hint: `Different dishes picked at least once · ${basis}`,
+          badge: "Dishes",
+          badgeTone: "brand",
+        },
+        {
+          label: "Avg picks per order",
+          value: s.ordersWithPicks === 0 ? "—" : (s.totalSelections / s.ordersWithPicks).toFixed(1),
+          hint: `Meal selections per order that has picks · ${basis}`,
+          badge: "Average",
+          badgeTone: "neutral",
+        },
         {
           label: "Most popular dish",
           value: s.topDish ?? "—",
+          hint: `Picked most often · ${basis}`,
           valueSize: "label",
           badge: "Top",
           badgeTone: "ok",
@@ -106,7 +126,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 
 async function TopDishesChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getTopDishes(8, scope);
-  return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
+  return <BreakdownBarChart data={rows} xKey="dish" yKey="n" label="Picks" height={280} />;
 }
 
 async function TierBarChart({ scope }: { scope: AnalyticsScope }) {

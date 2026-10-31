@@ -8,6 +8,7 @@ import { Badge } from "@/components/reui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@foundry/ui/cn";
 import { StatBar } from "@foundry/design-system";
+import { isValidAnalyticsCardCount } from "@/lib/analytics/card-rules";
 
 export type StatCardItem = {
   label: string;
@@ -136,6 +137,17 @@ export function StatCards({
       </div>
     </>
   );
+}
+
+/** Analytics cards always carry the pill and the hint, so the divider always shows. */
+export type AnalyticsStatCardItem = StatCardItem & { hint: string; badge: string };
+
+/** Analytics tabs: 4 or 8 cards in rows of 4. A wrong count fails loudly outside production. */
+export function AnalyticsStatCards({ items }: { items: AnalyticsStatCardItem[] }) {
+  if (process.env.NODE_ENV !== "production" && !isValidAnalyticsCardCount(items.length)) {
+    throw new Error(`Analytics tabs show 4 or 8 stat cards, got ${items.length}`);
+  }
+  return <StatCards cols={4} items={items} />;
 }
 
 function DeltaBadge({
