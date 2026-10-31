@@ -94,7 +94,7 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
         ),
       )
       .groupBy(coupons.ownerUserId),
-    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, isSystem: users.isSystem }).from(users),
+    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, isSystem: users.isSystem, role: users.role }).from(users),
     db
       .select({
         owner: orders.currentOwner,
@@ -113,7 +113,8 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
       .groupBy(orderActivities.createdBy),
   ]);
 
-  const systemIds = new Set(staff.filter((u) => u.isSystem).map((u) => u.id.toString()));
+  // Customers log order actions too (pause, edit meals) and system users run jobs: only staff are reps.
+  const repIds = new Set(staff.filter((u) => !u.isSystem && u.role !== "user").map((u) => u.id.toString()));
   const staffById = new Map(staff.map((u) => [u.id.toString(), u]));
 
   const byOwner = new Map<string, EmployeeRow>();
@@ -175,8 +176,10 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
     if (r.actor) ensure(r.actor).actions = r.n;
   }
 
+  // Revenue on an order a non-staff user owns is nobody's, so it joins the unassigned bucket.
+  for (const r of byOwner.values()) if (!repIds.has(r.userId)) unassignedRevenue += r.revenueOwned;
   const rows = [...byOwner.values()]
-    .filter((r) => !systemIds.has(r.userId))
+    .filter((r) => repIds.has(r.userId))
     .filter((r) => r.leadsWorked + r.ticketsResolved + r.repDailyCoupons + r.ordersOwned + r.actions > 0 || r.revenueOwned !== 0)
     .sort((a, b) => b.revenueOwned - a.revenueOwned || b.actions - a.actions);
   return { rows, unassignedRevenue };

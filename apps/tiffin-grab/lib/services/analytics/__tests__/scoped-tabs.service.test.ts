@@ -214,6 +214,14 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     expect((await mine("all"))?.ordersOwned).toBeGreaterThanOrEqual(2);
   });
 
+  it("lists only staff: a customer who logs order actions is not a rep", async () => {
+    const order = await makeOrder(orgA);
+    const customerId = await makeUser("user");
+    await db.insert(orderActivities).values({ orderId: order.id, type: "note", note: "paused", createdBy: customerId, organizationId: orgA });
+    const { rows } = await getEmployeeRollup(scopeFor("all"));
+    expect(rows.find((r) => r.userId === String(customerId))).toBeUndefined();
+  });
+
   it("notification buckets add up to the total, with a retried send still Delivered", async () => {
     const at = now + 400 * 86_400_000; // a window no other fixture touches
     const row = (status: "pending" | "processing" | "sent" | "failed", lastError: string | null) => ({
