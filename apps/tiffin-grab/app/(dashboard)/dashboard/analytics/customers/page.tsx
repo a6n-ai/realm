@@ -4,9 +4,10 @@ import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp"
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, HoverValueBarChart, SegmentedBar } from "@/components/analytics/charts";
+import { grainUnitForRange } from "@/lib/analytics/revenue";
+import type { Tone } from "@/components/analytics/chart-math";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -25,6 +26,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
   const resolved = await scopeOrAlert("/dashboard/analytics/customers", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -39,19 +41,19 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
         <StatsData scope={scope} />
       </Suspense>
 
-      <ChartCard title="Signups over time" subtitle="New customer accounts created in this range, by local day. With a franchise or filter selected, only accounts with an order in scope are counted.">
+      <ChartCard title={`Signups by ${unit}`} subtitle={`New customer accounts created in this range. With a franchise or filter selected, only accounts with an order in scope are counted. Hover a bar for that ${unit}.`}>
         <Suspense fallback={<ChartSkeleton />}>
           <SignupChart scope={scope} />
         </Suspense>
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Subscription status mix" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
+        <ChartCard title="Subscription status" subtitle={`Orders ${DATE_BASIS_LABEL.orders}. `}>
           <Suspense fallback={<ChartSkeleton />}>
             <MixChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Top cities" subtitle={`Customers grouped by city · ${DATE_BASIS_LABEL.orders}`}>
+        <ChartCard title="Top cities" subtitle={`Customers grouped by city, top 8 and the rest · ${DATE_BASIS_LABEL.orders}`}>
           <Suspense fallback={<ChartSkeleton />}>
             <CitiesChart scope={scope} />
           </Suspense>
@@ -103,24 +105,24 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 
 async function SignupChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSignupTrend(scope);
-  return <TrendLineChart data={rows} xKey="day" yKey="n" label="New accounts" />;
+  return <HoverValueBarChart data={rows} xKey="period" tipKey="tip" yKey="n" label="New accounts" totalLabel="New accounts" />;
 }
+
+const ORDER_TONE: Record<string, Tone> = {
+  active: "success",
+  pending: "warning",
+  waitlisted: "chart",
+  paused: "muted",
+  cancelled: "destructive",
+  completed: "muted",
+};
 
 async function MixChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSubscriptionMix(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.status,
-        n: r.n,
-        href: ordersDrillHref(scope, { status: [r.key] }),
-      }))}
-      emptyLabel="No subscriptions yet."
-    />
-  );
+  return <SegmentedBar withList max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart" }))} />;
 }
 
 async function CitiesChart({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getTopCities(8, scope);
+  const rows = await getTopCities(500, scope);
   return <BreakdownBarChart data={rows} xKey="city" yKey="n" label="Customers" />;
 }

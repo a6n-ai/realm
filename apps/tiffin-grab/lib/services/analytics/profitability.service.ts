@@ -7,7 +7,6 @@ import {
   eachDateInclusive,
   isoDateInZone,
   kpis,
-  periodLabel,
   round2,
   rollup,
   type Grain,
@@ -15,6 +14,7 @@ import {
   type ProfitabilityKpis,
   type ProfitRow,
 } from "@/lib/analytics/profitability";
+import { chartPeriod } from "@/lib/analytics/buckets";
 import { CAPTURED, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { ordersScope, type AnalyticsScope } from "./metrics/scope";
 
@@ -158,7 +158,7 @@ export async function getProfitabilityReport(opts: {
     kpis: stats,
     rows,
     trend: rows.map((r) => ({
-      period: periodLabel(r.date, grain),
+      ...chartPeriod(r.date, grain),
       profit: r.profit,
       revenue: r.revenue,
     })),

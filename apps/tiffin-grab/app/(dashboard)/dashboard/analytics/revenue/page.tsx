@@ -4,7 +4,7 @@ import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { GroupedBarChart, HoverValueBarChart } from "@/components/analytics/charts";
+import { HoverValueBarChart, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
@@ -13,6 +13,7 @@ import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { clockInZone } from "@/lib/analytics/profitability";
+import { topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
@@ -53,24 +54,14 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         <Kpis scope={scope} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard
-          title={`Net revenue by ${unit}`}
-          subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that ${unit}.`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <NetByDay scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard
-          title="Is cash keeping up with sales?"
-          subtitle="Net revenue next to collected, which is payments received including tax, before refunds."
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <NetVsCollected scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+      <ChartCard
+        title={`Net revenue by ${unit}`}
+        subtitle={`Ex tax and surcharge, after refunds, ${DATE_BASIS_LABEL.money}. Hover a bar for that ${unit}.`}
+      >
+        <Suspense fallback={<ChartSkeleton />}>
+          <NetByDay scope={scope} />
+        </Suspense>
+      </ChartCard>
 
       <ChartBoundary>
         <Suspense fallback={<ChartSkeleton height={160} />}>
@@ -78,14 +69,21 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </Suspense>
       </ChartBoundary>
 
-      <ChartCard
-        title="Payments by status"
-        subtitle={`Every payment ${DATE_BASIS_LABEL.money}. Open a row to see those payments.`}
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <Statuses scope={scope} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard
+          title="How much is still owed?"
+          subtitle="Collected out of collected plus awaiting payment and needs review."
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <Owed scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Payments by status" subtitle={`Every payment ${DATE_BASIS_LABEL.money}, by amount.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <Statuses scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By payment method" subtitle={`Net revenue, ex tax & surcharge, ${DATE_BASIS_LABEL.money}.`}>
@@ -201,59 +199,63 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
   return <AnalyticsStatCards items={items} />;
 }
 
+const STATUS_TONE: Record<string, Tone> = {
+  paid: "success",
+  simulated_paid: "muted",
+  awaiting_payment: "warning",
+  pending_verification: "chart",
+  pending: "muted",
+  rejected: "destructive",
+  refunded: "muted",
+};
+
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
-  const href = links(scope);
   return (
-    <BreakdownList
-      rows={report.byStatus.map((s) => ({
-        label: s.label,
-        n: s.count,
-        aside: money(s.amount),
-        meta: `${s.count} ${s.count === 1 ? "payment" : "payments"}`,
-        href: href([s.status]),
-      }))}
-      emptyLabel="No payments in this range."
+    <SegmentedBar
+      format="currency"
+      withList
+      max={7}
+      parts={report.byStatus.map((s) => ({ label: s.label, value: s.amount, tone: STATUS_TONE[s.status] ?? "muted" }))}
     />
+  );
+}
+
+async function Owed({ scope }: { scope: AnalyticsScope }) {
+  const { kpis: k } = await loadReport(scope);
+  const total = k.netCollected + k.pendingAmount;
+  const rate = total > 0 ? (k.netCollected / total) * 100 : 0;
+  return (
+    <div className="flex flex-col gap-3">
+      <RadialRateChart
+        data={total > 0 ? [{ label: "Collected", rate: Number(rate.toFixed(rate < 10 ? 1 : 0)) }] : []}
+        nameKey="label"
+        valueKey="rate"
+      />
+      <dl className="flex flex-col gap-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-2">
+          <dt className="text-muted-foreground">Collected</dt>
+          <dd className="font-semibold tabular-nums">{money(k.netCollected)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <dt className="text-muted-foreground">Awaiting or needs review</dt>
+          <dd className="font-semibold tabular-nums">{money(k.pendingAmount)}</dd>
+        </div>
+      </dl>
+    </div>
   );
 }
 
 async function NetByDay({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   return (
-    <HoverValueBarChart data={report.trend} xKey="period" yKey="netSales" label="Net revenue" format="currency" totalLabel="Net revenue" />
-  );
-}
-
-async function NetVsCollected({ scope }: { scope: AnalyticsScope }) {
-  const report = await loadReport(scope);
-  return (
-    <GroupedBarChart
-      data={report.trend}
-      xKey="period"
-      format="currency"
-      series={[
-        { key: "netSales", label: "Net revenue" },
-        { key: "collected", label: "Collected" },
-      ]}
-    />
+    <HoverValueBarChart data={report.trend} xKey="period" tipKey="tip" yKey="netSales" label="Net revenue" format="currency" totalLabel="Net revenue" />
   );
 }
 
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
-  const href = links(scope);
-  return (
-    <BreakdownList
-      rows={report.byMethod.map((m) => ({
-        label: m.method,
-        n: m.amount,
-        aside: money(m.amount),
-        href: href(SETTLED_STATUSES, [m.key]),
-      }))}
-      emptyLabel="No settled payments in this range."
-    />
-  );
+  return <SegmentedBar format="currency" withList parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount }))} />;
 }
 
 const SOURCE_LABEL: Record<DiscountSource, string> = {
@@ -268,12 +270,15 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
   return (
     <BreakdownList
       emptyLabel="No discounts in this range."
-      rows={discounts.map((d: DiscountLine) => ({
-        label: d.label,
-        n: d.amount,
-        aside: money(d.amount),
-        meta: `${SOURCE_LABEL[d.source]} · ${d.orders} ${d.orders === 1 ? "order" : "orders"}`,
-      }))}
+      rows={topWithOther(
+        discounts.map((d: DiscountLine) => ({
+          label: d.label,
+          amount: d.amount,
+          meta: `${SOURCE_LABEL[d.source]} · ${d.orders} ${d.orders === 1 ? "order" : "orders"}`,
+        })),
+        "label",
+        "amount",
+      ).map((d) => ({ label: String(d.label), n: Number(d.amount), aside: money(Number(d.amount)), meta: d.meta == null ? undefined : String(d.meta) }))}
       footer={
         discounts.length > 0 ? (
           <div className="flex items-baseline justify-between text-sm">

@@ -28,6 +28,9 @@ const ActiveDonut = lazy(() =>
 
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
 const Funnel = lazy(() => load().then((m) => ({ default: m.FunnelChart })));
+const Stacked = lazy(() =>
+  load().then((m) => ({ default: m.StackedBarChart })),
+);
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
 const Diverging = lazy(() =>
   load().then((m) => ({ default: m.DivergingBarChart })),
@@ -82,3 +85,4 @@ export const SegmentedBar = wrap(Segmented);
 export const FunnelChart = wrap(Funnel);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
+export const StackedBarChart = wrap(Stacked);

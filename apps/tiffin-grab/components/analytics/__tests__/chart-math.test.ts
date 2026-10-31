@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  axisTicks,
+  moneyTick,
+  tickEvery,
+  truncateLabel,
   foldParts,
   funnelStages,
   heatBucket,
@@ -100,5 +104,35 @@ describe("positionalConfig", () => {
     const cfg = positionalConfig([{ label: "x</style><b>" }, { label: "Veg. Plan" }]);
     expect(Object.keys(cfg)).toEqual(["s0", "s1"]);
     expect(JSON.stringify(Object.keys(cfg))).not.toContain("style");
+  });
+});
+
+describe("axis helpers", () => {
+  it("money axis runs from 0 to a nice max in about five ticks", () => {
+    expect(axisTicks(4273)).toEqual([0, 1000, 2000, 3000, 4000, 5000]);
+    expect(axisTicks(1548)).toEqual([0, 500, 1000, 1500, 2000]);
+    expect(axisTicks(0)).toEqual([0, 1]);
+  });
+  it("count axes only land on whole numbers", () => {
+    expect(axisTicks(15, true)).toEqual([0, 5, 10, 15]);
+    expect(axisTicks(1, true)).toEqual([0, 1]);
+    expect(axisTicks(2, true).every(Number.isInteger)).toBe(true);
+    expect(axisTicks(265, true).at(-1)).toBeGreaterThanOrEqual(265);
+  });
+  it("compact money labels", () => {
+    expect(moneyTick(0)).toBe("$0");
+    expect(moneyTick(500)).toBe("$500");
+    expect(moneyTick(1000)).toBe("$1k");
+    expect(moneyTick(1500)).toBe("$1.5k");
+    expect(moneyTick(12000)).toBe("$12k");
+    expect(moneyTick(-2000)).toBe("-$2k");
+  });
+  it("labels about every 4th day on a month and every day on a short range", () => {
+    expect(tickEvery(30)).toBe(3);
+    expect(tickEvery(7)).toBe(0);
+  });
+  it("truncates long names to 18 characters", () => {
+    expect(truncateLabel("Short")).toBe("Short");
+    expect(truncateLabel("Maharaja Thali with extras")).toHaveLength(18);
   });
 });

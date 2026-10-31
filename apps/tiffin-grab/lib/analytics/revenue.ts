@@ -87,7 +87,7 @@ export type RevenueKpis = {
   pendingCount: number;
 };
 
-export type RevenueTrendPoint = { period: string; netSales: number; collected: number };
+export type RevenueTrendPoint = { period: string; tip: string; netSales: number; collected: number };
 
 export type RevenueSummary = {
   from: string;
@@ -132,8 +132,8 @@ export function parseSnapshot(raw: unknown): Snapshot {
 /** Wide ranges read better as weeks or months than as hundreds of daily points. */
 export function grainForRange(from: string, to: string): Grain {
   const days = eachDateInclusive(from, to).length;
-  if (days <= 62) return "daily";
-  if (days <= 190) return "weekly";
+  if (days <= 45) return "daily";
+  if (days <= 180) return "weekly";
   return "monthly";
 }
 

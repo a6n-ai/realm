@@ -126,10 +126,10 @@ describe("customer analytics", () => {
     // 23:30 Toronto on Mar 31 is Apr 1 in UTC.
     await makeUser(undefined, at("2026-04-01T03:30:00Z"));
     await makeUser(undefined, at("2026-04-01T15:00:00Z"));
-    const rows = await getSignupTrend(scope({ fromMs: at("2026-03-01T00:00:00Z"), toMs: at("2026-04-30T00:00:00Z") }));
-    expect(rows).toEqual([
-      { day: "Mar 31", n: 1 },
-      { day: "Apr 01", n: 1 },
+    const rows = await getSignupTrend(scope({ fromMs: at("2026-03-30T04:00:00Z"), toMs: at("2026-04-02T03:59:00Z") }));
+    expect(rows.filter((r) => r.n > 0).map((r) => [r.period, r.n])).toEqual([
+      ["Mar 31", 1],
+      ["Apr 1", 1],
     ]);
   });
 

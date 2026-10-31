@@ -5,13 +5,14 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, DistributionDonutChart, RadialRateChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, RadialRateChart, StackedBarChart } from "@/components/analytics/charts";
 import {
+  getDeliveriesByDay,
   getOperationsStats,
-  getDeliveryStatusMix,
   getRouteLoadByDriver,
 } from "@/lib/services/analytics/operations.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
 const loadStats = cache((scope: AnalyticsScope) => getOperationsStats(scope));
@@ -22,6 +23,7 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
   const resolved = await scopeOrAlert("/dashboard/analytics/operations", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -36,24 +38,24 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
         <StatsData scope={scope} />
       </Suspense>
 
+      <ChartCard title={`Deliveries by ${unit}`} subtitle={`Each status · ${DATE_BASIS_LABEL.deliveries}. Hover a bar for that ${unit}.`}>
+        <Suspense fallback={<ChartSkeleton />}>
+          <DeliveriesChart scope={scope} />
+        </Suspense>
+      </ChartCard>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Delivery status mix" subtitle={`Each status · ${DATE_BASIS_LABEL.deliveries}`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <MixChart scope={scope} />
-          </Suspense>
-        </ChartCard>
         <ChartCard title="Route load per driver" subtitle={`Deliveries synced from OptimoRoute · ${DATE_BASIS_LABEL.deliveries}`}>
           <Suspense fallback={<ChartSkeleton />}>
             <DriverChart scope={scope} />
           </Suspense>
         </ChartCard>
+        <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <SkipRateChart scope={scope} />
+          </Suspense>
+        </ChartCard>
       </div>
-
-      <ChartCard title="What share of deliveries was skipped?" subtitle={`Skipped out of all scheduled · ${DATE_BASIS_LABEL.deliveries}`}>
-        <Suspense fallback={<ChartSkeleton />}>
-          <SkipRateChart scope={scope} />
-        </Suspense>
-      </ChartCard>
     </div>
   );
 }
@@ -61,7 +63,19 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
 async function SkipRateChart({ scope }: { scope: AnalyticsScope }) {
   const s = await loadStats(scope);
   const data = s.totalDeliveries === 0 ? [] : [{ label: "Skip rate", rate: s.skipRatePct }];
-  return <RadialRateChart data={data} nameKey="label" valueKey="rate" />;
+  return (
+    <div className="flex flex-col gap-3">
+      <RadialRateChart data={data} nameKey="label" valueKey="rate" />
+      {s.totalDeliveries > 0 ? (
+        <p className="text-muted-foreground text-center text-sm">
+          <span className="text-foreground font-semibold tabular-nums">
+            {s.skipped.toLocaleString()} of {s.totalDeliveries.toLocaleString()}
+          </span>{" "}
+          deliveries skipped
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
@@ -92,12 +106,25 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-async function MixChart({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getDeliveryStatusMix(scope);
-  return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
+async function DeliveriesChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getDeliveriesByDay(scope);
+  const paused = rows.some((r) => r.paused > 0);
+  return (
+    <StackedBarChart
+      data={rows}
+      xKey="period"
+      tipKey="tip"
+      series={[
+        { key: "scheduled", label: "Scheduled", tone: "success" },
+        ...(paused ? [{ key: "paused", label: "Paused", tone: "muted" as const }] : []),
+        { key: "skipped", label: "Skipped", tone: "warning" },
+        { key: "cancelled", label: "Cancelled", tone: "destructive" },
+      ]}
+    />
+  );
 }
 
 async function DriverChart({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getRouteLoadByDriver(10, scope);
+  const rows = await getRouteLoadByDriver(50, scope);
   return <BreakdownBarChart data={rows} xKey="driver" yKey="n" label="Stops" />;
 }

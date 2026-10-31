@@ -1,7 +1,8 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
-import { eachDateInclusive, isoDateInZone, periodKey, periodLabel, round2 } from "@/lib/analytics/profitability";
+import { eachDateInclusive, isoDateInZone, periodKey, round2 } from "@/lib/analytics/profitability";
+import { chartPeriod } from "@/lib/analytics/buckets";
 import {
   PENDING_STATUSES,
   grainForRange,
@@ -97,7 +98,7 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
     },
     trend: [...buckets.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, b]) => ({ period: periodLabel(key, grain), netSales: round2(b.netSales), collected: round2(b.collected) })),
+      .map(([key, b]) => ({ ...chartPeriod(key, grain), netSales: round2(b.netSales), collected: round2(b.collected) })),
     byMethod: methods
       .filter((m) => m.net !== 0)
       .map((m) => ({ method: methodLabel(m.key), key: m.key, amount: m.net }))

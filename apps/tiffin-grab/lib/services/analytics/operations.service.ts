@@ -1,6 +1,8 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
+import { bucketCounts } from "@/lib/analytics/buckets";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhereCalendar, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
@@ -68,4 +70,31 @@ export async function getRouteLoadByDriver(limit = 10, scope: AnalyticsScope) {
     .orderBy(sql`count(*) desc`)
     .limit(limit);
   return rows.map((r) => ({ driver: r.driver ?? "Unassigned", n: r.n }));
+}
+
+export const DELIVERY_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
+
+/** Deliveries per day (grain follows the range) split by status; same where-clause as the status counts. */
+export async function getDeliveriesByDay(scope: AnalyticsScope) {
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const rows = noOrgs(scope)
+    ? []
+    : await db
+        .select({ iso: sql<string>`${deliveries.deliveryDate}::text`, status: deliveries.status, n: intCount })
+        .from(deliveries)
+        .where(deliveryWhere(scope))
+        .groupBy(sql`1`, deliveries.status);
+  const byDay = new Map<string, Record<(typeof DELIVERY_DAY_STATUSES)[number], number>>();
+  for (const r of rows) {
+    const d = byDay.get(r.iso) ?? { scheduled: 0, paused: 0, skipped: 0, cancelled: 0 };
+    if (r.status in d) d[r.status as keyof typeof d] += r.n;
+    byDay.set(r.iso, d);
+  }
+  return bucketCounts(
+    [...byDay].map(([iso, d]) => ({ iso, ...d })),
+    DELIVERY_DAY_STATUSES,
+    from,
+    to,
+  );
 }

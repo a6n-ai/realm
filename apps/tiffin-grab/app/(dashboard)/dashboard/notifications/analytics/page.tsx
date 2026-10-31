@@ -7,7 +7,10 @@ import { getNotificationBuckets } from "@/lib/services/analytics/notifications.s
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
+import { SegmentedBar } from "@/components/analytics/charts";
+import type { Tone } from "@/components/analytics/chart-math";
+
+const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -85,7 +88,7 @@ async function ChannelChart({ searchParams }: { searchParams: SearchParams }) {
     .from(notificationOutbox)
     .where(await createdWhere(searchParams))
     .groupBy(notificationOutbox.channel);
-  return <BreakdownBarChart data={rows} xKey="channel" yKey="n" label="Notifications" />;
+  return <SegmentedBar withList parts={rows.map((r) => ({ label: r.channel, value: r.n }))} />;
 }
 
 async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
@@ -94,5 +97,5 @@ async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
     .from(notificationOutbox)
     .where(await createdWhere(searchParams))
     .groupBy(notificationOutbox.status);
-  return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
+  return <SegmentedBar withList parts={rows.map((r) => ({ label: r.status, value: r.n, tone: STATUS_TONE[r.status] ?? "chart" }))} />;
 }

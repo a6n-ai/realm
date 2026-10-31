@@ -4,13 +4,15 @@ import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp"
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { TrendLineChart } from "@/components/analytics/charts";
+import { rankedHeight } from "@/components/analytics/chart-math";
+import Link from "next/link";
+import { BreakdownBarChart, HoverValueBarChart, SegmentedBar } from "@/components/analytics/charts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { grainUnitForRange } from "@/lib/analytics/revenue";
+import type { Tone } from "@/components/analytics/chart-math";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { categoryLabel } from "@/lib/support/ticket-taxonomy";
-import { priorityLabel } from "@/lib/support/ticket-priority";
 import {
-  NOT_LINKED,
   complaintHref,
   scopeToComplaintFilters,
   type ComplaintFilters,
@@ -28,7 +30,6 @@ import {
   getPriorityMix,
   getRepeatCustomers,
   getStatusMix,
-  getTopIssues,
 } from "@/lib/services/analytics/complaints.service";
 
 const TICKETS = "/dashboard/tickets";
@@ -46,6 +47,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   const drill = sp.drill;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro
@@ -64,20 +66,20 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
         <NeedsAttentionSection scope={scope} />
       </Suspense>
 
-      <ChartCard title="Complaint trend" subtitle={`Complaints raised per local day · ${DATE_BASIS_LABEL.tickets}`}>
+      <ChartCard title={`Complaints by ${unit}`} subtitle={`Complaints raised · ${DATE_BASIS_LABEL.tickets}. Hover a bar for that ${unit}.`}>
         <Suspense fallback={<ChartSkeleton />}>
           <Trend scope={scope} />
         </Suspense>
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="By category" subtitle="Select a category to see its sub-categories.">
-          <Suspense fallback={<ChartSkeleton />}>
+        <ChartCard title="By category" subtitle="Select a bar to see its sub-categories.">
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Categories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="By sub-category">
-          <Suspense fallback={<ChartSkeleton />}>
+        <ChartCard title="By sub-category" subtitle="Top 8 within the selected category.">
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <Subcategories scope={scope} drill={drill} />
           </Suspense>
         </ChartCard>
@@ -89,45 +91,32 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
             <Statuses scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Priority">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Priorities scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Top issues" subtitle="Most common reasons, across categories.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <TopIssuesSection scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Customers with repeat complaints">
-          <Suspense fallback={<ChartSkeleton />}>
-            <RepeatCustomers scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="By plan">
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(3)} />}>
             <Plans scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="By delivery zone">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Zones scope={scope} />
-          </Suspense>
-        </ChartCard>
       </div>
+
+      <ChartCard title="By delivery zone">
+        <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
+          <Zones scope={scope} />
+        </Suspense>
+      </ChartCard>
+
+      <ChartCard title="Customers with repeat complaints">
+        <Suspense fallback={<ChartSkeleton />}>
+          <RepeatCustomers scope={scope} />
+        </Suspense>
+      </ChartCard>
     </div>
   );
 }
 
 async function Kpis({ scope }: { scope: AnalyticsScope }) {
   const filters = scopeToComplaintFilters(scope);
-  const k = await getComplaintKpis(scope);
+  const [k, priorities] = await Promise.all([getComplaintKpis(scope), getPriorityMix(scope)]);
+  const urgent = priorities.find((p) => p.value === "urgent")?.n ?? 0;
   const basis = DATE_BASIS_LABEL.tickets;
   return (
     <AnalyticsStatCards
@@ -135,7 +124,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
         {
           label: "Total complaints",
           value: k.total,
-          hint: `${k.open} open · raised in range, ${basis}`,
+          hint: `${k.open} open · raised in range, ${basis}${urgent > 0 ? ` · ${urgent} urgent` : ""}`,
           href: ticketsHref(filters),
           badge: "In range",
           badgeTone: "neutral",
@@ -212,135 +201,86 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function Trend({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
   const rows = await getComplaintTrend(scope);
-  if (rows.length === 0) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">No complaints in this range.</p>;
-  }
-  return <TrendLineChart data={rows} xKey="day" yKey="n" label="Complaints" />;
+  return <HoverValueBarChart data={rows} xKey="period" tipKey="tip" yKey="n" label="Complaints" totalLabel="Complaints" />;
 }
 
-async function Categories({ scope, drill }: { scope: AnalyticsScope; drill?: string }) {
+async function Categories({ scope }: { scope: AnalyticsScope; drill?: string }) {
   const rows = await getByCategory(scope);
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.category,
+    <BreakdownBarChart
+      data={rows.map((r) => ({
+        category: r.category,
         n: r.n,
         // Selecting a category drills in place; the link keeps every other filter.
         href: `?${new URLSearchParams([...scopeToSearchParams(scope), ["drill", r.value]])}`,
-        active: drill === r.value,
-        muted: !r.isComplaint,
-        meta: r.isComplaint ? undefined : "Not counted as a complaint",
       }))}
+      xKey="category"
+      yKey="n"
+      label="Complaints"
+      hrefKey="href"
     />
   );
 }
 
 async function Subcategories({ scope, drill: category }: { scope: AnalyticsScope; drill?: string }) {
-  const filters = scopeToComplaintFilters(scope);
   if (!category) {
     return <p className="text-muted-foreground py-8 text-center text-sm">Pick a category to break it down.</p>;
   }
   const rows = await getBySubcategory(scope, category);
-  return (
-    <BreakdownList
-      emptyLabel={`No ${categoryLabel(category)} complaints in this range.`}
-      rows={rows.map((r) => ({
-        label: r.label,
-        n: r.n,
-        href: ticketsHref(filters, { categories: [category], subcategories: r.value ? [r.value] : [] }),
-      }))}
-    />
-  );
+  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
 }
+
+const TICKET_TONE: Record<string, Tone> = { new: "warning", resolved: "success", closed: "muted" };
 
 async function Statuses({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
   const rows = await getStatusMix(scope);
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({ label: r.status, n: r.n, href: ticketsHref(filters, { statuses: [r.value] }) }))}
-    />
-  );
-}
-
-async function Priorities({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
-  const rows = await getPriorityMix(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: priorityLabel(r.value),
-        n: r.n,
-        href: ticketsHref(filters, { priorities: [r.value] }),
-      }))}
-    />
-  );
-}
-
-async function TopIssuesSection({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
-  const rows = await getTopIssues(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.label,
-        meta: r.categoryLabel,
-        n: r.n,
-        href: ticketsHref(filters, {
-          categories: [r.category],
-          subcategories: r.subcategory ? [r.subcategory] : [],
-        }),
-      }))}
+    <SegmentedBar
+      withList
+      max={6}
+      parts={rows.map((r) => ({ label: r.status, value: r.n, tone: TICKET_TONE[r.value] ?? "chart" }))}
     />
   );
 }
 
 async function RepeatCustomers({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
   const rows = await getRepeatCustomers(scope);
   if (rows.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">No repeat complaints in this range.</p>;
   }
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.name ?? r.email ?? "Customer",
-        meta: r.name ? (r.email ?? undefined) : undefined,
-        n: r.n,
-        href: `/dashboard/customers/${r.publicId}`,
-      }))}
-    />
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Customer</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead className="text-right">Complaints</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.publicId}>
+            <TableCell className="font-medium">
+              <Link href={`/dashboard/customers/${r.publicId}`} className="hover:underline">
+                {r.name ?? r.email ?? "Customer"}
+              </Link>
+            </TableCell>
+            <TableCell className="text-muted-foreground">{r.name ? (r.email ?? "") : ""}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.n}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
 async function Plans({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
   const rows = await getByPlan(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.label,
-        n: r.n,
-        muted: r.value === NOT_LINKED,
-        href: ticketsHref(filters, { plans: [r.value] }),
-      }))}
-    />
-  );
+  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
 }
 
 async function Zones({ scope }: { scope: AnalyticsScope }) {
-  const filters = scopeToComplaintFilters(scope);
   const rows = await getByZone(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.label,
-        n: r.n,
-        muted: r.value === NOT_LINKED,
-        href: ticketsHref(filters, { zones: [r.value] }),
-      }))}
-    />
-  );
+  return <BreakdownBarChart data={rows.map((r) => ({ label: r.label, n: r.n }))} xKey="label" yKey="n" label="Complaints" />;
 }

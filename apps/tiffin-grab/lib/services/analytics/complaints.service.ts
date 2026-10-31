@@ -1,5 +1,7 @@
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
+import { bucketCounts } from "@/lib/analytics/buckets";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
@@ -125,7 +127,12 @@ export async function getComplaintTrend(scope: AnalyticsScope) {
     .where(where(scope))
     .groupBy(sql`1`)
     .orderBy(sql`1`);
-  return rows.map((r) => ({ day: r.day, n: r.n }));
+  return bucketCounts(
+    rows.map((r) => ({ iso: r.day, n: r.n })),
+    ["n"],
+    isoDateInZone(scope.fromMs, scope.tz),
+    isoDateInZone(scope.toMs, scope.tz),
+  );
 }
 
 /**

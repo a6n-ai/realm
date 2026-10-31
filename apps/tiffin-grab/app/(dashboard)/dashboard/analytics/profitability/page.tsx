@@ -8,7 +8,7 @@ import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { TrendLineChart } from "@/components/analytics/charts";
+import { DivergingBarChart } from "@/components/analytics/charts";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
@@ -68,6 +68,15 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
         <Headline view={view} />
       </Suspense>
 
+      <ChartCard
+        title={`Profit by ${{ daily: "day", weekly: "week", monthly: "month" }[grain]}`}
+        subtitle="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+      >
+        <Suspense fallback={<ChartSkeleton />}>
+          <Trend view={view} />
+        </Suspense>
+      </ChartCard>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
         <div className="lg:col-span-8">
           <ChartCard
@@ -85,15 +94,6 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
           </Suspense>
         </div>
       </div>
-
-      <ChartCard
-        title="Profit trend"
-        subtitle="Earned revenue minus variable and allocated costs. Not cash collected."
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <Trend view={view} />
-        </Suspense>
-      </ChartCard>
     </div>
   );
 }
@@ -206,7 +206,7 @@ function HeadlineCards({ kpis, range, cashHref }: { kpis: ProfitabilityKpis; ran
 
 async function Trend({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <TrendLineChart data={report.trend} xKey="period" yKey="profit" label="Profit" format="currency" />;
+  return <DivergingBarChart data={report.trend} xKey="period" tipKey="tip" yKey="profit" label="Profit" format="currency" />;
 }
 
 async function Grid({ view }: { view: View }) {

@@ -5,15 +5,12 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { ActiveSegmentDonutChart, BreakdownBarChart, GroupedBarChart } from "@/components/analytics/charts";
-import { getSession } from "@/lib/auth/session";
+import { rankedHeight } from "@/components/analytics/chart-math";
+import { BreakdownBarChart, HeatmapGrid, SegmentedBar } from "@/components/analytics/charts";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { ordersDrillHref } from "@/lib/analytics/drill";
 import {
   getProductStats,
   getTopDishes,
-  getPaidByPlan,
   getPaidByTier,
   getPaidByTierAndDiet,
   dietOrder,
@@ -21,7 +18,6 @@ import {
   getPaidByMealType,
 } from "@/lib/services/analytics/products.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -45,37 +41,31 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         <ChartCard title="Most-picked dishes" subtitle={`Meal selections on orders ${DATE_BASIS_LABEL.orders}; cancelled unpaid orders left out.`}>
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <TopDishesChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Which meal size tier earns the most?" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Hover a slice to grow it. Budget, medium, and premium; custom sizes are not included. May differ from the total by rounding.`}>
+        <ChartCard title="Which meal size tier earns the most?" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are not included. May differ from the total by rounding.`}>
           <Suspense fallback={<ChartSkeleton />}>
             <TierBarChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
-      <ChartCard
-        title="Which sizes sell in which diet?"
-        subtitle={`Net revenue ${DATE_BASIS_LABEL.money} by meal size tier, split by plan (veg, non-veg, healthy). Custom sizes are not included.`}
-      >
-        <Suspense fallback={<ChartSkeleton />}>
-          <TierByDietChart scope={scope} />
-        </Suspense>
-      </ChartCard>
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Paid by plan" subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, ex tax and surcharge, after refunds. Open a plan to see orders created in this range (bars are payments by payment date). May differ from the total by rounding.`}>
+        <ChartCard
+          title="Which sizes sell in which diet?"
+          subtitle={`Net revenue ${DATE_BASIS_LABEL.money} by meal size tier and plan. Custom sizes are not included.`}
+        >
           <Suspense fallback={<ChartSkeleton />}>
-            <PlanChart scope={scope} />
+            <TierByDietChart scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard
           title="Paid by meal type"
-          subtitle={`Net revenue ${DATE_BASIS_LABEL.money}. Maharaja Thali, 4 Item Thali, and other catalog sizes; custom sizes are not included. May differ from the total by rounding.`}
+          subtitle={`Net revenue ${DATE_BASIS_LABEL.money}, top 8 and the rest. Custom sizes are not included. May differ from the total by rounding.`}
         >
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
             <MealTypeList scope={scope} />
           </Suspense>
         </ChartCard>
@@ -125,75 +115,30 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function TopDishesChart({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getTopDishes(8, scope);
-  return <BreakdownBarChart data={rows} xKey="dish" yKey="n" label="Picks" height={280} />;
+  const rows = await getTopDishes(500, scope);
+  return <BreakdownBarChart data={rows} xKey="dish" yKey="n" label="Picks" />;
 }
 
 async function TierBarChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByTier(scope);
-  return (
-    <ActiveSegmentDonutChart
-      data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
-      nameKey="tier"
-      valueKey="paid"
-      format="currency"
-      height={280}
-    />
-  );
+  return <SegmentedBar format="currency" withList parts={rows.map((r) => ({ label: r.tier, value: r.paid }))} />;
 }
 
 async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByTierAndDiet(scope);
   const diets = [...new Set(rows.map((r) => r.diet))].sort(dietOrder);
   const tiers = [...new Map(rows.map((r) => [r.tierKey, r.tier])).entries()].sort(([a], [b]) => tierOrder(a, b)).map(([, label]) => label);
-  const data = tiers.map((tier) => ({
-    tier,
-    ...Object.fromEntries(diets.map((d) => [d, rows.find((r) => r.tier === tier && r.diet === d)?.paid ?? 0])),
-  }));
   return (
-    <GroupedBarChart
-      data={rows.length === 0 ? [] : data}
-      xKey="tier"
-      series={diets.map((d) => ({ key: d, label: d }))}
+    <HeatmapGrid
+      rows={tiers}
+      columns={diets}
+      cells={tiers.map((tier) => diets.map((d) => rows.find((r) => r.tier === tier && r.diet === d)?.paid ?? null))}
       format="currency"
-      height={280}
-      legend
-    />
-  );
-}
-
-function money(n: number) {
-  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
-
-async function PlanChart({ scope }: { scope: AnalyticsScope }) {
-  const [rows, visible] = await Promise.all([getPaidByPlan(scope), resolveSessionVisibleOrgIds(await getSession())]);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.plan,
-        n: r.paid,
-        aside: money(r.paid),
-        meta: `${r.payments} ${r.payments === 1 ? "payment" : "payments"}`,
-        href: ordersDrillHref({ ...scope, plans: [r.key] }, {}, visible),
-      }))}
-      emptyLabel="No payments in this range."
     />
   );
 }
 
 async function MealTypeList({ scope }: { scope: AnalyticsScope }) {
   const rows = await getPaidByMealType(scope);
-  return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.mealType,
-        n: r.paid,
-        aside: money(r.paid),
-        meta: `${r.plan} · ${r.payments} ${r.payments === 1 ? "payment" : "payments"}`,
-      }))}
-      emptyLabel="No payments in this range."
-    />
-  );
+  return <BreakdownBarChart data={rows.filter((r) => r.paid > 0)} xKey="mealType" yKey="paid" label="Net revenue" format="currency" />;
 }
-

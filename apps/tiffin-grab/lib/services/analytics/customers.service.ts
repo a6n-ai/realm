@@ -2,6 +2,7 @@ import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { isoDateInZone } from "@/lib/analytics/profitability";
+import { bucketCounts } from "@/lib/analytics/buckets";
 import { lastTiffinSql, ordersListWhere } from "@/lib/services/orders.service";
 import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
@@ -80,10 +81,8 @@ export async function getSignupTrend(scope: AnalyticsScope) {
     )
     .groupBy(sql`1`)
     .orderBy(sql`1`);
-  return rows.map((r) => ({ day: DAY_LABEL.format(new Date(`${r.iso}T00:00:00Z`)), n: r.n }));
+  return bucketCounts(rows, ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
 }
-
-const DAY_LABEL = new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", timeZone: "UTC" });
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "Pending",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   useId,
   useState,
@@ -15,6 +16,7 @@ import {
   CartesianGrid,
   Cell,
   Label,
+  LabelList,
   Line,
   LineChart,
   ReferenceLine,
@@ -46,6 +48,7 @@ import { cn } from "@foundry/ui/cn";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
+  axisTicks,
   chartColor as tokenColor,
   foldParts,
   funnelStages,
@@ -53,10 +56,15 @@ import {
   heatOpacity,
   HEAT_STEPS,
   heatIsDense,
+  moneyTick,
   positionalConfig,
   rankedHeight,
+  TONE_COLOR,
+  tickEvery,
   topWithOther,
+  truncateLabel,
   type Part,
+  type Tone,
 } from "@/components/analytics/chart-math";
 
 // A string, not a formatter function: these charts are rendered from server
@@ -321,10 +329,26 @@ function SeriesLines({
   );
 }
 
-const truncate = (v: unknown) => {
-  const s = String(v);
-  return s.length > 16 ? `${s.slice(0, 15)}…` : s;
-};
+const truncate = (v: unknown) => truncateLabel(v);
+
+/** Tooltip heading: the row's long date when `tipKey` is set, else the axis label. */
+const tipHeader = (tipKey?: string) => (value: ReactNode, payload: readonly { payload?: Row }[]) =>
+  headerLabel((tipKey ? payload?.[0]?.payload?.[tipKey] : undefined) ?? value);
+
+/** Value-axis props shared by the vertical bar charts: [0, nice max], about five ticks, compact money. */
+function valueAxis(values: number[], format: ValueFormat) {
+  const ticks = axisTicks(Math.max(0, ...values), format === "number");
+  return {
+    ticks,
+    domain: [0, ticks.at(-1)!] as [number, number],
+    allowDecimals: false,
+    tickFormatter: (v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString()),
+    width: format === "currency" ? 44 : 36,
+    tickLine: false,
+    axisLine: false,
+    tickMargin: 4,
+  };
+}
 
 /**
  * c-chart-12 horizontal bars (default, for category labels such as cities, drivers,
@@ -339,18 +363,22 @@ export function BreakdownBarChart({
   orientation = "horizontal",
   height = 240,
   limit = 8,
+  hrefKey,
 }: {
   data: Row[];
   xKey: string;
   yKey: string;
   label?: string;
   format?: ValueFormat;
+  /** Horizontal charts only: row field holding a URL; clicking that bar navigates there. */
+  hrefKey?: string;
   orientation?: "horizontal" | "vertical";
   /** Vertical charts only; horizontal height follows the row count. */
   height?: number;
   /** Horizontal charts only: rows kept before the tail folds into "Other". */
   limit?: number;
 }) {
+  const router = useRouter();
   if (data.length === 0) return <EmptyChart />;
   const config = {
     [yKey]: { label, color: chartColor(0) },
@@ -406,7 +434,7 @@ export function BreakdownBarChart({
         accessibilityLayer
         data={ranked}
         layout="vertical"
-        margin={{ left: -10, right: 20 }}
+        margin={{ left: -10, right: 48 }}
         barCategoryGap="30%"
       >
         <YAxis
@@ -415,7 +443,7 @@ export function BreakdownBarChart({
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          width={110}
+          width={120}
           tickFormatter={truncate}
         />
         <XAxis
@@ -432,7 +460,19 @@ export function BreakdownBarChart({
           fill={chartColor(0)}
           radius={2}
           maxBarSize={32}
-        />
+          cursor={hrefKey ? "pointer" : undefined}
+          onClick={(d: { payload?: Row }) => {
+            const href = hrefKey ? d.payload?.[hrefKey] : undefined;
+            if (typeof href === "string") router.push(href);
+          }}
+        >
+          <LabelList
+            dataKey={yKey}
+            position="right"
+            className="fill-foreground text-xs font-medium tabular-nums"
+            formatter={(v: unknown) => formatValue(v, format)}
+          />
+        </Bar>
       </BarChart>
     </ChartContainer>
   );
@@ -684,6 +724,7 @@ export function HoverValueBarChart({
   format = "number",
   height = 240,
   totalLabel = "Total",
+  tipKey,
 }: {
   data: Row[];
   xKey: string;
@@ -692,9 +733,11 @@ export function HoverValueBarChart({
   format?: ValueFormat;
   height?: number;
   totalLabel?: string;
+  /** Row field with the long date shown in the figure and tooltip ("Sat, Oct 3"). */
+  tipKey?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
-  if (data.length === 0) return <EmptyChart />;
+  if (data.length === 0 || data.every((r) => !Number(r[yKey]))) return <EmptyChart />;
   const config = {
     [yKey]: { label, color: chartColor(0) },
   } satisfies ChartConfig;
@@ -706,7 +749,7 @@ export function HoverValueBarChart({
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-muted-foreground text-sm">
-          {active ? String(active[xKey]) : totalLabel}
+          {active ? String((tipKey && active[tipKey]) || active[xKey]) : totalLabel}
         </span>
         <span className="text-xl font-semibold tracking-tight tabular-nums">
           {formatValue(figure, format)}
@@ -721,22 +764,25 @@ export function HoverValueBarChart({
           accessibilityLayer
           data={data}
           onMouseLeave={() => setActiveIndex(undefined)}
-          margin={{ top: 20, right: 12, bottom: 12, left: 12 }}
+          margin={{ top: 20, right: 12, bottom: 12, left: 0 }}
         >
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
             dataKey={xKey}
             tickLine={false}
             tickMargin={10}
             axisLine={false}
             minTickGap={24}
+            interval={tickEvery(data.length)}
           />
+          <YAxis {...valueAxis(data.map((r) => Number(r[yKey]) || 0), format)} />
           <ChartTooltip
             cursor={false}
             content={
               <ChartTooltipContent
                 indicator="dot"
                 className="min-w-40 gap-2.5"
-                labelFormatter={headerLabel}
+                labelFormatter={tipHeader(tipKey)}
                 formatter={valueFormatter(format)}
               />
             }
@@ -901,14 +947,17 @@ export function SegmentedBar({
   parts,
   format = "number",
   withList = false,
+  max = 5,
 }: {
   parts: Part[];
   format?: ValueFormat;
+  /** Parts kept before the tail folds into "Other" (the lead pipeline has six). */
+  max?: number;
   /** Name, value and share per part under the bar, in BreakdownList's row style. */
   withList?: boolean;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const folded = foldParts(parts);
+  const folded = foldParts(parts, max);
   if (folded.length === 0) return <EmptyChart />;
   const total = folded.reduce((s, p) => s + p.value, 0);
   return (
@@ -1173,6 +1222,7 @@ export function DivergingBarChart({
   label = "Value",
   format = "number",
   height = 240,
+  tipKey,
 }: {
   data: Row[];
   xKey: string;
@@ -1180,6 +1230,7 @@ export function DivergingBarChart({
   label?: string;
   format?: ValueFormat;
   height?: number;
+  tipKey?: string;
 }) {
   if (data.length === 0) return <EmptyChart />;
   const rows = data.map((r) => {
@@ -1201,8 +1252,17 @@ export function DivergingBarChart({
           axisLine={false}
           tickMargin={8}
           minTickGap={24}
+          interval={tickEvery(rows.length)}
         />
-        <YAxis hide domain={["auto", "auto"]} />
+        <YAxis
+          domain={["auto", "auto"]}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={4}
+          width={48}
+          allowDecimals={false}
+          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString())}
+        />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip
           cursor={false}
@@ -1210,7 +1270,7 @@ export function DivergingBarChart({
             <ChartTooltipContent
               indicator="dot"
               className="min-w-40 gap-2.5"
-              labelFormatter={headerLabel}
+              labelFormatter={tipHeader(tipKey)}
               formatter={valueFormatter(format)}
             />
           }
@@ -1220,6 +1280,88 @@ export function DivergingBarChart({
             <Cell key={i} fill={r.fill} />
           ))}
         </Bar>
+      </BarChart>
+    </ChartContainer>
+  );
+}
+
+/** Daily stacked bars by status: status tones, 2px gap between segments, tooltip lists every status and the total. */
+export function StackedBarChart({
+  data,
+  xKey,
+  series,
+  tipKey,
+  height = 280,
+}: {
+  data: Row[];
+  xKey: string;
+  series: { key: string; label: string; tone?: Tone }[];
+  tipKey?: string;
+  height?: number;
+}) {
+  const { rows } = keySeries(data, series);
+  if (rows.every((r) => series.every((_, i) => !Number(r[seriesKey(i)])))) return <EmptyChart />;
+  const color = (s: { tone?: Tone }, i: number) =>
+    s.tone && s.tone !== "chart" ? TONE_COLOR[s.tone] : chartColor(i);
+  const config = Object.fromEntries(
+    series.map((s, i) => [seriesKey(i), { label: s.label, color: color(s, i) }]),
+  ) satisfies ChartConfig;
+  const totals = rows.map((r) => series.reduce((t, _, i) => t + (Number(r[seriesKey(i)]) || 0), 0));
+  const axis = valueAxis(totals, "number");
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
+      <BarChart accessibilityLayer data={rows} margin={{ top: 20, right: 12, bottom: 0, left: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+          interval={tickEvery(rows.length)}
+        />
+        <YAxis {...axis} />
+        <ChartTooltip
+          cursor={false}
+          content={({ active, payload }) => {
+            if (!active || !payload?.length) return null;
+            const row = payload[0]!.payload as Row;
+            const total = series.reduce((t, _, i) => t + (Number(row[seriesKey(i)]) || 0), 0);
+            return (
+              <div className="border-border/50 bg-background grid min-w-40 gap-2 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+                {headerLabel((tipKey && row[tipKey]) || row[xKey])}
+                {series.map((s, i) => (
+                  <div key={seriesKey(i)} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 shrink-0 rounded-xs" style={{ background: color(s, i) }} />
+                      <span className="text-muted-foreground">{s.label}</span>
+                    </div>
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {(Number(row[seriesKey(i)]) || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-1.5">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="text-foreground font-semibold tabular-nums">{total.toLocaleString()}</span>
+                </div>
+              </div>
+            );
+          }}
+        />
+        {series.map((s, i) => (
+          <Bar
+            key={seriesKey(i)}
+            dataKey={seriesKey(i)}
+            name={s.label}
+            stackId="a"
+            fill={color(s, i)}
+            stroke="var(--card)"
+            strokeWidth={2}
+            maxBarSize={32}
+          />
+        ))}
+        <ChartLegend content={<ChartLegendContent />} />
       </BarChart>
     </ChartContainer>
   );

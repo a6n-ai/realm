@@ -2,7 +2,7 @@ export type Tone = "success" | "warning" | "destructive" | "muted" | "chart";
 export type Part = { label: string; value: number; tone?: Tone };
 export type SharedPart = Part & { share: number; color: string };
 
-const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
+export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
   success: "var(--success)",
   warning: "var(--warning)",
   destructive: "var(--destructive)",
@@ -107,4 +107,38 @@ export const rankedHeight = (rows: number) => Math.max(3, rows) * ROW_HEIGHT;
 /** Series are keyed by position; the name is only ever a label. */
 export function positionalConfig(series: { label: string }[]) {
   return Object.fromEntries(series.map((s, i) => [`s${i}`, { label: s.label, color: chartColor(i) }]));
+}
+
+const STEPS = [1, 2, 5, 10];
+
+/** Smallest 1/2/5 x 10^k step that covers [0, max] in at most `intervals` intervals. */
+function axisStep(max: number, intervals: number): number {
+  if (!(max > 0)) return 1;
+  const mag = 10 ** Math.floor(Math.log10(max / intervals));
+  return (STEPS.map((m) => m * mag).find((s) => Math.ceil(max / s) <= intervals) ?? 10 * mag);
+}
+
+/** Axis ticks from 0 to a rounded-up max, about five of them. Counts get whole numbers only. */
+export function axisTicks(max: number, integer = false, intervals = 5): number[] {
+  let step = axisStep(max, intervals);
+  if (integer) step = Math.max(1, Math.ceil(step));
+  const top = Math.max(1, Math.ceil(max / step)) * step;
+  return Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
+}
+
+/** "$0", "$500", "$1k", "$1.5k". The decimal only ever appears on the small (under $3k) scales. */
+export function moneyTick(v: number): string {
+  const a = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (a < 1000) return `${sign}$${Math.round(a)}`;
+  return `${sign}$${Number((a / 1000).toFixed(1))}k`;
+}
+
+/** Recharts `interval` that leaves roughly every 4th day labelled on a 30-day chart. */
+export const tickEvery = (points: number) => Math.max(0, Math.ceil(points / 8) - 1);
+
+/** Ranked-bar labels: ~18 characters, the tooltip keeps the full name. */
+export function truncateLabel(v: unknown, max = 18): string {
+  const s = String(v ?? "");
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }

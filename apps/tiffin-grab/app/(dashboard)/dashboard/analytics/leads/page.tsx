@@ -9,7 +9,8 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { DistributionDonutChart } from "@/components/analytics/charts";
+import { BreakdownBarChart, RadialRateChart, SegmentedBar } from "@/components/analytics/charts";
+import type { Tone } from "@/components/analytics/chart-math";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
   getLeadStats,
@@ -40,9 +41,22 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Leads by stage" subtitle="Open a stage to see those inquiries.">
+        <ChartCard title="Lead stages" subtitle="Where every lead in range sits in the pipeline.">
           <Suspense fallback={<ChartSkeleton />}>
             <StageChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Conversion rate" subtitle="Converted leads out of all leads.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <ConversionChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <SourceTable scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
@@ -51,12 +65,6 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
           </Suspense>
         </ChartCard>
       </div>
-
-      <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
-        <Suspense fallback={<ChartSkeleton />}>
-          <SourceTable scope={scope} />
-        </Suspense>
-      </ChartCard>
     </div>
   );
 }
@@ -106,19 +114,46 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
+const STAGE_ORDER = ["new", "contacted", "quoted", "follow_up", "converted", "lost"];
+const STAGE_TONE: Record<string, Tone> = { converted: "success", lost: "destructive" };
+
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref(scope, { stage: r.key }) }))}
-      emptyLabel="No leads yet."
+    <SegmentedBar
+      withList
+      max={6}
+      parts={[...rows]
+        .sort((a, b) => STAGE_ORDER.indexOf(a.key) - STAGE_ORDER.indexOf(b.key))
+        .map((r) => ({ label: r.stage, value: r.n, tone: STAGE_TONE[r.key] ?? "chart" }))}
     />
+  );
+}
+
+async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
+  const s = await getLeadStats(scope);
+  return (
+    <div className="flex flex-col gap-3">
+      <RadialRateChart
+        data={s.total === 0 ? [] : [{ label: "Converted", rate: s.conversionRatePct }]}
+        nameKey="label"
+        valueKey="rate"
+      />
+      {s.total > 0 ? (
+        <p className="text-muted-foreground text-center text-sm">
+          <span className="text-foreground font-semibold tabular-nums">
+            {s.converted.toLocaleString()} of {s.total.toLocaleString()}
+          </span>{" "}
+          leads converted
+        </p>
+      ) : null}
+    </div>
   );
 }
 
 async function LostReasonChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLostReasonBreakdown(scope);
-  return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
+  return <BreakdownBarChart data={rows} xKey="reason" yKey="n" label="Leads lost" />;
 }
 
 async function SourceTable({ scope }: { scope: AnalyticsScope }) {
