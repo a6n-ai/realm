@@ -9,6 +9,8 @@ const { deliveries, deliveryFrequencies, mealSizes, orders, organization, paymen
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { getDailyScorecard, SCORECARD_MAX_DAYS } = await import("../overview.service");
 const { getRevenueReport } = await import("../revenue.service");
+const { getProfitabilityReport } = await import("../profitability.service");
+const { setProfitabilityAssumptions, getProfitabilityAssumptions } = await import("../../app-settings.service");
 const { countOrders } = await import("../metrics/orders");
 const { getOperationsStats } = await import("../operations.service");
 const { getSignupTrend } = await import("../customers.service");
@@ -22,6 +24,7 @@ const scope = (orgIds: "all" | string[]) =>
   buildAnalyticsScope({ from: String(now - 2 * DAY), to: String(now + 2 * DAY) }, orgIds, TZ, now);
 
 let org = "";
+let prior: Awaited<ReturnType<typeof getProfitabilityAssumptions>> | null = null;
 const userIds: bigint[] = [];
 const orderIds: bigint[] = [];
 const ticketIds: bigint[] = [];
@@ -56,6 +59,7 @@ describe("daily scorecard (integration)", () => {
   });
 
   afterAll(async () => {
+    if (prior) await setProfitabilityAssumptions(prior);
     if (ticketIds.length) await db.delete(tickets).where(inArray(tickets.id, ticketIds));
     if (orderIds.length) {
       await db.delete(deliveries).where(inArray(deliveries.orderId, orderIds));
@@ -86,6 +90,8 @@ describe("daily scorecard (integration)", () => {
       ticketIds.push(t!.id);
     }
 
+    prior = await getProfitabilityAssumptions();
+    await setProfitabilityAssumptions({ ...prior, marketingMonthly: 3100 });
     const sc = scope([org]);
     const rows = (await getDailyScorecard(sc))!;
     const sum = (k: "revenue" | "orders" | "deliveries" | "skipped" | "signups" | "complaints") => rows.reduce((t, r) => t + r[k], 0);
@@ -110,7 +116,10 @@ describe("daily scorecard (integration)", () => {
     expect(sum("complaints")).toBe(2);
 
     expect(rows.map((r) => r.date)).toEqual([...rows.map((r) => r.date)].sort().reverse());
-    expect(rows.every((r) => r.profit === null)).toBe(true);
+    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc });
+    const profitSum = rows.reduce((t, r) => t + (r.profit ?? 0), 0);
+    expect(profit.kpis.costs).toBeGreaterThan(0);
+    expect(Math.round(profitSum * 100) / 100).toBe(profit.kpis.profit);
     const row = rows.find((r) => r.date === today)!;
     expect(row.href).toMatch(/^\/dashboard\/orders\?/);
     expect(row.href).toContain("view=all");

@@ -9,11 +9,19 @@ export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {
   muted: "var(--muted-foreground)",
 };
 
+/** Every donut and ring meter shares one size, ring thickness and centre typography. */
+export const DONUT_PX = 176;
+export const DONUT_INNER = "62%";
+export const DONUT_OUTER = "95%";
+export const DONUT_VALUE_CLASS = "fill-foreground text-2xl font-bold tabular-nums";
+export const DONUT_CAPTION_CLASS = "fill-muted-foreground text-xs";
+export const DONUT_VALUE_TEXT_CLASS = "text-foreground text-2xl font-bold tabular-nums";
+export const DONUT_CAPTION_TEXT_CLASS = "text-muted-foreground text-xs";
+
 export const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;
 
-// --chart-4 is red; beside status colours it would read as status, so mixed charts skip it.
-const CATEGORICAL = [1, 2, 3, 4, 5];
-const CATEGORICAL_WITH_STATUS = [1, 2, 3, 5];
+// --chart-4 is red and would read as a status, so categorical parts always skip it.
+const CATEGORICAL = [1, 2, 3, 5];
 
 /** Largest-remainder rounding so whole-number shares always add to exactly 100. */
 function shares(values: number[]): number[] {
@@ -46,12 +54,11 @@ export function foldParts(input: Part[], max = 5): SharedPart[] {
   }
   const pct = shares(kept.map((p) => p.value));
   const isStatus = (p: Part) => !!p.tone && p.tone !== "chart";
-  const palette = kept.some((p) => isStatus(p) && p.tone !== "muted") ? CATEGORICAL_WITH_STATUS : CATEGORICAL;
   let cat = 0;
   return kept.map((p, i) => ({
     ...p,
     share: pct[i]!,
-    color: isStatus(p) ? TONE_COLOR[p.tone as keyof typeof TONE_COLOR] : `var(--chart-${palette[cat++ % palette.length]})`,
+    color: isStatus(p) ? TONE_COLOR[p.tone as keyof typeof TONE_COLOR] : `var(--chart-${CATEGORICAL[cat++ % CATEGORICAL.length]})`,
   }));
 }
 

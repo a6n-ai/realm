@@ -1,8 +1,9 @@
 import "server-only";
 import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 
 export const SETTLED = SETTLED_STATUSES;
@@ -166,4 +167,39 @@ export async function paymentsByStatus(scope: AnalyticsScope): Promise<PaymentSt
       group by ${payments.status}`),
   );
   return rows.map((r) => ({ status: String(r.status), count: n2(r.count), amount: n2(r.amount) }));
+}
+
+export type FreeTiffins = { count: number; valued: number; notValued: number; amount: number };
+
+// An order's per-tiffin price ex tax, from the snapshot it was sold at (add-ons applied later are taken back out).
+const snapNum = (key: string) => sql`coalesce((${orders.pricingSnapshot}->>${sql.raw(`'${key}'`)})::numeric, 0)`;
+const FREE_PRICE = sql`((${snapNum("total")} - ${snapNum("taxTotal")} - ${appliedAddon("amountDue")} + ${appliedAddon("taxTotal")}) / nullif(${snapNum("tiffinCount")}, 0))`;
+// No price to show: a zero total, no tiffin count, or a WP-migrated order (paid on the old site).
+const FREE_VALUED = sql`(${snapNum("total")} > 0 and ${snapNum("tiffinCount")} > 0 and not jsonb_exists(${orders.pricingSnapshot}, 'wordpress'))`;
+
+/**
+ * Complimentary tiffins (one delivery row each, not cancelled) dated by delivery date, valued at the order's
+ * per-tiffin price. No payment exists for them, so this is shown beside revenue, never inside it.
+ */
+export async function freeTiffins(scope: AnalyticsScope): Promise<FreeTiffins> {
+  if (noOrgs(scope)) return { count: 0, valued: 0, notValued: 0, amount: 0 };
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const [r] = rowsOf(
+    await db.execute(sql`
+      select count(*)::int::text as count,
+        (count(*) filter (where ${FREE_VALUED}))::int::text as valued,
+        round(coalesce(sum(case when ${FREE_VALUED} then ${FREE_PRICE} end), 0), 2)::text as amount
+      from ${deliveries} inner join ${orders} on ${orders.id} = ${deliveries.orderId}
+      where ${and(
+        sql`${deliveries.complimentaryNote} is not null`,
+        sql`${deliveries.status} <> 'cancelled'`,
+        sql`${deliveries.deliveryDate} >= ${from}`,
+        sql`${deliveries.deliveryDate} <= ${to}`,
+        ordersScope(scope),
+      )}`),
+  );
+  const count = n2(r.count);
+  const valued = n2(r.valued);
+  return { count, valued, notValued: count - valued, amount: n2(r.amount) };
 }

@@ -7,9 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "@/app/(dashboard)/dashboard/discounts/controls";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
-import { SectionCard } from "@/components/ds";
-import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { Badge } from "@/components/reui/badge";
 import { saveAssumptionsAction } from "./actions";
 
 const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
@@ -36,8 +33,10 @@ function asFields(
 
 export function AssumptionsForm({
   current,
+  onSaved,
 }: {
   current: ProfitabilityAssumptions;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
@@ -61,6 +60,7 @@ export function AssumptionsForm({
         await saveAssumptionsAction(parsed);
         toast.success("Cost assumptions saved");
         router.refresh();
+        onSaved?.();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to save");
       }
@@ -68,45 +68,29 @@ export function AssumptionsForm({
   }
 
   return (
-    <div className="h-full [&>*]:h-full">
-      <SectionCard
-        title="Cost assumptions"
-        subtitle="Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every day of that month, including days with no deliveries."
-        action={<Badge variant="primary-light">Editable</Badge>}
-      >
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              {FIELDS.map((f) => (
-                <NumberField
-                  key={f.key}
-                  id={f.key}
-                  label={f.label}
-                  prefix="$"
-                  min={0}
-                  step={0.01}
-                  value={fields[f.key]}
-                  onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
-                  placeholder="0"
-                />
-              ))}
-            </div>
-
-            <Alert>
-              <AlertTitle>How these feed profit</AlertTitle>
-              <AlertDescription>
-                Saving recalculates net profit, margin, and average profit per
-                tiffin for the selected period.
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          <Button onClick={save} disabled={pending} className="w-full">
-            <CalculatorIcon aria-hidden />
-            {pending ? "Saving…" : "Save assumptions"}
-          </Button>
-        </div>
-      </SectionCard>
+    <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-xs">
+        Per-tiffin costs apply to delivered tiffins. Monthly budgets are spread evenly across every day of that month.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {FIELDS.map((f) => (
+          <NumberField
+            key={f.key}
+            id={f.key}
+            label={f.label}
+            prefix="$"
+            min={0}
+            step={0.01}
+            value={fields[f.key]}
+            onChange={(v) => setFields((s) => ({ ...s, [f.key]: v }))}
+            placeholder="0"
+          />
+        ))}
+      </div>
+      <Button onClick={save} disabled={pending} className="w-full">
+        <CalculatorIcon aria-hidden />
+        {pending ? "Saving…" : "Save assumptions"}
+      </Button>
     </div>
   );
 }

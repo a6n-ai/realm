@@ -18,6 +18,13 @@ import {
 } from "../chart-math";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 
+describe("moneyTick", () => {
+  it("uses a lowercase k", () => {
+    expect(moneyTick(2400)).toBe("$2.4k");
+    expect(moneyTick(-1500)).toBe("-$1.5k");
+  });
+});
+
 describe("foldParts", () => {
   const parts = Array.from({ length: 9 }, (_, i) => ({ label: `p${i}`, value: i + 1 }));
   it("folds more than 5 into Other and shares sum to 100", () => {
@@ -42,6 +49,10 @@ describe("foldParts", () => {
       { label: "ok", value: 5, tone: "success" },
       ...["a", "b", "c", "d"].map((label) => ({ label, value: 1 })),
     ]);
+    expect(out.map((p) => p.color)).not.toContain("var(--chart-4)");
+  });
+  it("never uses the red chart-4 for categorical parts", () => {
+    const out = foldParts(Array.from({ length: 5 }, (_, i) => ({ label: `p${i}`, value: i + 1 })));
     expect(out.map((p) => p.color)).not.toContain("var(--chart-4)");
   });
   it("is empty for all-zero input", () => {

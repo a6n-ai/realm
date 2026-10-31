@@ -8,7 +8,7 @@ import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/
 import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { DivergingBarChart } from "@/components/analytics/charts";
+import { DivergingBarChart, PartsDonut } from "@/components/analytics/charts";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
@@ -21,9 +21,9 @@ import {
   type ProfitabilityKpis,
 } from "@/lib/analytics/profitability";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
-import { AssumptionsForm } from "./assumptions-form";
+import { AssumptionChips } from "./assumption-chips";
+import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
-import { ProfitTable } from "./profit-table";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -64,39 +64,48 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
         }
       />
 
+      <Suspense fallback={<Skeleton className="h-8 w-full max-w-3xl" />}>
+        <Assumptions view={view} />
+      </Suspense>
+
       <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <Headline view={view} />
       </Suspense>
 
+      <Suspense fallback={null}>
+        <MigratedNote view={view} />
+      </Suspense>
+
       <ChartCard
-        title={`Profit by ${{ daily: "day", weekly: "week", monthly: "month" }[grain]}`}
-        subtitle="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+        title={CARDS_TITLE[grain]}
+        subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown."
       >
-        <Suspense fallback={<ChartSkeleton />}>
-          <Trend view={view} />
+        <Suspense fallback={<ChartSkeleton height={320} />}>
+          <Cards view={view} />
         </Suspense>
       </ChartCard>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
-        <div className="lg:col-span-8">
-          <ChartCard
-            title="By period"
-            subtitle="Revenue is allocated to the day the tiffin went out, not the day the customer paid."
-          >
-            <Suspense fallback={<ChartSkeleton height={320} />}>
-              <Grid view={view} />
-            </Suspense>
-          </ChartCard>
-        </div>
-        <div className="lg:col-span-4">
-          <Suspense fallback={<ChartSkeleton height={180} />}>
-            <Assumptions view={view} />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title={`Profit by ${PERIOD[grain]}`}
+          subtitle="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <Trend view={view} />
           </Suspense>
-        </div>
+        </ChartCard>
+        <ChartCard title="Where the money goes" subtitle="Total costs in this range by kind, under your assumptions.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <Costs view={view} />
+          </Suspense>
+        </ChartCard>
       </div>
     </div>
   );
 }
+
+const PERIOD = { daily: "day", weekly: "week", monthly: "month" } as const;
+const CARDS_TITLE = { daily: "Day by day", weekly: "Week by week", monthly: "Month by month" } as const;
 
 type View = { month: string; grain: Grain; scope: AnalyticsScope };
 
@@ -209,12 +218,27 @@ async function Trend({ view }: { view: View }) {
   return <DivergingBarChart data={report.trend} xKey="period" tipKey="tip" yKey="profit" label="Profit" format="currency" />;
 }
 
-async function Grid({ view }: { view: View }) {
+async function Cards({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <ProfitTable rows={report.rows} grain={report.grain} />;
+  return <DayCards rows={report.rows} grain={report.grain} from={report.from} to={report.to} />;
+}
+
+async function Costs({ view }: { view: View }) {
+  const report = await reportFrom(view);
+  return <PartsDonut format="currency" caption="Total costs" max={5} parts={report.costParts} />;
+}
+
+async function MigratedNote({ view }: { view: View }) {
+  const { migratedTiffinsExcluded: n } = await reportFrom(view);
+  if (n === 0) return null;
+  return (
+    <p className="text-muted-foreground text-xs">
+      {n} {n === 1 ? "tiffin" : "tiffins"} from orders migrated from the old site {n === 1 ? "is" : "are"} not counted (paid on the old site, no price stored).
+    </p>
+  );
 }
 
 async function Assumptions({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <AssumptionsForm current={report.assumptions} />;
+  return <AssumptionChips current={report.assumptions} />;
 }

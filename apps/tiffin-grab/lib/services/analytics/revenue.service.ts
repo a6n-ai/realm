@@ -19,13 +19,18 @@ import {
   type RevenueCohortKey,
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
-import { SETTLED, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
+import { SETTLED, freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
 
 /** `daily` is net revenue per calendar day whatever the trend's grain, for the calendar. */
-export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[]; daily: { iso: string; net: number }[] };
+export type RevenueReport = RevenueSummary & {
+  byStatus: PaymentStatusSlice[];
+  daily: { iso: string; net: number }[];
+  /** Value given away as complimentary tiffins; beside revenue, not in it. */
+  free: Awaited<ReturnType<typeof freeTiffins>>;
+};
 
 export const REVENUE_METHODS = payments.method.enumValues;
 
@@ -55,12 +60,13 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
   const grain = grainForRange(from, to);
-  const [totals, days, statusRows, methods, orderRows] = await Promise.all([
+  const [totals, days, statusRows, methods, orderRows, free] = await Promise.all([
     revenueTotals(scope),
     revenueBy(scope, "day"),
     paymentsByStatus(scope),
     revenueBy(scope, "method"),
     settledOrderRows(scope),
+    freeTiffins(scope),
   ]);
 
   const buckets = new Map<string, { netSales: number; collected: number }>();
@@ -107,6 +113,7 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
     discounts: disc.lines,
     byStatus: presentPaymentStatuses(statusRows),
     daily: days.map((d) => ({ iso: d.key, net: d.net })),
+    free,
   };
 }
 

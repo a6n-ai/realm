@@ -58,6 +58,13 @@ import {
   HEAT_STEPS,
   heatIsDense,
   moneyTick,
+  DONUT_PX,
+  DONUT_INNER,
+  DONUT_OUTER,
+  DONUT_VALUE_CLASS,
+  DONUT_CAPTION_CLASS,
+  DONUT_VALUE_TEXT_CLASS,
+  DONUT_CAPTION_TEXT_CLASS,
   positionalConfig,
   rankedHeight,
   signedTicks,
@@ -78,12 +85,6 @@ type Row = Record<string, string | number>;
 const CURRENCY = new Intl.NumberFormat("en-CA", {
   style: "currency",
   currency: "CAD",
-});
-const CURRENCY_COMPACT = new Intl.NumberFormat("en-CA", {
-  style: "currency",
-  currency: "CAD",
-  notation: "compact",
-  maximumFractionDigits: 1,
 });
 
 function formatValue(v: unknown, format: ValueFormat): string {
@@ -124,11 +125,6 @@ const headerLabel = (value: ReactNode) => (
 
 function EmptyChart() {
   return <ChartEmpty message="No data in this range." />;
-}
-
-function sliceColor(row: Row, index: number, colorKey?: string): string {
-  const custom = colorKey != null ? row[colorKey] : undefined;
-  return typeof custom === "string" ? custom : chartColor(index);
 }
 
 /** c-chart-13: gradient area. Several series share the composition. */
@@ -571,31 +567,10 @@ export function BreakdownBarChart({
   );
 }
 
-function legendList(
-  items: { key: string; label: string; color: string; value: string }[],
-) {
-  return (
-    <ul className="flex flex-col gap-1.5 pt-3 text-xs" aria-label="Legend">
-      {items.map((item) => (
-        <li key={item.key} className="flex items-center gap-2">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ background: item.color }}
-          />
-          <span className="text-muted-foreground min-w-0 flex-1">
-            {item.label}
-          </span>
-          <span className="font-medium tabular-nums">{item.value}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function donutCentre(total: number, format: ValueFormat, caption: string) {
   const text =
     format === "currency"
-      ? CURRENCY_COMPACT.format(total)
+      ? moneyTick(total)
       : total.toLocaleString();
   return (
     <Label
@@ -611,14 +586,14 @@ function donutCentre(total: number, format: ValueFormat, caption: string) {
               <tspan
                 x={viewBox.cx}
                 y={viewBox.cy}
-                className="fill-foreground text-2xl font-bold tabular-nums"
+                className={DONUT_VALUE_CLASS}
               >
                 {text}
               </tspan>
               <tspan
                 x={viewBox.cx}
                 y={(viewBox.cy || 0) + 22}
-                className="fill-muted-foreground text-xs"
+                className={DONUT_CAPTION_CLASS}
               >
                 {caption}
               </tspan>
@@ -627,145 +602,6 @@ function donutCentre(total: number, format: ValueFormat, caption: string) {
         }
       }}
     />
-  );
-}
-
-type DonutProps = {
-  data: Row[];
-  nameKey: string;
-  valueKey: string;
-  format?: ValueFormat;
-  /** Optional per-row CSS color field (e.g. theme chart token). */
-  colorKey?: string;
-  /** Value list under the donut. Turn off when the caller draws its own legend. */
-  legend?: boolean;
-  height?: number;
-};
-
-function useSlices({ data, nameKey, valueKey, colorKey }: DonutProps) {
-  const slices = data
-    .filter((row) => {
-      const value = row[valueKey];
-      return typeof value !== "number" || value > 0;
-    })
-    .map((row, i): Row => ({ ...row, fill: sliceColor(row, i, colorKey) }));
-  const total = slices.reduce((sum, r) => sum + (Number(r[valueKey]) || 0), 0);
-  const config = Object.fromEntries(
-    slices.map((r) => [
-      String(r[nameKey]),
-      { label: String(r[nameKey] ?? "") },
-    ]),
-  ) satisfies ChartConfig;
-  return { slices, total, config };
-}
-
-/** c-chart-19 donut with the total in the centre. */
-export function DistributionDonutChart(props: DonutProps) {
-  const {
-    nameKey,
-    valueKey,
-    format = "number",
-    legend = true,
-    height = 240,
-  } = props;
-  const { slices, total, config } = useSlices(props);
-  if (slices.length === 0) return <EmptyChart />;
-  return (
-    <div>
-      <ChartContainer
-        config={config}
-        className="mx-auto aspect-square"
-        style={{ height }}
-      >
-        <PieChart accessibilityLayer>
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                className="min-w-40 gap-2.5"
-                formatter={valueFormatter(format)}
-              />
-            }
-          />
-          <Pie
-            data={slices}
-            dataKey={valueKey}
-            nameKey={nameKey}
-            innerRadius="65%"
-            outerRadius="95%"
-            cornerRadius={8}
-            paddingAngle={4}
-            stroke="var(--background)"
-            strokeWidth={4}
-          >
-            {slices.map((row, i) => (
-              <Cell key={`${row[nameKey]}-${i}`} fill={String(row.fill)} />
-            ))}
-            {donutCentre(total, format, "Total")}
-          </Pie>
-        </PieChart>
-      </ChartContainer>
-      {legend
-        ? legendList(
-            slices.map((row, i) => ({
-              key: `${row[nameKey]}-${i}`,
-              label: String(row[nameKey] ?? ""),
-              color: String(row.fill),
-              value: formatValue(row[valueKey], format),
-            })),
-          )
-        : null}
-    </div>
-  );
-}
-
-/** c-chart-22 donut: the hovered slice grows, the legend names every slice. */
-export function ActiveSegmentDonutChart(props: DonutProps) {
-  const { nameKey, valueKey, format = "number", height = 280 } = props;
-  const { slices, total, config } = useSlices(props);
-  if (slices.length === 0) return <EmptyChart />;
-  return (
-    <ChartContainer
-      config={config}
-      className="mx-auto aspect-square"
-      style={{ height }}
-    >
-      <PieChart accessibilityLayer>
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              className="min-w-40 gap-2.5"
-              formatter={valueFormatter(format)}
-            />
-          }
-        />
-        <ChartLegend
-          content={
-            <ChartLegendContent
-              nameKey={nameKey}
-              className="-translate-y-2 flex-wrap"
-            />
-          }
-        />
-        <Pie
-          data={slices}
-          dataKey={valueKey}
-          nameKey={nameKey}
-          innerRadius="55%"
-          cornerRadius={5}
-          paddingAngle={3}
-          stroke="var(--background)"
-          strokeWidth={3}
-          activeShape={({ outerRadius = 0, ...p }: PieSectorDataItem) => (
-            <Sector {...p} outerRadius={outerRadius + 10} />
-          )}
-        >
-          {slices.map((row, i) => (
-            <Cell key={`${row[nameKey]}-${i}`} fill={String(row.fill)} />
-          ))}
-          {donutCentre(total, format, "Total")}
-        </Pie>
-      </PieChart>
-    </ChartContainer>
   );
 }
 
@@ -843,7 +679,7 @@ export function RadialRateChart({
   nameKey,
   valueKey,
   caption,
-  height = 220,
+  height = DONUT_PX,
 }: {
   data: Row[];
   nameKey: string;
@@ -863,9 +699,8 @@ export function RadialRateChart({
         <RadialBarChart
           accessibilityLayer
           data={rows}
-          innerRadius="70%"
-          outerRadius="100%"
-          barSize={18}
+          innerRadius={DONUT_INNER}
+          outerRadius={DONUT_OUTER}
           startAngle={90}
           endAngle={-270}
         >
@@ -883,10 +718,8 @@ export function RadialRateChart({
         </RadialBarChart>
       </ChartContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold tracking-tight tabular-nums">
-          {Number(rows[0]![valueKey])}%
-        </span>
-        {caption ? <span className="text-muted-foreground text-xs">{caption}</span> : null}
+        <span className={DONUT_VALUE_TEXT_CLASS}>{Number(rows[0]![valueKey])}%</span>
+        {caption ? <span className={DONUT_CAPTION_TEXT_CLASS}>{caption}</span> : null}
       </div>
     </div>
   );
@@ -1043,7 +876,7 @@ export function PartsDonut({
   const config = Object.fromEntries(folded.map((p, i) => [`p${i}`, { label: p.label }])) satisfies ChartConfig;
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
-      <ChartContainer config={config} className="aspect-square h-44 shrink-0">
+      <ChartContainer config={config} className="aspect-square shrink-0" style={{ height: DONUT_PX }}>
         <PieChart accessibilityLayer>
           <ChartTooltip
             content={<ChartTooltipContent hideLabel className="min-w-40 gap-2.5" formatter={valueFormatter(format)} />}
@@ -1052,8 +885,8 @@ export function PartsDonut({
             data={folded.map((p) => ({ ...p, fill: p.color }))}
             dataKey="value"
             nameKey="label"
-            innerRadius="62%"
-            outerRadius="95%"
+            innerRadius={DONUT_INNER}
+            outerRadius={DONUT_OUTER}
             paddingAngle={2}
             stroke="var(--background)"
             strokeWidth={2}

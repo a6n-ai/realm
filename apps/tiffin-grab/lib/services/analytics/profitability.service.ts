@@ -3,12 +3,14 @@ import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { getProfitabilityAssumptions } from "@/lib/services/app-settings.service";
 import {
+  costBreakdown,
   decorateDay,
   eachDateInclusive,
   isoDateInZone,
   kpis,
   round2,
   rollup,
+  type CostPart,
   type Grain,
   type ProfitabilityAssumptions,
   type ProfitabilityKpis,
@@ -33,6 +35,10 @@ export type ProfitabilityReport = {
   assumptions: ProfitabilityAssumptions;
   kpis: ProfitabilityKpis;
   rows: ProfitRow[];
+  /** Total costs by kind, for the "where the money goes" donut. */
+  costParts: CostPart[];
+  /** Delivered tiffins on WP-migrated orders (no stored price, no payment here): left out of revenue and per-tiffin costs. */
+  migratedTiffinsExcluded: number;
   trend: { period: string; profit: number; revenue: number }[];
   /** Next delivery cutoff in range; when it passes, those tiffins count as delivered. */
   nextCutoffAt: number | null;
@@ -42,6 +48,8 @@ const HAS_CAPTURED = sql`exists (
   select 1 from ${payments} where ${payments.orderId} = ${orders.id}
   and ${inArray(payments.status, CAPTURED)}
 )`;
+// Imported from WordPress and never paid in this system: it was paid on the old site and has no price here.
+const WP_MIGRATED = sql`(jsonb_exists(${orders.pricingSnapshot}, 'wordpress') and not ${HAS_CAPTURED})`;
 // What the order actually earned: its captured payments ex tax, minus ledger refunds ex tax (the
 // same expressions the Revenue tab sums). Not date-limited: it is spread over the order's tiffins.
 const CAPTURED_NET = sql`(select coalesce(sum(${netExTax()}), 0) from ${payments}
@@ -85,16 +93,17 @@ export async function getProfitabilityReport(opts: {
   const { from, to } = bounds.from <= bounds.to ? bounds : { from: bounds.to, to: bounds.from };
   const orderWhere = ordersScope(scope);
 
-  const deliveredWhere = and(
+  const delivered = [
     eq(deliveries.status, "scheduled"),
     eq(deliveries.optimoCompletionStatus, "success"),
     gte(deliveries.deliveryDate, from),
     lte(deliveries.deliveryDate, to),
     orderWhere,
-  );
+  ];
+  const deliveredWhere = and(...delivered, sql`not ${WP_MIGRATED}`);
 
   const noOrgs = scope.orgIds !== "all" && scope.orgIds.length === 0;
-  const [earnedRows, cashDays, totals, [nextCutoff]] = await Promise.all([
+  const [earnedRows, cashDays, totals, [nextCutoff], [migrated]] = await Promise.all([
     noOrgs
       ? []
       : db
@@ -127,6 +136,13 @@ export async function getProfitabilityReport(opts: {
               orderWhere,
             ),
           ),
+    noOrgs
+      ? [{ n: 0 }]
+      : db
+          .select({ n: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int` })
+          .from(deliveries)
+          .innerJoin(orders, eq(deliveries.orderId, orders.id))
+          .where(and(...delivered, WP_MIGRATED)),
   ]);
 
   const earnedByDate = new Map(earnedRows.map((r) => [isoDate(r.date), r]));
@@ -157,6 +173,8 @@ export async function getProfitabilityReport(opts: {
     assumptions,
     kpis: stats,
     rows,
+    costParts: costBreakdown(rows, assumptions),
+    migratedTiffinsExcluded: Number(migrated?.n ?? 0),
     trend: rows.map((r) => ({
       ...chartPeriod(r.date, grain),
       profit: r.profit,

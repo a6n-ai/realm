@@ -42,7 +42,7 @@ async function reset() {
   await setProfitabilityAssumptions(ZERO_ASSUMPTIONS);
 }
 
-async function makeOrder(over: { total: string; tiffinCount: number; deploymentId: string; taxTotal?: number }) {
+async function makeOrder(over: { total: string; tiffinCount: number; deploymentId: string; taxTotal?: number; snapshot?: Record<string, unknown> }) {
   const [[plan], [mealSize], [freq]] = await Promise.all([
     db.select({ id: plans.id }).from(plans).limit(1),
     db.select({ id: mealSizes.id }).from(mealSizes).limit(1),
@@ -62,7 +62,7 @@ async function makeOrder(over: { total: string; tiffinCount: number; deploymentI
       tiffinCount: over.tiffinCount,
       perTiffinPrice: "10.00",
       // Revenue reads the quote the payment settled: total and tax from the snapshot.
-      pricingSnapshot: { total: Number(over.total), taxTotal: over.taxTotal ?? 0 },
+      pricingSnapshot: { total: Number(over.total), taxTotal: over.taxTotal ?? 0, ...over.snapshot },
       total: over.total,
       deploymentId: over.deploymentId,
       fullName: "Profit Fixture",
@@ -318,5 +318,44 @@ describe("profitability report", () => {
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
     expect(report.kpis.revenue).toBe(8);
     expect(report.kpis.unpaidRevenue).toBe(12);
+  });
+
+  it("leaves WP-migrated tiffins out of revenue and per-tiffin costs, but not the monthly costs", async () => {
+    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 4, otherCostPerTiffin: 1, marketingMonthly: 310 });
+    const normal = await makeOrder({ total: "20.00", tiffinCount: 2, deploymentId: "PROF-NORM" });
+    await makePayment(normal.id, "20.00", Date.parse("2034-12-20T15:00:00Z"));
+    await makeDelivery(normal.id, "2035-01-05", { tiffinUnits: 2 });
+    const wp = await makeOrder({
+      total: "0.00",
+      tiffinCount: 5,
+      deploymentId: "PROF-WP",
+      snapshot: { wordpress: { orderId: 1, mergedOrderIds: [], lastDeliveredDate: null, deliveredCount: 0, refreshedOn: "2035-01-01" } },
+    });
+    await makeDelivery(wp.id, "2035-01-05", { tiffinUnits: 3 });
+    await makeDelivery(wp.id, "2035-01-06", { tiffinUnits: 1 });
+
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    const day = report.rows.find((r) => r.date === "2035-01-05");
+    expect(day?.tiffins).toBe(2);
+    expect(day?.revenue).toBe(20);
+    expect(day?.kitchen).toBe(8);
+    expect(day?.other).toBe(2);
+    expect(day?.marketing).toBe(10);
+    expect(report.rows.find((r) => r.date === "2035-01-06")?.tiffins).toBe(0);
+    expect(report.rows.find((r) => r.date === "2035-01-06")?.marketing).toBe(10);
+    expect(report.kpis.tiffins).toBe(2);
+    expect(report.migratedTiffinsExcluded).toBe(4);
+  });
+
+  it("splits total costs by kind", async () => {
+    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 4, otherCostPerTiffin: 1, otherMonthly: 310 });
+    const order = await makeOrder({ total: "20.00", tiffinCount: 2, deploymentId: "PROF-KIND" });
+    await makePayment(order.id, "20.00", Date.parse("2034-12-20T15:00:00Z"));
+    await makeDelivery(order.id, "2035-01-05", { tiffinUnits: 2 });
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    const parts = Object.fromEntries(report.costParts.map((p) => [p.label, p.value]));
+    expect(parts["Kitchen"]).toBe(8);
+    expect(parts["Other per tiffin"]).toBe(2);
+    expect(parts["Other monthly"]).toBe(310);
   });
 });

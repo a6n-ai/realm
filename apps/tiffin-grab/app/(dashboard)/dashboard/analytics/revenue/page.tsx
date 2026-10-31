@@ -99,7 +99,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
             <MethodChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Discounts given" subtitle="Across settled orders in this range.">
+        <ChartCard title="Given away: discounts & free tiffins" subtitle="Discounts across settled orders, and free tiffins by delivery date. Not taken off net revenue.">
           <Suspense fallback={<ChartSkeleton />}>
             <Discounts scope={scope} />
           </Suspense>
@@ -126,7 +126,7 @@ function links(scope: AnalyticsScope) {
 }
 
 async function Kpis({ scope }: { scope: AnalyticsScope }) {
-  const k = (await loadReport(scope)).kpis;
+  const { kpis: k, free } = await loadReport(scope);
   const href = links(scope);
   const paid = href();
   const basis = DATE_BASIS_LABEL.money;
@@ -196,11 +196,10 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
       badgeTone: "brand",
     },
     {
-      label: "Card surcharge",
-      value: money(k.surcharge),
-      hint: `Charged on top of card payments, not revenue · ${basis}`,
-      href: paid,
-      badge: "Surcharge",
+      label: "Free tiffins",
+      value: money(free.amount),
+      hint: `${free.count} ${free.count === 1 ? "tiffin" : "tiffins"} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} on migrated orders not valued`,
+      badge: "Given away",
       badgeTone: "neutral",
     },
   ];
@@ -289,10 +288,25 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 };
 
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
-  const { discounts, kpis } = await loadReport(scope);
+  const { discounts, kpis, free } = await loadReport(scope);
+  const totals =
+    discounts.length > 0 || free.count > 0 ? (
+      <div className="flex flex-col gap-1.5 text-sm">
+        <div className="flex items-baseline justify-between">
+          <span className="text-muted-foreground">Free tiffins ({free.count})</span>
+          <span className="font-semibold tabular-nums">{money(free.amount)}</span>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-muted-foreground">Total given away</span>
+          <span className="font-semibold tabular-nums">{money(kpis.discounts + free.amount)}</span>
+        </div>
+      </div>
+    ) : null;
+  // BreakdownList shows only its empty state when it has no rows, so free tiffins alone render the totals directly.
+  if (discounts.length === 0 && totals) return totals;
   return (
     <BreakdownList
-      emptyLabel="No discounts in this range."
+      emptyLabel="No discounts or free tiffins in this range."
       rows={topWithOther(
         discounts.map((d: DiscountLine) => ({
           label: d.label,
@@ -302,14 +316,7 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
         "label",
         "amount",
       ).map((d) => ({ label: String(d.label), n: Number(d.amount), aside: money(Number(d.amount)), meta: d.meta == null ? undefined : String(d.meta) }))}
-      footer={
-        discounts.length > 0 ? (
-          <div className="flex items-baseline justify-between text-sm">
-            <span className="text-muted-foreground">Total</span>
-            <span className="font-semibold tabular-nums">{money(kpis.discounts)}</span>
-          </div>
-        ) : null
-      }
+      footer={totals}
     />
   );
 }

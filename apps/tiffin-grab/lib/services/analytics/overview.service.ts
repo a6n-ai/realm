@@ -10,6 +10,7 @@ import {
 } from "@/lib/analytics/trial-conversion";
 import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/services/orders.service";
 import { getComplaintDaily } from "./complaints.service";
+import { getProfitabilityReport } from "./profitability.service";
 import { getSignupDaily } from "./customers.service";
 import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
@@ -56,7 +57,7 @@ export type ScorecardRow = {
   skipped: number;
   signups: number;
   complaints: number;
-  /** Null until Profitability excludes WP-migrated tiffins (Task C5); the page shows a dash. */
+  /** Profitability's profit for the day (WP-migrated tiffins excluded). */
   profit: number | null;
   /** The Orders list for this day, current filters kept. */
   href: string;
@@ -82,13 +83,15 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
   if (eachDateInclusive(from, to).length > SCORECARD_MAX_DAYS) return null;
-  const [revenue, orderDays, deliveryDays, signups, complaints] = await Promise.all([
+  const [revenue, orderDays, deliveryDays, signups, complaints, profitReport] = await Promise.all([
     revenueBy(scope, "day"),
     getOrdersDaily(scope),
     getDeliveriesDaily(scope),
     getSignupDaily(scope),
     getComplaintDaily(scope),
+    getProfitabilityReport({ month: from.slice(0, 7), grain: "daily", scope }),
   ]);
+  const profitBy = new Map(profitReport.rows.map((r) => [r.date, r.profit]));
   const revenueByDay = new Map(revenue.map((r) => [r.key, r.net]));
   const ordersBy = new Map(orderDays.map((r) => [r.iso, r.n]));
   const deliveriesBy = new Map(deliveryDays.map((r) => [r.iso, r]));
@@ -107,7 +110,7 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
         skipped: d?.skipped ?? 0,
         signups: signupsBy.get(date) ?? 0,
         complaints: complaintsBy.get(date) ?? 0,
-        profit: null,
+        profit: profitBy.get(date) ?? 0,
         href: ordersDrillHref({ ...scope, fromMs: day.from, toMs: day.to }),
       };
     });

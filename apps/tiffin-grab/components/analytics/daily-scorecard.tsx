@@ -47,7 +47,6 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
   const router = useRouter();
   if (rows.length === 0) return <ChartEmpty message="No days in this range." />;
   const ranges = Object.fromEntries(COLUMNS.map((c) => [c.key, range(rows, c.key)]));
-  const profitMissing = rows.every((r) => r.profit === null);
   return (
     <div className="flex flex-col gap-3">
       <div className="max-h-[32rem] overflow-auto">
@@ -122,9 +121,6 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
           </TableBody>
         </Table>
       </div>
-      {profitMissing ? (
-        <p className="text-muted-foreground text-xs">Profit: coming with Profitability, which will leave WP-migrated tiffins out.</p>
-      ) : null}
     </div>
   );
 }
