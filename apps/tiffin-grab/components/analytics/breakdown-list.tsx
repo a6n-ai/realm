@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@foundry/ui/cn";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ListPagination } from "@/components/ds";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 
@@ -21,6 +22,8 @@ export type BreakdownRow = {
   active?: boolean;
   /** Dimmed styling for rows that are shown but excluded from the metrics. */
   muted?: boolean;
+  /** Hover detail for the row, for example the parts a folded row is made of. */
+  tip?: ReactNode;
 };
 
 /**
@@ -89,7 +92,20 @@ export function BreakdownList({
           );
           return (
             <li key={`${r.label}-${r.meta ?? ""}`}>
-              {r.href ? (
+              {r.tip ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div tabIndex={0} className="focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2">
+                        {body}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      {r.tip}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : r.href ? (
                 <Link
                   href={r.href}
                   className={cn(

@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments } from "@/db/schema";
+import { couponRedemptions, coupons, orders, payments } from "@/db/schema";
 import { eachDateInclusive, isoDateInZone, periodKey, round2 } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
@@ -44,6 +44,9 @@ async function settledOrderRows(scope: AnalyticsScope) {
       amount: sql<string>`sum(${payments.amount})`,
       orderTotal: orders.total,
       snapshot: orders.pricingSnapshot,
+      staffCodes: sql<string[] | null>`(
+        select array_agg(${coupons.code}) from ${couponRedemptions} inner join ${coupons} on ${coupons.id} = ${couponRedemptions.couponId}
+        where ${couponRedemptions.orderId} = ${orders.id} and ${coupons.kind} in ('rep_daily', 'rep_code'))`,
     })
     .from(payments)
     .innerJoin(orders, eq(payments.orderId, orders.id))
@@ -54,6 +57,7 @@ async function settledOrderRows(scope: AnalyticsScope) {
     amount: Number(r.amount),
     orderTotal: Number(r.orderTotal),
     snapshot: r.snapshot,
+    staffCodes: Array.isArray(r.staffCodes) ? r.staffCodes : [],
   }));
 }
 

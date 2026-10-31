@@ -76,7 +76,25 @@ describe("freeTiffins", () => {
     await free(noPrice.id, "2035-03-05");
     await free(migrated.id, "2035-03-05");
 
-    expect(await freeTiffins(scopeFor([org]), AFTER)).toEqual({ count: 5, valued: 3, notValued: 2, amount: 24.6 });
+    expect(await freeTiffins(scopeFor([org]), AFTER)).toMatchObject({ count: 5, valued: 3, notValued: 2, amount: 24.6 });
+  });
+
+  it("groups by trimmed reason and the groups sum to the headline", async () => {
+    const org = await makeOrg();
+    const o = await makeOrder(org, { total: 100, taxTotal: 0, tiffinCount: 10 });
+    await free(o.id, "2035-03-05", { note: "Apology" });
+    await free(o.id, "2035-03-06", { note: "  Apology " });
+    await free(o.id, "2035-03-07", { note: "Referral", units: 2 });
+    await free(o.id, "2035-03-08", { note: "   " });
+    await free(o.id, "2035-03-09", { note: "Apology", status: "paused" });
+    const r = await freeTiffins(scopeFor([org]), AFTER);
+    expect(r.byReason).toEqual([
+      { reason: "Apology", count: 2, amount: 20 },
+      { reason: "Referral", count: 2, amount: 20 },
+      { reason: "No reason given", count: 1, amount: 10 },
+    ]);
+    expect(r.byReason.reduce((s, x) => s + x.count, 0)).toBe(r.count);
+    expect(r.byReason.reduce((s, x) => s + x.amount, 0)).toBeCloseTo(r.amount, 2);
   });
 
   it("is scoped through the order's franchise", async () => {
@@ -88,7 +106,7 @@ describe("freeTiffins", () => {
     await free(ob.id, "2035-03-10");
     expect(await freeTiffins(scopeFor([a]), AFTER)).toMatchObject({ count: 1, amount: 10 });
     expect(await freeTiffins(scopeFor([b]), AFTER)).toMatchObject({ count: 1, amount: 5 });
-    expect(await freeTiffins(scopeFor([]), AFTER)).toEqual({ count: 0, valued: 0, notValued: 0, amount: 0 });
+    expect(await freeTiffins(scopeFor([]), AFTER)).toEqual({ count: 0, valued: 0, notValued: 0, amount: 0, byReason: [] });
   });
 
   it("counts only tiffins already given: delivery date up to today", async () => {

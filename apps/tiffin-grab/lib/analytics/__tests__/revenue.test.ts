@@ -21,6 +21,22 @@ function order(over: Partial<DiscountOrderRow> = {}): DiscountOrderRow {
 }
 
 describe("summarizeDiscounts", () => {
+  it("folds staff-issued codes into one line, keeping each code's amount", () => {
+    const snap = (code: string, amt: number) => ({
+      subtotal: 100,
+      taxTotal: 0,
+      adjustments: [{ label: `Staff discount (${code})`, amount: amt }],
+    });
+    const r = summarizeDiscounts([
+      order({ orderId: "1", amount: 90, orderTotal: 90, snapshot: snap("TG-AAA", 10), staffCodes: ["TG-AAA"] }),
+      order({ orderId: "2", amount: 95, orderTotal: 95, snapshot: snap("TG-BBB", 5), staffCodes: ["TG-BBB"] }),
+    ]);
+    expect(r.lines).toEqual([
+      { source: "staff", label: "Staff discounts", amount: 15, orders: 2, codes: [{ code: "TG-AAA", amount: 10 }, { code: "TG-BBB", amount: 5 }] },
+    ]);
+    expect(r.discounts).toBe(15);
+  });
+
   it("reports list price and discounts from the snapshot, keeping tax out", () => {
     const r = summarizeDiscounts([order()]);
     expect(r).toMatchObject({ listPrice: 200, discounts: 50, orders: 1 });

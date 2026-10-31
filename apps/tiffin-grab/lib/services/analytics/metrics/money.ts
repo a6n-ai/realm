@@ -166,7 +166,8 @@ export async function paymentsByStatus(scope: AnalyticsScope): Promise<PaymentSt
   return rows.map((r) => ({ status: String(r.status), count: n2(r.count), amount: n2(r.amount) }));
 }
 
-export type FreeTiffins = { count: number; valued: number; notValued: number; amount: number };
+export type FreeTiffinReason = { reason: string; count: number; amount: number };
+export type FreeTiffins = { count: number; valued: number; notValued: number; amount: number; byReason: FreeTiffinReason[] };
 
 // An order's per-tiffin price ex tax, from the snapshot it was sold at (add-ons applied later are taken back out).
 const snapNum = (key: string) => sql`coalesce((${orders.pricingSnapshot}->>${sql.raw(`'${key}'`)})::numeric, 0)`;
@@ -180,14 +181,15 @@ const FREE_VALUED = sql`(${snapNum("total")} > 0 and ${snapNum("tiffinCount")} >
  * per-tiffin price. No payment exists for them, so this is shown beside revenue, never inside it.
  */
 export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Promise<FreeTiffins> {
-  if (noOrgs(scope)) return { count: 0, valued: 0, notValued: 0, amount: 0 };
+  if (noOrgs(scope)) return { count: 0, valued: 0, notValued: 0, amount: 0, byReason: [] };
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = [isoDateInZone(scope.toMs, scope.tz), isoDateInZone(now, scope.tz)].sort()[0]!;
-  const [r] = rowsOf(
+  const rows = rowsOf(
     await db.execute(sql`
-      select coalesce(sum(${deliveries.tiffinUnits}), 0)::int::text as count,
+      select trim(${deliveries.complimentaryNote}) as reason,
+        coalesce(sum(${deliveries.tiffinUnits}), 0)::int::text as count,
         (coalesce(sum(${deliveries.tiffinUnits}) filter (where ${FREE_VALUED}), 0))::int::text as valued,
-        round(coalesce(sum(case when ${FREE_VALUED} then ${deliveries.tiffinUnits}::numeric * ${FREE_PRICE} end), 0), 2)::text as amount
+        coalesce(sum(case when ${FREE_VALUED} then ${deliveries.tiffinUnits}::numeric * ${FREE_PRICE} end), 0)::text as amount
       from ${deliveries} inner join ${orders} on ${orders.id} = ${deliveries.orderId}
       where ${and(
         sql`${deliveries.complimentaryNote} is not null`,
@@ -195,9 +197,14 @@ export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Prom
         sql`${deliveries.deliveryDate} >= ${from}`,
         sql`${deliveries.deliveryDate} <= ${to}`,
         ordersScope(scope),
-      )}`),
+      )}
+      group by 1`),
   );
-  const count = n2(r.count);
-  const valued = n2(r.valued);
-  return { count, valued, notValued: count - valued, amount: n2(r.amount) };
+  // Summed unrounded and rounded once, so the headline equals the old single-query figure; reasons are rounded per row.
+  const count = rows.reduce((s, r) => s + n2(r.count), 0);
+  const valued = rows.reduce((s, r) => s + n2(r.valued), 0);
+  const byReason = rows
+    .map((r) => ({ reason: r.reason || "No reason given", count: n2(r.count), amount: Math.round(n2(r.amount) * 100) / 100 }))
+    .sort((a, b) => b.count - a.count || b.amount - a.amount || a.reason.localeCompare(b.reason));
+  return { count, valued, notValued: count - valued, amount: Math.round(rows.reduce((s, r) => s + n2(r.amount), 0) * 100) / 100, byReason };
 }

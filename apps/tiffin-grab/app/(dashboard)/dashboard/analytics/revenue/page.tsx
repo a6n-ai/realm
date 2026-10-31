@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/purity */
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
@@ -17,6 +18,7 @@ import { clockInZone, isoDateInZone } from "@/lib/analytics/profitability";
 import { topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
+import type { BreakdownRow } from "@/components/analytics/breakdown-list";
 import { NeedsReview } from "./needs-review";
 
 function money(n: number) {
@@ -86,24 +88,37 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
             <Owed scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Payments by status" subtitle={`Every payment ${DATE_BASIS_LABEL.money}, by amount.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <Statuses scope={scope} />
-          </Suspense>
+        <ChartCard title="Payments" subtitle={`Every payment ${DATE_BASIS_LABEL.money}, by amount. Methods show net revenue, ex tax & surcharge.`}>
+          <Tabs defaultValue="status" className="gap-4">
+            <TabsList>
+              <TabsTrigger value="status">By status</TabsTrigger>
+              <TabsTrigger value="method">By method</TabsTrigger>
+            </TabsList>
+            <TabsContent value="status">
+              <Suspense fallback={<ChartSkeleton />}>
+                <Statuses scope={scope} />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value="method">
+              <Suspense fallback={<ChartSkeleton />}>
+                <MethodChart scope={scope} />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="By payment method" subtitle={`Net revenue, ex tax & surcharge, ${DATE_BASIS_LABEL.money}.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <MethodChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Given away: discounts & free tiffins" subtitle="Discounts across settled orders, and free tiffins by delivery date. Not taken off net revenue.">
+        <ChartCard title="Discounts given" subtitle="Across settled orders in this range.">
           <Suspense fallback={<ChartSkeleton />}>
             <Discounts scope={scope} />
           </Suspense>
         </ChartCard>
+        <ChartBoundary>
+          <Suspense fallback={<ChartCard title="Free tiffins"><ChartSkeleton /></ChartCard>}>
+            <FreeTiffinsCard scope={scope} />
+          </Suspense>
+        </ChartBoundary>
       </div>
     </div>
   );
@@ -284,39 +299,80 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
   catalog: "Plan discount",
   coupon: "Coupon",
   coins: "Wallet",
+  staff: "Coupon",
   other: "Discount",
 };
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
-  const { discounts, kpis, free } = await loadReport(scope);
-  const totals =
-    discounts.length > 0 || free.count > 0 ? (
-      <div className="flex flex-col gap-1.5 text-sm">
-        <div className="flex items-baseline justify-between">
-          <span className="text-muted-foreground">Free tiffins ({free.count})</span>
-          <span className="font-semibold tabular-nums">{money(free.amount)}</span>
-        </div>
-        <div className="flex items-baseline justify-between">
-          <span className="text-muted-foreground">Total given away</span>
-          <span className="font-semibold tabular-nums">{money(kpis.discounts + free.amount)}</span>
-        </div>
-      </div>
-    ) : null;
-  // BreakdownList shows only its empty state when it has no rows, so free tiffins alone render the totals directly.
-  if (discounts.length === 0 && totals) return totals;
+  const { discounts, kpis } = await loadReport(scope);
+  const staff = discounts.find((d) => d.source === "staff");
   return (
     <BreakdownList
-      emptyLabel="No discounts or free tiffins in this range."
+      emptyLabel="No discounts in this range."
       rows={topWithOther(
         discounts.map((d: DiscountLine) => ({
           label: d.label,
           amount: d.amount,
-          meta: `${SOURCE_LABEL[d.source]} · ${d.orders} ${d.orders === 1 ? "order" : "orders"}`,
+          meta: `${SOURCE_LABEL[d.source]} · ${plural(d.orders, "order", "orders")}${d.codes ? ` · ${plural(d.codes.length, "code", "codes")}` : ""}`,
         })),
         "label",
         "amount",
-      ).map((d) => ({ label: String(d.label), n: Number(d.amount), aside: money(Number(d.amount)), meta: d.meta == null ? undefined : String(d.meta) }))}
-      footer={totals}
+      ).map(
+        (d): BreakdownRow => ({
+          label: String(d.label),
+          n: Number(d.amount),
+          aside: money(Number(d.amount)),
+          meta: d.meta == null ? undefined : String(d.meta),
+          tip:
+            staff && d.label === staff.label && staff.codes ? (
+              <ul className="flex flex-col gap-1">
+                {staff.codes.map((c) => (
+                  <li key={c.code} className="flex items-baseline justify-between gap-4 tabular-nums">
+                    <span>{c.code}</span>
+                    <span>{money(c.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : undefined,
+        }),
+      )}
+      footer={
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="text-muted-foreground">Total discounts</span>
+          <span className="font-semibold tabular-nums">{money(kpis.discounts)}</span>
+        </div>
+      }
     />
+  );
+}
+
+const NO_REASON = "No reason given";
+
+async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
+  const { free } = await loadReport(scope);
+  // Already ranked by count; fold the tail like topWithOther, keeping its count and value together.
+  const head = free.byReason.length <= 9 ? free.byReason : free.byReason.slice(0, 8);
+  const rest = free.byReason.length <= 9 ? [] : free.byReason.slice(8);
+  const rows = rest.length
+    ? [...head, { reason: "Other", count: rest.reduce((s, r) => s + r.count, 0), amount: Math.round(rest.reduce((s, r) => s + r.amount, 0) * 100) / 100 }]
+    : head;
+  return (
+    <ChartCard
+      title="Free tiffins"
+      subtitle={`${plural(free.count, "tiffin", "tiffins")} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`}
+      action={<span className="text-sm font-semibold tabular-nums">{money(free.amount)}</span>}
+    >
+      <BreakdownList
+        emptyLabel="No free tiffins in this range."
+        rows={rows.map((r) => ({
+          label: r.reason || NO_REASON,
+          n: r.count,
+          aside: r.amount > 0 ? money(r.amount) : "Not valued",
+          meta: plural(r.count, "tiffin", "tiffins"),
+        }))}
+      />
+    </ChartCard>
   );
 }

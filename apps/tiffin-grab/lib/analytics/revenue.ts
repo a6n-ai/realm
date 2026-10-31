@@ -61,9 +61,10 @@ export function presentPaymentStatuses(
     .sort((a, b) => rank(a.status) - rank(b.status) || a.label.localeCompare(b.label));
 }
 
-export type DiscountSource = "catalog" | "coupon" | "coins" | "other";
+export type DiscountSource = "catalog" | "coupon" | "coins" | "staff" | "other";
 
-export type DiscountLine = { source: DiscountSource; label: string; amount: number; orders: number };
+/** `codes` lists the staff codes folded into a "staff" line, largest first. */
+export type DiscountLine = { source: DiscountSource; label: string; amount: number; orders: number; codes?: { code: string; amount: number }[] };
 
 export type RevenueKpis = {
   /** Captured payments before refunds, including tax (surcharge excluded). */
@@ -159,6 +160,8 @@ export function methodLabel(method: string): string {
   return METHOD_LABELS[method] ?? method;
 }
 
+const STAFF_LABEL = "Staff discounts";
+
 function classifyAdjustment(line: { label: string; catalog: boolean }): { source: DiscountSource; label: string } {
   if (line.catalog) return { source: "catalog", label: line.label };
   if (/^coins\b/i.test(line.label)) return { source: "coins", label: "Coins redeemed" };
@@ -185,6 +188,8 @@ export type DiscountOrderRow = {
   amount: number;
   orderTotal: number;
   snapshot: unknown;
+  /** Codes of staff-issued coupons (rep_code / rep_daily) redeemed on this order, from coupon_redemptions. */
+  staffCodes?: string[];
 };
 
 /** One row per order: its settled payments in range carry their share of the order's snapshot. */
@@ -208,23 +213,42 @@ export function summarizeDiscounts(rows: DiscountOrderRow[]): {
     listPrice += payGross;
     discounts += effective;
     if (effective <= 0) continue;
-    const parts = snap.adjustments.map((a) => ({ ...classifyAdjustment(a), weight: a.amount * share }));
+    const staffCodes = r.staffCodes ?? [];
+    const parts = snap.adjustments.map((a) => {
+      const code = staffCodes.find((c) => a.label.endsWith(`(${c})`));
+      return { ...(code ? { source: "staff" as const, label: STAFF_LABEL } : classifyAdjustment(a)), code, weight: a.amount * share };
+    });
     const amounts = apportion(effective, parts.map((part) => part.weight));
-    const add = (source: DiscountSource, label: string, amount: number) => {
+    const seen = new Set<string>();
+    const add = (source: DiscountSource, label: string, amount: number, code?: string) => {
       if (amount <= 0) return;
       const key = `${source}:${label}`;
       const line = lines.get(key) ?? { source, label, amount: 0, orders: 0 };
       line.amount += amount;
-      line.orders += 1;
+      if (!seen.has(key)) {
+        line.orders += 1;
+        seen.add(key);
+      }
+      if (code) {
+        line.codes ??= [];
+        const c = line.codes.find((x) => x.code === code);
+        if (c) c.amount += amount;
+        else line.codes.push({ code, amount });
+      }
       lines.set(key, line);
     };
     if (amounts.length === 0) add("other", "Discount", effective);
-    else parts.forEach((part, i) => add(part.source, part.label, amounts[i] ?? 0));
+    else parts.forEach((part, i) => add(part.source, part.label, amounts[i] ?? 0, part.code));
   }
   return {
     listPrice: round2(listPrice),
     discounts: round2(discounts),
-    lines: [...lines.values()].map((l) => ({ ...l, amount: round2(l.amount) })).sort((a, b) => b.amount - a.amount),
+    lines: [...lines.values()]
+      .map((l) => ({
+        ...l,
+        amount: round2(l.amount),
+        ...(l.codes ? { codes: l.codes.map((c) => ({ ...c, amount: round2(c.amount) })).sort((a, b) => b.amount - a.amount) } : {}),
+      })).sort((a, b) => b.amount - a.amount),
     orders: rows.length,
   };
 }
