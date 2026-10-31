@@ -6,15 +6,8 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate, users } from "@/db/schema";
-import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
-import {
-  awardCustomerBroadcast,
-  listOrderCities,
-  listPayoutCandidates,
-  type PayoutCandidate,
-  type PayoutCandidateFilters,
-} from "@/lib/services/customer-payouts.service";
+import { awardCustomerBroadcast } from "@/lib/services/customer-payouts.service";
 
 const PATH = "/dashboard/wallet";
 
@@ -33,37 +26,7 @@ export async function saveCoinRate(input: unknown) {
   revalidatePath(PATH, "layout");
 }
 
-// ---------- Customer Payouts: filter-driven, one-off bulk broadcast ----------
-
-export async function searchAccounts(query: string) {
-  await requireAdmin();
-  return searchCustomers(query);
-}
-
-export async function getOrderCities(): Promise<string[]> {
-  await requireAdmin();
-  return listOrderCities();
-}
-
-const payoutFiltersSchema = z.object({
-  accountPublicId: z.string().trim().min(1).nullish(),
-  revenueOp: z.enum([">", "<", "="]).nullish(),
-  revenueValue: z.number().nullish(),
-  startDateFrom: z.string().trim().min(1).nullish(),
-  startDateTo: z.string().trim().min(1).nullish(),
-  city: z.string().trim().min(1).nullish(),
-  lastTiffinFrom: z.string().trim().min(1).nullish(),
-  lastTiffinTo: z.string().trim().min(1).nullish(),
-  lapsed: z.boolean().nullish(),
-  lapsedFrom: z.string().trim().min(1).nullish(),
-  lapsedTo: z.string().trim().min(1).nullish(),
-});
-
-export async function getPayoutCandidates(input: unknown): Promise<{ rows: PayoutCandidate[]; total: number }> {
-  await requireAdmin();
-  const filters = payoutFiltersSchema.parse(input) satisfies PayoutCandidateFilters;
-  return listPayoutCandidates(filters);
-}
+// ---------- Customer Payouts: one-off bulk broadcast ----------
 
 const broadcastSchema = z.object({
   userPublicIds: z.array(z.string().trim().min(1)).min(1),

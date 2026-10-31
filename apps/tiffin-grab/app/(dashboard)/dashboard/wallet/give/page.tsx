@@ -1,14 +1,13 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
 import { parseFilterState } from "@/components/ds";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
-import { GiveCoinsWizard } from "./give-coins-wizard";
 import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -16,20 +15,18 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <GiveCoinsData searchParams={searchParams} />
-      </Suspense>
+      <div className="flex flex-col items-start gap-2">
+        <h2 className="text-base font-semibold">Give coins</h2>
+        <p className="text-muted-foreground text-sm">Coins are given to a customer group. Pick or create a group, then give each member coins from its page.</p>
+        <Button asChild>
+          <Link href="/dashboard/customer-groups">Give coins to a group</Link>
+        </Button>
+      </div>
       <Suspense fallback={<WalletLedgerTableSkeleton />}>
         <GrantHistory searchParams={searchParams} />
       </Suspense>
     </div>
   );
-}
-
-async function GiveCoinsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-  const [cities, sp] = await Promise.all([listOrderCities(), searchParams]);
-  return <GiveCoinsWizard cities={cities} maxRows={MAX_REVIEW_ROWS} initialGroup={sp.group ?? null} />;
 }
 
 // Every past Give coins grant, with the staff member who saved it. Grants never

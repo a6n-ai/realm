@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
 import type { Filter } from "@/components/reui/filters";
@@ -8,32 +9,45 @@ import { SectionCard } from "@/components/ds";
 import { AccountSearch } from "./account-search";
 import { FindStep } from "./steps/find-step";
 import { ReviewStep, toCandidate } from "./steps/review-step";
+import { SaveStep } from "./steps/save-step";
+import { createGroupAction } from "../actions";
 import type { Candidate } from "./types";
 
-const STEPS = ["Find", "Review"] as const;
+const STEPS = ["Find", "Review", "Save"] as const;
 
-export function GiveCoinsWizard({
+export function NewGroupWizard({
   cities,
   maxRows,
-  initialGroup: _initialGroup,
 }: {
   cities: string[];
   maxRows: number;
-  initialGroup: string | null;
 }) {
+  const router = useRouter();
   const [step, setStep] = React.useState(1);
   const [filters, setFilters] = React.useState<Filter<string>[]>([]);
-  const [, setPayload] = React.useState<Record<string, unknown>>({});
+  const [payload, setPayload] = React.useState<Record<string, unknown>>({});
   const [rows, setRows] = React.useState<Candidate[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
 
-  // Task 3 replaces this wizard with the customer-groups flow; the coins/summary steps are gone until then.
-  const goCoins = () => setStep(2);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const save = async (name: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { publicId } = await createGroupAction({ name, filters: payload, userPublicIds: [...selected] });
+      router.push(`/dashboard/customer-groups/${publicId}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the group");
+      setSaving(false);
+    }
+  };
 
   return (
     <SectionCard
-      title="Give coins"
-      subtitle="Find customers, review who is included, then give each of them coins. Running the same filters again pays again."
+      title="New group"
+      subtitle="Find customers, review who is included, then save them as a group you can give coins, email or offer a coupon to."
     >
       <div className="flex flex-col gap-6">
         <Stepper value={step} onValueChange={setStep} indicators={{ completed: <CheckIcon className="size-4" aria-hidden /> }}>
@@ -60,7 +74,7 @@ export function GiveCoinsWizard({
                   setRows([toCandidate(a)]);
                   setSelected(new Set([a.publicId]));
                   setPayload({ accountPublicId: a.publicId });
-                  goCoins();
+                  setStep(2);
                 }}
               />
             </div>
@@ -92,8 +106,12 @@ export function GiveCoinsWizard({
               setSelected((s) => new Set(s).add(c.publicId));
             }}
             onBack={() => setStep(1)}
-            onNext={goCoins}
+            onNext={() => setStep(3)}
           />
+        )}
+
+        {step === 3 && (
+          <SaveStep count={selected.size} saving={saving} error={error} onBack={() => setStep(2)} onSave={save} />
         )}
       </div>
     </SectionCard>
