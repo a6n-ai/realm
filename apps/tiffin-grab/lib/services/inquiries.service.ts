@@ -472,9 +472,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async listNew(visible: "all" | string[], limit: number) {
     if (visible !== "all" && visible.length === 0) return [];
     return db
-      .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, source: leadSources.label, createdAt: inquiries.createdAt })
+      .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, source: sql<string>`coalesce(${leadSources.label}, 'No source')`, createdAt: inquiries.createdAt })
       .from(inquiries)
-      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      // Left join: an inquiry with no source still counts in countNew, so it must list too.
+      .leftJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
       .where(newWhere(visible))
       .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
       .limit(limit);
