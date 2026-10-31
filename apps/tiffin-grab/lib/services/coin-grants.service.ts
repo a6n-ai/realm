@@ -167,7 +167,7 @@ export async function listCoinGrantGroups(page: {
       .leftJoin(giver, eq(giver.id, coinGrantGroups.createdBy))
       .orderBy(desc(coinGrantGroups.createdAt))
       .limit(page.size)
-      .offset((Math.max(page.page, 1) - 1) * page.size),
+      .offset(page.page * page.size),
     db.select({ n: sql<number>`count(*)::int` }).from(coinGrantGroups),
   ]);
   return { rows, total: n };

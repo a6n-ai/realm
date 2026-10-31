@@ -20,7 +20,7 @@ export function CreateGrantEmailButton({ groupId, size }: { groupId: string; siz
     });
   return (
     <Button size={size} onClick={run} disabled={busy}>
-      {busy ? "Working..." : "Create email"}
+      {busy ? "Working..." : "Send email"}
     </Button>
   );
 }
