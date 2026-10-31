@@ -2,17 +2,13 @@ import "server-only";
 import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
-import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { CAPTURED, SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { WP_MIGRATED } from "./migrated";
 import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 
 export const SETTLED = SETTLED_STATUSES;
-type PaymentStatus = (typeof payments.status.enumValues)[number];
-// A full refund flips the payment to 'refunded' and also writes a ledger refund row. Revenue counts
-// every captured payment and subtracts the ledger, so a refunded payment must stay in the gross side
-// or its refund would be deducted from nothing.
-export const CAPTURED: PaymentStatus[] = [...SETTLED_STATUSES, "refunded"];
+export { CAPTURED };
 
 /** The date money moved: capture, else row creation (same fallback the payments list uses). */
 export const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
@@ -179,14 +175,14 @@ const FREE_PRICE = sql`((${snapNum("total")} - ${snapNum("taxTotal")} - ${applie
 const FREE_VALUED = sql`(${snapNum("total")} > 0 and ${snapNum("tiffinCount")} > 0 and not ${WP_MIGRATED})`;
 
 /**
- * Complimentary tiffins given (scheduled deliveries; paused or skipped ones are on hold, cancelled never went) counted in
- * units and dated by delivery date, valued at the order's
+ * Complimentary tiffins given (scheduled deliveries up to today; later ones are not given yet, paused or skipped ones are
+ * on hold, cancelled never went) counted in units and dated by delivery date, valued at the order's
  * per-tiffin price. No payment exists for them, so this is shown beside revenue, never inside it.
  */
-export async function freeTiffins(scope: AnalyticsScope): Promise<FreeTiffins> {
+export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Promise<FreeTiffins> {
   if (noOrgs(scope)) return { count: 0, valued: 0, notValued: 0, amount: 0 };
   const from = isoDateInZone(scope.fromMs, scope.tz);
-  const to = isoDateInZone(scope.toMs, scope.tz);
+  const to = [isoDateInZone(scope.toMs, scope.tz), isoDateInZone(now, scope.tz)].sort()[0]!;
   const [r] = rowsOf(
     await db.execute(sql`
       select coalesce(sum(${deliveries.tiffinUnits}), 0)::int::text as count,

@@ -1,4 +1,4 @@
-import { calendarWeeks } from "@/components/analytics/chart-math";
+import { calendarWeeks } from "./calendar";
 import type { ProfitRow } from "@/lib/analytics/profitability";
 
 /**

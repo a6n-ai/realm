@@ -6,7 +6,6 @@ import {
   tickEvery,
   truncateLabel,
   foldParts,
-  funnelStages,
   heatBucket,
   heatIsDense,
   positionalConfig,
@@ -57,22 +56,6 @@ describe("foldParts", () => {
   });
   it("is empty for all-zero input", () => {
     expect(foldParts([{ label: "a", value: 0 }])).toEqual([]);
-  });
-});
-
-describe("funnelStages", () => {
-  it("keeps order and computes % kept from the previous stage", () => {
-    const s = funnelStages([
-      { label: "Lead", value: 200 },
-      { label: "Trial", value: 50 },
-      { label: "Plan", value: 20 },
-    ]);
-    expect(s.map((x) => x.label)).toEqual(["Lead", "Trial", "Plan"]);
-    expect(s.map((x) => x.kept)).toEqual([null, 25, 40]);
-    expect(s.map((x) => x.width)).toEqual([100, 25, 10]);
-  });
-  it("survives a zero previous stage", () => {
-    expect(funnelStages([{ label: "a", value: 0 }, { label: "b", value: 3 }])[1]!.kept).toBeNull();
   });
 });
 

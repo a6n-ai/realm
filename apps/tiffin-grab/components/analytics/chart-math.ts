@@ -62,21 +62,6 @@ export function foldParts(input: Part[], max = 5): SharedPart[] {
   }));
 }
 
-export type FunnelStage = { label: string; value: number; kept: number | null; width: number };
-
-/** Stages stay in the order given. `kept` is the % of the previous stage; width is relative to the first. */
-export function funnelStages(input: { label: string; value: number }[]): FunnelStage[] {
-  const base = input[0]?.value ?? 0;
-  return input.map((s, i) => {
-    const prev = input[i - 1]?.value;
-    return {
-      ...s,
-      kept: i === 0 || !prev ? null : Math.round((s.value / prev) * 100),
-      width: base > 0 ? Math.max(0, Math.min(100, (s.value / base) * 100)) : 0,
-    };
-  });
-}
-
 export const HEAT_STEPS = 5;
 
 /** 0 for an empty cell, else 1..steps by position between min and max. */
@@ -169,31 +154,4 @@ export function trailingAverage(values: number[], window = 7): number[] {
   });
 }
 
-/** Monday = 0 … Sunday = 6 for a YYYY-MM-DD calendar day. */
-export function mondayIndex(iso: string): number {
-  return (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
-}
-
-const addDays = (iso: string, n: number) => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-
-/**
- * Mon–Sun rows covering `from`..`to` (inclusive calendar days, already in the app timezone).
- * Days outside the range are null, so a month starting on a Thursday has blank Mon–Wed cells.
- */
-export function calendarWeeks(from: string, to: string): (string | null)[][] {
-  if (from > to) return [];
-  const weeks: (string | null)[][] = [];
-  let cursor = addDays(from, -mondayIndex(from));
-  while (cursor <= to) {
-    weeks.push(Array.from({ length: 7 }, (_, i) => {
-      const day = addDays(cursor, i);
-      return day >= from && day <= to ? day : null;
-    }));
-    cursor = addDays(cursor, 7);
-  }
-  return weeks;
-}
+export { calendarWeeks, mondayIndex } from "@/lib/analytics/calendar";

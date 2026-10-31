@@ -173,6 +173,9 @@ export async function getProfitabilityReport(opts: {
   );
 
   const rows = rollup(daily, grain);
+  // Per-day views stop at today; the monthly costs are still spread over the whole range, so the KPIs below use every row.
+  const today = isoDateInZone(now, timezone);
+  const shown = rows.filter((r) => r.date <= today);
   // Equal to the Revenue tab's Net collected by construction, not a sum of rounded days.
   const stats = { ...kpis(rows), cashCollected: round2(totals.gross - totals.refundsExSurcharge) };
   return {
@@ -182,11 +185,11 @@ export async function getProfitabilityReport(opts: {
     to,
     assumptions,
     kpis: stats,
-    rows,
+    rows: shown,
     costParts: costBreakdown(rows),
     migratedTiffinsExcluded: Number(migrated?.n ?? 0),
     migratedAddonPayments: Number(migratedAddons?.n ?? 0),
-    trend: rows.map((r) => ({
+    trend: shown.map((r) => ({
       ...chartPeriod(r.date, grain),
       profit: r.profit,
       revenue: r.revenue,

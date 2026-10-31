@@ -50,7 +50,6 @@ import {
   calendarWeeks,
   chartColor as tokenColor,
   foldParts,
-  funnelStages,
   heatBucket,
   heatOpacity,
   HEAT_STEPS,
@@ -125,14 +124,12 @@ function EmptyChart() {
   return <ChartEmpty message="No data in this range." />;
 }
 
-/** c-chart-13: gradient area. Several series share the composition. */
+/** c-chart-13: gradient area; at day grain (`average`) a light area plus a bold trailing 7-day line. */
 export function TrendLineChart({
   data,
   xKey,
   yKey,
   label = "Value",
-  series,
-  mode = "area",
   format = "number",
   height = 240,
   average = false,
@@ -140,35 +137,21 @@ export function TrendLineChart({
 }: {
   data: Row[];
   xKey: string;
-  yKey?: string;
-  /** Single `yKey` only, daily grain: a light area of the values plus a bold trailing 7-day average line. */
+  yKey: string;
+  /** Daily grain: a light area of the values plus a bold trailing 7-day average line. */
   average?: boolean;
   /** Row field with the long date shown in the tooltip heading ("Sat, Oct 3"). */
   tipKey?: string;
-  /** "line" draws plain 2px lines (use for 2 series sharing one axis); keyed by position. */
-  mode?: "area" | "line";
-  /** Series name for the single-`yKey` form (tooltip, legend). */
+  /** Series name (tooltip). */
   label?: string;
-  /** Several named series; takes precedence over `yKey`. */
-  series?: { key: string; label: string }[];
   format?: ValueFormat;
   height?: number;
 }) {
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
-  const lines = series ?? (yKey ? [{ key: yKey, label }] : []);
-  if (average && yKey && !series)
+  const lines = [{ key: yKey, label }];
+  if (average)
     return <AverageTrend data={data} xKey={xKey} yKey={yKey} label={label} format={format} height={height} tipKey={tipKey} />;
-  if (mode === "line")
-    return (
-      <SeriesLines
-        data={data}
-        xKey={xKey}
-        series={lines}
-        format={format}
-        height={height}
-      />
-    );
   const config = Object.fromEntries(
     lines.map((l) => [l.key, { label: l.label }]),
   ) satisfies ChartConfig;
@@ -229,9 +212,6 @@ export function TrendLineChart({
             strokeWidth={2}
           />
         ))}
-        {lines.length > 1 ? (
-          <ChartLegend content={<ChartLegendContent />} />
-        ) : null}
       </AreaChart>
     </ChartContainer>
   );
@@ -283,103 +263,6 @@ function AverageTrend({
         <Area dataKey="s0" name={label} type="monotone" fill={chartColor(0)} fillOpacity={0.18} stroke={chartColor(0)} strokeOpacity={0.35} strokeWidth={1} />
         <Area dataKey="s1" name="7-day average" type="monotone" fill="none" stroke={chartColor(0)} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
       </AreaChart>
-    </ChartContainer>
-  );
-}
-
-function SeriesLines({
-  data,
-  xKey,
-  series,
-  format,
-  height,
-}: {
-  data: Row[];
-  xKey: string;
-  series: { key: string; label: string }[];
-  format: ValueFormat;
-  height: number;
-}) {
-  const { rows, keys } = keySeries(data, series);
-  const config = positionalConfig(series) satisfies ChartConfig;
-  const hasNegative = rows.some((r) => keys.some((k) => Number(r[k]) < 0));
-  const last = rows.length - 1;
-  // Direct labels collide when the series end close together; the legend still names them.
-  const ends = keys.map((k) => Number(rows[last]?.[k]) || 0);
-  const all = rows.flatMap((r) => keys.map((k) => Number(r[k]) || 0));
-  const range =
-    Math.max(...all) - Math.min(hasNegative ? Math.min(...all) : 0, ...all) ||
-    1;
-  const labelEnds =
-    keys.length < 2 || (Math.max(...ends) - Math.min(...ends)) / range >= 0.08;
-  return (
-    <ChartContainer
-      config={config}
-      className="aspect-auto w-full"
-      style={{ height }}
-    >
-      <LineChart
-        accessibilityLayer
-        data={rows}
-        margin={{ top: 20, right: 56, bottom: 0, left: 0 }}
-      >
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis
-          dataKey={xKey}
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={24}
-        />
-        <YAxis hide domain={[hasNegative ? "auto" : 0, "auto"]} />
-        <ChartTooltip
-          cursor={false}
-          content={
-            <ChartTooltipContent
-              indicator="dot"
-              className="min-w-40 gap-2.5"
-              labelFormatter={headerLabel}
-              formatter={valueFormatter(format)}
-            />
-          }
-        />
-        {series.map((s, i) => (
-          <Line
-            key={keys[i]}
-            dataKey={keys[i]}
-            name={s.label}
-            type="monotone"
-            stroke={tokenColor(i)}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-            label={({
-              index,
-              x,
-              y,
-            }: {
-              index?: number;
-              x?: string | number;
-              y?: string | number;
-            }) =>
-              labelEnds && index === last ? (
-                <text
-                  key={keys[i]}
-                  x={Number(x) + 6}
-                  y={Number(y)}
-                  dominantBaseline="middle"
-                  className="fill-muted-foreground text-xs"
-                >
-                  {s.label.length > 10 ? `${s.label.slice(0, 9)}…` : s.label}
-                </text>
-              ) : (
-                <g key={`${keys[i]}-${index}`} />
-              )
-            }
-          />
-        ))}
-        <ChartLegend content={<ChartLegendContent />} />
-      </LineChart>
     </ChartContainer>
   );
 }
@@ -612,74 +495,6 @@ function donutCentre(total: number, format: ValueFormat, caption: string) {
   );
 }
 
-/** c-chart-2: two or more series side by side. */
-export function GroupedBarChart({
-  data,
-  xKey,
-  series,
-  format = "number",
-  height = 240,
-  legend = false,
-}: {
-  data: Row[];
-  xKey: string;
-  series: { key: string; label: string }[];
-  /** Name the series even when there is only one. */
-  legend?: boolean;
-  format?: ValueFormat;
-  height?: number;
-}) {
-  if (data.length === 0) return <EmptyChart />;
-  const { rows } = keySeries(data, series);
-  const config = Object.fromEntries(
-    series.map((s, i) => [
-      seriesKey(i),
-      { label: s.label, color: chartColor(i) },
-    ]),
-  ) satisfies ChartConfig;
-  return (
-    <ChartContainer
-      config={config}
-      className="aspect-auto w-full"
-      style={{ height }}
-    >
-      <BarChart accessibilityLayer data={rows}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey={xKey}
-          tickLine={false}
-          tickMargin={10}
-          axisLine={false}
-          minTickGap={24}
-        />
-        <ChartTooltip
-          cursor={false}
-          content={
-            <ChartTooltipContent
-              indicator="dot"
-              className="min-w-40 gap-2.5"
-              labelFormatter={headerLabel}
-              formatter={valueFormatter(format)}
-            />
-          }
-        />
-        {series.map((s, i) => (
-          <Bar
-            key={seriesKey(i)}
-            dataKey={seriesKey(i)}
-            name={s.label}
-            fill={chartColor(i)}
-            radius={4}
-          />
-        ))}
-        {legend || series.length > 1 ? (
-          <ChartLegend content={<ChartLegendContent />} />
-        ) : null}
-      </BarChart>
-    </ChartContainer>
-  );
-}
-
 /** c-chart-25: one radial bar on a 0-100 track with the % in the centre. Values are percentages. */
 export function RadialRateChart({
   data,
@@ -697,9 +512,8 @@ export function RadialRateChart({
 }) {
   if (data.length === 0) return <EmptyChart />;
   const rows = data.map((r, i): Row => ({ ...r, fill: chartColor(i) }));
-  const config = Object.fromEntries(
-    rows.map((r) => [String(r[nameKey]), { label: String(r[nameKey] ?? "") }]),
-  ) satisfies ChartConfig;
+  const config = positionalConfig(rows.map((r) => ({ label: String(r[nameKey] ?? "") }))) satisfies ChartConfig;
+  const tip = valueFormatter("number", "%");
   return (
     <div className="relative mx-auto aspect-square" style={{ height }}>
       <ChartContainer config={config} className="aspect-square h-full w-full">
@@ -715,8 +529,7 @@ export function RadialRateChart({
             content={
               <ChartTooltipContent
                 className="min-w-40 gap-2.5"
-                nameKey={nameKey}
-                formatter={valueFormatter("number", "%")}
+                formatter={(v, _name, item, i, payload) => tip(v, String(item?.payload?.[nameKey] ?? ""), item, i, payload)}
               />
             }
           />
@@ -939,65 +752,6 @@ export function PartsDonut({
   );
 }
 
-/** Ordered stages (not sorted) as horizontal bars on one baseline, with the % kept from the stage before. */
-export function FunnelChart({
-  stages,
-  format = "number",
-}: {
-  stages: { label: string; value: number }[];
-  format?: ValueFormat;
-}) {
-  if (stages.length === 0 || stages.every((s) => s.value <= 0))
-    return <EmptyChart />;
-  const rows = funnelStages(stages);
-  return (
-    <TooltipProvider>
-      <ul className="flex flex-col gap-2" aria-label="Funnel">
-        {rows.map((r, i) => (
-          <li key={`${r.label}-${i}`} className="flex flex-col gap-1">
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="truncate">{r.label}</span>
-              <span className="flex items-baseline gap-2">
-                <span className="font-semibold tabular-nums">
-                  {formatValue(r.value, format)}
-                </span>
-                {r.kept !== null ? (
-                  <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
-                    {fmtPct(r.kept)} kept
-                  </span>
-                ) : null}
-              </span>
-            </div>
-            {(() => {
-              const text = `${r.label}: ${formatValue(r.value, format)}${r.kept !== null ? ` (${r.kept}% kept)` : ""}`;
-              return (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      tabIndex={0}
-                      aria-label={text}
-                      className="bg-muted focus-visible:ring-ring/50 h-3 w-full overflow-hidden rounded-sm outline-none focus-visible:ring-2"
-                    >
-                      <div
-                        className="h-full rounded-sm"
-                        style={{
-                          width: `${r.width}%`,
-                          background: tokenColor(0),
-                        }}
-                      />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>{text}</TooltipContent>
-                </Tooltip>
-              );
-            })()}
-          </li>
-        ))}
-      </ul>
-    </TooltipProvider>
-  );
-}
-
 /** Rows x columns of amounts. One hue, stepped opacity; empty cells read "—". */
 export function HeatmapGrid({
   rows,
@@ -1138,7 +892,8 @@ export function CalendarHeatmap({
   label?: string;
   format?: ValueFormat;
 }) {
-  const weeks = calendarWeeks(from, to);
+  // Days after today are not cells (blank), so they never read as a $0 day.
+  const weeks = calendarWeeks(from, today && today < to ? today : to);
   const byDate = new Map(days.map((d) => [d.date, d]));
   const inRange = weeks.flat().filter((d): d is string => d !== null);
   const values = inRange.map((d) => byDate.get(d)?.value ?? 0);

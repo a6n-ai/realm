@@ -21,7 +21,6 @@ import { getComplaintKpis } from "@/lib/services/analytics/complaints.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import { getDailyScorecard, getTrialToPlanConversion } from "@/lib/services/analytics/overview.service";
 import { getSubscriptionMix } from "@/lib/services/analytics/customers.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
 import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
@@ -34,6 +33,8 @@ function money(n: number) {
 type SearchParams = Promise<AnalyticsSearchParams>;
 
 const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
+// One profitability report per request for the profit card and the scorecard.
+const loadProfit = cache((scope: AnalyticsScope) => getProfitabilityReport({ month: currentMonth(scope.tz), grain: "daily", scope }));
 const loadTrial = cache((scope: AnalyticsScope) => getTrialToPlanConversion(scope));
 
 export default async function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -137,17 +138,12 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
-  const { timezone } = await getAppSettings();
   const [revenue, activePlans, customers, complaints, profit, trialConv] = await Promise.all([
     loadReport(scope),
     countOrders(scope, { status: ["active"] }),
     countCustomers(scope),
     getComplaintKpis(scope),
-    getProfitabilityReport({
-      month: currentMonth(timezone),
-      grain: "daily",
-      scope,
-    }),
+    loadProfit(scope),
     loadTrial(scope),
   ]);
   const paid = paymentsHref(scope, { statuses: SETTLED_STATUSES, methods: scope.extra.method, basis: "money" });
@@ -262,7 +258,7 @@ async function StatusSplit({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function Scorecard({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getDailyScorecard(scope);
+  const rows = await getDailyScorecard(scope, { profit: await loadProfit(scope) });
   if (!rows) return <p className="text-muted-foreground py-8 text-center text-sm">Pick a range up to 3 months to see day by day.</p>;
   return <DailyScorecard rows={rows} />;
 }

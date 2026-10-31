@@ -2,7 +2,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
+import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -92,7 +92,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   return (
     <AnalyticsStatCards
       items={[
-        { label: "Total deliveries", value: s.totalDeliveries, hint: `Scheduled deliveries in range · ${DATE_BASIS_LABEL.deliveries}`, badge: "Scheduled", badgeTone: "neutral" },
+        { label: "Total deliveries", value: s.totalDeliveries, hint: `All deliveries in range, any status · ${DATE_BASIS_LABEL.deliveries}`, badge: "All statuses", badgeTone: "neutral" },
         {
           label: "Skipped",
           value: s.skipped,

@@ -7,6 +7,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, mealSizes, orders, organization, payments, plans, tickets, users } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
+const { isoDateInZone } = await import("@/lib/analytics/profitability");
 const { getDailyScorecard, SCORECARD_MAX_DAYS } = await import("../overview.service");
 const { getRevenueReport } = await import("../revenue.service");
 const { getProfitabilityReport } = await import("../profitability.service");
@@ -96,7 +97,8 @@ describe("daily scorecard (integration)", () => {
 
     prior = await getProfitabilityAssumptions();
     await setProfitabilityAssumptions({ ...prior, marketingMonthly: 3100 });
-    const sc = scope([org]);
+    // Ends today: the scorecard stops at today, so a range reaching past it would leave the scheduled "tomorrow" delivery out of the column.
+    const sc = buildAnalyticsScope({ from: String(now - 2 * DAY), to: String(now + 300_000) }, [org], TZ, now);
     const rows = (await getDailyScorecard(sc))!;
     const sum = (k: "revenue" | "orders" | "deliveries" | "skipped" | "signups" | "complaints") => rows.reduce((t, r) => t + r[k], 0);
     const [report, orderCount, ops, signups, complaints] = await Promise.all([
@@ -112,7 +114,7 @@ describe("daily scorecard (integration)", () => {
     expect(sum("orders")).toBe(orderCount);
     expect(sum("orders")).toBe(2);
     expect(sum("deliveries")).toBe(ops.totalDeliveries);
-    expect(sum("deliveries")).toBe(4);
+    expect(sum("deliveries")).toBe(3);
     expect(sum("skipped")).toBe(ops.skipped);
     expect(sum("signups")).toBe(signups.reduce((t, r) => t + r.n, 0));
     expect(sum("signups")).toBeGreaterThan(0);
@@ -127,6 +129,20 @@ describe("daily scorecard (integration)", () => {
     const row = rows.find((r) => r.date === today)!;
     expect(row.href).toMatch(/^\/dashboard\/orders\?/);
     expect(row.href).toContain("view=all");
+  });
+
+  it("ends at today when the range runs past it, and keeps the range's costs whole", async () => {
+    prior = await getProfitabilityAssumptions();
+    await setProfitabilityAssumptions({ ...prior, marketingMonthly: 3100 });
+    const today = isoDateInZone(now, TZ);
+    const sc = scope([org]);
+    const rows = (await getDailyScorecard(sc))!;
+    expect(rows[0]!.date).toBe(today);
+    expect(rows.every((r) => r.date <= today)).toBe(true);
+    const profit = await getProfitabilityReport({ month: today.slice(0, 7), grain: "daily", scope: sc });
+    expect(profit.rows.every((r) => r.date <= today)).toBe(true);
+    // Future days are not rows, yet the range total still spreads the monthly costs over them.
+    expect(profit.kpis.costs).toBeGreaterThan(profit.rows.reduce((t, r) => t + r.costs, 0));
   });
 
   it("is empty for a franchise with no access", async () => {

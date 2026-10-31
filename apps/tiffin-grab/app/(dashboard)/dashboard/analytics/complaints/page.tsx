@@ -2,7 +2,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
+import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
@@ -48,7 +48,8 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   const resolved = await scopeOrAlert("/dashboard/analytics/complaints", sp);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
-  const drill = sp.drill;
+  // The Category filter wins over the clicked bar.
+  const drill = scopeToComplaintFilters(scope).categories?.[0] ?? sp.drill;
   return (
     <div className="flex flex-col gap-6">
       <AnalyticsIntro

@@ -1,9 +1,9 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { orders, payments } from "@/db/schema";
-import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { CAPTURED } from "@/lib/analytics/revenue";
 
-const capturedList = sql.join([...SETTLED_STATUSES, "refunded"].map((s) => sql`${s}`), sql`, `);
+const capturedList = sql.join(CAPTURED.map((s) => sql`${s}`), sql`, `);
 
 /**
  * Imported from WordPress and never paid for in this system: it was paid on the old site and has no price here.

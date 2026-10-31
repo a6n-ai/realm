@@ -1,6 +1,7 @@
 import { and, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
+import { clampToToday } from "@/lib/analytics/clamp";
 import { eachDateInclusive, isoDateInZone } from "@/lib/analytics/profitability";
 import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@/lib/analytics/trial-conversion";
 import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/services/orders.service";
 import { getComplaintDaily } from "./complaints.service";
-import { getProfitabilityReport } from "./profitability.service";
+import { getProfitabilityReport, type ProfitabilityReport } from "./profitability.service";
 import { getSignupDaily } from "./customers.service";
 import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
@@ -79,7 +80,10 @@ async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: 
  * One row per calendar day in range, newest first; null when the range is over SCORECARD_MAX_DAYS. Every column reuses its tab's per-day query, so a
  * column's total equals that tab's card for the same URL.
  */
-export async function getDailyScorecard(scope: AnalyticsScope): Promise<ScorecardRow[] | null> {
+export async function getDailyScorecard(
+  scope: AnalyticsScope,
+  { now = Date.now(), profit }: { now?: number; profit?: ProfitabilityReport } = {},
+): Promise<ScorecardRow[] | null> {
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
   if (eachDateInclusive(from, to).length > SCORECARD_MAX_DAYS) return null;
@@ -89,7 +93,7 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
     getDeliveriesDaily(scope),
     getSignupDaily(scope),
     getComplaintDaily(scope),
-    getProfitabilityReport({ month: from.slice(0, 7), grain: "daily", scope }),
+    profit ?? getProfitabilityReport({ month: from.slice(0, 7), grain: "daily", scope, now }),
   ]);
   const noAccess = scope.orgIds !== "all" && scope.orgIds.length === 0;
   const profitBy = new Map(profitReport.rows.map((r) => [r.date, r.profit]));
@@ -98,7 +102,8 @@ export async function getDailyScorecard(scope: AnalyticsScope): Promise<Scorecar
   const deliveriesBy = new Map(deliveryDays.map((r) => [r.iso, r]));
   const signupsBy = new Map(signups.map((r) => [r.iso, r.n]));
   const complaintsBy = new Map(complaints.map((r) => [r.iso, r.n]));
-  return eachDateInclusive(from, to)
+  const shown = clampToToday({ from, to }, scope.tz, now);
+  return (shown ? eachDateInclusive(shown.from, shown.to) : [])
     .reverse()
     .map((date) => {
       const d = deliveriesBy.get(date);

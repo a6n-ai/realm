@@ -44,14 +44,15 @@ export function AnalyticsFilters({
   );
   const kept = pruneSubcategories(subs, category, subOptions);
   const staleSub = onComplaints && kept.length !== subs.length;
+  const keptKey = kept.join(",");
 
   useEffect(() => {
     if (!staleSub) return;
     const sp = new URLSearchParams(params.toString());
-    if (kept.length) sp.set("subcategory", kept.join(","));
+    if (keptKey) sp.set("subcategory", keptKey);
     else sp.delete("subcategory");
     nav(`${pathname}?${sp.toString()}`, "replace");
-  }, [staleSub, kept, params, pathname, nav]);
+  }, [staleSub, keptKey, params, pathname, nav]);
 
   const spec = useMemo<FacetDef[]>(() => {
     const shared: FacetDef[] = [

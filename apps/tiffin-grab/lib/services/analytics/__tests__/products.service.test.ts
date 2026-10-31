@@ -8,8 +8,8 @@ const { db } = await import("@/db/client");
 const { dishCategories, dishes, deliveryFrequencies, mealSelections, mealSizes, menuWeeks, orders, payments, plans, users } =
   await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
-const { revenueTotals } = await import("../metrics/money");
-const { getPaidByTierAndDiet, getPaidByMealType, getPaidByPlan, getPaidByTier, getProductStats, getTopDishes } = await import("../products.service");
+const { revenueBy, revenueTotals } = await import("../metrics/money");
+const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes } = await import("../products.service");
 
 const TZ = "America/Toronto";
 const now = Date.now();
@@ -91,14 +91,17 @@ describe("products analytics", () => {
     await makeOrder({ planIdx: 0, paid: "113.00", deploymentId: "PRD-A" });
     await makeOrder({ planIdx: 1, paid: "56.50", deploymentId: "PRD-B" });
 
-    const [net, byPlan, byTier, byMeal] = await Promise.all([
+    const [net, planBuckets, planRows, byTier, byMeal] = await Promise.all([
       revenueTotals(payScope),
-      getPaidByPlan(payScope),
+      revenueBy(payScope, "plan"),
+      db.select({ key: plans.key, name: plans.name }).from(plans),
       getPaidByTier(payScope),
       getPaidByMealType(payScope),
     ]);
     const sum = (rows: { paid: number }[]) => Math.round(rows.reduce((s, r) => s + r.paid, 0) * 100) / 100;
     expect(net.net).toBe(150); // 100 + 50, ex tax
+    const planNames = new Map(planRows.map((p) => [p.key, p.name]));
+    const byPlan = planBuckets.map((b) => ({ plan: planNames.get(b.key) ?? b.key, paid: b.net }));
     expect(sum(byPlan)).toBe(net.net);
     // Both fixture orders use one catalog meal size, so the two size splits carry all of it too.
     expect(sum(byMeal)).toBe(net.net);
@@ -128,6 +131,5 @@ describe("products analytics", () => {
   it("is empty for a scope with no franchise", async () => {
     const none = { ...scope, orgIds: [] as string[] };
     expect(await getProductStats(none)).toEqual({ totalSelections: 0, distinctDishes: 0, ordersWithPicks: 0, topDish: null });
-    expect(await getPaidByPlan(none)).toEqual([]);
   });
 });

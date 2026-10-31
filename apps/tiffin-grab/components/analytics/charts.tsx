@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, type ComponentProps } from "react";
 import { ChartSkeleton } from "./skeletons";
-import { calendarHeight } from "./calendar-height";
+import { calendarHeight } from "@/lib/analytics/calendar-height";
 import { rankedHeight } from "./chart-math";
 
 // recharts is about 100 KB; split it out so analytics pages paint before their charts.
@@ -11,16 +11,12 @@ const Trend = lazy(() => load().then((m) => ({ default: m.TrendLineChart })));
 const Breakdown = lazy(() =>
   load().then((m) => ({ default: m.BreakdownBarChart })),
 );
-const Grouped = lazy(() =>
-  load().then((m) => ({ default: m.GroupedBarChart })),
-);
 const RadialRate = lazy(() =>
   load().then((m) => ({ default: m.RadialRateChart })),
 );
 
 const Segmented = lazy(() => load().then((m) => ({ default: m.SegmentedBar })));
 const Parts = lazy(() => load().then((m) => ({ default: m.PartsDonut })));
-const Funnel = lazy(() => load().then((m) => ({ default: m.FunnelChart })));
 const Heatmap = lazy(() => load().then((m) => ({ default: m.HeatmapGrid })));
 const Calendar = lazy(() =>
   load().then((m) => ({ default: m.CalendarHeatmap })),
@@ -69,16 +65,14 @@ function wrap<C extends React.ComponentType<any>>(Inner: C, sized = false) {
 
 export const TrendLineChart = wrap(Trend);
 export const BreakdownBarChart = wrap(Breakdown, true);
-export const GroupedBarChart = wrap(Grouped);
 export const RadialRateChart = wrap(RadialRate);
 export const SegmentedBar = wrap(Segmented);
 export const PartsDonut = wrap(Parts);
-export const FunnelChart = wrap(Funnel);
 export const HeatmapGrid = wrap(Heatmap);
 export const DivergingBarChart = wrap(Diverging);
 
 export function CalendarHeatmap(props: ComponentProps<typeof Calendar>) {
-  const height = calendarHeight(props.from, props.to);
+  const height = calendarHeight(props.from, props.today && props.today < props.to ? props.today : props.to);
   return (
     <Suspense fallback={<ChartSkeleton height={height} />}>
       <Calendar {...props} />

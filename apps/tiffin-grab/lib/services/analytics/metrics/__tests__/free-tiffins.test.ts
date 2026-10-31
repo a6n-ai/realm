@@ -10,6 +10,7 @@ const { freeTiffins } = await import("../money");
 const { zonedRangeMs } = await import("@/lib/analytics/drill");
 
 const TZ = "America/Toronto";
+const AFTER = Date.parse("2035-04-15T16:00:00Z");
 const suffix = Math.random().toString(36).slice(2);
 const range = zonedRangeMs("2035-03-01", "2035-03-31", TZ);
 const scopeFor = (orgIds: "all" | string[]) => buildAnalyticsScope({ from: String(range.from), to: String(range.to) }, orgIds, TZ);
@@ -75,7 +76,7 @@ describe("freeTiffins", () => {
     await free(noPrice.id, "2035-03-05");
     await free(migrated.id, "2035-03-05");
 
-    expect(await freeTiffins(scopeFor([org]))).toEqual({ count: 5, valued: 3, notValued: 2, amount: 24.6 });
+    expect(await freeTiffins(scopeFor([org]), AFTER)).toEqual({ count: 5, valued: 3, notValued: 2, amount: 24.6 });
   });
 
   it("is scoped through the order's franchise", async () => {
@@ -85,8 +86,19 @@ describe("freeTiffins", () => {
     const ob = await makeOrder(b, { total: 50, taxTotal: 0, tiffinCount: 10 });
     await free(oa.id, "2035-03-10");
     await free(ob.id, "2035-03-10");
-    expect(await freeTiffins(scopeFor([a]))).toMatchObject({ count: 1, amount: 10 });
-    expect(await freeTiffins(scopeFor([b]))).toMatchObject({ count: 1, amount: 5 });
-    expect(await freeTiffins(scopeFor([]))).toEqual({ count: 0, valued: 0, notValued: 0, amount: 0 });
+    expect(await freeTiffins(scopeFor([a]), AFTER)).toMatchObject({ count: 1, amount: 10 });
+    expect(await freeTiffins(scopeFor([b]), AFTER)).toMatchObject({ count: 1, amount: 5 });
+    expect(await freeTiffins(scopeFor([]), AFTER)).toEqual({ count: 0, valued: 0, notValued: 0, amount: 0 });
+  });
+
+  it("counts only tiffins already given: delivery date up to today", async () => {
+    const org = await makeOrg();
+    const o = await makeOrder(org, { total: 100, taxTotal: 0, tiffinCount: 10 });
+    await free(o.id, "2035-03-05");
+    await free(o.id, "2035-03-10");
+    await free(o.id, "2035-03-20");
+    const midMarch = Date.parse("2035-03-10T16:00:00Z");
+    expect(await freeTiffins(scopeFor([org]), midMarch)).toMatchObject({ count: 2, amount: 20 });
+    expect(await freeTiffins(scopeFor([org]), AFTER)).toMatchObject({ count: 3, amount: 30 });
   });
 });

@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { eachDateInclusive, isoDateInZone, periodKey, round2 } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
+import { clampToToday } from "@/lib/analytics/clamp";
 import {
   PENDING_STATUSES,
   grainForRange,
@@ -56,7 +57,7 @@ async function settledOrderRows(scope: AnalyticsScope) {
   }));
 }
 
-export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueReport> {
+export async function getRevenueReport(scope: AnalyticsScope, now = Date.now()): Promise<RevenueReport> {
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
   const grain = grainForRange(from, to);
@@ -66,11 +67,12 @@ export async function getRevenueReport(scope: AnalyticsScope): Promise<RevenueRe
     paymentsByStatus(scope),
     revenueBy(scope, "method"),
     settledOrderRows(scope),
-    freeTiffins(scope),
+    freeTiffins(scope, now),
   ]);
 
   const buckets = new Map<string, { netSales: number; collected: number }>();
-  for (const day of eachDateInclusive(from, to)) buckets.set(periodKey(day, grain), { netSales: 0, collected: 0 });
+  const shown = clampToToday({ from, to }, scope.tz, now);
+  for (const day of shown ? eachDateInclusive(shown.from, shown.to) : []) buckets.set(periodKey(day, grain), { netSales: 0, collected: 0 });
   for (const d of days) {
     const b = buckets.get(periodKey(d.key, grain));
     if (!b) continue;

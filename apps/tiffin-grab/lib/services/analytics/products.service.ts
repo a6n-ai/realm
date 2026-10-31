@@ -69,19 +69,6 @@ export async function getTopDishes(limit = 8, scope: AnalyticsScope) {
 
 // "Paid by ..." is Revenue's definition (net ex tax and surcharge, after refunds, by capture date),
 // so each split sums to the Revenue tab's net. `payments` counts captured payments, not orders.
-export type PaidPlanRow = { plan: string; key: string; payments: number; paid: number };
-
-export async function getPaidByPlan(scope: AnalyticsScope): Promise<PaidPlanRow[]> {
-  const [buckets, planRows] = await Promise.all([
-    revenueBy(scope, "plan"),
-    db.select({ key: plans.key, name: plans.name }).from(plans),
-  ]);
-  const names = new Map(planRows.map((p) => [p.key, p.name]));
-  return buckets
-    .filter((b) => b.net !== 0 || b.payments > 0)
-    .map((b) => ({ plan: names.get(b.key) ?? b.key, key: b.key, payments: b.payments, paid: b.net }))
-    .sort((a, b) => b.paid - a.paid);
-}
 
 const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium", premium: "Premium" };
 

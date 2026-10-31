@@ -27,7 +27,7 @@ export default function NotificationAnalyticsPage({ searchParams }: { searchPara
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By channel" subtitle="Where every queued notification is headed.">
           <Suspense fallback={<ChartSkeleton />}>
             <ChannelChart searchParams={searchParams} />

@@ -15,6 +15,11 @@ describe("bucketCounts", () => {
     expect(rows.map((r) => r.a)).toEqual([0, 3, 0, 2, 0]);
     expect(rows[1]).toMatchObject({ period: "Oct 2", tip: "Fri, Oct 2", b: 1 });
   });
+  it("stops at `until`, but the grain still follows the whole range", () => {
+    const rows = bucketCounts([{ iso: "2026-10-02", a: 3 }], ["a"], "2026-10-01", "2026-10-31", "2026-10-03");
+    expect(rows.map((r) => r.a)).toEqual([0, 3, 0]);
+    expect(bucketCounts([], ["a"], "2026-11-01", "2026-11-30", "2026-10-15")).toEqual([]);
+  });
   it("re-buckets to weeks beyond 45 days, sums intact", () => {
     const rows = bucketCounts([{ iso: "2026-10-07", a: 5 }, { iso: "2026-10-09", a: 4 }], ["a"], "2026-09-28", "2026-12-01");
     expect(rows.reduce((s, r) => s + r.a, 0)).toBe(9);

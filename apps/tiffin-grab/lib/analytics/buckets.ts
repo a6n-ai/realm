@@ -17,17 +17,18 @@ export function chartPeriod(key: string, grain: Grain): { period: string; tip: s
   }
 }
 
-/** Sums per-day counts into the range's grain; days with no rows are zero, never gaps. */
+/** Sums per-day counts into the range's grain; days with no rows are zero, never gaps. Days after `until` (today) are not filled. */
 export function bucketCounts<K extends string>(
   rows: ({ iso: string } & Record<K, number>)[],
   keys: readonly K[],
   from: string,
   to: string,
+  until = to,
 ): ({ period: string; tip: string } & Record<K, number>)[] {
   const grain = grainForRange(from, to);
   const zero = () => Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
   const buckets = new Map<string, Record<K, number>>();
-  for (const day of eachDateInclusive(from, to)) buckets.set(periodKey(day, grain), zero());
+  for (const day of eachDateInclusive(from, until < to ? until : to)) buckets.set(periodKey(day, grain), zero());
   for (const r of rows) {
     const b = buckets.get(periodKey(r.iso, grain));
     if (b) for (const k of keys) b[k] += r[k];

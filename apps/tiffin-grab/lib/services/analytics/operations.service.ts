@@ -71,7 +71,7 @@ export async function getRouteLoadByDriver(limit = 10, scope: AnalyticsScope) {
   return rows.map((r) => ({ driver: r.driver ?? "Unassigned", n: r.n }));
 }
 
-export const DELIVERY_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
+const DELIVERY_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
 
 /** Per-day rows split by status, sparse (days with no deliveries are absent); same where-clause as the status counts. */
 export async function getDeliveriesDaily(scope: AnalyticsScope) {

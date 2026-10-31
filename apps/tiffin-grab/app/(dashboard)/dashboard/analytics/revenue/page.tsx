@@ -2,7 +2,7 @@
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarSkeletonHeight } from "@/components/analytics/calendar-height";
+import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { CalendarHeatmap, PartsDonut, RadialRateChart, TrendLineChart } from "@/components/analytics/charts";

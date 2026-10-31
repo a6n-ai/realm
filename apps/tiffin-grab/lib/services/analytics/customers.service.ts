@@ -85,8 +85,14 @@ export async function getSignupDaily(scope: AnalyticsScope): Promise<{ iso: stri
 }
 
 /** Signups per bucket; the grain follows the range. */
-export async function getSignupTrend(scope: AnalyticsScope) {
-  return bucketCounts(await getSignupDaily(scope), ["n"], isoDateInZone(scope.fromMs, scope.tz), isoDateInZone(scope.toMs, scope.tz));
+export async function getSignupTrend(scope: AnalyticsScope, now = Date.now()) {
+  return bucketCounts(
+    await getSignupDaily(scope),
+    ["n"],
+    isoDateInZone(scope.fromMs, scope.tz),
+    isoDateInZone(scope.toMs, scope.tz),
+    isoDateInZone(now, scope.tz),
+  );
 }
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
