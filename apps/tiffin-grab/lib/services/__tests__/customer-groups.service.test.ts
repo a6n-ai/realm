@@ -173,6 +173,20 @@ describe("customer groups", () => {
     await db.delete(contactList).where(eq(contactList.id, l.id));
   });
 
+  it("legacy group (coins columns set) and its backfilled action render member statuses", async () => {
+    const g = await mk("legacy", [uOk, uCapped]);
+    await db.update(customerGroups).set({ coins: 7, memo: "old" }).where(eq(customerGroups.publicId, g.publicId));
+    const [grp] = await db.select().from(customerGroups).where(eq(customerGroups.publicId, g.publicId));
+    const [a] = await db.insert(customerGroupActions).values({
+      groupId: grp.id,
+      kind: "coins",
+      params: { coins: 7, memo: "old", legacy: true },
+      result: { awardedUserIds: [String(uOk)], cappedUserIds: [String(uCapped)] },
+    }).returning({ publicId: customerGroupActions.publicId });
+    const m = await getCoinsActionMembers(a.publicId);
+    expect(m.map((x) => [x.name, x.status]).sort()).toEqual([["Capped", "capped"], ["Ok", "awarded"]]);
+  });
+
   it("listCustomerGroups pages are 0-indexed and disjoint", async () => {
     await Promise.all([1, 2, 3].map((n) => mk(`paging-${n}`, [uOk])));
     const p0 = await listCustomerGroups({ page: 0, size: 2 });

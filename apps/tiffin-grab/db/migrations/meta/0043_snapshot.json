@@ -1,5 +1,5 @@
 {
-  "id": "2f57c6da-d829-408d-b2a9-1de805e89ca9",
+  "id": "d05aa352-fbc3-40de-b1e9-5d539ef3599a",
   "prevId": "7d7aab6a-df3d-456e-a0c6-ddb6a60b1980",
   "version": "7",
   "dialect": "postgresql",
@@ -15430,6 +15430,12 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "awarded": {
+          "name": "awarded",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -15555,6 +15561,39 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "coins": {
+          "name": "coins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "awarded_count": {
+          "name": "awarded_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "capped_count": {
+          "name": "capped_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "no_email_count": {
+          "name": "no_email_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         }
       },
       "indexes": {},
