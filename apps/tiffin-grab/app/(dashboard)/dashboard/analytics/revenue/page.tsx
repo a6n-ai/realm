@@ -72,12 +72,6 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         </ChartCard>
       </div>
 
-      <ChartBoundary>
-        <Suspense fallback={<ChartSkeleton height={160} />}>
-          <NeedsReview scope={scope} />
-        </Suspense>
-      </ChartBoundary>
-
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard
           title="How much is still owed?"
@@ -119,6 +113,12 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
           </Suspense>
         </ChartBoundary>
       </div>
+
+      <ChartBoundary>
+        <Suspense fallback={<ChartSkeleton height={160} />}>
+          <NeedsReview scope={scope} />
+        </Suspense>
+      </ChartBoundary>
     </div>
   );
 }
@@ -212,7 +212,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
     {
       label: "Free tiffins",
       value: money(free.amount),
-      hint: `${free.count} ${free.count === 1 ? "tiffin" : "tiffins"} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`,
+      hint: `${plural(free.count, "tiffin", "tiffins")} on ${plural(free.orders, "order", "orders")} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`,
       badge: "Given away",
       badgeTone: "neutral",
     },
@@ -345,7 +345,8 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
   return (
     <ChartCard
       title="Free tiffins"
-      subtitle={plural(free.count, "tiffin", "tiffins")} info={`Counted ${DATE_BASIS_LABEL.deliveries}. ${free.notValued} not valued (no stored price).`}
+      subtitle={`${plural(free.count, "tiffin", "tiffins")} on ${plural(free.orders, "order", "orders")}`}
+      info={`Delivered so far, ${DATE_BASIS_LABEL.deliveries}; future, skipped and paused free days are left out. The Orders Free tiffins tab counts orders over all dates instead. ${free.notValued} not valued (no stored price).`}
     >
       <PartsDonut
         caption={valued ? "free tiffins" : "tiffins"}

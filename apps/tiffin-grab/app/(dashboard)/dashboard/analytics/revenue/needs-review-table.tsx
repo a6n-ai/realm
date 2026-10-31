@@ -33,6 +33,7 @@ export function NeedsReviewTable({ rows }: { rows: NeedsReviewTableRow[] }) {
   return (
     <DataTable
       pagination="client"
+      pageSize={10}
       serial={false}
       columns={COLUMNS}
       rows={rows}
