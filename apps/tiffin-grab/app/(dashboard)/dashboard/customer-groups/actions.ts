@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, inArray } from "drizzle-orm";
+import { unexpired } from "@foundry/wallet";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
 import {
@@ -30,7 +31,20 @@ import {
 
 export async function searchAccounts(query: string) {
   await requireAdmin();
-  return searchCustomers(query);
+  const rows = await searchCustomers(query);
+  if (rows.length === 0) return [];
+  // Spendable balance for the review table when staff add someone by hand.
+  const bals = await db
+    .select({
+      publicId: users.publicId,
+      walletCoins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.mapWith(Number),
+    })
+    .from(users)
+    .leftJoin(walletLedger, and(eq(walletLedger.userId, users.id), unexpired(walletLedger, Date.now())))
+    .where(inArray(users.publicId, rows.map((r) => r.publicId)))
+    .groupBy(users.publicId);
+  const byId = new Map(bals.map((b) => [b.publicId, b.walletCoins]));
+  return rows.map((r) => ({ ...r, walletCoins: byId.get(r.publicId) ?? 0 }));
 }
 
 export async function searchGroupsAction(query: string) {

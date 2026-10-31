@@ -2,7 +2,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -55,6 +55,9 @@ type ActivityType =
   | "call" | "whatsapp" | "email" | "note"
   | "quote_sent" | "sample_sent" | "payment_link_sent" | "visit" | "callback";
 type LostReason = (typeof inquiries.lostReason.enumValues)[number];
+
+const newWhere = (visible: "all" | string[]) =>
+  and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
 
 export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
   if (nextFollowUpAt == null) return false;
@@ -460,6 +463,28 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const now = Date.now();
     const items = rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
     return { items, page: page.page, size: page.size, total: count };
+  }
+
+  /**
+   * Inquiries still in stage `new` (nobody has contacted them), oldest first, across all dates.
+   * `visible` scopes by inquiries.organizationId: a row with no organization counts only for "all".
+   */
+  async listNew(visible: "all" | string[], limit: number) {
+    if (visible !== "all" && visible.length === 0) return [];
+    return db
+      .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, source: sql<string>`coalesce(${leadSources.label}, 'No source')`, createdAt: inquiries.createdAt })
+      .from(inquiries)
+      // Left join: an inquiry with no source still counts in countNew, so it must list too.
+      .leftJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .where(newWhere(visible))
+      .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
+      .limit(limit);
+  }
+
+  async countNew(visible: "all" | string[]): Promise<number> {
+    if (visible !== "all" && visible.length === 0) return 0;
+    const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inquiries).where(newWhere(visible));
+    return count;
   }
 
   // Full (unpaginated) export of every inquiry matching the pipeline's current

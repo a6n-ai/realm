@@ -3,6 +3,7 @@
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
 import { zonedDateIso } from "@foundry/commons";
+import { unexpired } from "@foundry/wallet";
 import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
@@ -37,6 +38,8 @@ export type PayoutCandidate = {
   revenue: string;
   firstOrderDate: string;
   lastTiffin: string | null;
+  /** Spendable wallet balance (credits − debits, lapsed holds excluded). */
+  walletCoins: number;
 };
 
 const REVENUE_SQL = sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`;
@@ -72,6 +75,18 @@ export async function listPayoutCandidates(
     .from(ledgerEntries)
     .groupBy(ledgerEntries.userId)
     .as("ra");
+
+  // Same spendable-balance formula as orders.service / walletService.balance —
+  // lapsed checkout holds must not inflate "already has coins" on this review table.
+  const walletAgg = db
+    .select({
+      userId: walletLedger.userId,
+      coins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("wallet_coins"),
+    })
+    .from(walletLedger)
+    .where(unexpired(walletLedger, Date.now()))
+    .groupBy(walletLedger.userId)
+    .as("wa");
 
   // Each customer's latest plan; lastTiffinSql/laterOrderSql bind to the outer `orders`.
   const latestPlan = db
@@ -125,12 +140,14 @@ export async function listPayoutCandidates(
       revenue: sql<string>`coalesce(${revenueAgg.revenue}, 0)`,
       firstOrderDate: orderAgg.firstOrderDate,
       lastTiffin: latestPlan.lastTiffin,
+      walletCoins: sql<number>`coalesce(${walletAgg.coins}, 0)`.mapWith(Number),
       total: sql<number>`count(*) over()`.mapWith(Number),
     })
     .from(users)
     .innerJoin(orderAgg, eq(orderAgg.userId, users.id))
     .leftJoin(revenueAgg, eq(revenueAgg.userId, users.id))
     .leftJoin(latestPlan, eq(latestPlan.userId, users.id))
+    .leftJoin(walletAgg, eq(walletAgg.userId, users.id))
     .where(and(...conditions))
     .orderBy(users.name)
     .limit(limit);
