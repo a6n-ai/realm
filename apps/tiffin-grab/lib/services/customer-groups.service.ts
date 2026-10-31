@@ -1,7 +1,7 @@
 import "server-only";
-import { ValidationError } from "@foundry/commons";
+import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
-import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -453,10 +453,15 @@ async function recordEmailAction(
  */
 export async function syncGroupContactList(groupPublicId: string): Promise<{ contactListPublicId: string }> {
   const group = await groupByPublicId(groupPublicId);
+  const listName = `Customer group · ${group.name}`;
   let listPublicId = group.contactListPublicId;
-  if (!listPublicId) {
+  let [list] = listPublicId
+    ? await db.select({ id: contactList.id, name: contactList.name }).from(contactList).where(eq(contactList.publicId, listPublicId))
+    : [];
+  if (!list) {
+    // First sync, or the list was deleted out from under the group.
     const created = await createContactList(deps, {
-      name: `Customer group · ${group.name}`,
+      name: listName,
       consentSource: "purchase",
       consentAt: Date.now(),
       consentNote: `Customer group ${group.publicId}`,
@@ -464,7 +469,12 @@ export async function syncGroupContactList(groupPublicId: string): Promise<{ con
     const claimed = await db
       .update(customerGroups)
       .set({ contactListPublicId: created.publicId })
-      .where(and(eq(customerGroups.id, group.id), isNull(customerGroups.contactListPublicId)))
+      .where(
+        and(
+          eq(customerGroups.id, group.id),
+          listPublicId ? eq(customerGroups.contactListPublicId, listPublicId) : isNull(customerGroups.contactListPublicId),
+        ),
+      )
       .returning({ id: customerGroups.id });
     if (claimed.length) listPublicId = created.publicId;
     else {
@@ -472,23 +482,50 @@ export async function syncGroupContactList(groupPublicId: string): Promise<{ con
       await db.delete(contactList).where(eq(contactList.publicId, created.publicId));
       listPublicId = (await groupByPublicId(groupPublicId)).contactListPublicId!;
     }
+    [list] = await db.select({ id: contactList.id, name: contactList.name }).from(contactList).where(eq(contactList.publicId, listPublicId));
   }
-  const [list] = await db.select({ id: contactList.id }).from(contactList).where(eq(contactList.publicId, listPublicId));
-  const people = emailable(
-    await db
-      .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
-      .from(customerGroupMembers)
-      .innerJoin(users, eq(users.id, customerGroupMembers.userId))
-      .where(eq(customerGroupMembers.groupId, group.id)),
-  );
-  await db.delete(contactListMember).where(eq(contactListMember.listId, list.id));
-  await fillList(listPublicId, people);
-  // fillList recounts only when it inserts, so an emptied list needs this.
-  await db
-    .update(contactList)
-    .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${list.id})` })
-    .where(eq(contactList.id, list.id));
-  return { contactListPublicId: listPublicId };
+  const listId = list.id;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`cg-list:${group.id}`}))`);
+    if (list.name !== listName) await tx.update(contactList).set({ name: listName }).where(eq(contactList.id, listId));
+    const people = emailable(
+      await tx
+        .select({ name: users.name, email: users.email, notifyEmail: users.notifyEmail })
+        .from(customerGroupMembers)
+        .innerJoin(users, eq(users.id, customerGroupMembers.userId))
+        .where(and(eq(customerGroupMembers.groupId, group.id), ne(users.status, "deleted"))),
+    );
+    const desired = new Map(people.map((u) => [normalizeAddress(u.email!), u]));
+    const current = await tx
+      .select({ id: contactListMember.id, email: contactListMember.email })
+      .from(contactListMember)
+      .where(eq(contactListMember.listId, listId));
+    const have = new Set(current.map((m) => m.email));
+    const extra = current.filter((m) => !m.email || !desired.has(m.email)).map((m) => m.id);
+    for (const slice of chunks(extra)) await tx.delete(contactListMember).where(inArray(contactListMember.id, slice));
+    const missing = [...desired].filter(([email]) => !have.has(email));
+    for (const slice of chunks(missing)) {
+      await tx
+        .insert(contactListMember)
+        .values(slice.map(([email, u]) => ({ listId, email, name: u.name?.trim() || email, vars: {} })));
+    }
+    await tx
+      .update(contactList)
+      .set({ memberCount: sql`(select count(*) from ${contactListMember} where ${contactListMember.listId} = ${listId})` })
+      .where(eq(contactList.id, listId));
+  });
+  return { contactListPublicId: listPublicId! };
+}
+
+/** Resyncs every group containing the user; call after anything that changes their notifyEmail, email or status. */
+export async function syncGroupsForUser(userId: bigint): Promise<void> {
+  const groups = await db
+    .select({ publicId: customerGroups.publicId })
+    .from(customerGroupMembers)
+    .innerJoin(customerGroups, eq(customerGroups.id, customerGroupMembers.groupId))
+    .where(eq(customerGroupMembers.userId, userId));
+  for (const g of groups) await syncGroupContactList(g.publicId);
 }
 
 /** ponytail: re-syncs every group per campaign page view; fine for dozens of groups, sync only stale ones if it grows. */

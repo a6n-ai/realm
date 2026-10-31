@@ -29,6 +29,7 @@ import {
   listGroupActions,
   removeGroupMember,
 } from "../customer-groups.service";
+import { usersService } from "../users.service";
 import { campaign as campaigns } from "@/db/schema";
 
 vi.mock("../app-settings.service", async (orig) => ({
@@ -181,6 +182,40 @@ describe("customer groups", () => {
     } finally {
       await db.update(users).set({ notifyEmail: true }).where(eq(users.id, uOk));
     }
+  });
+
+  it("opt-out via the real service path drops the user from the group list; deleted list is recreated; rename follows", async () => {
+    const g = await mk("g9", [uOk, uCapped]);
+    const { contactListPublicId } = await syncGroupContactList(g.publicId);
+    expect(await listMemberCount(contactListPublicId)).toBe(2);
+    try {
+      await usersService.updatePreferences(uOkPublic, { notifyEmail: false });
+      expect(await listMemberCount(contactListPublicId)).toBe(1);
+    } finally {
+      await db.update(users).set({ notifyEmail: true }).where(eq(users.id, uOk));
+    }
+    await db.update(customerGroups).set({ name: "g9 renamed" }).where(eq(customerGroups.id, g.id));
+    await syncGroupContactList(g.publicId);
+    const [renamed] = await db.select().from(contactList).where(eq(contactList.publicId, contactListPublicId));
+    expect(renamed.name).toBe("Customer group · g9 renamed");
+    // Simulate deletion through the list detail page.
+    await db.delete(contactListMember).where(eq(contactListMember.listId, renamed.id));
+    await db.delete(contactList).where(eq(contactList.id, renamed.id));
+    const again = await syncGroupContactList(g.publicId);
+    expect(again.contactListPublicId).not.toBe(contactListPublicId);
+    expect(await listMemberCount(again.contactListPublicId)).toBe(2);
+  });
+
+  it("concurrent syncs end with exactly the desired set", async () => {
+    const g = await mk("g10", [uOk, uCapped]);
+    await syncGroupContactList(g.publicId);
+    await db.delete(customerGroupMembers).where(eq(customerGroupMembers.groupId, g.id));
+    await db.insert(customerGroupMembers).values({ groupId: g.id, userId: uOk });
+    const rs = await Promise.all([1, 2, 3].map(() => syncGroupContactList(g.publicId)));
+    expect(new Set(rs.map((r) => r.contactListPublicId)).size).toBe(1);
+    const [l] = await db.select().from(contactList).where(eq(contactList.publicId, rs[0].contactListPublicId));
+    const m = await db.select().from(contactListMember).where(eq(contactListMember.listId, l.id));
+    expect(m.map((x) => x.email)).toEqual([`cg-ok-${run}@throwaway.local`]);
   });
 
   it("activity includes a campaign that targets the group list, once", async () => {
