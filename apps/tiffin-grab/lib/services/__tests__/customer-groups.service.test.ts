@@ -42,11 +42,13 @@ let uOkPublic: string;
 let uCappedPublic: string;
 const groupIds: bigint[] = [];
 
+const run = Date.now();
+
 beforeAll(async () => {
   const rows = await db.insert(users).values([
-    { email: "cg-ok@throwaway.local", name: "Ok" },
-    { email: "cg-capped@throwaway.local", name: "Capped" },
-    { email: "cg-noemail@throwaway.local", name: "NoEmail", notifyEmail: false },
+    { email: `cg-ok-${run}@throwaway.local`, name: "Ok" },
+    { email: `cg-capped-${run}@throwaway.local`, name: "Capped" },
+    { email: `cg-noemail-${run}@throwaway.local`, name: "NoEmail", notifyEmail: false },
   ]).returning();
   [uOk, uCapped, uNoEmail] = rows.map((r) => r.id);
   uOkPublic = rows[0].publicId;
