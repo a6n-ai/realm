@@ -103,6 +103,11 @@ describe("topWithOther", () => {
     expect(out.map((r) => r.name)).not.toContain("Other");
     expect(out[0]!.n).toBe(9);
   });
+  it("omits zero rows and returns nothing when every value is zero", () => {
+    const rows = [{ name: "a", n: 0 }, { name: "b", n: 3 }, { name: "c", n: 0 }];
+    expect(topWithOther(rows, "name", "n")).toEqual([{ name: "b", n: 3 }]);
+    expect(topWithOther(rows.map((r) => ({ ...r, n: 0 })), "name", "n")).toEqual([]);
+  });
   it("leaves short lists alone", () => {
     expect(topWithOther([{ name: "a", n: 1 }], "name", "n")).toHaveLength(1);
   });

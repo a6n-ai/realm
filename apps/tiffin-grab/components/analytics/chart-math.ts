@@ -99,8 +99,9 @@ export function topWithOther<T extends Record<string, string | number>>(
   valueKey: string,
   limit = 8,
 ): Record<string, string | number>[] {
-  const sorted = [...rows].sort((a, b) => Number(b[valueKey]) - Number(a[valueKey]));
-  if (rows.length <= limit + 1) return sorted;
+  // Ranked lists show only rows with something to rank; zero rows are noise, and all-zero means empty.
+  const sorted = rows.filter((r) => Number(r[valueKey]) > 0).sort((a, b) => Number(b[valueKey]) - Number(a[valueKey]));
+  if (sorted.length <= limit + 1) return sorted;
   const rest = sorted.slice(limit);
   return [
     ...sorted.slice(0, limit),

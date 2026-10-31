@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { RangeCalendarPicker } from "@/components/filters/range-calendar-picker";
 import { useListNav } from "@/components/ds";
@@ -49,7 +49,18 @@ export function DefaultDateRange({ presets = false }: { presets?: boolean }) {
   };
 
   const shown = hasUrlRange ? { from, to } : defaults;
-  const active = activePreset(shown, timezone);
+  // Re-read the clock when the tab regains focus so the highlight cannot go stale past midnight.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const refresh = () => setNow(Date.now());
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+  const active = activePreset(shown, timezone, now);
 
   return (
     <>

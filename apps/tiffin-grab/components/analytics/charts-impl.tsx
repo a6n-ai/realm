@@ -384,7 +384,15 @@ function SeriesLines({
   );
 }
 
-const truncate = (v: unknown) => truncateLabel(v);
+/** One-line, truncated category tick (Recharts' default tick wraps at the axis width). */
+function SingleLineTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: unknown } }) {
+  return (
+    <text x={x} y={y} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-xs">
+      <title>{String(payload?.value ?? "")}</title>
+      {truncateLabel(payload?.value)}
+    </text>
+  );
+}
 
 /** Tooltip heading: the row's long date when `tipKey` is set, else the axis label. */
 const tipHeader = (tipKey?: string) => (value: ReactNode, payload: readonly { payload?: Row }[]) =>
@@ -485,6 +493,7 @@ export function BreakdownBarChart({
     );
   }
   const ranked = topWithOther(data, xKey, yKey, limit);
+  if (ranked.length === 0) return <EmptyChart />;
   return (
     <div className="relative">
       <ChartContainer
@@ -506,7 +515,7 @@ export function BreakdownBarChart({
             tickMargin={10}
             axisLine={false}
             width={120}
-            tickFormatter={truncate}
+            tick={<SingleLineTick />}
           />
           <XAxis
             type="number"

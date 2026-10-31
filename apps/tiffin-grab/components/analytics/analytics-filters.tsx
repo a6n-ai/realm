@@ -8,6 +8,7 @@ import { useListNav } from "@/components/ds";
 import type { FacetDef } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { pruneSubcategories } from "./subcategory-prune";
 import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
 
@@ -31,15 +32,26 @@ export function AnalyticsFilters({
   const params = useSearchParams();
   const nav = useListNav();
   const onComplaints = pathname.startsWith("/dashboard/analytics/complaints");
-  const hasCategory = Boolean(params.get("category"));
-  const staleSub = onComplaints && !hasCategory && params.has("subcategory");
+  const category = params.get("category") ?? undefined;
+  const hasCategory = Boolean(category);
+  const subs = (params.get("subcategory") ?? "").split(",").filter(Boolean);
+  const subOptions = useMemo(
+    () =>
+      complaintFacets.flatMap((f) =>
+        f.kind === "multi" && f.field === "subcategory" ? f.options : [],
+      ),
+    [complaintFacets],
+  );
+  const kept = pruneSubcategories(subs, category, subOptions);
+  const staleSub = onComplaints && kept.length !== subs.length;
 
   useEffect(() => {
     if (!staleSub) return;
     const sp = new URLSearchParams(params.toString());
-    sp.delete("subcategory");
+    if (kept.length) sp.set("subcategory", kept.join(","));
+    else sp.delete("subcategory");
     nav(`${pathname}?${sp.toString()}`, "replace");
-  }, [staleSub, params, pathname, nav]);
+  }, [staleSub, kept, params, pathname, nav]);
 
   const spec = useMemo<FacetDef[]>(() => {
     const shared: FacetDef[] = [
