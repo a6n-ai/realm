@@ -3,9 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@foundry/ui/cn";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ListPagination } from "@/components/ds";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
+import { ChartTip } from "@/components/analytics/chart-tip";
 
 /** Compact page size for analytics cards (DataTable defaults to 25). */
 const PAGE_SIZE = 10;
@@ -100,9 +101,9 @@ export function BreakdownList({
                         {body}
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
+                    <ChartTip side="left" className="max-w-xs">
                       {r.tip}
-                    </TooltipContent>
+                    </ChartTip>
                   </Tooltip>
                 </TooltipProvider>
               ) : r.href ? (

@@ -37,11 +37,11 @@ import {
 import type { TreemapNode } from "recharts";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
+import { ChartTip } from "@/components/analytics/chart-tip";
 import type { TreemapGroup } from "@/lib/analytics/size-treemap";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { keySeries, seriesKey } from "@/components/analytics/series-keys";
@@ -560,7 +560,7 @@ export function SegmentedBar({
                     />
                   )}
                 </TooltipTrigger>
-                <TooltipContent>{text}</TooltipContent>
+                <ChartTip>{text}</ChartTip>
               </Tooltip>
             );
           })}
@@ -733,9 +733,9 @@ export function PartsDonut({
                         {row}
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
+                    <ChartTip side="left" className="max-w-xs">
                       {p.tip}
-                    </TooltipContent>
+                    </ChartTip>
                   </Tooltip>
                 </TooltipProvider>
               ) : p.href ? (
@@ -940,7 +940,7 @@ export function HeatmapGrid({
                         </span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>{text}</TooltipContent>
+                    <ChartTip>{text}</ChartTip>
                   </Tooltip>
                 );
               })}
@@ -1048,7 +1048,7 @@ export function CalendarHeatmap({
                         </span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <ChartTip>
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">{calDate(CAL_DAY, date)}</span>
                         <span>
@@ -1060,7 +1060,7 @@ export function CalendarHeatmap({
                           </span>
                         ))}
                       </div>
-                    </TooltipContent>
+                    </ChartTip>
                   </Tooltip>
                 );
               })}

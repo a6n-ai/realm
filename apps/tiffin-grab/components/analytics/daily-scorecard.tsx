@@ -49,7 +49,7 @@ const addDays = (iso: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-/** Mon–Sun weeks, newest first; totals are plain sums of the days (profit stays null only when every day is null). */
+/** Mon–Sun weeks, oldest first; totals are plain sums of the days (profit stays null only when every day is null). */
 export function groupByWeek(rows: ScorecardDay[]): ScorecardWeek[] {
   const weeks = new Map<string, ScorecardWeek>();
   for (const r of rows) {
@@ -66,7 +66,7 @@ export function groupByWeek(rows: ScorecardDay[]): ScorecardWeek[] {
       w[c.key] = ((w[c.key] ?? 0) as number) + v;
     }
   }
-  return [...weeks.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
+  return [...weeks.values()].sort((a, b) => (a.start < b.start ? -1 : 1));
 }
 
 /** "Oct 26 – Nov 1" */
