@@ -117,6 +117,16 @@ describe("order CRM queries (integration)", () => {
     expect(free.items.map((r) => [r.publicId, r.freeTiffins])).toEqual([[given.publicId, 2]]);
     expect(await countFreeTiffinOrders("all")).toBe(1);
 
+    // With a range, only orders with a scheduled free tiffin dated inside it.
+    const [row] = await db.select({ id: orders.id, start: orders.startDate }).from(orders).where(eq(orders.publicId, given.publicId));
+    const day = String(row.start);
+    await db.update(schema.deliveries).set({ complimentaryNote: "Apology" })
+      .where(and(eq(schema.deliveries.orderId, row.id), eq(schema.deliveries.deliveryDate, day)));
+    expect(await countFreeTiffinOrders("all", { from: day, to: day })).toBe(1);
+    expect(await countFreeTiffinOrders("all", { from: "2099-01-01", to: "2099-01-31" })).toBe(0);
+    const ranged = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { freeTiffins: true, freeRange: { from: day, to: day } });
+    expect(ranged.items.map((r) => r.publicId)).toEqual([given.publicId]);
+
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, given.publicId));
     expect(await countFreeTiffinOrders("all")).toBe(0);
   });

@@ -9,7 +9,7 @@ import { getSession } from "@/lib/auth/session";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countFreeTiffinOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { redirect } from "next/navigation";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
@@ -78,7 +78,7 @@ export default async function OrdersPage({
         </Suspense>
       </div>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
-        <OrdersViews />
+        <OrdersViews searchParams={searchParams} />
       </Suspense>
       <SectionCard title="Orders">
         <Suspense fallback={<OrdersListSkeleton />}>
@@ -96,14 +96,26 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
-async function OrdersViews() {
+/**
+ * The Free tiffins tab follows the date range: free tiffins delivered so far inside it, the same count as
+ * Analytics → Revenue. The work-queue tabs (Look out for, Payment review, Missed) stay on every date.
+ */
+async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
+  const [sp, { timezone }] = await Promise.all([withDefaultMonth(raw), getAppSettings()]);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const today = zonedDateIso(Date.now(), timezone);
+  const to = zonedDateIso(Number(sp.to), timezone);
+  return { from: zonedDateIso(Number(sp.from), timezone), to: to < today ? to : today };
+}
+
+async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
     countPaymentReviewOrders(visible),
-    countFreeTiffinOrders(visible),
+    countFreeTiffinOrders(visible, await freeRange(await searchParams)),
   ]);
   return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} freeCount={freeCount} />;
 }
@@ -172,6 +184,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const freeTiffins = raw.view === "free";
   // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
+  // Free tiffins drops them too, but filters by free-tiffin delivery date instead (freeRange).
   const sp = lookOutOnly || paymentReview || freeTiffins || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
@@ -214,6 +227,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       lookOutOnly,
       paymentReview,
       freeTiffins,
+      freeRange: freeTiffins ? await freeRange(raw) : undefined,
       missedAsOf,
     }),
     canReassign(),

@@ -1471,9 +1471,23 @@ async function countVisibleOrders(where: SQL | undefined, visible: "all" | strin
 /** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
 export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
 
-/** Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out. */
-const freeTiffinsWhere = () => and(gt(orders.complimentaryTiffins, 0), ne(orders.status, "cancelled"));
-export const countFreeTiffinOrders = (visible: "all" | string[]) => countVisibleOrders(freeTiffinsWhere(), visible);
+/** ISO dates (app timezone), both inclusive. */
+export type FreeTiffinRange = { from: string; to: string };
+
+/**
+ * Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out.
+ * With a range, only orders with a free tiffin scheduled in it: the analytics Free tiffins rule, so both agree.
+ */
+const freeTiffinsWhere = (range?: FreeTiffinRange) =>
+  and(
+    gt(orders.complimentaryTiffins, 0),
+    ne(orders.status, "cancelled"),
+    range
+      ? sql`exists (select 1 from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.complimentaryNote} is not null
+          and ${deliveries.status} = 'scheduled' and ${deliveries.deliveryDate} between ${range.from} and ${range.to})`
+      : undefined,
+  );
+export const countFreeTiffinOrders = (visible: "all" | string[], range?: FreeTiffinRange) => countVisibleOrders(freeTiffinsWhere(range), visible);
 
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
@@ -1668,6 +1682,8 @@ export interface OrdersListOpts {
   lookOutOnly?: boolean;
   paymentReview?: boolean;
   freeTiffins?: boolean;
+  /** Free tiffins tab: only orders with a free tiffin in this range. */
+  freeRange?: FreeTiffinRange;
   /** today in the app timezone; keeps orders with a missed delivery before it. */
   missedAsOf?: string;
 }
@@ -1677,7 +1693,7 @@ export function ordersListWhere(condition: Condition | undefined, visible: "all"
   return and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
-    opts.freeTiffins ? freeTiffinsWhere() : undefined,
+    opts.freeTiffins ? freeTiffinsWhere(opts.freeRange) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
