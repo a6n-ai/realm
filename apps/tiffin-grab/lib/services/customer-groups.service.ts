@@ -1,8 +1,10 @@
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
-import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, like, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
+import type { AnyColumn } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import {
@@ -168,10 +170,13 @@ export async function listCustomerGroups(page: {
   page: number;
   size: number;
   range?: EpochRange;
+  q?: string;
 }): Promise<{ rows: CustomerGroupRow[]; total: number }> {
-  const where = page.range
-    ? and(gte(customerGroups.createdAt, page.range.from), lte(customerGroups.createdAt, page.range.to))
-    : undefined;
+  const term = page.q?.trim();
+  const where = and(
+    page.range ? and(gte(customerGroups.createdAt, page.range.from), lte(customerGroups.createdAt, page.range.to)) : undefined,
+    term ? ilike(customerGroups.name, `%${term}%`) : undefined,
+  );
   const [rows, [{ n }]] = await Promise.all([
     groupQuery()
       .where(where)
@@ -238,6 +243,106 @@ export async function giveCoinsStats(r: EpochRange) {
     groups,
     avgCoinsPerCustomer: g.customers ? g.coins / g.customers : 0,
   };
+}
+
+export type GiveSortColumn = "when" | "customer" | "coins" | "type" | "group" | "givenBy" | "memo";
+export type GiveHistoryFilters = {
+  q?: string;
+  /** `group` = a saved-group grant (`grant:%`), `one` = one customer / renewals page (`broadcast:%`). */
+  type?: "group" | "one";
+  /** Staff member's public id. */
+  givenBy?: string;
+  /** Customer group public id (group grants only). */
+  group?: string;
+  range?: EpochRange;
+  sort: { column: GiveSortColumn; dir: "asc" | "desc" };
+  page: { page: number; size: number };
+};
+
+const giver = alias(users, "giver");
+const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
+
+/** Wallet -> Give coins table: manual_broadcast credits with the group and staff member behind each. */
+export async function giveHistoryRows(f: GiveHistoryFilters) {
+  const term = f.q?.trim();
+  const where = and(
+    eq(walletLedger.sourceType, "manual_broadcast"),
+    eq(walletLedger.direction, "credit"),
+    f.range ? and(gte(walletLedger.createdAt, f.range.from), lte(walletLedger.createdAt, f.range.to)) : undefined,
+    f.type === "group" ? like(walletLedger.sourceId, "grant:%") : f.type === "one" ? like(walletLedger.sourceId, "broadcast:%") : undefined,
+    f.givenBy ? eq(giver.publicId, f.givenBy) : undefined,
+    f.group ? eq(customerGroups.publicId, f.group) : undefined,
+    term ? or(ilike(users.name, `%${term}%`), ilike(users.email, `%${term}%`)) : undefined,
+  );
+  const order: Record<GiveSortColumn, AnyColumn> = {
+    when: walletLedger.createdAt,
+    customer: users.email,
+    coins: walletLedger.coins,
+    type: walletLedger.sourceId,
+    group: customerGroups.name,
+    givenBy: giver.name,
+    memo: walletLedger.memo,
+  };
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        publicId: walletLedger.publicId,
+        createdAt: walletLedger.createdAt,
+        coins: walletLedger.coins,
+        memo: walletLedger.memo,
+        sourceId: walletLedger.sourceId,
+        customerName: users.name,
+        customerEmail: users.email,
+        givenBy: giver.name,
+        groupName: customerGroups.name,
+        groupPublicId: customerGroups.publicId,
+      })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .where(where)
+      .orderBy(...pageOrder(f.sort.dir, order[f.sort.column], walletLedger.id))
+      .limit(f.page.size)
+      .offset(f.page.page * f.page.size),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .where(where),
+  ]);
+  return {
+    total,
+    rows: rows.map((r) => ({
+      publicId: r.publicId,
+      createdAt: r.createdAt,
+      coins: r.coins,
+      memo: r.memo,
+      customer: r.customerName || r.customerEmail || "—",
+      type: r.sourceId.startsWith("grant:") ? ("group" as const) : ("one" as const),
+      group: r.groupName,
+      groupPublicId: r.groupPublicId,
+      givenBy: r.givenBy,
+    })),
+  };
+}
+
+/** Facet options for the Give coins filters: staff who have given, and saved groups. */
+export async function giveFilterOptions() {
+  const [givers, groups] = await Promise.all([
+    db
+      .selectDistinct({ value: giver.publicId, label: giver.name })
+      .from(walletLedger)
+      .innerJoin(giver, eq(giver.id, walletLedger.createdBy))
+      .where(eq(walletLedger.sourceType, "manual_broadcast"))
+      .orderBy(giver.name),
+    db.select({ value: customerGroups.publicId, label: customerGroups.name }).from(customerGroups).orderBy(customerGroups.name).limit(200),
+  ]);
+  return { givers, groups };
 }
 
 /** Customer groups cards: groups created in the range and the actions taken in it. */

@@ -1,20 +1,18 @@
 import { Suspense } from "react";
 import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { requireAdmin } from "@/lib/auth/guards";
-import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
-import { parseFilterState } from "@/components/ds";
+import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { parseSort, type SortState } from "@/lib/list/sort";
-import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
+import { parseSort } from "@/lib/list/sort";
+import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
-import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { findCustomerGroup, giveCoinsStats } from "@/lib/services/customer-groups.service";
+import { findCustomerGroup, giveCoinsStats, giveFilterOptions, giveHistoryRows, type GiveSortColumn } from "@/lib/services/customer-groups.service";
 import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
-import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
+import { GiveHistoryTable, GiveHistoryTableSkeleton } from "./give-history-table";
 import { GiveCoinsFlowDialog } from "./give-coins-flow-dialog";
 import { GiveOneCustomerDialog } from "./give-one-customer-dialog";
 
@@ -23,26 +21,24 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-start gap-2">
-        <h2 className="text-base font-semibold">Give coins</h2>
-        <p className="text-muted-foreground text-sm">Give coins to a customer group, or to one customer.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Suspense fallback={<Button disabled><CoinsIcon /> Give coins</Button>}>
-            <Launcher searchParams={searchParams} />
-          </Suspense>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+          <div className="flex flex-wrap items-center gap-2">
+            <Suspense fallback={<Skeleton className="h-9 w-56" />}>
+              <Launcher searchParams={searchParams} />
+            </Suspense>
+          </div>
         </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <GiveStats searchParams={searchParams} />
+        </Suspense>
       </div>
-      <SectionDateRange />
-      <Suspense
-        fallback={
-          <>
-            <StatCardsSkeleton count={5} />
-            <WalletLedgerTableSkeleton />
-          </>
-        }
-      >
-        <GrantHistory searchParams={searchParams} />
-      </Suspense>
+      <SectionCard title="Grant history" subtitle="Every coin grant, with the staff member who gave it.">
+        <Suspense fallback={<GiveHistoryTableSkeleton />}>
+          <GrantHistory searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
     </div>
   );
 }
@@ -58,34 +54,20 @@ async function Launcher({ searchParams }: { searchParams: SearchParams }) {
           <AlertDescription>That customer group was not found. Pick a group below.</AlertDescription>
         </Alert>
       )}
+      <GiveOneCustomerDialog />
       <GiveCoinsFlowDialog
         cities={await listOrderCities()}
         maxRows={MAX_REVIEW_ROWS}
         presetGroup={preset ? { publicId: preset.publicId, count: preset.memberCount } : null}
       />
-      <GiveOneCustomerDialog />
     </>
   );
 }
 
-// Cards and every past Give coins grant (with the staff member who saved it) follow
-// the date range. Grants never carry an order, so the order column holds "Given by".
-async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
+async function GiveStats({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
-  const range = epochRange(sp);
-  const sort: SortState<WalletSortColumn> = parseSort(
-    sp,
-    ["time", "user", "event", "source", "coins", "order", "memo"],
-    { column: "time", dir: "desc" },
-  );
-  const { page } = parseFilterState([], sp);
-  const [stats, { rows, total }, { timezone }] = await Promise.all([
-    giveCoinsStats(range),
-    walletLedgerRows({ q: sp.q?.trim(), sourceType: "manual_broadcast", range, sort, page }),
-    getAppSettings(),
-  ]);
-
+  const stats = await giveCoinsStats(epochRange(sp));
   const cards: StatCardItem[] = [
     { label: "Coins given", value: stats.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
     { label: "Customers rewarded", value: stats.customersRewarded.toLocaleString(), icon: UserCheckIcon, hint: "received at least one grant" },
@@ -98,30 +80,56 @@ async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
       hint: "coins per rewarded customer",
     },
   ];
+  return <StatCards items={cards} />;
+}
+
+const TYPE_LABEL = { group: "Group grant", one: "One customer" } as const;
+
+// `group` is the Launcher preselect param, so the Group facet uses `inGroup`.
+// A text search spans all dates (withListDates), like Orders.
+async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const sp = await withListDates(await searchParams);
+  const range = epochRange(sp);
+  const sort = parseSort<GiveSortColumn>(
+    sp,
+    ["when", "customer", "coins", "type", "group", "givenBy", "memo"],
+    { column: "when", dir: "desc" },
+  );
+  const spec0: FacetDef[] = [{ kind: "search", fields: ["customer"] }];
+  const { page } = parseFilterState(spec0, sp);
+  const type = sp.type === "group" || sp.type === "one" ? sp.type : undefined;
+  const [{ rows, total }, { timezone }, { givers, groups }] = await Promise.all([
+    giveHistoryRows({ q: sp.q, type, givenBy: sp.givenBy || undefined, group: sp.inGroup || undefined, range, sort, page }),
+    getAppSettings(),
+    giveFilterOptions(),
+  ]);
+  const spec: FacetDef[] = [
+    { kind: "select", field: "givenBy", label: "Given by", options: givers.map((g) => ({ value: g.value, label: g.label ?? "Unnamed" })) },
+    { kind: "select", field: "type", label: "Type", options: [{ value: "group", label: TYPE_LABEL.group }, { value: "one", label: TYPE_LABEL.one }] },
+    { kind: "select", field: "inGroup", label: "Group", options: groups },
+    ...spec0,
+  ];
 
   return (
-    <>
-      <StatCards items={cards} />
-      <WalletLedgerTable
-        orderColumnLabel="Given by"
-        rows={rows.map((r) => ({
-          publicId: r.publicId,
-          when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
-          direction: r.direction,
-          eventLabel: null,
-          sourceType: walletEntryLabel(r.sourceType),
-          coins: r.coins,
-          memo: r.memo,
-          who: r.email,
-          // Grants saved before 2026-10-28 never recorded who gave them.
-          orderLabel: r.actorName ?? "Not recorded",
-          orderHref: null,
-        }))}
-        sort={sort}
-        total={total}
-        page={page.page}
-        size={page.size}
-      />
-    </>
+    <GiveHistoryTable
+      spec={spec}
+      sort={sort}
+      total={total}
+      page={page.page}
+      size={page.size}
+      rows={rows.map((r) => ({
+        publicId: r.publicId,
+        when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
+        customer: r.customer,
+        coins: r.coins,
+        type: TYPE_LABEL[r.type],
+        group: r.group,
+        groupPublicId: r.groupPublicId,
+        // Grants saved before 2026-10-28 never recorded who gave them.
+        givenBy: r.givenBy ?? "Not recorded",
+        memo: r.memo,
+      }))}
+    />
   );
 }

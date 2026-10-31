@@ -7,7 +7,7 @@ import { CoinsIcon, MailIcon, PlusIcon, Trash2Icon, UserPlusIcon, UsersIcon } fr
 import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, PageHeader, PageShell, ResponsiveDialog, SectionCard } from "@/components/ds";
+import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, SectionCard } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -49,6 +49,12 @@ function summary(a: GroupActionRow): string {
   return "Campaign created";
 }
 
+// Each table keeps its own search: DataTable's built-in one shares the URL `q`.
+const matches = (q: string, ...fields: (string | null | undefined)[]) => {
+  const t = q.trim().toLowerCase();
+  return !t || fields.some((f) => f?.toLowerCase().includes(t));
+};
+
 const campaignId = (a: GroupActionRow) => (typeof a.result.campaignPublicId === "string" ? a.result.campaignPublicId : null);
 
 export function GroupView({
@@ -63,6 +69,8 @@ export function GroupView({
   const router = useRouter();
   const tz = useTimezone();
   const [adding, setAdding] = useState(false);
+  const [memberQ, setMemberQ] = useState("");
+  const [activityQ, setActivityQ] = useState("");
   const [viewing, setViewing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,8 +146,9 @@ export function GroupView({
               )}
               <DataTable
                 columns={MEMBER_COLUMNS}
-                rows={members}
-                search={{ placeholder: "Search by name, email or phone", shortPlaceholder: "Search customers", keys: ["name", "email", "phone"] }}
+                rows={members.filter((m) => matches(memberQ, m.name, m.email, m.phone))}
+                filters={<SearchInput value={memberQ} onChange={setMemberQ} placeholder="Search by name, email or phone" shortPlaceholder="Search customers" />}
+                emptySearchMessage="No customers match your search."
                 rowKey={(m) => m.publicId}
                 serial={false}
                 emptyIcon={UsersIcon}
@@ -174,8 +183,9 @@ export function GroupView({
           <SectionCard title="Activity" subtitle="Everything done to this group, newest first.">
             <DataTable
               columns={ACTIVITY_COLUMNS}
-              rows={actions.map((a) => ({ ...a, searchText: `${ACTION_LABEL[a.kind] ?? a.kind} ${a.createdBy ?? ""} ${summary(a)}` }))}
-              search={{ placeholder: "Search action, person or campaign", shortPlaceholder: "Search activity", keys: ["searchText"] }}
+              rows={actions.filter((a) => matches(activityQ, ACTION_LABEL[a.kind] ?? a.kind, a.createdBy, summary(a)))}
+              filters={<SearchInput value={activityQ} onChange={setActivityQ} placeholder="Search action, person or campaign" shortPlaceholder="Search activity" />}
+              emptySearchMessage="No activity matches your search."
               rowKey={(a) => a.publicId}
               serial={false}
               emptyIcon={CoinsIcon}

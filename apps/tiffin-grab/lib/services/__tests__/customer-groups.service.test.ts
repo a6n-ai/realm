@@ -18,6 +18,8 @@ import {
   syncGroupContactList,
   customerGroupStats,
   giveCoinsStats,
+  giveFilterOptions,
+  giveHistoryRows,
   createCustomerGroup,
   emailAwardedMembers,
   emailGroup,
@@ -458,5 +460,43 @@ describe("customer groups", () => {
     expect(after.customersRewarded - before.customersRewarded).toBeGreaterThanOrEqual(0);
     expect(after.customersRewarded).toBeGreaterThanOrEqual(2);
     await db.delete(walletLedger).where(eq(walletLedger.memo, "t"));
+  });
+
+  it("give history: type, given-by, group and search filters, with group and giver on each row", async () => {
+    const t0 = Date.now() - 1;
+    const [fresh] = await db.insert(users).values({ email: `cg-hist-${run}@throwaway.local`, name: "Hist" }).returning();
+    const g = await mk(`give-hist-${run}`, [fresh.id]);
+    await giveGroupCoins(g.publicId, { coins: 3, memo: "t-hist" }, uNoEmail);
+    await db.insert(walletLedger).values({
+      userId: fresh.id, direction: "credit", sourceType: "manual_broadcast", sourceId: `broadcast:hist-${run}:${fresh.id}`, coins: 4, memo: "t", createdBy: uCapped,
+    });
+    const base = { sort: { column: "when" as const, dir: "desc" as const }, page: { page: 0, size: 50 }, q: `cg-hist-${run}`, range: { from: t0, to: t0 + 3_600_000 } };
+    const all = await giveHistoryRows(base);
+    expect(all.total).toBe(2);
+    const grp = all.rows.find((r) => r.type === "group");
+    expect(grp).toMatchObject({ group: `give-hist-${run}`, groupPublicId: g.publicId, givenBy: "NoEmail", coins: 3 });
+    expect(all.rows.find((r) => r.type === "one")).toMatchObject({ group: null, givenBy: "Capped", coins: 4 });
+
+    expect((await giveHistoryRows({ ...base, type: "group" })).rows.map((r) => r.type)).toEqual(["group"]);
+    expect((await giveHistoryRows({ ...base, type: "one" })).rows.map((r) => r.type)).toEqual(["one"]);
+    const [capped] = await db.select({ p: users.publicId }).from(users).where(eq(users.id, uCapped));
+    expect((await giveHistoryRows({ ...base, givenBy: capped.p })).rows.map((r) => r.givenBy)).toEqual(["Capped"]);
+    expect((await giveHistoryRows({ ...base, group: g.publicId })).total).toBe(1);
+    expect((await giveHistoryRows({ ...base, q: "nobody-matches-this" })).total).toBe(0);
+    expect((await giveHistoryRows({ ...base, sort: { column: "coins", dir: "asc" } })).rows.map((r) => r.coins)).toEqual([3, 4]);
+
+    const opts = await giveFilterOptions();
+    expect(opts.givers.map((o) => o.label)).toEqual(expect.arrayContaining(["NoEmail", "Capped"]));
+    expect(opts.groups.map((o) => o.value)).toContain(g.publicId);
+    await db.delete(walletLedger).where(eq(walletLedger.userId, fresh.id));
+    await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, fresh.id));
+    await db.delete(users).where(eq(users.id, fresh.id));
+  });
+
+  it("lists groups filtered by name search", async () => {
+    await mk(`find-me-${run}`, [uOk]);
+    const hit = await listCustomerGroups({ page: 0, size: 10, q: `FIND-ME-${run}` });
+    expect(hit.rows.map((r) => r.name)).toEqual([`find-me-${run}`]);
+    expect((await listCustomerGroups({ page: 0, size: 10, q: "zzz-no-such-group" })).total).toBe(0);
   });
 });

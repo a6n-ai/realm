@@ -7,13 +7,12 @@ import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { parseFilterState, type FacetDef } from "@/components/ds";
+import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
+import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { pageOrder } from "@foundry/database";
-import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
+import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -36,19 +35,35 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="flex flex-col gap-6">
-      <SectionDateRange />
-      <Suspense
-        fallback={
-          <>
-            <StatCardsSkeleton count={5} />
-            <WalletLedgerTableSkeleton />
-          </>
-        }
-      >
-        <WalletLedgerData searchParams={searchParams} />
-      </Suspense>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <LedgerStats searchParams={searchParams} />
+        </Suspense>
+      </div>
+      <SectionCard title="Ledger" subtitle="Every coin earned, redeemed or given. A text search spans all dates.">
+        <Suspense fallback={<LedgerTableSkeleton />}>
+          <WalletLedgerData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
     </div>
   );
+}
+
+async function LedgerStats({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const sp = await withDefaultMonth(await searchParams);
+  const { agg } = await walletLedgerStats(epochRange(sp));
+  const cards: StatCardItem[] = [
+    { label: "Coins earned", value: agg.earned.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
+    { label: "Coins spent", value: agg.spent.toLocaleString(), icon: ShoppingBagIcon, hint: "net of returns" },
+    { label: "Net", value: (agg.earned - agg.spent).toLocaleString(), icon: ScaleIcon, hint: "earned minus spent" },
+    { label: "Active wallets", value: agg.wallets.toLocaleString(), icon: WalletIcon, hint: "with activity in range" },
+    { label: "Entries", value: agg.entries.toLocaleString(), icon: ScrollTextIcon, hint: "ledger rows in range" },
+  ];
+  return <StatCards items={cards} />;
 }
 
 /**
@@ -141,7 +156,8 @@ export async function walletLedgerRows({ q, sourceType, direction, range, sort, 
 async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await withDefaultMonth(await searchParams);
+  // A text search spans all dates, like Orders; the cards above keep the picked range.
+  const sp = await withListDates(await searchParams);
   const range = epochRange(sp);
 
   const sort: SortState<WalletSortColumn> = parseSort(
@@ -149,11 +165,12 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
     ["time", "user", "event", "source", "coins", "order", "memo"],
     { column: "time", dir: "desc" },
   );
-  const { page } = parseFilterState([], sp);
   const direction = sp.direction === "credit" || sp.direction === "debit" ? sp.direction : undefined;
 
-  const [{ agg }, { rows, total }, { timezone }, sources] = await Promise.all([
-    walletLedgerStats(range),
+  const spec0: FacetDef[] = [{ kind: "search", fields: ["memo", "user", "source", "order"] }];
+  const { page } = parseFilterState(spec0, sp);
+
+  const [{ rows, total }, { timezone }, sources] = await Promise.all([
     walletLedgerRows({ q: sp.q?.trim(), sourceType: sp.source || undefined, direction, range, sort, page }),
     getAppSettings(),
     db.selectDistinct({ sourceType: walletLedger.sourceType }).from(walletLedger),
@@ -177,41 +194,29 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
         { value: "debit", label: "Debit" },
       ],
     },
-  ];
-
-  const cards: StatCardItem[] = [
-    { label: "Coins earned", value: agg.earned.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
-    { label: "Coins spent", value: agg.spent.toLocaleString(), icon: ShoppingBagIcon, hint: "net of returns" },
-    { label: "Net", value: (agg.earned - agg.spent).toLocaleString(), icon: ScaleIcon, hint: "earned minus spent" },
-    { label: "Active wallets", value: agg.wallets.toLocaleString(), icon: WalletIcon, hint: "with activity in range" },
-    { label: "Entries", value: agg.entries.toLocaleString(), icon: ScrollTextIcon, hint: "ledger rows in range" },
+    ...spec0,
   ];
 
   return (
-    <>
-      <StatCards items={cards} />
-      <div className="flex flex-col gap-3">
-        <ReuiFacetFilters spec={spec} />
-        <WalletLedgerTable
-          rows={rows.map((r) => ({
-            publicId: r.publicId,
-            when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
-            direction: r.direction,
-            eventLabel: r.eventType ? eventLabel(r.eventType) : null,
-            sourceType: walletEntryLabel(r.sourceType),
-            coins: r.coins,
-            memo: r.memo,
-            who: r.email,
-            orderLabel: r.orderPublicId,
-            orderHref: r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : null,
-          }))}
-          sort={sort}
-          total={total}
-          page={page.page}
-          size={page.size}
-        />
-      </div>
-    </>
+    <LedgerTable
+      spec={spec}
+      rows={rows.map((r) => ({
+        publicId: r.publicId,
+        when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
+        direction: r.direction,
+        eventLabel: r.eventType ? eventLabel(r.eventType) : null,
+        sourceType: walletEntryLabel(r.sourceType),
+        coins: r.coins,
+        memo: r.memo,
+        who: r.email,
+        orderLabel: r.orderPublicId,
+        orderHref: r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : null,
+      }))}
+      sort={sort}
+      total={total}
+      page={page.page}
+      size={page.size}
+    />
   );
 }
 
