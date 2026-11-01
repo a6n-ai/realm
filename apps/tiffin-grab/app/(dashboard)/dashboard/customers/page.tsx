@@ -22,6 +22,7 @@ import {
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
+import { ORDER_STATUS_PILLS } from "../orders/status-pills";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
@@ -139,6 +140,31 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
         { value: "14", label: "Next 14 days" },
       ],
     },
+    {
+      kind: "select",
+      field: "activePlan",
+      label: "Active plan",
+      options: [
+        { value: "yes", label: "Has active plan" },
+        { value: "no", label: "No active plan" },
+      ],
+    },
+    {
+      kind: "select",
+      field: "customerType",
+      label: "Customer type",
+      options: [
+        { value: "none", label: "No orders" },
+        { value: "new", label: "New (1 order)" },
+        { value: "repeat", label: "Repeat (2+ orders)" },
+      ],
+    },
+    {
+      kind: "select",
+      field: "latestStatus",
+      label: "Latest order",
+      options: ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => ({ value: p.value, label: p.label })),
+    },
     { kind: "search", fields: ["name", "phone", "email"] },
   ];
 
@@ -146,10 +172,18 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
   // filter UI, the DB condition is parsed without it and it goes in as a custom filter.
   const parsed = Number(sp.planCompletesInDays);
   const planCompletesInDays = sp.planCompletesInDays && Number.isFinite(parsed) ? parsed : undefined;
-  const dsSpec = spec.filter((s) => s.kind !== "select" || s.field !== "planCompletesInDays");
+  const CUSTOM = ["planCompletesInDays", "activePlan", "customerType", "latestStatus"];
+  const dsSpec = spec.filter((s) => s.kind !== "select" || !CUSTOM.includes(s.field));
+  const pick = <T extends string>(v: string | undefined, allowed: readonly T[]) => allowed.find((a) => a === v);
+  const latestStatusOptions = ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => p.value);
   const { condition: dbCondition, page: dbPage } = parseFilterState(dsSpec, sp);
 
-  const result = await listCustomersPage(dbCondition, dbPage, sort, { planCompletesInDays });
+  const result = await listCustomersPage(dbCondition, dbPage, sort, {
+    planCompletesInDays,
+    activePlan: pick(sp.activePlan, ["yes", "no"]),
+    customerType: pick(sp.customerType, ["none", "new", "repeat"]),
+    latestStatus: pick(sp.latestStatus, latestStatusOptions),
+  });
 
   return <CustomersList spec={spec} rows={result.items} total={result.total} page={dbPage.page} size={dbPage.size} sort={sort} />;
 }

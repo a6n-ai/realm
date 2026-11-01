@@ -4,7 +4,7 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
@@ -93,6 +93,7 @@ export function computeOverdue(stage: string, nextFollowUpAt: number | null, now
 function inquiriesResolver() {
   const base = columnResolver({
     stage: inquiries.stage,
+    lostReason: inquiries.lostReason,
     createdAt: inquiries.createdAt,
     fullName: inquiries.fullName,
     phone: inquiries.phone,
@@ -105,6 +106,9 @@ function inquiriesResolver() {
       const vals = valuesOf(f);
       const real = vals.filter((v) => v !== "none") as SubStatus[];
       return or(vals.includes("none") ? isNull(inquiries.subStatus) : undefined, real.length ? inArray(inquiries.subStatus, real) : undefined)!;
+    }
+    if (f.field === "zone") {
+      return inArray(inquiries.zoneId, db.select({ id: deliveryZones.id }).from(deliveryZones).where(inArray(deliveryZones.name, valuesOf(f))));
     }
     if (f.field === "owner") {
       return inArray(

@@ -8,6 +8,8 @@ import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } f
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { loadOwnerOptions } from "@/lib/list/facet-options";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
@@ -44,7 +46,8 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   // Same date rules as Orders: this month by default, and a text search spans all dates.
   const sp = await withListDates(await searchParams);
   const f = parseRenewalsFilter(sp);
-  const spec = facetSpec(f);
+  const ownerOptions = f.tab === "customers" ? [] : await loadOwnerOptions();
+  const spec = facetSpec(f, ownerOptions);
   // Same page/size rules as every other list (default 25, sizes 10/25/50/100).
   const { page } = parseFilterState(spec, sp);
   return (
@@ -102,7 +105,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
 }
 
 /** The standard facet bar under the top date range: Ending / Ended windows, Status and search. */
-function facetSpec(f: RenewalsFilter): FacetDef[] {
+function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[]): FacetDef[] {
   if (f.tab === "customers") {
     return [
       { kind: "select", field: "renewed", label: "Renewed in last", options: RENEWED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
@@ -113,6 +116,9 @@ function facetSpec(f: RenewalsFilter): FacetDef[] {
     { kind: "select", field: "ending", label: "Ending within", options: ENDING_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `${d} ${d === 1 ? "day" : "days"}` })) },
     { kind: "select", field: "ended", label: "Ended in last", options: ENDED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
     { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, f.tab) })) },
+    ...(ownerOptions.length
+      ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
+      : []),
     { kind: "search", fields: ["fullName", "deploymentId", "phone"] },
   ];
 }

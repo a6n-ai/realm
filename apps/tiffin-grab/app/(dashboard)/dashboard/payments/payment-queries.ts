@@ -7,6 +7,7 @@ import type { SendState } from "@/lib/services/customers.service";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -26,7 +27,7 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string; basis?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; owner?: string; kind?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
 export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
@@ -204,6 +205,13 @@ export async function getLogKpis(sp: { from?: string; to?: string }) {
   return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
 }
 
+/** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
+function ownerWhere(v?: string) {
+  if (!v) return undefined;
+  if (v === UNASSIGNED_OWNER) return sql`${payments.orderId} in (select id from ${orders} where current_owner is null)`;
+  return sql`${payments.orderId} in (select id from ${orders} where current_owner in (select id from ${users} where public_id = ${v}))`;
+}
+
 /** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */
 export async function listPayments(
   sp: Sp,
@@ -226,6 +234,8 @@ export async function listPayments(
       ? epochBoundsWhereSql(sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`, dated)
       : dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
+    ownerWhere(dated.owner),
+    dated.kind === "addon" ? sql`${payments.addonRequest} is not null` : dated.kind === "plan" ? sql`${payments.addonRequest} is null` : undefined,
     q
       ? or(
           ilike(orders.publicId, `%${q}%`),

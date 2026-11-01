@@ -43,7 +43,7 @@ export default function WalletBalancesPage({ searchParams }: { searchParams: Sea
           <BalancesStats searchParams={searchParams} />
         </Suspense>
       </div>
-      <SectionCard title="Balances" subtitle="Balance figures are as of now; the date range moves Earned and Redeemed.">
+      <SectionCard title="Balances" subtitle="Balance and Value are as of the end of the selected range; Earned and Redeemed are within it.">
         <Suspense fallback={<BalancesTableSkeleton />}>
           <BalancesData searchParams={searchParams} />
         </Suspense>
@@ -55,18 +55,20 @@ export default function WalletBalancesPage({ searchParams }: { searchParams: Sea
 async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
-  const [stats, { currency }] = await Promise.all([walletBalanceStats(epochRange(sp)), getAppSettings()]);
+  const [stats, { currency, timezone }] = await Promise.all([walletBalanceStats(epochRange(sp)), getAppSettings()]);
+  const range = epochRange(sp);
+  const held = `held on ${formatEpoch(Math.min(range.to, Date.now()), { mode: "date", timeZone: timezone })}`;
   const cards: StatCardItem[] = [
-    { label: "Coins outstanding", value: stats.outstanding.toLocaleString(), icon: CoinsIcon, hint: "held by customers now" },
-    { label: "Money value", value: stats.value == null ? "—" : formatMoney(Math.round(stats.value * 100), currency), icon: BanknoteIcon, hint: "at the current coin rate" },
-    { label: "Wallets with a balance", value: stats.walletsWithBalance.toLocaleString(), icon: WalletIcon, hint: "holding coins now" },
+    { label: "Coins outstanding", value: stats.outstanding.toLocaleString(), icon: CoinsIcon, hint: held },
+    { label: "Money value", value: stats.value == null ? "—" : formatMoney(Math.round(stats.value * 100), currency), icon: BanknoteIcon, hint: `${held}, at the current rate` },
+    { label: "Wallets with a balance", value: stats.walletsWithBalance.toLocaleString(), icon: WalletIcon, hint: held },
     { label: "Coins earned", value: stats.earned.toLocaleString(), icon: TrendingUpIcon, hint: "in selected range" },
     { label: "Coins redeemed", value: stats.redeemed.toLocaleString(), icon: TrendingDownIcon, hint: "in selected range" },
   ];
   return <StatCards items={cards} />;
 }
 
-// Balance figures are as of now; the date range only moves Earned and Redeemed.
+// Balance figures are as of the range end; Earned and Redeemed are within the range.
 async function BalancesData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);

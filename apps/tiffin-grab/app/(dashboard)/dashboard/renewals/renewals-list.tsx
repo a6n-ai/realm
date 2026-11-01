@@ -16,6 +16,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { EstimateButton } from "./estimate-button";
 
+
 const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "coins" | "spent" | "total" | "actions">[] = [
   // Widths sum to ~1090px with the # and Order columns, so all nine fit a 1440px screen.
   { key: "customer", label: "Customer", width: "w-40" },

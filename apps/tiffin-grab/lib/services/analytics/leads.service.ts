@@ -68,13 +68,14 @@ export async function getLeadsByStage(scope: AnalyticsScope) {
   return rows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, key: r.stage, n: r.n }));
 }
 
-const LOST_REASON_LABELS: Record<string, string> = {
+export const LOST_REASON_LABELS: Record<(typeof inquiries.lostReason.enumValues)[number], string> = {
   price: "Price",
   out_of_zone: "Out of zone",
   no_response: "No response",
   chose_competitor: "Chose competitor",
   not_ready: "Not ready",
   other: "Other",
+  asked_to_stop: "Asked to stop",
 };
 
 export async function getLostReasonBreakdown(

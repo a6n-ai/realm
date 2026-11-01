@@ -26,4 +26,11 @@ describe("renewals filter", () => {
       expect(parseRenewalsFilter(Object.fromEntries(new URLSearchParams(renewalsQuery(f))))).toEqual(f);
     }
   });
+
+  it("carries the owner on plan tabs, never on customers", () => {
+    const f = parseRenewalsFilter({ owner: "usr_1", ending: "3" });
+    expect(f.owner).toBe("usr_1");
+    expect(renewalsQuery(f)).toContain("owner=usr_1");
+    expect(parseRenewalsFilter({ tab: "customers", owner: "usr_1" }).owner).toBeUndefined();
+  });
 });

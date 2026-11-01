@@ -1,5 +1,5 @@
 {
-  "id": "6438a892-1b23-4cdf-a8d8-7a412ca25731",
+  "id": "e9ee8b8d-18c5-4219-a762-aee191751473",
   "prevId": "0e9df666-ba0f-4224-927e-407a50ea3299",
   "version": "7",
   "dialect": "postgresql",
@@ -6421,6 +6421,172 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.list_filter_usage": {
+      "name": "list_filter_usage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "params": {
+          "name": "params",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "uses": {
+          "name": "uses",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "list_filter_usage_user_path_params_idx": {
+          "name": "list_filter_usage_user_path_params_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "params",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "list_filter_usage_org_path_idx": {
+          "name": "list_filter_usage_org_path_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "list_filter_usage_user_id_users_id_fk": {
+          "name": "list_filter_usage_user_id_users_id_fk",
+          "tableFrom": "list_filter_usage",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "list_filter_usage_organization_id_organization_id_fk": {
+          "name": "list_filter_usage_organization_id_organization_id_fk",
+          "tableFrom": "list_filter_usage",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "list_filter_usage_public_id_unique": {
+          "name": "list_filter_usage_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.lead_sources": {
       "name": "lead_sources",
       "schema": "",
@@ -6639,8 +6805,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.owner_pool": {
-      "name": "owner_pool",
+    "public.inquiry_user_config": {
+      "name": "inquiry_user_config",
       "schema": "",
       "columns": {
         "id": {
@@ -6687,14 +6853,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "entity": {
-          "name": "entity",
-          "type": "owner_entity",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'inquiry'"
-        },
         "user_id": {
           "name": "user_id",
           "type": "bigint",
@@ -6722,8 +6880,8 @@
         }
       },
       "indexes": {
-        "owner_pool_source_idx": {
-          "name": "owner_pool_source_idx",
+        "inquiry_user_config_source_idx": {
+          "name": "inquiry_user_config_source_idx",
           "columns": [
             {
               "expression": "source_id",
@@ -6737,8 +6895,8 @@
           "method": "btree",
           "with": {}
         },
-        "owner_pool_organization_idx": {
-          "name": "owner_pool_organization_idx",
+        "inquiry_user_config_organization_idx": {
+          "name": "inquiry_user_config_organization_idx",
           "columns": [
             {
               "expression": "organization_id",
@@ -6754,9 +6912,9 @@
         }
       },
       "foreignKeys": {
-        "owner_pool_user_id_users_id_fk": {
-          "name": "owner_pool_user_id_users_id_fk",
-          "tableFrom": "owner_pool",
+        "inquiry_user_config_user_id_users_id_fk": {
+          "name": "inquiry_user_config_user_id_users_id_fk",
+          "tableFrom": "inquiry_user_config",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -6767,9 +6925,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "owner_pool_source_id_lead_sources_id_fk": {
-          "name": "owner_pool_source_id_lead_sources_id_fk",
-          "tableFrom": "owner_pool",
+        "inquiry_user_config_source_id_lead_sources_id_fk": {
+          "name": "inquiry_user_config_source_id_lead_sources_id_fk",
+          "tableFrom": "inquiry_user_config",
           "tableTo": "lead_sources",
           "columnsFrom": [
             "source_id"
@@ -6780,9 +6938,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "owner_pool_organization_id_organization_id_fk": {
-          "name": "owner_pool_organization_id_organization_id_fk",
-          "tableFrom": "owner_pool",
+        "inquiry_user_config_organization_id_organization_id_fk": {
+          "name": "inquiry_user_config_organization_id_organization_id_fk",
+          "tableFrom": "inquiry_user_config",
           "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
@@ -6796,18 +6954,17 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "owner_pool_public_id_unique": {
-          "name": "owner_pool_public_id_unique",
+        "inquiry_user_config_public_id_unique": {
+          "name": "inquiry_user_config_public_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
           ]
         },
-        "owner_pool_entity_user_source_unique": {
-          "name": "owner_pool_entity_user_source_unique",
+        "inquiry_user_config_user_source_unique": {
+          "name": "inquiry_user_config_user_source_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "entity",
             "user_id",
             "source_id"
           ]
@@ -15942,15 +16099,6 @@
         "inquiries",
         "customers",
         "payments"
-      ]
-    },
-    "public.owner_entity": {
-      "name": "owner_entity",
-      "schema": "public",
-      "values": [
-        "inquiry",
-        "order",
-        "ticket"
       ]
     },
     "public.day_of_week": {

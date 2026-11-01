@@ -7,6 +7,7 @@ import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
@@ -196,12 +197,13 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { column: "created", dir: "desc" },
   );
 
-  const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }] = await Promise.all([
+  const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }, zoneOptions] = await Promise.all([
     loadOwnerOptions(),
     loadSourceOptions(),
     loadSheetData(),
     canReassign(),
     getAppSettings(),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.active, true)).orderBy(deliveryZones.name),
   ]);
 
   // Facet spec is server-authored so parseFilterState (server) and FacetFilters
@@ -213,6 +215,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "select", field: "owner", label: "Owner", options: owners },
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
+    ...(zoneOptions.length ? [{ kind: "multi" as const, field: "zone", label: "Zone", options: zoneOptions }] : []),
+    { kind: "multi", field: "lostReason", label: "Lost reason", options: Object.entries(LOST_REASON_LABELS).map(([value, label]) => ({ value, label })) },
     { kind: "dateRange", field: "createdAt", label: "Created" },
     { kind: "search", fields: ["fullName", "phone", "email"] },
   ];

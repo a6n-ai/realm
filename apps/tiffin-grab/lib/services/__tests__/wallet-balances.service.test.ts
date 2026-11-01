@@ -87,16 +87,31 @@ describe("listWalletBalances", () => {
   });
 });
 
+describe("balances as of the range end", () => {
+  const bal = async (to: number) => (await list({ range: { from: 0, to } })).rows.find((r) => r.userId === a)?.balance;
+
+  it("excludes rows created after range.to", async () => {
+    expect(await bal(now - 2 * DAY)).toBe(100); // both debits are newer
+    expect(await bal(now)).toBe(70);
+  });
+
+  it("a hold expiring before range.to is excluded, but counts for an earlier end", async () => {
+    // hold created now-DAY, lapsed now-1min: live at now-2h, lapsed at now
+    expect(await bal(now - 2 * 3_600_000)).toBe(30);
+    expect(await bal(now)).toBe(70);
+  });
+
+  it("a future range end is clamped to now (live holds stay held)", async () => {
+    expect(await bal(now + 30 * DAY)).toBe(70);
+  });
+});
+
 describe("walletBalanceStats", () => {
-  it("range moves earned/redeemed but never the balance figures", async () => {
+  it("range moves earned/redeemed; balance figures follow the range end", async () => {
     const none = await walletBalanceStats({ from: now + DAY, to: now + 2 * DAY });
     const wide = await walletBalanceStats(WIDE);
     expect(wide.earned - none.earned).toBe(120);
     expect(wide.redeemed - none.redeemed).toBe(50);
-    expect(wide.outstanding).toBe(none.outstanding);
-    expect(wide.walletsWithBalance).toBe(none.walletsWithBalance);
-    // dev DB holds other wallets, so only bound from below
-    expect(wide.outstanding).toBeGreaterThanOrEqual(70);
-    expect(wide.value).toBeGreaterThan(0);
+    expect(wide.outstanding).toBe(none.outstanding); // both clamp to now
   });
 });
