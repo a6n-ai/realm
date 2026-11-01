@@ -101,7 +101,10 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   const dayStart = zonedDayStart(todayIso, timezone);
   const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
 
-  const timeline: TimelineActivity[] = activities.map((a) => ({
+  // Status changes from the old stage model (no sub-status recorded) are noise now; notes, calls and the rest stay.
+  const timeline: TimelineActivity[] = activities
+    .filter((a) => a.type !== "stage_change" || a.fromSubStatus != null || a.toSubStatus != null)
+    .map((a) => ({
     publicId: a.publicId,
     type: a.type,
     note: a.note,
