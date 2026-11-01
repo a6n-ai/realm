@@ -24,7 +24,7 @@ import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { displayName } from "@/lib/inquiries/display";
 import { SUB_STATUSES, SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
-import { NoteDialog, StatusDialog, StatusPill, type NoteKind } from "./_leads/status-dialog";
+import { NoteDialog, StatusDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
 type StaffOption = { publicId: string; name: string };
@@ -261,7 +261,7 @@ export function InquiriesList({
               <div className="flex min-w-0 flex-col gap-1">
                 <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
-                <div><StatusPill subStatus={sub} /></div>
+                <div><StatusMenu inquiryId={r.publicId} subStatus={sub} onMore={() => setDialog({ id: r.publicId, kind: "status" })} /></div>
               </div>
               <RowActions r={r} canReassign={canMove} onOpenDialog={setDialog} />
             </div>
@@ -291,14 +291,7 @@ export function InquiriesList({
                 </div>
               </TableCell>
               <TableCell>
-                <button
-                  type="button"
-                  aria-label="Change status"
-                  className="cursor-pointer"
-                  onClick={() => setDialog({ id: r.publicId, kind: "status" })}
-                >
-                  <StatusPill subStatus={sub} />
-                </button>
+                <StatusMenu inquiryId={r.publicId} subStatus={sub} onMore={() => setDialog({ id: r.publicId, kind: "status" })} />
               </TableCell>
               <TableCell>
                 {next != null ? (

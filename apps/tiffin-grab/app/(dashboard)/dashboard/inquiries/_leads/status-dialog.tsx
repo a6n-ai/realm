@@ -10,6 +10,10 @@ import {
 } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Textarea } from "@foundry/ui/textarea";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@foundry/ui/dropdown-menu";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Badge } from "@/components/reui/badge";
 import { DateInput } from "@/components/dashboard/date-fields";
 import {
@@ -39,6 +43,91 @@ function pillVariant(sub: SubStatus | null) {
 
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
   return <Badge variant={pillVariant(subStatus)}>{statusLabel(subStatus)}</Badge>;
+}
+
+const MENU_GROUPS: { group: StatusGroup; label: string }[] = [
+  { group: "lead", label: "Lead" },
+  { group: "follow_up", label: "Follow-up" },
+];
+
+/**
+ * Click the pill → pick status + sub-status in one menu. Lost needs a reason and
+ * notes/follow-up dates need fields, so those route to the full StatusDialog via onMore.
+ */
+export function StatusMenu({
+  inquiryId, subStatus, onMore,
+}: {
+  inquiryId: string;
+  subStatus: SubStatus | null;
+  onMore: () => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const closed = isClosed(subStatus);
+
+  function pick(to: SubStatus | null) {
+    if (to === subStatus) return;
+    start(async () => {
+      try {
+        const { previous } = await updateStatus(inquiryId, { subStatus: to });
+        router.refresh();
+        const canUndo = previous !== null && !isClosed(previous) && !isClosed(to);
+        toast(`Status: ${statusLabel(to)}`, {
+          action: canUndo
+            ? {
+                label: "Undo",
+                onClick: () => start(async () => {
+                  try { await updateStatus(inquiryId, { subStatus: previous }); router.refresh(); }
+                  catch (e) { toast.error(e instanceof Error ? e.message : "Could not undo"); }
+                }),
+              }
+            : undefined,
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not update status");
+      }
+    });
+  }
+
+  const trigger = (
+    <button type="button" aria-label="Change status" disabled={pending} className="inline-flex cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()}>
+      <StatusPill subStatus={subStatus} />
+      {took ? null : <ChevronDownIcon className="text-muted-foreground size-3.5" />}
+    </button>
+  );
+  if (took) return <StatusPill subStatus={subStatus} />;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56" onClick={(e) => e.stopPropagation()}>
+        {closed ? (
+          <DropdownMenuItem onSelect={() => pick(null)}>Reopen as New</DropdownMenuItem>
+        ) : (
+          <>
+            {MENU_GROUPS.map(({ group, label }) => (
+              <DropdownMenuGroup key={group}>
+                <DropdownMenuLabel>{label}</DropdownMenuLabel>
+                {SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group).map((s) => (
+                  <DropdownMenuItem key={s} onSelect={() => pick(s)}>
+                    {statusLabel(s)}
+                    {s === subStatus ? <CheckIcon className="ml-auto size-4" /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Close lead</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => pick("undeliverable")}>{statusLabel("undeliverable")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMore}>Lost (pick reason)…</DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onMore}>Add note & follow-up…</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 type PickKey = "tomorrow" | "3d" | "1w" | "date";
