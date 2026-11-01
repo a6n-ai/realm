@@ -157,7 +157,7 @@ const SOURCES: Record<TodayKind, Source> = {
   async inquiry(visible) {
     const rows = await inquiriesService.listNew(visible, TODAY_LIMIT);
     return rows.map((r) => ({
-      kind: "inquiry", key: `inquiry:${r.publicId}`, who: r.fullName, what: `New lead · ${r.source}`,
+      kind: "inquiry", key: `inquiry:${r.publicId}`, who: r.fullName ?? "", what: `New lead · ${r.source}`,
       since: r.createdAt, urgency: 3, href: `/dashboard/inquiries/${r.publicId}`,
     }));
   },

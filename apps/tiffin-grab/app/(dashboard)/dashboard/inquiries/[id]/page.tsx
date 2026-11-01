@@ -44,7 +44,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    findExistingByContact(inq.phone, inq.email),
+    findExistingByContact(inq.phone ?? "", inq.email),
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     inquiriesService.listActivities(id),
     getAppSettings(),
@@ -104,8 +104,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     <div className="space-y-4">
       <PageHeader
         icon={ClipboardListIcon}
-        title={inq.fullName}
-        subtitle={formatPhone(inq.phone)}
+        title={inq.fullName ?? ""}
+        subtitle={formatPhone(inq.phone ?? "")}
         actions={<StageBadge stage={inq.stage} />}
       />
       <InquiryDetailClient
@@ -113,7 +113,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         stage={inq.stage as InquiryStage}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
+        contact={{ fullName: inq.fullName ?? "", phone: inq.phone ?? "", email: inq.email ?? "" }}
         sourceLabel={source?.label ?? ""}
         notes={inq.notes}
         interest={{

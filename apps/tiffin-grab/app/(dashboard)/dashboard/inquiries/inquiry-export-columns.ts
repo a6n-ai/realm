@@ -56,8 +56,8 @@ function epochToDate(ms: number | string | null | undefined, timezone: string): 
 
 export function inquiryRowToExcelRecord(row: ExportRow, timezone: string): Record<string, string | number> {
   return {
-    Name: row.fullName,
-    Phone: row.phone,
+    Name: row.fullName ?? "",
+    Phone: row.phone ?? "",
     Email: row.email ?? "",
     Source: row.source,
     "Sub Source": row.subSource ?? "",

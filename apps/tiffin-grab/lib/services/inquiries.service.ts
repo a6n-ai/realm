@@ -201,7 +201,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   ) {
     const [src] = await db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.key, v.sourceKey)).limit(1);
     const parts = [`Re-inquiry via ${src?.label ?? v.sourceKey}${v.subSourceKey ? ` (${v.subSourceKey})` : ""}`];
-    if (inq.phone.toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
+    if ((inq.phone ?? "").toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
     if ((inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
     const message = typeof v.notes === "string" && v.notes.trim() ? `\n${v.notes.trim()}` : "";
     await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
@@ -350,7 +350,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     // instead of minting a duplicate. New Order / New Customer pass
     // allowAdditionalOrder for intentional second subscriptions.
     if (!opts?.allowAdditionalOrder) {
-      await assertNoLiveOrderForPhone(inq.phone);
+      await assertNoLiveOrderForPhone(inq.phone ?? "");
     }
 
     // Staff can only convert a lead into an order we can deliver; an out-of-zone lead stays

@@ -34,7 +34,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
     return inquiries.filter((i) => {
       if (stage !== "all" && i.stage !== stage) return false;
       if (!needle) return true;
-      return [i.fullName, i.source].some((v) => v.toLowerCase().includes(needle));
+      return [i.fullName ?? "", i.source].some((v) => v.toLowerCase().includes(needle));
     });
   }, [inquiries, q, stage]);
 

@@ -1,6 +1,6 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, check, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 import { leadSources, leadSubsources } from "./lead-sources";
@@ -15,17 +15,24 @@ export const inquiryActivityType = pgEnum("inquiry_activity_type", [
   "reinquiry",
 ]);
 export const inquiryLostReason = pgEnum("inquiry_lost_reason", [
-  "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other",
+  "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other", "asked_to_stop",
+]);
+// Literal list: drizzle-kit loads this file, so it can't import from lib/. status-enum.test.ts keeps it in sync with SUB_STATUSES.
+export const inquirySubStatus = pgEnum("inquiry_sub_status", [
+  "no_response", "responded", "lost", "undeliverable", "future", "persistent",
+  "expected", "pending_payment", "took_plan", "took_trial",
 ]);
 
 export const inquiries = pgTable("inquiries", {
   ...updatableColumns("inq"),
-  fullName: text("full_name").notNull(),
-  phone: text("phone").notNull(),
+  fullName: text("full_name"),
+  phone: text("phone"),
   email: text("email"),
   sourceId: bigint("source_id", { mode: "bigint" }).notNull().references(() => leadSources.id),
   subSourceId: bigint("sub_source_id", { mode: "bigint" }).references(() => leadSubsources.id),
   stage: inquiryStage("stage").notNull().default("new"),
+  subStatus: inquirySubStatus("sub_status"),
+  nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   planInterest: text("plan_interest"),
@@ -61,6 +68,8 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_converted_order_idx").on(t.convertedOrderId),
   index("inquiries_sub_source_idx").on(t.subSourceId),
   index("inquiries_zone_idx").on(t.zoneId),
+  index("inquiries_next_follow_up_idx").on(t.nextFollowUpAt),
+  check("inquiries_name_or_phone", sql`coalesce(nullif(trim(${t.fullName}), ''), nullif(trim(${t.phone}), '')) is not null`),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
@@ -73,6 +82,8 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   fromStage: inquiryStage("from_stage"),
   toStage: inquiryStage("to_stage"),
+  fromSubStatus: inquirySubStatus("from_sub_status"),
+  toSubStatus: inquirySubStatus("to_sub_status"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
