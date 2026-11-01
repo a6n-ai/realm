@@ -14,6 +14,8 @@ import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
 import { RowTag } from "./row-tags";
+import type { FilterPreset } from "@/lib/list/presets";
+
 
 // ORDER_STATUS_PILLS lives in ./status-pills (a non-client module) because the
 // server page maps over it; re-exporting it here would hand the RSC graph a
@@ -38,6 +40,7 @@ const COLUMNS: readonly Column<ListColumn>[] = [
 
 export function OrdersList({
   spec,
+  presets,
   rows,
   total,
   page,
@@ -50,6 +53,7 @@ export function OrdersList({
   freeTiffinsView = false,
 }: {
   spec: FacetDef[];
+  presets?: readonly FilterPreset[];
   rows: OrderListRow[];
   total: number;
   page: number;
@@ -75,7 +79,7 @@ export function OrdersList({
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
-      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
+      filters={<ListSearchFilters spec={spec} presets={presets} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
       emptyMessage={lookOutView ? "No orders are marked look out for." : paymentReviewView ? "No payments are waiting for review." : freeTiffinsView ? "No order has free tiffins." : "No orders yet."}
       emptySearchMessage="No orders match your search."

@@ -7,6 +7,9 @@ import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
+import type { FilterPreset } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
@@ -41,6 +44,22 @@ const SUB_STATUS_FACET_OPTIONS = [
   { value: "none", label: "New" },
   ...SUB_STATUSES.map((s) => ({ value: s, label: SUB_STATUS_META[s].label })),
 ];
+
+// Sales asked for one-click views; "me" is the signed-in staff member (owner holds the user publicId).
+function inquiryPresets(me: string | undefined): FilterPreset[] {
+  const mine: FilterPreset[] = me
+    ? [
+        { key: "my-due", label: "My follow-ups today", params: { queue: "due", owner: me } },
+        { key: "my-overdue", label: "My overdue", params: { queue: "overdue", owner: me } },
+        { key: "my-open", label: "My open leads", params: { queue: "open", owner: me } },
+      ]
+    : [];
+  return [
+    ...mine,
+    { key: "new", label: "New leads", params: { queue: "open", subStatus: "none" } },
+    { key: "overdue", label: "All overdue", params: { queue: "overdue" } },
+  ];
+}
 
 const QUEUES: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
 const EMPTY_COPY: Record<QueueTab, string> = {
@@ -196,12 +215,13 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { column: "created", dir: "desc" },
   );
 
-  const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }] = await Promise.all([
+  const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }, zoneOptions] = await Promise.all([
     loadOwnerOptions(),
     loadSourceOptions(),
     loadSheetData(),
     canReassign(),
     getAppSettings(),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.active, true)).orderBy(deliveryZones.name),
   ]);
 
   // Facet spec is server-authored so parseFilterState (server) and FacetFilters
@@ -213,6 +233,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "select", field: "owner", label: "Owner", options: owners },
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
+    ...(zoneOptions.length ? [{ kind: "multi" as const, field: "zone", label: "Zone", options: zoneOptions }] : []),
+    { kind: "multi", field: "lostReason", label: "Lost reason", options: Object.entries(LOST_REASON_LABELS).map(([value, label]) => ({ value, label })) },
     { kind: "dateRange", field: "createdAt", label: "Created" },
     { kind: "search", fields: ["fullName", "phone", "email"] },
   ];
@@ -233,6 +255,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     <InquiriesList
       emptyMessage={EMPTY_COPY[queue]}
       spec={spec}
+      presets={inquiryPresets((await getSession())?.user.id)}
       rows={result.items}
       total={result.total}
       page={page.page}

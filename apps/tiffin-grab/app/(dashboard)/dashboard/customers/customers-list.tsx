@@ -9,6 +9,16 @@ import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
 import { CustomerInviteCell } from "./customer-invite-cell";
+import type { FilterPreset } from "@/lib/list/presets";
+
+const CUSTOMER_PRESETS: FilterPreset[] = [
+  { key: "ends-3", label: "Plan ends in 3 days", params: { planCompletesInDays: "3" } },
+  { key: "ends-7", label: "Plan ends in 7 days", params: { planCompletesInDays: "7" } },
+  { key: "ends-14", label: "Plan ends in 14 days", params: { planCompletesInDays: "14" } },
+  { key: "active-plan", label: "Active plan", params: { activePlan: "yes" } },
+  { key: "no-plan", label: "No active plan", params: { activePlan: "no" } },
+  { key: "repeat", label: "Repeat customers", params: { customerType: "repeat" } },
+];
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
@@ -49,7 +59,7 @@ export function CustomersList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/customers/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search customers…" shortPlaceholder="Search…" dateControl="external" />}
+        filters={<ListSearchFilters spec={spec} presets={CUSTOMER_PRESETS} placeholder="Search customers…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={UsersIcon}
         emptyMessage="No customers yet."
         emptySearchMessage="No customers match your search."

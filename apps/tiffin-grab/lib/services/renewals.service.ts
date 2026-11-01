@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
 import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
 
 export type RenewalRow = {
@@ -74,8 +75,15 @@ function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: stri
       ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
       : undefined,
     statusWhere(f, today),
+    f.owner ? ownerWhere(f.owner) : undefined,
     f.q ? searchWhere(f.q) : undefined,
   );
+}
+
+function ownerWhere(owner: string) {
+  return owner === UNASSIGNED_OWNER
+    ? isNull(orders.currentOwner)
+    : inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(eq(users.publicId, owner)));
 }
 
 const renewalSelect = {

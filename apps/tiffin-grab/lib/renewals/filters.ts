@@ -33,6 +33,8 @@ export type RenewalsFilter = {
   ended: number | null;
   status: RenewalStatusFilter | null;
   renewed: number | null;
+  /** Order owner's user publicId, or UNASSIGNED_OWNER; plan tabs only. */
+  owner?: string | null;
   from: number | null;
   to: number | null;
   q: string;
@@ -45,7 +47,7 @@ const pick = (v: string | undefined, allowed: readonly number[]) => {
 
 const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : null);
 
-/** `?tab=`, `?dateBy=`, `?from=&to=`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?q=`. */
+/** `?tab=`, `?dateBy=`, `?from=&to=`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?owner=`, `?q=`. */
 export function parseRenewalsFilter(sp: Record<string, string | undefined>): RenewalsFilter {
   const tab = sp.tab === "trials" || sp.tab === "customers" ? sp.tab : "renewals";
   const dateBy = DATE_BY.find((d) => d.value === sp.dateBy)?.value ?? "last";
@@ -54,7 +56,7 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   const to = ms(sp.to);
   if (tab === "customers") return { tab, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
   const status = RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
-  return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, from, to, q };
+  return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, owner: sp.owner || undefined, from, to, q };
 }
 
 /** The query string for a filter. */
@@ -66,6 +68,7 @@ export function renewalsQuery(f: RenewalsFilter): string {
   if (f.ended != null) sp.set("ended", String(f.ended));
   if (f.status) sp.set("status", f.status);
   if (f.renewed != null) sp.set("renewed", String(f.renewed));
+  if (f.owner) sp.set("owner", f.owner);
   if (f.from != null) sp.set("from", String(f.from));
   if (f.to != null) sp.set("to", String(f.to));
   if (f.q) sp.set("q", f.q);

@@ -17,6 +17,7 @@ import {
   RowActionTooltipButton,
   type Column,
   type FacetDef,
+  type Option,
 } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -28,8 +29,10 @@ import { PaymentStatusPill } from "../payment-status-pill";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import type { SortState } from "@/lib/list/sort";
 
-const SPEC: FacetDef[] = [
+const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
   { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
+  { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
+  { kind: "select", field: "kind", label: "Type", options: [{ value: "plan", label: "Plan" }, { value: "addon", label: "Add-on" }] },
   { kind: "dateRange", field: "createdAt", label: "Submitted" },
   { kind: "search", fields: [] },
 ];
@@ -54,12 +57,14 @@ export function RequestsTable({
   page,
   size,
   sort,
+  ownerOptions,
 }: {
   rows: PaymentRow[];
   total: number;
   page: number;
   size: number;
   sort: SortState<PaymentSortKey>;
+  ownerOptions: Option[];
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -121,7 +126,7 @@ export function RequestsTable({
         onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
-        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
+        filters={<ListSearchFilters spec={buildSpec(ownerOptions)} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={InboxIcon}
         emptyMessage="No e-transfers yet. Customer claims land here for approval."
         emptySearchMessage="No e-transfers match your filters."

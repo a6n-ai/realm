@@ -15,6 +15,8 @@ import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.ser
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { EstimateButton } from "./estimate-button";
+import type { FilterPreset } from "@/lib/list/presets";
+
 
 const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "coins" | "spent" | "total" | "actions">[] = [
   // Widths sum to ~1090px with the # and Order columns, so all nine fit a 1440px screen.
@@ -49,7 +51,7 @@ function whenLabel(lastTiffin: string, today: string) {
 const renewalHref = (r: { customerPublicId: string | null; orderPublicId: string }) =>
   r.customerPublicId ? `/dashboard/renewals/customers/${r.customerPublicId}` : `/dashboard/orders/${r.orderPublicId}`;
 
-export function RenewalsList({ rows, total, page, size, tab, today, spec }: { rows: RenewalRow[]; total: number; page: number; size: number; tab: RenewalsTab; today: string; spec: FacetDef[] }) {
+export function RenewalsList({ rows, total, page, size, tab, today, spec, presets }: { rows: RenewalRow[]; total: number; page: number; size: number; tab: RenewalsTab; today: string; spec: FacetDef[]; presets?: readonly FilterPreset[] }) {
   return (
     <div className="flex flex-col gap-4">
       <DataTable
@@ -65,6 +67,7 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
         filters={
           <ListSearchFilters
             spec={spec}
+            presets={presets}
             placeholder="Search name, order or phone…"
             shortPlaceholder="Search…"
           />

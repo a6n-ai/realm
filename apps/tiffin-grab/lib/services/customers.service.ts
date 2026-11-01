@@ -286,7 +286,12 @@ export async function listCustomersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<CustomerSortColumn> = { column: "orders", dir: "desc" },
-  customFilters?: { planCompletesInDays?: number }
+  customFilters?: {
+    planCompletesInDays?: number;
+    activePlan?: "yes" | "no";
+    customerType?: "none" | "new" | "repeat";
+    latestStatus?: string;
+  }
 ): Promise<Page<CustomerRow>> {
   const planCompletionSubquery = sql<string>`(
     select max(d.delivery_date)
@@ -300,8 +305,28 @@ export async function listCustomersPage(
     extraWhere = sql`${planCompletionSubquery} between current_date and current_date + cast(${customFilters.planCompletesInDays} || ' days' as interval)`;
   }
 
+  // ponytail: literal active+paused (ONGOING_STATUSES lives in an app file; lib must not import it).
+  const hasRunning = sql`exists (select 1 from ${orders} o where o.user_id = ${users.id} and o.status in ('active', 'paused'))`;
+  const liveOrderCount = sql`(select count(*) from ${orders} o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
+  const f = customFilters;
+  const activePlanWhere = f?.activePlan === "yes" ? hasRunning : f?.activePlan === "no" ? sql`not ${hasRunning}` : undefined;
+  const customerTypeWhere =
+    f?.customerType === "none"
+      ? sql`${liveOrderCount} = 0`
+      : f?.customerType === "new"
+        ? sql`${liveOrderCount} = 1`
+        : f?.customerType === "repeat"
+          ? sql`${liveOrderCount} >= 2`
+          : undefined;
+  const latestStatusWhere = f?.latestStatus
+    ? sql`(select o.status from ${orders} o where o.user_id = ${users.id} order by o.created_at desc limit 1) = ${f.latestStatus}`
+    : undefined;
+
   const where = and(
     eq(users.role, "user"),
+    activePlanWhere,
+    customerTypeWhere,
+    latestStatusWhere,
     conditionToSql(
       condition,
       columnResolver({

@@ -8,7 +8,8 @@ import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { unexpired } from "@foundry/wallet";
 import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
@@ -1640,8 +1641,24 @@ function ordersListResolver() {
     fullName: orders.fullName,
     deploymentId: orders.deploymentId,
     createdAt: orders.createdAt,
+    startDate: orders.startDate,
   });
   return (f: FilterCondition) => {
+    if (f.field === "owner") {
+      const vals = filterValues(f);
+      const ids = vals.filter((v) => v !== UNASSIGNED_OWNER);
+      return or(
+        vals.includes(UNASSIGNED_OWNER) ? isNull(orders.currentOwner) : undefined,
+        ids.length ? inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(inArray(users.publicId, ids))) : undefined,
+      )!;
+    }
+    if (f.field === "planType") {
+      const v = filterValues(f)[0];
+      return v === "trial" ? isNotNull(orders.trialLength) : isNull(orders.trialLength);
+    }
+    if (f.field === "frequency") {
+      return inArray(orders.frequencyId, db.select({ id: deliveryFrequencies.id }).from(deliveryFrequencies).where(inArray(deliveryFrequencies.key, filterValues(f))));
+    }
     if (f.field === "plan") {
       return inArray(
         orders.planId,
