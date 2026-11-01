@@ -57,7 +57,7 @@ describe("inquiriesService.resolveForSource", () => {
   it("rejects reusing a converted inquiry via pickedId", async () => {
     const phone = "+16475554004";
     const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
-    await inquiriesService.changeStage(picked.publicId, "converted");
+    await inquiriesService.update(picked.publicId, { stage: "converted" });
     await expect(
       inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base, pickedId: picked.publicId }),
     ).rejects.toThrow(ValidationError);
