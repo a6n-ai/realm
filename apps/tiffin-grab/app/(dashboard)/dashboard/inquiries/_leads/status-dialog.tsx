@@ -347,8 +347,8 @@ export function StatusDialog({
   );
 }
 
-export type NoteKind = "note" | "call" | "whatsapp";
-const NOTE_TITLE: Record<NoteKind, string> = { note: "Add note", call: "Log call", whatsapp: "Log WhatsApp" };
+export type NoteKind = "note" | "call" | "whatsapp" | "follow_up";
+const NOTE_TITLE: Record<NoteKind, string> = { note: "Add note", call: "Log call", whatsapp: "Log WhatsApp", follow_up: "Set follow-up" };
 
 export function NoteDialog({
   inquiryId, timeZone, kind, open, onOpenChange,
@@ -368,7 +368,8 @@ export function NoteDialog({
       try {
         const text = note.trim();
         if (kind === "note") await addNote(inquiryId, text, followUp?.at);
-        else await logActivity(inquiryId, { type: kind, note: text || undefined, nextFollowUpAt: followUp?.at });
+        // A follow-up on its own is a scheduled callback in the timeline.
+        else await logActivity(inquiryId, { type: kind === "follow_up" ? "callback" : kind, note: text || undefined, nextFollowUpAt: followUp?.at });
         onOpenChange(false);
         setNote("");
         setFollowUp(null);
@@ -386,13 +387,13 @@ export function NoteDialog({
           <DialogDescription>Saved to the lead's activity timeline.</DialogDescription>
         </DialogHeader>
         <Textarea
-          placeholder={kind === "note" ? "Add a note" : "Outcome or notes (optional)"}
+          placeholder={kind === "note" ? "Add a note" : kind === "follow_up" ? "What to follow up on (optional)" : "Outcome or notes (optional)"}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
         <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
         <DialogFooter>
-          <Button disabled={pending || (kind === "note" && note.trim() === "")} onClick={save}>Save</Button>
+          <Button disabled={pending || (kind === "note" && note.trim() === "") || (kind === "follow_up" && followUp === null)} onClick={save}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

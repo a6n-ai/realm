@@ -6,15 +6,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatPhone } from "@foundry/commons";
 import {
-  ClipboardListIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, UserRoundPenIcon,
+  CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon,
 } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Badge } from "@/components/reui/badge";
 import type { SortState } from "@/lib/list/sort";
@@ -48,76 +45,17 @@ const BULK_STATUSES = SUB_STATUSES.filter((s) => (SUB_STATUS_META[s].pickable &&
 
 type RowDialog =
   | { id: string; kind: "status" }
-  | { id: string; kind: "note"; note: NoteKind }
-  | { id: string; kind: "reassign" };
+  | { id: string; kind: "note"; note: NoteKind };
 
-function RowActions({
-  r, canReassign, onOpenDialog,
-}: {
-  r: PipelineRow;
-  canReassign: boolean;
-  onOpenDialog: (d: RowDialog) => void;
-}) {
-  const router = useRouter();
-  const closed = isClosed(r.subStatus as SubStatus | null);
+function RowActions({ r, onOpenDialog }: { r: PipelineRow; onOpenDialog: (d: RowDialog) => void }) {
   const name = displayName(r);
   return (
     <div className="flex items-center justify-end gap-0.5">
       <RowActionTooltipButton icon={MessageSquarePlusIcon} label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
-      <RowActionTooltipButton icon={PhoneIcon} label={`Log call for ${name}`} hint="Log call" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "call" })} />
-      <RowActionTooltipButton icon={MessageCircleIcon} label={`Log WhatsApp for ${name}`} hint="Log WhatsApp" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "whatsapp" })} />
-      {closed ? null : (
-        <RowActionTooltipButton icon={ShoppingBagIcon} label={`Convert ${name} to order`} hint="Convert to order" onClick={() => router.push(`/dashboard/inquiries/${r.publicId}?convert=1`)} />
+      {isClosed(r.subStatus as SubStatus | null) ? null : (
+        <RowActionTooltipButton icon={CalendarClockIcon} label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "follow_up" })} />
       )}
-      {canReassign ? (
-        <RowActionTooltipButton icon={UserRoundPenIcon} label={`Reassign ${name}`} hint="Reassign" onClick={() => onOpenDialog({ id: r.publicId, kind: "reassign" })} />
-      ) : null}
     </div>
-  );
-}
-
-function ReassignDialog({
-  r, staff, action, onOpenChange,
-}: {
-  r: PipelineRow;
-  staff: StaffOption[];
-  action: (inquiryId: string, ownerId: string) => Promise<void>;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [ownerId, setOwnerId] = useState<string | undefined>(r.ownerId ?? undefined);
-  function save() {
-    if (!ownerId) return;
-    start(async () => {
-      try {
-        await action(r.publicId, ownerId);
-        onOpenChange(false);
-        router.refresh();
-        toast("Owner updated");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to update owner");
-      }
-    });
-  }
-  return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col gap-4 sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>Reassign</DialogTitle>
-          <DialogDescription>Choose who owns {displayName(r)}.</DialogDescription>
-        </DialogHeader>
-        <Select value={ownerId} onValueChange={setOwnerId}>
-          <SelectTrigger className="w-full" aria-label="New owner"><SelectValue placeholder="Select owner" /></SelectTrigger>
-          <SelectContent>
-            {staff.map((s) => <SelectItem key={s.publicId} value={s.publicId}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <DialogFooter>
-          <Button disabled={pending || !ownerId || ownerId === r.ownerId} onClick={save}>Reassign</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -220,7 +158,6 @@ export function InquiriesList({
   const tz = useTimezone();
   const router = useRouter();
   const bulk = Boolean(canReassign && staff && staff.length > 0);
-  const canMove = Boolean(canReassign && staff && reassignAction);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [dialog, setDialog] = useState<RowDialog | null>(null);
   // Selection is per page: drop ids that left the page after a refresh or page change.
@@ -262,7 +199,7 @@ export function InquiriesList({
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
                 <div><StatusMenu inquiryId={r.publicId} subStatus={sub} onMore={() => setDialog({ id: r.publicId, kind: "status" })} /></div>
               </div>
-              <RowActions r={r} canReassign={canMove} onOpenDialog={setDialog} />
+              <RowActions r={r} onOpenDialog={setDialog} />
             </div>
           );
         }}
@@ -309,7 +246,7 @@ export function InquiriesList({
               </TableCell>
               <TableCell>
                 <div className="flex justify-end">
-                  <RowActions r={r} canReassign={canMove} onOpenDialog={setDialog} />
+                  <RowActions r={r} onOpenDialog={setDialog} />
                 </div>
               </TableCell>
             </>
@@ -330,9 +267,6 @@ export function InquiriesList({
       ) : null}
       {active && dialog?.kind === "note" ? (
         <NoteDialog key={`${active.publicId}-${dialog.note}`} open onOpenChange={close} inquiryId={active.publicId} timeZone={tz} kind={dialog.note} />
-      ) : null}
-      {active && dialog?.kind === "reassign" && staff && reassignAction ? (
-        <ReassignDialog key={active.publicId} r={active} staff={staff} action={reassignAction} onOpenChange={close} />
       ) : null}
     </div>
   );
