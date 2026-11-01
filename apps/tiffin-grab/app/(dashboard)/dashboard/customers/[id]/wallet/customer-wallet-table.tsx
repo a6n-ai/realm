@@ -24,14 +24,13 @@ export type CustomerWalletRow = {
   givenBy: string | null;
 };
 
-const COLUMNS: readonly Column<CustomerWalletColumn | "group" | "givenBy">[] = [
-  { key: "time", label: "When", sortable: true },
-  { key: "event", label: "Event", sortable: true },
-  { key: "source", label: "Source", sortable: true },
-  { key: "coins", label: "Coins", sortable: true, align: "right" },
-  { key: "order", label: "Order", sortable: true },
-  { key: "group", label: "Group" },
-  { key: "givenBy", label: "Given by" },
+// Event+Source and Order+Group share a column each so Memo fits on screen.
+const COLUMNS: readonly Column<CustomerWalletColumn | "ref" | "givenBy">[] = [
+  { key: "time", label: "When", sortable: true, width: "w-40" },
+  { key: "source", label: "Type", sortable: true, width: "w-36" },
+  { key: "coins", label: "Coins", sortable: true, align: "right", width: "w-20" },
+  { key: "ref", label: "Reference", width: "w-40" },
+  { key: "givenBy", label: "Given by", width: "w-28" },
   { key: "memo", label: "Memo", sortable: true },
 ];
 
@@ -60,17 +59,19 @@ export function CustomerWalletTable({ rows, spec, sort, total, page, size }: {
           return (
             <>
               <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
-              <TableCell>{r.eventLabel ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.sourceLabel}</TableCell>
+              <TableCell className="truncate">{r.eventLabel ?? r.sourceLabel}</TableCell>
               <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
                 {credit ? "+" : "−"}
                 {r.coins}
               </TableCell>
-              <TableCell>
-                {r.orderHref && r.orderLabel ? <Link href={r.orderHref} className="text-muted-foreground hover:underline">{r.orderLabel}</Link> : <span className="text-muted-foreground">—</span>}
-              </TableCell>
-              <TableCell>
-                {r.groupHref && r.groupName ? <Link href={r.groupHref} className="hover:underline">{r.groupName}</Link> : <span className="text-muted-foreground">—</span>}
+              <TableCell className="truncate">
+                {r.orderHref && r.orderLabel ? (
+                  <Link href={r.orderHref} className="text-muted-foreground hover:underline">{r.orderLabel}</Link>
+                ) : r.groupHref && r.groupName ? (
+                  <Link href={r.groupHref} className="hover:underline">{r.groupName}</Link>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground">{r.givenBy ?? "—"}</TableCell>
               <MemoCell memo={r.memo} />
