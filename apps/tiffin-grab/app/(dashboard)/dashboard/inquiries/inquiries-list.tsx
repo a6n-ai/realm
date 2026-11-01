@@ -31,7 +31,7 @@ type StaffOption = { publicId: string; name: string };
 const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "actions">[] = [
   { key: "select", label: "", width: "w-10" },
   { key: "name", label: "Lead", sortable: true },
-  { key: "stage", label: "Status", sortable: true, width: "w-36" },
+  { key: "stage", label: "Status", sortable: true, width: "w-48" },
   { key: "nextFollowUp", label: "Next follow-up", sortable: true, width: "w-40" },
   { key: "owner", label: "Owner", sortable: true, width: "w-28" },
   { key: "lastNote", label: "Last note" },

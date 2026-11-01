@@ -65,9 +65,10 @@ export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | nu
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
   const { icon: Icon, pill } = look(subStatus);
   return (
-    <Badge variant="outline" size="lg" className={cn("border-transparent", pill)}>
+    // max-w-full + truncate: a long label (e.g. "Will take in future") ellipsizes inside its column instead of widening it.
+    <Badge variant="outline" size="lg" className={cn("max-w-full border-transparent", pill)} title={statusLabel(subStatus)}>
       <Icon className="size-3.5" aria-hidden />
-      {statusLabel(subStatus)}
+      <span className="truncate">{statusLabel(subStatus)}</span>
     </Badge>
   );
 }
@@ -151,9 +152,9 @@ export function StatusMenu({
   }
 
   const trigger = (
-    <button type="button" aria-label="Change status" disabled={pending} className="inline-flex cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()}>
+    <button type="button" aria-label="Change status" disabled={pending} className="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()}>
       <StatusPill subStatus={subStatus} />
-      {took ? null : <ChevronDownIcon className="text-muted-foreground size-3.5" />}
+      {took ? null : <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />}
     </button>
   );
   if (took) return <StatusPill subStatus={subStatus} />;
