@@ -38,50 +38,34 @@ const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "asked_to_stop", label: "Asked to stop" },
 ];
 
-type Tone = "info" | "primary" | "warning" | "success" | "destructive";
-
-// One icon + colour per status so a column of pills reads at a glance.
-const LOOK: Record<SubStatus | "new", { icon: LucideIcon; tone: Tone }> = {
-  new: { icon: SparklesIcon, tone: "info" },
-  no_response: { icon: PhoneMissedIcon, tone: "warning" },
-  responded: { icon: MessageSquareReplyIcon, tone: "primary" },
-  future: { icon: CalendarClockIcon, tone: "info" },
-  persistent: { icon: RepeatIcon, tone: "primary" },
-  expected: { icon: ThumbsUpIcon, tone: "success" },
-  pending_payment: { icon: CreditCardIcon, tone: "warning" },
-  took_plan: { icon: BadgeCheckIcon, tone: "success" },
-  took_trial: { icon: UtensilsIcon, tone: "success" },
-  lost: { icon: XCircleIcon, tone: "destructive" },
-  undeliverable: { icon: MapPinOffIcon, tone: "destructive" },
-};
-
-const TONE_TEXT: Record<Tone, string> = {
-  info: "text-sky-600 dark:text-sky-400",
-  primary: "text-primary",
-  warning: "text-amber-600 dark:text-amber-400",
-  success: "text-emerald-600 dark:text-emerald-400",
-  destructive: "text-destructive",
+// Every status gets its own icon and colour (categorical, so raw palette with dark pairs).
+// Violet and teal are taken by the row quick actions.
+type Look = { icon: LucideIcon; pill: string; text: string; tile: string };
+const LOOK: Record<SubStatus | "new", Look> = {
+  new: { icon: SparklesIcon, pill: "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500/12 dark:bg-sky-400/15" },
+  no_response: { icon: PhoneMissedIcon, pill: "bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300", text: "text-orange-600 dark:text-orange-400", tile: "bg-orange-500/12 dark:bg-orange-400/15" },
+  responded: { icon: MessageSquareReplyIcon, pill: "bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300", text: "text-blue-600 dark:text-blue-400", tile: "bg-blue-500/12 dark:bg-blue-400/15" },
+  future: { icon: CalendarClockIcon, pill: "bg-indigo-500/12 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300", text: "text-indigo-600 dark:text-indigo-400", tile: "bg-indigo-500/12 dark:bg-indigo-400/15" },
+  persistent: { icon: RepeatIcon, pill: "bg-cyan-500/12 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300", text: "text-cyan-600 dark:text-cyan-400", tile: "bg-cyan-500/12 dark:bg-cyan-400/15" },
+  expected: { icon: ThumbsUpIcon, pill: "bg-lime-500/14 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300", text: "text-lime-600 dark:text-lime-400", tile: "bg-lime-500/14 dark:bg-lime-400/15" },
+  pending_payment: { icon: CreditCardIcon, pill: "bg-amber-500/14 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500/14 dark:bg-amber-400/15" },
+  took_plan: { icon: BadgeCheckIcon, pill: "bg-emerald-500/14 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
+  took_trial: { icon: UtensilsIcon, pill: "bg-green-500/14 text-green-700 dark:bg-green-400/15 dark:text-green-300", text: "text-green-600 dark:text-green-400", tile: "bg-green-500/14 dark:bg-green-400/15" },
+  lost: { icon: XCircleIcon, pill: "bg-red-500/12 text-red-700 dark:bg-red-400/15 dark:text-red-300", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
+  undeliverable: { icon: MapPinOffIcon, pill: "bg-pink-500/12 text-pink-700 dark:bg-pink-400/15 dark:text-pink-300", text: "text-pink-600 dark:text-pink-400", tile: "bg-pink-500/12 dark:bg-pink-400/15" },
 };
 
 const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
-const TONE_BG: Record<Tone, string> = {
-  info: "bg-sky-500/12",
-  primary: "bg-primary/12",
-  warning: "bg-amber-500/14",
-  success: "bg-emerald-500/14",
-  destructive: "bg-destructive/12",
-};
-
 export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
-  const { icon: Icon, tone } = look(subStatus);
-  return <Icon className={cn("size-4 shrink-0", TONE_TEXT[tone], className)} aria-hidden />;
+  const { icon: Icon, text } = look(subStatus);
+  return <Icon className={cn("size-4 shrink-0", text, className)} aria-hidden />;
 }
 
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
-  const { icon: Icon, tone } = look(subStatus);
+  const { icon: Icon, pill } = look(subStatus);
   return (
-    <Badge variant={`${tone}-light`} size="lg">
+    <Badge variant="outline" size="lg" className={cn("border-transparent", pill)}>
       <Icon className="size-3.5" aria-hidden />
       {statusLabel(subStatus)}
     </Badge>
@@ -106,15 +90,15 @@ function StatusTile({
   current?: boolean;
   onSelect: () => void;
 }) {
-  const { icon: Icon, tone } = look(sub);
+  const { icon: Icon, text, tile } = look(sub);
   return (
     <DropdownMenuItem
       onSelect={onSelect}
       aria-current={current || undefined}
       className={cn("flex w-20 flex-col items-center gap-1.5 text-center", current && "bg-accent")}
     >
-      <span className={cn("grid size-10 place-items-center rounded-lg", TONE_BG[tone])}>
-        <Icon className={cn("size-5", TONE_TEXT[tone])} aria-hidden />
+      <span className={cn("grid size-10 place-items-center rounded-lg", tile)}>
+        <Icon className={cn("size-5", text)} aria-hidden />
       </span>
       <span className="text-xs leading-tight">{label ?? statusLabel(sub)}</span>
     </DropdownMenuItem>
