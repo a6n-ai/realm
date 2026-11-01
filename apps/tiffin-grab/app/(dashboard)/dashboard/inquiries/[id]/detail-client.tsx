@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  CalendarClockIcon, MapPinIcon, MessageSquarePlusIcon, ShoppingBagIcon, type LucideIcon,
+  CalendarClockIcon, MessageSquarePlusIcon, ShoppingBagIcon, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -243,17 +243,6 @@ export function InquiryDetailClient({
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
         <Card title="Activity" className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-xs">Log</span>
-            {([
-              ["note", "Note", MessageSquarePlusIcon, "text-violet-600 dark:text-violet-400"],
-              ["visit", "Visit", MapPinIcon, "text-rose-600 dark:text-rose-400"],
-            ] as const).map(([kind, label, Icon, tone]) => (
-              <Button key={kind} variant="outline" size="sm" onClick={() => setNoteKind(kind)}>
-                <Icon className={tone} aria-hidden />{label}
-              </Button>
-            ))}
-          </div>
           <InquiryTimeline activities={activities} currency={currency} onAddNote={() => setNoteKind("note")} />
         </Card>
 
