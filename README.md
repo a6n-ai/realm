@@ -1,6 +1,14 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm holds **apps** (TiffinGrab, Puchkaman, Xplorers). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
+A multi-client CRM and subscription platform. Realm is a Turborepo of **apps**, one per client. Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md) for how those were split out.
+
+## Apps
+
+| App | Folder | Dev port | Status |
+|---|---|---|---|
+| TiffinGrab | [`apps/tiffin-grab`](apps/tiffin-grab) | 3000 | Live at app.tiffingrab.ca: subscriptions, deliveries and OptimoRoute dispatch, payments (Stripe, e-Transfer), staff CRM and analytics |
+| Xplorers | [`apps/xplorers`](apps/xplorers) | 3002 | Marketing site, auth, classes and pricing |
+| Puchkaman | [`apps/puchkaman`](apps/puchkaman) | 3000 | Sunsetted: code kept, no active development |
 
 ## Quick start
 
@@ -14,33 +22,40 @@ On a local machine, keep Foundry and Relay as **sibling** clones (not inside Rea
 Then in `realm`:
 
 ```bash
-pnpm install          # pnpm@11.21.0 (packageManager)
-pnpm dev              # turbo run dev — starts the app(s)
+pnpm install          # pnpm@11.25.0 (packageManager)
+pnpm dev              # turbo run dev: starts the apps
 pnpm dev:fresh        # kill :3000, clear .next, then dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Run one app with a filter, for example `pnpm turbo dev --filter=tiffin-grab`.
 
-Verify after a change:
+## Verify a change
 
 ```bash
-pnpm turbo typecheck && pnpm turbo test
+pnpm turbo typecheck && pnpm turbo test   # tsc is the fast gate: packages ship raw TS
+pnpm konsistent                           # repo conventions (file and export naming)
 ```
 
-Scope to one app/package with a filter, e.g. `pnpm turbo typecheck --filter=tiffin-grab...`.
+Scope to one app or package with a filter, for example `pnpm turbo typecheck --filter=tiffin-grab...`.
 
-## Docs
+Database tests need a test database. Never point Vitest at your dev database; in TiffinGrab run it as `env -u DATABASE_URL pnpm exec vitest run <path>`.
 
-- **[PROJECT.md](PROJECT.md)** — product vision, roles, subsystem roadmap, tech stack.
-- **[docs/realm/](docs/realm/)** — repo structure, package taxonomy, add-a-client /
-  add-a-package guides, and the dev/build workflow.
-- **[AGENTS.md](AGENTS.md)** — this is not the Next.js you know; read the in-repo Next
-  docs (`node_modules/next/dist/docs/`) before writing framework code.
+## Database migrations
+
+Migrations are generated with `pnpm db:generate` (drizzle-kit) and applied with `pnpm db:migrate`, run inside the app folder; they change schema only, never data. The rules (journal ordering, no hand edits, prod checks) are in [AGENTS.md](AGENTS.md#migrations--strict-rules), and `scripts/check-migration-journal.mjs` enforces them in CI and before every deploy.
+
+## Repo map
+
+- **[PROJECT.md](PROJECT.md)**: product vision, roles, subsystem roadmap, tech stack.
+- **[AGENTS.md](AGENTS.md)**: package layering rules, the verify contract, migration rules and ReUI design rules. Next.js 16 differs from older versions; read `node_modules/next/dist/docs/` before writing framework code.
+- **`apps/<client>`**: one Next.js app per client. Client-specific code stays here until a second client needs it.
+- **`deployment/`**: production, local, Cloudflare, DNS, email and CDN configuration.
+- **`scripts/`**: setup and CI checks.
+- **`.claude/skills/`**: committed agent skills (for example `scaffold-client`).
 
 ## Stack
 
-Turborepo + pnpm · Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 +
-shadcn/ui · better-auth · PostgreSQL + Drizzle ORM · Vitest.
+Turborepo + pnpm · Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui and ReUI · better-auth · PostgreSQL + Drizzle ORM · Vitest + Playwright.
 
 ## License
 
