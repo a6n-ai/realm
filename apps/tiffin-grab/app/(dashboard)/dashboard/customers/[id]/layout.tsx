@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon } from "lucide-react";
 import { formatMoney, formatPhone } from "@foundry/commons";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { PageShell, PageHeader, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { walletService } from "@/lib/services/wallet.service";
@@ -34,6 +35,7 @@ async function CustomerHeader({ id }: { id: string }) {
   const who = data.profile.name || data.profile.email || "this customer";
   return (
     <>
+      <BreadcrumbLabel segment={id} label={data.profile.name || data.profile.email || "Customer"} />
       <PageHeader
         icon={UsersIcon}
         title={data.profile.name || data.profile.email || "Customer"}

@@ -16,7 +16,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
-import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
+import { AppBreadcrumbs, BreadcrumbLabelsProvider } from "@/components/dashboard/app-breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
 import { CrmShell } from "@foundry/crm";
@@ -122,6 +122,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <TimezoneProvider tz={timezone}>
     <MotionProvider>
     <QuickAddProvider>
+    <BreadcrumbLabelsProvider>
     <CrmShell
       hideSidebarOnMobile
       brand={<AppBrand href="/dashboard" subtitle="Operations" />}
@@ -157,6 +158,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {/* Room to scroll the last row out from under the floating button. */}
       {hasRepAllowance && <div aria-hidden className="h-20" />}
     </CrmShell>
+    </BreadcrumbLabelsProvider>
     </QuickAddProvider>
     </MotionProvider>
     </TimezoneProvider>

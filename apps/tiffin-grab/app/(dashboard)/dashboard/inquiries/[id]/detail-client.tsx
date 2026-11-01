@@ -19,7 +19,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
 import { FollowUpPicker, NoteDialog, StatusBoard, StatusPill, type NoteKind } from "../_leads/status-dialog";
-import { BackButton } from "@foundry/design-system";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { ReassignControl } from "@/components/reassign/reassign-control";
@@ -191,7 +191,7 @@ export function InquiryDetailClient({
 
   return (
     <div className="flex flex-col gap-4">
-      <div><BackButton href="/dashboard/inquiries" label="Inquiries" /></div>
+      <BreadcrumbLabel segment={inquiryId} label={displayName(contact)} />
       <section className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-1">

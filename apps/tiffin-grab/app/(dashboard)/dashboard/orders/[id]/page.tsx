@@ -27,6 +27,7 @@ import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.se
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
 import { deliveryZones, plans, users } from "@/db/schema";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -373,6 +374,7 @@ async function OrderDetail({
 
   return (
     <>
+      <BreadcrumbLabel segment={order.publicId} label={`${order.deploymentId} · ${order.fullName}`} />
       <PageHeader
         icon={PackageIcon}
         title={order.fullName}
