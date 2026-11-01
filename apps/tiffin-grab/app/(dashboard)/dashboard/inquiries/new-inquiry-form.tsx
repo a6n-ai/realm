@@ -20,7 +20,7 @@ import { Textarea } from "@foundry/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
-import { FollowUpPicker } from "./_leads/status-popup";
+import { FollowUpPicker } from "./_leads/status-dialog";
 import { NoSources } from "../_leads/no-sources";
 import { useExistingCustomer } from "../_leads/use-existing-customer";
 import {

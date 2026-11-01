@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Textarea } from "@foundry/ui/textarea";
 import { Badge } from "@/components/reui/badge";
@@ -15,7 +17,7 @@ import {
   type StatusGroup, type SubStatus,
 } from "@/lib/inquiries/status";
 import type { LostReason } from "@/lib/services/inquiries.service";
-import { updateStatus } from "../actions";
+import { addNote, logActivity, updateStatus } from "../actions";
 import { followUpAtDate, followUpPick } from "./follow-up-picks";
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
@@ -79,18 +81,22 @@ export function FollowUpPicker({
   );
 }
 
-export function StatusPopup({
-  inquiryId, subStatus, timeZone, onConvert, trigger,
+export function StatusDialog({
+  inquiryId, subStatus, timeZone, onConvert, trigger, open: openProp, onOpenChange,
 }: {
   inquiryId: string;
   subStatus: SubStatus | null;
   timeZone: string;
   onConvert?: () => void;
-  trigger: ReactNode;
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = openProp ?? innerOpen;
+  const setOpen = (v: boolean) => { setInnerOpen(v); onOpenChange?.(v); };
   const took = subStatus === "took_plan" || subStatus === "took_trial";
   const closed = isClosed(subStatus) && !took;
   const [group, setGroup] = useState<StatusGroup>(groupFor(subStatus));
@@ -141,9 +147,13 @@ export function StatusPopup({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className="flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-4" align="start" onClick={(e) => e.stopPropagation()}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
+      <DialogContent className="flex flex-col gap-4 sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Update status</DialogTitle>
+          <DialogDescription>Currently {statusLabel(subStatus)}.</DialogDescription>
+        </DialogHeader>
         {took ? (
           <p className="text-muted-foreground text-sm">This inquiry became an order, so its status is final.</p>
         ) : closed ? (
@@ -207,7 +217,59 @@ export function StatusPopup({
             </div>
           </>
         )}
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export type NoteKind = "note" | "call" | "whatsapp";
+const NOTE_TITLE: Record<NoteKind, string> = { note: "Add note", call: "Log call", whatsapp: "Log WhatsApp" };
+
+export function NoteDialog({
+  inquiryId, timeZone, kind, open, onOpenChange,
+}: {
+  inquiryId: string;
+  timeZone: string;
+  kind: NoteKind;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState("");
+  const [followUp, setFollowUp] = useState<{ key: PickKey; at: number; iso?: string } | null>(null);
+  function save() {
+    start(async () => {
+      try {
+        const text = note.trim();
+        if (kind === "note") await addNote(inquiryId, text, followUp?.at);
+        else await logActivity(inquiryId, { type: kind, note: text || undefined, nextFollowUpAt: followUp?.at });
+        onOpenChange(false);
+        setNote("");
+        setFollowUp(null);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save");
+      }
+    });
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex flex-col gap-4 sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>{NOTE_TITLE[kind]}</DialogTitle>
+          <DialogDescription>Saved to the lead's activity timeline.</DialogDescription>
+        </DialogHeader>
+        <Textarea
+          placeholder={kind === "note" ? "Add a note" : "Outcome or notes (optional)"}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
+        <DialogFooter>
+          <Button disabled={pending || (kind === "note" && note.trim() === "")} onClick={save}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

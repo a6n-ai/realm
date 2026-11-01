@@ -7,7 +7,7 @@ import { cn } from "@foundry/ui/cn";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { groupFor, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { nextAction, type NextActionKind } from "../_leads/next-action";
-import { StatusPopup } from "../_leads/status-popup";
+import { StatusDialog } from "../_leads/status-dialog";
 
 const STEPS = ["Lead", "Follow-up", "Took"] as const;
 
@@ -48,7 +48,7 @@ export function InquiryJourney({
 
   const nudge = next ? (
     next.action?.kind === "status" ? (
-      <StatusPopup
+      <StatusDialog
         inquiryId={inquiryId}
         subStatus={subStatus}
         timeZone={tz}

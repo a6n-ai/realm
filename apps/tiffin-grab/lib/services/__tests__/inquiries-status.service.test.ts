@@ -23,7 +23,11 @@ vi.mock("../orders.service", async (orig) => {
   };
 });
 
+vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => ({}) }));
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+
 const { inquiriesService } = await import("../inquiries.service");
+const { bulkSetStatus } = await import("@/app/(dashboard)/dashboard/inquiries/actions");
 
 const email = () => `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
 let n = 0;
@@ -95,6 +99,18 @@ describe("inquiriesService.setStatus", () => {
     expect(change).toHaveLength(1);
     expect(change[0].fromSubStatus).toBeNull();
     expect(change[0].toSubStatus).toBe("responded");
+  });
+
+  it("bulkSetStatus updates open leads and skips closed ones", async () => {
+    const a = await mk();
+    const b = await mk();
+    await inquiriesService.setStatus(b.publicId, { subStatus: "undeliverable" });
+    const res = await bulkSetStatus([a.publicId, b.publicId], "responded");
+    expect(res).toEqual({ updated: 1, skipped: 1 });
+    expect((await row(a.id)).subStatus).toBe("responded");
+    expect((await row(b.id)).subStatus).toBe("undeliverable");
+    await expect(bulkSetStatus([a.publicId], "lost")).rejects.toThrow("bulk");
+    await expect(bulkSetStatus([a.publicId], "took_plan")).rejects.toThrow("bulk");
   });
 
   it("stores follow-up date on row and activity, and the note", async () => {

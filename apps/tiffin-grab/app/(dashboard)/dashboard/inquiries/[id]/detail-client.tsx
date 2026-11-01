@@ -15,7 +15,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, statusLabel, type SubStatus } from "@/lib/inquiries/status";
 import type { ActivityType } from "@/lib/services/inquiries.service";
 import type { NextActionKind } from "../_leads/next-action";
-import { StatusPill, StatusPopup } from "../_leads/status-popup";
+import { StatusPill, StatusDialog } from "../_leads/status-dialog";
 import { InquiryJourney } from "./inquiry-journey";
 import { ActivityComposer } from "./activity-composer";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
@@ -148,7 +148,7 @@ export function InquiryDetailClient({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <StatusPopup
+        <StatusDialog
           inquiryId={inquiryId}
           subStatus={subStatus}
           timeZone={tz}

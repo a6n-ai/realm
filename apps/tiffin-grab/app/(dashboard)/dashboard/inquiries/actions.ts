@@ -7,7 +7,8 @@ import {
   type ActivityType,
   type LostReason,
 } from "@/lib/services/inquiries.service";
-import type { SubStatus } from "@/lib/inquiries/status";
+import { ValidationError } from "@foundry/commons";
+import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 
 export async function createInquiry(input: {
   fullName?: string;
@@ -73,4 +74,29 @@ export async function reassignInquiries(inquiryIds: string[], ownerId: string): 
   const n = await inquiriesService.reassignMany(inquiryIds, ownerId);
   revalidatePath("/dashboard/inquiries");
   return n;
+}
+
+export async function bulkSetStatus(
+  inquiryIds: string[],
+  subStatus: SubStatus,
+): Promise<{ updated: number; skipped: number }> {
+  await requireStaff();
+  const ids = [...new Set(inquiryIds)];
+  if (ids.length > 200) throw new ValidationError("Update at most 200 inquiries at a time");
+  if (isClosed(subStatus) ? subStatus !== "undeliverable" : !SUB_STATUS_META[subStatus].pickable) {
+    throw new ValidationError("That status can't be set in bulk");
+  }
+  let updated = 0;
+  let skipped = 0;
+  for (const id of ids) {
+    try {
+      await inquiriesService.setStatus(id, { subStatus });
+      updated++;
+    } catch (e) {
+      if (!(e instanceof ValidationError)) throw e;
+      skipped++;
+    }
+  }
+  revalidatePath("/dashboard/inquiries");
+  return { updated, skipped };
 }
