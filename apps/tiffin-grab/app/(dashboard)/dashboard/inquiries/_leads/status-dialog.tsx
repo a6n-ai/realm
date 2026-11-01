@@ -25,6 +25,7 @@ import {
 import type { LostReason } from "@/lib/services/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { followUpAtDate, followUpPick } from "./follow-up-picks";
+import { useTimezone } from "@/components/providers/timezone-provider";
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "price", label: "Price" },
@@ -153,16 +154,19 @@ const MENU_GROUPS: { group: StatusGroup; label: string }[] = [
 // Shared by the pill menu and the inline board: save the pick, toast with Undo, Lost via its reason dialog.
 function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
   const [lostOpen, setLostOpen] = useState(false);
+  // A tile click picks the target; this small dialog only adds an optional note + follow-up, never the status again.
+  const [target, setTarget] = useState<{ to: SubStatus | null } | null>(null);
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  function pick(to: SubStatus | null, extra?: { lostReason?: LostReason; note?: string }) {
-    if (to === subStatus) return;
+  function save(to: SubStatus | null, extra?: { lostReason?: LostReason; note?: string; nextFollowUpAt?: number }) {
     start(async () => {
       try {
         const { previous } = await updateStatus(inquiryId, { subStatus: to, ...extra });
         setLostOpen(false);
+        setTarget(null);
         router.refresh();
+        if (previous === to) { toast("Saved"); return; }
         const canUndo = previous !== null && !isClosed(previous) && !isClosed(to);
         toast(`Status: ${statusLabel(to)}`, {
           action: canUndo
@@ -180,8 +184,23 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
       }
     });
   }
+  function pick(to: SubStatus | null) {
+    // Re-picking the current status is allowed: it logs a note / follow-up against it.
+    setTarget({ to });
+  }
   const lostDialog = (
-    <LostDialog open={lostOpen} onOpenChange={setLostOpen} pending={pending} onSave={(lostReason, note) => pick("lost", { lostReason, note })} />
+    <>
+      <LostDialog open={lostOpen} onOpenChange={setLostOpen} pending={pending} onSave={(lostReason, note) => save("lost", { lostReason, note })} />
+      {target ? (
+        <ChangeStatusDialog
+          key={target.to ?? "new"}
+          to={target.to}
+          pending={pending}
+          onOpenChange={(o) => { if (!o) setTarget(null); }}
+          onSave={(note, nextFollowUpAt) => save(target.to, { note, nextFollowUpAt })}
+        />
+      ) : null}
+    </>
   );
   return { pick, pending, openLost: () => setLostOpen(true), lostDialog };
 }
@@ -219,7 +238,7 @@ export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subSta
             ))}
             <TileRow label="Close lead">
               <StatusTile sub="undeliverable" onSelect={() => pick("undeliverable")} />
-              <StatusTile sub="lost" label="Lost…" onSelect={openLost} />
+              <StatusTile sub="lost" label="Lost" onSelect={openLost} />
             </TileRow>
           </>
         )}
@@ -249,7 +268,7 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
             label: "Close lead",
             items: [
               { sub: "undeliverable" as const, onClick: () => pick("undeliverable") },
-              { sub: "lost" as const, label: "Lost…", onClick: openLost },
+              { sub: "lost" as const, label: "Lost", onClick: openLost },
             ],
           },
         ];
@@ -269,7 +288,7 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
                   type="button"
                   disabled={pending}
                   aria-pressed={current}
-                  onClick={() => (current ? undefined : onClick())}
+                  onClick={onClick}
                   className={cn(
                     "flex w-20 flex-col items-center gap-1.5 rounded-lg border p-1.5 text-center outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
                     current ? "border-primary bg-accent" : "border-transparent hover:bg-muted",
@@ -290,6 +309,41 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
   );
 }
 
+function ChangeStatusDialog({
+  to, pending, onOpenChange, onSave,
+}: {
+  to: SubStatus | null;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (note?: string, nextFollowUpAt?: number) => void;
+}) {
+  const tz = useTimezone();
+  const [note, setNote] = useState("");
+  const [followUp, setFollowUp] = useState<{ key: PickKey; at: number; iso?: string } | null>(null);
+  const closing = isClosed(to);
+  const submit = () => onSave(note.trim() || undefined, closing ? undefined : followUp?.at);
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="flex flex-col gap-4 sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">Change status to <StatusPill subStatus={to} /></DialogTitle>
+          <DialogDescription>Note and follow-up are optional. Save to apply.</DialogDescription>
+        </DialogHeader>
+        <Textarea
+          placeholder="Note (optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+        />
+        {closing ? null : <FollowUpPicker timeZone={tz} value={followUp} onChange={setFollowUp} />}
+        <DialogFooter>
+          <Button autoFocus disabled={pending} onClick={submit}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function LostDialog({
   open, onOpenChange, pending, onSave,
 }: {
@@ -304,8 +358,7 @@ function LostDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex flex-col gap-4 sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle>Why was this lead lost?</DialogTitle>
-          <DialogDescription>The lead closes. You can reopen it later.</DialogDescription>
+          <DialogTitle>Lost reason</DialogTitle>
         </DialogHeader>
         <div className="flex flex-wrap gap-2">
           {LOST_REASONS.map((r) => (
