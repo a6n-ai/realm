@@ -150,12 +150,11 @@ const MENU_GROUPS: { group: StatusGroup; label: string }[] = [
  * Click the pill → pick status + sub-status in one menu; the pick saves at once.
  * Only Lost asks for more, and only for its reason — never the status again.
  */
-export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subStatus: SubStatus | null }) {
+// Shared by the pill menu and the inline board: save the pick, toast with Undo, Lost via its reason dialog.
+function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
   const [lostOpen, setLostOpen] = useState(false);
   const router = useRouter();
   const [pending, start] = useTransition();
-  const took = subStatus === "took_plan" || subStatus === "took_trial";
-  const closed = isClosed(subStatus);
 
   function pick(to: SubStatus | null, extra?: { lostReason?: LostReason; note?: string }) {
     if (to === subStatus) return;
@@ -181,6 +180,16 @@ export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subSta
       }
     });
   }
+  const lostDialog = (
+    <LostDialog open={lostOpen} onOpenChange={setLostOpen} pending={pending} onSave={(lostReason, note) => pick("lost", { lostReason, note })} />
+  );
+  return { pick, pending, openLost: () => setLostOpen(true), lostDialog };
+}
+
+export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subStatus: SubStatus | null }) {
+  const { pick, pending, openLost, lostDialog } = useStatusPick(inquiryId, subStatus);
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const closed = isClosed(subStatus);
 
   const trigger = (
     <button type="button" aria-label="Change status" disabled={pending} className="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()}>
@@ -210,14 +219,74 @@ export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subSta
             ))}
             <TileRow label="Close lead">
               <StatusTile sub="undeliverable" onSelect={() => pick("undeliverable")} />
-              <StatusTile sub="lost" label="Lost…" onSelect={() => setLostOpen(true)} />
+              <StatusTile sub="lost" label="Lost…" onSelect={openLost} />
             </TileRow>
           </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-    <LostDialog open={lostOpen} onOpenChange={setLostOpen} pending={pending} onSave={(lostReason, note) => pick("lost", { lostReason, note })} />
+    {lostDialog}
     </>
+  );
+}
+
+/** Detail page: every status visible as tiles, current one highlighted; one click saves. */
+export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subStatus: SubStatus | null }) {
+  const { pick, pending, openLost, lostDialog } = useStatusPick(inquiryId, subStatus);
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const closed = isClosed(subStatus);
+  const groups: { label: string; items: { sub: SubStatus | null; label?: string; onClick: () => void }[] }[] = took
+    ? []
+    : closed
+      ? [{ label: "Reopen", items: [{ sub: null, label: "Reopen as New", onClick: () => pick(null) }] }]
+      : [
+          ...MENU_GROUPS.map(({ group, label }) => ({
+            label,
+            items: SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group)
+              .map((s) => ({ sub: s, onClick: () => pick(s) })),
+          })),
+          {
+            label: "Close lead",
+            items: [
+              { sub: "undeliverable" as const, onClick: () => pick("undeliverable") },
+              { sub: "lost" as const, label: "Lost…", onClick: openLost },
+            ],
+          },
+        ];
+  if (took) return <StatusPill subStatus={subStatus} />;
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-3">
+      {groups.map((g) => (
+        <div key={g.label} className="flex flex-col gap-1.5">
+          <span className="text-muted-foreground text-xs font-medium">{g.label}</span>
+          <div className="flex gap-1">
+            {g.items.map(({ sub, label, onClick }) => {
+              const { icon: Icon, text, tile } = look(sub);
+              const current = sub === subStatus;
+              return (
+                <button
+                  key={sub ?? "new"}
+                  type="button"
+                  disabled={pending}
+                  aria-pressed={current}
+                  onClick={() => (current ? undefined : onClick())}
+                  className={cn(
+                    "flex w-20 flex-col items-center gap-1.5 rounded-lg border p-1.5 text-center outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
+                    current ? "border-primary bg-accent" : "border-transparent hover:bg-muted",
+                  )}
+                >
+                  <span className={cn("grid size-10 place-items-center rounded-lg", tile)}>
+                    <Icon className={cn("size-5", text)} aria-hidden />
+                  </span>
+                  <span className="text-xs leading-tight">{label ?? statusLabel(sub)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {lostDialog}
+    </div>
   );
 }
 

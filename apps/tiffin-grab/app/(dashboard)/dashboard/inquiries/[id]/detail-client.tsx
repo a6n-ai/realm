@@ -16,10 +16,9 @@ import { displayName } from "@/lib/inquiries/display";
 import { formatMoney } from "@/lib/format/money";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
-import { isClosed, statusLabel, type SubStatus } from "@/lib/inquiries/status";
+import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
-import { FollowUpPicker, NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
-import { InquiryJourney } from "./inquiry-journey";
+import { FollowUpPicker, NoteDialog, StatusBoard, StatusPill, type NoteKind } from "../_leads/status-dialog";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { ReassignControl } from "@/components/reassign/reassign-control";
@@ -201,7 +200,7 @@ export function InquiryDetailClient({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <StatusMenu inquiryId={inquiryId} subStatus={subStatus} />
+            <StatusPill subStatus={subStatus} />
             <span className="inline-flex items-center gap-2">
               <span className="text-muted-foreground">Owner</span>
               {reassign ? (
@@ -242,7 +241,12 @@ export function InquiryDetailClient({
         </div>
       </section>
 
-      <InquiryJourney subStatus={subStatus} droppedLabel={statusLabel(subStatus)} />
+      {took ? null : (
+        <section className="bg-card flex flex-col gap-3 rounded-xl border p-4 sm:p-5">
+          <h2 className="text-base font-semibold">Status</h2>
+          <StatusBoard inquiryId={inquiryId} subStatus={subStatus} />
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
         <Card title="Activity" className="min-w-0">
