@@ -7,14 +7,16 @@ import { NotFoundError, formatPhone } from "@foundry/commons";
 import { db } from "@/db/client";
 import { leadSources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/services/inquiries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { PageShell, PageHeader, StageBadge } from "@/components/ds";
+import { PageShell, PageHeader } from "@/components/ds";
+import { displayName } from "@/lib/inquiries/display";
+import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
@@ -44,7 +46,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    findExistingByContact(inq.phone ?? "", inq.email),
+    inq.phone || inq.email ? findExistingByContact(inq.phone ?? "", inq.email) : null,
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     inquiriesService.listActivities(id),
     getAppSettings(),
@@ -97,6 +99,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     nextFollowUpAt: a.nextFollowUpAt,
     fromStage: a.fromStage,
     toStage: a.toStage,
+    fromSubStatus: a.fromSubStatus,
+    toSubStatus: a.toSubStatus,
     createdAt: a.createdAt,
   }));
 
@@ -104,16 +108,16 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     <div className="space-y-4">
       <PageHeader
         icon={ClipboardListIcon}
-        title={inq.fullName ?? ""}
-        subtitle={formatPhone(inq.phone ?? "")}
-        actions={<StageBadge stage={inq.stage} />}
+        title={displayName(inq)}
+        subtitle={inq.phone ? formatPhone(inq.phone) : "No phone"}
       />
       <InquiryDetailClient
         inquiryId={inq.publicId}
-        stage={inq.stage as InquiryStage}
+        subStatus={inq.subStatus as SubStatus | null}
+        nextFollowUpAt={inq.nextFollowUpAt}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName ?? "", phone: inq.phone ?? "", email: inq.email ?? "" }}
+        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
         sourceLabel={source?.label ?? ""}
         notes={inq.notes}
         interest={{

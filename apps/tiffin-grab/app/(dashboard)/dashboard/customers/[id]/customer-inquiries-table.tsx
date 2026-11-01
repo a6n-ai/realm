@@ -71,7 +71,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
         <>
           <TableCell className="font-medium">
             <Link href={`/dashboard/inquiries/${i.publicId}`} className="group-hover:underline">
-              {i.fullName}
+              {i.fullName ?? "Unnamed lead"}
             </Link>
           </TableCell>
           <TableCell>{i.source}</TableCell>

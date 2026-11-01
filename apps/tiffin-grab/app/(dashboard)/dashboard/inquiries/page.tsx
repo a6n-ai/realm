@@ -264,6 +264,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       canReassign={canReassignRecords}
       staff={staff}
       reassignAction={reassignInquiry}
+      dayStart={dayStart}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}

@@ -21,6 +21,8 @@ import { cn } from "@foundry/ui/cn";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";
+import { stageLabel } from "@/components/ds";
+import { statusLabel, type SubStatus } from "@/lib/inquiries/status";
 
 export type TimelineActivity = {
   publicId: string;
@@ -31,6 +33,8 @@ export type TimelineActivity = {
   nextFollowUpAt: number | null;
   fromStage: string | null;
   toStage: string | null;
+  fromSubStatus: SubStatus | null;
+  toSubStatus: SubStatus | null;
   createdAt: number;
 };
 
@@ -61,7 +65,9 @@ export function describe(a: TimelineActivity, currency: string): string {
     case "converted":
       return "Converted to an order";
     case "stage_change":
-      return `Stage: ${a.fromStage} → ${a.toStage}`;
+      // Old rows only carry stages; any row written by the status model has a sub-status on at least one side.
+      if (a.fromSubStatus || a.toSubStatus) return `Status: ${statusLabel(a.fromSubStatus)} → ${statusLabel(a.toSubStatus)}`;
+      return `Stage: ${a.fromStage ? stageLabel(a.fromStage) : "—"} → ${a.toStage ? stageLabel(a.toStage) : "—"}`;
     case "call":
       return "Call";
     case "whatsapp":

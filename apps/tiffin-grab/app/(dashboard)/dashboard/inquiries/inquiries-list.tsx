@@ -85,6 +85,7 @@ export function InquiriesList({
   canReassign,
   staff,
   reassignAction,
+  dayStart,
 }: {
   spec: FacetDef[];
   rows: PipelineRow[];
@@ -97,6 +98,7 @@ export function InquiriesList({
   canReassign?: boolean;
   staff?: { publicId: string; name: string }[];
   reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
+  dayStart: number;
 }) {
   const tz = useTimezone();
   return (
@@ -140,7 +142,7 @@ export function InquiriesList({
                 {r.nextFollowUpAt != null ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="tabular-nums">{formatEpoch(r.nextFollowUpAt, { mode: "date", timeZone: tz })}</span>
-                    {r.overdue ? <Badge variant="destructive-light">Overdue</Badge> : null}
+                    {!isClosed(sub) && r.nextFollowUpAt < dayStart ? <Badge variant="destructive-light">Overdue</Badge> : null}
                   </span>
                 ) : (
                   "—"

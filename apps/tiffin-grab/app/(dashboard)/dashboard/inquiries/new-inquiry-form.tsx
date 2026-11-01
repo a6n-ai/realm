@@ -100,6 +100,7 @@ export function AddInquirySheet({
     setOpen(next);
     if (!next) {
       setFollowUp(null);
+      setMoreOpen(false);
       form.reset();
     }
   }
@@ -136,6 +137,7 @@ export function AddInquirySheet({
     }
   }
 
+  const [moreOpen, setMoreOpen] = useState(false);
   const submitting = form.formState.isSubmitting;
 
   return (
@@ -325,7 +327,7 @@ export function AddInquirySheet({
                     />
                   </section>
                   <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
-                  <Collapsible className="border-t pt-3">
+                  <Collapsible className="border-t pt-3" open={moreOpen || !!form.formState.errors.email} onOpenChange={setMoreOpen}>
                     <CollapsibleTrigger asChild>
                       <Button type="button" variant="ghost" size="sm" className="group -ml-2">
                         More details

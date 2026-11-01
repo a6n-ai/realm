@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { formatPhone } from "@foundry/commons";
+import { displayName } from "@/lib/inquiries/display";
 import { formatMoney } from "@/lib/format/money";
-import type { InquiryStage, ActivityType } from "@/lib/services/inquiries.service";
+import { useTimezone } from "@/components/providers/timezone-provider";
+import { formatEpoch } from "@/lib/format/datetime";
+import { isClosed, statusLabel, type SubStatus } from "@/lib/inquiries/status";
+import type { ActivityType } from "@/lib/services/inquiries.service";
 import type { NextActionKind } from "../_leads/next-action";
+import { StatusPill, StatusPopup } from "../_leads/status-popup";
 import { InquiryJourney } from "./inquiry-journey";
 import { ActivityComposer } from "./activity-composer";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
@@ -51,7 +57,8 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 
 export function InquiryDetailClient({
   inquiryId,
-  stage,
+  subStatus,
+  nextFollowUpAt,
   currency,
   convertedOrderHref,
   contact,
@@ -66,10 +73,11 @@ export function InquiryDetailClient({
   existing,
 }: {
   inquiryId: string;
-  stage: InquiryStage;
+  subStatus: SubStatus | null;
+  nextFollowUpAt: number | null;
   currency: string;
   convertedOrderHref?: string;
-  contact: { fullName: string; phone: string; email: string };
+  contact: { fullName: string | null; phone: string | null; email: string | null };
   sourceLabel: string;
   notes: string | null;
   interest: Interest;
@@ -80,15 +88,18 @@ export function InquiryDetailClient({
   unmatched: string[];
   existing: { publicId: string; fullName: string } | null;
 }) {
-  const terminal = stage === "converted" || stage === "lost";
-  const [convertOpen, setConvertOpen] = useState(false);
+  const tz = useTimezone();
+  const terminal = isClosed(subStatus);
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const sp = useSearchParams();
+  const [convertOpen, setConvertOpen] = useState(() => sp.get("convert") === "1" && !terminal);
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Remounting the composer with a fresh key lets a repeated nudge re-open the
   // same chip even when the composer was already open on a different chip.
   const [composerKey, setComposerKey] = useState(0);
   const [composerDefault, setComposerDefault] = useState<ActivityType | undefined>(undefined);
 
-  // Journey owns stage nudges and view_order (when a href exists); the parent
+  // Journey owns the status popup and view_order (when a href exists); the parent
   // only needs to route activity → pre-open a composer chip, convert → open sheet.
   function onNudge(action: NextActionKind) {
     if (action?.kind === "activity") {
@@ -131,11 +142,27 @@ export function InquiryDetailClient({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <StatusPopup
+          inquiryId={inquiryId}
+          subStatus={subStatus}
+          timeZone={tz}
+          onConvert={() => setConvertOpen(true)}
+          trigger={<button type="button" aria-label="Change status" className="cursor-pointer"><StatusPill subStatus={subStatus} /></button>}
+        />
+        {nextFollowUpAt != null && !terminal ? (
+          <span className="text-muted-foreground text-sm">
+            Next follow-up <span className="text-foreground tabular-nums">{formatEpoch(nextFollowUpAt, { mode: "date", timeZone: tz })}</span>
+          </span>
+        ) : null}
+      </div>
       <InquiryJourney
         inquiryId={inquiryId}
-        stage={stage}
+        subStatus={subStatus}
         convertedOrderHref={convertedOrderHref}
         onNudge={onNudge}
+        onConvert={() => setConvertOpen(true)}
+        droppedLabel={statusLabel(subStatus)}
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
@@ -166,9 +193,9 @@ export function InquiryDetailClient({
 
             <div className={cn("mt-3 space-y-4", detailsOpen ? "block" : "hidden", "lg:block")}>
               <div className="space-y-2">
-                <InfoRow label="Name" value={contact.fullName} />
-                <InfoRow label="Phone" value={formatPhone(contact.phone)} />
-                {contact.email ? <InfoRow label="Email" value={contact.email} /> : null}
+                <InfoRow label="Name" value={displayName(contact)} />
+                <InfoRow label="Phone" value={contact.phone ? formatPhone(contact.phone) : "No phone"} />
+                <InfoRow label="Email" value={contact.email || "No email"} />
                 <InfoRow
                   label="Source"
                   value={<Badge variant="secondary" className="capitalize">{sourceLabel}</Badge>}
@@ -203,7 +230,7 @@ export function InquiryDetailClient({
                 <Button className="w-full" onClick={() => setConvertOpen(true)}>
                   Create order
                 </Button>
-              ) : stage === "converted" && convertedOrderHref ? (
+              ) : took && convertedOrderHref ? (
                 <Button asChild variant="outline" className="w-full">
                   <Link href={convertedOrderHref}>View order</Link>
                 </Button>

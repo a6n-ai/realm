@@ -113,7 +113,7 @@ export function StatusPopup({
         setFollowUp(null);
         router.refresh();
         if (previous !== to) {
-          const canUndo = previous !== null && !isClosed(to);
+          const canUndo = previous !== null && !isClosed(previous) && !isClosed(to);
           toast(`Status: ${statusLabel(to)}`, {
             action: canUndo
               ? {

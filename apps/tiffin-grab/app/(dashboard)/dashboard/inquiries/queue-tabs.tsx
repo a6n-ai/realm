@@ -32,7 +32,7 @@ export function QueueTabs({ counts }: { counts: Record<QueueTab, number> }) {
           <TabsTrigger key={t.value} value={t.value} asChild className="gap-1.5">
             <Link href={href(t.value)} prefetch={false}>
               {t.label}
-              <Badge variant={t.value === "overdue" && counts.overdue > 0 ? "destructive" : "secondary"} className="h-5 px-1.5 tabular-nums">
+              <Badge variant={t.value === "overdue" && counts.overdue > 0 ? "destructive-light" : "secondary"} className="h-5 px-1.5 tabular-nums">
                 {counts[t.value]}
               </Badge>
             </Link>

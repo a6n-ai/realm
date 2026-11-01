@@ -654,7 +654,7 @@ export async function getCustomer360(userPublicId: string) {
 
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
-    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
+    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName ?? "an unnamed lead"} (${i.stage})`, at: i.createdAt })),
     ...(await addressTimeline(user.id)),
     ...(await planAddressTimeline(user.id, orderRows)),
     ...(await walletTimeline(user.id)),
