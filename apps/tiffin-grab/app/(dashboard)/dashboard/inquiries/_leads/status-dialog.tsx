@@ -11,13 +11,14 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Textarea } from "@foundry/ui/textarea";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
 import {
-  BadgeCheckIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
+  BadgeCheckIcon, CalendarClockIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
   PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Badge } from "@/components/reui/badge";
 import { DateInput } from "@/components/dashboard/date-fields";
 import {
@@ -65,6 +66,49 @@ const TONE_TEXT: Record<Tone, string> = {
 
 const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
+const MEANING: Record<SubStatus | "new", string> = {
+  new: "Just came in. Nobody has spoken to them yet.",
+  no_response: "We tried to reach them. No answer yet.",
+  responded: "They replied. Keep following up.",
+  future: "Interested, but will order later.",
+  persistent: "The conversation is ongoing.",
+  expected: "Ready to place an order soon.",
+  pending_payment: "Order agreed. Waiting for payment.",
+  took_plan: "Converted to a plan.",
+  took_trial: "Converted to a trial.",
+  lost: "Not interested, or asked us to stop.",
+  undeliverable: "Outside our delivery area.",
+};
+
+const TONE_BG: Record<Tone, string> = {
+  info: "bg-sky-500/12",
+  primary: "bg-primary/12",
+  warning: "bg-amber-500/14",
+  success: "bg-emerald-500/14",
+  destructive: "bg-destructive/12",
+};
+
+/** Hover card for a status: big icon + name + what it means, so staff learn the icons. */
+function StatusTip({ subStatus, children }: { subStatus: SubStatus | null; children: ReactNode }) {
+  const { icon: Icon, tone } = look(subStatus);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-64">
+        <div className="flex items-center gap-3">
+          <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg", TONE_BG[tone])}>
+            <Icon className={cn("size-6", TONE_TEXT[tone])} aria-hidden />
+          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">{statusLabel(subStatus)}</span>
+            <span className="text-xs opacity-80">{MEANING[subStatus ?? "new"]}</span>
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
   const { icon: Icon, tone } = look(subStatus);
   return <Icon className={cn("size-4 shrink-0", TONE_TEXT[tone], className)} aria-hidden />;
@@ -73,10 +117,43 @@ export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | nu
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
   const { icon: Icon, tone } = look(subStatus);
   return (
-    <Badge variant={`${tone}-light`}>
-      <Icon aria-hidden />
+    <Badge variant={`${tone}-light`} size="lg">
+      <Icon className="size-3.5" aria-hidden />
       {statusLabel(subStatus)}
     </Badge>
+  );
+}
+
+function TileRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>{label}</DropdownMenuLabel>
+      <div className="flex gap-1">{children}</div>
+    </DropdownMenuGroup>
+  );
+}
+
+// One tile per status: big tinted icon over its name, so the row scans like a toolbar.
+function StatusTile({
+  sub, label, current, onSelect,
+}: {
+  sub: SubStatus | null;
+  label?: string;
+  current?: boolean;
+  onSelect: () => void;
+}) {
+  const { icon: Icon, tone } = look(sub);
+  return (
+    <DropdownMenuItem
+      onSelect={onSelect}
+      aria-current={current || undefined}
+      className={cn("flex w-20 flex-col items-center gap-1.5 text-center", current && "bg-accent")}
+    >
+      <span className={cn("grid size-10 place-items-center rounded-lg", TONE_BG[tone])}>
+        <Icon className={cn("size-5", TONE_TEXT[tone])} aria-hidden />
+      </span>
+      <span className="text-xs leading-tight">{label ?? statusLabel(sub)}</span>
+    </DropdownMenuItem>
   );
 }
 
@@ -131,36 +208,33 @@ export function StatusMenu({
       {took ? null : <ChevronDownIcon className="text-muted-foreground size-3.5" />}
     </button>
   );
-  if (took) return <StatusPill subStatus={subStatus} />;
+  if (took) return <StatusTip subStatus={subStatus}><span className="inline-flex"><StatusPill subStatus={subStatus} /></span></StatusTip>;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56" onClick={(e) => e.stopPropagation()}>
+      <StatusTip subStatus={subStatus}>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      </StatusTip>
+      <DropdownMenuContent align="start" className="w-auto" onClick={(e) => e.stopPropagation()}>
         {closed ? (
-          <DropdownMenuItem onSelect={() => pick(null)}><StatusIcon subStatus={null} />Reopen as New</DropdownMenuItem>
+          <TileRow label="Reopen">
+            <StatusTile sub={null} label="Reopen as New" onSelect={() => pick(null)} />
+          </TileRow>
         ) : (
           <>
             {MENU_GROUPS.map(({ group, label }) => (
-              <DropdownMenuGroup key={group}>
-                <DropdownMenuLabel>{label}</DropdownMenuLabel>
+              <TileRow key={group} label={label}>
                 {SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group).map((s) => (
-                  <DropdownMenuItem key={s} onSelect={() => pick(s)}>
-                    <StatusIcon subStatus={s} />
-                    {statusLabel(s)}
-                    {s === subStatus ? <CheckIcon className="ml-auto size-4" /> : null}
-                  </DropdownMenuItem>
+                  <StatusTile key={s} sub={s} current={s === subStatus} onSelect={() => pick(s)} />
                 ))}
-              </DropdownMenuGroup>
+              </TileRow>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Close lead</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => pick("undeliverable")}><StatusIcon subStatus="undeliverable" />{statusLabel("undeliverable")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={onMore}><StatusIcon subStatus="lost" />Lost (pick reason)…</DropdownMenuItem>
+            <TileRow label="Close lead">
+              <StatusTile sub="undeliverable" onSelect={() => pick("undeliverable")} />
+              <StatusTile sub="lost" label="Lost…" onSelect={onMore} />
+            </TileRow>
           </>
         )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onMore}>Add note & follow-up…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
