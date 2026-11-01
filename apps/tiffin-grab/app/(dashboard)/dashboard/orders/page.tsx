@@ -7,7 +7,6 @@ import { and as sqlAnd, eq, inArray } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
-import { UNASSIGNED_OWNER, type FilterPreset } from "@/lib/list/presets";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -51,18 +50,6 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 function listNote(view?: string) {
   if (view === "free") return "Orders with a free tiffin delivered in the date range";
   return undefined;
-}
-
-// "me" is the signed-in staff member; owner holds the user publicId.
-function orderPresets(me: string | undefined): FilterPreset[] {
-  return [
-    ...(me ? [{ key: "mine", label: "My ongoing orders", params: { status: "ongoing", owner: me } }] : []),
-    { key: "unassigned", label: "Unassigned", params: { status: "ongoing", owner: UNASSIGNED_OWNER } },
-    { key: "pending", label: "Pending", params: { status: "pending" } },
-    { key: "paused", label: "Paused", params: { status: "paused" } },
-    { key: "waitlisted", label: "Waitlisted", params: { status: "waitlisted" } },
-    { key: "missed", label: "Has missed deliveries", params: { missed: "yes" } },
-  ];
 }
 
 export default async function OrdersPage({
@@ -338,7 +325,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <OrdersList
       spec={spec}
-      presets={orderPresets(session?.user.id)}
       rows={result.items}
       total={result.total}
       page={page.page}

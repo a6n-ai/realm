@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useListNav } from "@/components/ds";
 import { SearchInput, type FacetDef } from "@/components/ds";
 import { DefaultDateRange } from "./default-date-range";
 import { ReuiFacetFilters } from "./reui-facet-filters";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { activePresetKey, applyPreset, managedKeys, type FilterPreset } from "@/lib/list/presets";
+import { activePresetKey, applyPreset, facetFields, managedKeys, type FilterPreset } from "@/lib/list/presets";
+import { filterRecommendationsAction, recordFilterUseAction } from "@/lib/services/filter-usage.actions";
 
 const DEFAULT_PINNED = 3;
-const NO_PRESETS: readonly FilterPreset[] = [];
+// Record a combination only once the user stops changing filters, not every intermediate pick.
+const RECORD_AFTER_MS = 2500;
 
 // Single reusable slot for a server-paginated list page: the search box and
 // the facet pills together, so a page can't declare a `{ kind: "search" }`
@@ -25,7 +27,6 @@ export function ListSearchFilters({
   dateControl = "menu",
   clearValues,
   pinned,
-  presets = NO_PRESETS,
 }: {
   spec: FacetDef[];
   placeholder?: string;
@@ -36,8 +37,6 @@ export function ListSearchFilters({
   clearValues?: Readonly<Record<string, string>>;
   /** Facet fields shown as chips up front. Defaults to the first three in the spec. */
   pinned?: readonly string[];
-  /** One-click recommended views, built server-side for the signed-in user. */
-  presets?: readonly FilterPreset[];
 }) {
   const searchFacet = spec.find((f) => f.kind === "search");
   const nav = useListNav();
@@ -72,10 +71,45 @@ export function ListSearchFilters({
         .slice(0, DEFAULT_PINNED),
     [pinned, spec, hideDate],
   );
-  const managed = useMemo(
-    () => managedKeys(presets, spec.flatMap((f) => (f.kind === "search" || f.kind === "dateRange" ? [] : [f.field]))),
-    [presets, spec],
-  );
+  const fields = useMemo(() => facetFields(spec), [spec]);
+
+  // Recommendations: the viewer's own most-used filters on this list, else their organization's.
+  // Keyed on the path only; the spec is refreshed through a ref so each filter change doesn't refetch.
+  const [presets, setPresets] = useState<FilterPreset[]>([]);
+  const specRef = useRef(spec);
+  useEffect(() => {
+    specRef.current = spec;
+  }, [spec]);
+  useEffect(() => {
+    let live = true;
+    filterRecommendationsAction(pathname, specRef.current)
+      .then((p) => live && setPresets(p))
+      .catch(() => live && setPresets([]));
+    return () => {
+      live = false;
+    };
+  }, [pathname]);
+
+  // The settled facet combination, recorded once per change.
+  const facetQuery = useMemo(() => {
+    const sp = new URLSearchParams();
+    for (const f of fields) {
+      const v = params.get(f);
+      if (v) sp.set(f, v);
+    }
+    return sp.toString();
+  }, [fields, params]);
+  const recorded = useRef("");
+  useEffect(() => {
+    if (!facetQuery || facetQuery === recorded.current) return;
+    const t = setTimeout(() => {
+      recorded.current = facetQuery;
+      recordFilterUseAction(pathname, facetQuery, fields).catch(() => {});
+    }, RECORD_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [facetQuery, pathname, fields]);
+
+  const managed = useMemo(() => managedKeys(presets, fields), [presets, fields]);
   const activePreset = activePresetKey(params, presets, managed);
   const pickPreset = (key: string) => {
     const qs = applyPreset(params, presets.find((p) => p.key === key) ?? null, managed).toString();

@@ -1,6 +1,5 @@
 "use client";
 
-import type { FilterPreset } from "@/lib/list/presets";
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -134,7 +133,6 @@ function BulkBar({
 
 export function InquiriesList({
   spec,
-  presets,
   rows,
   total,
   page,
@@ -148,7 +146,6 @@ export function InquiriesList({
   dayStart,
 }: {
   spec: FacetDef[];
-  presets?: readonly FilterPreset[];
   rows: PipelineRow[];
   total: number;
   page: number;
@@ -191,7 +188,7 @@ export function InquiriesList({
         sort={sort}
         onRowClick={(r) => router.push(`/dashboard/inquiries/${r.publicId}`)}
         rowClassName={() => "group"}
-        filters={<ListSearchFilters spec={spec} presets={presets} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={ClipboardListIcon}
         emptyMessage={emptyMessage}
         emptySearchMessage="No inquiries match your search."

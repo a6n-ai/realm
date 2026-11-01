@@ -9,6 +9,7 @@ export * from "./coupons";
 export * from "./inquiries";
 export * from "./tickets";
 export * from "./section-seen";
+export * from "./list-filter-usage";
 export * from "./lead-sources";
 export * from "./inquiry-user-config";
 export * from "./menu";

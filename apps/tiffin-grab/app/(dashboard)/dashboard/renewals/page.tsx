@@ -9,7 +9,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
-import { UNASSIGNED_OWNER, type FilterPreset } from "@/lib/list/presets";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
@@ -46,9 +46,8 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   // Same date rules as Orders: this month by default, and a text search spans all dates.
   const sp = await withListDates(await searchParams);
   const f = parseRenewalsFilter(sp);
-  const [session, ownerOptions] = await Promise.all([getSession(), f.tab === "customers" ? [] : loadOwnerOptions()]);
+  const ownerOptions = f.tab === "customers" ? [] : await loadOwnerOptions();
   const spec = facetSpec(f, ownerOptions);
-  const presets = f.tab === "customers" ? [] : renewalPresets(session?.user.id);
   // Same page/size rules as every other list (default 25, sizes 10/25/50/100).
   const { page } = parseFilterState(spec, sp);
   return (
@@ -97,7 +96,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           {f.tab === "customers" ? (
             <RenewedCustomersData f={f} page={page.page} size={page.size} spec={spec} />
           ) : (
-            <RenewalsData f={f} page={page.page} size={page.size} spec={spec} presets={presets} />
+            <RenewalsData f={f} page={page.page} size={page.size} spec={spec} />
           )}
         </Suspense>
       </SectionCard>
@@ -106,17 +105,6 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
 }
 
 /** The standard facet bar under the top date range: Ending / Ended windows, Status and search. */
-// "me" is the signed-in staff member; owner holds the user publicId.
-function renewalPresets(me: string | undefined): FilterPreset[] {
-  return [
-    ...(me ? [{ key: "mine", label: "My plans ending in 3 days", params: { ending: "3", owner: me } }] : []),
-    { key: "today", label: "Ending today", params: { ending: "0" } },
-    { key: "3d", label: "Ending in 3 days", params: { ending: "3" } },
-    { key: "unpaid", label: "Unpaid renewals", params: { status: "unpaid" } },
-    { key: "lapsed", label: "Lapsed last 14 days", params: { ended: "14", status: "lapsed" } },
-  ];
-}
-
 function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[]): FacetDef[] {
   if (f.tab === "customers") {
     return [
@@ -160,10 +148,10 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   );
 }
 
-async function RenewalsData({ f, page, size, spec, presets }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[]; presets: FilterPreset[] }) {
+async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
   const { visible, today, timezone } = await scope();
   const result = await listRenewals(visible, f, today, { page, size }, resolveRange(f, timezone));
-  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} tab={f.tab} today={today} spec={spec} presets={presets} />;
+  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} tab={f.tab} today={today} spec={spec} />;
 }
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
