@@ -89,9 +89,8 @@ export type PaymentKpis = {
 };
 
 /**
- * Headline numbers above every payments tab. Collected/orders paid/change follow the
- * date range (by `created_at`, same as the table); the three queues are live and
- * ignore it, since last week's backlog still needs doing today.
+ * Headline numbers above the payments tabs. Every card follows the date range (by `created_at`,
+ * same as the table), so a card always counts the rows the table shows.
  */
 export async function getPaymentKpis(
   sp: { from?: string; to?: string },
@@ -107,7 +106,8 @@ export async function getPaymentKpis(
   const overdueBefore = now - OVERDUE_DAYS * DAY_MS;
   const inRange = (a: number, b: number) => sql`${payments.createdAt} between ${a} and ${b}`;
   const num = (v: unknown) => Number(v ?? 0);
-  const expired = sql`${payments.status} = 'awaiting_payment' and ${payments.expiresAt} > 0 and ${payments.expiresAt} <= ${now}`;
+  const cur = inRange(from, to);
+  const expired = sql`${payments.status} = 'awaiting_payment' and ${payments.expiresAt} > 0 and ${payments.expiresAt} <= ${now} and ${cur}`;
 
   const [r] = await db
     .select({
@@ -115,12 +115,12 @@ export async function getPaymentKpis(
       collectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
       ordersPaid: sql<number>`cast(count(distinct ${payments.orderId}) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
       previousCollected: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'paid' and ${inRange(prevFrom, prevTo)}), 0)`,
-      verifyCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification') as int)`,
-      verifyOldestAt: sql<string | null>`min(coalesce(${payments.claimedAt}, ${payments.createdAt})) filter (where ${payments.status} = 'pending_verification')`,
-      awaitingCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment') as int)`,
-      awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment'), 0)`,
-      overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}) as int)`,
-      overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}), 0)`,
+      verifyCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification' and ${cur}) as int)`,
+      verifyOldestAt: sql<string | null>`min(coalesce(${payments.claimedAt}, ${payments.createdAt})) filter (where ${payments.status} = 'pending_verification' and ${cur})`,
+      awaitingCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${cur}) as int)`,
+      awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${cur}), 0)`,
+      overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore} and ${cur}) as int)`,
+      overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore} and ${cur}), 0)`,
       rejectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'rejected' and ${inRange(from, to)}) as int)`,
       expiredCount: sql<number>`cast(count(*) filter (where ${expired}) as int)`,
       expiredAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${expired}), 0)`,
@@ -143,11 +143,12 @@ export async function getPaymentKpis(
 }
 
 /** Card payments matching any "Needs attention" facet except fallback tax: the same rows that filter shows. */
-export async function countStripeAttention(): Promise<number> {
+export async function countStripeAttention(sp: { from?: string; to?: string }): Promise<number> {
+  const dated = await withListDates(sp);
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(payments)
-    .where(and(eq(payments.method, "stripe"), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
+    .where(and(eq(payments.method, "stripe"), dateRangeWhere(payments.createdAt, dated), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
   return count;
 }
 

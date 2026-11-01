@@ -83,7 +83,7 @@ const awaitingCard = (k: PaymentKpis): StatCardItem => ({
   icon: ClockIcon,
   label: "Awaiting payment",
   value: k.awaiting.count,
-  hint: `${formatMoney(k.awaiting.amount)} owed, all dates`,
+  hint: `${formatMoney(k.awaiting.amount)} owed in selected range`,
 });
 
 async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>, now: number): Promise<StatCardItem[]> {
@@ -99,7 +99,7 @@ async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>
       ];
     }
     case "stripe": {
-      const [k, attention] = await Promise.all([getPaymentKpis(sp, now, "stripe"), countStripeAttention()]);
+      const [k, attention] = await Promise.all([getPaymentKpis(sp, now, "stripe"), countStripeAttention(sp)]);
       return [
         collectedCard(k),
         { icon: CreditCardIcon, label: "Card payments", value: k.collectedCount, hint: `${plural(k.ordersPaid, "order")} paid by card` },
@@ -107,7 +107,7 @@ async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>
           icon: ClockIcon,
           label: "Open links",
           value: k.awaiting.count - k.expired.count,
-          hint: `${formatMoney(k.awaiting.amount - k.expired.amount)} owed, all dates`,
+          hint: `${formatMoney(k.awaiting.amount - k.expired.amount)} owed in selected range`,
         },
         {
           icon: TimerOffIcon,
