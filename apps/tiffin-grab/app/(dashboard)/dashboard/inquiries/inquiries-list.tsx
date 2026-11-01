@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatPhone } from "@foundry/commons";
 import {
-  CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon,
+  CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon, ShoppingBagIcon,
 } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
@@ -35,7 +35,7 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
   { key: "nextFollowUp", label: "Next follow-up", sortable: true, width: "w-40" },
   { key: "owner", label: "Owner", sortable: true, width: "w-28" },
   { key: "lastNote", label: "Last note" },
-  { key: "actions", label: "", align: "right", width: "w-44" },
+  { key: "actions", label: "", align: "right", width: "w-32" },
 ];
 
 const DAY_MS = 86_400_000;
@@ -48,12 +48,16 @@ type RowDialog =
   | { id: string; kind: "note"; note: NoteKind };
 
 function RowActions({ r, onOpenDialog }: { r: PipelineRow; onOpenDialog: (d: RowDialog) => void }) {
+  const router = useRouter();
   const name = displayName(r);
   return (
     <div className="flex items-center justify-end gap-0.5">
       <RowActionTooltipButton icon={MessageSquarePlusIcon} tone="text-violet-600 dark:text-violet-400" label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
       {isClosed(r.subStatus as SubStatus | null) ? null : (
+        <>
         <RowActionTooltipButton icon={CalendarClockIcon} tone="text-teal-600 dark:text-teal-400" label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "follow_up" })} />
+        <RowActionTooltipButton icon={ShoppingBagIcon} tone="text-primary" label={`Convert ${name} to order`} hint="Convert to order" onClick={() => router.push(`/dashboard/inquiries/${r.publicId}?convert=1`)} />
+        </>
       )}
     </div>
   );
