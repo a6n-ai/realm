@@ -16,6 +16,7 @@ export async function createInquiry(input: {
   email?: string;
   sourceKey: string;
   subSourceKey?: string;
+  subStatus?: SubStatus;
   nextFollowUpAt?: number;
   planInterest?: string;
   mealSizeInterest?: string;

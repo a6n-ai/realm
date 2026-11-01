@@ -81,6 +81,39 @@ describe("inquiriesService.create name-or-phone", () => {
   });
 });
 
+describe("inquiriesService.createOrFold starting status", () => {
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
+  afterAll(reset);
+
+  it("writes the sub-status, its stage and the created activity", async () => {
+    const { inquiry } = await inquiriesService.createOrFold({ phone: phone(), sourceKey: "manual", subStatus: "expected" });
+    const r = await row(inquiry.id);
+    expect(r.subStatus).toBe("expected");
+    expect(r.stage).toBe("follow_up");
+    const created = (await acts(inquiry.id)).find((a) => a.type === "created");
+    expect(created?.toSubStatus).toBe("expected");
+  });
+
+  it("rejects closing and convert-only statuses", async () => {
+    for (const subStatus of ["lost", "undeliverable", "took_plan"]) {
+      await expect(inquiriesService.createOrFold({ phone: phone(), sourceKey: "manual", subStatus })).rejects.toBeInstanceOf(ValidationError);
+    }
+  });
+
+  it("a fold leaves the existing lead's status unchanged", async () => {
+    const p = phone();
+    const a = await inquiriesService.createOrFold({ phone: p, sourceKey: "manual", subStatus: "responded" });
+    const b = await inquiriesService.createOrFold({ phone: p, sourceKey: "manual", subStatus: "expected" });
+    expect(b.folded).toBe(true);
+    const r = await row(a.inquiry.id);
+    expect(r.subStatus).toBe("responded");
+    expect(r.stage).toBe("contacted");
+  });
+});
+
 describe("inquiriesService.setStatus", () => {
   beforeEach(async () => {
     await reset();

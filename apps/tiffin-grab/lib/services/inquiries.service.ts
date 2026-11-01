@@ -16,7 +16,7 @@ import { pickAssignee, strategyFor } from "./assignment";
 import { poolForSource } from "./inquiry-user-config.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@/lib/list/sort";
-import { SUB_STATUSES, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
+import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 const LIVE_ORDER_STATUSES = ["pending", "active", "waitlisted", "paused"] as const;
 
@@ -269,11 +269,16 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       email = parsedEmail.data;
     }
 
-    const { sourceKey, subSourceKey, ...rest } = values as {
+    const { sourceKey, subSourceKey, subStatus: rawSub, ...rest } = values as {
       sourceKey: string;
       subSourceKey?: string;
+      subStatus?: unknown;
       [k: string]: unknown;
     };
+    const subStatus = (rawSub ?? null) as SubStatus | null;
+    if (subStatus !== null && !(SUB_STATUSES.includes(subStatus) && SUB_STATUS_META[subStatus].pickable && !isClosed(subStatus))) {
+      throw new ValidationError("Pick an open starting status");
+    }
     const fold = async (existing: typeof inquiries.$inferSelect) => {
       await this.logReinquiry(existing, { phone, email, sourceKey, subSourceKey, notes: rest.notes });
       return { inquiry: existing, folded: true };
@@ -298,8 +303,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         fullName,
         phone,
         email,
-        stage: "new",
-        subStatus: null,
+        stage: stageFor(subStatus),
+        subStatus,
         nextFollowUpAt: typeof rest.nextFollowUpAt === "number" ? rest.nextFollowUpAt : null,
         sourceId,
         subSourceId,
@@ -321,6 +326,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       inquiryId: inq.id,
       type: "created",
       toStage: inq.stage,
+      toSubStatus: subStatus,
     });
     return { inquiry: inq, folded: false };
   }

@@ -104,6 +104,43 @@ function StatusTile({
   );
 }
 
+/** Controlled tile row for choosing a status inline (null = New). */
+export function StatusTilePicker({
+  value, onChange, options, label,
+}: {
+  value: SubStatus | null;
+  onChange: (v: SubStatus | null) => void;
+  options: (SubStatus | null)[];
+  label: string;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+      {options.map((sub) => {
+        const { icon: Icon, text, tile } = look(sub);
+        const active = sub === value;
+        return (
+          <button
+            key={sub ?? "new"}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(sub)}
+            className={cn(
+              "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-center outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+              active ? "border-primary bg-accent" : "border-transparent hover:bg-muted",
+            )}
+          >
+            <span className={cn("grid size-8 place-items-center rounded-lg", tile)}>
+              <Icon className={cn("size-4", text)} aria-hidden />
+            </span>
+            <span className="text-xs leading-tight">{statusLabel(sub)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const MENU_GROUPS: { group: StatusGroup; label: string }[] = [
   { group: "lead", label: "Lead" },
   { group: "follow_up", label: "Follow-up" },
