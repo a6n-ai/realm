@@ -51,9 +51,9 @@ function RowActions({ r, onOpenDialog }: { r: PipelineRow; onOpenDialog: (d: Row
   const name = displayName(r);
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <RowActionTooltipButton icon={MessageSquarePlusIcon} label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
+      <RowActionTooltipButton icon={MessageSquarePlusIcon} tone="text-sky-600 dark:text-sky-400" label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
       {isClosed(r.subStatus as SubStatus | null) ? null : (
-        <RowActionTooltipButton icon={CalendarClockIcon} label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "follow_up" })} />
+        <RowActionTooltipButton icon={CalendarClockIcon} tone="text-amber-600 dark:text-amber-400" label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "follow_up" })} />
       )}
     </div>
   );
