@@ -64,7 +64,7 @@ function NoteAction({ inquiryId, timeZone }: { inquiryId: string; timeZone: stri
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm"><MessageSquarePlusIcon className="size-4" />Note</Button>
       </PopoverTrigger>
-      <PopoverContent className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3" align="end">
+      <PopoverContent className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3" align="end" onClick={(e) => e.stopPropagation()}>
         <Textarea placeholder="Add a note" value={note} onChange={(e) => setNote(e.target.value)} />
         <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
         <Button disabled={pending || note.trim() === ""} onClick={save}>Save note</Button>

@@ -9,6 +9,8 @@ import { Textarea } from "@foundry/ui/textarea";
 import { cn } from "@foundry/ui/cn";
 import { logActivity } from "../actions";
 import type { ActivityType } from "@/lib/services/inquiries.service";
+import { useTimezone } from "@/components/providers/timezone-provider";
+import { followUpAtDate } from "../_leads/follow-up-picks";
 import { DateInput } from "@/components/dashboard/date-fields";
 
 type Field = "outcome" | "followup" | "amount" | "note";
@@ -60,6 +62,7 @@ export function ActivityComposer({
   defaultOpen?: ActivityType;
 }) {
   const router = useRouter();
+  const tz = useTimezone();
   const [pending, start] = useTransition();
   const [active, setActive] = useState<ActivityType | null>(defaultOpen ?? null);
   const [outcome, setOutcome] = useState("");
@@ -92,7 +95,7 @@ export function ActivityComposer({
         type,
         outcome: fields.includes("outcome") && outcome.trim() ? outcome.trim() : undefined,
         note: note.trim() || undefined,
-        nextFollowUpAt: fields.includes("followup") && followup ? new Date(followup).getTime() : undefined,
+        nextFollowUpAt: fields.includes("followup") && followup ? followUpAtDate(followup, tz) : undefined,
         // Amount is entered in major units; store as minor units. Currency is the app's, set server-side.
         amount: fields.includes("amount") && amount ? Math.round(parseFloat(amount) * 100) : undefined,
       });

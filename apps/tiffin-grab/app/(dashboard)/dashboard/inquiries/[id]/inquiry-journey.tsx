@@ -37,7 +37,8 @@ export function InquiryJourney({
   const router = useRouter();
   const tz = useTimezone();
   const { took, dropped, current } = stepState(subStatus);
-  const next = nextAction(subStatus);
+  const rawNext = nextAction(subStatus);
+  const next = rawNext?.action?.kind === "view_order" && !convertedOrderHref ? null : rawNext;
 
   function fire() {
     const action = next?.action;

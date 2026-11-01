@@ -126,6 +126,21 @@ describe("inquiriesService.setStatus", () => {
     expect(r.lostReason).toBe("out_of_zone");
   });
 
+  it("reopening a lost lead is refused while another open lead has its phone", async () => {
+    const old = await mk();
+    await inquiriesService.setStatus(old.publicId, { subStatus: "lost", lostReason: "asked_to_stop" });
+    const fresh = await inquiriesService.create({ fullName: "Again", phone: old.phone, sourceKey: "manual" });
+    await expect(inquiriesService.setStatus(old.publicId, { subStatus: null })).rejects.toThrow(fresh.publicId);
+    expect((await row(old.id)).stage).toBe("lost");
+  });
+
+  it("rejects a non-finite follow-up", async () => {
+    const inq = await mk();
+    await expect(inquiriesService.setStatus(inq.publicId, { subStatus: "future", nextFollowUpAt: NaN })).rejects.toThrow(ValidationError);
+    await expect(inquiriesService.logActivity(inq.publicId, { type: "call", nextFollowUpAt: NaN })).rejects.toThrow(ValidationError);
+    await expect(inquiriesService.addNote(inq.publicId, "x", NaN)).rejects.toThrow(ValidationError);
+  });
+
   it("same status twice logs once", async () => {
     const inq = await mk();
     await inquiriesService.setStatus(inq.publicId, { subStatus: "responded" });
@@ -242,7 +257,7 @@ describe("inquiriesService.convert contact + status", () => {
     await reset();
   });
 
-  async function orderInput(contact: { phone: string; email: string }): Promise<CreateOrderInput> {
+  async function orderInput(contact: { phone: string; email: string; fullName?: string }): Promise<CreateOrderInput> {
     const snap = await loadCatalogSnapshot();
     return {
       planKey: snap.plans[0].key,
@@ -295,6 +310,11 @@ describe("inquiriesService.convert contact + status", () => {
     const inq = await mk();
     await inquiriesService.convert(inq.publicId, await orderInput({ phone: inq.phone!, email: inq.email! }));
     expect((await row(inq.id)).stage).toBe("converted");
+  });
+
+  it("requires a name", async () => {
+    const inq = await mk();
+    await expect(inquiriesService.convert(inq.publicId, await orderInput({ ...contact(), fullName: " " }))).rejects.toThrow("Name is required");
   });
 
   it("requires phone and email", async () => {

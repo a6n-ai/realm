@@ -14,6 +14,7 @@ import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "./ledger.service";
+import { displayName } from "@/lib/inquiries/display";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -219,12 +220,13 @@ export async function customerInviteUrl(email: string): Promise<string> {
   return createCustomerInviteUrl(email);
 }
 
-export async function findExistingByContact(phone: string, email?: string | null) {
+export async function findExistingByContact(phone: string | null, email?: string | null) {
   // Raw equality against the stored canonical values (phone is E.164, email is
   // lowercased on write) so the users_phone_unique / users_email_unique indexes
   // are usable — a lower() wrap forced a seq scan.
-  const conds = [eq(users.phone, phone)];
+  const conds = phone ? [eq(users.phone, phone)] : [];
   if (email) conds.push(eq(users.email, email.toLowerCase()));
+  if (conds.length === 0) return null;
   const [row] = await db
     .select({ publicId: users.publicId, name: users.name })
     .from(users)
@@ -612,6 +614,7 @@ export async function getCustomer360(userPublicId: string) {
           .select({
             publicId: inquiries.publicId,
             fullName: inquiries.fullName,
+            phone: inquiries.phone,
             stage: inquiries.stage,
             source: leadSources.label,
             createdAt: inquiries.createdAt,
@@ -654,7 +657,7 @@ export async function getCustomer360(userPublicId: string) {
 
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
-    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName ?? "an unnamed lead"} (${i.stage})`, at: i.createdAt })),
+    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${displayName(i)} (${i.stage})`, at: i.createdAt })),
     ...(await addressTimeline(user.id)),
     ...(await planAddressTimeline(user.id, orderRows)),
     ...(await walletTimeline(user.id)),

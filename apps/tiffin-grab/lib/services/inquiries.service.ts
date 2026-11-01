@@ -76,6 +76,10 @@ type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 const newWhere = (visible: "all" | string[]) =>
   and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
 
+function assertFiniteFollowUp(at: number | null | undefined) {
+  if (at != null && !Number.isFinite(at)) throw new ValidationError("Invalid follow-up date");
+}
+
 export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
   if (nextFollowUpAt == null) return false;
   if (stage === "converted" || stage === "lost") return false;
@@ -314,6 +318,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   async addNote(publicId: string, note: string, nextFollowUpAt?: number) {
+    assertFiniteFollowUp(nextFollowUpAt);
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
@@ -328,6 +333,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     publicId: string,
     input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
   ) {
+    assertFiniteFollowUp(input.nextFollowUpAt);
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
@@ -352,6 +358,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const previous = current.subStatus as SubStatus | null;
     const to = input.subStatus;
     assertTransition(previous, to);
+    assertFiniteFollowUp(input.nextFollowUpAt);
+    if (to === null && previous !== null && isClosed(previous)) {
+      const other = await this.findOpenMatch(current.phone, current.email, current.id);
+      if (other) {
+        throw new ValidationError(`Another open lead has this phone or email (${other.publicId}). Open that lead instead.`);
+      }
+    }
     const note = input.note?.trim() || null;
     if (previous === to && !note && input.nextFollowUpAt === undefined) return { previous };
 
@@ -407,6 +420,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
     const contactPhone = orderInput.contact.phone?.trim();
     const contactEmail = orderInput.contact.email?.trim();
+    if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
     if (!contactPhone) throw new ValidationError("Phone is required");
     if (!contactEmail) throw new ValidationError("Email is required");
 

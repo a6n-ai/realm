@@ -46,7 +46,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    inq.phone || inq.email ? findExistingByContact(inq.phone ?? "", inq.email) : null,
+    inq.phone || inq.email ? findExistingByContact(inq.phone, inq.email) : null,
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     inquiriesService.listActivities(id),
     getAppSettings(),

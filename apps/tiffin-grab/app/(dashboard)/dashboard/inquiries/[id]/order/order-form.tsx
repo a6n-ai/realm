@@ -58,7 +58,10 @@ export function OrderForm({
   /** Called after success dialog is shown (e.g. close parent sheet). */
   onCreated?: (result: AdminOrderCreated) => void;
 }) {
-  const d = useOrderDraft({ inquiryId, contact, catalog, enabledSlots, prefill, onCreate, page, onContinue, hasSummary: false, estimateOnly, onEstimate });
+  // A lead with no name gets a Name field here; the server refuses an order without one.
+  const nameMissing = !contact.fullName.trim();
+  const [name, setName] = useState(contact.fullName);
+  const d = useOrderDraft({ inquiryId, contact: { ...contact, fullName: name }, catalog, enabledSlots, prefill, onCreate, page, onContinue, hasSummary: false, estimateOnly, onEstimate });
   const { submitting, error, shownPreview, previewError, missing, created, successOpen, setSuccessOpen, customerCtx } = d;
   const [renewedFrom, setRenewedFrom] = useState<string | null>(null);
   const [renewingId, setRenewingId] = useState<string | null>(null);
@@ -95,6 +98,11 @@ export function OrderForm({
             )}
             {inquiryId && !estimateOnly && (
               <div className="grid gap-3 sm:grid-cols-2">
+                {nameMissing && (
+                  <Field label="Name" error={name.trim() ? undefined : "Required to create the order"}>
+                    <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
+                  </Field>
+                )}
                 <Field label="Phone" error={d.form.formState.errors.phone?.message}>
                   <Input type="tel" inputMode="tel" autoComplete="off" {...d.form.register("phone")} />
                 </Field>
