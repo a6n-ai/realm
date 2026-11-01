@@ -95,8 +95,6 @@ export function describe(a: TimelineActivity, currency: string): string {
 
 const FILTERS = [
   { key: "all", label: "All", types: null },
-  { key: "call", label: "Calls", types: ["call"] },
-  { key: "whatsapp", label: "WhatsApp", types: ["whatsapp"] },
   { key: "note", label: "Notes", types: ["note"] },
   { key: "status", label: "Status", types: ["stage_change", "converted"] },
 ] as const;

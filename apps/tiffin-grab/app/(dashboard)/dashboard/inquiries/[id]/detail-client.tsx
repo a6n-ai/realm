@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  CalendarClockIcon, MapPinIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, type LucideIcon,
+  CalendarClockIcon, MapPinIcon, MessageSquarePlusIcon, ShoppingBagIcon, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -144,7 +144,6 @@ export function InquiryDetailClient({
   const [noteKind, setNoteKind] = useState<NoteKind | null>(null);
   const [pickPending, startPick] = useTransition();
 
-  const phoneDigits = contact.phone?.replace(/\D/g, "") ?? "";
 
   function saveFollowUp(at: number) {
     startPick(async () => {
@@ -222,12 +221,6 @@ export function InquiryDetailClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          {contact.phone ? (
-            <>
-              <QuickAction icon={PhoneIcon} tone="text-blue-600 dark:text-blue-400" label="Call" href={`tel:${contact.phone}`} onClick={() => setNoteKind("call")} />
-              <QuickAction icon={MessageCircleIcon} tone="text-green-600 dark:text-green-400" label="WhatsApp" href={`https://wa.me/${phoneDigits}`} external onClick={() => setNoteKind("whatsapp")} />
-            </>
-          ) : null}
           <QuickAction icon={MessageSquarePlusIcon} tone="text-violet-600 dark:text-violet-400" label="Add note" onClick={() => setNoteKind("note")} />
           {terminal ? null : (
             <>
@@ -253,8 +246,6 @@ export function InquiryDetailClient({
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-xs">Log</span>
             {([
-              ["call", "Call", PhoneIcon, "text-blue-600 dark:text-blue-400"],
-              ["whatsapp", "WhatsApp", MessageCircleIcon, "text-green-600 dark:text-green-400"],
               ["note", "Note", MessageSquarePlusIcon, "text-violet-600 dark:text-violet-400"],
               ["visit", "Visit", MapPinIcon, "text-rose-600 dark:text-rose-400"],
             ] as const).map(([kind, label, Icon, tone]) => (
