@@ -1,7 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Breadcrumbs } from "@foundry/design-system";
+import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { deriveBreadcrumbs } from "@foundry/design-system";
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+} from "@foundry/ui/breadcrumb";
 import { labelForSegment } from "@/components/ds/route-labels";
 
 // Detail pages name their id segment (e.g. inq_abc → "Riya Anand") so the trail reads
@@ -36,9 +41,51 @@ export function BreadcrumbLabel({ segment, label }: { segment: string; label: st
   return null;
 }
 
-// Breadcrumbs is a client component; the function prop can't cross the
-// server→client boundary. Bind labelForSegment here, client-to-client.
+// Last full URL (with ?filters/tab/sort/page) seen per path, so a crumb back to a
+// list lands where staff left it. Per tab session; storage may throw (private mode).
+const KEY = (path: string) => `crumb:${path}`;
+function remembered(path: string): string {
+  try { return sessionStorage.getItem(KEY(path)) ?? path; } catch { return path; }
+}
+
 export function AppBreadcrumbs() {
   const overrides = useContext(Ctx)?.overrides;
-  return <Breadcrumbs resolveLabel={labelForSegment} overrides={overrides} />;
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  useEffect(() => {
+    try { sessionStorage.setItem(KEY(pathname), search ? `${pathname}?${search}` : pathname); } catch { /* ignore */ }
+  }, [pathname, search]);
+
+  const crumbs = deriveBreadcrumbs(pathname, labelForSegment, overrides);
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {crumbs.map((c, i) => (
+          <Fragment key={i}>
+            <BreadcrumbItem>
+              {c.href ? (
+                // Plain href for SSR/hydration; the remembered URL (with filters) is read on click.
+                <BreadcrumbLink asChild>
+                  <Link
+                    href={c.href}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                      e.preventDefault();
+                      router.push(remembered(c.href!));
+                    }}
+                  >
+                    {c.label}
+                  </Link>
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>{c.label}</BreadcrumbPage>
+              )}
+            </BreadcrumbItem>
+            {i < crumbs.length - 1 && <BreadcrumbSeparator />}
+          </Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
 }

@@ -79,9 +79,17 @@ describe("inquiriesService.reassign", () => {
     session.user = null;
   });
 
-  it("rejects when the caller lacks the reassign_records flag", async () => {
-    actAs(caller, "admin");
+  it("rejects a non-admin caller without the reassign_records flag", async () => {
+    actAs(caller, "member");
     await expect(inquiriesService.reassign(inquiryPublicId, goodOwner.publicId)).rejects.toThrow(ForbiddenError);
+  });
+
+  it("lets an admin reassign without the flag", async () => {
+    const admin = await seedUser("Flagless Admin", "admin");
+    actAs(admin, "admin");
+    await inquiriesService.reassign(inquiryPublicId, goodOwner.publicId);
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
+    expect(row.currentOwner).toBe(goodOwner.id);
   });
 
   it("rejects an ineligible owner (customer role) even with the flag enabled", async () => {

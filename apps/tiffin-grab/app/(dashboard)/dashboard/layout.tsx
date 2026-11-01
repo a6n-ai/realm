@@ -134,7 +134,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           activity={activity}
         />
       }
-      breadcrumbs={<AppBreadcrumbs />}
+      breadcrumbs={<Suspense fallback={null}><AppBreadcrumbs /></Suspense>}
       center={<GlobalSearch role={role} />}
       actions={
         <>

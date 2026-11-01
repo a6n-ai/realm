@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { ForbiddenError, ValidationError } from "@foundry/commons";
+import { ForbiddenError, Role, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -7,10 +7,12 @@ import { hasFlag } from "@/lib/flags";
 
 export const REASSIGN_FLAG = "reassign_records";
 
+// Admins can always reassign (owner decision 2026-11-01); the flag grants it to anyone else.
 export async function canReassign(): Promise<boolean> {
-  const publicId = (await getSession())?.user?.id;
-  if (!publicId) return false;
-  return hasFlag(publicId, REASSIGN_FLAG);
+  const user = (await getSession())?.user;
+  if (!user?.id) return false;
+  if (user.role === Role.ADMIN) return true;
+  return hasFlag(user.id, REASSIGN_FLAG);
 }
 
 export async function assertReassignAllowed(): Promise<void> {
