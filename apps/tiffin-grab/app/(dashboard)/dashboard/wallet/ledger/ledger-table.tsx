@@ -5,6 +5,7 @@ import { ScrollTextIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
+import { MemoCell } from "@/components/dashboard/memo-cell";
 
 export type LedgerColumn = "time" | "user" | "event" | "source" | "coins" | "order" | "memo";
 
@@ -18,17 +19,18 @@ export type LedgerRow = {
   coins: number;
   memo: string | null;
   who: string | null;
+  whoHref: string | null;
   orderLabel: string | null;
   orderHref: string | null;
 };
 
+// Event and Source share one column so Memo fits on screen.
 const COLUMNS: readonly Column<LedgerColumn>[] = [
-  { key: "time", label: "Time", sortable: true },
-  { key: "user", label: "User", sortable: true },
-  { key: "event", label: "Event", sortable: true },
-  { key: "source", label: "Source", sortable: true },
-  { key: "coins", label: "Coins", sortable: true, align: "right" },
-  { key: "order", label: "Order", sortable: true },
+  { key: "time", label: "Time", sortable: true, width: "w-40" },
+  { key: "user", label: "Customer", sortable: true, width: "w-48" },
+  { key: "source", label: "Type", sortable: true, width: "w-36" },
+  { key: "coins", label: "Coins", sortable: true, align: "right", width: "w-20" },
+  { key: "order", label: "Order", sortable: true, width: "w-32" },
   { key: "memo", label: "Memo", sortable: true },
 ];
 
@@ -57,9 +59,10 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
           return (
             <>
               <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
-              <TableCell className="text-muted-foreground">{r.who ?? "—"}</TableCell>
-              <TableCell>{r.eventLabel ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
+              <TableCell className="truncate text-muted-foreground">
+                {r.whoHref && r.who ? <Link href={r.whoHref} className="hover:underline">{r.who}</Link> : (r.who ?? "—")}
+              </TableCell>
+              <TableCell className="truncate">{r.eventLabel ?? r.sourceType}</TableCell>
               <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
                 {credit ? "+" : "−"}
                 {r.coins}
@@ -71,7 +74,7 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
                   <span className="text-muted-foreground">{r.orderLabel ?? "—"}</span>
                 )}
               </TableCell>
-              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
+              <MemoCell memo={r.memo} />
             </>
           );
         }}

@@ -5,6 +5,7 @@ import { CoinsIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
+import { MemoCell } from "@/components/dashboard/memo-cell";
 
 export type GiveColumn = "when" | "customer" | "coins" | "type" | "group" | "givenBy" | "memo";
 
@@ -13,6 +14,7 @@ export type GiveRow = {
   publicId: string;
   when: string;
   customer: string;
+  customerPublicId: string | null;
   coins: number;
   type: string;
   group: string | null;
@@ -54,7 +56,9 @@ export function GiveHistoryTable({ rows, spec, sort, total, page, size }: {
         renderRow={(r) => (
           <>
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
-            <TableCell className="font-medium">{r.customer}</TableCell>
+            <TableCell className="font-medium">
+              {r.customerPublicId ? <Link href={`/dashboard/customers/${r.customerPublicId}/wallet`} className="hover:underline">{r.customer}</Link> : r.customer}
+            </TableCell>
             <TableCell className="text-ok text-right tabular-nums">+{r.coins}</TableCell>
             <TableCell className="text-muted-foreground">{r.type}</TableCell>
             <TableCell>
@@ -65,7 +69,7 @@ export function GiveHistoryTable({ rows, spec, sort, total, page, size }: {
               )}
             </TableCell>
             <TableCell className="text-muted-foreground">{r.givenBy}</TableCell>
-            <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
+            <MemoCell memo={r.memo} />
           </>
         )}
       />

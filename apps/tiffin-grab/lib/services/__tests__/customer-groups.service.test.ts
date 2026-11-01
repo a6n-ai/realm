@@ -19,6 +19,7 @@ import {
   customerGroupStats,
   giveCoinsStats,
   giveFilterOptions,
+  giveHistoryCsv,
   giveHistoryRows,
   createCustomerGroup,
   emailAwardedMembers,
@@ -513,6 +514,17 @@ describe("customer groups", () => {
     expect((await giveHistoryRows({ ...base, group: g.publicId })).total).toBe(1);
     expect((await giveHistoryRows({ ...base, q: "nobody-matches-this" })).total).toBe(0);
     expect((await giveHistoryRows({ ...base, sort: { column: "coins", dir: "asc" } })).rows.map((r) => r.coins)).toEqual([3, 4]);
+
+    const csv = await giveHistoryCsv(
+      { q: base.q, range: base.range, sort: { column: "coins", dir: "asc" } },
+      "America/Toronto",
+    );
+    expect(csv).toMatchObject({ ok: true });
+    if (csv.ok) {
+      expect(csv.csv.split("\r\n")[0]).toBe("When,Customer,Coins,Type,Group,Given by,Memo");
+      expect(csv.csv).toContain("Hist,3,Group grant,give-hist-");
+      expect(csv.csv).toContain("Hist,4,One customer,,Capped,t");
+    }
 
     const opts = await giveFilterOptions();
     expect(opts.givers.map((o) => o.label)).toEqual(expect.arrayContaining(["NoEmail", "Capped"]));
