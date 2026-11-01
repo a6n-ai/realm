@@ -6,6 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
 import { formatMoney } from "@/lib/format/money";
+import { displayName } from "@/lib/inquiries/display";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";
 
@@ -49,7 +50,7 @@ export function ConvertSheet({
   hideTrigger,
 }: {
   inquiryId: string;
-  contact: { fullName: string; phone: string; email: string };
+  contact: { fullName: string | null; phone: string | null; email: string | null };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
   prefill?: Partial<OrderFormInput>;
@@ -70,7 +71,7 @@ export function ConvertSheet({
       open={open}
       onOpenChange={onOpenChange}
       trigger={hideTrigger ? undefined : <Button>Create order</Button>}
-      title={`Order for ${contact.fullName}`}
+      title={`Order for ${displayName(contact)}`}
       description="Prefilled from the lead's interest — review and create the order."
       contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       // Flush: no bottom padding, so the form's sticky Total/Create bar sits on the dialog's edge.
@@ -82,8 +83,8 @@ export function ConvertSheet({
             From the inquiry
           </p>
           <p className="text-sm font-medium">
-            {contact.fullName}
-            <span className="text-muted-foreground"> · {formatPhone(contact.phone)}</span>
+            {displayName(contact)}
+            {contact.phone ? <span className="text-muted-foreground"> · {formatPhone(contact.phone)}</span> : null}
           </p>
           {chips.length ? (
             <div className="flex flex-wrap gap-1.5">
@@ -117,7 +118,7 @@ export function ConvertSheet({
 
         <OrderForm
           inquiryId={inquiryId}
-          contact={contact}
+          contact={{ fullName: contact.fullName ?? "", phone: contact.phone ?? "", email: contact.email ?? "" }}
           catalog={catalog}
           enabledSlots={enabledSlots}
           prefill={prefill}

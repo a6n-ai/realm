@@ -77,7 +77,7 @@ export function buildOrderInput(v: OrderFormValues, ctx: OrderInputCtx): CreateO
     addressPublicId: ctx.addressPublicId ?? undefined,
     contact: {
       fullName: contact.fullName,
-      phone: contact.phone,
+      phone: v.phone,
       email: v.email,
       addressLine: v.addressLine,
       city: v.city,

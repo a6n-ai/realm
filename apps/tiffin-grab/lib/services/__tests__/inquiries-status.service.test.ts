@@ -1,11 +1,27 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities } from "@/db/schema";
-import { ValidationError } from "@foundry/commons";
+import { inquiries, inquiryActivities, ledgerEntries, orders, payments, users } from "@/db/schema";
+import { nextWeekday, ValidationError } from "@foundry/commons";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import type { CreateOrderInput } from "../orders.service";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+const makeTrial = { on: false };
+vi.mock("../orders.service", async (orig) => {
+  const actual = await orig<typeof import("../orders.service")>();
+  return {
+    ...actual,
+    createOrder: async (...args: Parameters<typeof actual.createOrder>) => {
+      const r = await actual.createOrder(...args);
+      if (makeTrial.on) await db.update(orders).set({ trialLength: 3 }).where(eq(orders.deploymentId, r.deploymentId));
+      return r;
+    },
+  };
+});
 
 const { inquiriesService } = await import("../inquiries.service");
 
@@ -14,8 +30,12 @@ let n = 0;
 const phone = () => `+1647556${String(1000 + n++)}`;
 
 async function reset() {
+  await db.delete(ledgerEntries);
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
+  await db.delete(payments);
+  await db.delete(orders);
+  await db.delete(users).where(ne(users.isSystem, true));
 }
 const row = async (id: bigint) => (await db.select().from(inquiries).where(eq(inquiries.id, id)))[0];
 const acts = async (id: bigint) => db.select().from(inquiryActivities).where(eq(inquiryActivities.inquiryId, id));
@@ -194,5 +214,92 @@ describe("inquiriesService queue tabs", () => {
     await inquiriesService.setStatus(c.publicId, { subStatus: "undeliverable" });
     await db.update(inquiries).set({ subStatus: "took_trial", stage: "converted" }).where(eq(inquiries.id, d.id));
     expect(await inquiriesService.groupCounts(undefined)).toEqual({ lead: 1, followUp: 1, took: 1, lost: 1 });
+  });
+
+  it("groupCounts ignores converted/lost rows with a null sub-status", async () => {
+    const a = await mk();
+    const b = await mk();
+    await mk();
+    await db.update(inquiries).set({ stage: "converted", subStatus: null }).where(eq(inquiries.id, a.id));
+    await db.update(inquiries).set({ stage: "lost", subStatus: null }).where(eq(inquiries.id, b.id));
+    expect((await inquiriesService.groupCounts(undefined)).lead).toBe(1);
+  });
+});
+
+describe("inquiriesService.convert contact + status", () => {
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+    makeTrial.on = false;
+    const [staff] = await db
+      .insert(users)
+      .values({ email: email(), name: "Agent Staff", role: "member" })
+      .returning({ publicId: users.publicId });
+    session.user = { id: staff.publicId, role: "member" };
+  });
+  afterAll(async () => {
+    session.user = null;
+    await reset();
+  });
+
+  async function orderInput(contact: { phone: string; email: string }): Promise<CreateOrderInput> {
+    const snap = await loadCatalogSnapshot();
+    return {
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId,
+        frequencyKey: "5_day",
+        persons: 1,
+        mealSlots: ["lunch"],
+        includeSaturday: false,
+        includeSunday: false,
+        durationWeeks: 1,
+        startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      },
+      contact: { fullName: "Lead", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6", ...contact },
+    };
+  }
+  const contact = () => ({ phone: phone(), email: email() });
+
+  it("writes phone/email back and sets took_plan", async () => {
+    const inq = await inquiriesService.create({ fullName: "No Contact", sourceKey: "manual" });
+    const c = contact();
+    await inquiriesService.convert(inq.publicId, await orderInput(c));
+    const r = await row(inq.id);
+    expect(r.phone).toBe(c.phone);
+    expect(r.email).toBe(c.email);
+    expect(r.subStatus).toBe("took_plan");
+    expect(r.stage).toBe("converted");
+    expect(r.convertedOrderId).not.toBeNull();
+    expect((await acts(inq.id)).some((a) => a.toSubStatus === "took_plan")).toBe(true);
+  });
+
+  it("sets took_trial for a trial order", async () => {
+    makeTrial.on = true;
+    const inq = await inquiriesService.create({ fullName: "Trial", sourceKey: "manual" });
+    await inquiriesService.convert(inq.publicId, await orderInput(contact()));
+    expect((await row(inq.id)).subStatus).toBe("took_trial");
+  });
+
+  it("rejects when another open lead holds the email, creating no order", async () => {
+    const other = await mk();
+    const inq = await inquiriesService.create({ fullName: "Mine", sourceKey: "manual" });
+    await expect(
+      inquiriesService.convert(inq.publicId, await orderInput({ phone: phone(), email: other.email! })),
+    ).rejects.toThrow(other.publicId);
+    expect(await db.select().from(orders)).toHaveLength(0);
+    expect((await row(inq.id)).stage).not.toBe("converted");
+  });
+
+  it("allows converting when phone and email match this same inquiry", async () => {
+    const inq = await mk();
+    await inquiriesService.convert(inq.publicId, await orderInput({ phone: inq.phone!, email: inq.email! }));
+    expect((await row(inq.id)).stage).toBe("converted");
+  });
+
+  it("requires phone and email", async () => {
+    const inq = await mk();
+    await expect(inquiriesService.convert(inq.publicId, await orderInput({ phone: "", email: email() }))).rejects.toBeInstanceOf(ValidationError);
+    await expect(inquiriesService.convert(inq.publicId, await orderInput({ phone: phone(), email: " " }))).rejects.toBeInstanceOf(ValidationError);
   });
 });

@@ -1,4 +1,4 @@
-import { emailSchema } from "@foundry/commons";
+import { emailSchema, phoneSchema } from "@foundry/commons";
 import { z } from "zod";
 
 export const orderFormSchema = z.object({
@@ -16,6 +16,7 @@ export const orderFormSchema = z.object({
   addonSelections: z.array(z.object({ key: z.string(), qty: z.number().int().min(1) })).default([]),
   // Required: email is the login path for the customer this order creates.
   email: emailSchema,
+  phone: phoneSchema(),
   addressLine: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   postalCode: z.string().min(1, "Postal code is required"),

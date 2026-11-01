@@ -4,13 +4,14 @@ import { useState } from "react";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
 import {
-  DeliverySection, DiscountsSection, PaymentSection, PlanSection, PriceSection, RunningPlansField,
+  DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField,
 } from "@/app/(dashboard)/dashboard/orders/new-order/order-sections";
 import { estimatePrefill } from "@/app/(dashboard)/dashboard/discounts/estimate-actions";
 import type { OrderFormInput } from "../order-schema";
@@ -91,6 +92,16 @@ export function OrderForm({
               <p role="alert" className="text-destructive text-xs text-pretty">
                 This phone number and this email belong to two different customers. Correct one of them before creating the order.
               </p>
+            )}
+            {inquiryId && !estimateOnly && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Phone" error={d.form.formState.errors.phone?.message}>
+                  <Input type="tel" inputMode="tel" autoComplete="off" {...d.form.register("phone")} />
+                </Field>
+                <Field label="Email" error={d.form.formState.errors.email?.message}>
+                  <Input type="email" autoComplete="off" {...d.form.register("email")} />
+                </Field>
+              </div>
             )}
             {!estimateOnly && (
               <RunningPlansField plans={customerCtx.plans} selectedId={renewedFrom} busyId={renewingId} onPick={(p) => void renewFrom(p.publicId, p.deploymentId)} />

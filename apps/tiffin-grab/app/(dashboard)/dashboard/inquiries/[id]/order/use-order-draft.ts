@@ -30,6 +30,7 @@ export type EnabledSlot = { key: string; label: string };
 
 const FIELD_LABELS: Record<string, string> = {
   email: "Email",
+  phone: "Phone",
   planKey: "Diet",
   mealSizeId: "Meal size",
   frequencyKey: "Delivery days",
@@ -155,6 +156,7 @@ export function useOrderDraft({
       startDate: "",
       addonSelections: [],
       email: contact.email,
+      phone: contact.phone,
       addressLine: "",
       city: "",
       postalCode: "",
@@ -177,6 +179,7 @@ export function useOrderDraft({
   const city = form.watch("city");
   const postalCode = form.watch("postalCode");
   const email = form.watch("email");
+  const phone = form.watch("phone");
   const deliveryArea = useDeliveryArea(postalCode);
 
   // The picked size's allowed days: only frequencies that deliver on them are offered (non-veg only, Tue/Thu veg-only).
@@ -260,9 +263,12 @@ export function useOrderDraft({
 
   // An estimate switches customer without remounting, so the plan picked so far survives.
   useEffect(() => {
-    if (estimateOnly) form.setValue("email", contact.email);
+    if (estimateOnly) {
+      form.setValue("email", contact.email);
+      form.setValue("phone", contact.phone);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estimateOnly, contact.email]);
+  }, [estimateOnly, contact.email, contact.phone]);
 
   // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
   useEffect(() => {
@@ -382,6 +388,7 @@ export function useOrderDraft({
         startDate,
         addonSelections,
         email: email ?? "",
+        phone: String(phone ?? ""),
         addressLine: addressLine ?? "",
         city: city ?? "",
         postalCode: postalCode ?? "",
@@ -418,7 +425,7 @@ export function useOrderDraft({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase(), coinsWanted]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase(), coinsWanted]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -440,7 +447,7 @@ export function useOrderDraft({
 
   /** Fill the plan from an earlier order (Renew last plan). Start date is left to the renewal rule. */
   function applyPrefill(prefill: Partial<OrderFormInput>, addressPublicId: string | null) {
-    const { startDate: _start, email: _email, ...plan } = prefill;
+    const { startDate: _start, email: _email, phone: _phone, ...plan } = prefill;
     if (plan.mealSizeId && plan.mealSizeId !== form.getValues("mealSizeId")) keepAddonsOnce.current = true;
     for (const [key, value] of Object.entries(plan) as [keyof OrderFormInput, OrderFormInput[keyof OrderFormInput]][]) {
       if (value !== undefined) form.setValue(key, value as never, { shouldDirty: true, shouldValidate: true });

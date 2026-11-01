@@ -2,7 +2,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -199,7 +199,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * converted/lost) inquiry is the same person. Email wins when phone and email
    * point at different inquiries — email is the login identity. Newest first.
    */
-  async findOpenMatch(phone: string | null, email?: string | null): Promise<typeof inquiries.$inferSelect | null> {
+  async findOpenMatch(phone: string | null, email?: string | null, excludeId?: bigint): Promise<typeof inquiries.$inferSelect | null> {
     const parts = [
       phone ? eq(sql`lower(${inquiries.phone})`, phone.toLowerCase()) : undefined,
       email ? eq(sql`lower(${inquiries.email})`, email.toLowerCase()) : undefined,
@@ -209,7 +209,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const rows = await db
       .select()
       .from(inquiries)
-      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"])))
+      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"]), excludeId != null ? ne(inquiries.id, excludeId) : undefined))
       .orderBy(desc(inquiries.createdAt));
     const byEmail = email ? rows.find((r) => r.email?.toLowerCase() === email.toLowerCase()) : undefined;
     return byEmail ?? rows[0] ?? null;
@@ -398,12 +398,23 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
 
+    const contactPhone = orderInput.contact.phone?.trim();
+    const contactEmail = orderInput.contact.email?.trim();
+    if (!contactPhone) throw new ValidationError("Phone is required");
+    if (!contactEmail) throw new ValidationError("Email is required");
+
+    // Contact is the person's identity from here on: it must not belong to a different open lead.
+    const other = await this.findOpenMatch(contactPhone, contactEmail, inq.id);
+    if (other) {
+      throw new ValidationError(`This phone or email belongs to another open lead (${other.publicId}). Open that lead instead.`);
+    }
+
     // Converting a lead when the phone already has a live subscription usually
     // means the order was placed another way — reject so staff open that order
     // instead of minting a duplicate. New Order / New Customer pass
     // allowAdditionalOrder for intentional second subscriptions.
     if (!opts?.allowAdditionalOrder) {
-      await assertNoLiveOrderForPhone(inq.phone ?? "");
+      await assertNoLiveOrderForPhone(contactPhone);
     }
 
     // Staff can only convert a lead into an order we can deliver; an out-of-zone lead stays
@@ -421,16 +432,27 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, staffCreated: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
-      .select({ id: orders.id })
+      .select({ id: orders.id, trialLength: orders.trialLength })
       .from(orders)
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
-    await this.update(publicId, { stage: "converted", convertedOrderId: order.id });
+    const subStatus = order.trialLength != null ? "took_trial" : "took_plan";
+    await this.update(publicId, {
+      phone: contactPhone,
+      email: contactEmail,
+      fullName: inq.fullName ?? (orderInput.contact.fullName?.trim() || null),
+      stage: "converted",
+      subStatus,
+      nextFollowUpAt: null,
+      convertedOrderId: order.id,
+    });
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "converted",
       fromStage: inq.stage,
       toStage: "converted",
+      fromSubStatus: inq.subStatus,
+      toSubStatus: subStatus,
     });
     return result;
   }
@@ -540,7 +562,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const cnt = (p: SQL | undefined) => sql<number>`cast(count(*) filter (where ${p}) as int)`;
     const [row] = await db
       .select({
-        lead: cnt(or(isNull(inquiries.subStatus), subs((s) => !isClosed(s) && groupFor(s) === "lead"))),
+        lead: cnt(or(and(isNull(inquiries.subStatus), notInArray(inquiries.stage, ["converted", "lost"])), subs((s) => !isClosed(s) && groupFor(s) === "lead"))),
         followUp: cnt(subs((s) => !isClosed(s) && groupFor(s) === "follow_up")),
         took: cnt(subs((s) => s === "took_plan" || s === "took_trial")),
         lost: cnt(subs((s) => s === "lost" || s === "undeliverable")),
