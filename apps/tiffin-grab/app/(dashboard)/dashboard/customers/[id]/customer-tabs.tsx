@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ActivityIcon, GiftIcon, LayoutDashboardIcon, MapPinIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
+import { ActivityIcon, CoinsIcon, GiftIcon, LayoutDashboardIcon, MapPinIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 
 const TABS = [
@@ -10,6 +10,7 @@ const TABS = [
   { seg: "/orders", label: "Orders", icon: PackageIcon },
   { seg: "/renewals", label: "Renewals", icon: RefreshCwIcon },
   { seg: "/referrals", label: "Referrals", icon: GiftIcon },
+  { seg: "/wallet", label: "Wallet", icon: CoinsIcon },
   { seg: "/addresses", label: "Addresses", icon: MapPinIcon },
   { seg: "/activity", label: "Activity", icon: ActivityIcon },
 ] as const;
