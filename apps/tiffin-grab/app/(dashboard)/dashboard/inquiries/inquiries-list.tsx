@@ -5,17 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatPhone } from "@foundry/commons";
-import { ClipboardListIcon, MoreHorizontalIcon } from "lucide-react";
-import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import {
+  ClipboardListIcon, ListChecksIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, UserRoundPenIcon,
+} from "lucide-react";
+import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@foundry/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@foundry/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Badge } from "@/components/reui/badge";
 import type { SortState } from "@/lib/list/sort";
@@ -39,7 +38,7 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
   { key: "nextFollowUp", label: "Next follow-up", sortable: true, width: "w-40" },
   { key: "owner", label: "Owner", sortable: true, width: "w-28" },
   { key: "lastNote", label: "Last note" },
-  { key: "actions", label: "", align: "right", width: "w-12" },
+  { key: "actions", label: "", align: "right", width: "w-52" },
 ];
 
 const DAY_MS = 86_400_000;
@@ -52,37 +51,29 @@ type RowDialog =
   | { id: string; kind: "note"; note: NoteKind }
   | { id: string; kind: "reassign" };
 
-function RowMenu({
+function RowActions({
   r, canReassign, onOpenDialog,
 }: {
   r: PipelineRow;
   canReassign: boolean;
   onOpenDialog: (d: RowDialog) => void;
 }) {
+  const router = useRouter();
   const closed = isClosed(r.subStatus as SubStatus | null);
-  const href = `/dashboard/inquiries/${r.publicId}`;
+  const name = displayName(r);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${displayName(r)}`}>
-          <MoreHorizontalIcon />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onOpenDialog({ id: r.publicId, kind: "status" })}>Update status</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })}>Add note</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenDialog({ id: r.publicId, kind: "note", note: "call" })}>Log call</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenDialog({ id: r.publicId, kind: "note", note: "whatsapp" })}>Log WhatsApp</DropdownMenuItem>
-        {closed ? null : (
-          <DropdownMenuItem asChild><Link href={`${href}?convert=1`}>Convert to order</Link></DropdownMenuItem>
-        )}
-        {canReassign ? (
-          <DropdownMenuItem onSelect={() => onOpenDialog({ id: r.publicId, kind: "reassign" })}>Reassign</DropdownMenuItem>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild><Link href={href}>Open</Link></DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center justify-end gap-0.5">
+      <RowActionTooltipButton icon={ListChecksIcon} label={`Update status for ${name}`} hint="Update status" onClick={() => onOpenDialog({ id: r.publicId, kind: "status" })} />
+      <RowActionTooltipButton icon={MessageSquarePlusIcon} label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
+      <RowActionTooltipButton icon={PhoneIcon} label={`Log call for ${name}`} hint="Log call" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "call" })} />
+      <RowActionTooltipButton icon={MessageCircleIcon} label={`Log WhatsApp for ${name}`} hint="Log WhatsApp" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "whatsapp" })} />
+      {closed ? null : (
+        <RowActionTooltipButton icon={ShoppingBagIcon} label={`Convert ${name} to order`} hint="Convert to order" onClick={() => router.push(`/dashboard/inquiries/${r.publicId}?convert=1`)} />
+      )}
+      {canReassign ? (
+        <RowActionTooltipButton icon={UserRoundPenIcon} label={`Reassign ${name}`} hint="Reassign" onClick={() => onOpenDialog({ id: r.publicId, kind: "reassign" })} />
+      ) : null}
+    </div>
   );
 }
 
@@ -251,7 +242,7 @@ export function InquiriesList({
         <BulkBar selectedIds={onPage} pageIds={rows.map((r) => r.publicId)} staff={staff} onChange={setSelected} />
       ) : null}
       <DataTable
-        serial={false}
+        serialOffset={page * size}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
@@ -272,7 +263,7 @@ export function InquiriesList({
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
                 <div><StatusPill subStatus={sub} /></div>
               </div>
-              <RowMenu r={r} canReassign={canMove} onOpenDialog={setDialog} />
+              <RowActions r={r} canReassign={canMove} onOpenDialog={setDialog} />
             </div>
           );
         }}
@@ -326,7 +317,7 @@ export function InquiriesList({
               </TableCell>
               <TableCell>
                 <div className="flex justify-end">
-                  <RowMenu r={r} canReassign={canMove} onOpenDialog={setDialog} />
+                  <RowActions r={r} canReassign={canMove} onOpenDialog={setDialog} />
                 </div>
               </TableCell>
             </>
@@ -356,5 +347,5 @@ export function InquiriesList({
 }
 
 export function InquiriesListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <DataTable.Skeleton columns={COLUMNS} />;
 }

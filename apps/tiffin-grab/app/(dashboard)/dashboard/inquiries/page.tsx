@@ -81,7 +81,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         <div className="flex">
           <SectionDateRange />
         </div>
-        <Suspense fallback={<StatCardsSkeleton count={4} />}>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <InquiryStats searchParams={searchParams} />
         </Suspense>
       </div>
@@ -194,14 +194,17 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const where = epochBoundsWhere(inquiries.createdAt, await withDefaultMonth(await searchParams));
   const g = await inquiriesService.groupCounts(where);
+  const total = g.lead + g.followUp + g.took + g.lost;
+  const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
 
   return (
     <StatCards
       items={[
+        { icon: ClipboardListIcon, label: "Total", value: total, hint: "created in selected dates" },
         { icon: InboxIcon, label: "Lead", value: g.lead, hint: "new · no response" },
         { icon: UsersIcon, label: "Follow-up", value: g.followUp, hint: "responded · future · expected" },
-        { icon: TrendingUpIcon, label: "Took plan/trial", value: g.took, hint: "converted to an order" },
-        { icon: XCircleIcon, label: "Lost", value: g.lost, hint: "lost · undeliverable" },
+        { icon: TrendingUpIcon, label: "Took plan/trial", value: g.took, hint: `${pct(g.took)} conversion` },
+        { icon: XCircleIcon, label: "Lost", value: g.lost, hint: `${pct(g.lost)} · lost or undeliverable` },
       ]}
     />
   );
