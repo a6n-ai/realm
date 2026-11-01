@@ -1479,7 +1479,7 @@ export type FreeTiffinRange = { from: string; to: string };
  * Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out.
  * With a range, only orders with a free tiffin scheduled in it: the analytics Free tiffins rule, so both agree.
  */
-const freeTiffinsWhere = (range?: FreeTiffinRange) =>
+export const freeTiffinsWhere = (range?: FreeTiffinRange) =>
   and(
     gt(orders.complimentaryTiffins, 0),
     ne(orders.status, "cancelled"),

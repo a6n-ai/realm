@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
-import { zonedDateIso } from "@foundry/commons";
+import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
+import { formatMoney, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
 import { and as sqlAnd, eq, inArray } from "drizzle-orm";
@@ -30,7 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
-import { getOrdersOverview } from "@/lib/services/orders-stats.service";
+import { getFreeTiffinStats, getLookOutStats, getOrdersOverview, getPaymentReviewStats } from "@/lib/services/orders-stats.service";
 import { OrderTagsLegend } from "./row-tags";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { MissedList } from "./missed-list";
@@ -88,16 +88,15 @@ export default async function OrdersPage({
               </Tooltip>
             ) : null}
           </div>
-          <OrderTagsLegend />
         </div>
-        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+        <Suspense key={`${raw.view ?? "all"}:${raw.from}:${raw.to}`} fallback={<StatCardsSkeleton count={raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? 4 : raw.view === "free" ? 3 : 5} />}>
           <OrdersStats searchParams={searchParams} />
         </Suspense>
       </div>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
         <OrdersViews searchParams={searchParams} />
       </Suspense>
-      <SectionCard title="Orders" subtitle={listNote(raw.view)}>
+      <SectionCard title="Orders" subtitle={listNote(raw.view)} action={raw.view === "missed" ? undefined : <OrderTagsLegend />}>
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
@@ -141,7 +140,68 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
   const range = { from: Number(sp.from), to: Number(sp.to) };
-  const o = await getOrdersOverview(range, await resolveSessionVisibleOrgIds(await getSession()));
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const view = (await searchParams).view;
+  if (view === "lookout") {
+    const l = await getLookOutStats(visible, range);
+    return (
+      <StatCards
+        items={[
+          { label: "Flagged orders", value: l.flagged, icon: FlagIcon, hint: "Every date" },
+          { label: "Running", value: l.running, icon: PlayCircleIcon, hint: "Flagged and active or paused" },
+          { label: "Unpaid", value: l.unpaid, icon: WalletIcon, hint: "Flagged with a payment still due" },
+          { label: "Flagged this range", value: l.inRange, icon: CalendarClockIcon, hint: "Flagged inside the date range" },
+        ]}
+      />
+    );
+  }
+  if (view === "payment") {
+    const [count, p, { currency }] = await Promise.all([countPaymentReviewOrders(visible), getPaymentReviewStats(visible), getAppSettings()]);
+    return (
+      <StatCards
+        items={[
+          { label: "Orders", value: count, icon: PackageIcon, hint: "Waiting on a payment" },
+          { label: "Amount owed", value: formatMoney(p.owed, currency), icon: WalletIcon, hint: "Across their open payments" },
+          { label: "Needs review", value: p.needsReview, icon: ShieldCheckIcon, hint: "Claimed, staff to verify" },
+          { label: "Overdue", value: p.overdue, icon: AlarmClockIcon, hint: "Awaiting payment over 3 days", ...(p.overdue > 0 ? { tone: "bad" as const } : {}) },
+        ]}
+      />
+    );
+  }
+  if (view === "free") {
+    const fr = await freeRange(await searchParams);
+    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    const [count, f] = await Promise.all([countFreeTiffinOrders(visible, fr), getFreeTiffinStats(visible, fr, today)]);
+    return (
+      <StatCards
+        items={[
+          { label: "Orders", value: count, icon: GiftIcon, hint: "With a free tiffin in the range" },
+          { label: "Free tiffins delivered", value: f.delivered, icon: PackageCheckIcon, hint: "In the date range, up to today" },
+          { label: "Still to deliver", value: f.toDeliver, icon: TruckIcon, hint: "Scheduled after today" },
+        ]}
+      />
+    );
+  }
+  if (view === "missed") {
+    const rows = await listMissedDeliveries(visible);
+    const orderCount = new Set(rows.map((r) => r.orderPublicId)).size;
+    return (
+      <StatCards
+        items={[
+          { label: "Missed days", value: rows.length, icon: CalendarX2Icon, hint: "Every date" },
+          { label: "Orders hit", value: orderCount, icon: UsersIcon, hint: "Distinct orders" },
+          ...(Object.entries(MISSED_WHY) as [keyof typeof MISSED_WHY, string][]).map(([kind, label]) => ({
+            label,
+            value: rows.filter((r) => r.kind === kind).length,
+            icon: CalendarOffIcon,
+            hint: "Missed days",
+          })),
+        ]}
+      />
+    );
+  }
+  const o = await getOrdersOverview(range, visible);
 
   const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
 

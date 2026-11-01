@@ -2,7 +2,7 @@ import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "driz
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
-import { notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
+import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -83,6 +83,9 @@ export type PaymentKpis = {
   toVerify: { count: number; oldestAt: number | null };
   awaiting: { count: number; amount: number };
   overdue: { count: number; amount: number };
+  rejectedCount: number;
+  /** Awaiting payment on a link that has passed its expiry (void links are rejected, so not counted). */
+  expired: { count: number; amount: number };
 };
 
 /**
@@ -90,7 +93,11 @@ export type PaymentKpis = {
  * date range (by `created_at`, same as the table); the three queues are live and
  * ignore it, since last week's backlog still needs doing today.
  */
-export async function getPaymentKpis(sp: { from?: string; to?: string }, now = Date.now()): Promise<PaymentKpis> {
+export async function getPaymentKpis(
+  sp: { from?: string; to?: string },
+  now = Date.now(),
+  method?: "etransfer" | "stripe",
+): Promise<PaymentKpis> {
   const dated = await withListDates(sp);
   const from = Number(dated.from);
   const to = Number(dated.to);
@@ -100,6 +107,7 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
   const overdueBefore = now - OVERDUE_DAYS * DAY_MS;
   const inRange = (a: number, b: number) => sql`${payments.createdAt} between ${a} and ${b}`;
   const num = (v: unknown) => Number(v ?? 0);
+  const expired = sql`${payments.status} = 'awaiting_payment' and ${payments.expiresAt} > 0 and ${payments.expiresAt} <= ${now}`;
 
   const [r] = await db
     .select({
@@ -113,8 +121,12 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
       awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment'), 0)`,
       overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}) as int)`,
       overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}), 0)`,
+      rejectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'rejected' and ${inRange(from, to)}) as int)`,
+      expiredCount: sql<number>`cast(count(*) filter (where ${expired}) as int)`,
+      expiredAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${expired}), 0)`,
     })
-    .from(payments);
+    .from(payments)
+    .where(method ? eq(payments.method, method) : undefined);
 
   return {
     range: { from, to },
@@ -125,7 +137,70 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
     toVerify: { count: r.verifyCount, oldestAt: r.verifyOldestAt == null ? null : Number(r.verifyOldestAt) },
     awaiting: { count: r.awaitingCount, amount: num(r.awaitingAmount) },
     overdue: { count: r.overdueCount, amount: num(r.overdueAmount) },
+    rejectedCount: r.rejectedCount,
+    expired: { count: r.expiredCount, amount: num(r.expiredAmount) },
   };
+}
+
+/** Card payments matching any "Needs attention" facet except fallback tax: the same rows that filter shows. */
+export async function countStripeAttention(): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(payments)
+    .where(and(eq(payments.method, "stripe"), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
+  return count;
+}
+
+/** Ledger totals by type inside the date range; credit is money in, debit money out. */
+export async function getLedgerKpis(sp: { from?: string; to?: string }) {
+  const dated = await withListDates(sp);
+  const rows = await db
+    .select({
+      type: ledgerEntries.type,
+      direction: ledgerEntries.direction,
+      amount: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)`,
+      count: sql<number>`cast(count(*) as int)`,
+    })
+    .from(ledgerEntries)
+    .where(dateRangeWhere(ledgerEntries.createdAt, dated))
+    .groupBy(ledgerEntries.type, ledgerEntries.direction);
+  const total = (type: string) => {
+    const hit = rows.filter((r) => r.type === type);
+    return { amount: hit.reduce((a, r) => a + Number(r.amount), 0), count: hit.reduce((a, r) => a + r.count, 0) };
+  };
+  const signed = (dir: string) => rows.filter((r) => r.direction === dir).reduce((a, r) => a + Number(r.amount), 0);
+  return {
+    payment: total("payment"),
+    refund: total("refund"),
+    discount: total("discount"),
+    adjustment: total("adjustment"),
+    net: signed("credit") - signed("debit"),
+  };
+}
+
+/** Counts behind the Provider logs tab, dated like its rows. */
+export async function getLogKpis(sp: { from?: string; to?: string }) {
+  const dated = await withListDates(sp);
+  const actType = (t: string) => sql<number>`cast(count(*) filter (where ${orderActivities.type} = ${t}) as int)`;
+  const [[a], [e]] = await Promise.all([
+    db
+      .select({
+        claimed: actType("payment_claimed"),
+        verified: actType("payment_verified"),
+        rejected: actType("payment_rejected"),
+        failed: actType("payment_failed"),
+      })
+      .from(orderActivities)
+      .where(dateRangeWhere(orderActivities.createdAt, dated)),
+    db
+      .select({
+        events: sql<number>`cast(count(*) as int)`,
+        errors: sql<number>`cast(count(*) filter (where ${stripeEvents.error} is not null) as int)`,
+      })
+      .from(stripeEvents)
+      .where(dateRangeWhere(stripeEvents.receivedAt, dated)),
+  ]);
+  return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
 }
 
 /** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */

@@ -8,7 +8,7 @@ import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/services/payment-stripe";
 import { listPayments } from "../payment-queries";
-import { PaymentKpis } from "../payment-kpis";
+import { PaymentsTop } from "../payment-kpis";
 import { ReconcileButton } from "./reconcile-dialog";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";
 
@@ -20,7 +20,7 @@ const serverNow = () => Date.now();
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
-      <PaymentKpis searchParams={searchParams} />
+      <PaymentsTop tab="stripe" searchParams={searchParams} />
       <SectionCard title="Stripe payments" action={<ReconcileButton />}>
         <Suspense fallback={<StripeTableSkeleton />}>
           <StripeData searchParams={searchParams} />
