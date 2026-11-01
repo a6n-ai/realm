@@ -38,22 +38,32 @@ function dateLabel(iso: string): string {
   return parseIsoDateUtc(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-type SectionKey = "plan" | "delivery" | "payment";
+type SectionKey = "plan" | "delivery" | "payment" | "discounts";
+
+const SECTION_FIELDS: Record<Exclude<SectionKey, "discounts">, readonly string[]> = {
+  plan: ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "includeSaturday", "includeSunday", "durationWeeks", "startDate", "addonSelections"],
+  delivery: ["addressLine", "city", "postalCode"],
+  payment: [],
+};
+const MAPPED = new Set(Object.values(SECTION_FIELDS).flat());
 
 /** Which sections hold something missing or invalid, from the draft's `missing` labels and field errors. */
 export function sectionsNeedingInput(d: Draft): Record<SectionKey, boolean> {
-  const e = d.form.formState.errors;
+  const errs = Object.keys(d.form.formState.errors);
   const m = d.missing;
+  const has = (k: Exclude<SectionKey, "discounts">) => errs.some((f) => SECTION_FIELDS[k].includes(f));
+  // An error on a field no row owns: open every row so it can never hide behind a collapsed one.
+  const stray = errs.some((f) => !MAPPED.has(f) && f !== "phone" && f !== "email");
   return {
-    plan: m.some((x) => x === "meal size" || x === "start date" || x === "a start date on a trial day") ||
-      !!(e.planKey || e.mealSizeId || e.frequencyKey || e.eatingDays || e.persons || e.mealSlots || e.durationWeeks || e.startDate || e.addonSelections),
-    delivery: m.some((x) => x === "address" || x === "city" || x === "postal code") || !!(e.addressLine || e.city || e.postalCode),
-    payment: m.includes("payment method"),
+    plan: stray || has("plan") || m.some((x) => x === "meal size" || x === "start date" || x === "a start date on a trial day"),
+    delivery: stray || has("delivery") || m.some((x) => x === "address" || x === "city" || x === "postal code"),
+    payment: stray || m.includes("payment method"),
+    discounts: stray,
   };
 }
 
 /** One-line summaries read from the draft's current values; display only. */
-export function useSectionSummaries(d: Draft, catalog: Catalog, enabledSlots: EnabledSlot[]) {
+export function sectionSummaries(d: Draft, catalog: Catalog, enabledSlots: EnabledSlot[]) {
   const v = d.form.watch();
   const planName = catalog.plans.find((p) => p.key === v.planKey)?.name;
   const size = catalog.mealSizes.find((s) => s.id === v.mealSizeId)?.name;
@@ -97,11 +107,14 @@ export function SummaryRow({ title, summary, needsInput, children }: { title: st
       <CollapsibleTrigger asChild>
         <button type="button" className="group hover:bg-muted/50 flex w-full items-center gap-3 p-3 text-left transition-colors">
           <span className="grid min-w-0 flex-1 gap-0.5">
-            <span className="flex items-center gap-2 text-sm font-medium">
-              {title}
-              {needsInput && <Badge variant="warning-light">Needs input</Badge>}
-            </span>
-            {!open && <span className="text-muted-foreground truncate text-sm">{summary}</span>}
+            {/* Open: the section below carries its own title, so the row shows only the summary. */}
+            {open ? null : (
+              <span className="flex items-center gap-2 text-sm font-medium">
+                {title}
+                {needsInput && <Badge variant="warning-light">Needs input</Badge>}
+              </span>
+            )}
+            <span className="text-muted-foreground truncate text-sm">{summary}</span>
           </span>
           <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
         </button>

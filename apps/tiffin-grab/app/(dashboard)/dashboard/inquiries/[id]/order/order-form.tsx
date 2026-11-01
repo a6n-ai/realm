@@ -17,7 +17,7 @@ import { estimatePrefill } from "@/app/(dashboard)/dashboard/discounts/estimate-
 import type { OrderFormInput } from "../order-schema";
 import { useOrderDraft, type EstimateState, type EnabledSlot } from "./use-order-draft";
 import type { Catalog } from "./order-draft";
-import { SummaryRow, sectionsNeedingInput, useIsLg, useSectionSummaries } from "./split-layout";
+import { SummaryRow, sectionSummaries, sectionsNeedingInput, useIsLg } from "./split-layout";
 
 export type { EstimateState };
 
@@ -72,8 +72,9 @@ export function OrderForm({
   const { submitting, error, shownPreview, previewError, missing, created, successOpen, setSuccessOpen, customerCtx } = d;
   const isLg = useIsLg();
   const split = layout === "split" && isLg && !estimateOnly && !page;
-  const need = sectionsNeedingInput(d);
-  const sums = useSectionSummaries(d, catalog, enabledSlots);
+  // Summaries watch the whole form; only the split layout reads them.
+  const need = split ? sectionsNeedingInput(d) : null;
+  const sums = split ? sectionSummaries(d, catalog, enabledSlots) : null;
   const [renewedFrom, setRenewedFrom] = useState<string | null>(null);
   const [renewingId, setRenewingId] = useState<string | null>(null);
 
@@ -141,16 +142,16 @@ export function OrderForm({
               {conflictNote}
               {contactFields}
               {runningPlans}
-              <SummaryRow title="Plan" summary={sums.plan} needsInput={need.plan}>
+              <SummaryRow title="Plan" summary={sums!.plan} needsInput={need!.plan}>
                 <PlanSection d={d} catalog={catalog} />
               </SummaryRow>
-              <SummaryRow title="Delivery" summary={sums.delivery} needsInput={need.delivery}>
+              <SummaryRow title="Delivery" summary={sums!.delivery} needsInput={need!.delivery}>
                 <DeliverySection d={d} />
               </SummaryRow>
-              <SummaryRow title="Payment" summary={sums.payment} needsInput={need.payment}>
+              <SummaryRow title="Payment" summary={sums!.payment} needsInput={need!.payment}>
                 <PaymentSection d={d} customerName={contact.fullName} />
               </SummaryRow>
-              <SummaryRow title="Discounts" summary={sums.discounts} needsInput={false}>
+              <SummaryRow title="Discounts" summary={sums!.discounts} needsInput={need!.discounts}>
                 <DiscountsSection d={d} customerLabel={contact.fullName || contact.email} />
               </SummaryRow>
             </div>
