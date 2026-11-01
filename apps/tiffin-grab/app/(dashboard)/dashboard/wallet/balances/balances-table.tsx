@@ -59,7 +59,7 @@ export function BalancesTable({ rows, spec, sort, total, page, size }: {
         renderRow={(r) => (
           <>
             <TableCell>
-              <Link href={`/dashboard/customers/${r.publicId}`} className="hover:underline">{r.name}</Link>
+              <Link href={`/dashboard/customers/${r.publicId}/wallet`} className="hover:underline">{r.name}</Link>
             </TableCell>
             <TableCell>
               <div className="flex flex-col">

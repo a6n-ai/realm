@@ -18,7 +18,7 @@ export const balanceSql = (asOf: number = Date.now()) =>
 /** Customers only: staff and soft-deleted accounts never appear on a balance sheet. */
 const customerOnly = and(eq(users.role, "user"), ne(users.status, "deleted"));
 
-async function currentRate(): Promise<number | null> {
+export async function currentRate(): Promise<number | null> {
   const [row] = await db.select({ v: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1);
   return row ? Number(row.v) : null;
 }
@@ -139,4 +139,22 @@ export async function listWalletBalances({ q, filter, sort, page, range }: {
     currentRate(),
   ]);
   return { rows: rows.map((r) => ({ ...r, value: money(r.balance, rate) })), total: n };
+}
+
+/** One customer's wallet cards: balance as of now, lifetime earned and redeemed, last activity. */
+export async function customerWalletStats(userId: bigint) {
+  const now = Date.now();
+  const [[agg], rate] = await Promise.all([
+    db
+      .select({
+        balance: balanceSql(now),
+        earned: earnedCoinsSql(walletLedger),
+        redeemed: spentCoinsSql(walletLedger),
+        last: sql<number | null>`max(${walletLedger.createdAt})`,
+      })
+      .from(walletLedger)
+      .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, now))),
+    currentRate(),
+  ]);
+  return { ...agg, rate, value: money(agg.balance, rate) };
 }

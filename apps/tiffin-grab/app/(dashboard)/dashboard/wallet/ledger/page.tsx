@@ -1,10 +1,11 @@
 import { Suspense } from "react";
-import { and, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, ilike, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
-import { walletLedger, users, orders } from "@/db/schema";
+import { walletLedger, users, orders, customerGroupActions, customerGroups } from "@/db/schema";
+import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "@/lib/services/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
@@ -94,8 +95,10 @@ export async function walletLedgerStats(range: { from: number; to: number } = { 
  */
 const actor = alias(users, "actor");
 
-export async function walletLedgerRows({ q, sourceType, direction, range, sort, page }: {
+export async function walletLedgerRows({ q, userId, sourceType, direction, range, sort, page }: {
   q?: string;
+  /** Narrows to one customer's wallet (the customer Wallet tab). */
+  userId?: bigint;
   /** Narrows to entries created inside the window (epoch-ms, inclusive). */
   range?: { from: number; to: number };
   /** Narrows to one source, e.g. the Give coins history (`manual_broadcast`). */
@@ -116,6 +119,7 @@ export async function walletLedgerRows({ q, sourceType, direction, range, sort, 
   const where = and(
     unexpired(walletLedger, Date.now()),
     search,
+    userId ? eq(walletLedger.userId, userId) : undefined,
     sourceType ? eq(walletLedger.sourceType, sourceType) : undefined,
     direction ? eq(walletLedger.direction, direction) : undefined,
     range ? and(gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)) : undefined,
@@ -132,6 +136,9 @@ export async function walletLedgerRows({ q, sourceType, direction, range, sort, 
         coins: walletLedger.coins,
         memo: walletLedger.memo,
         email: users.email,
+        userPublicId: users.publicId,
+        groupName: grantGroupName,
+        groupPublicId: grantGroupPublicId,
         orderPublicId: orders.publicId,
         actorName: actor.name,
       })
@@ -139,6 +146,9 @@ export async function walletLedgerRows({ q, sourceType, direction, range, sort, 
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
       .leftJoin(actor, eq(actor.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], walletLedger.id))
       .limit(page.size)
@@ -148,6 +158,9 @@ export async function walletLedgerRows({ q, sourceType, direction, range, sort, 
       .from(walletLedger)
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where),
   ]);
   return { rows, total };
@@ -209,6 +222,7 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
         coins: r.coins,
         memo: r.memo,
         who: r.email,
+        whoHref: r.userPublicId ? `/dashboard/customers/${r.userPublicId}/wallet` : null,
         orderLabel: r.orderPublicId,
         orderHref: r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : null,
       }))}

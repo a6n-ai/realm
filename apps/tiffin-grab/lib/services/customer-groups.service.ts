@@ -264,11 +264,11 @@ export type GiveHistoryFilters = {
 };
 
 const giver = alias(users, "giver");
-const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
+export const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
 // Legacy grants stored the GROUP public id (not an action id) in that segment.
-const legacyGroup = alias(customerGroups, "legacy_group");
-const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
-const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
+export const legacyGroup = alias(customerGroups, "legacy_group");
+export const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
+export const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
 
 /** Wallet -> Give coins table: manual_broadcast credits with the group and staff member behind each. */
 export async function giveHistoryRows(f: GiveHistoryFilters) {
@@ -299,6 +299,7 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
         coins: walletLedger.coins,
         memo: walletLedger.memo,
         sourceId: walletLedger.sourceId,
+        customerPublicId: users.publicId,
         customerName: users.name,
         customerEmail: users.email,
         givenBy: giver.name,
@@ -333,6 +334,7 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
       coins: r.coins,
       memo: r.memo,
       customer: r.customerName || r.customerEmail || "—",
+      customerPublicId: r.customerPublicId,
       type: r.sourceId.startsWith("grant:") ? ("group" as const) : ("one" as const),
       group: r.groupName,
       groupPublicId: r.groupPublicId,

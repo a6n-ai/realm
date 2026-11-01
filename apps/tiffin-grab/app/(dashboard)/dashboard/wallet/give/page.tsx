@@ -122,6 +122,7 @@ async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
         publicId: r.publicId,
         when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
         customer: r.customer,
+        customerPublicId: r.customerPublicId,
         coins: r.coins,
         type: TYPE_LABEL[r.type],
         group: r.group,

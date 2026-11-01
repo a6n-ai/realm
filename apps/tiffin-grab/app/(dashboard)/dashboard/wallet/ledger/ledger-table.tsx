@@ -5,6 +5,7 @@ import { ScrollTextIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
+import { MemoCell } from "@/components/dashboard/memo-cell";
 
 export type LedgerColumn = "time" | "user" | "event" | "source" | "coins" | "order" | "memo";
 
@@ -18,6 +19,7 @@ export type LedgerRow = {
   coins: number;
   memo: string | null;
   who: string | null;
+  whoHref: string | null;
   orderLabel: string | null;
   orderHref: string | null;
 };
@@ -57,7 +59,9 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
           return (
             <>
               <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
-              <TableCell className="text-muted-foreground">{r.who ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {r.whoHref && r.who ? <Link href={r.whoHref} className="hover:underline">{r.who}</Link> : (r.who ?? "—")}
+              </TableCell>
               <TableCell>{r.eventLabel ?? "—"}</TableCell>
               <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
               <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
@@ -71,7 +75,7 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
                   <span className="text-muted-foreground">{r.orderLabel ?? "—"}</span>
                 )}
               </TableCell>
-              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
+              <MemoCell memo={r.memo} />
             </>
           );
         }}
