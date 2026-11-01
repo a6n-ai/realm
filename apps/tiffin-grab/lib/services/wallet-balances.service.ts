@@ -12,8 +12,8 @@ export type BalanceFilter = "has" | "zero";
 const inRange = (r: Range) => and(gte(walletLedger.createdAt, r.from), lte(walletLedger.createdAt, r.to));
 
 // Same rule as walletService.balance(): lapsed holds are not part of what a customer holds.
-export const balanceSql = () =>
-  sql<number>`cast(coalesce(sum(case when ${unexpired(walletLedger, Date.now())} then (case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end) else 0 end), 0) as int)`;
+export const balanceSql = (asOf: number = Date.now()) =>
+  sql<number>`cast(coalesce(sum(case when ${walletLedger.createdAt} <= ${asOf} and ${unexpired(walletLedger, asOf)} then (case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end) else 0 end), 0) as int)`;
 
 /** Customers only: staff and soft-deleted accounts never appear on a balance sheet. */
 const customerOnly = and(eq(users.role, "user"), ne(users.status, "deleted"));
@@ -25,21 +25,29 @@ async function currentRate(): Promise<number | null> {
 
 const money = (coins: number, rate: number | null) => (rate == null ? null : Number((coins * rate).toFixed(2)));
 
-function perUserBalances() {
+/**
+ * Balances are held as of the END of the picked range, but never later than
+ * now: a live hold has not lapsed yet, so projecting a future range end would
+ * wrongly release it.
+ */
+export const asOfEnd = (range: Range) => Math.min(range.to, Date.now());
+
+function perUserBalances(asOf: number) {
   return db
     .select({
       userId: walletLedger.userId,
-      balance: balanceSql().as("balance"),
+      balance: balanceSql(asOf).as("balance"),
       last: sql<number>`max(${walletLedger.createdAt})`.as("last"),
     })
     .from(walletLedger)
+    .where(lte(walletLedger.createdAt, asOf))
     .groupBy(walletLedger.userId)
     .as("bal");
 }
 
-/** Cards: balance figures are as of now; only earned and redeemed follow the range. */
+/** Cards: balance figures are as of the range end; earned and redeemed are within the range. */
 export async function walletBalanceStats(range: Range) {
-  const bal = perUserBalances();
+  const bal = perUserBalances(asOfEnd(range));
   const [[held], [flow], rate] = await Promise.all([
     db
       .select({
@@ -72,7 +80,7 @@ export async function listWalletBalances({ q, filter, sort, page, range }: {
   page: { page: number; size: number };
   range: Range;
 }) {
-  const bal = perUserBalances();
+  const bal = perUserBalances(asOfEnd(range));
   const flow = db
     .select({
       userId: walletLedger.userId,
