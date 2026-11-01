@@ -19,6 +19,7 @@ import {
   walletLedger,
 } from "@/db/schema";
 import { resolveSegment } from "@/lib/campaigns/segment";
+import { formatEpoch } from "@/lib/format/datetime";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
@@ -430,6 +431,42 @@ export async function groupMembersCsv(groupPublicId: string): Promise<string> {
     ...detail.members.map((m) => [m.name, m.email, m.phone, m.revenue, m.firstOrderDate, m.lastTiffin]),
   ];
   return lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+}
+
+const GIVE_TYPE_LABEL = { group: "Group grant", one: "One customer" } as const;
+
+/**
+ * Grant history as CSV, same filters/sort as the Give coins table.
+ * Pages the list query (capped) so an oversized export fails instead of truncating quietly.
+ */
+export async function giveHistoryCsv(
+  f: Omit<GiveHistoryFilters, "page">,
+  timezone: string,
+): Promise<{ ok: true; csv: string } | { ok: false; error: string }> {
+  const pageSize = 100;
+  const maxPages = 200;
+  const lines: string[][] = [["When", "Customer", "Coins", "Type", "Group", "Given by", "Memo"]];
+  let total = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const batch = await giveHistoryRows({ ...f, page: { page, size: pageSize } });
+    total = batch.total;
+    for (const r of batch.rows) {
+      lines.push([
+        formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
+        r.customer,
+        String(r.coins),
+        GIVE_TYPE_LABEL[r.type],
+        r.group ?? "",
+        r.givenBy ?? "Not recorded",
+        r.memo ?? "",
+      ]);
+    }
+    if (lines.length - 1 >= total) break;
+    if (batch.rows.length === 0 || page === maxPages - 1) {
+      return { ok: false, error: "The list is too large to export here. Narrow the filters and try again." };
+    }
+  }
+  return { ok: true, csv: lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n" };
 }
 
 /** Group page cards. Coins given counts every coins action, legacy backfilled ones included. */

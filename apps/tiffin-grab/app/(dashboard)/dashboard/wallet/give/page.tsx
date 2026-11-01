@@ -18,7 +18,9 @@ import { GiveOneCustomerDialog } from "./give-one-customer-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const query = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -34,7 +36,15 @@ export default function GiveCoinsPage({ searchParams }: { searchParams: SearchPa
           <GiveStats searchParams={searchParams} />
         </Suspense>
       </div>
-      <SectionCard title="Grant history" subtitle="Every coin grant, with the staff member who gave it.">
+      <SectionCard
+        title="Grant history"
+        subtitle="Every coin grant, with the staff member who gave it."
+        action={
+          <a className="text-sm underline underline-offset-2" href={`/api/wallet/give/export?${query}`}>
+            Export CSV
+          </a>
+        }
+      >
         <Suspense fallback={<GiveHistoryTableSkeleton />}>
           <GrantHistory searchParams={searchParams} />
         </Suspense>
