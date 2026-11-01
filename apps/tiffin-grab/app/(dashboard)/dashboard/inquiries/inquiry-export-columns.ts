@@ -1,17 +1,15 @@
 // Single source of truth for the inquiries Excel export's column headers.
 import { zonedDateIso } from "@foundry/commons";
+import { groupFor, isClosed, statusLabel, type SubStatus } from "@/lib/inquiries/status";
 import type { inquiriesService } from "@/lib/services/inquiries.service";
 
 export type ExportRow = Awaited<ReturnType<typeof inquiriesService.listForExport>>[number];
 
-const STAGE_LABELS: Record<string, string> = {
-  new: "New",
-  contacted: "Contacted",
-  quoted: "Quoted",
-  follow_up: "Follow-up",
-  converted: "Converted",
-  lost: "Lost",
-};
+function statusGroupLabel(sub: SubStatus | null): string {
+  if (sub === "took_plan" || sub === "took_trial") return "Took plan/trial";
+  if (isClosed(sub)) return "Lost";
+  return groupFor(sub) === "follow_up" ? "Follow-up" : "Lead";
+}
 
 const LOST_REASON_LABELS: Record<string, string> = {
   price: "Price",
@@ -28,7 +26,8 @@ export const EXPORT_COLUMNS = [
   "Email",
   "Source",
   "Sub Source",
-  "Stage",
+  "Status",
+  "Sub-status",
   "Owner",
   "Created",
   "Last Touch",
@@ -61,7 +60,8 @@ export function inquiryRowToExcelRecord(row: ExportRow, timezone: string): Recor
     Email: row.email ?? "",
     Source: row.source,
     "Sub Source": row.subSource ?? "",
-    Stage: STAGE_LABELS[row.stage] ?? row.stage,
+    Status: statusGroupLabel(row.subStatus as SubStatus | null),
+    "Sub-status": statusLabel(row.subStatus as SubStatus | null),
     Owner: row.ownerName ?? "",
     Created: epochToDate(row.createdAt, timezone),
     "Last Touch": epochToDate(row.lastTouchAt, timezone),

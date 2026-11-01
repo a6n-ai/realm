@@ -8,6 +8,7 @@ import {
   type InquiryStage,
   type LostReason,
 } from "@/lib/services/inquiries.service";
+import type { SubStatus } from "@/lib/inquiries/status";
 
 export async function createInquiry(input: {
   fullName: string;
@@ -60,10 +61,22 @@ export async function markLost(inquiryId: string, reason: LostReason, note?: str
   revalidatePath("/dashboard/inquiries");
 }
 
-export async function addNote(inquiryId: string, note: string) {
+export async function updateStatus(
+  inquiryId: string,
+  input: { subStatus: SubStatus | null; note?: string; nextFollowUpAt?: number | null; lostReason?: LostReason },
+): Promise<{ previous: SubStatus | null }> {
   await requireStaff();
-  await inquiriesService.addNote(inquiryId, note);
+  const { previous } = await inquiriesService.setStatus(inquiryId, input);
+  revalidatePath("/dashboard/inquiries");
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  return { previous };
+}
+
+export async function addNote(inquiryId: string, note: string, nextFollowUpAt?: number) {
+  await requireStaff();
+  await inquiriesService.addNote(inquiryId, note, nextFollowUpAt);
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  revalidatePath("/dashboard/inquiries");
 }
 
 export async function reassignInquiry(inquiryId: string, ownerId: string) {

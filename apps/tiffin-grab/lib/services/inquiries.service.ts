@@ -97,6 +97,11 @@ function inquiriesResolver() {
   const valuesOf = (f: FilterCondition) =>
     f.operator === "in" ? (f.value as string[]) : [f.value as string];
   return (f: FilterCondition) => {
+    if (f.field === "subStatus") {
+      const vals = valuesOf(f);
+      const real = vals.filter((v) => v !== "none") as SubStatus[];
+      return or(vals.includes("none") ? isNull(inquiries.subStatus) : undefined, real.length ? inArray(inquiries.subStatus, real) : undefined)!;
+    }
     if (f.field === "owner") {
       return inArray(
         inquiries.currentOwner,
@@ -308,13 +313,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return (await this.createOrFold(values)).inquiry;
   }
 
-  async addNote(publicId: string, note: string) {
+  async addNote(publicId: string, note: string, nextFollowUpAt?: number) {
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "note",
       note,
+      nextFollowUpAt: nextFollowUpAt ?? null,
     });
+    if (nextFollowUpAt != null) await this.update(publicId, { nextFollowUpAt });
   }
 
   async logActivity(

@@ -1,0 +1,213 @@
+"use client";
+
+import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Button } from "@foundry/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Textarea } from "@foundry/ui/textarea";
+import { Badge } from "@/components/reui/badge";
+import { DateInput } from "@/components/dashboard/date-fields";
+import {
+  CLOSE_OPTIONS, SUB_STATUSES, SUB_STATUS_META, groupFor, isClosed, statusLabel,
+  type StatusGroup, type SubStatus,
+} from "@/lib/inquiries/status";
+import type { LostReason } from "@/lib/services/inquiries.service";
+import { updateStatus } from "../actions";
+import { followUpAtDate, followUpPick } from "./follow-up-picks";
+
+const LOST_REASONS: { value: LostReason; label: string }[] = [
+  { value: "price", label: "Price" },
+  { value: "out_of_zone", label: "Out of zone" },
+  { value: "no_response", label: "No response" },
+  { value: "chose_competitor", label: "Chose competitor" },
+  { value: "not_ready", label: "Not ready" },
+  { value: "other", label: "Other" },
+  { value: "asked_to_stop", label: "Asked to stop" },
+];
+
+function pillVariant(sub: SubStatus | null) {
+  if (sub === null) return "info-light";
+  if (sub === "took_plan" || sub === "took_trial") return "success-light";
+  if (isClosed(sub)) return "destructive-light";
+  return groupFor(sub) === "follow_up" ? "warning-light" : "info-light";
+}
+
+export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
+  return <Badge variant={pillVariant(subStatus)}>{statusLabel(subStatus)}</Badge>;
+}
+
+type PickKey = "tomorrow" | "3d" | "1w" | "date";
+const PICKS: { key: Exclude<PickKey, "date">; label: string }[] = [
+  { key: "tomorrow", label: "Tomorrow" },
+  { key: "3d", label: "3 days" },
+  { key: "1w", label: "1 week" },
+];
+
+export function FollowUpPicker({
+  timeZone, value, onChange,
+}: {
+  timeZone: string;
+  value: { key: PickKey; at: number; iso?: string } | null;
+  onChange: (v: { key: PickKey; at: number; iso?: string } | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium">Next follow-up</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {PICKS.map((p) => (
+          <Button
+            key={p.key}
+            type="button"
+            size="sm"
+            variant={value?.key === p.key ? "default" : "outline"}
+            onClick={() => onChange(value?.key === p.key ? null : { key: p.key, at: followUpPick(p.key, Date.now(), timeZone) })}
+          >
+            {p.label}
+          </Button>
+        ))}
+        <DateInput
+          value={value?.key === "date" ? (value.iso ?? "") : ""}
+          onChange={(iso) => onChange({ key: "date", iso, at: followUpAtDate(iso, timeZone) })}
+          placeholder="Pick date"
+          aria-label="Pick follow-up date"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function StatusPopup({
+  inquiryId, subStatus, timeZone, onConvert, trigger,
+}: {
+  inquiryId: string;
+  subStatus: SubStatus | null;
+  timeZone: string;
+  onConvert?: () => void;
+  trigger: ReactNode;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const closed = isClosed(subStatus) && !took;
+  const [group, setGroup] = useState<StatusGroup>(groupFor(subStatus));
+  const [chosen, setChosen] = useState<SubStatus | null>(subStatus && !isClosed(subStatus) ? subStatus : null);
+  const [reason, setReason] = useState<LostReason | "">("");
+  const [note, setNote] = useState("");
+  const [followUp, setFollowUp] = useState<{ key: PickKey; at: number; iso?: string } | null>(null);
+
+  const closing = chosen !== null && isClosed(chosen);
+  const pills = SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group);
+  const changed = chosen !== subStatus || note.trim() !== "" || followUp !== null;
+  const canSave = chosen !== null && changed && (chosen !== "lost" || reason !== "");
+
+  function run(to: SubStatus | null, extra: { note?: string; nextFollowUpAt?: number; lostReason?: LostReason }) {
+    start(async () => {
+      try {
+        const { previous } = await updateStatus(inquiryId, { subStatus: to, ...extra });
+        setOpen(false);
+        setNote("");
+        setFollowUp(null);
+        router.refresh();
+        if (previous !== to) {
+          const canUndo = previous !== null && !isClosed(to);
+          toast(`Status: ${statusLabel(to)}`, {
+            action: canUndo
+              ? {
+                  label: "Undo",
+                  onClick: () => start(async () => {
+                    try { await updateStatus(inquiryId, { subStatus: previous }); router.refresh(); }
+                    catch (e) { toast.error(e instanceof Error ? e.message : "Could not undo"); }
+                  }),
+                }
+              : undefined,
+          });
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not update status");
+      }
+    });
+  }
+
+  function save() {
+    run(chosen, {
+      note: note.trim() || undefined,
+      nextFollowUpAt: closing ? undefined : followUp?.at,
+      lostReason: chosen === "lost" && reason ? reason : undefined,
+    });
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent className="flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-4" align="start" onClick={(e) => e.stopPropagation()}>
+        {took ? (
+          <p className="text-muted-foreground text-sm">This inquiry became an order, so its status is final.</p>
+        ) : closed ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm">This inquiry is closed as <span className="font-medium">{statusLabel(subStatus)}</span>.</p>
+            <Button disabled={pending} onClick={() => run(null, {})}>Reopen as New</Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              {(["lead", "follow_up"] as const).map((g) => (
+                <Button
+                  key={g}
+                  type="button"
+                  size="sm"
+                  variant={group === g ? "default" : "outline"}
+                  onClick={() => { setGroup(g); if (chosen && !isClosed(chosen) && groupFor(chosen) !== g) setChosen(null); }}
+                >
+                  {g === "lead" ? "Lead" : "Follow-up"}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {pills.map((s) => (
+                <Button key={s} type="button" size="sm" variant={chosen === s ? "default" : "outline"} onClick={() => setChosen(s)}>
+                  {SUB_STATUS_META[s].label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-muted-foreground text-xs">Close lead</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {CLOSE_OPTIONS.map((s) => (
+                  <Button key={s} type="button" size="sm" variant={chosen === s ? "destructive" : "outline"} onClick={() => setChosen(s)}>
+                    {SUB_STATUS_META[s].label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {chosen === "lost" ? (
+              <Select value={reason} onValueChange={(v) => setReason(v as LostReason)}>
+                <SelectTrigger className="w-full" aria-label="Lost reason"><SelectValue placeholder="Reason lost" /></SelectTrigger>
+                <SelectContent>
+                  {LOST_REASONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Textarea placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+            {closing ? null : <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />}
+            <div className="flex items-center justify-between gap-2">
+              {group === "follow_up" ? (
+                onConvert ? (
+                  <Button type="button" variant="outline" onClick={() => { setOpen(false); onConvert(); }}>Convert to order</Button>
+                ) : (
+                  <Button variant="outline" asChild>
+                    <Link href={`/dashboard/inquiries/${inquiryId}?convert=1`}>Convert to order</Link>
+                  </Button>
+                )
+              ) : <span />}
+              <Button disabled={!canSave || pending} onClick={save}>Save</Button>
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
