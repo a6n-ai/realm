@@ -20,6 +20,7 @@ import { InquiryJourney } from "./inquiry-journey";
 import { ActivityComposer } from "./activity-composer";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
+import { ReassignControl } from "@/components/reassign/reassign-control";
 import type { OrderFormInput } from "./order-schema";
 
 type Catalog = {
@@ -63,6 +64,8 @@ export function InquiryDetailClient({
   convertedOrderHref,
   contact,
   sourceLabel,
+  owner,
+  reassign,
   notes,
   interest,
   activities,
@@ -79,6 +82,8 @@ export function InquiryDetailClient({
   convertedOrderHref?: string;
   contact: { fullName: string | null; phone: string | null; email: string | null };
   sourceLabel: string;
+  owner: { publicId: string | null; name: string | null };
+  reassign: { staff: { publicId: string; name: string }[]; action: (inquiryId: string, ownerId: string) => Promise<void> } | null;
   notes: string | null;
   interest: Interest;
   activities: TimelineActivity[];
@@ -199,6 +204,17 @@ export function InquiryDetailClient({
                 <InfoRow
                   label="Source"
                   value={<Badge variant="secondary" className="capitalize">{sourceLabel}</Badge>}
+                />
+                <InfoRow
+                  label="Owner"
+                  value={reassign ? (
+                    <ReassignControl
+                      currentOwnerId={owner.publicId}
+                      currentOwnerName={owner.name}
+                      staff={reassign.staff}
+                      action={(ownerId) => reassign.action(inquiryId, ownerId)}
+                    />
+                  ) : (owner.name ?? "Unassigned")}
                 />
               </div>
 

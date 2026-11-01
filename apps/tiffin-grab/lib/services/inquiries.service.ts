@@ -162,19 +162,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
   }
 
-  private async resolveOwner(sourceId: bigint, sourceKey: string, isInbound: boolean): Promise<bigint> {
-    if (!isInbound) {
-      const actor = await this.currentUserId();
-      return actor ?? (await this.systemUserId());
-    }
+  // Owners are always staff. A staff member adding a lead owns it; anything else
+  // (website form, a signed-in customer subscribing) is assigned from the pool —
+  // per-source, then default, then every active staff member.
+  private async resolveOwner(sourceId: bigint, sourceKey: string): Promise<bigint> {
+    const actor = await this.currentUserId();
+    if (actor && (await this.isActiveStaff(actor))) return actor;
     const cfg = await getLeadAssignment();
-    const strat = strategyFor(cfg, sourceKey);
-    if (strat === "creator") {
-      const actor = await this.currentUserId();
-      return actor ?? (await this.systemUserId());
-    }
+    // "creator" has no staff creator to fall back on here, so it rotates instead.
+    const strat = strategyFor(cfg, sourceKey) === "percentage" ? "percentage" : "round_robin";
     const sourcePool = await poolForSource(sourceId);
-    const pool = sourcePool.length ? sourcePool : await poolForSource(null);
+    const configured = sourcePool.length ? sourcePool : await poolForSource(null);
+    const pool = configured.length ? configured : await this.activeStaffPool();
     if (!pool.length) return this.systemUserId();
 
     const roll = await this.rollFor();
@@ -184,6 +183,19 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [sourceKey]: cursorPublicId } });
     }
     return chosen.id;
+  }
+
+  private staffWhere() {
+    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, ["admin", "member"]));
+  }
+
+  private async isActiveStaff(userId: bigint): Promise<boolean> {
+    const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), this.staffWhere())).limit(1);
+    return !!u;
+  }
+
+  private async activeStaffPool() {
+    return db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(this.staffWhere());
   }
 
   private async systemUserId(): Promise<bigint> {
@@ -273,8 +285,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     // Zone resolution depends only on the postal code, so run it alongside the
     // source→owner chain instead of after it.
     const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
-    const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
-    const currentOwner = await this.resolveOwner(sourceId, sourceKey, isInbound);
+    const { sourceId, subSourceId } = await this.resolveSource(sourceKey, subSourceKey);
+    const currentOwner = await this.resolveOwner(sourceId, sourceKey);
     const zoneId = await zoneIdP;
     // Stamped like orders (resolveBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
     const organizationId = await resolveBrandOrgId(db);
@@ -485,6 +497,17 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     // ponytail: inquiry_activity_type enum has no "reassigned" value and this is a
     // shared-schema file other agents are touching in parallel — skip the timeline
     // entry rather than widen the enum here.
+  }
+
+  /** Bulk reassign from the list selection. Per-row update keeps audit stamping from the session. */
+  async reassignMany(publicIds: string[], ownerId: string): Promise<number> {
+    await assertReassignAllowed();
+    const ids = [...new Set(publicIds)];
+    if (ids.length === 0) return 0;
+    if (ids.length > 200) throw new ValidationError("Reassign at most 200 inquiries at a time");
+    const owner = await resolveAssignableOwner(ownerId);
+    for (const id of ids) await this.update(id, { currentOwner: owner.id });
+    return ids.length;
   }
 
   // The pipeline list: server-side unified filters (Condition) + offset

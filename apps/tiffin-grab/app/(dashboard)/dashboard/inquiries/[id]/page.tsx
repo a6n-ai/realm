@@ -5,7 +5,10 @@ import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
 import { NotFoundError, formatPhone } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, orders } from "@/db/schema";
+import { leadSources, orders, users } from "@/db/schema";
+import { canReassign } from "@/lib/services/reassign";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { reassignInquiry } from "../actions";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -43,13 +46,17 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
+  const [catalog, slots, existing, [source], activities, { currency }, [owner], mayReassign] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     inq.phone || inq.email ? findExistingByContact(inq.phone, inq.email) : null,
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     inquiriesService.listActivities(id),
     getAppSettings(),
+    inq.currentOwner
+      ? db.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, inq.currentOwner)).limit(1)
+      : Promise.resolve([] as { publicId: string; name: string | null }[]),
+    canReassign(),
   ]);
 
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
@@ -119,6 +126,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         convertedOrderHref={convertedOrderHref}
         contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
         sourceLabel={source?.label ?? ""}
+        owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}
+        reassign={mayReassign ? { staff: await listAssignableStaff(), action: reassignInquiry } : null}
         notes={inq.notes}
         interest={{
           planInterest: inq.planInterest,

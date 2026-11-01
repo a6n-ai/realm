@@ -22,7 +22,7 @@ import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { displayName } from "@/lib/inquiries/display";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
-import { addNote } from "./actions";
+import { addNote, reassignInquiries } from "./actions";
 import { FollowUpPicker, StatusPill, StatusPopup } from "./_leads/status-popup";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
@@ -99,7 +99,7 @@ function Meta({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function LeadCard({
-  r, tz, dayStart, canReassign, staff, reassignAction,
+  r, tz, dayStart, canReassign, staff, reassignAction, selected, onSelect,
 }: {
   r: PipelineRow;
   tz: string;
@@ -107,6 +107,8 @@ function LeadCard({
   canReassign?: boolean;
   staff?: { publicId: string; name: string }[];
   reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
 }) {
   const sub = r.subStatus as SubStatus | null;
   const closed = isClosed(sub);
@@ -116,9 +118,20 @@ function LeadCard({
     <Card>
       <CardContent className="flex h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          {onSelect ? (
+            <input
+              type="checkbox"
+              aria-label={`Select ${displayName(r)}`}
+              checked={!!selected}
+              onChange={(e) => onSelect(e.target.checked)}
+              className="mt-1 size-4 shrink-0"
+            />
+          ) : null}
         <div className="flex min-w-0 flex-col gap-0.5">
           <Link href={href} className="truncate font-medium hover:underline">{displayName(r)}</Link>
           <span className="text-muted-foreground text-xs tabular-nums">{r.phone ? formatPhone(r.phone) : "No phone"}</span>
+          </div>
         </div>
         <StatusPopup
           inquiryId={r.publicId}
@@ -177,6 +190,62 @@ function LeadCard({
   );
 }
 
+function BulkBar({
+  selectedIds, pageIds, staff, onChange,
+}: {
+  selectedIds: string[];
+  pageIds: string[];
+  staff: { publicId: string; name: string }[];
+  onChange: (next: Set<string>) => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
+  const n = selectedIds.length;
+  const allOnPage = n > 0 && n === pageIds.length;
+  function apply() {
+    if (!ownerId || n === 0) return;
+    start(async () => {
+      try {
+        const done = await reassignInquiries(selectedIds, ownerId);
+        const name = staff.find((s) => s.publicId === ownerId)?.name ?? "staff";
+        toast(`${done} ${done === 1 ? "inquiry" : "inquiries"} reassigned to ${name}`);
+        onChange(new Set());
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not reassign");
+      }
+    });
+  }
+  return (
+    <div className="bg-muted/40 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          aria-label="Select all on this page"
+          checked={allOnPage}
+          ref={(el) => { if (el) el.indeterminate = n > 0 && !allOnPage; }}
+          onChange={(e) => onChange(new Set(e.target.checked ? pageIds : []))}
+          className="size-4 shrink-0"
+        />
+        {n > 0 ? `${n} selected` : "Select all on this page"}
+      </label>
+      {n > 0 ? (
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Select value={ownerId} onValueChange={setOwnerId}>
+            <SelectTrigger className="w-44" aria-label="New owner"><SelectValue placeholder="Reassign to…" /></SelectTrigger>
+            <SelectContent>
+              {staff.map((s) => <SelectItem key={s.publicId} value={s.publicId}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" disabled={pending || !ownerId} onClick={apply}>Reassign {n}</Button>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => onChange(new Set())}>Clear</Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function InquiriesList({
   spec,
   rows,
@@ -206,6 +275,17 @@ export function InquiriesList({
 }) {
   const tz = useTimezone();
   const searching = Boolean(useSearchParams().get("q"));
+  const bulk = canReassign && staff && staff.length > 0;
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  // Selection is per page: drop ids that left the page after a refresh or page change.
+  const onPage = rows.filter((r) => selected.has(r.publicId)).map((r) => r.publicId);
+  function toggle(id: string, on: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -214,6 +294,15 @@ export function InquiriesList({
         </div>
         <SortSelect sort={sort} />
       </div>
+
+      {bulk && rows.length > 0 ? (
+        <BulkBar
+          selectedIds={onPage}
+          pageIds={rows.map((r) => r.publicId)}
+          staff={staff}
+          onChange={setSelected}
+        />
+      ) : null}
 
       {rows.length === 0 ? (
         <Card>
@@ -234,6 +323,8 @@ export function InquiriesList({
               canReassign={canReassign}
               staff={staff}
               reassignAction={reassignAction}
+              selected={selected.has(r.publicId)}
+              onSelect={bulk ? (on) => toggle(r.publicId, on) : undefined}
             />
           ))}
         </div>

@@ -106,13 +106,47 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     expect(row.currentOwner).toBe(pool.id);
   });
 
-  it("falls back to the system user when neither pool has members (never null)", async () => {
-    const sys = await ensureSystemUser();
+  it("falls back to an active staff member when neither pool has members (never the system user)", async () => {
+    await ensureSystemUser();
+    await seedMember("Any Staff");
     await setLeadAssignment(RR);
 
     const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475553004", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
+    const [owner] = await db
+      .select({ role: users.role, isSystem: users.isSystem })
+      .from(inquiries)
+      .innerJoin(users, eq(users.id, inquiries.currentOwner))
+      .where(eq(inquiries.id, inq.id));
+    expect(["admin", "member"]).toContain(owner.role);
+    expect(owner.isSystem).toBe(false);
+  });
+
+  it("a signed-in customer never owns the lead: it goes to the pool", async () => {
+    const pool = await seedMember("Pool Owner");
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `c${Math.random().toString(36).slice(2)}@test.invalid`, name: "Customer", role: "user" })
+      .returning({ id: users.id, publicId: users.publicId });
+    seededUserIds.push(customer.id);
+    await enroll(pool.id, null);
+    // Default config is "creator": without a staff creator it must still rotate.
+    await setLeadAssignment({ strategy: "creator", perSource: {}, cursor: {} });
+    session.user = { id: customer.publicId, role: "user" };
+
+    const inq = await inquiriesService.create({ fullName: "Lead E", phone: "+16475553005", sourceKey: "website" });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
-    expect(row.currentOwner).toBe(sys.id);
-    expect(row.currentOwner).not.toBeNull();
+    expect(row.currentOwner).toBe(pool.id);
+  });
+
+  it("staff adding a lead own it even on a round-robin source", async () => {
+    const pool = await seedMember("Pool Other");
+    const staff = await seedMember("Adder");
+    await enroll(pool.id, await sourceIdFor("website"));
+    await setLeadAssignment(RR);
+    session.user = { id: staff.publicId, role: "member" };
+
+    const inq = await inquiriesService.create({ fullName: "Lead F", phone: "+16475553006", sourceKey: "website" });
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
+    expect(row.currentOwner).toBe(staff.id);
   });
 });

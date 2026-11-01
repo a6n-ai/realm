@@ -67,3 +67,10 @@ export async function reassignInquiry(inquiryId: string, ownerId: string) {
   revalidatePath("/dashboard/inquiries");
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
 }
+
+export async function reassignInquiries(inquiryIds: string[], ownerId: string): Promise<number> {
+  await requireStaff();
+  const n = await inquiriesService.reassignMany(inquiryIds, ownerId);
+  revalidatePath("/dashboard/inquiries");
+  return n;
+}

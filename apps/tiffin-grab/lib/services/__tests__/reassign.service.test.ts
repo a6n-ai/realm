@@ -96,4 +96,19 @@ describe("inquiriesService.reassign", () => {
     const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
     expect(row.currentOwner).toBe(goodOwner.id);
   });
+
+  it("reassignMany moves every selected inquiry to the new owner", async () => {
+    actAs(caller, "admin");
+    const second = await inquiriesService.create({ fullName: "Reassign Lead 2", phone: "+16475559001", sourceKey: "facebook" });
+    seededInquiryIds.push(second.id);
+    const n = await inquiriesService.reassignMany([inquiryPublicId, second.publicId, second.publicId], caller.publicId);
+    expect(n).toBe(2);
+    const rows = await db.select().from(inquiries).where(inArray(inquiries.publicId, [inquiryPublicId, second.publicId]));
+    expect(rows.map((r) => r.currentOwner)).toEqual([caller.id, caller.id]);
+  });
+
+  it("reassignMany rejects a customer as owner", async () => {
+    actAs(caller, "admin");
+    await expect(inquiriesService.reassignMany([inquiryPublicId], badOwnerUser.publicId)).rejects.toThrow(ValidationError);
+  });
 });
