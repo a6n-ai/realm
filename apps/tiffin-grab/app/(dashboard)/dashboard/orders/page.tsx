@@ -11,8 +11,6 @@ import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { redirect } from "next/navigation";
-import { canReassign } from "@/lib/services/reassign";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderFormCatalog } from "./order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -299,17 +297,13 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const missedAsOf = missedOnly ? zonedDateIso(Date.now(), (await getAppSettings()).timezone) : undefined;
 
-  const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible, {
+  const result = await listOrdersPage(finalCondition, page, sort, visible, {
       lookOutOnly,
       paymentReview,
       freeTiffins,
       freeRange: freeTiffins ? await freeRange(raw) : undefined,
       missedAsOf,
-    }),
-    canReassign(),
-  ]);
-  const staff = reassignAllowed ? await listAssignableStaff() : [];
+    });
 
   return (
     <OrdersList
@@ -319,8 +313,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       page={page.page}
       size={page.size}
       sort={sort}
-      canReassign={reassignAllowed}
-      staff={staff}
       lookOutView={lookOutOnly}
       paymentReviewView={paymentReview}
       freeTiffinsView={freeTiffins}

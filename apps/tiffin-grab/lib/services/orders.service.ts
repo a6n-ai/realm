@@ -14,6 +14,7 @@ import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
+import { defaultOwner } from "./default-owner";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
@@ -398,6 +399,10 @@ export async function createOrder(
   // preview uses, so the total shown is the total charged.
   const deferSettlement = paymentMethodId !== "simulated";
 
+  // Every order has an owner: the inquiry's (convert), else the staff placing it, else the pool.
+  // Resolved before the transaction so the rotation cursor write is not tied to it.
+  const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "orders"));
+
   const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
@@ -708,7 +713,7 @@ export async function createOrder(
         deliveryInstructions: input.contact.deliveryInstructions?.trim() || null,
         latitude: input.contact.lat ?? null,
         longitude: input.contact.lng ?? null,
-        currentOwner: input.currentOwner ?? null,
+        currentOwner: defaultOwnerId,
         createdBy,
         organizationId,
       })
