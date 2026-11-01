@@ -117,7 +117,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", quoted: "c4", follow_up: "c5", converted: "success", lost: "destructive" };
+const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", follow_up: "c5", converted: "success", lost: "destructive" };
 
 async function StageChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLeadsByStage(scope);
@@ -141,7 +141,7 @@ async function StageChart({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-const STAGE_NAME: Record<string, string> = { new: "New", contacted: "Contacted", quoted: "Quoted", follow_up: "Follow-up", converted: "Converted" };
+const STAGE_NAME: Record<string, string> = { new: "Lead", contacted: "Responded", follow_up: "Follow-up", converted: "Took plan/trial" };
 
 async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSourcePerformance(scope);

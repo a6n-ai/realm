@@ -51,11 +51,11 @@ export async function getLeadStats(
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  new: "New",
-  contacted: "Contacted",
-  quoted: "Quoted",
+  new: "Lead",
+  contacted: "Responded",
+  quoted: "Follow-up",
   follow_up: "Follow-up",
-  converted: "Converted",
+  converted: "Took plan/trial",
   lost: "Lost",
 };
 
