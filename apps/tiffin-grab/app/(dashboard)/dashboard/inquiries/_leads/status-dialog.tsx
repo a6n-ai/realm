@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
 import {
-  BadgeCheckIcon, CalendarClockIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
+  ArrowRightIcon, BadgeCheckIcon, CalendarClockIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
   PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
@@ -194,6 +194,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
       {target ? (
         <ChangeStatusDialog
           key={target.to ?? "new"}
+          from={subStatus}
           to={target.to}
           pending={pending}
           onOpenChange={(o) => { if (!o) setTarget(null); }}
@@ -310,8 +311,9 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
 }
 
 function ChangeStatusDialog({
-  to, pending, onOpenChange, onSave,
+  from, to, pending, onOpenChange, onSave,
 }: {
+  from: SubStatus | null;
   to: SubStatus | null;
   pending: boolean;
   onOpenChange: (open: boolean) => void;
@@ -326,9 +328,25 @@ function ChangeStatusDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="flex flex-col gap-4 sm:max-w-md" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">Change status to <StatusPill subStatus={to} /></DialogTitle>
+          <DialogTitle>{from === to ? "Update status" : "Change status"}</DialogTitle>
           <DialogDescription>Note and follow-up are optional. Save to apply.</DialogDescription>
         </DialogHeader>
+        {/* Where the lead is now and where it is moving, so staff confirm the right move. */}
+        <div className="bg-muted/40 flex flex-wrap items-center gap-3 rounded-lg border p-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-muted-foreground text-xs">Current</span>
+            <StatusPill subStatus={from} />
+          </div>
+          {from === to ? null : (
+            <>
+              <ArrowRightIcon className="text-muted-foreground size-4" aria-hidden />
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs">Moving to</span>
+                <StatusPill subStatus={to} />
+              </div>
+            </>
+          )}
+        </div>
         <Textarea
           placeholder="Note (optional)"
           value={note}
