@@ -163,7 +163,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
       if (rawStage && !mappedStage) warnings.push(`Unrecognized stage "${rawStage}" — left as New`);
       const currentStage = existingOpen?.stage ?? "new";
       const targetStage = mappedStage ?? "new";
-      if (targetStage !== currentStage) {
+      // An open lead cannot go back to New and conversion happens via convert, so neither is applied here.
+      if (targetStage !== currentStage && targetStage !== "new" && targetStage !== "converted") {
         if (targetStage === "lost") {
           try {
             await inquiriesService.markLost(publicId, "other", notes);

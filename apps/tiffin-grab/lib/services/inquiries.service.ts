@@ -379,6 +379,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async changeStage(publicId: string, toStage: Stage): Promise<{ previous: Stage }> {
     const current = await this.read(publicId);
     const previous = current.stage as Stage;
+    if (toStage === previous) return { previous };
     if (toStage === "converted") throw new ValidationError("Convert the inquiry to record a plan or trial");
     if (toStage === "lost") {
       await this.setStatus(publicId, { subStatus: "lost", lostReason: "other" });

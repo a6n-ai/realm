@@ -126,6 +126,14 @@ describe("inquiriesService.setStatus", () => {
     expect((await row(inq.id)).subStatus).toBe("expected");
     await expect(inquiriesService.changeStage(inq.publicId, "converted")).rejects.toThrow(ValidationError);
   });
+
+  it("changeStage to the current stage is a no-op", async () => {
+    const inq = await mk();
+    await inquiriesService.changeStage(inq.publicId, "new");
+    await inquiriesService.setStatus(inq.publicId, { subStatus: "responded" });
+    await inquiriesService.changeStage(inq.publicId, "contacted");
+    expect((await acts(inq.id)).filter((x) => x.type === "stage_change")).toHaveLength(1);
+  });
 });
 
 describe("inquiriesService queue tabs", () => {
