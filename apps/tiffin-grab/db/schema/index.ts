@@ -10,7 +10,7 @@ export * from "./inquiries";
 export * from "./tickets";
 export * from "./section-seen";
 export * from "./lead-sources";
-export * from "./inquiry-user-config";
+export * from "./owner-pool";
 export * from "./menu";
 export * from "./category-swaps";
 export * from "./meal-rules";

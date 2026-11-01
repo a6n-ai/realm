@@ -1,5 +1,13 @@
 export type Strategy = "creator" | "round_robin" | "percentage";
-export interface LeadAssignmentConfig { strategy: Strategy; perSource: Record<string, Strategy>; cursor: Record<string, string> }
+export type OwnerEntity = "inquiry" | "order" | "ticket";
+// strategy/perSource drive inquiries; orders/tickets carry their own strategy. cursor keys: lead source keys, "orders", "tickets".
+export interface LeadAssignmentConfig {
+  strategy: Strategy;
+  perSource: Record<string, Strategy>;
+  cursor: Record<string, string>;
+  orders?: { strategy: Strategy };
+  tickets?: { strategy: Strategy };
+}
 export interface PoolMember { id: bigint; publicId: string; weight: number }
 export interface PickResult { chosen: PoolMember | null; cursorPublicId: string | null }
 

@@ -60,9 +60,9 @@ export const ADMIN_SETTINGS_ROUTES: AdminRoute[] = [
   { id: "settings-general", path: "/dashboard/settings/general", heading: /General|Timezone|Cutoff/i },
   { id: "settings-lead-sources", path: "/dashboard/settings/lead-sources", heading: /Lead sources|Sources/i },
   {
-    id: "settings-lead-assignment",
-    path: "/dashboard/settings/lead-assignment",
-    heading: /Lead assignment|Assignment|Routing/i,
+    id: "settings-owner-assignment",
+    path: "/dashboard/settings/owner-assignment",
+    heading: /Owner assignment|Assignment|Routing/i,
   },
   { id: "settings-meal-types", path: "/dashboard/settings/meal-types", heading: /Meal types|Meal/i },
   {

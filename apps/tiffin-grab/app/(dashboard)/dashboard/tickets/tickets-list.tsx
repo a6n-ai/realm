@@ -13,8 +13,6 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
-import { ReassignControl } from "@/components/reassign/reassign-control";
-import { assignOwner } from "./actions";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
 
 const STATUS_PILLS = [
@@ -52,8 +50,6 @@ export function TicketsList({
   owners,
   statusCounts,
   sort,
-  staff,
-  canReassign,
 }: {
   rows: QueueRow[];
   total: number;
@@ -63,8 +59,6 @@ export function TicketsList({
   owners: { publicId: string; name: string }[];
   statusCounts: { status: string; n: number }[];
   sort: SortState<QueueSortColumn>;
-  staff: { publicId: string; name: string }[];
-  canReassign: boolean;
 }) {
   // Status, owner and search all filter on the server; a change resets to page 0.
   const tz = useTimezone();
@@ -172,16 +166,7 @@ export function TicketsList({
               </span>
             </TableCell>
             <TableCell>
-              {canReassign ? (
-                <ReassignControl
-                  currentOwnerId={r.ownerId}
-                  currentOwnerName={r.ownerName}
-                  staff={staff}
-                  action={(ownerId) => assignOwner(r.publicId, ownerId)}
-                />
-              ) : (
-                (r.ownerName ?? "—")
-              )}
+              {r.ownerName ?? "—"}
             </TableCell>
             <TableCell>
               <PriorityBadge priority={r.priority} />

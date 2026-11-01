@@ -8,11 +8,11 @@ import { Label } from "@foundry/ui/label";
 import { Input } from "@foundry/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Skeleton } from "@foundry/ui/skeleton";
-import type { LeadAssignmentConfig, Strategy } from "@/lib/services/assignment";
-import { saveMembership, saveStrategy } from "./actions";
+import type { LeadAssignmentConfig, OwnerEntity, Strategy } from "@/lib/services/assignment";
+import { saveEntityStrategy, saveMembership, saveStrategy } from "./actions";
 
 const STRATEGIES: { value: Strategy; label: string }[] = [
-  { value: "creator", label: "Creator" },
+  { value: "creator", label: "Creator owns" },
   { value: "round_robin", label: "Round robin" },
   { value: "percentage", label: "Percentage" },
 ];
@@ -129,6 +129,7 @@ export function LeadAssignmentForm({
         {pools.map((pool) => (
           <PoolEditor
             key={pool.key || "__default_pool__"}
+            entity="inquiry"
             label={pool.label}
             sourceKey={pool.sourceKey}
             staff={staff}
@@ -181,7 +182,75 @@ export function LeadAssignmentFormSkeleton() {
   );
 };
 
+export function EntityAssignmentForm({
+  entity,
+  strategy: initialStrategy,
+  staff,
+  initial,
+}: {
+  entity: "order" | "ticket";
+  strategy: Strategy;
+  staff: StaffOption[];
+  initial: MemberRow[];
+}) {
+  const router = useRouter();
+  const [strategy, setStrategy] = useState<Strategy>(initialStrategy);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const staffName = (userId: string) => {
+    const s = staff.find((o) => o.userId === userId);
+    return s ? s.name ?? s.publicId : userId;
+  };
+
+  const save = () =>
+    start(async () => {
+      setError(null);
+      try {
+        await saveEntityStrategy(entity, strategy);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to save");
+      }
+    });
+
+  return (
+    <div className="grid max-w-xl gap-6">
+      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div className="grid gap-2">
+        <Label>Strategy</Label>
+        <Select value={strategy} onValueChange={(v) => setStrategy(v as Strategy)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STRATEGIES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-xs">Creator owns still rotates through the pool when no staff member created the record.</p>
+        <Button onClick={save} disabled={pending} className="w-fit">Save strategy</Button>
+      </div>
+      <PoolEditor entity={entity} label="Pool" sourceKey={null} staff={staff} staffName={staffName} initial={initial} onSaved={() => router.refresh()} />
+    </div>
+  );
+}
+
+export function EntityAssignmentFormSkeleton() {
+  return (
+    <div className="grid max-w-xl gap-6">
+      <div className="grid gap-2">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-3 w-64" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+      <PoolEditor.Skeleton />
+    </div>
+  );
+}
+
 function PoolEditor({
+  entity,
   label,
   sourceKey,
   staff,
@@ -189,6 +258,7 @@ function PoolEditor({
   initial,
   onSaved,
 }: {
+  entity: OwnerEntity;
   label: string;
   sourceKey: string | null;
   staff: StaffOption[];
@@ -227,7 +297,7 @@ function PoolEditor({
     start(async () => {
       setError(null);
       try {
-        await saveMembership(sourceKey, rows);
+        await saveMembership(entity, sourceKey, rows);
         onSaved();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");

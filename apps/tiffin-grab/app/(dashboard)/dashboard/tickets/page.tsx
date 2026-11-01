@@ -11,8 +11,6 @@ import { getSupportHours } from "@/lib/services/app-settings.service";
 import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/services/analytics/complaint-filters";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
-import { canReassign } from "@/lib/services/reassign";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState } from "@/components/ds";
 import {
@@ -129,13 +127,11 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
   const { filters, overdue } = queueParams(sp);
   const { page } = parseFilterState([], sp);
 
-  const [statusCounts, result, owners, allowReassign] = await Promise.all([
+  const [statusCounts, result, owners] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
     ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q }),
     ticketsService.listQueueOwners(),
-    canReassign(),
   ]);
-  const staff = allowReassign ? await listAssignableStaff() : [];
 
   return (
     <TicketsList
@@ -147,8 +143,6 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
       owners={owners}
       statusCounts={statusCounts}
       sort={sort}
-      staff={staff}
-      canReassign={allowReassign}
     />
   );
 }

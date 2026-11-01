@@ -1,13 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ticketMessages, tickets, users } from "@/db/schema";
+import { ownerPool, ticketMessages, tickets, users } from "@/db/schema";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { ticketsService } = await import("../tickets.service");
+const { resetPoolCache } = await import("../owner-pool.service");
 
 const seededUserIds: bigint[] = [];
 
@@ -167,7 +168,7 @@ describe("ticketsService", () => {
     expect(customerView).toEqual(["Please pause.", "Status: Open → Resolved"]);
   });
 
-  it("a staff reply makes the replier the owner, taking over from a previous owner; a customer reply does not", async () => {
+  it("the first staff reply claims an unowned ticket; later replies and customer replies never move it", async () => {
     const customer = await seedUser("Cust Own", "user");
     const first = await seedUser("Staff First", "member");
     const second = await seedUser("Staff Second", "admin");
@@ -175,22 +176,58 @@ describe("ticketsService", () => {
 
     actAs(customer, "user");
     const ticket = await ticketsService.create({ subject: "Owner", category: "order", subcategory: "order_missing", body: "Hello?" });
+    await db.update(tickets).set({ currentOwner: null }).where(eq(tickets.id, ticket.id));
+
+    actAs(customer, "user");
+    await ticketsService.reply(ticket.publicId, "Anyone?");
+    expect(await ownerOf(ticket.id)).toBeNull();
 
     actAs(first, "member");
     await ticketsService.reply(ticket.publicId, "Looking into it");
-    await ticketsService.reply(ticket.publicId, "One moment");
     expect(await ownerOf(ticket.id)).toBe(first.id);
 
+    await ticketsService.reply(ticket.publicId, "One moment");
     actAs(customer, "user");
     await ticketsService.reply(ticket.publicId, "Thanks");
+    actAs(second, "admin");
+    await ticketsService.reply(ticket.publicId, "Chiming in");
     expect(await ownerOf(ticket.id)).toBe(first.id);
 
-    actAs(second, "admin");
-    await ticketsService.reply(ticket.publicId, "Taking over");
-    expect(await ownerOf(ticket.id)).toBe(second.id);
-
     const notes = (await ticketsService.listMessages(ticket.publicId)).filter((m) => m.authorType === "system").map((m) => m.body);
-    expect(notes).toEqual(["Assigned to Staff First", "Reassigned from Staff First to Staff Second"]);
+    expect(notes).toEqual(["Assigned to Staff First"]);
+  });
+
+  it("a staff reply claims a ticket owned by a non-staff user or the system user", async () => {
+    const customer = await seedUser("Cust Stale", "user");
+    const other = await seedUser("Not Staff", "user");
+    const staff = await seedUser("Staff Claim", "member");
+    const [sys] = await db.insert(users).values({ email: `sys${Math.random().toString(36).slice(2)}@test.invalid`, name: "Sys", role: "admin", isSystem: true }).returning({ id: users.id });
+    seededUserIds.push(sys.id);
+    const ownerOf = async (id: bigint) => (await db.select().from(tickets).where(eq(tickets.id, id)))[0].currentOwner;
+
+    for (const stale of [other.id, sys.id]) {
+      actAs(customer, "user");
+      const ticket = await ticketsService.create({ subject: "Stale", category: "order", subcategory: "order_missing", body: "Hi" });
+      await db.update(tickets).set({ currentOwner: stale }).where(eq(tickets.id, ticket.id));
+      actAs(staff, "member");
+      await ticketsService.reply(ticket.publicId, "Mine");
+      expect(await ownerOf(ticket.id)).toBe(staff.id);
+    }
+  });
+
+  it("a new customer ticket is owned by a member of the Tickets pool", async () => {
+    const customer = await seedUser("Cust Pool", "user");
+    const pooled = await seedUser("Pooled Staff", "member");
+    await db.insert(ownerPool).values({ entity: "ticket", userId: pooled.id, weight: 1 });
+    await resetPoolCache();
+    try {
+      actAs(customer, "user");
+      const ticket = await ticketsService.create({ subject: "Pool", category: "order", subcategory: "order_missing", body: "Hi" });
+      expect(ticket.currentOwner).toBe(pooled.id);
+    } finally {
+      await db.delete(ownerPool).where(eq(ownerPool.userId, pooled.id));
+      await resetPoolCache();
+    }
   });
 
   it("the customer rates a completed chat 1-5 stars; not before, not staff", async () => {

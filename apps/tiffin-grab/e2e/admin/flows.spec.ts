@@ -55,7 +55,7 @@ test.describe("admin interactive flows (desktop)", () => {
   });
 
   test("Settings cards open each admin settings area", async ({ page, expectHealthy }) => {
-    const cards = ["General", "Lead sources", "Lead assignment", "Meal types", "Integrations", "Payment"];
+    const cards = ["General", "Lead sources", "Owner assignment", "Meal types", "Integrations", "Payment"];
     for (const label of cards) {
       await page.goto("/dashboard/settings");
       await expectHealthy(page, "Settings");

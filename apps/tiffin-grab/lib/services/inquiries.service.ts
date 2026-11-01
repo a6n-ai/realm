@@ -13,7 +13,7 @@ import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { assertOnePerson, createOrder, resolveBrandOrgId, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
-import { poolForSource } from "./inquiry-user-config.service";
+import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@/lib/list/sort";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
@@ -171,8 +171,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const cfg = await getLeadAssignment();
     // "creator" has no staff creator to fall back on here, so it rotates instead.
     const strat = strategyFor(cfg, sourceKey) === "percentage" ? "percentage" : "round_robin";
-    const sourcePool = await poolForSource(sourceId);
-    const configured = sourcePool.length ? sourcePool : await poolForSource(null);
+    const sourcePool = await poolFor("inquiry", sourceId);
+    const configured = sourcePool.length ? sourcePool : await poolFor("inquiry");
     const pool = configured.length ? configured : await this.activeStaffPool();
     if (!pool.length) return this.systemUserId();
 

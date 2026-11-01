@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { app, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
+import { app, inquiries, inquiryActivities, ownerPool, leadSources, users } from "@/db/schema";
 import type { LeadAssignmentConfig } from "../assignment";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? s
 
 const { inquiriesService } = await import("../inquiries.service");
 const { setLeadAssignment } = await import("../app-settings.service");
-const { resetPoolCache } = await import("../inquiry-user-config.service");
+const { resetPoolCache } = await import("../owner-pool.service");
 
 const seededUserIds: bigint[] = [];
 
@@ -20,7 +20,7 @@ async function seedMember(name: string) {
 }
 
 async function enroll(userId: bigint, sourceId: bigint | null, weight = 1) {
-  await db.insert(inquiryUserConfig).values({ userId, sourceId, weight });
+  await db.insert(ownerPool).values({ entity: "inquiry", userId, sourceId, weight });
 }
 
 async function sourceIdFor(key: string): Promise<bigint> {
@@ -59,7 +59,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
     // Only clear the config rows we own; never touch other tables' fixtures.
-    if (seededUserIds.length) await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+    if (seededUserIds.length) await db.delete(ownerPool).where(inArray(ownerPool.userId, seededUserIds));
     // Raw enroll() bypasses setMembership, so reset the pool cache alongside the rows.
     await resetPoolCache();
     session.user = null;
@@ -69,7 +69,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
     if (seededUserIds.length) {
-      await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+      await db.delete(ownerPool).where(inArray(ownerPool.userId, seededUserIds));
       await db.delete(users).where(inArray(users.id, seededUserIds));
     }
     await setLeadAssignment(originalLeadAssignment ?? { strategy: "creator", perSource: {}, cursor: {} });

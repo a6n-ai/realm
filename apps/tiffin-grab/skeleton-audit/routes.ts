@@ -27,7 +27,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/discounts/logs", label: "discount-logs" },
   // dashboard — form/detail pages
   { path: "/dashboard/settings/general", label: "settings-general" },
-  { path: "/dashboard/settings/lead-assignment", label: "settings-lead-assignment" },
+  { path: "/dashboard/settings/owner-assignment", label: "settings-owner-assignment" },
   { path: "/dashboard/settings/lead-sources", label: "settings-lead-sources" },
   { path: "/dashboard/settings/meal-types", label: "settings-meal-types" },
   { path: "/dashboard/discounts/rep-allowance", label: "rep-allowance" },

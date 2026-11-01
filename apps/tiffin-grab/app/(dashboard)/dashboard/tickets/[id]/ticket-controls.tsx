@@ -19,6 +19,7 @@ import { cn } from "@foundry/ui/cn";
 import type { RealtimeRole } from "@foundry/realtime";
 import { useMessageComposer } from "@foundry/design-system";
 import { ChatComposer } from "@/components/support/chat-composer";
+import { ReassignControl } from "@/components/reassign/reassign-control";
 import { assignOwner, replyTicket, setCategory, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
@@ -32,7 +33,6 @@ const STATUSES: { value: TicketStatus; label: string }[] = [
 
 const PRIORITIES: { value: TicketPriority; label: string }[] = PRIORITY_OPTIONS;
 
-const UNASSIGNED = "__unassigned__";
 const PICK_SUB = "__pick_sub__";
 
 // Single source of truth for the control fields (label + trigger width). Both
@@ -57,14 +57,18 @@ export function TicketControls({
   subcategory,
   priority,
   ownerId,
+  ownerName,
   staff,
+  mayReassign,
 }: {
   ticketId: string;
   category: string;
   subcategory: string | null;
   priority: TicketPriority;
   ownerId: string | null;
-  staff: { id: string; name: string }[];
+  ownerName: string | null;
+  staff: { publicId: string; name: string }[];
+  mayReassign: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -146,30 +150,16 @@ export function TicketControls({
 
       <div className="space-y-1">
         <label className="text-muted-foreground text-xs font-medium">{F_OWNER.label}</label>
-        <Select
-          value={ownerId ?? UNASSIGNED}
-          disabled={pending}
-          onValueChange={(v) => {
-            if (v === UNASSIGNED) return;
-            start(async () => {
-              try {
-                await assignOwner(ticketId, v);
-                router.refresh();
-                toast("Owner updated");
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Failed to update owner");
-              }
-            });
-          }}
-        >
-          <SelectTrigger className={F_OWNER.width}>
-            <SelectValue placeholder="Unassigned" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={UNASSIGNED} disabled>Unassigned</SelectItem>
-            {staff.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {mayReassign ? (
+          <ReassignControl
+            currentOwnerId={ownerId}
+            currentOwnerName={ownerName}
+            staff={staff}
+            action={(id) => assignOwner(ticketId, id)}
+          />
+        ) : (
+          <p className="text-sm font-medium">{ownerName ?? "Unassigned"}</p>
+        )}
       </div>
 
       <div className="space-y-1">

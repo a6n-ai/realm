@@ -42,6 +42,7 @@ const nextConfig: NextConfig = {
       // The old WordPress site's legal URLs, still linked from emails and search results.
       { source: "/terms-and-conditions", destination: "/terms", permanent: true },
       { source: "/privacy-policy", destination: "/privacy", permanent: true },
+      { source: "/dashboard/settings/lead-assignment", destination: "/dashboard/settings/owner-assignment", permanent: true },
       // Holidays moved under Settings (admin-only).
       { source: "/dashboard/holidays", destination: "/dashboard/settings/holidays", permanent: true },
       { source: "/dashboard/holidays/:id", destination: "/dashboard/settings/holidays/:id", permanent: true },

@@ -401,7 +401,7 @@ export async function createOrder(
 
   // Every order has an owner: the inquiry's (convert), else the staff placing it, else the pool.
   // Resolved before the transaction so the rotation cursor write is not tied to it.
-  const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "orders"));
+  const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "order"));
 
   const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.

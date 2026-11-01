@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee } from "./assignment";
-import { poolForSource } from "./inquiry-user-config.service";
+import { poolFor } from "./owner-pool.service";
 
 const staffWhere = and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, ["admin", "member"]));
 
@@ -12,22 +12,27 @@ export async function isActiveStaff(userId: bigint): Promise<boolean> {
   return !!u;
 }
 
+const CURSOR_KEY = { order: "orders", ticket: "tickets" } as const;
+
 /**
- * Owner for a new record that has no owner of its own. Staff acting owns it; anything else
- * (customer checkout, renewal job) rotates through the default lead pool (Settings → lead
- * assignment), then all active staff. Returns null only when there is no staff at all.
- * `cursorKey` keeps each record type's rotation separate from the inquiry sources.
+ * Owner for a new order/ticket that has no owner of its own. Staff acting owns it; anything else
+ * (customer checkout, renewal job) comes from that entity's pool (Settings → Owner assignment) using its
+ * strategy, then (orders only) the default inquiry pool, then all active staff. Returns null only when
+ * there is no staff at all.
  */
-export async function defaultOwner(actorUserId: bigint | null, cursorKey: string): Promise<bigint | null> {
+export async function defaultOwner(actorUserId: bigint | null, entity: "order" | "ticket"): Promise<bigint | null> {
   if (actorUserId != null && (await isActiveStaff(actorUserId))) return actorUserId;
-  const configured = await poolForSource(null);
+  let configured = await poolFor(entity);
+  if (!configured.length && entity === "order") configured = await poolFor("inquiry");
   const pool = configured.length
     ? configured
     : await db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(staffWhere);
   if (!pool.length) return null;
   const cfg = await getLeadAssignment();
+  const cursorKey = CURSOR_KEY[entity];
+  const strategy = (entity === "order" ? cfg.orders : cfg.tickets)?.strategy;
+  const { chosen, cursorPublicId } = pickAssignee(strategy === "percentage" ? "percentage" : "round_robin", pool, cfg, cursorKey, Math.random());
   // ponytail: read-then-write cursor, two concurrent checkouts can pick the same owner; fine for a soft rotation.
-  const { chosen, cursorPublicId } = pickAssignee("round_robin", pool, cfg, cursorKey, 0);
-  if (chosen && cursorPublicId) await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [cursorKey]: cursorPublicId } });
+  if (chosen && cursorPublicId && strategy !== "percentage") await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [cursorKey]: cursorPublicId } });
   return chosen?.id ?? null;
 }
