@@ -2,17 +2,17 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatPhone } from "@foundry/commons";
-import { ClipboardListIcon, MessageSquarePlusIcon } from "lucide-react";
-import {
-  DataTable, ListPagination, type Column, type FacetDef,
-} from "@/components/ds";
+import { CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon } from "lucide-react";
+import { EmptyState, ListPagination, useSortNav, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
-import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Textarea } from "@foundry/ui/textarea";
 import { Badge } from "@/components/reui/badge";
 import type { SortState } from "@/lib/list/sort";
@@ -27,18 +27,34 @@ import { FollowUpPicker, StatusPill, StatusPopup } from "./_leads/status-popup";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
 
-// Single source of truth for the table's columns. DataTable renders the header
-// and DataTable.Skeleton renders the loading twin from this same array, so the
-// two can never drift.
-const COLUMNS: readonly Column<InquirySortColumn | "lastNote" | "actions">[] = [
-  { key: "name", label: "Name", sortable: true },
-  { key: "stage", label: "Status", sortable: true },
-  { key: "lastNote", label: "Last note" },
-  { key: "nextFollowUp", label: "Next follow-up", sortable: true },
-  { key: "owner", label: "Owner", sortable: true },
-  { key: "source", label: "Source", sortable: true },
-  { key: "actions", label: "", align: "right" },
+const SORTS: { value: `${InquirySortColumn}:${"asc" | "desc"}`; label: string }[] = [
+  { value: "nextFollowUp:asc", label: "Follow-up: soonest first" },
+  { value: "created:desc", label: "Newest first" },
+  { value: "created:asc", label: "Oldest first" },
+  { value: "name:asc", label: "Name A–Z" },
+  { value: "stage:asc", label: "Status" },
+  { value: "owner:asc", label: "Owner" },
+  { value: "source:asc", label: "Source" },
 ];
+
+function SortSelect({ sort }: { sort: SortState<InquirySortColumn> }) {
+  const sortNav = useSortNav();
+  const value = `${sort.column}:${sort.dir}`;
+  return (
+    <Select
+      value={SORTS.some((s) => s.value === value) ? value : undefined}
+      onValueChange={(v) => {
+        const [column, dir] = v.split(":") as [InquirySortColumn, "asc" | "desc"];
+        sortNav(column, dir);
+      }}
+    >
+      <SelectTrigger className="w-52" aria-label="Sort inquiries"><SelectValue placeholder="Sort" /></SelectTrigger>
+      <SelectContent>
+        {SORTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function NoteAction({ inquiryId, timeZone }: { inquiryId: string; timeZone: string }) {
   const router = useRouter();
@@ -64,12 +80,100 @@ function NoteAction({ inquiryId, timeZone }: { inquiryId: string; timeZone: stri
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm"><MessageSquarePlusIcon className="size-4" />Note</Button>
       </PopoverTrigger>
-      <PopoverContent className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3" align="end" onClick={(e) => e.stopPropagation()}>
+      <PopoverContent className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3" align="start">
         <Textarea placeholder="Add a note" value={note} onChange={(e) => setNote(e.target.value)} />
         <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
         <Button disabled={pending || note.trim() === ""} onClick={save}>Save note</Button>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function Meta({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="truncate text-sm">{children}</span>
+    </div>
+  );
+}
+
+function LeadCard({
+  r, tz, dayStart, canReassign, staff, reassignAction,
+}: {
+  r: PipelineRow;
+  tz: string;
+  dayStart: number;
+  canReassign?: boolean;
+  staff?: { publicId: string; name: string }[];
+  reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
+}) {
+  const sub = r.subStatus as SubStatus | null;
+  const closed = isClosed(sub);
+  const href = `/dashboard/inquiries/${r.publicId}`;
+  const overdue = !closed && r.nextFollowUpAt != null && r.nextFollowUpAt < dayStart;
+  return (
+    <Card>
+      <CardContent className="flex h-full flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <Link href={href} className="truncate font-medium hover:underline">{displayName(r)}</Link>
+          <span className="text-muted-foreground text-xs tabular-nums">{r.phone ? formatPhone(r.phone) : "No phone"}</span>
+        </div>
+        <StatusPopup
+          inquiryId={r.publicId}
+          subStatus={sub}
+          timeZone={tz}
+          trigger={<button type="button" aria-label="Change status" className="shrink-0 cursor-pointer"><StatusPill subStatus={sub} /></button>}
+        />
+      </div>
+
+      <p className={r.lastNote ? "line-clamp-2 text-sm" : "text-muted-foreground text-sm"} title={r.lastNote ?? undefined}>
+        {r.lastNote ?? "No notes yet"}
+      </p>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Meta label="Next follow-up">
+          {r.nextFollowUpAt != null ? (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarClockIcon className="text-muted-foreground size-3.5" />
+              <span className="tabular-nums">{formatEpoch(r.nextFollowUpAt, { mode: "date", timeZone: tz })}</span>
+            </span>
+          ) : closed ? "—" : "Not set"}
+        </Meta>
+        <Meta label="Source">{r.source}</Meta>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs">Owner</span>
+          {canReassign && staff && reassignAction ? (
+            <ReassignControl
+              currentOwnerId={r.ownerId}
+              currentOwnerName={r.ownerName}
+              staff={staff}
+              action={(ownerId) => reassignAction(r.publicId, ownerId)}
+            />
+          ) : (
+            <span className="truncate text-sm">{r.ownerName ?? "—"}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-auto flex flex-wrap items-center gap-2">
+        {overdue ? <Badge variant="destructive-light">Overdue</Badge> : null}
+        <span className="text-muted-foreground text-xs">Added {formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}</span>
+        <div className="ml-auto flex items-center gap-2">
+          {closed ? null : <NoteAction inquiryId={r.publicId} timeZone={tz} />}
+          {closed ? null : (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`${href}?convert=1`}>Convert</Link>
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={href}>Open</Link>
+          </Button>
+        </div>
+      </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -101,86 +205,76 @@ export function InquiriesList({
   dayStart: number;
 }) {
   const tz = useTimezone();
+  const searching = Boolean(useSearchParams().get("q"));
   return (
-    <div className="space-y-4">
-      <DataTable
-        serialOffset={page * size}
-        columns={COLUMNS}
-        rows={rows}
-        rowKey={(r) => r.publicId}
-        sort={sort}
-        idAccessor={(r) => r.publicId}
-        idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
-        rowClassName={() => "group cursor-pointer"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />}
-        emptyIcon={ClipboardListIcon}
-        emptyMessage={emptyMessage}
-        emptySearchMessage="No inquiries match your search."
-        emptyAction={emptyCta}
-        renderRow={(r) => {
-          const sub = r.subStatus as SubStatus | null;
-          return (
-            <>
-              <TableCell className="font-medium">
-                <Link href={`/dashboard/inquiries/${r.publicId}`} className="group-hover:underline">
-                  {displayName(r)}
-                </Link>
-                <div className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"}</div>
-              </TableCell>
-              <TableCell>
-                <StatusPopup
-                  inquiryId={r.publicId}
-                  subStatus={sub}
-                  timeZone={tz}
-                  trigger={<button type="button" aria-label="Change status" className="cursor-pointer"><StatusPill subStatus={sub} /></button>}
-                />
-              </TableCell>
-              <TableCell className="text-muted-foreground max-w-56 truncate" title={r.lastNote ?? undefined}>
-                {r.lastNote ?? "—"}
-              </TableCell>
-              <TableCell>
-                {r.nextFollowUpAt != null ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="tabular-nums">{formatEpoch(r.nextFollowUpAt, { mode: "date", timeZone: tz })}</span>
-                    {!isClosed(sub) && r.nextFollowUpAt < dayStart ? <Badge variant="destructive-light">Overdue</Badge> : null}
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell>
-                {canReassign && staff && reassignAction ? (
-                  <ReassignControl
-                    currentOwnerId={r.ownerId}
-                    currentOwnerName={r.ownerName}
-                    staff={staff}
-                    action={(ownerId) => reassignAction(r.publicId, ownerId)}
-                  />
-                ) : (
-                  (r.ownerName ?? "—")
-                )}
-              </TableCell>
-              <TableCell>{r.source}</TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-2">
-                  {isClosed(sub) ? null : <NoteAction inquiryId={r.publicId} timeZone={tz} />}
-                  {isClosed(sub) ? null : (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/dashboard/inquiries/${r.publicId}?convert=1`}>Convert</Link>
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </>
-          );
-        }}
-      />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />
+        </div>
+        <SortSelect sort={sort} />
+      </div>
+
+      {rows.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={ClipboardListIcon}
+            message={searching ? "No inquiries match your search." : emptyMessage}
+            action={searching ? undefined : emptyCta}
+          />
+        </Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          {rows.map((r) => (
+            <LeadCard
+              key={r.publicId}
+              r={r}
+              tz={tz}
+              dayStart={dayStart}
+              canReassign={canReassign}
+              staff={staff}
+              reassignAction={reassignAction}
+            />
+          ))}
+        </div>
+      )}
       <ListPagination page={page} size={size} total={total} />
     </div>
   );
 }
 
-// Loading twin is now owned by DataTable — same COLUMNS, zero drift.
 export function InquiriesListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-9 flex-1" />
+        <Skeleton className="h-9 w-52" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Card key={i}>
+            <CardContent className="flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-5 w-24" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <div className="grid grid-cols-3 gap-3">
+              <Skeleton className="h-8" />
+              <Skeleton className="h-8" />
+              <Skeleton className="h-8" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 }

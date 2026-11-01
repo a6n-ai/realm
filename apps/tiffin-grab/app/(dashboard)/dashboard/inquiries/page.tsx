@@ -20,7 +20,6 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
   PageHeader,
-  SectionCard,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -86,11 +85,13 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         </Suspense>
       </div>
 
-      <SectionCard title="Follow-up queue">
+      {/* Plain section, not SectionCard: the leads are cards and must not nest inside one. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold">Follow-up queue</h2>
         <Suspense fallback={<InquiriesListSkeleton />}>
           <InquiriesData searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
+      </section>
     </PageShell>
   );
 }
