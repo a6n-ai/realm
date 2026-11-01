@@ -114,7 +114,8 @@ export function AddInquirySheet({
   const [followUp, setFollowUp] = useState<React.ComponentProps<typeof FollowUpPicker>["value"]>(null);
   const [startStatus, setStartStatus] = useState<SubStatus | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const phoneRef = useRef<HTMLInputElement | null>(null);
+  // Name is the first field: autofocus on open and after "Save & add another".
+  const firstRef = useRef<HTMLInputElement | null>(null);
 
   const emptyValues = (sourceKey: string, subSourceKey = ""): InquiryFormInput => ({
     fullName: "",
@@ -202,7 +203,7 @@ export function AddInquirySheet({
         setFollowUp(null);
         setStartStatus(null);
         setMoreOpen(false);
-        phoneRef.current?.focus();
+        firstRef.current?.focus();
       } else {
         handleOpenChange(false);
       }
@@ -235,6 +236,25 @@ export function AddInquirySheet({
               <div className="flex flex-col gap-5 overflow-y-auto px-6 py-4">
                 <FormField
                   control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          ref={(el) => { field.ref(el); firstRef.current = el; }}
+                          autoFocus
+                          autoComplete="off"
+                          placeholder="e.g. Priya Sharma"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem className="grid gap-1.5">
@@ -242,8 +262,6 @@ export function AddInquirySheet({
                       <FormControl>
                         <Input
                           {...field}
-                          ref={(el) => { field.ref(el); phoneRef.current = el; }}
-                          autoFocus
                           type="tel"
                           inputMode="tel"
                           autoComplete="off"
@@ -268,19 +286,6 @@ export function AddInquirySheet({
                           <Link className="text-foreground underline" href={`/dashboard/inquiries/${leadMatches[0].publicId}`}>Open</Link>
                         </p>
                       )}
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem className="grid gap-1.5">
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input autoComplete="off" placeholder="e.g. Priya Sharma" {...field} />
-                      </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
