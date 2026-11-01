@@ -151,10 +151,14 @@ export function ReuiFacetFilters({
         const operator = f.kind === "dateRange" ? DATE_OP : f.kind === "multi" ? MULTI_OP : SELECT_OP;
         out.push({ id: ids[f.field] ?? f.field, field: f.field, operator, values: [] });
       }
-      const order = (x: Filter<Val>) => (pinnedSet.has(x.field) ? 0 : 1);
+      // Pinned chips keep their pinned order whether or not they hold a value, so they never jump.
+      const order = (x: Filter<Val>) => {
+        const i = pinned.indexOf(x.field);
+        return i >= 0 ? i : pinned.length;
+      };
       return out.sort((a, b) => order(a) - order(b));
     },
-    [view, pinnedSet, ids],
+    [view, pinned, pinnedSet, ids],
   );
 
   // URL is the source of truth: derive the controlled Filter[] from params each
