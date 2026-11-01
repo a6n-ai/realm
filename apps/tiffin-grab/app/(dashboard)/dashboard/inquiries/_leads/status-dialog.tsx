@@ -310,6 +310,21 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
   );
 }
 
+function BigStatus({ label, subStatus }: { label: string; subStatus: SubStatus | null }) {
+  const { icon: Icon, text, tile } = look(subStatus);
+  return (
+    <div className="flex items-center gap-3">
+      <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl", tile)}>
+        <Icon className={cn("size-6", text)} aria-hidden />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-muted-foreground text-xs">{label}</span>
+        <span className="text-sm font-medium">{statusLabel(subStatus)}</span>
+      </div>
+    </div>
+  );
+}
+
 function ChangeStatusDialog({
   from, to, pending, onOpenChange, onSave,
 }: {
@@ -332,18 +347,12 @@ function ChangeStatusDialog({
           <DialogDescription>Note and follow-up are optional. Save to apply.</DialogDescription>
         </DialogHeader>
         {/* Where the lead is now and where it is moving, so staff confirm the right move. */}
-        <div className="bg-muted/40 flex flex-wrap items-center gap-3 rounded-lg border p-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs">Current</span>
-            <StatusPill subStatus={from} />
-          </div>
+        <div className="bg-muted/40 flex flex-wrap items-center gap-4 rounded-lg border p-3">
+          <BigStatus label="Current" subStatus={from} />
           {from === to ? null : (
             <>
-              <ArrowRightIcon className="text-muted-foreground size-4" aria-hidden />
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs">Moving to</span>
-                <StatusPill subStatus={to} />
-              </div>
+              <ArrowRightIcon className="text-muted-foreground size-5" aria-hidden />
+              <BigStatus label="Moving to" subStatus={to} />
             </>
           )}
         </div>
