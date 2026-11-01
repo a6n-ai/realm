@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
@@ -66,9 +66,6 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
                 Import
               </Link>
             </Button>
-            <Suspense fallback={<Skeleton className="h-9 w-24" />}>
-              <ExportAction searchParams={searchParams} />
-            </Suspense>
             <Suspense fallback={<Skeleton className="h-9 w-32" />}>
               <NewInquiryAction />
             </Suspense>
@@ -149,29 +146,6 @@ function newInquiryTrigger() {
   );
 }
 
-// Plain-link download rather than client-side xlsx generation: the pipeline list is
-// paginated (only one page of rows ever reaches the client), so the export has to hit
-// the server for the full matching set. Forward every filter param except page/size so
-// "Export" downloads what's currently filtered, not just what's currently in view.
-async function ExportAction({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
-
-  const sp = await searchParams;
-  const qs = new URLSearchParams();
-  for (const [key, value] of Object.entries(sp)) {
-    if (value && key !== "page" && key !== "size") qs.set(key, value);
-  }
-  const href = qs.size > 0 ? `/api/inquiries/export?${qs.toString()}` : "/api/inquiries/export";
-
-  return (
-    <Button variant="outline" asChild>
-      <a href={href}>
-        <DownloadIcon className="size-4" />
-        Export
-      </a>
-    </Button>
-  );
-}
 
 async function NewInquiryAction() {
   await requireStaff();
