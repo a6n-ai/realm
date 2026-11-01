@@ -18,7 +18,6 @@ import {
   PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Badge } from "@/components/reui/badge";
 import { DateInput } from "@/components/dashboard/date-fields";
 import {
@@ -66,20 +65,6 @@ const TONE_TEXT: Record<Tone, string> = {
 
 const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
-const MEANING: Record<SubStatus | "new", string> = {
-  new: "Just came in. Nobody has spoken to them yet.",
-  no_response: "We tried to reach them. No answer yet.",
-  responded: "They replied. Keep following up.",
-  future: "Interested, but will order later.",
-  persistent: "The conversation is ongoing.",
-  expected: "Ready to place an order soon.",
-  pending_payment: "Order agreed. Waiting for payment.",
-  took_plan: "Converted to a plan.",
-  took_trial: "Converted to a trial.",
-  lost: "Not interested, or asked us to stop.",
-  undeliverable: "Outside our delivery area.",
-};
-
 const TONE_BG: Record<Tone, string> = {
   info: "bg-sky-500/12",
   primary: "bg-primary/12",
@@ -87,27 +72,6 @@ const TONE_BG: Record<Tone, string> = {
   success: "bg-emerald-500/14",
   destructive: "bg-destructive/12",
 };
-
-/** Hover card for a status: big icon + name + what it means, so staff learn the icons. */
-function StatusTip({ subStatus, children }: { subStatus: SubStatus | null; children: ReactNode }) {
-  const { icon: Icon, tone } = look(subStatus);
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-64">
-        <div className="flex items-center gap-3">
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg", TONE_BG[tone])}>
-            <Icon className={cn("size-6", TONE_TEXT[tone])} aria-hidden />
-          </span>
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium">{statusLabel(subStatus)}</span>
-            <span className="text-xs opacity-80">{MEANING[subStatus ?? "new"]}</span>
-          </div>
-        </div>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
   const { icon: Icon, tone } = look(subStatus);
@@ -208,13 +172,11 @@ export function StatusMenu({
       {took ? null : <ChevronDownIcon className="text-muted-foreground size-3.5" />}
     </button>
   );
-  if (took) return <StatusTip subStatus={subStatus}><span className="inline-flex"><StatusPill subStatus={subStatus} /></span></StatusTip>;
+  if (took) return <StatusPill subStatus={subStatus} />;
 
   return (
     <DropdownMenu>
-      <StatusTip subStatus={subStatus}>
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      </StatusTip>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-auto" onClick={(e) => e.stopPropagation()}>
         {closed ? (
           <TileRow label="Reopen">
