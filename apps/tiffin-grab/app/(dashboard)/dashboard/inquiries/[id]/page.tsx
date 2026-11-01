@@ -1,9 +1,10 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
-import { NotFoundError, formatPhone } from "@foundry/commons";
+import { NotFoundError, zonedDateIso } from "@foundry/commons";
+import { zonedDayStart } from "@/lib/analytics/drill";
+import { describeActivityActor } from "@/lib/services/order-activity-describe";
 import { db } from "@/db/client";
 import { leadSources, orders, users } from "@/db/schema";
 import { canReassign } from "@/lib/services/reassign";
@@ -17,8 +18,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { PageShell, PageHeader } from "@/components/ds";
-import { displayName } from "@/lib/inquiries/display";
+import { PageShell } from "@/components/ds";
 import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
@@ -46,7 +46,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], activities, { currency }, [owner], mayReassign] = await Promise.all([
+  const [catalog, slots, existing, [source], activities, { currency, timezone }, [owner], mayReassign] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     inq.phone || inq.email ? findExistingByContact(inq.phone, inq.email) : null,
@@ -97,6 +97,10 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
   }
 
+  const todayIso = zonedDateIso(Date.now(), timezone);
+  const dayStart = zonedDayStart(todayIso, timezone);
+  const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
+
   const timeline: TimelineActivity[] = activities.map((a) => ({
     publicId: a.publicId,
     type: a.type,
@@ -109,19 +113,17 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     fromSubStatus: a.fromSubStatus,
     toSubStatus: a.toSubStatus,
     createdAt: a.createdAt,
+    actor: describeActivityActor(a),
   }));
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        icon={ClipboardListIcon}
-        title={displayName(inq)}
-        subtitle={inq.phone ? formatPhone(inq.phone) : "No phone"}
-      />
-      <InquiryDetailClient
+    <InquiryDetailClient
         inquiryId={inq.publicId}
         subStatus={inq.subStatus as SubStatus | null}
         nextFollowUpAt={inq.nextFollowUpAt}
+        dayStart={dayStart}
+        dayEnd={dayEnd}
+        createdAt={inq.createdAt}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
         contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
@@ -146,30 +148,21 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         unmatched={unmatched}
         existing={existing}
       />
-    </div>
   );
 }
 
 InquiryDetail.Skeleton = function InquiryDetailSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-9 rounded-lg" />
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <Skeleton className="ml-auto h-6 w-20 rounded-full" />
-      </div>
-
-      <Skeleton className="h-24 w-full rounded-xl" />
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
-        <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-12 w-full rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
+        <Skeleton className="h-96 w-full rounded-xl" />
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
         </div>
-        <Skeleton className="h-56 w-full rounded-xl" />
       </div>
     </div>
   );

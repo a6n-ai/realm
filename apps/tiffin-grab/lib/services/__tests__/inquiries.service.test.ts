@@ -33,6 +33,13 @@ describe("inquiriesService", () => {
     expect(acts[0].type).toBe("created");
   });
 
+  it("listActivities carries the actor's name and role", async () => {
+    const inq = await inquiriesService.create({ fullName: "Lead A2", phone: "+16475551009", sourceKey: "facebook", email: testEmail() });
+    const [act] = await inquiriesService.listActivities(inq.publicId);
+    expect(act).toHaveProperty("actorName");
+    expect(act).toHaveProperty("actorRole");
+  });
+
   it("changeStage updates stage and logs from/to", async () => {
     const inq = await inquiriesService.create({ fullName: "Lead B", phone: "+16475551001", sourceKey: "manual", email: testEmail() });
     await inquiriesService.changeStage(inq.publicId, "contacted");

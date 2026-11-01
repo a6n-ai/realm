@@ -1,13 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { CheckIcon, XIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
-import { useTimezone } from "@/components/providers/timezone-provider";
 import { groupFor, isClosed, type SubStatus } from "@/lib/inquiries/status";
-import { nextAction, type NextActionKind } from "../_leads/next-action";
-import { StatusDialog } from "../_leads/status-dialog";
 
 const STEPS = ["Lead", "Follow-up", "Took"] as const;
 
@@ -19,49 +14,11 @@ function stepState(sub: SubStatus | null) {
   return { took, dropped, current };
 }
 
-export function InquiryJourney({
-  inquiryId,
-  subStatus,
-  convertedOrderHref,
-  onNudge,
-  onConvert,
-  droppedLabel,
-}: {
-  inquiryId: string;
-  subStatus: SubStatus | null;
-  convertedOrderHref?: string;
-  onNudge: (a: NextActionKind) => void;
-  onConvert: () => void;
-  droppedLabel: string;
-}) {
-  const router = useRouter();
-  const tz = useTimezone();
+export function InquiryJourney({ subStatus, droppedLabel }: { subStatus: SubStatus | null; droppedLabel: string }) {
   const { took, dropped, current } = stepState(subStatus);
-  const rawNext = nextAction(subStatus);
-  const next = rawNext?.action?.kind === "view_order" && !convertedOrderHref ? null : rawNext;
-
-  function fire() {
-    const action = next?.action;
-    if (action?.kind === "view_order" && convertedOrderHref) router.push(convertedOrderHref);
-    else onNudge(action ?? null);
-  }
-
-  const nudge = next ? (
-    next.action?.kind === "status" ? (
-      <StatusDialog
-        inquiryId={inquiryId}
-        subStatus={subStatus}
-        timeZone={tz}
-        onConvert={onConvert}
-        trigger={<Button className="w-full sm:w-auto">{next.label}</Button>}
-      />
-    ) : (
-      <Button onClick={fire} className="w-full sm:w-auto">{next.label}</Button>
-    )
-  ) : null;
 
   return (
-    <div className="bg-card rounded-xl border p-4 sm:p-5">
+    <div className="bg-card rounded-xl border px-4 py-3">
       <ol className="flex items-center">
         {STEPS.map((label, i) => {
           const isLast = i === STEPS.length - 1;
@@ -101,12 +58,6 @@ export function InquiryJourney({
           );
         })}
       </ol>
-
-      {nudge ? (
-        <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 z-10 -mx-4 -mb-4 mt-4 flex flex-col gap-2 border-t px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:mt-4 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
-          {nudge}
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -693,8 +693,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async listActivities(publicId: string) {
     const inq = await this.read(publicId);
     return db
-      .select()
+      .select({
+        ...getTableColumns(inquiryActivities),
+        actorName: users.name,
+        actorEmail: users.email,
+        actorRole: users.role,
+      })
       .from(inquiryActivities)
+      .leftJoin(users, eq(users.id, inquiryActivities.createdBy))
       .where(eq(inquiryActivities.inquiryId, inq.id))
       .orderBy(desc(inquiryActivities.createdAt));
   }

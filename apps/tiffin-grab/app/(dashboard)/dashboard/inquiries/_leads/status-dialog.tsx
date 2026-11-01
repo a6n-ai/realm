@@ -55,7 +55,7 @@ const LOOK: Record<SubStatus | "new", Look> = {
   undeliverable: { icon: MapPinOffIcon, pill: "bg-pink-500/12 text-pink-700 dark:bg-pink-400/15 dark:text-pink-300", text: "text-pink-600 dark:text-pink-400", tile: "bg-pink-500/12 dark:bg-pink-400/15" },
 };
 
-const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
+export const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
 export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
   const { icon: Icon, text } = look(subStatus);
@@ -367,8 +367,8 @@ export function StatusDialog({
   );
 }
 
-export type NoteKind = "note" | "call" | "whatsapp" | "follow_up";
-const NOTE_TITLE: Record<NoteKind, string> = { note: "Add note", call: "Log call", whatsapp: "Log WhatsApp", follow_up: "Set follow-up" };
+export type NoteKind = "note" | "call" | "whatsapp" | "follow_up" | "visit";
+const NOTE_TITLE: Record<NoteKind, string> = { note: "Add note", call: "Log call", whatsapp: "Log WhatsApp", follow_up: "Set follow-up", visit: "Log visit" };
 
 export function NoteDialog({
   inquiryId, timeZone, kind, open, onOpenChange,
