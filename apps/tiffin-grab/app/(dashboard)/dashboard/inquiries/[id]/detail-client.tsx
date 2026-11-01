@@ -18,7 +18,7 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, statusLabel, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
-import { FollowUpPicker, NoteDialog, StatusDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
+import { FollowUpPicker, NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
 import { InquiryJourney } from "./inquiry-journey";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
@@ -142,7 +142,6 @@ export function InquiryDetailClient({
   const took = subStatus === "took_plan" || subStatus === "took_trial";
   const sp = useSearchParams();
   const [convertOpen, setConvertOpen] = useState(() => sp.get("convert") === "1" && !terminal);
-  const [statusOpen, setStatusOpen] = useState(false);
   const [noteKind, setNoteKind] = useState<NoteKind | null>(null);
   const [pickPending, startPick] = useTransition();
 
@@ -202,7 +201,7 @@ export function InquiryDetailClient({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <StatusMenu inquiryId={inquiryId} subStatus={subStatus} onMore={() => setStatusOpen(true)} />
+            <StatusMenu inquiryId={inquiryId} subStatus={subStatus} />
             <span className="inline-flex items-center gap-2">
               <span className="text-muted-foreground">Owner</span>
               {reassign ? (
@@ -307,7 +306,6 @@ export function InquiryDetailClient({
       {noteKind ? (
         <NoteDialog key={noteKind} open onOpenChange={(o) => { if (!o) setNoteKind(null); }} inquiryId={inquiryId} timeZone={tz} kind={noteKind} />
       ) : null}
-      <StatusDialog inquiryId={inquiryId} subStatus={subStatus} timeZone={tz} onConvert={() => setConvertOpen(true)} open={statusOpen} onOpenChange={setStatusOpen} />
 
       <ConvertSheet
         open={convertOpen}

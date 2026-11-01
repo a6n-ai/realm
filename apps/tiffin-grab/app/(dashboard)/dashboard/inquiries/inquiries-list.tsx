@@ -21,7 +21,7 @@ import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { displayName } from "@/lib/inquiries/display";
 import { SUB_STATUSES, SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
-import { NoteDialog, StatusDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
+import { NoteDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
 type StaffOption = { publicId: string; name: string };
@@ -44,7 +44,6 @@ const DAY_MS = 86_400_000;
 const BULK_STATUSES = SUB_STATUSES.filter((s) => (SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes) || s === "undeliverable");
 
 type RowDialog =
-  | { id: string; kind: "status" }
   | { id: string; kind: "note"; note: NoteKind };
 
 function RowActions({ r, onOpenDialog }: { r: PipelineRow; onOpenDialog: (d: RowDialog) => void }) {
@@ -201,7 +200,7 @@ export function InquiriesList({
               <div className="flex min-w-0 flex-col gap-1">
                 <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
-                <div><StatusMenu inquiryId={r.publicId} subStatus={sub} onMore={() => setDialog({ id: r.publicId, kind: "status" })} /></div>
+                <div><StatusMenu inquiryId={r.publicId} subStatus={sub} /></div>
               </div>
               <RowActions r={r} onOpenDialog={setDialog} />
             </div>
@@ -231,7 +230,7 @@ export function InquiriesList({
                 </div>
               </TableCell>
               <TableCell>
-                <StatusMenu inquiryId={r.publicId} subStatus={sub} onMore={() => setDialog({ id: r.publicId, kind: "status" })} />
+                <StatusMenu inquiryId={r.publicId} subStatus={sub} />
               </TableCell>
               <TableCell>
                 {next != null ? (
@@ -259,16 +258,6 @@ export function InquiriesList({
       />
       <ListPagination page={page} size={size} total={total} />
 
-      {active && dialog?.kind === "status" ? (
-        <StatusDialog
-          key={active.publicId}
-          open
-          onOpenChange={close}
-          inquiryId={active.publicId}
-          subStatus={active.subStatus as SubStatus | null}
-          timeZone={tz}
-        />
-      ) : null}
       {active && dialog?.kind === "note" ? (
         <NoteDialog key={`${active.publicId}-${dialog.note}`} open onOpenChange={close} inquiryId={active.publicId} timeZone={tz} kind={dialog.note} />
       ) : null}
