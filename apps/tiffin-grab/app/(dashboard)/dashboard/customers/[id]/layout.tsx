@@ -22,13 +22,13 @@ import { loadCustomer, loadViewer } from "./data";
 // One customer, split into tabs (each its own URL) instead of one long page. The header,
 // stats and tab bar stay put while a tab loads.
 export default async function CustomerLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const [{ id }, { isAdmin }] = await Promise.all([params, loadViewer()]);
   return (
     <PageShell>
       <Suspense fallback={<HeaderSkeleton />}>
         <CustomerHeader id={id} />
       </Suspense>
-      <CustomerTabs customerPublicId={id} />
+      <CustomerTabs customerPublicId={id} showWallet={isAdmin} />
       {children}
     </PageShell>
   );
