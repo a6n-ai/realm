@@ -692,9 +692,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   async resolveForSource(input: {
-    phone: string;
+    phone?: string;
     sourceKey: string;
-    contact: { fullName: string; email?: string };
+    contact: { fullName?: string; email?: string };
     interest?: {
       planInterest?: string;
       mealSizeInterest?: string;

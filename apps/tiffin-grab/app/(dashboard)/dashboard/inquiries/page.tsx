@@ -96,7 +96,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function loadSheetData() {
-  const [{ defaultCountry }, sourceRows, subRows, zones, catalog] = await Promise.all([
+  const [{ defaultCountry, timezone }, sourceRows, subRows, zones, catalog] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -137,7 +137,7 @@ async function loadSheetData() {
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays })),
   };
 
-  return { defaultCountry, sources, zones, catalog: interestCatalog };
+  return { defaultCountry, timezone, sources, zones, catalog: interestCatalog };
 }
 
 function newInquiryTrigger() {
@@ -176,11 +176,12 @@ async function ExportAction({ searchParams }: { searchParams: SearchParams }) {
 async function NewInquiryAction() {
   await requireStaff();
 
-  const { defaultCountry, sources, zones, catalog } = await loadSheetData();
+  const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
 
   return (
     <AddInquirySheet
       defaultCountry={defaultCountry}
+      timeZone={timezone}
       sources={sources}
       zones={zones}
       catalog={catalog}
@@ -266,6 +267,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}
+          timeZone={sheet.timezone}
           sources={sheet.sources}
           zones={sheet.zones}
           catalog={sheet.catalog}

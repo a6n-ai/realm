@@ -11,11 +11,12 @@ import {
 import type { SubStatus } from "@/lib/inquiries/status";
 
 export async function createInquiry(input: {
-  fullName: string;
-  phone: string;
-  email: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
   sourceKey: string;
   subSourceKey?: string;
+  nextFollowUpAt?: number;
   planInterest?: string;
   mealSizeInterest?: string;
   personsInterest?: number;

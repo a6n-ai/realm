@@ -13,12 +13,12 @@ export type ImportFieldKey =
   | "subSource"
   | "followUpDate";
 
-// Single-column fields the user maps one sheet header to each. Date and Phone are
-// the only hard requirements — everything else gets a sensible default when left
+// Single-column fields the user maps one sheet header to each. Date is the only hard
+// requirement (plus a name or phone per row, enforced server-side) — everything else gets a sensible default when left
 // unmapped or blank (see route.ts).
 export const IMPORT_FIELDS: { key: ImportFieldKey; label: string; required: boolean }[] = [
   { key: "date", label: "Date", required: true },
-  { key: "phone", label: "Phone Number", required: true },
+  { key: "phone", label: "Phone Number", required: false },
   { key: "fullName", label: "Full Name", required: false },
   { key: "email", label: "Email", required: false },
   { key: "stage", label: "Stage", required: false },

@@ -2,12 +2,11 @@ import { emailSchema } from "@foundry/commons";
 import { z } from "zod";
 
 export const inquiryFormSchema = z.object({
-  fullName: z.string().trim().min(1, "Full name is required"),
+  fullName: z.string().trim().optional(),
   // Lead capture takes whatever number they give — deliverability is judged by
-  // postal/zone later, not by phone shape. Only require that something is entered.
-  phone: z.string().min(1, "Phone is required"),
-  // Email is the customer login identifier — required on create.
-  email: emailSchema,
+  // postal/zone later, not by phone shape.
+  phone: z.string().trim().optional(),
+  email: emailSchema.optional().or(z.literal("")),
   sourceKey: z.string().min(1),
   subSourceKey: z.string().optional(),
   planInterest: z.string().optional(),
@@ -19,6 +18,11 @@ export const inquiryFormSchema = z.object({
   preferredStart: z.string().optional(),
   quotedPrice: z.coerce.number().nonnegative().optional(),
   notes: z.string().optional(),
+  nextFollowUpAt: z.number().optional(),
+}).superRefine((v, ctx) => {
+  if (!v.fullName && !v.phone) {
+    ctx.addIssue({ code: "custom", path: ["fullName"], message: "Enter a name or phone number" });
+  }
 });
 export type InquiryFormInput = z.input<typeof inquiryFormSchema>;
 export type InquiryFormValues = z.infer<typeof inquiryFormSchema>;

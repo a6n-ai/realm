@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
-import { HelpCircleIcon, Loader2Icon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon, HelpCircleIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useRouter } from "next/navigation";
@@ -15,12 +15,13 @@ import { Input } from "@foundry/ui/input";
 import { cn } from "@foundry/ui/cn";
 import dynamic from "next/dynamic";
 import { ResponsiveDialog } from "@foundry/design-system";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { Textarea } from "@foundry/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
+import { FollowUpPicker } from "./_leads/status-popup";
 import { NoSources } from "../_leads/no-sources";
-import { StepHeader } from "../_leads/step-header";
 import { useExistingCustomer } from "../_leads/use-existing-customer";
 import {
   PlanInterestFields,
@@ -38,24 +39,21 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Req() {
-  return <span className="text-primary">*</span>;
-}
-
 const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m.PhoneInput), {
   ssr: false,
   loading: () => <Input disabled placeholder="Phone" />,
 });
 
 /**
- * Two-step Add inquiry: Contact + Source → Interest (catalog plans/meals).
- * Interest uses the same catalog keys as OrderForm so convert prefills cleanly.
+ * Quick Add inquiry: name or phone, source, note, follow-up; the rest folds under
+ * "More details". Interest uses the same catalog keys as OrderForm so convert prefills cleanly.
  */
 export function AddInquirySheet({
   trigger,
   open: controlledOpen,
   onOpenChange,
   defaultCountry,
+  timeZone,
   sources,
   zones,
   catalog,
@@ -64,6 +62,7 @@ export function AddInquirySheet({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
+  timeZone: string;
   sources: Src[];
   zones: ZoneLike[];
   catalog: InterestCatalog;
@@ -72,7 +71,7 @@ export function AddInquirySheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2>(1);
+  const [followUp, setFollowUp] = useState<React.ComponentProps<typeof FollowUpPicker>["value"]>(null);
 
   const form = useForm<InquiryFormInput, unknown, InquiryFormValues>({
     resolver: zodResolver(inquiryFormSchema),
@@ -94,19 +93,13 @@ export function AddInquirySheet({
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
   const existingCustomer = useExistingCustomer(form.watch("phone") ?? "", form.watch("email") ?? "");
 
-  const fullName = form.watch("fullName");
-  const phone = form.watch("phone");
-  const email = form.watch("email") ?? "";
-  const step1Ready =
-    fullName.trim().length > 0 &&
-    phone.trim().length > 0 &&
-    email.trim().length > 0 &&
-    !existingCustomer;
+  const ready =
+    (form.watch("fullName") ?? "").trim().length > 0 || (form.watch("phone") ?? "").trim().length > 0;
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (!next) {
-      setStep(1);
+      setFollowUp(null);
       form.reset();
     }
   }
@@ -114,9 +107,10 @@ export function AddInquirySheet({
   async function onSubmit(values: InquiryFormValues) {
     try {
       const res = await createInquiry({
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
+        fullName: values.fullName || undefined,
+        phone: values.phone || undefined,
+        email: values.email || undefined,
+        nextFollowUpAt: followUp?.at,
         sourceKey: values.sourceKey,
         subSourceKey: values.subSourceKey || undefined,
         planInterest: values.planInterest || undefined,
@@ -135,8 +129,6 @@ export function AddInquirySheet({
           action: { label: "Open", onClick: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
         });
       }
-      form.reset();
-      setStep(1);
       handleOpenChange(false);
       router.refresh();
     } catch (e) {
@@ -146,14 +138,6 @@ export function AddInquirySheet({
 
   const submitting = form.formState.isSubmitting;
 
-  async function goNext() {
-    const ok = await form.trigger(["fullName", "phone", "email", "sourceKey", "subSourceKey"]);
-    if (!ok || !step1Ready) return;
-    // Defer past the initiating click — swapping Continue→Add inquiry in-place can
-    // retarget the same click onto the new submit control and create the lead early.
-    requestAnimationFrame(() => setStep(2));
-  }
-
   return (
     <ResponsiveDialog
       // Step bar and panels run edge to edge; each panel pads itself.
@@ -162,52 +146,29 @@ export function AddInquirySheet({
       onOpenChange={handleOpenChange}
       trigger={trigger}
       title="New inquiry"
-      description="Capture the lead, then optional plan interest for a clean convert later."
+      description="A name or phone number is enough. Add more details only if you have them."
       contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg md:max-h-[90vh]"
       footer={
         sources.length === 0 ? undefined : (
           <div className="flex w-full flex-row justify-between gap-2">
-            {step === 1 ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={() => handleOpenChange(false)}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                Cancel
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={() => setStep(1)}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                Back
-              </Button>
-            )}
-            {step === 1 ? (
-              <Button
-                type="button"
-                disabled={!step1Ready}
-                onClick={goNext}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                Continue
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                disabled={submitting || !!existingCustomer}
-                onClick={() => void form.handleSubmit(onSubmit)()}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
-                {submitting ? "Adding…" : "Add inquiry"}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => handleOpenChange(false)}
+              className="min-h-11 active:scale-[0.96] sm:min-h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={submitting || !ready || !!existingCustomer}
+              onClick={() => void form.handleSubmit(onSubmit)()}
+              className="min-h-11 active:scale-[0.96] sm:min-h-9"
+            >
+              {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
+              {submitting ? "Adding…" : "Add inquiry"}
+            </Button>
           </div>
         )
       }
@@ -230,10 +191,8 @@ export function AddInquirySheet({
                 </div>
               </div>
             )}
-            <StepHeader step={step} steps={["Contact", "Interest"]} />
             <div className="space-y-6 px-5 py-5 sm:px-6">
-              {step === 1 ? (
-                <>
+              <>
                   <section className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
                     <SectionLabel>Contact</SectionLabel>
                     <FormField
@@ -241,7 +200,7 @@ export function AddInquirySheet({
                       name="fullName"
                       render={({ field }) => (
                         <FormItem className="grid gap-1.5">
-                          <FormLabel>Full name <Req /></FormLabel>
+                          <FormLabel>Full name</FormLabel>
                           <FormControl>
                             <Input className="min-h-11" autoFocus placeholder="e.g. Priya Sharma" {...field} />
                           </FormControl>
@@ -254,22 +213,9 @@ export function AddInquirySheet({
                       name="phone"
                       render={({ field }) => (
                         <FormItem className="grid gap-1.5">
-                          <FormLabel>Phone <Req /></FormLabel>
+                          <FormLabel>Phone</FormLabel>
                           <FormControl>
                             <PhoneInput {...field} defaultCountry={defaultCountry} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem className="grid gap-1.5">
-                          <FormLabel>Email <Req /></FormLabel>
-                          <FormControl>
-                            <Input className="min-h-11" type="email" placeholder="name@email.com" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -284,7 +230,7 @@ export function AddInquirySheet({
                       name="sourceKey"
                       render={({ field }) => (
                         <FormItem className="grid gap-1.5">
-                          <FormLabel>Where did they come from? <Req /></FormLabel>
+                          <FormLabel>Where did they come from?</FormLabel>
                           <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
                             {sources.map((s) => {
                               const active = field.value === s.key;
@@ -370,16 +316,40 @@ export function AddInquirySheet({
                       />
                     )}
                   </section>
-                </>
-              ) : (
-                <>
-                  <section className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-                    <div className="space-y-1">
-                      <SectionLabel>Interest</SectionLabel>
-                      <p className="text-muted-foreground text-sm text-pretty">
-                        Optional — pick from your catalog so converting to an order doesn&apos;t ask again.
-                      </p>
-                    </div>
+                  <section className="grid gap-1.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+                    <SectionLabel>Note</SectionLabel>
+                    <Textarea
+                      rows={3}
+                      placeholder="Anything worth remembering from the conversation…"
+                      {...form.register("notes")}
+                    />
+                  </section>
+                  <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
+                  <Collapsible className="border-t pt-3">
+                    <CollapsibleTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="group -ml-2">
+                        More details
+                        <ChevronDownIcon data-icon="inline-end" className="transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="flex flex-col gap-4 pt-3">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-1.5">
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input className="min-h-11" type="email" placeholder="name@email.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <section className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+                    <p className="text-muted-foreground text-sm text-pretty">
+                      Pick from your catalog so converting to an order doesn&apos;t ask again.
+                    </p>
                     <PlanInterestFields
                       catalog={catalog}
                       zones={zones}
@@ -437,17 +407,9 @@ export function AddInquirySheet({
                       }}
                     />
                   </section>
-
-                  <section className="grid gap-1.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-                    <SectionLabel>Notes</SectionLabel>
-                    <Textarea
-                      rows={3}
-                      placeholder="Anything worth remembering from the conversation…"
-                      {...form.register("notes")}
-                    />
-                  </section>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
-              )}
 
               {existingCustomer && (
                 <p className="text-destructive text-sm" role="alert">

@@ -25,6 +25,7 @@ export type QuickAddCatalog = {
 };
 export type QuickAddData = {
   defaultCountry: CountryCode;
+  timezone: string;
   currency: string;
   sources: QuickAddSource[];
   zones: ZoneLike[];
@@ -40,7 +41,7 @@ export type QuickAddData = {
 export async function loadQuickAddData(): Promise<QuickAddData> {
   await requireStaff();
 
-  const [{ defaultCountry, currency }, sourceRows, subRows, zones, catalog, slots, planKeys] = await Promise.all([
+  const [{ defaultCountry, currency, timezone }, sourceRows, subRows, zones, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
     db.select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active }).from(leadSources),
     db
@@ -65,6 +66,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
 
   return {
     defaultCountry,
+    timezone,
     currency,
     sources,
     zones,
