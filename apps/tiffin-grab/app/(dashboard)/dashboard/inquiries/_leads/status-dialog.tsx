@@ -13,7 +13,11 @@ import { Textarea } from "@foundry/ui/textarea";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import {
+  BadgeCheckIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
+  PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
+} from "lucide-react";
+import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
 import { DateInput } from "@/components/dashboard/date-fields";
 import {
@@ -34,15 +38,46 @@ const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "asked_to_stop", label: "Asked to stop" },
 ];
 
-function pillVariant(sub: SubStatus | null) {
-  if (sub === null) return "info-light";
-  if (sub === "took_plan" || sub === "took_trial") return "success-light";
-  if (isClosed(sub)) return "destructive-light";
-  return groupFor(sub) === "follow_up" ? "warning-light" : "info-light";
+type Tone = "info" | "primary" | "warning" | "success" | "destructive";
+
+// One icon + colour per status so a column of pills reads at a glance.
+const LOOK: Record<SubStatus | "new", { icon: LucideIcon; tone: Tone }> = {
+  new: { icon: SparklesIcon, tone: "info" },
+  no_response: { icon: PhoneMissedIcon, tone: "warning" },
+  responded: { icon: MessageSquareReplyIcon, tone: "primary" },
+  future: { icon: CalendarClockIcon, tone: "info" },
+  persistent: { icon: RepeatIcon, tone: "primary" },
+  expected: { icon: ThumbsUpIcon, tone: "success" },
+  pending_payment: { icon: CreditCardIcon, tone: "warning" },
+  took_plan: { icon: BadgeCheckIcon, tone: "success" },
+  took_trial: { icon: UtensilsIcon, tone: "success" },
+  lost: { icon: XCircleIcon, tone: "destructive" },
+  undeliverable: { icon: MapPinOffIcon, tone: "destructive" },
+};
+
+const TONE_TEXT: Record<Tone, string> = {
+  info: "text-sky-600 dark:text-sky-400",
+  primary: "text-primary",
+  warning: "text-amber-600 dark:text-amber-400",
+  success: "text-emerald-600 dark:text-emerald-400",
+  destructive: "text-destructive",
+};
+
+const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
+
+export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
+  const { icon: Icon, tone } = look(subStatus);
+  return <Icon className={cn("size-4 shrink-0", TONE_TEXT[tone], className)} aria-hidden />;
 }
 
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
-  return <Badge variant={pillVariant(subStatus)}>{statusLabel(subStatus)}</Badge>;
+  const { icon: Icon, tone } = look(subStatus);
+  return (
+    <Badge variant={`${tone}-light`}>
+      <Icon aria-hidden />
+      {statusLabel(subStatus)}
+    </Badge>
+  );
 }
 
 const MENU_GROUPS: { group: StatusGroup; label: string }[] = [
@@ -103,7 +138,7 @@ export function StatusMenu({
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56" onClick={(e) => e.stopPropagation()}>
         {closed ? (
-          <DropdownMenuItem onSelect={() => pick(null)}>Reopen as New</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => pick(null)}><StatusIcon subStatus={null} />Reopen as New</DropdownMenuItem>
         ) : (
           <>
             {MENU_GROUPS.map(({ group, label }) => (
@@ -111,6 +146,7 @@ export function StatusMenu({
                 <DropdownMenuLabel>{label}</DropdownMenuLabel>
                 {SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group).map((s) => (
                   <DropdownMenuItem key={s} onSelect={() => pick(s)}>
+                    <StatusIcon subStatus={s} />
                     {statusLabel(s)}
                     {s === subStatus ? <CheckIcon className="ml-auto size-4" /> : null}
                   </DropdownMenuItem>
@@ -119,8 +155,8 @@ export function StatusMenu({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Close lead</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => pick("undeliverable")}>{statusLabel("undeliverable")}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={onMore}>Lost (pick reason)…</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => pick("undeliverable")}><StatusIcon subStatus="undeliverable" />{statusLabel("undeliverable")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMore}><StatusIcon subStatus="lost" />Lost (pick reason)…</DropdownMenuItem>
           </>
         )}
         <DropdownMenuSeparator />

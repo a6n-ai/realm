@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatPhone } from "@foundry/commons";
 import {
-  ClipboardListIcon, ListChecksIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, UserRoundPenIcon,
+  ClipboardListIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, UserRoundPenIcon,
 } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
@@ -38,7 +38,7 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
   { key: "nextFollowUp", label: "Next follow-up", sortable: true, width: "w-40" },
   { key: "owner", label: "Owner", sortable: true, width: "w-28" },
   { key: "lastNote", label: "Last note" },
-  { key: "actions", label: "", align: "right", width: "w-52" },
+  { key: "actions", label: "", align: "right", width: "w-44" },
 ];
 
 const DAY_MS = 86_400_000;
@@ -63,7 +63,6 @@ function RowActions({
   const name = displayName(r);
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <RowActionTooltipButton icon={ListChecksIcon} label={`Update status for ${name}`} hint="Update status" onClick={() => onOpenDialog({ id: r.publicId, kind: "status" })} />
       <RowActionTooltipButton icon={MessageSquarePlusIcon} label={`Add note for ${name}`} hint="Add note" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "note" })} />
       <RowActionTooltipButton icon={PhoneIcon} label={`Log call for ${name}`} hint="Log call" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "call" })} />
       <RowActionTooltipButton icon={MessageCircleIcon} label={`Log WhatsApp for ${name}`} hint="Log WhatsApp" onClick={() => onOpenDialog({ id: r.publicId, kind: "note", note: "whatsapp" })} />
