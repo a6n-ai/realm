@@ -48,3 +48,14 @@ describe("pixelScript", () => {
     expect(pixelScript("123456789")).toContain('fbq("init","123456789")');
   });
 });
+
+describe("normalizePixelId", () => {
+  it("pulls the ID out of pasted text with invisible marks or a label", async () => {
+    const { normalizePixelId } = await import("../pixel-id");
+    expect(normalizePixelId("1234567890123456")).toBe("1234567890123456");
+    expect(normalizePixelId("‎1234567890123456‏ ")).toBe("1234567890123456");
+    expect(normalizePixelId("Pixel ID: 1234567890123456")).toBe("1234567890123456");
+    expect(normalizePixelId("123 456")).toBeNull();
+    expect(normalizePixelId("EAAB-not-an-id")).toBeNull();
+  });
+});

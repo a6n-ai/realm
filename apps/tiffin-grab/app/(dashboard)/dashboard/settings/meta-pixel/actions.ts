@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 import { encryptionKey, getMetaPixelConfig, sealAccessToken, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";
-import { PIXEL_ID_RE, TEST_CODE_RE } from "@/lib/services/meta-pixel/pixel-id";
+import { normalizePixelId, TEST_CODE_RE } from "@/lib/services/meta-pixel/pixel-id";
 import { sendMetaEvent } from "@/lib/services/meta-pixel/capi";
 import { requestBrowser } from "@/lib/services/tracking";
 import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
@@ -24,10 +24,12 @@ export async function saveMetaPixelSettings(input: {
 }): Promise<Result> {
   await requireAdmin();
 
-  const pixelId = input.pixelId.trim();
+  const pixelId = normalizePixelId(input.pixelId);
   const token = input.accessToken.trim();
-  const testEventCode = input.testEventCode.trim();
-  if (!PIXEL_ID_RE.test(pixelId)) return { error: "Pixel ID is the number from Events Manager, digits only" };
+  const testEventCode = input.testEventCode.replace(/[^A-Za-z0-9]/g, "");
+  if (!pixelId) {
+    return { error: "Could not find a pixel ID in that. Paste just the number under the pixel name in Events Manager (15 or 16 digits)" };
+  }
   if (testEventCode && !TEST_CODE_RE.test(testEventCode)) return { error: "Test event code is letters and numbers only, like TEST12345" };
   if (token && !/^[A-Za-z0-9_-]{20,1000}$/.test(token)) return { error: "That does not look like a Conversions API access token" };
 
