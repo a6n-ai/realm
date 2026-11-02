@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { trackOutbox } from "@/lib/notifications/outbox-dirty";
 import { isWorkers } from "@/lib/runtime/platform";
 import * as schema from "./schema";
 
@@ -17,6 +18,18 @@ if (!onWorkers && !process.env.DATABASE_URL) {
   }
 }
 
+// A transaction that enqueued notifications wakes the outbox consumer after it commits,
+// never inside it. A rollback throws past the signal.
+function signalAfterCommit(d: Db): Db {
+  const raw = d.transaction.bind(d) as (fn: never, cfg?: never) => Promise<unknown>;
+  d.transaction = (async (fn: never, cfg?: never) => {
+    const { value, dirty } = await trackOutbox(() => raw(fn, cfg));
+    if (dirty) await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+    return value;
+  }) as Db["transaction"];
+  return d;
+}
+
 function nodeDb(): Db {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
@@ -30,7 +43,7 @@ function nodeDb(): Db {
       prepare: false,
     });
   if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
-  return drizzle(client, { schema });
+  return signalAfterCommit(drizzle(client, { schema }));
 }
 
 // Workers forbid reusing a socket across requests, so each request gets its own
@@ -44,7 +57,7 @@ function requestDb(): Db {
   if (!d) {
     const hd = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
     if (!hd) throw new Error("HYPERDRIVE binding missing");
-    d = drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema });
+    d = signalAfterCommit(drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema }));
     perRequest.set(ctx, d);
   }
   return d;

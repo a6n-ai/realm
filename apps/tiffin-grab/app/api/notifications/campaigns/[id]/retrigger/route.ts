@@ -18,7 +18,7 @@ export const POST = handler(
     if (!parsed.success) return problem(400, "Invalid request");
     const result = await retriggerCampaign(deps, id, { listIds: parsed.data.listIds });
     if ("error" in result) return problem(result.status, result.error);
-    signalOutbox();
+    await signalOutbox();
     return json(result);
   },
 );

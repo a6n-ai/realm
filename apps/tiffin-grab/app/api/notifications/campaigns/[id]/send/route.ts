@@ -27,7 +27,7 @@ export const POST = handler(
       const items = result.blocking?.length ? `: ${result.blocking.map((b) => b.message).join(" ")}` : "";
       return problem(result.status, `${result.error}${items}`);
     }
-    signalOutbox();
+    await signalOutbox();
     return json(result);
   },
 );

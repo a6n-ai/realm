@@ -1,9 +1,10 @@
-import { createRateLimiter, drainPending as drain, dueCampaigns, sendScheduledCampaign } from "@relay/engine";
+import { createRateLimiter, drainPending as drain, sendScheduledCampaign } from "@relay/engine";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";
 import { campaignConfig } from "./campaign-config";
+import { dueScheduledCampaignIds } from "./campaign-schedule";
 import { resolveSegment } from "@/lib/campaigns/segment";
 
 // SES MaxSendRate is 14/s on this account, shared with puchkaman (5/s); stay
@@ -30,7 +31,7 @@ export async function drainPending(limit = 25, maxBatches = 20): Promise<number>
 
 /** Expand any scheduled campaign whose time has come. Returns rows queued. */
 export async function materializeDue(): Promise<number> {
-  const due = await dueCampaigns(db, notificationTables);
+  const due = await dueScheduledCampaignIds();
   let queued = 0;
   for (const publicId of due) {
     // Re-checked at send time: a scheduled campaign stays editable, and may have been unscheduled a moment ago.

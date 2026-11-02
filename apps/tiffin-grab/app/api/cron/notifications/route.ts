@@ -13,6 +13,18 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // The Workers queue consumer and per-minute cron: no cron_runs row per minute. Due scheduled
+  // campaigns come from the DB (no Redis set on Workers); drainPending claims rows atomically.
+  if (new URL(request.url).searchParams.get("mode") === "tick") {
+    try {
+      const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
+      const materialized = await materializeDue();
+      return Response.json({ ok: true, summary: { materialized, processed: await drainPending() } });
+    } catch (err) {
+      return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    }
+  }
+
   const result = await runCronJob("notifications", "schedule");
   return Response.json(result, { status: result.ok ? 200 : 500 });
 }
