@@ -57,6 +57,10 @@ export default async function LandingPage() {
   const rates = listableMealSizes(catalog.mealSizes).filter((m) => plans.some((p) => p.key === m.planKey && !isComingSoon(p.key))).map((m) => effectivePrice(m.basePrice, m));
   const fromRate = rates.length ? Math.min(...rates) : null;
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
+  // The demos say "Changes until Mon 11:00 PM": the real cutoff, never a hard-coded hour.
+  const cutoffTime = catalog.cutoffHour != null
+    ? new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, catalog.cutoffHour)).replace(/\./g, "").toUpperCase()
+    : null;
   const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
   const todayDay = board.days.find((d) => d.today) ?? board.days[0] ?? null;
   const today = todayDay ? { label: todayDay.today ? "Today's tiffin" : `On ${todayDay.label}`, dishes: board.rows.flatMap((r) => todayDay.dishes[r] ?? []) } : null;
@@ -89,9 +93,9 @@ export default async function LandingPage() {
         photo={heroPhoto}
       />
 
-      {pub && board.days.length > 0 ? <MenuRail days={board.days} rows={board.rows} weekend={board.weekend} range={weekRange(pub.weekStart)} photo={heroPhoto} /> : null}
+      {pub && board.days.length > 0 ? <MenuRail days={board.days} rows={board.rows} weekend={board.weekend} cutoffTime={cutoffTime} range={weekRange(pub.weekStart)} photo={heroPhoto} /> : null}
 
-      <Flex cutoff={cutoff} demo={<PauseDemo />} />
+      <Flex cutoff={cutoff} demo={<PauseDemo cutoffTime={cutoffTime} />} />
 
       <section className="lp-section" aria-labelledby="tg-deliver">
         <DeliverySection />

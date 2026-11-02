@@ -9,6 +9,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { promotionStatus, type PromotionStatus } from "@/lib/promotions/live";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { promotionsService } from "@/lib/services/promotions.service";
+import { PromotionRowActions } from "./promotion-row-actions";
 
 const STATUS: Record<PromotionStatus, { label: string; variant: "success-light" | "info-light" | "warning-light" | "invert-light" }> = {
   live: { label: "Live", variant: "success-light" },
@@ -49,6 +50,7 @@ export default async function PromotionsPage() {
                 <TableHead>Shown in</TableHead>
                 <TableHead>Window</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -62,6 +64,7 @@ export default async function PromotionsPage() {
                     <TableCell className="text-muted-foreground capitalize">{p.placements.join(", ") || "-"}</TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">{windowOf(p.startsAt, p.endsAt)}</TableCell>
                     <TableCell><Badge variant={s.variant}>{s.label}</Badge></TableCell>
+                    <TableCell><PromotionRowActions publicId={p.publicId} title={p.title} active={p.active} /></TableCell>
                   </TableRow>
                 );
               })}

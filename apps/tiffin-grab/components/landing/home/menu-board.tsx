@@ -10,9 +10,11 @@ import { MenuPickDemo } from "@/components/landing/stage/menu-pick-demo";
  *  and the chosen day's tiffin, grouped by row. Switching days re-plates the board in place,
  *  the section's one signature moment. The phone beside it replays the app's Edit meal flow
  *  with the chosen day's real dishes (keyed by day, so a new day restarts its story). */
-export function MenuBoard({ days, rows, weekend }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null }) {
+export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null }) {
   const start = Math.max(0, days.findIndex((d) => d.today));
   const [i, setI] = useState(start);
+  // The dish the phone demo just saved: lit on the board while its "Meals saved" toast shows.
+  const [saved, setSaved] = useState<string | null>(null);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const day = days[i] ?? days[0];
   if (!day) return null;
@@ -61,7 +63,7 @@ export function MenuBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
           <div key={day.key} className="lp-plate__in">
             <header className="lp-plate__head">
               <h3>{day.label}</h3>
-              <span>{day.today ? <em>Today</em> : null}{day.date}</span>
+              <span>{day.date}</span>
             </header>
             {filled.length > 0 ? (
               <dl className="lp-plate__rows">
@@ -70,7 +72,7 @@ export function MenuBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
                     <dt>{r}</dt>
                     <dd>
                       {day.dishes[r]!.map((dish) => (
-                        <span key={dish} className="lp-dish">
+                        <span key={dish} className="lp-dish" data-saved={dish === saved || undefined}>
                           {dish}
                           {popular.has(dish) ? <Heart aria-label="Popular" className="size-3 fill-current" /> : null}
                         </span>
@@ -84,20 +86,22 @@ export function MenuBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
                     <dt>{choices.length > 0 ? "With it" : "In the tiffin"}</dt>
                     <dd>
                       {fixed.map((r) => (
-                        <span key={r} className="lp-dish lp-dish--fixed"><small>{r}</small>{day.dishes[r]![0]}</span>
+                        <span key={r} className="lp-dish lp-dish--fixed">{day.dishes[r]![0]!.toLowerCase() === r.toLowerCase() ? null : <small>{r}</small>}{day.dishes[r]![0]}</span>
                       ))}
                     </dd>
                   </div>
                 ) : null}
               </dl>
             ) : <p className="lp-plate__empty">No tiffins this day.</p>}
-            <p className="lp-plate__foot">{choices.length > 0 ? `Subscribers pick their ${choices.map((r) => r.toLowerCase()).join(" and ")} for each day in the app.` : "Every tiffin comes with all of these."}</p>
+            <p className="lp-plate__foot">
+              {choices.length > 0
+                ? `Subscribers pick their ${choices.map((r) => r.toLowerCase()).join(" and ")} in the app${cutoffTime ? `, until ${cutoffTime} the day before` : ""}.`
+                : "Every tiffin comes with all of these."}
+              {popular.size > 0 ? <span className="lp-plate__legend"><Heart aria-hidden className="size-3 fill-current" /> Most picked this week</span> : null}
+            </p>
           </div>
         </article>
-      </div>
-      <div className="lp-menu__aside">
-        <MenuPickDemo key={day.key} dayLabel={day.label} dayShort={day.short} options={filled.map((r) => ({ category: r, dishes: day.dishes[r] ?? [] }))} />
-        {/* Sat and Sun share one weekend menu: a short card in the space under the phone. */}
+        {/* Sat and Sun share one weekend menu: it belongs to the week board, so it sits right under it. */}
         {weekend ? (
           <section className="lp-weekend lp-glass-light" aria-label="Weekend menu">
             <header>
@@ -107,6 +111,9 @@ export function MenuBoard({ days, rows, weekend }: { days: BoardDay[]; rows: str
             <p>{weekend.dishes.map((d) => <span key={d} className="lp-dish">{d}</span>)}</p>
           </section>
         ) : null}
+      </div>
+      <div className="lp-menu__aside">
+        <MenuPickDemo key={day.key} dayLabel={day.label} dayShort={day.short} cutoffTime={cutoffTime} onSaved={setSaved} options={filled.map((r) => ({ category: r, dishes: day.dishes[r] ?? [] }))} />
       </div>
     </div>
   );

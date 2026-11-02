@@ -208,7 +208,7 @@
   background: var(--mp-wash);
 }
 .mp .mp-day__wd {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -246,7 +246,7 @@
 }
 .mp .mp-del__eyebrow {
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -393,8 +393,7 @@
 
 /* toast, above the bar */
 .mp .mp-toast {
-  left: 50%;
-  top: 638px;
+  right: 16px;
   height: 44px;
   padding: 0 22px;
   display: flex;
@@ -407,14 +406,14 @@
   white-space: nowrap;
   box-shadow: 0 12px 28px -8px rgba(36, 31, 27, 0.5);
   opacity: 0;
-  transform: translate(-50%, 14px) scale(0.96);
+  transform: translateY(-10px) scale(0.96);
   transition:
     opacity 0.3s ease,
     transform 0.45s var(--mp-ease);
 }
 .mp .mp-toast[data-on] {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: none;
 }
 
 /* floating tab bar */
@@ -438,7 +437,7 @@
   justify-content: center;
   gap: 1px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--mp-mut);
 }
@@ -457,7 +456,7 @@
   transition: transform 0.8s var(--mp-ease);
 }
 .mp .mp-scroll[data-scrolled] {
-  transform: translateY(-232px);
+  transform: translateY(calc(var(--mp-s, 0) * -1px));
 }
 .mp .mp-scroll > * {
   position: absolute;
@@ -474,7 +473,7 @@
 .mp .mp-tiles {
   left: 16px;
   right: 16px;
-  top: 742px;
+  top: 700px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -538,7 +537,7 @@
   font-size: 14.5px;
 }
 .mp .mp-dest__k {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
