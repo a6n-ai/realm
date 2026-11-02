@@ -1,60 +1,118 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, Loader2Icon, MinusIcon, PercentIcon, PlusIcon, RefreshCwIcon, UserCheckIcon, type LucideIcon } from "lucide-react";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
-import { Label } from "@foundry/ui/label";
-import { Input } from "@foundry/ui/input";
+import { Card } from "@foundry/ui/card";
+import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { Skeleton } from "@foundry/ui/skeleton";
-import type { LeadAssignmentConfig, OwnerEntity, Strategy } from "@/lib/services/assignment";
+import { Separator } from "@foundry/ui/separator";
+import { Switch } from "@foundry/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Alert, AlertDescription } from "@/components/reui/alert";
+import type { OwnerEntity, Strategy } from "@/lib/services/assignment";
+import { poolSummary, sharePct } from "@/lib/services/owner-summary";
 import { saveEntityStrategy, saveMembership, saveStrategy } from "./actions";
 
-const STRATEGIES: { value: Strategy; label: string }[] = [
-  { value: "creator", label: "Creator owns" },
-  { value: "round_robin", label: "Round robin" },
-  { value: "percentage", label: "Percentage" },
+const CHOICES: { value: Strategy; title: string; line: string; icon: LucideIcon }[] = [
+  { value: "creator", title: "Creator owns", line: "Whoever adds it keeps it.", icon: UserCheckIcon },
+  { value: "round_robin", title: "Round robin", line: "Take turns across the pool.", icon: RefreshCwIcon },
+  { value: "percentage", title: "Percentage", line: "Split by weight.", icon: PercentIcon },
+];
+
+const TABS: { value: OwnerEntity; label: string }[] = [
+  { value: "inquiry", label: "Inquiries" },
+  { value: "order", label: "Orders" },
+  { value: "ticket", label: "Tickets" },
 ];
 
 const DEFAULT_OVERRIDE = "__default__";
-const DEFAULT_POOL_KEY = "";
+const DEFAULT_POOL = "";
+const EASE = "duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]";
 
-type Source = { key: string; label: string; isInbound: boolean };
-type StaffOption = { userId: string; publicId: string; name: string | null };
-type MemberRow = { userId: string; weight: number };
+export type Source = { key: string; label: string };
+export type StaffOption = { userId: string; publicId: string; name: string | null };
+// userId -> weight, present means in the pool.
+type Pool = Record<string, number>;
+export type TabState = { strategy: Strategy; perSource: Record<string, Strategy>; pools: Record<string, Pool> };
+export type TabStates = Record<OwnerEntity, TabState>;
 
-export function LeadAssignmentForm({
-  cfg,
+const label = (s: StaffOption) => s.name ?? s.publicId;
+
+function sorted<T>(o: Record<string, T>): [string, T][] {
+  return Object.entries(o).sort(([a], [b]) => a.localeCompare(b));
+}
+
+function fingerprint(s: TabState): string {
+  return JSON.stringify([s.strategy, sorted(s.perSource), sorted(s.pools).map(([k, p]) => [k, sorted(p)])]);
+}
+
+const poolFingerprint = (p: Pool | undefined) => JSON.stringify(sorted(p ?? {}));
+
+export function OwnerAssignmentForm({
+  initialEntity,
+  initial,
   sources,
   staff,
-  membership,
+  cursor,
 }: {
-  cfg: LeadAssignmentConfig;
+  initialEntity: OwnerEntity;
+  initial: TabStates;
   sources: Source[];
   staff: StaffOption[];
-  membership: Record<string, MemberRow[]>;
+  cursor: Record<string, string>;
 }) {
   const router = useRouter();
-  const [strategy, setStrategy] = useState<Strategy>(cfg.strategy);
-  const [perSource, setPerSource] = useState<Record<string, Strategy>>(cfg.perSource);
+  const [tab, setTab] = useState<OwnerEntity>(initialEntity);
+  const [saved, setSaved] = useState<TabStates>(initial);
+  const [draft, setDraft] = useState<TabStates>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
   const [pending, start] = useTransition();
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const setOverride = (key: string, value: string) => {
-    setPerSource((prev) => {
-      const next = { ...prev };
-      if (value === DEFAULT_OVERRIDE) delete next[key];
-      else next[key] = value as Strategy;
-      return next;
-    });
+  const state = draft[tab];
+  const dirty = fingerprint(state) !== fingerprint(saved[tab]);
+  const patch = (next: Partial<TabState>) => {
+    setFlash(false);
+    setDraft((d) => ({ ...d, [tab]: { ...d[tab], ...next } }));
+  };
+  const setPool = (key: string, pool: Pool) => patch({ pools: { ...state.pools, [key]: pool } });
+
+  // The URL is the tab's source of truth on reload; the draft state lives above the tabs so switching never drops edits.
+  const changeTab = (next: string) => {
+    setTab(next as OwnerEntity);
+    setError(null);
+    const url = new URL(window.location.href);
+    url.searchParams.set("entity", next);
+    window.history.replaceState(null, "", url);
   };
 
-  const saveStrategies = () => {
+  const save = () => {
+    const entity = tab;
+    const before = saved[entity];
+    const after = draft[entity];
+    setError(null);
     start(async () => {
-      setError(null);
       try {
-        await saveStrategy(strategy, perSource);
+        // Sequential: strategy writes read-modify-write the shared assignment config.
+        if (entity === "inquiry") {
+          if (before.strategy !== after.strategy || JSON.stringify(sorted(before.perSource)) !== JSON.stringify(sorted(after.perSource))) {
+            await saveStrategy(after.strategy, after.perSource);
+          }
+        } else if (before.strategy !== after.strategy) {
+          await saveEntityStrategy(entity, after.strategy);
+        }
+        for (const [key, pool] of Object.entries(after.pools)) {
+          if (poolFingerprint(pool) === poolFingerprint(before.pools[key])) continue;
+          await saveMembership(entity, key === DEFAULT_POOL ? null : key, Object.entries(pool).map(([userId, weight]) => ({ userId, weight })));
+        }
+        setSaved((s) => ({ ...s, [entity]: after }));
+        setFlash(true);
+        clearTimeout(flashTimer.current);
+        flashTimer.current = setTimeout(() => setFlash(false), 1500);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
@@ -62,314 +120,243 @@ export function LeadAssignmentForm({
     });
   };
 
-  const staffName = (userId: string) => {
-    const s = staff.find((o) => o.userId === userId);
-    return s ? s.name ?? s.publicId : userId;
-  };
-
-  // The pseudo-sources rendered with a membership editor: each inbound source plus the default pool.
-  const pools: { key: string; sourceKey: string | null; label: string; allowOverride: boolean }[] = [
-    ...sources.map((src) => ({ key: src.key, sourceKey: src.key, label: src.label, allowOverride: true })),
-    { key: DEFAULT_POOL_KEY, sourceKey: null, label: "Default pool (fallback)", allowOverride: false },
-  ];
+  const defaultPool = state.pools[DEFAULT_POOL] ?? {};
+  const members = staff.filter((s) => s.userId in defaultPool).map((s) => ({ publicId: s.publicId, name: label(s), weight: defaultPool[s.userId] }));
+  const cursorKey = tab === "order" ? "orders" : tab === "ticket" ? "tickets" : undefined;
+  const summary = poolSummary(tab, state.strategy, members, cursorKey ? cursor[cursorKey] : undefined);
+  const showWeights = state.strategy === "percentage";
 
   return (
-    <div className="grid gap-8">
-      {error && <p className="text-destructive text-sm">{error}</p>}
+    <div className="grid gap-6">
+      <Tabs value={tab} onValueChange={changeTab}>
+        <TabsList>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+              {fingerprint(draft[t.value]) !== fingerprint(saved[t.value]) && <span className="bg-primary size-1.5 rounded-full" aria-label="Unsaved changes" />}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-      <div className="grid max-w-xl gap-4">
-        <div>
-          <Label>Global strategy</Label>
-          <Select value={strategy} onValueChange={(v) => setStrategy(v as Strategy)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {STRATEGIES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-muted-foreground mt-1 text-xs">Default routing for inbound inquiries with no per-source override.</p>
-        </div>
+      <section className="grid gap-3">
+        <h2 className="text-sm font-medium">How owners are chosen</h2>
+        <RadioGroup
+          value={state.strategy}
+          onValueChange={(v) => patch({ strategy: v as Strategy })}
+          className="grid-cols-1 gap-3 sm:grid-cols-3"
+          aria-label="How owners are chosen"
+        >
+          {CHOICES.map((c) => (
+            <label
+              key={c.value}
+              className={`has-data-[state=checked]:border-primary flex cursor-pointer flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-muted/50`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+                  <c.icon className="size-4" />
+                </span>
+                <RadioGroupItem value={c.value} />
+              </div>
+              <span className="text-sm font-medium">{c.title}</span>
+              <span className="text-muted-foreground text-xs">{c.line}</span>
+            </label>
+          ))}
+        </RadioGroup>
+      </section>
 
-        <div className="grid gap-2">
-          <Label>Per-source strategy overrides</Label>
+      <section className="grid gap-3">
+        <h2 className="text-sm font-medium">Who&apos;s in the pool</h2>
+        <PoolGroup
+          staff={staff}
+          pool={defaultPool}
+          onChange={(p) => setPool(DEFAULT_POOL, p)}
+          showWeights={showWeights}
+          footer={summary && <SummaryRow summary={summary} />}
+        />
+      </section>
+
+      {tab === "inquiry" && (
+        <section className="grid gap-3">
+          <div className="grid gap-1">
+            <h2 className="text-sm font-medium">Per source</h2>
+            <p className="text-muted-foreground text-xs">A source with its own strategy or pool overrides the default above. An empty pool falls back to the default pool.</p>
+          </div>
           {sources.length === 0 ? (
             <p className="text-muted-foreground text-sm">No inbound lead sources configured.</p>
           ) : (
-            sources.map((src) => (
-              <div key={src.key} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                <span className="text-sm">{src.label}</span>
-                <Select
-                  value={perSource[src.key] ?? DEFAULT_OVERRIDE}
-                  onValueChange={(v) => setOverride(src.key, v)}
-                >
-                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DEFAULT_OVERRIDE}>Default (global)</SelectItem>
-                    {STRATEGIES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))
+            sources.map((src) => {
+              const own = state.perSource[src.key];
+              return (
+                <div key={src.key} className="grid gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium">{src.label}</span>
+                    <Select
+                      value={own ?? DEFAULT_OVERRIDE}
+                      onValueChange={(v) => {
+                        const next = { ...state.perSource };
+                        if (v === DEFAULT_OVERRIDE) delete next[src.key];
+                        else next[src.key] = v as Strategy;
+                        patch({ perSource: next });
+                      }}
+                    >
+                      <SelectTrigger className="w-44" aria-label={`${src.label} strategy`}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={DEFAULT_OVERRIDE}>Default</SelectItem>
+                        {CHOICES.map((c) => <SelectItem key={c.value} value={c.value}>{c.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <PoolGroup
+                    staff={staff}
+                    pool={state.pools[src.key] ?? {}}
+                    onChange={(p) => setPool(src.key, p)}
+                    showWeights={(own ?? state.strategy) === "percentage"}
+                  />
+                </div>
+              );
+            })
           )}
-        </div>
+        </section>
+      )}
 
-        <Button onClick={saveStrategies} disabled={pending} className="w-fit">Save strategy</Button>
-      </div>
-
-      <div className="grid gap-6">
-        <div>
-          <Label>Pool membership</Label>
-          <p className="text-muted-foreground text-xs">
-            Members eligible for round-robin / percentage routing per source. The default pool is the fallback when a source has no members.
-          </p>
-        </div>
-        {pools.map((pool) => (
-          <PoolEditor
-            key={pool.key || "__default_pool__"}
-            entity="inquiry"
-            label={pool.label}
-            sourceKey={pool.sourceKey}
-            staff={staff}
-            staffName={staffName}
-            initial={membership[pool.key] ?? []}
-            onSaved={() => router.refresh()}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Exact loading twin: reuses the same grid/section layout as LeadAssignmentForm
-// (strategy block + per-source rows + pool cards) with grey blocks in place of
-// controls, so it always matches the real form by construction.
-export function LeadAssignmentFormSkeleton() {
-  return (
-    <div className="grid gap-8">
-      <div className="grid max-w-xl gap-4">
-        <div className="grid gap-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-3 w-64" />
-        </div>
-
-        <div className="grid gap-2">
-          <Skeleton className="h-4 w-48" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto] items-center gap-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-9 w-48" />
-            </div>
-          ))}
-        </div>
-
-        <Skeleton className="h-9 w-28" />
-      </div>
-
-      <div className="grid gap-6">
-        <div className="grid gap-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-full max-w-lg" />
-        </div>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <PoolEditor.Skeleton key={i} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-export function EntityAssignmentForm({
-  entity,
-  strategy: initialStrategy,
-  staff,
-  initial,
-}: {
-  entity: "order" | "ticket";
-  strategy: Strategy;
-  staff: StaffOption[];
-  initial: MemberRow[];
-}) {
-  const router = useRouter();
-  const [strategy, setStrategy] = useState<Strategy>(initialStrategy);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  const staffName = (userId: string) => {
-    const s = staff.find((o) => o.userId === userId);
-    return s ? s.name ?? s.publicId : userId;
-  };
-
-  const save = () =>
-    start(async () => {
-      setError(null);
-      try {
-        await saveEntityStrategy(entity, strategy);
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to save");
-      }
-    });
-
-  return (
-    <div className="grid max-w-xl gap-6">
-      {error && <p className="text-destructive text-sm">{error}</p>}
-      <div className="grid gap-2">
-        <Label>Strategy</Label>
-        <Select value={strategy} onValueChange={(v) => setStrategy(v as Strategy)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {STRATEGIES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-muted-foreground text-xs">Creator owns still rotates through the pool when no staff member created the record.</p>
-        <Button onClick={save} disabled={pending} className="w-fit">Save strategy</Button>
-      </div>
-      <PoolEditor entity={entity} label="Pool" sourceKey={null} staff={staff} staffName={staffName} initial={initial} onSaved={() => router.refresh()} />
-    </div>
-  );
-}
-
-export function EntityAssignmentFormSkeleton() {
-  return (
-    <div className="grid max-w-xl gap-6">
-      <div className="grid gap-2">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-3 w-64" />
-        <Skeleton className="h-9 w-28" />
-      </div>
-      <PoolEditor.Skeleton />
-    </div>
-  );
-}
-
-function PoolEditor({
-  entity,
-  label,
-  sourceKey,
-  staff,
-  staffName,
-  initial,
-  onSaved,
-}: {
-  entity: OwnerEntity;
-  label: string;
-  sourceKey: string | null;
-  staff: StaffOption[];
-  staffName: (userId: string) => string;
-  initial: MemberRow[];
-  onSaved: () => void;
-}) {
-  const [rows, setRows] = useState<MemberRow[]>(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  const used = new Set(rows.map((r) => r.userId));
-  const available = staff.filter((s) => !used.has(s.userId));
-
-  const addRow = () => {
-    const next = available[0];
-    if (!next) return;
-    setRows((prev) => [...prev, { userId: next.userId, weight: 1 }]);
-  };
-
-  const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
-
-  const setRowUser = (idx: number, userId: string) =>
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, userId } : r)));
-
-  const setRowWeight = (idx: number, weight: number) =>
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, weight } : r)));
-
-  const save = () => {
-    for (const r of rows) {
-      if (!Number.isFinite(r.weight) || r.weight < 0) {
-        setError(`Weight for ${staffName(r.userId)} must be a non-negative number`);
-        return;
-      }
-    }
-    start(async () => {
-      setError(null);
-      try {
-        await saveMembership(entity, sourceKey, rows);
-        onSaved();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to save");
-      }
-    });
-  };
-
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
-        <Button variant="outline" size="sm" onClick={addRow} disabled={available.length === 0}>
-          <PlusIcon className="size-4" /> Add member
+      <div className="sticky bottom-4 flex flex-col items-end gap-2">
+        {error && (
+          <Alert variant="destructive" className="w-full">
+            <AlertDescription className="flex items-center justify-between gap-3">
+              <span>{error}</span>
+              <Button size="sm" variant="outline" onClick={save} disabled={pending}>Retry</Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        <Button onClick={save} disabled={!dirty || pending} aria-live="polite">
+          {pending ? <Loader2Icon className="animate-spin" /> : flash && !dirty ? <CheckIcon /> : null}
+          {pending ? "Saving" : flash && !dirty ? "Saved" : "Save"}
         </Button>
       </div>
-      {error && <p className="text-destructive mb-2 text-sm">{error}</p>}
-      {rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No members.</p>
-      ) : (
-        <div className="grid gap-2">
-          {rows.map((row, idx) => {
-            const options = staff.filter((s) => s.userId === row.userId || !used.has(s.userId));
-            return (
-              <div key={`${row.userId}-${idx}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-                <Select value={row.userId} onValueChange={(v) => setRowUser(idx, v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {options.map((o) => (
-                      <SelectItem key={o.userId} value={o.userId}>{o.name ?? o.publicId}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  className="w-24"
-                  value={String(row.weight)}
-                  onChange={(e) => setRowWeight(idx, Number(e.target.value))}
-                />
-                <Button variant="ghost" size="icon" onClick={() => removeRow(idx)} aria-label="Remove member">
-                  <Trash2Icon className="size-4" />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <Button onClick={save} disabled={pending} size="sm" className="mt-3 w-fit">Save members</Button>
     </div>
   );
 }
 
-// Loading twin for a single pool card: same border card + header + member-row
-// grid (1fr_auto_auto) markup as PoolEditor, with grey blocks.
-PoolEditor.Skeleton = function PoolEditorSkeleton() {
+function SummaryRow({ summary }: { summary: { lead: string; name: string | null; tail: string } }) {
   return (
-    <div className="rounded-lg border p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-8 w-28" />
-      </div>
-      <div className="grid gap-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="size-9" />
-          </div>
-        ))}
-      </div>
-      <Skeleton className="mt-3 h-8 w-28" />
+    <div className="bg-muted/40 flex items-center gap-3 px-4 py-3">
+      {summary.name && <Initial name={summary.name} />}
+      <p className="text-sm">
+        {summary.lead}
+        {summary.name && <b className="font-semibold">{summary.name}</b>}
+        {summary.tail}
+      </p>
     </div>
   );
-};
+}
+
+function Initial({ name }: { name: string }) {
+  return (
+    <Avatar size="sm">
+      <AvatarFallback>{name.trim().charAt(0).toUpperCase()}</AvatarFallback>
+    </Avatar>
+  );
+}
+
+function PoolGroup({
+  staff,
+  pool,
+  onChange,
+  showWeights,
+  footer,
+}: {
+  staff: StaffOption[];
+  pool: Pool;
+  onChange: (p: Pool) => void;
+  showWeights: boolean;
+  footer?: ReactNode;
+}) {
+  const inPool = staff.filter((s) => s.userId in pool);
+  const total = inPool.map((s) => ({ weight: pool[s.userId] }));
+  return (
+    <Card className="gap-0 py-0">
+      {staff.map((s, i) => {
+        const on = s.userId in pool;
+        return (
+          <div key={s.userId}>
+            {i > 0 && <Separator />}
+            <PoolRow
+              name={label(s)}
+              on={on}
+              weight={pool[s.userId] ?? 1}
+              share={on ? sharePct(pool[s.userId], total) : 0}
+              showWeight={showWeights && on}
+              onToggle={(next) => {
+                const copy = { ...pool };
+                if (next) copy[s.userId] = 1;
+                else delete copy[s.userId];
+                onChange(copy);
+              }}
+              onWeight={(w) => onChange({ ...pool, [s.userId]: w })}
+            />
+          </div>
+        );
+      })}
+      {inPool.length === 0 && (
+        <>
+          {staff.length > 0 && <Separator />}
+          <p className="text-muted-foreground px-4 py-3 text-sm">No one in the pool. Turn someone on above.</p>
+        </>
+      )}
+      {footer && (
+        <>
+          <Separator />
+          {footer}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function PoolRow({
+  name,
+  on,
+  weight,
+  share,
+  showWeight,
+  onToggle,
+  onWeight,
+}: {
+  name: string;
+  on: boolean;
+  weight: number;
+  share: number;
+  showWeight: boolean;
+  onToggle: (on: boolean) => void;
+  onWeight: (w: number) => void;
+}) {
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 transition-opacity ${EASE} ${on ? "" : "opacity-60"}`}>
+      <Initial name={name} />
+      <div className="grid min-w-0 flex-1 gap-1.5">
+        <span className="truncate text-sm">{name}</span>
+        {showWeight && (
+          <div className={`animate-in fade-in flex items-center gap-2 motion-reduce:animate-none ${EASE}`}>
+            <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full" role="progressbar" aria-valuenow={share} aria-valuemin={0} aria-valuemax={100} aria-label={`${name} share`}>
+              <div className={`bg-primary h-full w-full origin-left transition-transform ${EASE}`} style={{ transform: `scaleX(${share / 100})` }} />
+            </div>
+            <span className="text-muted-foreground w-9 text-right text-xs tabular-nums">{share}%</span>
+          </div>
+        )}
+      </div>
+      {showWeight && (
+        <div className={`animate-in fade-in flex items-center gap-1 motion-reduce:animate-none ${EASE}`}>
+          <Button variant="outline" size="icon-sm" aria-label={`Decrease ${name} weight`} disabled={weight <= 1} onClick={() => onWeight(weight - 1)}>
+            <MinusIcon />
+          </Button>
+          <span className="w-6 text-center text-sm tabular-nums">{weight}</span>
+          <Button variant="outline" size="icon-sm" aria-label={`Increase ${name} weight`} onClick={() => onWeight(weight + 1)}>
+            <PlusIcon />
+          </Button>
+        </div>
+      )}
+      <Switch checked={on} onCheckedChange={onToggle} aria-label={`${name} in pool`} />
+    </div>
+  );
+}

@@ -1,21 +1,28 @@
 import { Suspense } from "react";
 import { and, eq, ne } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
+import { Card } from "@foundry/ui/card";
+import { Separator } from "@foundry/ui/separator";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
 import { listConfig } from "@/lib/services/owner-pool.service";
-import { PageHeader, SectionCard } from "@/components/ds";
-import { EntityAssignmentForm, EntityAssignmentFormSkeleton, LeadAssignmentForm, LeadAssignmentFormSkeleton } from "./form";
+import { PageHeader } from "@/components/ds";
+import { OwnerAssignmentForm, type TabState, type TabStates } from "./form";
 import type { OwnerEntity } from "@/lib/services/assignment";
 
-export default function OwnerAssignmentPage() {
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+const ENTITIES: OwnerEntity[] = ["inquiry", "order", "ticket"];
+
+export default function OwnerAssignmentPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="grid gap-6">
-      <PageHeader icon={UsersIcon} title="Owner assignment" />
+      <PageHeader icon={UsersIcon} title="Owner assignment" subtitle="Who new leads, orders and tickets go to." />
       <Suspense fallback={<OwnerAssignmentSkeleton />}>
-        <OwnerAssignmentData />
+        <OwnerAssignmentData searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -23,26 +30,58 @@ export default function OwnerAssignmentPage() {
 
 function OwnerAssignmentSkeleton() {
   return (
-    <>
-      <SectionCard title="Inquiries" subtitle="Routing strategy, per-source overrides, and pool membership.">
-        <LeadAssignmentFormSkeleton />
-      </SectionCard>
-      <SectionCard title="Orders" subtitle="Who owns orders nobody created by hand.">
-        <EntityAssignmentFormSkeleton />
-      </SectionCard>
-      <SectionCard title="Tickets" subtitle="Who owns new tickets until staff reply.">
-        <EntityAssignmentFormSkeleton />
-      </SectionCard>
-    </>
+    <div className="grid gap-6">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid gap-3">
+        <Skeleton className="h-4 w-40" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="grid gap-2 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="size-8" />
+                <Skeleton className="size-4 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-3">
+        <Skeleton className="h-4 w-32" />
+        <Card className="gap-0 py-0">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i}>
+              {i > 0 && <Separator />}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-[18px] w-8 rounded-full" />
+              </div>
+            </div>
+          ))}
+          <Separator />
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Skeleton className="size-6 rounded-full" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+        </Card>
+      </div>
+      <div className="flex justify-end">
+        <Skeleton className="h-8 w-16" />
+      </div>
+    </div>
   );
 }
 
-async function OwnerAssignmentData() {
+async function OwnerAssignmentData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
+  const sp = await searchParams;
+  const initialEntity = ENTITIES.find((e) => e === sp.entity) ?? "inquiry";
   const [cfg, sources, staff, inquiryConfig, orderConfig, ticketConfig] = await Promise.all([
     getLeadAssignment(),
     db
-      .select({ key: leadSources.key, label: leadSources.label, isInbound: leadSources.isInbound })
+      .select({ key: leadSources.key, label: leadSources.label })
       .from(leadSources)
       .where(and(eq(leadSources.active, true), eq(leadSources.isInbound, true))),
     db
@@ -54,42 +93,21 @@ async function OwnerAssignmentData() {
     listConfig("ticket"),
   ]);
 
-  const staffOptions = staff.map((s) => ({
-    userId: String(s.userId),
-    publicId: s.publicId,
-    name: s.name,
-  }));
-
+  const staffOptions = staff.map((s) => ({ userId: String(s.userId), publicId: s.publicId, name: s.name }));
   const idByPublicId = new Map(staffOptions.map((s) => [s.publicId, s.userId]));
-  const members = (rows: typeof inquiryConfig) =>
-    rows.flatMap((row) => {
+  const pools = (rows: typeof inquiryConfig) => {
+    const out: TabState["pools"] = { "": {} };
+    for (const row of rows) {
       const userId = idByPublicId.get(row.userPublicId);
-      return userId ? [{ userId, weight: row.weight }] : [];
-    });
-  const membership: Record<string, { userId: string; weight: number }[]> = {};
-  for (const row of inquiryConfig) {
-    const userId = idByPublicId.get(row.userPublicId);
-    if (!userId) continue;
-    (membership[row.sourceKey ?? ""] ??= []).push({ userId, weight: row.weight });
-  }
-  const entityCard = (entity: Exclude<OwnerEntity, "inquiry">, title: string, subtitle: string, rows: typeof inquiryConfig) => (
-    <SectionCard title={title} subtitle={subtitle}>
-      <EntityAssignmentForm
-        entity={entity}
-        strategy={(entity === "order" ? cfg.orders : cfg.tickets)?.strategy ?? "creator"}
-        staff={staffOptions}
-        initial={members(rows)}
-      />
-    </SectionCard>
-  );
+      if (userId) (out[row.sourceKey ?? ""] ??= {})[userId] = row.weight;
+    }
+    return out;
+  };
+  const initial: TabStates = {
+    inquiry: { strategy: cfg.strategy, perSource: cfg.perSource, pools: pools(inquiryConfig) },
+    order: { strategy: cfg.orders?.strategy ?? "creator", perSource: {}, pools: pools(orderConfig) },
+    ticket: { strategy: cfg.tickets?.strategy ?? "creator", perSource: {}, pools: pools(ticketConfig) },
+  };
 
-  return (
-    <>
-      <SectionCard title="Inquiries" subtitle="Routing strategy, per-source overrides, and pool membership.">
-        <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
-      </SectionCard>
-      {entityCard("order", "Orders", "A converted inquiry keeps its owner, and staff own orders they create. Other orders (customer checkout, renewals) come from this pool, then the default inquiry pool, then any active staff.", orderConfig)}
-      {entityCard("ticket", "Tickets", "A staff member who creates a ticket owns it; new customer tickets come from this pool, then any active staff. The first staff reply claims a ticket owned by no staff member.", ticketConfig)}
-    </>
-  );
+  return <OwnerAssignmentForm initialEntity={initialEntity} initial={initial} sources={sources} staff={staffOptions} cursor={cfg.cursor} />;
 }
