@@ -80,6 +80,9 @@ Read these before porting tiffin-grab or copper-cloves.
 - Measured `/` and `/whats-on`: EC2 ~0.5-0.65 s; Worker warm ~0.6-1.2 s; cold 1.5-3 s.
 
 **Setup gotchas**
+- **Create Hyperdrive with `--caching-disabled true`.** The default caches SELECTs for ~60 s,
+  so a page read right after a write (booking, settings save) can show old data. xplorers
+  shipped with it on and was switched off on 2026-11-02.
 - OpenNext's `deploy` starts a local wrangler, so **every env needs a Hyperdrive
   `localConnectionString`**, and local Hyperdrive rejects a URL without a password.
 - Set `"workers_dev": false` and `"preview_urls": false`, or the prod Worker is public on
