@@ -1,0 +1,54 @@
+// xplorers on Cloudflare Workers (OpenNext). Secrets are never in this file; set them with
+// `wrangler secret put <NAME> [--env preview]`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID,
+// GOOGLE_CLIENT_SECRET, REALTIME_SECRET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+// FILES_S3_ACCESS_KEY_ID, FILES_S3_SECRET_ACCESS_KEY. Runbook: deployment/cloudflare/README.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "xplorers",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+  "observability": { "enabled": true },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "xplorers" }],
+  // TODO(task 6): real Hyperdrive id (direct Neon endpoint, production branch).
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000000000000000000000000000",
+      "localConnectionString": "postgres://localhost:5432/xplorers"
+    }
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info",
+    "AWS_REGION": "ap-southeast-1",
+    "FILES_S3_REGION": "ap-southeast-1",
+    "FILES_S3_BUCKET": "xplorers-files-947042607945-ap-southeast-1-an",
+    "NOTIFY_FROM_EMAIL": "hello@xplorers.a6n.ai",
+    "NOTIFY_FROM_NAME": "Xplorers",
+    "SES_CONFIGURATION_SET": "xplorers-prod",
+    "BETTER_AUTH_URL": "https://xplorers.a6n.ai",
+    "REALTIME_URL": "https://rt.xplorers.a6n.ai"
+  },
+  "env": {
+    "preview": {
+      "name": "xplorers-preview",
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "xplorers-preview" }],
+      // TODO(task 6): Hyperdrive id for the Neon `preview` branch.
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "00000000000000000000000000000000" }],
+      "vars": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info",
+        "AWS_REGION": "ap-southeast-1",
+        "FILES_S3_REGION": "ap-southeast-1",
+        "FILES_S3_BUCKET": "xplorers-files-947042607945-ap-southeast-1-an",
+        "NOTIFY_FROM_EMAIL": "hello@xplorers.a6n.ai",
+        "NOTIFY_FROM_NAME": "Xplorers",
+        "SES_CONFIGURATION_SET": "xplorers-prod",
+        "BETTER_AUTH_URL": "https://next.xplorers.a6n.ai",
+        "REALTIME_URL": "https://rt.xplorers.a6n.ai"
+      }
+    }
+  }
+}

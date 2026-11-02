@@ -8,6 +8,8 @@ import { REF_COOKIE, REF_RE } from "@/lib/friends/ref-cookie";
 import type { Relation } from "@foundry/friends";
 import { friendsService } from "@/lib/services/friends.service";
 
+// ponytail: in-memory counter, per process on EC2 and per isolate on Workers, so
+// best effort only. Move to Postgres if friend-search abuse shows up.
 const SEARCH_LIMIT = 30;
 const SEARCH_WINDOW_MS = 60_000;
 // Server actions take client input: never index the service with a raw string.
