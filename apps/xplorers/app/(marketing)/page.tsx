@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { Suspense, type CSSProperties } from "react";
 import Image from "next/image";
 import { Check, Hammer, Heart, MapPin, Sparkle, Users } from "lucide-react";
 import { SITE_NAME, SITE_PITCH, SITE_TAGLINE } from "@/lib/brand";
@@ -16,8 +16,8 @@ import {
   TrustBar,
   stagger,
 } from "@/components/marketing/ui";
-import { ClassCard } from "@/components/marketing/class-card";
-import { loadPublicClasses } from "@/lib/sessions/public";
+import { HomeClasses } from "@/components/marketing/home-classes";
+import { SectionFallback } from "@/components/marketing/section-fallback";
 import { PublicCalendar } from "@/components/marketing/public-calendar";
 import { GlobalPriceTable } from "@/components/marketing/global-price-table";
 import { HomeSessions } from "@/components/marketing/home-sessions";
@@ -33,12 +33,13 @@ export const dynamic = "force-dynamic";
 const pad = (pt: number, pb: number) => ({ "--pt": `${pt}px`, "--pb": `${pb}px` }) as CSSProperties;
 const HOME_CLASSES = 6;
 
-export default async function HomePage({
+// Static copy renders and streams at once; each data section streams in behind its
+// own Suspense boundary, so a slow query or cold start never blanks the page.
+export default function HomePage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const [classes, sp] = await Promise.all([loadPublicClasses(), searchParams]);
   return (
     <>
       <section id="top" className="xl-wrap xl-hero">
@@ -85,15 +86,9 @@ export default async function HomePage({
           title="Find your kind of discovery."
           lede="Our classes with their next dates. Pick one and book a seat for each child."
         />
-        {classes.length === 0 ? (
-          <p className="xl-body">New classes are on their way. Private sessions run Monday to Saturday by arrangement.</p>
-        ) : (
-          <div className="xl-grid">
-            {classes.slice(0, HOME_CLASSES).map((c) => (
-              <ClassCard key={c.publicId} item={c} />
-            ))}
-          </div>
-        )}
+        <Suspense fallback={<SectionFallback height={420} label="Loading classes" />}>
+          <HomeClasses limit={HOME_CLASSES} />
+        </Suspense>
         <div className="xl-row" style={{ marginTop: 28 }}>
           <Button href="/classes" icon="arrow-right">
             See all classes
@@ -106,10 +101,20 @@ export default async function HomePage({
 
       <section id="calendar" className="xl-wrap xl-section" style={pad(64, 16)}>
         <SectionHeading eyebrow="Your week at Xplorers.Life" title="A little discovery, every week." />
-        <PublicCalendar searchParams={sp} />
+        <Suspense fallback={<SectionFallback height={560} label="Loading calendar" />}>
+          <PublicCalendar searchParams={searchParams} />
+        </Suspense>
       </section>
 
-      <HomeSessions />
+      <Suspense
+        fallback={
+          <section className="xl-wrap xl-section">
+            <SectionFallback height={320} label="Loading sessions" />
+          </section>
+        }
+      >
+        <HomeSessions />
+      </Suspense>
 
       <section id="pricing" className="xl-wrap xl-section" style={pad(72, 24)}>
         <SectionHeading eyebrow="Plan your visit" title="Simple prices. Plenty to discover." />
@@ -118,7 +123,9 @@ export default async function HomePage({
             <Eyebrow tone="deep">A little visit or a longer adventure?</Eyebrow>
             <h3 className="xl-panel-title">One simple price. More ways to explore.</h3>
           </div>
-          <GlobalPriceTable />
+          <Suspense fallback={<SectionFallback height={240} label="Loading prices" />}>
+            <GlobalPriceTable />
+          </Suspense>
         </div>
       </section>
 

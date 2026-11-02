@@ -1079,6 +1079,13 @@ body:has(.xl):not(:has(.crm-app)) {
     background: var(--surface-card);
   }
 
+  /* Streamed-section placeholder: holds the space while a data section loads. */
+  .xl-fallback {
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-card);
+    background: var(--xl-paper);
+  }
+
   .xl-sessions {
     list-style: none;
     padding: 0;

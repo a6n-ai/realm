@@ -6,8 +6,16 @@ import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { dayKey } from "@/lib/sessions/timezone";
 
 /** Published sessions on the shared calendar; a click goes to booking, or to login first. */
-export async function PublicCalendar({ searchParams }: { searchParams: Record<string, string | undefined> }) {
-  const [timeZone, session] = await Promise.all([studioSessionsService.timezone(), getSession()]);
+export async function PublicCalendar({
+  searchParams: searchParamsPromise,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const [timeZone, session, searchParams] = await Promise.all([
+    studioSessionsService.timezone(),
+    getSession(),
+    searchParamsPromise,
+  ]);
   const today = dayKey(new Date(), timeZone);
   const grid = monthGrid(today.slice(0, 7));
   const { from, to } = parseRange(searchParams.from, searchParams.to, {
