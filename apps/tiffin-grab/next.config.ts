@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
   // Read with fs at request time, so the tracer can't see them.
-  outputFileTracingIncludes: { "/api/refer-card/[code]": ["./assets/refer/**"] },
+  outputFileTracingIncludes: { "/api/refer-card/[code]": ["./public/refer-card/**"] },
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).

@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImageResponse } from "next/og";
+import { referCardAssets } from "@/lib/referrals/card-assets";
 import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { friendOfferParts } from "@/lib/referrals/share";
 import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
@@ -10,10 +9,7 @@ import { walletService } from "@/lib/services/wallet.service";
 // Public (see PUBLIC_API in proxy.ts): WhatsApp and other link-preview crawlers fetch it with no cookie.
 // The image shows the code, the public offer and the referrer's first name, nothing else about them.
 
-// Standalone server.js chdirs to the app dir; next.config.ts traces assets/refer into the build.
-const asset = (name: string) => readFile(path.join(process.cwd(), "assets/refer", name));
-const assets = Promise.all([asset("Poppins-Bold.ttf"), asset("Poppins-Medium.ttf"), asset("tiffin.png"), asset("mark.png")]);
-const dataUrl = (png: Buffer) => `data:image/png;base64,${png.toString("base64")}`;
+const dataUrl = (png: ArrayBuffer) => `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
 
 // ?theme=dark matches the app's dark mode (same #14201A ground). Light is the brand default and
 // what link previews use. Text pairs keep 4.5:1 or better on their ground.
@@ -58,7 +54,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
   const L = LAYOUT[og ? "og" : "phone"];
   const T = THEMES[new URL(req.url).searchParams.get("theme") === "dark" ? "dark" : "light"];
 
-  const [referrer, [bold, medium, tiffin, mark], settings, { currency }] = await Promise.all([findReferrerByCode(code), assets, getReferralSettings(), getAppSettings()]);
+  const [referrer, [bold, medium, tiffin, mark], settings, { currency }] = await Promise.all([findReferrerByCode(code), referCardAssets(req.url), getReferralSettings(), getAppSettings()]);
   // No card for codes that don't belong to an active customer.
   if (!referrer) return new Response("Not found", { status: 404 });
   const perCoin = await walletService.activeRate(currency).catch(() => null);
@@ -117,7 +113,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
     </div>
   );
 
-  // assets/refer/tiffin.png is the landing figure (public/landing/tiffin-figure-1440.webp), trimmed: 900x652, transparent.
+  // public/refer-card/tiffin.png is the landing figure (public/landing/tiffin-figure-1440.webp), trimmed: 900x652, transparent.
   const artHeight = Math.round((L.art * 652) / 900);
   const art = (
     // eslint-disable-next-line @next/next/no-img-element -- Satori renders plain img only
