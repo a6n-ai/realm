@@ -52,29 +52,23 @@ function corsHeaders(origin: string | null): Headers {
 
 // The organization table is a handful of rows, but every public request (and
 // every RSC prefetch) did up to 3 sequential lookups here before routing.
-// ponytail: per-process 60s snapshot; a new/renamed org shows up within a minute.
-// Move to a shared cache if this app ever runs more than one process.
+// ponytail: 60s snapshot per process/isolate; a new/renamed org shows up within a
+// minute. Only the plain-data snapshot is shared: an in-flight query promise must
+// not be, because Workers reject I/O started by another request.
 type OrgSnapshot = { byCode: Map<string, string>; defaultId: string | null; at: number };
 let orgSnapshot: OrgSnapshot | null = null;
-let orgLoad: Promise<OrgSnapshot> | null = null;
 // Tests rewrite org rows between requests, so they always read fresh.
 const ORG_TTL_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
 
-function orgs(): Promise<OrgSnapshot> {
-  if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return Promise.resolve(orgSnapshot);
-  orgLoad ??= db
+async function orgs(): Promise<OrgSnapshot> {
+  if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return orgSnapshot;
+  const rows = await db
     .select({ id: organization.id, clientCode: organization.clientCode, isDefault: organization.isDefaultLocation })
-    .from(organization)
-    .then((rows) => {
-      const byCode = new Map<string, string>();
-      for (const r of rows) if (r.clientCode) byCode.set(r.clientCode, r.id);
-      orgSnapshot = { byCode, defaultId: rows.find((r) => r.isDefault)?.id ?? null, at: Date.now() };
-      return orgSnapshot;
-    })
-    .finally(() => {
-      orgLoad = null;
-    });
-  return orgLoad;
+    .from(organization);
+  const byCode = new Map<string, string>();
+  for (const r of rows) if (r.clientCode) byCode.set(r.clientCode, r.id);
+  orgSnapshot = { byCode, defaultId: rows.find((r) => r.isDefault)?.id ?? null, at: Date.now() };
+  return orgSnapshot;
 }
 
 function unauthorized(): NextResponse {

@@ -2,6 +2,7 @@
 
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
+import { runInBackground } from "@/lib/runtime/background";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, mealSizeItems, orders } from "@/db/schema";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -150,11 +151,16 @@ export async function loadPickGrid(
       if (isMismatch) {
         row.categoryCounts = liveCounts;
         row.mealSlots = Object.keys(liveCounts);
-        void db
-          .update(orders)
-          .set({ categoryCounts: liveCounts, mealSlots: row.mealSlots, updatedAt: Date.now() })
-          .where(eq(orders.id, row.id))
-          .catch(() => {});
+        const { id } = row;
+        const mealSlots = row.mealSlots;
+        runInBackground(
+          () =>
+            db
+              .update(orders)
+              .set({ categoryCounts: liveCounts, mealSlots, updatedAt: Date.now() })
+              .where(eq(orders.id, id)),
+          "pick-grid-repair",
+        );
       }
     }
 

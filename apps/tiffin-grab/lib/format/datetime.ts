@@ -1,4 +1,5 @@
 import { parseIsoDateUtc } from "@foundry/commons";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 export function epochToDate(ms: number): Date {
   return new Date(ms);
@@ -36,7 +37,7 @@ export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
   // day-detail panel, which (unlike the old card list) renders a formatted date unconditionally
   // on first paint.
   const { mode = "datetime", timeZone, withZone, locale = "en-US" } = opts;
-  return new Intl.DateTimeFormat(locale, {
+  return dateTimeFormat(locale, {
     ...PRESETS[mode],
     timeZone,
     ...(withZone ? { timeZoneName: "short" } : {}),
@@ -70,7 +71,7 @@ export function formatDateOnly(
 ): string {
   // See formatEpoch's comment: a fixed default locale avoids a server-vs-client Intl mismatch.
   const { mode = "long", locale = "en-US" } = opts;
-  return new Intl.DateTimeFormat(locale, {
+  return dateTimeFormat(locale, {
     ...DATE_ONLY_PRESETS[mode],
     timeZone: "UTC",
   }).format(parseIsoDateUtc(iso));

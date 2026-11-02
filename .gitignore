@@ -113,3 +113,6 @@ apps/tiffin-grab/db/migrations-manual/
 
 # VibeWise learner notes (local only)
 .vibe-wise/
+.dev.vars
+.open-next
+.wrangler

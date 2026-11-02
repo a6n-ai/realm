@@ -1,10 +1,15 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { isWorkers } from "@/lib/runtime/platform";
 import * as schema from "./schema";
 
-// Next.js loads .env.local; standalone tsx scripts (seeds) don't. Fill it in
-// when missing. No-op under Next (already set) and in prod (file absent).
-if (!process.env.DATABASE_URL) {
+type Pg = ReturnType<typeof postgres>;
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+const onWorkers = isWorkers();
+
+if (!onWorkers && !process.env.DATABASE_URL) {
   try {
     process.loadEnvFile(".env.local");
   } catch {
@@ -12,26 +17,48 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is not set");
+function nodeDb(): Db {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is not set");
+  const globalForDb = globalThis as typeof globalThis & { __tiffinGrabPg?: Pg };
+  const client =
+    globalForDb.__tiffinGrabPg ??
+    postgres(connectionString, {
+      max: process.env.NODE_ENV === "production" ? 10 : 4,
+      idle_timeout: 20,
+      max_lifetime: 60 * 30,
+      prepare: false,
+    });
+  if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+  return drizzle(client, { schema });
+}
 
-type Pg = ReturnType<typeof postgres>;
-const globalForDb = globalThis as typeof globalThis & { __tiffinGrabPg?: Pg };
+// Workers forbid reusing a socket across requests, so each request gets its own
+// small client, keyed on its ExecutionContext. Hyperdrive does the real pooling; a
+// few connections let a page's parallel queries actually run in parallel.
+const perRequest = new WeakMap<object, Db>();
 
-// Cache the pool on globalThis. Turbopack re-evaluates this module on HMR and
-// would otherwise open a new 10-connection pool each time without ending the
-// old one — local Postgres max_connections (100) fills in under an hour of
-// `next dev`, then every query dies with "too many clients already".
-const poolSize = process.env.NODE_ENV === "production" ? 10 : 4;
-const client =
-  globalForDb.__tiffinGrabPg ??
-  postgres(connectionString, {
-    max: poolSize,
-    idle_timeout: 20,
-    max_lifetime: 60 * 30,
-    prepare: false,
-  });
-if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+function requestDb(): Db {
+  const { env, ctx } = getCloudflareContext();
+  let d = perRequest.get(ctx);
+  if (!d) {
+    const hd = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
+    if (!hd) throw new Error("HYPERDRIVE binding missing");
+    d = drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema });
+    perRequest.set(ctx, d);
+  }
+  return d;
+}
 
-export const db = drizzle(client, { schema });
+// Node keeps the plain singleton (tests spy on it). On Workers each property
+// access resolves the current request's client.
+export const db: Db = onWorkers
+  ? new Proxy({} as Db, {
+      get(_t, prop) {
+        const target = requestDb();
+        const v = Reflect.get(target, prop, target);
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    })
+  : nodeDb();
 export { schema };
