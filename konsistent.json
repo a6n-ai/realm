@@ -81,6 +81,7 @@
     "!apps/*/wrangler.jsonc",
         "!apps/*/proxy.ts",
         "!apps/*/proxy.test.ts",
+    "!apps/*/proxy.*.test.ts",
         "!apps/*/instrumentation.ts",
         "!apps/*/AGENTS.md",
         "!apps/*/CLAUDE.md",

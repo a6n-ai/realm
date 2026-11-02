@@ -22,6 +22,12 @@ describe("otp caps hold across two calls on the DB path", () => {
     expect(r.filter(Boolean)).toHaveLength(30);
   });
 
+  it("refused attempts from one IP do not lock the address", async () => {
+    for (let i = 0; i < 6; i++) expect(await allowOtpTo("t6-d@target.ca", "6.6.6.6")).toBe(true);
+    for (let i = 0; i < 50; i++) expect(await allowOtpTo("t6-d@target.ca", "6.6.6.6")).toBe(false);
+    expect(await allowOtpTo("t6-d@target.ca", "1.2.3.4")).toBe(true);
+  });
+
   it("resets an expired window", async () => {
     for (let i = 0; i < 6; i++) await allowOtpTo("t6-c@target.ca", "6.6.6.6");
     await db.update(otpThrottle).set({ windowStart: 1 }).where(like(otpThrottle.key, "t6-c%"));
