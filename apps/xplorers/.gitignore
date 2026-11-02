@@ -9,3 +9,6 @@ out/
 
 # local drizzle / files
 .files-storage/
+.dev.vars
+.open-next
+.wrangler

@@ -30,6 +30,7 @@
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
     "@hookform/resolvers": "^6.0.0",
+    "@opennextjs/cloudflare": "1.20.13",
     "@relay/email": "github:a6n-ai/relay#path:packages/email",
     "@relay/engine": "github:a6n-ai/relay#path:packages/engine",
     "better-auth": "1.7.12",
@@ -66,6 +67,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "4.152.0"
   }
 }
