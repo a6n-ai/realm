@@ -1,4 +1,5 @@
 import { ValidationError } from "@foundry/commons";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 type DateParts = {
   year: string;
@@ -10,7 +11,7 @@ type DateParts = {
 };
 
 function zonedParts(date: Date, timeZone: string): DateParts {
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = dateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
     year: "numeric",

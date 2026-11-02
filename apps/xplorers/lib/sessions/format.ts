@@ -4,6 +4,7 @@ import type { ClassBookingType } from "@/db/schema/studio";
 import { priceLine } from "@/lib/pricing/price-line";
 import type { PriceTable } from "@/lib/pricing/types";
 import { dayKey } from "./timezone";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 export type BoardTone = "muted" | "action" | "ink";
 
@@ -39,7 +40,7 @@ export const ATTENDANCE_LABELS: Record<AttendanceMode, string> = {
 };
 
 export function formatSessionTime(startsAt: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-SG", {
+  return dateTimeFormat("en-SG", {
     timeZone,
     hour: "numeric",
     minute: "2-digit",
@@ -48,7 +49,7 @@ export function formatSessionTime(startsAt: Date, timeZone: string): string {
 }
 
 export function formatSessionDay(startsAt: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-SG", {
+  return dateTimeFormat("en-SG", {
     timeZone,
     weekday: "short",
     day: "numeric",

@@ -1,3 +1,5 @@
+import { dateTimeFormat } from "@/lib/intl/date-format";
+
 export const CURRENCIES = ["CAD", "SGD", "USD", "EUR", "GBP", "AUD", "INR"] as const;
 export type AppCurrency = (typeof CURRENCIES)[number];
 
@@ -11,7 +13,7 @@ export function isIanaTimeZone(tz: string): boolean {
 }
 
 export function formatAppWhen(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-SG", {
+  return dateTimeFormat("en-SG", {
     timeZone,
     dateStyle: "medium",
     timeStyle: "short",
@@ -19,5 +21,5 @@ export function formatAppWhen(ms: number, timeZone: string): string {
 }
 
 export function formatAppDay(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-SG", { timeZone, dateStyle: "medium" }).format(new Date(ms));
+  return dateTimeFormat("en-SG", { timeZone, dateStyle: "medium" }).format(new Date(ms));
 }
