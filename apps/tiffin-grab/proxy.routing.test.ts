@@ -26,7 +26,7 @@ describe("apex/www front door", () => {
 
   it.each([
     "/menu/weekly", "/sitemap.xml", "/", "/pricing", "/terms-and-conditions/", "/legal/", "/robots.txt",
-    "/api/files/a/b.jpg", "/lottie/x.json", "/uploads/x.png", "/landing/figure.json", "/favicon.ico",
+    "/api/files/a/b.jpg", "/lottie/x.json", "/uploads/x.png", "/landing/figure.json", "/vendor/maplibre-gl-worker-6.15.0.mjs", "/favicon.ico",
     "/logo.svg", "/opengraph-image.png", "/twitter-image.png", "/_next/static/x.js",
   ])("passes %s through to the app on the apex", async (p) => {
     const res = await get(`https://tiffingrab.ca${p}`);
