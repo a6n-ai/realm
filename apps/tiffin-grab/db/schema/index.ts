@@ -4,6 +4,7 @@ export * from "./user-feature-flags";
 export * from "./catalog";
 export * from "./orders";
 export * from "./holidays";
+export * from "./promotions";
 export * from "./deliveries";
 export * from "./coupons";
 export * from "./inquiries";

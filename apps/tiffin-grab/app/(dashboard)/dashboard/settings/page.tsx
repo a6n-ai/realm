@@ -6,6 +6,7 @@ import {
   ClockIcon,
   CreditCardIcon,
   HelpCircleIcon,
+  MegaphoneIcon,
   PuzzleIcon,
   ScrollTextIcon,
   SettingsIcon,
@@ -65,6 +66,13 @@ export default async function SettingsPage() {
       description: "Days the kitchen is closed and how affected deliveries are placed.",
       icon: CalendarOffIcon,
       href: "/dashboard/settings/holidays",
+    },
+    {
+      key: "promotions",
+      label: "Promotions",
+      description: "Hero sticker, popup and offers carousel on the home page.",
+      icon: MegaphoneIcon,
+      href: "/dashboard/settings/promotions",
     },
     {
       key: "lead-sources",

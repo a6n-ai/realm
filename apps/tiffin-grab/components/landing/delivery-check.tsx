@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+const MAPLIBRE_WORKER = "/vendor/maplibre-gl-worker-6.15.0.mjs";
 import { afterFirstInput } from "@/lib/landing/wake";
 import { checkDelivery, type DeliveryCheck as Result } from "@/lib/landing/check-delivery";
 
@@ -28,7 +30,12 @@ const STYLE = {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
   },
-  layers: [{ id: "osm", type: "raster" as const, source: "osm", paint: { "raster-saturation": -0.9, "raster-brightness-min": 0.08, "raster-contrast": -0.15 } }],
+  // Raster tiles bake the city names in, so pins always landed on them. Washing the tiles
+  // over cream pushes those names back; the pins and our own name chips lead.
+  layers: [
+    { id: "cream", type: "background" as const, paint: { "background-color": "#FBF4E7" } },
+    { id: "osm", type: "raster" as const, source: "osm", paint: { "raster-saturation": -1, "raster-brightness-min": 0.1, "raster-contrast": -0.25, "raster-opacity": 0.55 } },
+  ],
 };
 
 const km = (a: Point, b: Point) => {
@@ -87,6 +94,10 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
       if (cancelled) return;
       const ml = await import("maplibre-gl");
       if (cancelled) return;
+      // MapLibre looks for its worker beside its own chunk, which the bundler never emits, so
+      // tiles never loaded ("Worker failed to load"). Serve a copy from public/ instead; the
+      // version in the name must match package.json (re-copy from node_modules/maplibre-gl/dist on upgrade).
+      ml.setWorkerUrl(MAPLIBRE_WORKER);
       lib.current = ml;
       const center = origin ?? GTA;
       const m = new ml.Map({ container: el, style: STYLE, center: [center.lng, center.lat], zoom: 9, attributionControl: { compact: true },
