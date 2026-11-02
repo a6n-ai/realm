@@ -47,8 +47,10 @@ copy its shape. Plan and history: `docs/superpowers/plans/2026-11-02-xplorers-wo
    `cf:deploy`, and `@opennextjs/cloudflare` + `wrangler` pinned exactly.
 5. **Deploy.** A small caller workflow like `deploy-xplorers-workers.yml` that uses
    `.github/workflows/deploy-worker.yml` (inputs `app`, `site-url`, `wrangler-env`).
-6. **AWS from a Worker.** No instance role: a scoped IAM user (template like
-   `xplorers/iam-workers.yaml`) whose keys are wrangler secrets.
+6. **AWS from a Worker.** No instance role: deploy `worker-iam.yaml` once per app (stack
+   `<app>-workers-iam`; parameters app, region, files bucket, SES identity + config set).
+   It stores the key in Secrets Manager at `/<app>/workers/aws-access-key`; copy it into
+   wrangler secrets.
 7. **Not yet solved for tiffin-grab/puchkaman:** the Redis BLPOP listener, in-process SSE
    bus and background jobs need Queues, Cron Triggers and the realtime Worker first.
 
@@ -62,7 +64,7 @@ copy its shape. Plan and history: `docs/superpowers/plans/2026-11-02-xplorers-wo
 | Hyperdrive | `xplorers-prod`, `xplorers-preview` (direct endpoint) |
 | GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL`, `XPLORERS_PREVIEW_DIRECT_DATABASE_URL` |
 | Wrangler secrets | `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `REALTIME_SECRET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `FILES_S3_ACCESS_KEY_ID`, `FILES_S3_SECRET_ACCESS_KEY` |
-| IAM stack | `xplorers-workers-iam` (us-east-1) |
+| IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` |
 
 Shared GitHub secrets for every app: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit,
 Hyperdrive:Read), `CLOUDFLARE_ACCOUNT_ID`.

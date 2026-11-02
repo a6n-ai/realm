@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  IAM user for one Realm app running on Cloudflare Workers. Workers have no
+  instance role, so the app signs AWS calls (SES send, files bucket) with this
+  user's key. The secret key is kept in Secrets Manager, never in outputs.
+  One stack per app, named <app>-workers-iam.
+
+Parameters:
+  AppName:
+    Type: String
+    AllowedPattern: "^[a-z0-9-]+$"
+    Description: Realm app name, for example xplorers
+  ResourceRegion:
+    Type: String
+    Description: Region of the files bucket and SES identity, for example ap-southeast-1
+  FilesBucketName:
+    Type: String
+    Description: Name of the app's files bucket
+  SesIdentity:
+    Type: String
+    Description: Verified SES domain identity, for example xplorers.a6n.ai
+  SesConfigurationSet:
+    Type: String
+    Description: SES configuration set name, for example xplorers-prod
+
+Resources:
+  WorkerAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${AppName}-workers-access"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: S3FilesObjects
+            Effect: Allow
+            Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+            Resource: !Sub "arn:aws:s3:::${FilesBucketName}/*"
+          - Sid: S3FilesList
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !Sub "arn:aws:s3:::${FilesBucketName}"
+          - Sid: SesSend
+            Effect: Allow
+            Action: [ses:SendEmail, ses:SendRawEmail]
+            Resource:
+              - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:identity/${SesIdentity}"
+              - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${SesConfigurationSet}"
+
+  WorkerGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${AppName}-workers"
+      ManagedPolicyArns:
+        - !Ref WorkerAccessPolicy
+
+  # Programmatic only: no LoginProfile, so no console password.
+  WorkerUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AppName}-workers"
+      Groups:
+        - !Ref WorkerGroup
+      Tags:
+        - { Key: app, Value: !Ref AppName }
+        - { Key: env, Value: prod }
+        - { Key: project, Value: realm }
+        - { Key: runtime, Value: cloudflare-workers }
+
+  WorkerAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref WorkerUser
+
+  WorkerAccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/${AppName}/workers/aws-access-key"
+      Description: !Sub "Access key for ${AppName}-workers; copy into wrangler secrets, then rotate by updating the stack"
+      SecretString: !Sub '{"accessKeyId":"${WorkerAccessKey}","secretAccessKey":"${WorkerAccessKey.SecretAccessKey}"}'
+
+Outputs:
+  UserName:
+    Value: !Ref WorkerUser
+  AccessKeySecretArn:
+    Description: Read with aws secretsmanager get-secret-value, then wrangler secret put
+    Value: !Ref WorkerAccessKeySecret
