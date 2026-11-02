@@ -83,7 +83,7 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-:root {
+:root, .tg-light-root, .tg-promo-scope {
   /* Brand: matched off the live tiffingrab.ca marketing site's computed styles —
      orange (#F06B1A, its "Order now" button / active nav pill / headline accent)
      is the real, dominant brand color, so it's primary here too: nav, headers,
@@ -514,8 +514,10 @@ button, a, [role="button"], summary { touch-action: manipulation; }
 
 /* ── Customer design system (see DESIGN.md) ───────────────────
    Values are lifted from the /subscribe wizard. Scoped to .customer-app so the
-   admin app is untouched. Portaled overlays reach these via body:has(). */
+   admin app is untouched. Portaled overlays reach these via body:has().
+   .tg-promo-scope: the Settings → Promotions preview, light tokens without touching <body>. */
 .customer-app,
+.tg-promo-scope,
 body:has(.customer-app) {
   /* Dark ink on saffron in both themes: white on #F06B1A is 3.07:1, this is 5.6:1. */
   --primary-foreground: #2E1200;
@@ -625,10 +627,23 @@ body:has(.customer-app) {
   .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] { background: var(--primary); }
 }
 
-/* Dark ground: the bright saffron already reads as text. */
-.dark .customer-app,
-.dark body:has(.customer-app) {
+/* Dark ground: the bright saffron already reads as text.
+   The public site has ONE look whatever the visitor's theme (.tg-light-root re-declares the
+   light tokens): a cream page with chosen dark-green bands, each marked with .dark. */
+body:has(.tg-light-root) { background: #FBF4E7; color-scheme: light; }
+.dark .customer-app:not(.tg-land),
+.dark body:has(.customer-app):not(:has(.tg-light-root)),
+.tg-land .dark {
   --primary-text: var(--primary);
+  /* A lighter forest ground for public + customer surfaces (2026-11); admin keeps the deeper .dark set. */
+  --background: #1F2E26;
+  --card: #283A30;
+  --popover: #283A30;
+  --secondary: #2F4237;
+  --muted: #2F4237;
+  --accent: #2F4237;
+  --sidebar: #24352C;
+  --border: oklch(1 0 0 / 12%);
 }
 
 /* Turnstile's checkbox slot, once Cloudflare shows it: keyboard focus inside the
