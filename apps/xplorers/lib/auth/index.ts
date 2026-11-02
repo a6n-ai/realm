@@ -15,6 +15,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
+import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp, sendStaffInvitation } from "./security-events";
 
@@ -61,9 +62,8 @@ export const auth = betterAuth({
   }),
   advanced: {
     database: { generateId: false },
-    // Trust ONLY the proxy-set header: cf-connecting-ip on Workers, x-real-ip
-    // behind Caddy. Never x-forwarded-for, whose leftmost token a client controls.
-    ipAddress: { ipAddressHeaders: ["cf-connecting-ip", "x-real-ip"] },
+    // One edge-set header per runtime, never x-forwarded-for (client-controlled).
+    ipAddress: { ipAddressHeaders: trustedIpHeaders() },
   },
   // Counters in Postgres: Workers isolates share no memory.
   rateLimit: { storage: "database" },

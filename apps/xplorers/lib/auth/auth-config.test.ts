@@ -6,7 +6,7 @@ describe("auth config for Workers", () => {
     expect(auth.options.rateLimit?.storage).toBe("database");
   });
 
-  it("reads the client IP from Cloudflare first, then Caddy", () => {
-    expect(auth.options.advanced?.ipAddress?.ipAddressHeaders).toEqual(["cf-connecting-ip", "x-real-ip"]);
+  it("trusts exactly one proxy-set IP header (x-real-ip under Node)", () => {
+    expect(auth.options.advanced?.ipAddress?.ipAddressHeaders).toEqual(["x-real-ip"]);
   });
 });
