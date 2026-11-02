@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
+import { useSession } from "@/lib/auth/client";
 import "@/components/landing/promo/promo.css";
 
 export function CopyCode({ code }: { code: string }) {
@@ -53,15 +54,37 @@ const markSeen = (id: string) => {
   try { localStorage.setItem(PROMO_POPUP_SEEN_KEY, id); } catch { /* private mode: it may show again */ }
 };
 
-/** The running offer as a one-time popup, on exit intent only: a mouse pointer leaving the
- *  window through the top edge, after a few seconds on the page. Never on a timer, so it
- *  never covers the first screen; touch screens have no exit intent and never see it (the
- *  hero ticket and the offers carousel carry the offer there). Once shown, never again. */
+// Signed-in customers: once per browser session (a new visit shows it again).
+const SESSION_KEY = "tg.promo.popup.session";
+const seenThisSession = (id: string) => {
+  try { return sessionStorage.getItem(SESSION_KEY) === id; } catch { return true; }
+};
+const markSession = (id: string) => {
+  try { sessionStorage.setItem(SESSION_KEY, id); } catch { /* storage blocked: it may show again */ }
+};
+
+/** The running offer as a popup.
+ *  - Signed in: opens 3 s after load on any device, once per browser session.
+ *  - Signed out: exit intent only (a mouse leaving through the top edge after a few seconds),
+ *    never on a timer, once per promo; touch screens rely on the hero ticket and carousel. */
 export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fallbackImage?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const { data: session, isPending } = useSession();
+  const signedIn = !!session?.user;
 
   useEffect(() => {
-    if (seen(promo.id)) return;
+    if (isPending || !signedIn || seenThisSession(promo.id)) return;
+    const t = setTimeout(() => {
+      const d = ref.current;
+      if (!d || d.open || seenThisSession(promo.id)) return;
+      markSession(promo.id);
+      d.showModal();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [isPending, signedIn, promo.id]);
+
+  useEffect(() => {
+    if (isPending || signedIn || seen(promo.id)) return;
     if (!matchMedia("(pointer: fine)").matches) return;
     let armed = false;
     const arm = setTimeout(() => { armed = true; }, 4000);
@@ -73,7 +96,7 @@ export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fall
     };
     document.addEventListener("mouseout", onLeave);
     return () => { clearTimeout(arm); document.removeEventListener("mouseout", onLeave); };
-  }, [promo.id]);
+  }, [isPending, signedIn, promo.id]);
 
   const close = () => ref.current?.close();
 
