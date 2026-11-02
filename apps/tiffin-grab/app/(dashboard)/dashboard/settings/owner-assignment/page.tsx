@@ -105,8 +105,8 @@ async function OwnerAssignmentData({ searchParams }: { searchParams: SearchParam
   };
   const initial: TabStates = {
     inquiry: { strategy: cfg.strategy, perSource: cfg.perSource, pools: pools(inquiryConfig) },
-    order: { strategy: cfg.orders?.strategy ?? "creator", perSource: {}, pools: pools(orderConfig) },
-    ticket: { strategy: cfg.tickets?.strategy ?? "creator", perSource: {}, pools: pools(ticketConfig) },
+    order: { strategy: cfg.orders?.strategy ?? "round_robin", perSource: {}, pools: pools(orderConfig) },
+    ticket: { strategy: cfg.tickets?.strategy ?? "round_robin", perSource: {}, pools: pools(ticketConfig) },
   };
 
   return <OwnerAssignmentForm initialEntity={initialEntity} initial={initial} sources={sources} staff={staffOptions} cursor={cfg.cursor} />;

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, Loader2Icon, MinusIcon, PercentIcon, PlusIcon, RefreshCwIcon, UserCheckIcon, type LucideIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, MinusIcon, PercentIcon, PlusIcon, RefreshCwIcon, type LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
@@ -17,7 +17,6 @@ import { poolSummary, sharePct } from "@/lib/services/owner-summary";
 import { saveEntityStrategy, saveMembership, saveStrategy } from "./actions";
 
 const CHOICES: { value: Strategy; title: string; line: string; icon: LucideIcon }[] = [
-  { value: "creator", title: "Creator owns", line: "Whoever adds it keeps it.", icon: UserCheckIcon },
   { value: "round_robin", title: "Round robin", line: "Take turns across the pool.", icon: RefreshCwIcon },
   { value: "percentage", title: "Percentage", line: "Split by weight.", icon: PercentIcon },
 ];
@@ -141,10 +140,12 @@ export function OwnerAssignmentForm({
 
       <section className="grid gap-3">
         <h2 className="text-sm font-medium">How owners are chosen</h2>
+        {/* The creator rule is fixed in code; this setting only covers records nobody on staff created. */}
+        <p className="text-muted-foreground text-sm">Staff who add a record always own it. Records from customers or the website are shared out like this:</p>
         <RadioGroup
           value={state.strategy}
           onValueChange={(v) => patch({ strategy: v as Strategy })}
-          className="grid-cols-1 gap-3 sm:grid-cols-3"
+          className="grid-cols-1 gap-3 sm:grid-cols-2"
           aria-label="How owners are chosen"
         >
           {CHOICES.map((c) => (
