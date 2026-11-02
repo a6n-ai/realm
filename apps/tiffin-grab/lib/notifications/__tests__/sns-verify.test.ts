@@ -2,7 +2,7 @@ import { generateKeyPairSync, createSign, type KeyObject } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { verifySnsMessage, type SnsMessage } from "../sns-verify";
 
-const CERT_URL = "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-test.pem";
+const CERT_URL = "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-0a1b2c.pem";
 
 // Minimal DER builders: just enough for a structurally valid, genuinely signed self-signed X.509 cert.
 const len = (n: number) => (n < 128 ? [n] : n < 256 ? [0x81, n] : [0x82, n >> 8, n & 255]);
@@ -99,6 +99,11 @@ describe("verifySnsMessage", () => {
     "https://sns.us-east-1.example.com/x.pem",
     "http://sns.us-east-1.amazonaws.com/x.pem",
     "not a url",
+    "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-0a1b2c.pem?x=1",
+    "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-0a1b2c.pem#frag",
+    "https://sns.us-east-1.amazonaws.com/other/SimpleNotificationService-0a1b2c.pem",
+    "https://sns.us-east-1.amazonaws.com/evil.pem",
+    "https://sns.anything.amazonaws.com/SimpleNotificationService-0a1b2c.pem",
   ])("rejects SigningCertURL %s before any fetch", async (url) => {
     stubCert();
     const msg = { ...sign({ ...base, Type: "Notification", Message: "x" }, priv, "2"), SigningCertURL: url };
@@ -106,11 +111,23 @@ describe("verifySnsMessage", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("keeps at most 16 cert keys, evicting the oldest", async () => {
+    stubCert();
+    const urlN = (i: number) => `https://sns.us-east-1.amazonaws.com/SimpleNotificationService-${i.toString(16).padStart(4, "0")}.pem`;
+    const msg = sign({ ...base, Type: "Notification", Message: "x" }, priv, "2");
+    for (let i = 0; i < 17; i++) expect(await verifySnsMessage({ ...msg, SigningCertURL: urlN(i) })).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(17);
+    await verifySnsMessage({ ...msg, SigningCertURL: urlN(16) });
+    expect(fetchMock).toHaveBeenCalledTimes(17);
+    await verifySnsMessage({ ...msg, SigningCertURL: urlN(0) });
+    expect(fetchMock).toHaveBeenCalledTimes(18);
+  });
+
   it("rejects an unknown SignatureVersion and a failed cert fetch", async () => {
     stubCert();
     const msg = sign({ ...base, Type: "Notification", Message: "x" }, priv, "2");
     expect(await verifySnsMessage({ ...msg, SignatureVersion: "3" })).toBe(false);
     fetchMock.mockResolvedValue(new Response("nope", { status: 500 }));
-    expect(await verifySnsMessage({ ...msg, SigningCertURL: "https://sns.eu-west-1.amazonaws.com/other.pem" })).toBe(false);
+    expect(await verifySnsMessage({ ...msg, SigningCertURL: "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-ff.pem" })).toBe(false);
   });
 });

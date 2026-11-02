@@ -16,13 +16,16 @@ export interface SnsMessage {
 const NOTIFICATION = ["Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type"] as const;
 const CONFIRMATION = ["Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type"] as const;
 
-const HOST = /^sns\.[a-z0-9-]+\.amazonaws\.com$/;
+const HOST = /^sns\.[a-z]{2}(-gov)?-[a-z]+-\d\.amazonaws\.com$/;
+const CERT_PATH = /^\/SimpleNotificationService-[0-9a-f]+\.pem$/;
+const MAX_CERTS = 16;
 const certKeys = new Map<string, Promise<CryptoKey>>();
 
 function certUrl(raw: unknown): URL | null {
   try {
     const u = new URL(String(raw));
-    const plain = u.protocol === "https:" && !u.username && !u.password && !u.port && HOST.test(u.hostname);
+    const plain =
+      u.protocol === "https:" && !u.username && !u.password && !u.port && !u.search && !u.hash && HOST.test(u.hostname) && CERT_PATH.test(u.pathname);
     return plain ? u : null;
   } catch {
     return null;
@@ -64,7 +67,7 @@ function spkiOf(pem: string): Uint8Array<ArrayBuffer> {
 }
 
 function importKey(url: URL, version: string): Promise<CryptoKey> {
-  const id = `${version}|${url.href}`;
+  const id = `${version}|${url.origin}${url.pathname}`;
   let key = certKeys.get(id);
   if (!key) {
     key = (async () => {
@@ -73,6 +76,7 @@ function importKey(url: URL, version: string): Promise<CryptoKey> {
       const hash = version === "1" ? "SHA-1" : "SHA-256";
       return crypto.subtle.importKey("spki", spkiOf(await res.text()), { name: "RSASSA-PKCS1-v1_5", hash }, false, ["verify"]);
     })();
+    if (certKeys.size >= MAX_CERTS) certKeys.delete(certKeys.keys().next().value!);
     certKeys.set(id, key);
     key.catch(() => certKeys.delete(id));
   }

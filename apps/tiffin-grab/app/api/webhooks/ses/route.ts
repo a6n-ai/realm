@@ -8,8 +8,6 @@ import { verifySnsMessage, type SnsMessage } from "@/lib/notifications/sns-verif
 
 const log = createLogger("ses-webhook");
 
-type SnsEnvelope = SnsMessage;
-
 /**
  * Apply one SES feedback event: permanent bounce or complaint suppresses the
  * email channel for each affected recipient. Transient bounces and everything
@@ -56,9 +54,9 @@ export async function processSesEvent(messageJson: string): Promise<void> {
  */
 export const POST = handler(async (req: Request): Promise<Response> => {
   const raw = await req.text();
-  let msg: SnsEnvelope;
+  let msg: SnsMessage;
   try {
-    msg = JSON.parse(raw) as SnsEnvelope;
+    msg = JSON.parse(raw) as SnsMessage;
   } catch {
     return problem(400, "Invalid JSON");
   }
@@ -70,7 +68,11 @@ export const POST = handler(async (req: Request): Promise<Response> => {
 
   // Defense in depth: only act on our own topic.
   const expected = process.env.SES_FEEDBACK_TOPIC_ARN;
-  if (expected && msg.TopicArn !== expected) {
+  if (!expected) {
+    log.error("SES_FEEDBACK_TOPIC_ARN is not set; refusing SNS message");
+    return problem(403, "Topic not configured");
+  }
+  if (msg.TopicArn !== expected) {
     log.error(`unexpected TopicArn ${msg.TopicArn}`);
     return problem(403, "Unexpected topic");
   }
