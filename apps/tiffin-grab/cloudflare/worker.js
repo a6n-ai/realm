@@ -48,33 +48,8 @@ export class OptimoPoller {
   }
 }
 
-// DIAG (temporary, revert the commit labeled diag:): isolate identity, request count and heap per response.
-const DIAG_ID = Math.random().toString(36).slice(2, 7);
-const DIAG_START = Date.now();
-let diagN = 0;
-function heapMb() {
-  try {
-    return Math.round(process.memoryUsage().heapUsed / 1048576);
-  } catch {
-    return -1;
-  }
-}
-async function diagFetch(request, env, ctx) {
-  const n = ++diagN;
-  const t0 = Date.now();
-  const heapBefore = heapMb();
-  const res = await openNext.fetch(request, env, ctx);
-  const ttfb = Date.now() - t0;
-  const path = new URL(request.url).pathname;
-  const tag = `${DIAG_ID}.n${n}.age${Date.now() - DIAG_START}.heap${heapBefore}>${heapMb()}.ttfb${ttfb}`;
-  const out = new Response(res.body, res);
-  out.headers.set("x-diag", tag);
-  console.log(JSON.stringify({ diag: tag, path }));
-  return out;
-}
-
 export default {
-  fetch: diagFetch,
+  fetch: openNext.fetch,
   async queue(_batch, env) {
     await tick(env);
   },
