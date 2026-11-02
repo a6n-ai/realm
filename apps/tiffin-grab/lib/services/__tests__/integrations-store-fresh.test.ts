@@ -9,15 +9,14 @@ vi.mock("@/db/client", () => ({
 }));
 vi.mock("@/lib/cache", () => {
   const m = new Map<string, unknown>();
-  return {
-    sharedCache: () => ({
-      getOrSet: async (k: string, f: () => Promise<unknown>) => {
-        if (!m.has(k)) m.set(k, await f());
-        return m.get(k);
-      },
-      evictAll: async () => m.clear(),
-    }),
-  };
+  const cache = () => ({
+    getOrSet: async (k: string, f: () => Promise<unknown>) => {
+      if (!m.has(k)) m.set(k, await f());
+      return m.get(k);
+    },
+    evictAll: async () => m.clear(),
+  });
+  return { sharedCache: cache, configCache: cache };
 });
 vi.mock("../session-service", () => ({
   SessionUpdatableService: class {
