@@ -1,5 +1,6 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
+import { trackMetaEvent } from "@/lib/services/meta-pixel/capi";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -1063,7 +1064,11 @@ export async function verifyPayment(
 
     if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
 
-    const [user] = await tx.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, orderUserId)).limit(1);
+    const [user] = await tx
+      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+      .from(users)
+      .where(eq(users.id, orderUserId))
+      .limit(1);
     const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
 
     await enqueueNotification(tx, {
@@ -1097,13 +1102,32 @@ export async function verifyPayment(
       pay.taxSource === "stripe" && pay.method !== "stripe" && pay.taxCalculationId
         ? { calc: pay.taxCalculationId, ref: pay.publicId, orderId: order.id }
         : null;
-    return { userPublicId: user?.publicId ?? null, taxCommit };
+    const purchase = {
+      orderRef: order.publicId,
+      paymentRef: pay.publicId,
+      value: Number(pay.amount),
+      user: { email: user?.email ?? null, phone: user?.phone ?? null, fullName: user?.name ?? null, externalId: String(orderUserId) },
+    };
+    return { userPublicId: user?.publicId ?? null, taxCommit, purchase };
   });
   const userPublicId = settled?.userPublicId ?? null;
   const taxCommit = settled?.taxCommit ?? null;
 
   publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
+
+  // Server-only Purchase: the request here is a Stripe webhook or a staff verify, never the
+  // customer's browser, so no IP/user agent is attached. event_id = payment, one per settle.
+  if (settled?.purchase) {
+    const { purchase } = settled;
+    const { currency } = await getAppSettings();
+    trackMetaEvent({
+      eventName: "Purchase",
+      eventId: `purchase:${purchase.paymentRef}`,
+      user: purchase.user,
+      customData: { value: purchase.value, currency, order_id: purchase.orderRef },
+    });
+  }
 
   // Refreshes the customer's wallet/bills views.
   if (userPublicId) publishUserRefresh(userPublicId);

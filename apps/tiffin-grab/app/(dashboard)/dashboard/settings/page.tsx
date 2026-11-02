@@ -23,6 +23,8 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { PLUGINS } from "@/lib/plugins.server";
+import { getMetaPixelConfig } from "@/lib/services/meta-pixel/config";
+import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
 
 type SettingsSection = {
   key: string;
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
   const clover = await getCloverConnection(integrationsConfigStore);
   const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
   const googleReviews = await getGoogleReviewsConfig(integrationsConfigStore);
+  const metaPixel = await getMetaPixelConfig();
 
   const sections: SettingsSection[] = [
     {
@@ -138,6 +141,16 @@ export default async function SettingsPage() {
       description: "Place ID and public review display.",
       icon: StarIcon,
       href: "/dashboard/settings/google-reviews",
+    });
+  }
+
+  if (metaPixel.installed) {
+    sections.push({
+      key: "meta-pixel",
+      label: "Meta Pixel",
+      description: "Pixel ID, Conversions API token, and test events.",
+      icon: MegaphoneIcon,
+      href: META_PIXEL_SETTINGS_HREF,
     });
   }
 

@@ -46,6 +46,7 @@ import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
+import { fbqTrack } from "@/components/meta-pixel";
 import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
@@ -299,6 +300,10 @@ export function Checkout({
   useEffect(() => {
     placed.current = null;
   }, [selections, appliedCodes, appliedCoins, paymentMethodId, contact, addressPublicId]);
+
+  useEffect(() => {
+    fbqTrack("InitiateCheckout");
+  }, []);
 
   useEffect(() => {
     if (prevStep.current !== step) window.scrollTo({ top: 0 });

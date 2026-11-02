@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { MetaPixelPageViews } from "@/components/meta-pixel";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -59,6 +60,7 @@ export default function RootLayout({
           <BrowserChrome />
         </ThemeProvider>
         <Script src="/api/analytics" strategy="afterInteractive" />
+        <MetaPixelPageViews />
       </body>
     </html>
   );
