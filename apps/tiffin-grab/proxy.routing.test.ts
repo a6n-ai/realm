@@ -67,11 +67,13 @@ describe("apex/www front door", () => {
   it("does not set the referral cookie on front-door redirects", async () => {
     const res = await get("https://www.tiffingrab.ca/menu?ref=ABCDEF");
     expect(res.headers.get("set-cookie")).toBeNull();
+    // control: the same code does set the cookie on a normal response
+    expect((await get("https://tiffingrab.ca/menu?ref=ABCDEF")).headers.get("set-cookie")).toContain("ABCDEF");
   });
 
   it("matcher has a host entry so static-looking apex paths reach the proxy", () => {
-    const hostEntry = (config.matcher as unknown[]).find((m) => typeof m === "object") as { has: { type: string; value: string }[] };
-    expect(hostEntry.has[0].type).toBe("host");
+    const hostEntry = (config.matcher as unknown[]).find((m) => typeof m === "object") as { has: { type: string; key: string; value: string }[] };
+    expect(hostEntry.has[0]).toMatchObject({ type: "header", key: "host" });
     const re = new RegExp(`^${hostEntry.has[0].value}$`);
     expect(["tiffingrab.ca", "www.tiffingrab.ca"].every((h) => re.test(h))).toBe(true);
     expect(re.test("app.tiffingrab.ca")).toBe(false);

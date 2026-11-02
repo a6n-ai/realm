@@ -204,6 +204,6 @@ export const config = {
   // customer-facing routes, not just the guarded ones.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$).*)",
-    { source: "/:path*", has: [{ type: "host", value: "(www\\.)?tiffingrab\\.ca" }] },
+    { source: "/:path*", has: [{ type: "header", key: "host", value: "(www\\.)?tiffingrab\\.ca" }] },
   ],
 };
