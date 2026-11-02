@@ -12,7 +12,7 @@ import {
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
-import { account, invitation, member, organization, session, users, verification } from "@/db/schema";
+import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
 import {
@@ -22,6 +22,7 @@ import {
   sendInviteLinkEmail,
   sendVerification,
 } from "./security-events";
+import { isWorkers, trustedIpHeaders } from "@/lib/runtime/platform";
 import { recordAudit } from "@/lib/services/session-service";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
@@ -51,28 +52,28 @@ export const auth = betterAuth({
     // this adapter, and an explicit `schema` here takes precedence over the db's own
     // full schema (see @better-auth/drizzle-adapter's getSchema: `config.schema ||
     // db._.fullSchema`), so an incomplete map throws "model not found" at call time.
-    schema: { user: users, account, session, verification, organization, member, invitation },
+    schema: { user: users, account, session, verification, organization, member, invitation, rateLimit },
   }),
   advanced: {
     database: { generateId: false },
     cookiePrefix: AUTH_COOKIE_PREFIX,
-    // Trust ONLY x-real-ip, which Caddy overwrites with the real socket peer
-    // (`header_up X-Real-IP {remote_host}`). The default is x-forwarded-for,
+    // Trust ONLY the one header this runtime's edge sets: x-real-ip behind Caddy
+    // (`header_up X-Real-IP {remote_host}`), cf-connecting-ip on Workers. The default is x-forwarded-for,
     // whose leftmost token better-auth takes verbatim — and Caddy *appends* to
     // that header, so a client can prepend any value and pick its own bucket.
     // Every rate limit (sign-in 3/10s, OTP 3/60s) keys off this, so a spoofable
     // IP silently disables all of them. Also keys session.ipAddress, which the
     // new-device sign-in alert compares against.
-    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+    ipAddress: { ipAddressHeaders: trustedIpHeaders() },
     // Unset locally: cookies stay host-only. In prod ("tiffingrab.ca") the session
     // cookie covers the apex public pages and app. alike.
     ...(process.env.AUTH_COOKIE_DOMAIN
       ? { crossSubDomainCookies: { enabled: true, domain: process.env.AUTH_COOKIE_DOMAIN } }
       : {}),
   },
-  // ponytail: default in-memory rate-limit store. Correct for one instance;
-  // counters reset on deploy. Move to `storage: "database"` (needs a rateLimit
-  // table migration) if this app is ever scaled past a single process.
+  // Memory is correct for the single Node instance; Workers isolates share
+  // nothing, so counters go to the rate_limit table there.
+  rateLimit: { storage: isWorkers() ? "database" : "memory" },
   // freshAge gates sensitive endpoints (change-email, delete-user) on a
   // recently-authenticated session. Default is 24h, which is most of a working
   // day against a 30-day session; 1h keeps a walked-away browser from being
@@ -186,7 +187,7 @@ export const auth = betterAuth({
       changeEmail: { enabled: true, verifyCurrentEmail: true },
       sendVerificationOTP: async ({ email, otp, type }, ctx) => {
         // Same header the rate limiter trusts (advanced.ipAddress above).
-        await sendAuthOtp(email, otp, type, ctx?.request?.headers.get("x-real-ip") ?? null);
+        await sendAuthOtp(email, otp, type, ctx?.request?.headers.get(trustedIpHeaders()[0]) ?? null);
       },
     }),
     // Invite links (staff + customer). One click signs the invitee in, so no
