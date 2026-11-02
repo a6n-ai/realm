@@ -19,7 +19,7 @@ const CONFIRMATION = ["Message", "MessageId", "SubscribeURL", "Timestamp", "Toke
 const HOST = /^sns\.[a-z]{2}(-gov)?-[a-z]+-\d\.amazonaws\.com$/;
 const CERT_PATH = /^\/SimpleNotificationService-[0-9a-f]+\.pem$/;
 const MAX_CERTS = 16;
-const certKeys = new Map<string, Promise<CryptoKey>>();
+const certKeys = new Map<string, CryptoKey>();
 
 function certUrl(raw: unknown): URL | null {
   try {
@@ -66,20 +66,16 @@ function spkiOf(pem: string): Uint8Array<ArrayBuffer> {
   return buf.slice(p, der(buf, p)[1]);
 }
 
-function importKey(url: URL, version: string): Promise<CryptoKey> {
+async function importKey(url: URL, version: string): Promise<CryptoKey> {
   const id = `${version}|${url.origin}${url.pathname}`;
-  let key = certKeys.get(id);
-  if (!key) {
-    key = (async () => {
-      const res = await fetch(url, { redirect: "error" });
-      if (!res.ok) throw new Error(`cert fetch ${res.status}`);
-      const hash = version === "1" ? "SHA-1" : "SHA-256";
-      return crypto.subtle.importKey("spki", spkiOf(await res.text()), { name: "RSASSA-PKCS1-v1_5", hash }, false, ["verify"]);
-    })();
-    if (certKeys.size >= MAX_CERTS) certKeys.delete(certKeys.keys().next().value!);
-    certKeys.set(id, key);
-    key.catch(() => certKeys.delete(id));
-  }
+  const hit = certKeys.get(id);
+  if (hit) return hit;
+  const res = await fetch(url, { redirect: "error" });
+  if (!res.ok) throw new Error(`cert fetch ${res.status}`);
+  const hash = version === "1" ? "SHA-1" : "SHA-256";
+  const key = await crypto.subtle.importKey("spki", spkiOf(await res.text()), { name: "RSASSA-PKCS1-v1_5", hash }, false, ["verify"]);
+  if (certKeys.size >= MAX_CERTS) certKeys.delete(certKeys.keys().next().value!);
+  certKeys.set(id, key);
   return key;
 }
 
