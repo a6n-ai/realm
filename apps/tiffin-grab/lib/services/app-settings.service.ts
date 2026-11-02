@@ -11,7 +11,7 @@ import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "
 import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt, sql } from "drizzle-orm";
-import { sharedCache } from "@/lib/cache";
+import { configCache } from "@/lib/cache";
 import { db } from "@/db/client";
 import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
@@ -45,7 +45,7 @@ const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
 // inbound inquiry's owner resolution) and written only by admins. Cache it; the
 // concrete service below evicts on every write. 60s TTL bounds cross-instance
 // staleness until a Redis tier broadcasts eviction.
-const settingsCache = sharedCache("app-settings");
+const settingsCache = configCache("app-settings");
 
 // Concrete service owns the cache eviction — NOT the drizzle base. Override each
 // write to bust after super, mirroring the Java service's post-write evict.

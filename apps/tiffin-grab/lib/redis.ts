@@ -1,8 +1,5 @@
 import Redis from "ioredis";
 
-const url: string = process.env.REDIS_URL ?? "";
-if (!url) throw new Error("REDIS_URL is not set");
-
 // lazyConnect: don't open a socket at import time (build / client-tree safety);
 // connects on first command.
 //
@@ -24,6 +21,9 @@ let shared: Redis | undefined;
  */
 export function getRedis(): Redis {
   if (!shared) {
+    // Checked here, not at import: Workers imports this module but never calls it.
+    const url = process.env.REDIS_URL ?? "";
+    if (!url) throw new Error("REDIS_URL is not set");
     shared = new Redis(url, opts);
     // RedisTier already catches and logs per-command failures; without a
     // listener here ioredis prints its own "Unhandled error event" for every
