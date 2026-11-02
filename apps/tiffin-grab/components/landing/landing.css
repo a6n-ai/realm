@@ -324,12 +324,13 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-rating:active { transform: scale(0.97); }
 .tg-rating__count { font-weight: 500; color: var(--muted-foreground); }
 .tg-rating__count::before { content: "· "; }
-/* Phones: the capsule stays in the top bar, compact (star and score); the logo mark carries the brand
-   so the wordmark gives up its room. */
+/* Phones: the top bar keeps the TiffinGrab wordmark; the rating capsule steps out (the hero
+   shows the Google rating right below). */
 @media (max-width: 520px) {
   .tg-rating { height: 36px; padding: 0 10px; gap: 4px; }
   .tg-rating__count { display: none; }
-  .tg-header:has(.tg-rating) .tg-header__word { display: none; }
+  /* The brand name wins on phones: the rating already shows in the hero ("4.5 on Google"). */
+  .tg-header .tg-rating { display: none; }
 }
 
 /* /reviews: glass needs something behind it to read as glass, so the page carries a soft glow. */
