@@ -4,6 +4,7 @@ import { CLOVER_PLUGIN_META } from "@foundry/clover/plugin";
 import { GOOGLE_REVIEWS_PLUGIN_META } from "@foundry/google-reviews/plugin";
 import { OPTIMOROUTE_PLUGIN_META } from "./services/optimoroute/plugin";
 import { META_PIXEL_PLUGIN_META } from "./services/meta-pixel/plugin";
+import { GA_PLUGIN_META } from "./services/google-analytics/plugin";
 
 // Stripe is added from Settings → Payment (provider catalog), not here.
 /** Order here is the order cards render in. */
@@ -13,4 +14,5 @@ export const PLUGIN_METAS: readonly PluginMeta[] = [
   GOOGLE_REVIEWS_PLUGIN_META,
   OPTIMOROUTE_PLUGIN_META,
   META_PIXEL_PLUGIN_META,
+  GA_PLUGIN_META,
 ];

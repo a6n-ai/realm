@@ -4,7 +4,7 @@ import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { trackMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { trackConversion } from "@/lib/services/tracking";
 
 export interface ContactInput {
   fullName: string;
@@ -48,7 +48,7 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
     notes: input.message?.trim() || null,
   });
 
-  trackMetaEvent(
+  trackConversion(
     {
       eventName: "Lead",
       eventId: `lead:${inquiry.publicId}`,

@@ -1,8 +1,5 @@
 import { createHash } from "node:crypto";
-import { cookies, headers } from "next/headers";
-import { after } from "next/server";
 import { createLogger } from "@foundry/commons/logger";
-import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { getMetaPixelConfig, openAccessToken } from "./config";
 
 const log = createLogger("meta-pixel");
@@ -97,42 +94,5 @@ export async function sendMetaEvent(input: MetaEventInput): Promise<SendResult> 
   } catch (err) {
     log.warn({ err, eventName: input.eventName }, "meta capi send threw");
     return { ok: false, error: err instanceof Error ? err.message : "Could not reach Meta" };
-  }
-}
-
-/** Browser signals for the current request. Empty outside a request (cron, scripts). */
-export async function requestMetaUser(): Promise<Pick<MetaUser, "ip" | "userAgent" | "fbp" | "fbc"> & { sourceUrl: string | null }> {
-  try {
-    const [h, c] = await Promise.all([headers(), cookies()]);
-    const ip = trustedIpHeaders().map((k) => h.get(k)).find(Boolean) ?? null;
-    return {
-      ip,
-      userAgent: h.get("user-agent"),
-      fbp: c.get("_fbp")?.value ?? null,
-      fbc: c.get("_fbc")?.value ?? null,
-      sourceUrl: h.get("referer"),
-    };
-  } catch {
-    return { ip: null, userAgent: null, fbp: null, fbc: null, sourceUrl: null };
-  }
-}
-
-/**
- * Fire-and-forget after the response. Pass `withRequest` only when the current request is the
- * customer's own browser — a Stripe webhook or a staff verify would attach the wrong IP.
- */
-export function trackMetaEvent(input: MetaEventInput, opts: { withRequest?: boolean } = {}): void {
-  const run = async () => {
-    if (opts.withRequest) {
-      const { sourceUrl, ...browser } = await requestMetaUser();
-      input = { ...input, sourceUrl: input.sourceUrl ?? sourceUrl, user: { ...browser, ...input.user } };
-    }
-    await sendMetaEvent(input);
-  };
-  try {
-    after(run);
-  } catch {
-    // Outside a request scope (cron, scripts): nothing to wait for, send now.
-    void run();
   }
 }

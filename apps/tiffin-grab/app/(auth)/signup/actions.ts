@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
-import { trackMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { trackConversion } from "@/lib/services/tracking";
 
 const log = createLogger("signup");
 
@@ -92,7 +92,7 @@ export async function signUpCustomer(input: {
     // not roll back a created account (the user can re-trigger by attempting to
     // sign in, which re-sends via sendOnSignIn).
     if (createdId != null) {
-      trackMetaEvent(
+      trackConversion(
         { eventName: "CompleteRegistration", eventId: `signup:${createdId}`, user: { email, phone, fullName: name, externalId: String(createdId) } },
         { withRequest: true },
       );

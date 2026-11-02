@@ -5,7 +5,8 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 import { encryptionKey, getMetaPixelConfig, sealAccessToken, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";
 import { PIXEL_ID_RE, TEST_CODE_RE } from "@/lib/services/meta-pixel/pixel-id";
-import { requestMetaUser, sendMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { sendMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { requestBrowser } from "@/lib/services/tracking";
 import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
 
 type Result = { error?: string };
@@ -82,7 +83,7 @@ export async function sendMetaPixelTestEvent(): Promise<{ error?: string; events
   await requireAdmin();
   const cfg = await getMetaPixelConfig();
   if (!cfg.testEventCode) return { error: "Add the test event code from Events Manager → Test events first" };
-  const { sourceUrl: _staffPage, ...browser } = await requestMetaUser();
+  const { sourceUrl: _staffPage, gaClientId: _ga, ...browser } = await requestBrowser();
   const res = await sendMetaEvent({
     eventName: "PageView",
     eventId: `test:${crypto.randomUUID()}`,

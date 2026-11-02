@@ -12,6 +12,13 @@ export function fbqTrack(event: string, params?: Record<string, unknown>, eventI
   fbq("track", event, params, eventID ? { eventID } : undefined);
 }
 
+/** No-op until gtag (/api/analytics) is loaded, and on staff pages. GA tracks page views itself. */
+export function gtagEvent(name: string, params?: Record<string, unknown>): void {
+  const gtag = (window as unknown as { gtag?: (cmd: "event", name: string, params?: Record<string, unknown>) => void }).gtag;
+  if (!gtag || location.pathname.startsWith("/dashboard")) return;
+  gtag("event", name, params);
+}
+
 /** Client navigations don't reload the page, so PageView is sent here; the bootstrap sends the first one. */
 export function MetaPixelPageViews() {
   const pathname = usePathname();

@@ -1,6 +1,6 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { trackMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { trackConversion } from "@/lib/services/tracking";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -1121,7 +1121,7 @@ export async function verifyPayment(
   if (settled?.purchase) {
     const { purchase } = settled;
     const { currency } = await getAppSettings();
-    trackMetaEvent({
+    trackConversion({
       eventName: "Purchase",
       eventId: `purchase:${purchase.paymentRef}`,
       user: purchase.user,

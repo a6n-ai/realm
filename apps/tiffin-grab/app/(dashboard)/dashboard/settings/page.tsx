@@ -3,6 +3,7 @@ import {
   ArrowRightIcon,
   BanknoteIcon,
   CalendarOffIcon,
+  ChartLineIcon,
   ClockIcon,
   CreditCardIcon,
   HelpCircleIcon,
@@ -25,6 +26,8 @@ import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { PLUGINS } from "@/lib/plugins.server";
 import { getMetaPixelConfig } from "@/lib/services/meta-pixel/config";
 import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
+import { getGaConfig } from "@/lib/services/google-analytics/config";
+import { GA_SETTINGS_HREF } from "@/lib/services/google-analytics/plugin";
 
 type SettingsSection = {
   key: string;
@@ -40,6 +43,7 @@ export default async function SettingsPage() {
   const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
   const googleReviews = await getGoogleReviewsConfig(integrationsConfigStore);
   const metaPixel = await getMetaPixelConfig();
+  const ga = await getGaConfig();
 
   const sections: SettingsSection[] = [
     {
@@ -151,6 +155,16 @@ export default async function SettingsPage() {
       description: "Pixel ID, Conversions API token, and test events.",
       icon: MegaphoneIcon,
       href: META_PIXEL_SETTINGS_HREF,
+    });
+  }
+
+  if (ga.installed) {
+    sections.push({
+      key: "google-analytics",
+      label: "Google Analytics",
+      description: "Measurement ID and server-side conversion events.",
+      icon: ChartLineIcon,
+      href: GA_SETTINGS_HREF,
     });
   }
 
