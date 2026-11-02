@@ -1,0 +1,81 @@
+# Reusable: deploy one Realm app to Cloudflare Workers (OpenNext). Each app calls
+# this from its own small workflow (see deploy-xplorers-workers.yml) and owns its
+# apps/<app>/wrangler.jsonc + open-next.config.ts. Runbook: deployment/cloudflare/README.md.
+#
+# Order: conflict markers → migration journal check → drizzle migrate (direct DB
+# URL, never the pooler/Hyperdrive) → opennextjs-cloudflare build → deploy.
+name: deploy-worker
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: pnpm package name and apps/<app> folder
+        required: true
+        type: string
+      site-url:
+        description: public origin, baked into NEXT_PUBLIC_* at build time
+        required: true
+        type: string
+      wrangler-env:
+        description: wrangler env name; "production" = top-level config
+        required: false
+        type: string
+        default: production
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      DIRECT_DATABASE_URL:
+        description: direct (non-pooled) Postgres URL for migrations
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check conflict markers
+        run: bash scripts/check-conflict-markers.sh
+      - name: Check migration journals
+        run: node scripts/check-migration-journal.mjs ${{ github.event.before }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate inputs
+        env:
+          APP: ${{ inputs.app }}
+          WRANGLER_ENV: ${{ inputs.wrangler-env }}
+        run: |
+          [[ "$APP" =~ ^[a-z0-9-]+$ && -f "apps/$APP/wrangler.jsonc" ]] || { echo "bad app: $APP"; exit 1; }
+          [[ "$WRANGLER_ENV" =~ ^[a-z0-9-]+$ ]] || { echo "bad wrangler-env"; exit 1; }
+      - name: Migrate
+        run: pnpm --filter "$APP" exec drizzle-kit migrate
+        env:
+          APP: ${{ inputs.app }}
+          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+      - name: Build
+        run: pnpm --filter "$APP" cf:build
+        env:
+          APP: ${{ inputs.app }}
+          NEXT_PUBLIC_SITE_URL: ${{ inputs.site-url }}
+          NEXT_PUBLIC_BETTER_AUTH_URL: ${{ inputs.site-url }}
+          # Read at import time by db/client on Node during `next build`; the Worker uses Hyperdrive.
+          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+      - name: Deploy
+        run: |
+          if [[ "$WRANGLER_ENV" == production ]]; then pnpm --filter "$APP" cf:deploy
+          else pnpm --filter "$APP" cf:deploy --env "$WRANGLER_ENV"; fi
+        env:
+          APP: ${{ inputs.app }}
+          WRANGLER_ENV: ${{ inputs.wrangler-env }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

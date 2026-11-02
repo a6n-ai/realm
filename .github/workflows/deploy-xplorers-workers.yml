@@ -1,0 +1,40 @@
+# xplorers on Cloudflare Workers. Manual until cutover (plan Task 7), then switch to
+# the push trigger below and drop deploy-xplorers.yml's push trigger.
+#
+# Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, XPLORERS_DIRECT_DATABASE_URL (Neon
+# production, direct), XPLORERS_PREVIEW_DIRECT_DATABASE_URL (Neon `preview` branch, direct).
+# A push (no inputs) deploys production; only an explicit `preview` dispatch targets preview.
+name: deploy-xplorers-workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [preview, production]
+        default: preview
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "apps/xplorers/**"
+  #     - "pnpm-lock.yaml"
+  #     - "pnpm-workspace.yaml"
+  #     - "package.json"
+  #     - ".github/workflows/deploy-worker.yml"
+  #     - ".github/workflows/deploy-xplorers-workers.yml"
+
+concurrency:
+  group: deploy-xplorers
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-worker.yml
+    with:
+      app: xplorers
+      site-url: ${{ inputs.target == 'preview' && 'https://next.xplorers.a6n.ai' || 'https://xplorers.a6n.ai' }}
+      wrangler-env: ${{ inputs.target == 'preview' && 'preview' || 'production' }}
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DIRECT_DATABASE_URL: ${{ inputs.target == 'preview' && secrets.XPLORERS_PREVIEW_DIRECT_DATABASE_URL || secrets.XPLORERS_DIRECT_DATABASE_URL }}
