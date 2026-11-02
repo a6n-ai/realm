@@ -37,6 +37,9 @@ export class KvTier implements CacheTier {
   constructor(
     private readonly prefix: string,
     private readonly binding: () => KvLike | Promise<KvLike> = cacheBinding,
+    // Keep entries in KV at least this long, whatever ttl the cache passes. The cache's ttl then only
+    // bounds the per-isolate L1, so a cold isolate reads KV instead of rebuilding the value.
+    private readonly retainMs = 0,
   ) {}
 
   async get<T>(key: string): Promise<CacheEntry<T> | undefined> {
@@ -51,7 +54,8 @@ export class KvTier implements CacheTier {
 
   async set<T>(key: string, value: T, ttlMs?: number): Promise<void> {
     try {
-      const expirationTtl = ttlMs && ttlMs > 0 ? Math.max(60, Math.ceil(ttlMs / 1000)) : undefined;
+      const ttl = Math.max(ttlMs ?? 0, this.retainMs);
+      const expirationTtl = ttl > 0 ? Math.max(60, Math.ceil(ttl / 1000)) : undefined;
       await (await this.binding()).put(key, JSON.stringify({ value }, replacer), expirationTtl ? { expirationTtl } : undefined);
     } catch (err) {
       logger.warn({ err, key }, "KvTier.set failed, skipping L2 write");

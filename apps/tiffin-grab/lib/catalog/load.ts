@@ -31,7 +31,9 @@ import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
 // the subscribe hot path. Cache it; catalog admin mutations call
 // invalidateCatalogSnapshot(). 60s TTL bounds cross-instance staleness until a
 // Redis tier broadcasts eviction.
-const catalogCache = sharedCache("catalog");
+// Workers: L1 stays 60s per isolate, but KV keeps the snapshot 10 min (evictAll clears it on every admin
+// edit). A cold isolate otherwise rebuilt it with ~45 queries whenever traffic paused for over a minute.
+const catalogCache = sharedCache("catalog", 60_000, 10 * 60_000);
 
 export function invalidateCatalogSnapshot(): Promise<void> {
   return catalogCache.evictAll();

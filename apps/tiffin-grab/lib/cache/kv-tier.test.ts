@@ -105,4 +105,13 @@ describe("config cache on Workers", () => {
     await sharedCache("x").set("k", 7);
     expect(kv.store.has("x:k")).toBe(true);
   });
+
+  it("retains entries in KV at least retainMs, whatever ttl the cache passes", async () => {
+    const kv = fakeKv();
+    const tier = new KvTier("c", () => kv, 600_000);
+    await tier.set("c:a", 1, 60_000);
+    await tier.set("c:b", 1, 900_000);
+    expect(kv.ttls.get("c:a")).toBe(600);
+    expect(kv.ttls.get("c:b")).toBe(900);
+  });
 });
