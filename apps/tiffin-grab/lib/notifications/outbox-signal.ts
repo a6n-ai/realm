@@ -33,7 +33,8 @@ export async function signalOutbox(): Promise<void> {
     pusher = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
     pusher.on("error", () => {});
   }
-  await pusher
+  // Fire-and-forget: a slow or down Redis must not hold up the enqueuing transaction's caller.
+  void pusher
     .multi()
     .lpush(OUTBOX_SIGNAL_KEY, "1")
     .ltrim(OUTBOX_SIGNAL_KEY, 0, 0)

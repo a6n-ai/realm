@@ -24,7 +24,14 @@ function signalAfterCommit(d: Db): Db {
   const raw = d.transaction.bind(d) as (fn: never, cfg?: never) => Promise<unknown>;
   d.transaction = (async (fn: never, cfg?: never) => {
     const { value, dirty } = await trackOutbox(() => raw(fn, cfg));
-    if (dirty) await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+    if (dirty) {
+      // Committed work must never fail on a wake-up; the per-minute tick is the backstop.
+      try {
+        await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+      } catch (err) {
+        console.error("outbox signal after commit failed", err);
+      }
+    }
     return value;
   }) as Db["transaction"];
   return d;
