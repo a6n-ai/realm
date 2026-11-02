@@ -36,6 +36,8 @@ jobs:
       app: xplorers
       site-url: ${{ inputs.target == 'preview' && 'https://next.xplorers.a6n.ai' || 'https://xplorers.a6n.ai' }}
       wrangler-env: ${{ inputs.target == 'preview' && 'preview' || 'production' }}
+      # Neon endpoint ids: preview branch / production branch (pooler and compute hosts share the prefix).
+      db-host: ${{ inputs.target == 'preview' && 'ep-small-truth-azkj1h72' || 'ep-cold-salad-azc3uxye' }}
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -26,6 +26,7 @@ jobs:
       app: tiffin-grab
       site-url: ${{ inputs.target == 'preview' && 'https://next.tiffingrab.ca' || 'https://tiffingrab.ca' }}
       wrangler-env: ${{ inputs.target == 'preview' && 'preview' || 'production' }}
+      db-host: ${{ inputs.target == 'preview' && 'realm-tiffin-grab-preview-db.caf2iueu67ew.us-east-1.rds.amazonaws.com' || 'realm-tiffin-grab-prod-db.caf2iueu67ew.us-east-1.rds.amazonaws.com' }}
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
