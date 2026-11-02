@@ -1,5 +1,6 @@
 import { handler, json, problem } from "@foundry/routes";
 import { scheduleCampaign, zonedLocalToEpoch } from "@relay/engine";
+import { staleGroupsForCampaign } from "@/lib/services/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
@@ -23,6 +24,10 @@ export const POST = handler(
       const { timezone } = await getAppSettings();
       scheduledAt = zonedLocalToEpoch(String(body.localDateTime), timezone);
       if (scheduledAt === null) return problem(400, "Pick a date and time");
+    }
+    if (scheduledAt !== null) {
+    const stale = await staleGroupsForCampaign(id);
+    if (stale.length) return problem(409, `Customer group list could not be refreshed (${stale.join(", ")}). Try again before sending.`);
     }
     const result = await scheduleCampaign(deps, id, scheduledAt, { footerConfigured: await footerConfigured() });
     if ("error" in result) {

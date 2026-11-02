@@ -1,0 +1,234 @@
+import { describe, expect, it } from "vitest";
+import {
+  axisTicks,
+  signedTicks,
+  moneyTick,
+  tickEvery,
+  truncateLabel,
+  fitLabel,
+  LABEL_CHAR_PX,
+  foldParts,
+  heatBucket,
+  heatIsDense,
+  positionalConfig,
+  rankedHeight,
+  topWithOther,
+  trailingAverage,
+  calendarWeeks,
+  mondayIndex,
+} from "../chart-math";
+import { isoDateInZone } from "@/lib/analytics/profitability";
+
+describe("moneyTick", () => {
+  it("uses a lowercase k", () => {
+    expect(moneyTick(2400)).toBe("$2.4k");
+    expect(moneyTick(-1500)).toBe("-$1.5k");
+  });
+});
+
+describe("foldParts", () => {
+  it("explicit slots pin the colour and do not advance the auto sequence", () => {
+    const out = foldParts([
+      { label: "a", value: 3, tone: "c4" },
+      { label: "b", value: 2 },
+      { label: "c", value: 1, tone: "c1" },
+      { label: "d", value: 1 },
+    ]);
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-4)", "var(--chart-1)", "var(--chart-1)", "var(--chart-2)"]);
+  });
+  const parts = Array.from({ length: 9 }, (_, i) => ({ label: `p${i}`, value: i + 1 }));
+  it("folds more than 5 into Other and shares sum to 100", () => {
+    const out = foldParts(parts);
+    expect(out).toHaveLength(5);
+    expect(out.at(-1)).toMatchObject({ label: "Other", value: 1 + 2 + 3 + 4 + 5 });
+    expect(new Set(out.slice(0, 4).map((p) => p.color)).size).toBe(4);
+    expect(out.reduce((s, p) => s + p.share, 0)).toBe(100);
+    expect(out.reduce((s, p) => s + p.value, 0)).toBe(45);
+  });
+  it("shares sum to 100 on awkward thirds and status tones map to tokens", () => {
+    const out = foldParts([
+      { label: "a", value: 1, tone: "success" },
+      { label: "b", value: 1, tone: "destructive" },
+      { label: "c", value: 1 },
+    ]);
+    expect(out.reduce((s, p) => s + p.share, 0)).toBe(100);
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-good)", "var(--chart-bad)", "var(--chart-2)"]);
+  });
+  it("starts categorical parts at blue, never orange, when any part has a status tone", () => {
+    const out = foldParts([
+      { label: "ok", value: 5, tone: "warning" },
+      ...["a", "b", "c"].map((label) => ({ label, value: 1 })),
+    ]);
+    expect(out.map((p) => p.color)).toEqual(["var(--chart-warn)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]);
+  });
+  it("pure categorical donuts and chart+muted meters start at orange and use all five slots", () => {
+    const out = foldParts(Array.from({ length: 5 }, (_, i) => ({ label: `p${i}`, value: i + 1 })));
+    expect(out.map((p) => p.color)).toContain("var(--chart-1)");
+    const two = foldParts([{ label: "a", value: 1, tone: "chart" }, { label: "b", value: 1, tone: "muted" }]);
+    expect(two.map((p) => p.color)).toEqual(["var(--chart-1)", "var(--muted-foreground)"]);
+  });
+  it("is empty for all-zero input", () => {
+    expect(foldParts([{ label: "a", value: 0 }])).toEqual([]);
+  });
+});
+
+describe("heatBucket", () => {
+  it("is 0 for empty, 1 at min, max bucket at max", () => {
+    expect(heatBucket(0, 10, 100)).toBe(0);
+    expect(heatBucket(null, 10, 100)).toBe(0);
+    expect(heatBucket(10, 10, 100)).toBe(1);
+    expect(heatBucket(100, 10, 100)).toBe(5);
+    expect(heatBucket(5, 5, 5)).toBe(5);
+    expect(heatIsDense(heatBucket(100, 10, 100))).toBe(true);
+    expect(heatIsDense(heatBucket(10, 10, 100))).toBe(false);
+  });
+});
+
+describe("topWithOther", () => {
+  it("keeps top 8 plus Other and preserves the sum", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ name: `r${i}`, n: i + 1 }));
+    const out = topWithOther(rows, "name", "n");
+    expect(out).toHaveLength(9);
+    expect(out.at(-1)).toMatchObject({ name: "Other", n: 1 + 2 + 3 + 4 });
+    expect(out.reduce((s, r) => s + Number(r.n), 0)).toBe(78);
+  });
+  it("shows a single leftover row instead of folding it", () => {
+    const rows = Array.from({ length: 9 }, (_, i) => ({ name: `r${i}`, n: i + 1 }));
+    const out = topWithOther(rows, "name", "n");
+    expect(out).toHaveLength(9);
+    expect(out.map((r) => r.name)).not.toContain("Other");
+    expect(out[0]!.n).toBe(9);
+  });
+  it("omits zero rows and returns nothing when every value is zero", () => {
+    const rows = [{ name: "a", n: 0 }, { name: "b", n: 3 }, { name: "c", n: 0 }];
+    expect(topWithOther(rows, "name", "n")).toEqual([{ name: "b", n: 3 }]);
+    expect(topWithOther(rows.map((r) => ({ ...r, n: 0 })), "name", "n")).toEqual([]);
+  });
+  it("leaves short lists alone", () => {
+    expect(topWithOther([{ name: "a", n: 1 }], "name", "n")).toHaveLength(1);
+  });
+});
+
+describe("rankedHeight", () => {
+  it("is rows x 36 with a 3-row minimum", () => {
+    expect(rankedHeight(1)).toBe(108);
+    expect(rankedHeight(8)).toBe(288);
+  });
+});
+
+describe("positionalConfig", () => {
+  it("never derives keys from names", () => {
+    const cfg = positionalConfig([{ label: "x</style><b>" }, { label: "Veg. Plan" }]);
+    expect(Object.keys(cfg)).toEqual(["s0", "s1"]);
+    expect(JSON.stringify(Object.keys(cfg))).not.toContain("style");
+  });
+});
+
+describe("axis helpers", () => {
+  it("money axis runs from 0 to a nice max in about five ticks", () => {
+    expect(axisTicks(4273)).toEqual([0, 1000, 2000, 3000, 4000, 5000]);
+    expect(axisTicks(1548)).toEqual([0, 500, 1000, 1500, 2000]);
+    expect(axisTicks(0)).toEqual([0, 1]);
+  });
+  it("count axes only land on whole numbers", () => {
+    expect(axisTicks(15, true)).toEqual([0, 5, 10, 15]);
+    expect(axisTicks(1, true)).toEqual([0, 1]);
+    expect(axisTicks(2, true).every(Number.isInteger)).toBe(true);
+    expect(axisTicks(265, true).at(-1)).toBeGreaterThanOrEqual(265);
+  });
+  it("compact money labels", () => {
+    expect(moneyTick(0)).toBe("$0");
+    expect(moneyTick(500)).toBe("$500");
+    expect(moneyTick(1000)).toBe("$1k");
+    expect(moneyTick(1500)).toBe("$1.5k");
+    expect(moneyTick(12000)).toBe("$12k");
+    expect(moneyTick(-2000)).toBe("-$2k");
+  });
+  it("labels about every 4th day on a month and every day on a short range", () => {
+    expect(tickEvery(30)).toBe(3);
+    expect(tickEvery(7)).toBe(0);
+  });
+  it("truncates long names to 18 characters", () => {
+    expect(truncateLabel("Short")).toBe("Short");
+    expect(truncateLabel("Maharaja Thali with extras")).toHaveLength(18);
+  });
+});
+
+describe("signedTicks", () => {
+  it("spans negative and positive values on one step and includes 0", () => {
+    const t = signedTicks(-300, 900);
+    expect(t).toContain(0);
+    expect(t[0]!).toBeLessThanOrEqual(-300);
+    expect(t.at(-1)!).toBeGreaterThanOrEqual(900);
+    expect(t.length).toBeLessThanOrEqual(9);
+  });
+  it("handles all-positive data", () => {
+    expect(signedTicks(100, 4000)[0]).toBe(0);
+  });
+});
+
+describe("trailingAverage", () => {
+  it("averages the days available for the first 6, then a 7-day window", () => {
+    const out = trailingAverage([7, 7, 7, 7, 7, 7, 7, 14]);
+    expect(out.slice(0, 7)).toEqual([7, 7, 7, 7, 7, 7, 7]);
+    expect(out[7]).toBe((7 * 6 + 14) / 7);
+    expect(trailingAverage([2, 4])).toEqual([2, 3]);
+    expect(trailingAverage([])).toEqual([]);
+  });
+});
+
+describe("calendarWeeks", () => {
+  it("pads a month starting on a Thursday with blank Mon-Wed cells", () => {
+    // 2026-10-01 is a Thursday.
+    expect(mondayIndex("2026-10-01")).toBe(3);
+    const weeks = calendarWeeks("2026-10-01", "2026-10-31");
+    expect(weeks).toHaveLength(5);
+    expect(weeks[0]!.slice(0, 4)).toEqual([null, null, null, "2026-10-01"]);
+    expect(weeks[4]!.slice(0, 5)).toEqual(["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(weeks[4]![5]).toBe("2026-10-31");
+    expect(weeks[4]![6]).toBeNull();
+    expect(weeks.flat().filter(Boolean)).toHaveLength(31);
+  });
+
+  it("keeps weeks that span a month edge in one row", () => {
+    const weeks = calendarWeeks("2026-09-28", "2026-10-11");
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]).toEqual(["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]);
+    expect(weeks[1]![0]).toBe("2026-10-05");
+  });
+
+  it("is empty for a reversed range and one row for a single day", () => {
+    expect(calendarWeeks("2026-10-05", "2026-10-01")).toEqual([]);
+    expect(calendarWeeks("2026-10-04", "2026-10-04")).toEqual([[null, null, null, null, null, null, "2026-10-04"]]);
+  });
+
+  it("places a late-evening Toronto moment on the app-timezone day, not the UTC day", () => {
+    // 2026-10-31 23:30 Toronto (EDT) is 2026-11-01 03:30 UTC.
+    const day = isoDateInZone(Date.parse("2026-11-01T03:30:00Z"), "America/Toronto");
+    expect(day).toBe("2026-10-31");
+    expect(calendarWeeks("2026-10-01", "2026-10-31").flat()).toContain(day);
+  });
+});
+
+describe("fitLabel", () => {
+  it("keeps the start of a long label within the axis width", () => {
+    const out = fitLabel("Pure Vegetarian Plan with extras", 110);
+    expect(out.startsWith("Pure Vegetar")).toBe(true);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.length * LABEL_CHAR_PX).toBeLessThanOrEqual(110);
+  });
+  it("leaves short labels alone", () => {
+    expect(fitLabel("Brampton", 110)).toBe("Brampton");
+  });
+});
+
+describe("slotTone", () => {
+  it("pins a key to its fixed slot whatever the rank, and mutes unknown or 6th+ keys", async () => {
+    const { slotTone } = await import("../chart-math");
+    const order = ["a", "b", "c", "d", "e", "f"];
+    expect(slotTone("b", order)).toBe("c2");
+    expect(slotTone("e", order)).toBe("c5");
+    expect(slotTone("f", order)).toBe("muted");
+    expect(slotTone("zz", order)).toBe("muted");
+  });
+});

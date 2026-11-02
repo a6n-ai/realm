@@ -17,11 +17,23 @@ import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
-import type { LeadAssignmentConfig } from "./assignment";
+import type { LeadAssignmentConfig, Strategy } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7, maxDiscountPct: 25 } as const;
-const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
+const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };
+
+// "creator" is legacy: staff creators always own their records now, so for everything else it means round robin.
+const noCreator = (s: Strategy | undefined): Strategy | undefined => (s === "creator" ? "round_robin" : s);
+function normalizeAssignment(c: LeadAssignmentConfig): LeadAssignmentConfig {
+  return {
+    ...c,
+    strategy: noCreator(c.strategy) ?? "round_robin",
+    perSource: Object.fromEntries(Object.entries(c.perSource ?? {}).map(([k, v]) => [k, noCreator(v) ?? "round_robin"])),
+    ...(c.orders ? { orders: { ...c.orders, strategy: noCreator(c.orders.strategy) ?? "round_robin" } } : {}),
+    ...(c.tickets ? { tickets: { ...c.tickets, strategy: noCreator(c.tickets.strategy) ?? "round_robin" } } : {}),
+  };
+}
 // Default discount governance: every kind honored, rep daily allowance OFF until
 // an admin opts in and sets ceilings. Mirrors the leadAssignment default shape.
 const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
@@ -167,7 +179,7 @@ export async function getPauseDefaultsSetting(): Promise<{
 export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {
   return settingsCache.getOrSet("assignment", async () => {
     const [row] = await db.select({ la: app.leadAssignment }).from(app).limit(1);
-    return { ...ASSIGNMENT_DEFAULT, ...((row?.la as Partial<LeadAssignmentConfig>) ?? {}) };
+    return normalizeAssignment({ ...ASSIGNMENT_DEFAULT, ...((row?.la as Partial<LeadAssignmentConfig>) ?? {}) });
   });
 }
 

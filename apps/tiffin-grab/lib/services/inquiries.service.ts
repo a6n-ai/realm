@@ -2,20 +2,21 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { assertOnePerson, createOrder, type CreateOrderInput } from "./orders.service";
+import { assertOnePerson, createOrder, resolveBrandOrgId, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
-import { poolForSource } from "./inquiry-user-config.service";
+import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@/lib/list/sort";
+import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 const LIVE_ORDER_STATUSES = ["pending", "active", "waitlisted", "paused"] as const;
 
@@ -48,13 +49,36 @@ export type PipelineSortColumn =
   | "source"
   | "lastTouch"
   | "nextAction"
+  | "nextFollowUp"
   | "created";
+
+export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed";
+
+const openSql = sql`${inquiries.stage} not in ('converted', 'lost')`;
+
+function queuePredicate(tab: QueueTab, dayStart: number, dayEnd: number): SQL {
+  const next = inquiries.nextFollowUpAt;
+  switch (tab) {
+    case "due": return sql`(${openSql} and (${next} is null or (${next} >= ${dayStart} and ${next} < ${dayEnd})))`;
+    case "overdue": return sql`(${openSql} and ${next} < ${dayStart})`;
+    case "upcoming": return sql`(${openSql} and ${next} >= ${dayEnd})`;
+    case "open": return openSql;
+    case "closed": return sql`not (${openSql})`;
+  }
+}
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType =
   | "call" | "whatsapp" | "email" | "note"
   | "quote_sent" | "sample_sent" | "payment_link_sent" | "visit" | "callback";
 type LostReason = (typeof inquiries.lostReason.enumValues)[number];
+
+const newWhere = (visible: "all" | string[]) =>
+  and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
+
+function assertFiniteFollowUp(at: number | null | undefined) {
+  if (at != null && !Number.isFinite(at)) throw new ValidationError("Invalid follow-up date");
+}
 
 export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
   if (nextFollowUpAt == null) return false;
@@ -69,6 +93,7 @@ export function computeOverdue(stage: string, nextFollowUpAt: number | null, now
 function inquiriesResolver() {
   const base = columnResolver({
     stage: inquiries.stage,
+    lostReason: inquiries.lostReason,
     createdAt: inquiries.createdAt,
     fullName: inquiries.fullName,
     phone: inquiries.phone,
@@ -77,6 +102,14 @@ function inquiriesResolver() {
   const valuesOf = (f: FilterCondition) =>
     f.operator === "in" ? (f.value as string[]) : [f.value as string];
   return (f: FilterCondition) => {
+    if (f.field === "subStatus") {
+      const vals = valuesOf(f);
+      const real = vals.filter((v) => v !== "none") as SubStatus[];
+      return or(vals.includes("none") ? isNull(inquiries.subStatus) : undefined, real.length ? inArray(inquiries.subStatus, real) : undefined)!;
+    }
+    if (f.field === "zone") {
+      return inArray(inquiries.zoneId, db.select({ id: deliveryZones.id }).from(deliveryZones).where(inArray(deliveryZones.name, valuesOf(f))));
+    }
     if (f.field === "owner") {
       return inArray(
         inquiries.currentOwner,
@@ -133,19 +166,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
   }
 
-  private async resolveOwner(sourceId: bigint, sourceKey: string, isInbound: boolean): Promise<bigint> {
-    if (!isInbound) {
-      const actor = await this.currentUserId();
-      return actor ?? (await this.systemUserId());
-    }
+  // Owners are always staff. A staff member adding a lead owns it; anything else
+  // (website form, a signed-in customer subscribing) is assigned from the pool —
+  // per-source, then default, then every active staff member.
+  private async resolveOwner(sourceId: bigint, sourceKey: string): Promise<bigint> {
+    const actor = await this.currentUserId();
+    if (actor && (await this.isActiveStaff(actor))) return actor;
     const cfg = await getLeadAssignment();
-    const strat = strategyFor(cfg, sourceKey);
-    if (strat === "creator") {
-      const actor = await this.currentUserId();
-      return actor ?? (await this.systemUserId());
-    }
-    const sourcePool = await poolForSource(sourceId);
-    const pool = sourcePool.length ? sourcePool : await poolForSource(null);
+    // "creator" has no staff creator to fall back on here, so it rotates instead.
+    const strat = strategyFor(cfg, sourceKey) === "percentage" ? "percentage" : "round_robin";
+    const sourcePool = await poolFor("inquiry", sourceId);
+    const configured = sourcePool.length ? sourcePool : await poolFor("inquiry");
+    const pool = configured.length ? configured : await this.activeStaffPool();
     if (!pool.length) return this.systemUserId();
 
     const roll = await this.rollFor();
@@ -155,6 +187,19 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [sourceKey]: cursorPublicId } });
     }
     return chosen.id;
+  }
+
+  private staffWhere() {
+    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, ["admin", "member"]));
+  }
+
+  private async isActiveStaff(userId: bigint): Promise<boolean> {
+    const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), this.staffWhere())).limit(1);
+    return !!u;
+  }
+
+  private async activeStaffPool() {
+    return db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(this.staffWhere());
   }
 
   private async systemUserId(): Promise<bigint> {
@@ -179,13 +224,17 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * converted/lost) inquiry is the same person. Email wins when phone and email
    * point at different inquiries — email is the login identity. Newest first.
    */
-  async findOpenMatch(phone: string, email?: string | null): Promise<typeof inquiries.$inferSelect | null> {
-    const byPhone = eq(sql`lower(${inquiries.phone})`, phone.toLowerCase());
-    const match = email ? or(byPhone, eq(sql`lower(${inquiries.email})`, email.toLowerCase()))! : byPhone;
+  async findOpenMatch(phone: string | null, email?: string | null, excludeId?: bigint): Promise<typeof inquiries.$inferSelect | null> {
+    const parts = [
+      phone ? eq(sql`lower(${inquiries.phone})`, phone.toLowerCase()) : undefined,
+      email ? eq(sql`lower(${inquiries.email})`, email.toLowerCase()) : undefined,
+    ].filter((p): p is SQL => !!p);
+    if (!parts.length) return null;
+    const match = or(...parts)!;
     const rows = await db
       .select()
       .from(inquiries)
-      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"])))
+      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"]), excludeId != null ? ne(inquiries.id, excludeId) : undefined))
       .orderBy(desc(inquiries.createdAt));
     const byEmail = email ? rows.find((r) => r.email?.toLowerCase() === email.toLowerCase()) : undefined;
     return byEmail ?? rows[0] ?? null;
@@ -194,70 +243,85 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   /** A repeat contact from the same person: log it on their open inquiry instead of a new row. */
   private async logReinquiry(
     inq: typeof inquiries.$inferSelect,
-    v: { phone: string; email: string; sourceKey: string; subSourceKey?: string; notes?: unknown },
+    v: { phone: string | null; email: string | null; sourceKey: string; subSourceKey?: string; notes?: unknown },
   ) {
     const [src] = await db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.key, v.sourceKey)).limit(1);
     const parts = [`Re-inquiry via ${src?.label ?? v.sourceKey}${v.subSourceKey ? ` (${v.subSourceKey})` : ""}`];
-    if (inq.phone.toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
-    if ((inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
+    if (v.phone && (inq.phone ?? "").toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
+    if (v.email && (inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
     const message = typeof v.notes === "string" && v.notes.trim() ? `\n${v.notes.trim()}` : "";
     await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
   }
 
   /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
   async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
-    const parsedPhone = phoneSchema().safeParse(values.phone);
-    if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-    // Email is the customer login — required on inquiry create.
-    if (!values.email || typeof values.email !== "string" || !values.email.trim()) {
-      throw new ValidationError("Email is required");
+    const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+    const fullName = clean(values.fullName);
+    const rawPhone = clean(values.phone);
+    const rawEmail = clean(values.email);
+    if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
+    let phone: string | null = null;
+    if (rawPhone) {
+      const parsedPhone = phoneSchema().safeParse(rawPhone);
+      if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
+      phone = parsedPhone.data;
     }
-    const parsedEmail = emailSchema.safeParse(values.email);
-    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
+    let email: string | null = null;
+    if (rawEmail) {
+      const parsedEmail = emailSchema.safeParse(rawEmail);
+      if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
+      email = parsedEmail.data;
+    }
 
-    const { sourceKey, subSourceKey, ...rest } = values as {
+    const { sourceKey, subSourceKey, subStatus: rawSub, ...rest } = values as {
       sourceKey: string;
       subSourceKey?: string;
+      subStatus?: unknown;
       [k: string]: unknown;
     };
+    const subStatus = (rawSub ?? null) as SubStatus | null;
+    if (subStatus !== null && !(SUB_STATUSES.includes(subStatus) && SUB_STATUS_META[subStatus].pickable && !isClosed(subStatus))) {
+      throw new ValidationError("Pick an open starting status");
+    }
     const fold = async (existing: typeof inquiries.$inferSelect) => {
-      await this.logReinquiry(existing, {
-        phone: parsedPhone.data,
-        email: parsedEmail.data,
-        sourceKey,
-        subSourceKey,
-        notes: rest.notes,
-      });
+      await this.logReinquiry(existing, { phone, email, sourceKey, subSourceKey, notes: rest.notes });
       return { inquiry: existing, folded: true };
     };
 
-    const existing = await this.findOpenMatch(parsedPhone.data, parsedEmail.data);
+    const existing = await this.findOpenMatch(phone, email);
     if (existing) return fold(existing);
 
     // Zone resolution depends only on the postal code, so run it alongside the
     // source→owner chain instead of after it.
     const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
-    const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
-    const currentOwner = await this.resolveOwner(sourceId, sourceKey, isInbound);
+    const { sourceId, subSourceId } = await this.resolveSource(sourceKey, subSourceKey);
+    const currentOwner = await this.resolveOwner(sourceId, sourceKey);
     const zoneId = await zoneIdP;
+    // Stamped like orders (resolveBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
+    const organizationId = await resolveBrandOrgId(db);
 
     let inq: typeof inquiries.$inferSelect;
     try {
       inq = await super.create({
         ...rest,
-        phone: parsedPhone.data,
-        email: parsedEmail.data,
+        fullName,
+        phone,
+        email,
+        stage: stageFor(subStatus),
+        subStatus,
+        nextFollowUpAt: typeof rest.nextFollowUpAt === "number" ? rest.nextFollowUpAt : null,
         sourceId,
         subSourceId,
         currentOwner,
         zoneId,
+        organizationId,
       });
     } catch (e) {
       // Partial unique indexes inquiries_open_{phone,email}_unique: a concurrent
       // insert for the same person won the race — fold into it (the dedup rule,
       // enforced at the DB).
       if (isOpenLeadConflict(e)) {
-        const winner = await this.findOpenMatch(parsedPhone.data, parsedEmail.data);
+        const winner = await this.findOpenMatch(phone, email);
         if (winner) return fold(winner);
       }
       throw e;
@@ -266,6 +330,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       inquiryId: inq.id,
       type: "created",
       toStage: inq.stage,
+      toSubStatus: subStatus,
     });
     return { inquiry: inq, folded: false };
   }
@@ -274,19 +339,23 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return (await this.createOrFold(values)).inquiry;
   }
 
-  async addNote(publicId: string, note: string) {
+  async addNote(publicId: string, note: string, nextFollowUpAt?: number) {
+    assertFiniteFollowUp(nextFollowUpAt);
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "note",
       note,
+      nextFollowUpAt: nextFollowUpAt ?? null,
     });
+    if (nextFollowUpAt != null) await this.update(publicId, { nextFollowUpAt });
   }
 
   async logActivity(
     publicId: string,
     input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
   ) {
+    assertFiniteFollowUp(input.nextFollowUpAt);
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
@@ -297,37 +366,69 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       // Minor units; currency is the app's (app.currency), resolved at display time.
       amount: input.amount ?? null,
     });
-    // Sending a quote is the signal the lead has entered the "quoted" stage.
-    // Only auto-advance from an earlier stage; never move a later/terminal one back.
-    if (input.type === "quote_sent" && (inq.stage === "new" || inq.stage === "contacted")) {
-      await this.changeStage(publicId, "quoted");
+    if (input.nextFollowUpAt != null) {
+      await this.update(publicId, { nextFollowUpAt: input.nextFollowUpAt });
     }
   }
 
-  async markLost(publicId: string, reason: LostReason, note?: string) {
+  async setStatus(
+    publicId: string,
+    input: { subStatus: SubStatus | null; note?: string; nextFollowUpAt?: number | null; lostReason?: LostReason },
+  ): Promise<{ previous: SubStatus | null }> {
     const current = await this.read(publicId);
-    if (current.stage === "converted") throw new ValidationError("Converted inquiry cannot be marked lost");
-    await this.update(publicId, { stage: "lost", lostReason: reason });
+    if (current.stage === "converted") throw new ValidationError("A converted inquiry cannot change status");
+    const previous = current.subStatus as SubStatus | null;
+    const to = input.subStatus;
+    assertTransition(previous, to);
+    assertFiniteFollowUp(input.nextFollowUpAt);
+    if (to === null && previous !== null && isClosed(previous)) {
+      const other = await this.findOpenMatch(current.phone, current.email, current.id);
+      if (other) {
+        throw new ValidationError(`Another open lead has this phone or email (${other.publicId}). Open that lead instead.`);
+      }
+    }
+    const note = input.note?.trim() || null;
+    if (previous === to && !note && input.nextFollowUpAt === undefined) return { previous };
+
+    let lostReason: LostReason | null = null;
+    if (to === "undeliverable") lostReason = "out_of_zone";
+    else if (to === "lost") {
+      if (!input.lostReason) throw new ValidationError("A reason is required to mark an inquiry lost");
+      lostReason = input.lostReason;
+    }
+    const nextFollowUpAt = isClosed(to) ? null : input.nextFollowUpAt === undefined ? current.nextFollowUpAt : input.nextFollowUpAt;
+    const stage = stageFor(to);
+
+    await this.update(publicId, { subStatus: to, stage, lostReason, nextFollowUpAt });
     await inquiryActivitiesService.create({
       inquiryId: current.id,
       type: "stage_change",
       fromStage: current.stage,
-      toStage: "lost",
-      note: note ?? null,
+      toStage: stage,
+      fromSubStatus: previous,
+      toSubStatus: to,
+      note,
+      nextFollowUpAt,
     });
+    return { previous };
   }
 
+  async markLost(publicId: string, reason: LostReason, note?: string) {
+    await this.setStatus(publicId, { subStatus: "lost", lostReason: reason, note });
+  }
+
+  // ponytail: legacy stage wrapper for callers not yet moved to setStatus; delete with them.
   async changeStage(publicId: string, toStage: Stage): Promise<{ previous: Stage }> {
     const current = await this.read(publicId);
     const previous = current.stage as Stage;
-    if (current.stage === toStage) return { previous };
-    await this.update(publicId, { stage: toStage });
-    await inquiryActivitiesService.create({
-      inquiryId: current.id,
-      type: "stage_change",
-      fromStage: current.stage,
-      toStage,
-    });
+    if (toStage === previous) return { previous };
+    if (toStage === "converted") throw new ValidationError("Convert the inquiry to record a plan or trial");
+    if (toStage === "lost") {
+      await this.setStatus(publicId, { subStatus: "lost", lostReason: "other" });
+      return { previous };
+    }
+    const sub = ({ new: null, contacted: "responded", quoted: "expected", follow_up: "persistent" } as const)[toStage];
+    await this.setStatus(publicId, { subStatus: sub });
     return { previous };
   }
 
@@ -339,12 +440,24 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
 
+    const contactPhone = orderInput.contact.phone?.trim();
+    const contactEmail = orderInput.contact.email?.trim();
+    if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
+    if (!contactPhone) throw new ValidationError("Phone is required");
+    if (!contactEmail) throw new ValidationError("Email is required");
+
+    // Contact is the person's identity from here on: it must not belong to a different open lead.
+    const other = await this.findOpenMatch(contactPhone, contactEmail, inq.id);
+    if (other) {
+      throw new ValidationError(`This phone or email belongs to another open lead (${other.publicId}). Open that lead instead.`);
+    }
+
     // Converting a lead when the phone already has a live subscription usually
     // means the order was placed another way — reject so staff open that order
     // instead of minting a duplicate. New Order / New Customer pass
     // allowAdditionalOrder for intentional second subscriptions.
     if (!opts?.allowAdditionalOrder) {
-      await assertNoLiveOrderForPhone(inq.phone);
+      await assertNoLiveOrderForPhone(contactPhone);
     }
 
     // Staff can only convert a lead into an order we can deliver; an out-of-zone lead stays
@@ -362,16 +475,27 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, staffCreated: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
-      .select({ id: orders.id })
+      .select({ id: orders.id, trialLength: orders.trialLength })
       .from(orders)
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
-    await this.update(publicId, { stage: "converted", convertedOrderId: order.id });
+    const subStatus = order.trialLength != null ? "took_trial" : "took_plan";
+    await this.update(publicId, {
+      phone: contactPhone,
+      email: contactEmail,
+      fullName: inq.fullName ?? (orderInput.contact.fullName?.trim() || null),
+      stage: "converted",
+      subStatus,
+      nextFollowUpAt: null,
+      convertedOrderId: order.id,
+    });
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "converted",
       fromStage: inq.stage,
       toStage: "converted",
+      fromSubStatus: inq.subStatus,
+      toSubStatus: subStatus,
     });
     return result;
   }
@@ -385,6 +509,17 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     // entry rather than widen the enum here.
   }
 
+  /** Bulk reassign from the list selection. Per-row update keeps audit stamping from the session. */
+  async reassignMany(publicIds: string[], ownerId: string): Promise<number> {
+    await assertReassignAllowed();
+    const ids = [...new Set(publicIds)];
+    if (ids.length === 0) return 0;
+    if (ids.length > 200) throw new ValidationError("Reassign at most 200 inquiries at a time");
+    const owner = await resolveAssignableOwner(ownerId);
+    for (const id of ids) await this.update(id, { currentOwner: owner.id });
+    return ids.length;
+  }
+
   // The pipeline list: server-side unified filters (Condition) + offset
   // pagination + unpaginated total. Named `listForPipeline` (not `list`) on
   // purpose — the framework reserves `BaseService.list` for the generic
@@ -396,8 +531,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     condition: Condition | undefined,
     page: PageRequest,
     sort: SortState<PipelineSortColumn> = { column: "created", dir: "desc" },
+    queue?: { tab: QueueTab; dayStart: number; dayEnd: number },
   ) {
-    const where = conditionToSql(condition, inquiriesResolver());
+    const where = and(
+      conditionToSql(condition, inquiriesResolver()),
+      queue ? queuePredicate(queue.tab, queue.dayStart, queue.dayEnd) : undefined,
+    );
 
     const agg = db
       .select({
@@ -417,6 +556,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       created: inquiries.createdAt,
       owner: users.name,
       lastTouch: agg.lastTouchAt,
+      nextFollowUp: sql`coalesce(${inquiries.nextFollowUpAt}, -1)`,
     } as const;
     const col = SORT_COL[sort.column as keyof typeof SORT_COL] ?? inquiries.createdAt;
 
@@ -430,13 +570,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
           phone: inquiries.phone,
           source: leadSources.label,
           stage: inquiries.stage,
+          subStatus: inquiries.subStatus,
           ownerId: users.publicId,
           ownerName: users.name,
           createdAt: inquiries.createdAt,
           lastTouchAt: agg.lastTouchAt,
-          nextFollowUpAt: sql<number | null>`(
-            select a.next_follow_up_at from inquiry_activities a
-            where a.inquiry_id = ${inquiries.id}
+          nextFollowUpAt: inquiries.nextFollowUpAt,
+          lastNote: sql<string | null>`(
+            select a.note from inquiry_activities a
+            where a.inquiry_id = ${inquiries.id} and a.note is not null
             order by a.created_at desc limit 1
           )`,
         })
@@ -459,66 +601,64 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { items, page: page.page, size: page.size, total: count };
   }
 
-  // Full (unpaginated) export of every inquiry matching the pipeline's current
-  // filter condition — same predicate/resolver as listForPipeline, but no
-  // limit/offset and a wider column set (contact + interest + resolution
-  // detail) since this feeds an Excel download, not the on-screen table.
-  async listForExport(condition: Condition | undefined) {
+  async queueCounts(condition: Condition | undefined, dayStart: number, dayEnd: number): Promise<Record<QueueTab, number>> {
     const where = conditionToSql(condition, inquiriesResolver());
+    const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
+    const [row] = await db
+      .select(Object.fromEntries(tabs.map((t) => [t, sql<number>`cast(count(*) filter (where ${queuePredicate(t, dayStart, dayEnd)}) as int)`])) as Record<QueueTab, SQL<number>>)
+      .from(inquiries)
+      .where(where);
+    return row;
+  }
 
-    const agg = db
+  async groupCounts(where: SQL | undefined): Promise<{ lead: number; followUp: number; took: number; lost: number }> {
+    const subs = (f: (s: SubStatus) => boolean) => inArray(inquiries.subStatus, SUB_STATUSES.filter(f));
+    const cnt = (p: SQL | undefined) => sql<number>`cast(count(*) filter (where ${p}) as int)`;
+    const [row] = await db
       .select({
-        inquiryId: inquiryActivities.inquiryId,
-        lastTouchAt: sql<number>`max(${inquiryActivities.createdAt})`.as("last_touch_at"),
-      })
-      .from(inquiryActivities)
-      .groupBy(inquiryActivities.inquiryId)
-      .as("agg");
-
-    const rows = await db
-      .select({
-        fullName: inquiries.fullName,
-        phone: inquiries.phone,
-        email: inquiries.email,
-        source: leadSources.label,
-        subSource: leadSubsources.label,
-        stage: inquiries.stage,
-        ownerName: users.name,
-        createdAt: inquiries.createdAt,
-        lastTouchAt: agg.lastTouchAt,
-        nextFollowUpAt: sql<number | null>`(
-          select a.next_follow_up_at from inquiry_activities a
-          where a.inquiry_id = ${inquiries.id}
-          order by a.created_at desc limit 1
-        )`,
-        planInterest: inquiries.planInterest,
-        mealSizeInterest: inquiries.mealSizeInterest,
-        personsInterest: inquiries.personsInterest,
-        frequencyKeyInterest: inquiries.frequencyKeyInterest,
-        eatingDaysInterest: inquiries.eatingDaysInterest,
-        postalCode: inquiries.postalCode,
-        preferredStart: inquiries.preferredStart,
-        quotedPrice: inquiries.quotedPrice,
-        lostReason: inquiries.lostReason,
-        notes: inquiries.notes,
+        lead: cnt(or(and(isNull(inquiries.subStatus), notInArray(inquiries.stage, ["converted", "lost"])), subs((s) => !isClosed(s) && groupFor(s) === "lead"))),
+        followUp: cnt(subs((s) => !isClosed(s) && groupFor(s) === "follow_up")),
+        took: cnt(subs((s) => s === "took_plan" || s === "took_trial")),
+        lost: cnt(subs((s) => s === "lost" || s === "undeliverable")),
       })
       .from(inquiries)
-      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-      .leftJoin(leadSubsources, eq(inquiries.subSourceId, leadSubsources.id))
-      .leftJoin(users, eq(inquiries.currentOwner, users.id))
-      .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
-      .where(where)
-      .orderBy(desc(inquiries.createdAt));
+      .where(where);
+    return row;
+  }
 
-    const now = Date.now();
-    return rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+  /**
+   * Inquiries still in stage `new` (nobody has contacted them), oldest first, across all dates.
+   * `visible` scopes by inquiries.organizationId: a row with no organization counts only for "all".
+   */
+  async listNew(visible: "all" | string[], limit: number) {
+    if (visible !== "all" && visible.length === 0) return [];
+    return db
+      .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, phone: inquiries.phone, source: sql<string>`coalesce(${leadSources.label}, 'No source')`, createdAt: inquiries.createdAt })
+      .from(inquiries)
+      // Left join: an inquiry with no source still counts in countNew, so it must list too.
+      .leftJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .where(newWhere(visible))
+      .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
+      .limit(limit);
+  }
+
+  async countNew(visible: "all" | string[]): Promise<number> {
+    if (visible !== "all" && visible.length === 0) return 0;
+    const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inquiries).where(newWhere(visible));
+    return count;
   }
 
   async listActivities(publicId: string) {
     const inq = await this.read(publicId);
     return db
-      .select()
+      .select({
+        ...getTableColumns(inquiryActivities),
+        actorName: users.name,
+        actorEmail: users.email,
+        actorRole: users.role,
+      })
       .from(inquiryActivities)
+      .leftJoin(users, eq(users.id, inquiryActivities.createdBy))
       .where(eq(inquiryActivities.inquiryId, inq.id))
       .orderBy(desc(inquiryActivities.createdAt));
   }
@@ -553,9 +693,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   async resolveForSource(input: {
-    phone: string;
+    phone?: string;
     sourceKey: string;
-    contact: { fullName: string; email?: string };
+    contact: { fullName?: string; email?: string };
     interest?: {
       planInterest?: string;
       mealSizeInterest?: string;

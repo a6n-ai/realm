@@ -91,6 +91,9 @@ export type OrderPricingSnapshot = PricingResult & {
   /** Where taxLines came from; calculationId ties the payment to a Stripe Tax calculation. */
   tax?: { source: "stripe" | "fallback"; calculationId: string | null; expiresAt: number | null };
   planType?: string;
+  /** Running total of mid-plan add-ons actually applied to this snapshot (written with the snapshot change).
+   *  Analytics subtracts it to recover the plan payment's own quote; absent on orders applied before it existed. */
+  appliedAddons?: { addonSubtotal: number; taxTotal: number; amountDue: number };
   // Staff replaced a custom meal's computed per-TU base price (actor = staff public id).
   // computed is null when a category had no custom-meal pricing at order time.
   basePriceOverride?: { amount: number; computed: number | null; byPublicId: string | null };

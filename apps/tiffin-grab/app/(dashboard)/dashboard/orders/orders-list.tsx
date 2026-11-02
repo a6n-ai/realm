@@ -11,9 +11,8 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import type { SortState } from "@/lib/list/sort";
-import { ReassignControl } from "@/components/reassign/reassign-control";
-import { reassignOrderAction } from "./actions";
 import { RowTag } from "./row-tags";
+
 
 // ORDER_STATUS_PILLS lives in ./status-pills (a non-client module) because the
 // server page maps over it; re-exporting it here would hand the RSC graph a
@@ -43,8 +42,6 @@ export function OrdersList({
   page,
   size,
   sort,
-  canReassign,
-  staff,
   lookOutView = false,
   paymentReviewView = false,
   freeTiffinsView = false,
@@ -55,8 +52,6 @@ export function OrdersList({
   page: number;
   size: number;
   sort: SortState<OrderSortColumn>;
-  canReassign: boolean;
-  staff: { publicId: string; name: string }[];
   /** The Look out for tab: each row shows why it was flagged. */
   lookOutView?: boolean;
   paymentReviewView?: boolean;
@@ -96,16 +91,7 @@ export function OrdersList({
             <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
           <TableCell>
-            {canReassign ? (
-              <ReassignControl
-                currentOwnerId={o.ownerId}
-                currentOwnerName={o.ownerName}
-                staff={staff}
-                action={reassignOrderAction.bind(null, o.publicId)}
-              />
-            ) : (
-              (o.ownerName ?? "—")
-            )}
+            {o.ownerName ?? "—"}
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>

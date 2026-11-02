@@ -14,6 +14,7 @@ import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "./ledger.service";
+import { displayName } from "@/lib/inquiries/display";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -219,12 +220,13 @@ export async function customerInviteUrl(email: string): Promise<string> {
   return createCustomerInviteUrl(email);
 }
 
-export async function findExistingByContact(phone: string, email?: string | null) {
+export async function findExistingByContact(phone: string | null, email?: string | null) {
   // Raw equality against the stored canonical values (phone is E.164, email is
   // lowercased on write) so the users_phone_unique / users_email_unique indexes
   // are usable — a lower() wrap forced a seq scan.
-  const conds = [eq(users.phone, phone)];
+  const conds = phone ? [eq(users.phone, phone)] : [];
   if (email) conds.push(eq(users.email, email.toLowerCase()));
+  if (conds.length === 0) return null;
   const [row] = await db
     .select({ publicId: users.publicId, name: users.name })
     .from(users)
@@ -284,7 +286,12 @@ export async function listCustomersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<CustomerSortColumn> = { column: "orders", dir: "desc" },
-  customFilters?: { planCompletesInDays?: number }
+  customFilters?: {
+    planCompletesInDays?: number;
+    activePlan?: "yes" | "no";
+    customerType?: "none" | "new" | "repeat";
+    latestStatus?: string;
+  }
 ): Promise<Page<CustomerRow>> {
   const planCompletionSubquery = sql<string>`(
     select max(d.delivery_date)
@@ -298,8 +305,28 @@ export async function listCustomersPage(
     extraWhere = sql`${planCompletionSubquery} between current_date and current_date + cast(${customFilters.planCompletesInDays} || ' days' as interval)`;
   }
 
+  // ponytail: literal active+paused (ONGOING_STATUSES lives in an app file; lib must not import it).
+  const hasRunning = sql`exists (select 1 from ${orders} o where o.user_id = ${users.id} and o.status in ('active', 'paused'))`;
+  const liveOrderCount = sql`(select count(*) from ${orders} o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
+  const f = customFilters;
+  const activePlanWhere = f?.activePlan === "yes" ? hasRunning : f?.activePlan === "no" ? sql`not ${hasRunning}` : undefined;
+  const customerTypeWhere =
+    f?.customerType === "none"
+      ? sql`${liveOrderCount} = 0`
+      : f?.customerType === "new"
+        ? sql`${liveOrderCount} = 1`
+        : f?.customerType === "repeat"
+          ? sql`${liveOrderCount} >= 2`
+          : undefined;
+  const latestStatusWhere = f?.latestStatus
+    ? sql`(select o.status from ${orders} o where o.user_id = ${users.id} order by o.created_at desc limit 1) = ${f.latestStatus}`
+    : undefined;
+
   const where = and(
     eq(users.role, "user"),
+    activePlanWhere,
+    customerTypeWhere,
+    latestStatusWhere,
     conditionToSql(
       condition,
       columnResolver({
@@ -612,6 +639,7 @@ export async function getCustomer360(userPublicId: string) {
           .select({
             publicId: inquiries.publicId,
             fullName: inquiries.fullName,
+            phone: inquiries.phone,
             stage: inquiries.stage,
             source: leadSources.label,
             createdAt: inquiries.createdAt,
@@ -654,7 +682,7 @@ export async function getCustomer360(userPublicId: string) {
 
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
-    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
+    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${displayName(i)} (${i.stage})`, at: i.createdAt })),
     ...(await addressTimeline(user.id)),
     ...(await planAddressTimeline(user.id, orderRows)),
     ...(await walletTimeline(user.id)),

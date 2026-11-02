@@ -1,7 +1,10 @@
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveryZones, inquiries, mealSizes, tickets, users } from "@/db/schema";
-import { epochRangeWhere, type AnalyticsFilters } from "./shared-filters";
+import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets, users } from "@/db/schema";
+import { leadWhere as scopedLeadWhere } from "./leads.service";
+import { laterOrderSql } from "@/lib/services/orders.service";
+import { revenueBy } from "./metrics/money";
+import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -15,37 +18,46 @@ export type EmployeeRow = {
   ticketsResolved: number;
   avgResolutionHours: number | null;
   repDailyCoupons: number;
+  ordersOwned: number;
+  revenueOwned: number;
+  /** Share of owned orders with a later plan by the same customer; null with no owned orders. */
+  renewalRatePct: number | null;
+  actions: number;
 };
 
-function leadWhere(filters: AnalyticsFilters): SQL | undefined {
-  const parts: (SQL | undefined)[] = [
-    isNotNull(inquiries.currentOwner),
-    epochRangeWhere(inquiries.createdAt, filters),
-  ];
-  if (filters.plans.length) parts.push(inArray(inquiries.planInterest, filters.plans));
-  if (filters.mealSizes.length) {
-    parts.push(
-      sql`${inquiries.mealSizeInterest} in (
-        select ${mealSizes.publicId} from ${mealSizes} where ${inArray(mealSizes.key, filters.mealSizes)}
-      )`,
-    );
+export type EmployeeRollup = { rows: EmployeeRow[]; unassignedRevenue: number };
+
+const leadWhere = (scope: AnalyticsScope) => and(isNotNull(inquiries.currentOwner), scopedLeadWhere(scope));
+
+// A ticket's franchise and plan / size / zone come from the order it is about, so a ticket with no
+// order matches only when no franchise or facet narrows the view.
+function ticketScope(scope: AnalyticsScope): SQL | undefined {
+  const orderScope = ordersScope(scope);
+  return orderScope ? sql`${tickets.orderId} in (select ${orders.id} from ${orders} where ${orderScope})` : undefined;
+}
+
+// Coupons have their own nullable organization_id (null = shared, so only All franchises counts it) and
+// no plan / size / zone, so a facet keeps the coupons redeemed on an in-scope order.
+function couponScope(scope: AnalyticsScope): SQL | undefined {
+  const parts: SQL[] = [];
+  if (scope.orgIds !== "all") parts.push(scope.orgIds.length ? inArray(coupons.organizationId, scope.orgIds) : sql`false`);
+  const facets = facetsWhere(scope);
+  if (facets) {
+    parts.push(sql`exists (
+      select 1 from ${couponRedemptions} inner join ${orders} on ${orders.id} = ${couponRedemptions.orderId}
+      where ${couponRedemptions.couponId} = ${coupons.id} and ${facets}
+    )`);
   }
-  if (filters.zones.length) {
-    parts.push(
-      sql`${inquiries.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, filters.zones)})`,
-    );
-  }
-  const defined = parts.filter((p): p is SQL => p != null);
-  return defined.length ? and(...defined) : undefined;
+  return parts.length ? and(...parts) : undefined;
 }
 
 // Per-rep rollup across leads/tickets/coupons — there's no dedicated staff
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
-export async function getEmployeeRollup(
-  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
-): Promise<EmployeeRow[]> {
-  const [leadRows, ticketRows, couponRows, staff] = await Promise.all([
+export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRollup> {
+  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return { rows: [], unassignedRevenue: 0 };
+  const window = { fromMs: scope.fromMs, toMs: scope.toMs };
+  const [leadRows, ticketRows, couponRows, staff, ownedRows, revenueRows, actionRows] = await Promise.all([
     db
       .select({
         owner: inquiries.currentOwner,
@@ -53,16 +65,23 @@ export async function getEmployeeRollup(
         converted: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'converted') as int)`,
       })
       .from(inquiries)
-      .where(leadWhere(filters))
+      .where(leadWhere(scope))
       .groupBy(inquiries.currentOwner),
     db
       .select({
         owner: tickets.currentOwner,
-        resolved: sql<number>`cast(count(*) filter (where ${tickets.status} in ('resolved','closed')) as int)`,
+        resolved: intCount,
         avgMs: sql<number | null>`avg(${tickets.closedAt} - ${tickets.createdAt}) filter (where ${tickets.closedAt} is not null)`,
       })
       .from(tickets)
-      .where(and(isNotNull(tickets.currentOwner), epochRangeWhere(tickets.createdAt, filters)))
+      .where(
+        and(
+          isNotNull(tickets.currentOwner),
+          inArray(tickets.status, ["resolved", "closed"]),
+          dateWhere(tickets.closedAt, window),
+          ticketScope(scope),
+        ),
+      )
       .groupBy(tickets.currentOwner),
     db
       .select({ owner: coupons.ownerUserId, n: intCount })
@@ -70,13 +89,32 @@ export async function getEmployeeRollup(
       .where(
         and(
           sql`${coupons.kind} in ('rep_daily', 'rep_code') and ${coupons.ownerUserId} is not null`,
-          epochRangeWhere(coupons.createdAt, filters),
+          dateWhere(coupons.createdAt, window),
+          couponScope(scope),
         ),
       )
       .groupBy(coupons.ownerUserId),
-    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email }).from(users),
+    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, isSystem: users.isSystem, role: users.role }).from(users),
+    db
+      .select({
+        owner: orders.currentOwner,
+        n: intCount,
+        renewed: sql<number>`cast(count(*) filter (where ${laterOrderSql}) as int)`,
+      })
+      .from(orders)
+      .where(and(isNotNull(orders.currentOwner), dateWhere(orders.createdAt, window), ordersScope(scope)))
+      .groupBy(orders.currentOwner),
+    revenueBy(scope, "owner"),
+    db
+      .select({ actor: orderActivities.createdBy, n: intCount })
+      .from(orderActivities)
+      .innerJoin(orders, sql`${orders.id} = ${orderActivities.orderId}`)
+      .where(and(isNotNull(orderActivities.createdBy), dateWhere(orderActivities.createdAt, window), ordersScope(scope)))
+      .groupBy(orderActivities.createdBy),
   ]);
 
+  // Customers log order actions too (pause, edit meals) and system users run jobs: only staff are reps.
+  const repIds = new Set(staff.filter((u) => !u.isSystem && u.role !== "user").map((u) => u.id.toString()));
   const staffById = new Map(staff.map((u) => [u.id.toString(), u]));
 
   const byOwner = new Map<string, EmployeeRow>();
@@ -94,6 +132,10 @@ export async function getEmployeeRollup(
         ticketsResolved: 0,
         avgResolutionHours: null,
         repDailyCoupons: 0,
+        ordersOwned: 0,
+        revenueOwned: 0,
+        renewalRatePct: null,
+        actions: 0,
       };
       byOwner.set(key, row);
     }
@@ -119,5 +161,26 @@ export async function getEmployeeRollup(
     row.repDailyCoupons = r.n;
   }
 
-  return [...byOwner.values()].sort((a, b) => b.leadsWorked - a.leadsWorked);
+  for (const r of ownedRows) {
+    if (!r.owner) continue;
+    const row = ensure(r.owner);
+    row.ordersOwned = r.n;
+    row.renewalRatePct = r.n > 0 ? Math.round((r.renewed / r.n) * 1000) / 10 : null;
+  }
+  let unassignedRevenue = 0;
+  for (const r of revenueRows) {
+    if (r.key === "unknown") unassignedRevenue = r.net;
+    else if (r.net !== 0) ensure(BigInt(r.key)).revenueOwned = r.net;
+  }
+  for (const r of actionRows) {
+    if (r.actor) ensure(r.actor).actions = r.n;
+  }
+
+  // Revenue on an order a non-staff user owns is nobody's, so it joins the unassigned bucket.
+  for (const r of byOwner.values()) if (!repIds.has(r.userId)) unassignedRevenue += r.revenueOwned;
+  const rows = [...byOwner.values()]
+    .filter((r) => repIds.has(r.userId))
+    .filter((r) => r.leadsWorked + r.ticketsResolved + r.repDailyCoupons + r.ordersOwned + r.actions > 0 || r.revenueOwned !== 0)
+    .sort((a, b) => b.revenueOwned - a.revenueOwned || b.actions - a.actions);
+  return { rows, unassignedRevenue };
 }

@@ -5,16 +5,19 @@ import { requireStaff } from "@/lib/auth/guards";
 import {
   inquiriesService,
   type ActivityType,
-  type InquiryStage,
   type LostReason,
 } from "@/lib/services/inquiries.service";
+import { ValidationError } from "@foundry/commons";
+import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 
 export async function createInquiry(input: {
-  fullName: string;
-  phone: string;
-  email: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
   sourceKey: string;
   subSourceKey?: string;
+  subStatus?: SubStatus;
+  nextFollowUpAt?: number;
   planInterest?: string;
   mealSizeInterest?: string;
   personsInterest?: number;
@@ -32,17 +35,6 @@ export async function createInquiry(input: {
   return { publicId: inquiry.publicId, folded, fullName: inquiry.fullName };
 }
 
-export async function setStage(
-  inquiryId: string,
-  toStage: InquiryStage,
-): Promise<{ previous: InquiryStage }> {
-  await requireStaff();
-  const { previous } = await inquiriesService.changeStage(inquiryId, toStage);
-  revalidatePath("/dashboard/inquiries");
-  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
-  return { previous: previous as InquiryStage };
-}
-
 export async function logActivity(
   inquiryId: string,
   input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
@@ -53,17 +45,22 @@ export async function logActivity(
   revalidatePath("/dashboard/inquiries");
 }
 
-export async function markLost(inquiryId: string, reason: LostReason, note?: string) {
+export async function updateStatus(
+  inquiryId: string,
+  input: { subStatus: SubStatus | null; note?: string; nextFollowUpAt?: number | null; lostReason?: LostReason },
+): Promise<{ previous: SubStatus | null }> {
   await requireStaff();
-  await inquiriesService.markLost(inquiryId, reason, note);
-  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  const { previous } = await inquiriesService.setStatus(inquiryId, input);
   revalidatePath("/dashboard/inquiries");
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  return { previous };
 }
 
-export async function addNote(inquiryId: string, note: string) {
+export async function addNote(inquiryId: string, note: string, nextFollowUpAt?: number) {
   await requireStaff();
-  await inquiriesService.addNote(inquiryId, note);
+  await inquiriesService.addNote(inquiryId, note, nextFollowUpAt);
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  revalidatePath("/dashboard/inquiries");
 }
 
 export async function reassignInquiry(inquiryId: string, ownerId: string) {
@@ -71,4 +68,36 @@ export async function reassignInquiry(inquiryId: string, ownerId: string) {
   await inquiriesService.reassign(inquiryId, ownerId);
   revalidatePath("/dashboard/inquiries");
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+}
+
+export async function reassignInquiries(inquiryIds: string[], ownerId: string): Promise<number> {
+  await requireStaff();
+  const n = await inquiriesService.reassignMany(inquiryIds, ownerId);
+  revalidatePath("/dashboard/inquiries");
+  return n;
+}
+
+export async function bulkSetStatus(
+  inquiryIds: string[],
+  subStatus: SubStatus,
+): Promise<{ updated: number; skipped: number }> {
+  await requireStaff();
+  const ids = [...new Set(inquiryIds)];
+  if (ids.length > 200) throw new ValidationError("Update at most 200 inquiries at a time");
+  if (isClosed(subStatus) ? subStatus !== "undeliverable" : !SUB_STATUS_META[subStatus].pickable) {
+    throw new ValidationError("That status can't be set in bulk");
+  }
+  let updated = 0;
+  let skipped = 0;
+  for (const id of ids) {
+    try {
+      await inquiriesService.setStatus(id, { subStatus });
+      updated++;
+    } catch (e) {
+      if (!(e instanceof ValidationError)) throw e;
+      skipped++;
+    }
+  }
+  revalidatePath("/dashboard/inquiries");
+  return { updated, skipped };
 }

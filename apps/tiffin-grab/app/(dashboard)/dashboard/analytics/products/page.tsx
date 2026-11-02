@@ -1,69 +1,133 @@
-import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
+import { TotalLine } from "@/components/analytics/total-line";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { cache, Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { BreakdownBarChart } from "@/components/analytics/charts";
-import { ordersHref } from "@/lib/analytics/drill";
+import { chartColor, slotTone } from "@/components/analytics/chart-math";
+import { RankCards } from "@/components/analytics/rank-cards";
+import { HeatmapGrid, PartsDonut, TreemapChart } from "@/components/analytics/charts";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import {
+  getAddonSales,
+  getPaidByTier,
+  getPaidByTierAndDiet,
+  getPickers,
+  getProductSales,
   getProductStats,
+  getSizeSales,
   getTopDishes,
-  getOrdersByPlan,
-  getOrdersByTier,
-  getOrdersByMealType,
+  dietOrder,
+  tierOrder,
 } from "@/lib/services/analytics/products.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import { revenueTotals } from "@/lib/services/analytics/metrics/money";
+import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+// Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
+const productStats = cache(getProductStats);
+const sizeSales = cache(getSizeSales);
 
-export default function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+const METRICS: { value: SizeMetric; label: string }[] = [
+  { value: "revenue", label: "Revenue" },
+  { value: "tiffins", label: "Tiffins" },
+];
+const metricFormat = (m: SizeMetric) => (m === "revenue" ? "currency" : "number");
+
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+export default async function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/products", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Products & Menu"
-        title="Products & Menu"
-        description="What people pick, and how paid orders split across plans, sizes, and meal types."
-        action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<SkeletonStatCards count={3} />}>
-        <StatsData searchParams={searchParams} />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <AnalyticsIntro
+          description="What sells, in which plan and size, and what customers pick."
+          action={
+            <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
+              <AnalyticsLiveStamp />
+            </Suspense>
+          }
+        />
+        <Suspense fallback={<Skeleton className="h-5 w-full max-w-xl" />}>
+          <ContextLine scope={scope} />
+        </Suspense>
+      </div>
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+        <StatsData scope={scope} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Most-picked dishes" subtitle="Meal selections in this range.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <TopDishesChart searchParams={searchParams} />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title="Sales by plan and size"
+          subtitle="Every meal size by plan" info={`Revenue is net, counted ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
+        >
+          <Suspense fallback={<ChartSkeleton height={340} />}>
+            <SizeTreemap scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Paid by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
+        <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <TierBarChart searchParams={searchParams} />
+            <TierDonut scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title="Which sizes sell in which diet?"
+          subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
+        >
           <Suspense fallback={<ChartSkeleton />}>
-            <PlanChart searchParams={searchParams} />
+            <TierByDietChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Veg or non-veg?" subtitle="Net revenue or tiffins delivered" info="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <PlanSplit scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title="Add-ons sold"
+          subtitle="Add-on sales, top four and the rest"
+          info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
+        >
+          <Suspense fallback={<ChartSkeleton />}>
+            <AddonDonut scope={scope} />
           </Suspense>
         </ChartCard>
         <ChartCard
-          title="Paid orders by meal type"
-          subtitle="Maharaja Thali, 4 Item Thali, and other catalog sizes. Custom sizes are not included."
+          title="How long do they buy for?"
+          subtitle="Orders by plan length"
+          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
         >
           <Suspense fallback={<ChartSkeleton />}>
-            <MealTypeList searchParams={searchParams} />
+            <PlanLengthDonut scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard
+          title="What sells?"
+          subtitle="Meal size and plan length, top 10 by orders"
+          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
+        >
+          <Suspense fallback={<ChartSkeleton height={340} />}>
+            <ProductSalesList scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10" info={`On orders ${DATE_BASIS_LABEL.orders}. Dot colour is the dish's plan.`}>
+          <Suspense fallback={<ChartSkeleton height={340} />}>
+            <TopDishesList scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -71,76 +135,210 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getProductStats(await parseAnalyticsFilters(await searchParams));
+async function ContextLine({ scope }: { scope: AnalyticsScope }) {
+  const [stats, sales] = await Promise.all([productStats(scope), sizeSales(scope)]);
+  const tiffins = sales.reduce((s, r) => s + r.tiffins, 0);
   return (
-    <MetricTiles
-      cols={3}
+    <p className="text-muted-foreground text-sm">
+      {stats.totalSelections.toLocaleString()} dish picks across {tiffins.toLocaleString()} tiffins delivered. Picks show what customers chose, not everything served.
+    </p>
+  );
+}
+
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const [sales, totals, pickers] = await Promise.all([sizeSales(scope), revenueTotals(scope), getPickers(scope)]);
+  const tiffins = sales.reduce((s, r) => s + r.tiffins, 0);
+  const top = sales.filter((r) => !r.custom && r.revenue > 0).sort((a, b) => b.revenue - a.revenue)[0];
+  return (
+    <AnalyticsStatCards
       items={[
-        { label: "Meal selections", value: s.totalSelections, badge: "Picks", badgeTone: "neutral" },
-        { label: "Distinct dishes ordered", value: s.distinctDishes, badge: "Dishes", badgeTone: "brand" },
         {
-          label: "Most popular dish",
-          value: s.topDish ?? "—",
+          label: "Tiffins delivered",
+          value: tiffins,
+          hint: `Scheduled tiffins, ${DATE_BASIS_LABEL.deliveries}`,
+          badge: "Units",
+          badgeTone: "neutral",
+        },
+        {
+          label: "Net revenue per tiffin",
+          value: tiffins === 0 ? "—" : (totals.net / tiffins).toLocaleString("en-CA", { style: "currency", currency: "CAD" }),
+          hint: `Net revenue ${DATE_BASIS_LABEL.money} ÷ tiffins ${DATE_BASIS_LABEL.deliveries}`,
+          badge: "Average",
+          badgeTone: "neutral",
+        },
+        {
+          label: "Top meal size",
+          value: top?.size ?? "—",
+          hint: `Most net revenue ${DATE_BASIS_LABEL.money}; custom sizes left out`,
           valueSize: "label",
           badge: "Top",
           badgeTone: "ok",
+        },
+        {
+          label: "Customers who picked dishes",
+          value: `${pickers.pickers.toLocaleString()} of ${pickers.customers.toLocaleString()}`,
+          hint: `Customers with picks on orders ${DATE_BASIS_LABEL.orders} · customers with deliveries ${DATE_BASIS_LABEL.deliveries}`,
+          valueSize: "label",
+          badge: "Picks",
+          badgeTone: "brand",
         },
       ]}
     />
   );
 }
 
-async function TopDishesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopDishes(8, await parseAnalyticsFilters(await searchParams));
-  return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
+/** Same tab toggle as the Revenue page; both metrics render on the server so the toggle needs no fetch. */
+function MetricTabs({ render }: { render: (metric: SizeMetric) => React.ReactNode }) {
+  return (
+    <Tabs defaultValue="revenue" className="gap-4">
+      <TabsList>
+        {METRICS.map((m) => (
+          <TabsTrigger key={m.value} value={m.value}>
+            {m.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {METRICS.map((m) => (
+        <TabsContent key={m.value} value={m.value}>
+          {render(m.value)}
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
 }
 
-async function TierBarChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
+async function SizeTreemap({ scope }: { scope: AnalyticsScope }) {
+  const sales = await sizeSales(scope);
   return (
-    <BreakdownBarChart
-      data={rows.map((r) => ({ tier: r.tier, paid: r.paid }))}
-      xKey="tier"
-      yKey="paid"
+    <MetricTabs
+      render={(metric) => <TreemapChart data={buildSizeTreemap(sales, metric, dietOrder)} format={metricFormat(metric)} />}
+    />
+  );
+}
+
+async function PlanSplit({ scope }: { scope: AnalyticsScope }) {
+  const sales = await sizeSales(scope);
+  return (
+    <MetricTabs
+      render={(metric) => (
+        <PartsDonut
+          format={metricFormat(metric)}
+          parts={buildSizeTreemap(sales, metric, dietOrder).map((g) => ({ label: g.name, value: g.children.reduce((s, c) => s + c.value, 0) }))}
+        />
+      )}
+    />
+  );
+}
+
+const TIER_SLOTS = ["budget", "medium", "premium", "custom"];
+
+async function TierDonut({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getPaidByTier(scope);
+  return <PartsDonut format="currency" parts={rows.map((r) => ({ label: r.tier, value: r.paid, tone: slotTone(r.key, TIER_SLOTS) }))} />;
+}
+
+async function TierByDietChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getPaidByTierAndDiet(scope);
+  const diets = [...new Set(rows.map((r) => r.diet))].sort(dietOrder);
+  const tiers = [...new Map(rows.map((r) => [r.tierKey, r.tier])).entries()].sort(([a], [b]) => tierOrder(a, b)).map(([, label]) => label);
+  return (
+    <HeatmapGrid
+      rows={tiers}
+      columns={diets}
+      cells={tiers.map((tier) => diets.map((d) => rows.find((r) => r.tier === tier && r.diet === d)?.paid ?? null))}
       format="currency"
-      height={280}
     />
   );
 }
 
-function money(n: number) {
-  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
-
-async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByPlan(await parseAnalyticsFilters(await searchParams));
+async function AddonDonut({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getAddonSales(scope);
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.plan,
-        n: r.paid,
-        aside: money(r.paid),
-        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
-        href: ordersHref({ plan: r.key }),
-      }))}
-      emptyLabel="No paid orders yet."
+    <PartsDonut
+      format="currency"
+      max={5}
+      parts={rows.map((r) => ({ label: r.name, value: r.amount }))}
+      listParts={rows.map((r) => ({ label: r.name, value: r.amount, meta: `${r.qty.toLocaleString()} sold` }))}
     />
   );
 }
 
-async function MealTypeList({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByMealType(await parseAnalyticsFilters(await searchParams));
+// Catalog plan lengths (duration_packages), pinned so a length keeps its colour across ranges.
+const WEEK_SLOTS = ["1", "2", "4", "8", "12"];
+const productSales = cache(getProductSales);
+
+async function PlanLengthDonut({ scope }: { scope: AnalyticsScope }) {
+  const byWeeks = new Map<number, { orders: number; revenue: number }>();
+  for (const r of await productSales(scope)) {
+    const b = byWeeks.get(r.weeks) ?? { orders: 0, revenue: 0 };
+    b.orders += r.orders;
+    b.revenue += r.revenue;
+    byWeeks.set(r.weeks, b);
+  }
+  const rows = [...byWeeks.entries()].sort(([a], [b]) => a - b);
+  const label = (w: number) => `${w} ${w === 1 ? "week" : "weeks"}`;
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.mealType,
-        n: r.paid,
-        aside: money(r.paid),
-        meta: `${r.plan} · ${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
-      }))}
-      emptyLabel="No paid orders yet."
+    <PartsDonut
+      parts={rows.map(([w, b]) => ({ label: label(w), value: b.orders, tone: slotTone(String(w), WEEK_SLOTS) }))}
+      listParts={rows.map(([w, b]) => ({ label: label(w), value: b.orders, meta: `${money(b.revenue)} net revenue` }))}
     />
   );
 }
 
+const money = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => Math.round(rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
+
+async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
+  const all = await productSales(scope);
+  if (all.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No orders in this range.</p>;
+  return (
+    <div className="flex flex-col gap-3">
+      <RankCards
+        size="sm"
+        items={all.slice(0, 10).map((r, i) => ({
+          rank: i + 1,
+          title: `${r.size} · ${r.weeks} ${r.weeks === 1 ? "week" : "weeks"}`,
+          value: plural(r.orders, "order", "orders"),
+          meta: [`${money(r.revenue)} net revenue`],
+        }))}
+      />
+      {all.length > 10 ? <p className="text-muted-foreground text-xs">Other · {all.length - 10} more products</p> : null}
+      <TotalLine label="Total" value={`${plural(sum(all, "orders"), "order", "orders")} · ${money(sum(all, "revenue"))}`} />
+    </div>
+  );
+}
+
+async function TopDishesList({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getTopDishes(500, scope);
+  if (rows.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No dish picks in this range.</p>;
+  const total = rows.reduce((s, r) => s + r.n, 0);
+  const planNames = [...new Set(rows.map((r) => r.plan))].sort(dietOrder);
+  const top = [...rows].sort((a, b) => b.n - a.n).slice(0, 10);
+  const rest = rows.length - top.length;
+  return (
+    <div className="flex flex-col gap-3">
+      {planNames.length > 1 ? (
+        <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {planNames.map((name, i) => (
+            <li key={name} className="flex items-center gap-1.5">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: chartColor(i) }} />
+              {name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <RankCards
+        size="sm"
+        items={top.map((r, i) => ({
+          rank: i + 1,
+          title: r.dish,
+          value: plural(r.n, "pick", "picks"),
+          meta: [`${total > 0 ? Math.round((r.n / total) * 100) : 0}% of picks${r.category ? ` · ${r.category}` : ""}`],
+          dot: chartColor(planNames.indexOf(r.plan)),
+        }))}
+      />
+      {rest > 0 ? <p className="text-muted-foreground text-xs">Other · {rest} more dishes</p> : null}
+    </div>
+  );
+}

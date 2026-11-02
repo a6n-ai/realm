@@ -50,7 +50,7 @@ describe("inquiriesService.list (server-side filter + pagination)", () => {
     // PipelineRow shape (joined + derived), not a raw base-table select.
     const row = page.items[0];
     expect(row.stage).toBe("converted");
-    expect(row.fullName.startsWith(RUN)).toBe(true);
+    expect(row.fullName?.startsWith(RUN)).toBe(true);
     expect(row.source).toBe(sourceLabel); // joined leadSources.label
     expect(typeof row.overdue).toBe("boolean"); // derived
   });

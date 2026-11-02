@@ -231,6 +231,19 @@ export const auth = betterAuth({
   // extra SELECT per logout; acceptable for best-effort audit.
   // Doc ref: https://www.better-auth.com/docs/concepts/database#database-hooks
   databaseHooks: {
+    // changeEmail and other Better Auth user writes bypass usersService; keep group send lists in step.
+    user: {
+      update: {
+        after: async (u) => {
+          try {
+            const { syncGroupsForUser } = await import("@/lib/services/customer-groups.service");
+            await syncGroupsForUser(BigInt(u.id));
+          } catch (e) {
+            log.error({ err: e }, "group list sync after user update failed");
+          }
+        },
+      },
+    },
     // Google sign-up already copies the photo onto the new user. Linking Google to
     // an existing account does not (updateUserInfoOnLink would also overwrite the
     // name, which carries delivery details like "unit 1703"), so fill in the photo

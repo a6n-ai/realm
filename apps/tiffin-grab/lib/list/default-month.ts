@@ -31,13 +31,30 @@ export async function withListDates<T extends Dated & { q?: string }>(sp: T): Pr
   return withDefaultMonth(sp);
 }
 
-/** Inclusive epoch window. Either end may be open. */
-export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
+function bounds(sp: Dated, ge: (v: number) => SQL, le: (v: number) => SQL): SQL | undefined {
   const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
   const a = n(sp.from);
   const b = n(sp.to);
-  if (a != null && b != null) return and(gte(col, Math.min(a, b)), lte(col, Math.max(a, b)));
-  if (a != null) return gte(col, a);
-  if (b != null) return lte(col, b);
+  if (a != null && b != null) return and(ge(Math.min(a, b)), le(Math.max(a, b)));
+  if (a != null) return ge(a);
+  if (b != null) return le(b);
   return undefined;
+}
+
+/** Inclusive epoch window. Either end may be open. */
+export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
+  return bounds(sp, (v) => gte(col, v), (v) => lte(col, v));
+}
+
+/** Same window over an epoch-ms SQL expression, such as a coalesce of two columns. */
+export function epochBoundsWhereSql(expr: SQL, sp: Dated): SQL | undefined {
+  return bounds(sp, (v) => gte(expr, v), (v) => lte(expr, v));
+}
+
+/** Numeric window for stat functions. A missing end opens to the epoch start or now. */
+export function epochRange(sp: Dated): { from: number; to: number } {
+  const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const a = n(sp.from) ?? 0;
+  const b = n(sp.to) ?? Date.now();
+  return { from: Math.min(a, b), to: Math.max(a, b) };
 }

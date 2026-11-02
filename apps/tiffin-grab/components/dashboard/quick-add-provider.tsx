@@ -76,6 +76,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             open={which === "inquiry"}
             onOpenChange={close}
             defaultCountry={data.defaultCountry}
+            timeZone={data.timezone}
             sources={data.sources}
             zones={data.zones}
             catalog={data.catalog}

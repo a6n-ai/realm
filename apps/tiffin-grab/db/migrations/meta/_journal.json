@@ -295,6 +295,41 @@
       "when": 1793125159420,
       "tag": "0041_charming_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793471449953,
+      "tag": "0042_redundant_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793474422521,
+      "tag": "0043_cool_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793524227931,
+      "tag": "0044_regular_deadpool",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793563656166,
+      "tag": "0045_nervous_morbius",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793565645381,
+      "tag": "0046_salty_kronos",
+      "breakpoints": true
     }
   ]
 }

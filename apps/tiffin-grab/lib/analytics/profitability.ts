@@ -5,6 +5,7 @@
  * half its value in each month — even though January's cash is the full amount.
  * Revenue excludes tax; cash is what the customer paid, tax included.
  */
+import { zonedRangeMs } from "@/lib/analytics/drill";
 
 export type ProfitabilityAssumptions = {
   kitchenCostPerTiffin: number;
@@ -98,6 +99,25 @@ export function monthBounds(monthIso: string): { from: string; to: string } {
     from: `${monthIso}-01`,
     to: `${monthIso}-${String(last).padStart(2, "0")}`,
   };
+}
+
+/** The calendar range a month/grain nav selection shows: one month, or the 12 months ending at it. */
+export function rangeFor(month: string, grain: Grain): { from: string; to: string } {
+  if (grain === "monthly") return { from: `${addMonths(month, -11)}-01`, to: monthBounds(month).to };
+  return monthBounds(month);
+}
+
+/** The nav range replaces the scope's default month unless the URL carries an explicit from/to. */
+export function navScope<S extends { tz: string; fromMs: number; toMs: number }>(
+  scope: S,
+  explicitRange: boolean,
+  month: string,
+  grain: Grain,
+): S {
+  if (explicitRange) return scope;
+  const r = rangeFor(month, grain);
+  const { from, to } = zonedRangeMs(r.from, r.to, scope.tz);
+  return { ...scope, fromMs: from, toMs: to };
 }
 
 /** Monday of the ISO week containing `isoDate` (UTC date-only). */
@@ -277,4 +297,18 @@ export function kpis(rows: ProfitRow[]): ProfitabilityKpis {
     profitPerTiffin: tiffins > 0 ? round2(profit / tiffins) : null,
     tiffins,
   };
+}
+
+export type CostPart = { label: string; value: number };
+
+/** Total costs by kind (five parts, so the donut never folds). */
+export function costBreakdown(rows: ProfitRow[]): CostPart[] {
+  const sum = (k: "kitchen" | "driver" | "marketing" | "salaries" | "other") => round2(rows.reduce((s, r) => s + r[k], 0));
+  return [
+    { label: "Kitchen", value: sum("kitchen") },
+    { label: "Driver", value: sum("driver") },
+    { label: "Marketing", value: sum("marketing") },
+    { label: "Salaries", value: sum("salaries") },
+    { label: "Other", value: sum("other") },
+  ];
 }

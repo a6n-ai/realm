@@ -56,6 +56,11 @@ export function addAddonsToSnapshot(
       taxLines,
       taxTotal: round2(snapshot.taxTotal + taxTotal),
       total: round2(snapshot.total + amountDue),
+      appliedAddons: {
+        addonSubtotal: round2((snapshot.appliedAddons?.addonSubtotal ?? 0) + addonSubtotal),
+        taxTotal: round2((snapshot.appliedAddons?.taxTotal ?? 0) + taxTotal),
+        amountDue: round2((snapshot.appliedAddons?.amountDue ?? 0) + amountDue),
+      },
     },
   };
 }

@@ -97,7 +97,7 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
     }));
   }
 
-  const canImport = !!file && !!selectedSheet && !!mapping.date && !!mapping.phone;
+  const canImport = !!file && !!selectedSheet && !!mapping.date && (!!mapping.phone || !!mapping.fullName);
 
   async function submit() {
     if (!file || !canImport) return;
@@ -166,8 +166,8 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
           <p className="text-sm font-medium">Map columns</p>
           <p className="text-muted-foreground text-xs">
             We&apos;ve guessed a mapping from “{selectedSheet}”'s columns — check it and change anything
-            that's wrong. Date and Phone Number are required; everything else gets a sensible default
-            if left unmapped.
+            that's wrong. Date is required, plus Full Name or Phone Number (rows with neither are skipped and
+            reported); everything else gets a sensible default if left unmapped.
           </p>
 
           <div className="grid gap-3">

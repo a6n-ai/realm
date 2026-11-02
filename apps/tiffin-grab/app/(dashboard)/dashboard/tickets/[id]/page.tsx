@@ -14,6 +14,8 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/services/tickets.service";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { canReassign } from "@/lib/services/reassign";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
@@ -100,19 +102,15 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const staff = await db
-    .select({ publicId: users.publicId, name: users.name })
-    .from(users)
-    .where(inArray(users.role, ["admin", "member"]));
+  const mayReassign = await canReassign();
+  const staffOptions = mayReassign ? await listAssignableStaff() : [];
 
   const [currentOwner] = ticket.currentOwner
     ? await db
         .select({ publicId: users.publicId, name: users.name })
         .from(users)
-        .where(inArray(users.id, [ticket.currentOwner]))
+        .where(eq(users.id, ticket.currentOwner))
     : [];
-
-  const staffOptions = staff.map((s) => ({ id: s.publicId, name: s.name ?? "Staff" }));
 
   return (
     <div className="space-y-4">
@@ -132,7 +130,9 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
         subcategory={ticket.subcategory}
         priority={ticket.priority as TicketPriority}
         ownerId={currentOwner?.publicId ?? null}
+        ownerName={currentOwner?.name ?? null}
         staff={staffOptions}
+        mayReassign={mayReassign}
       />
     </div>
   );

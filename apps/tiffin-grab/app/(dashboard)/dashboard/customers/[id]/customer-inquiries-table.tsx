@@ -9,6 +9,7 @@ import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { getCustomer360 } from "@/lib/services/customers.service";
+import { displayName } from "@/lib/inquiries/display";
 
 type CustomerInquiryRow = Awaited<ReturnType<typeof getCustomer360>>["inquiries"][number];
 
@@ -34,7 +35,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
     return inquiries.filter((i) => {
       if (stage !== "all" && i.stage !== stage) return false;
       if (!needle) return true;
-      return [i.fullName, i.source].some((v) => v.toLowerCase().includes(needle));
+      return [displayName(i), i.source].some((v) => v.toLowerCase().includes(needle));
     });
   }, [inquiries, q, stage]);
 
@@ -71,7 +72,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
         <>
           <TableCell className="font-medium">
             <Link href={`/dashboard/inquiries/${i.publicId}`} className="group-hover:underline">
-              {i.fullName}
+              {displayName(i)}
             </Link>
           </TableCell>
           <TableCell>{i.source}</TableCell>

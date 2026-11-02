@@ -9,6 +9,7 @@ import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/
 import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
+import { defaultOwner } from "./default-owner";
 import { clearTicketLookOut, lookOutForTicket } from "./orders.service";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
@@ -132,6 +133,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       subject,
       category: input.category,
       subcategory: input.subcategory,
+      currentOwner: await defaultOwner(actor.id, "ticket"),
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);
@@ -170,8 +172,8 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const trimmed = (body ?? "").trim();
     if (!trimmed && attachments.length === 0) throw new ValidationError("Message is required");
 
-    // Whoever answers the customer owns the ticket from then on, whoever held it before.
-    if (actor.isStaff && ticket.currentOwner !== actor.id) await this.setOwner(ticket, actor.id, actor.id);
+    // The first staff reply claims a ticket nobody real owns; later replies never move it (reassign does that).
+    if (actor.isStaff && !(await this.hasStaffOwner(ticket))) await this.setOwner(ticket, actor.id, actor.id);
 
     const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
     await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
@@ -219,6 +221,12 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     if (ticket.currentOwner) await assertReassignAllowed();
     const owner = await resolveAssignableOwner(ownerId);
     await this.setOwner(ticket, owner.id, actor.id);
+  }
+
+  private async hasStaffOwner(ticket: typeof tickets.$inferSelect): Promise<boolean> {
+    if (ticket.currentOwner == null) return false;
+    const [o] = await db.select({ role: users.role, isSystem: users.isSystem }).from(users).where(eq(users.id, ticket.currentOwner)).limit(1);
+    return !!o && !o.isSystem && (o.role === Role.ADMIN || o.role === Role.MEMBER);
   }
 
   /** Hands the ticket to `ownerId` and leaves the staff-only note saying who had it before. */
@@ -334,7 +342,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   async listQueuePage(
     sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
     filters: ComplaintFilters | undefined,
-    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string },
+    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string; visible?: "all" | string[] },
   ): Promise<Page<QueueRow> & { overdueCount: number }> {
     const customer = alias(users, "customer");
     const owner = alias(users, "owner");
@@ -369,8 +377,9 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const base = and(
       filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined,
       opts.ownerId ? eq(owner.publicId, opts.ownerId) : undefined,
+      opts.visible && opts.visible !== "all" ? inArray(tickets.organizationId, opts.visible) : undefined,
       q
-        ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
+        ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(customer.email, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
         : undefined,
     );
     const where = and(base, opts.overdue ? isOverdue : undefined);

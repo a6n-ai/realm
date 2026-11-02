@@ -8,6 +8,7 @@ const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { inquiriesService } = await import("../inquiries.service");
+const { resolveBrandOrgId } = await import("../orders.service");
 
 function testEmail() {
   return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
@@ -40,16 +41,22 @@ describe("inquiriesService source + owner resolution", () => {
     expect(row.currentOwner).toBe(staff.id);
   });
 
-  it("inbound source with no actor falls back to the system user", async () => {
-    let [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-    if (!sys) {
-      [sys] = await db
-        .insert(users)
-        .values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true })
-        .returning({ id: users.id });
-    }
+  it("inbound source with no actor gets a staff owner, never the system user", async () => {
     const inq = await inquiriesService.create({ fullName: "Lead W", phone: "+16475552002", sourceKey: "website", email: testEmail() });
+    const [owner] = await db
+      .select({ role: users.role, isSystem: users.isSystem })
+      .from(inquiries)
+      .innerJoin(users, eq(users.id, inquiries.currentOwner))
+      .where(eq(inquiries.id, inq.id));
+    expect(["admin", "member"]).toContain(owner.role);
+    expect(owner.isSystem).toBe(false);
+  });
+
+  it("stamps the brand org so the lead counts in org-scoped analytics", async () => {
+    const brand = await resolveBrandOrgId(db);
+    expect(brand).not.toBeNull();
+    const inq = await inquiriesService.create({ fullName: "Lead O", phone: "+16475552003", sourceKey: "website", email: testEmail() });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
-    expect(row.currentOwner).toBe(sys.id);
+    expect(row.organizationId).toBe(brand);
   });
 });

@@ -1,57 +1,71 @@
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricTiles } from "@/components/analytics/metric-tiles";
-import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
-import { customersHref, ordersHref } from "@/lib/analytics/drill";
+import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
+import { grainUnitForRange } from "@/lib/analytics/revenue";
+import { ORDER_TONE } from "@/components/analytics/status-tones";
+import { isoDateInZone } from "@/lib/analytics/profitability";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   getCustomerStats,
+  getSignupDaily,
   getSignupTrend,
   getSubscriptionMix,
   getTopCities,
 } from "@/lib/services/analytics/customers.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function CustomersAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function CustomersAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/customers", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
+  const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Customers"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Who is subscribed, who is paused, and where new accounts are coming from."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData searchParams={searchParams} />
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+        <StatsData scope={scope} />
       </Suspense>
 
-      <ChartCard title="Signups over time" subtitle="New customer accounts created in this range.">
-        <Suspense fallback={<ChartSkeleton />}>
-          <SignupChart searchParams={searchParams} />
-        </Suspense>
-      </ChartCard>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Subscription status mix" subtitle="Open a status to see those orders.">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title={`Signups by ${unit}`} subtitle="New customer accounts created" info={`${unit === "day" ? "Line is the 7-day average. " : ""}With a franchise or filter selected, only accounts with an order in scope are counted.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <MixChart searchParams={searchParams} />
+            <SignupChart scope={scope} daily={unit === "day"} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Top cities" subtitle="Customers grouped by city.">
+        <ChartCard title="Signups calendar" subtitle="New accounts per day" info="Darker is more.">
+          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
+            <SignupCalendar scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title="Subscription status" subtitle="Orders by status" info={`Counted ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
           <Suspense fallback={<ChartSkeleton />}>
-            <CitiesChart searchParams={searchParams} />
+            <MixChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Top cities" subtitle="Customers by city, top 8 and the rest" info={`Counted ${DATE_BASIS_LABEL.orders}.`}>
+          <Suspense fallback={<ChartSkeleton />}>
+            <CitiesChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
@@ -59,39 +73,38 @@ export default function CustomersAnalyticsPage({ searchParams }: { searchParams:
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getCustomerStats(await parseAnalyticsFilters(await searchParams));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const [s, visible] = await Promise.all([getCustomerStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <MetricTiles
-      cols={4}
+    <AnalyticsStatCards
       items={[
         {
-          label: "Total customers",
-          value: s.totalCustomers,
-          href: customersHref(),
+          label: "Customers",
+          value: s.customers,
+          hint: `With an order · ${DATE_BASIS_LABEL.orders}`,
           badge: "Accounts",
           badgeTone: "neutral",
         },
         {
-          label: "Active subscriptions",
-          value: s.activeSubscriptions,
-          href: ordersHref({ status: "active" }),
+          label: "Active customers",
+          value: s.activeCustomers,
+          hint: `Active plan created or running in range · ${DATE_BASIS_LABEL.orders}`,
           badge: "Active",
           badgeTone: "ok",
         },
         {
-          label: "Paused now",
-          value: s.pausedNow,
-          hint: "Open pause windows. Opens orders marked paused.",
-          href: ordersHref({ status: "paused" }),
-          tone: s.pausedNow > 0 ? "warn" : "default",
+          label: "Paused customers",
+          value: s.pausedToday,
+          hint: "Active plan with a paused delivery · today",
+          tone: s.pausedToday > 0 ? "warn" : undefined,
           badge: "Paused",
-          badgeTone: s.pausedNow > 0 ? "warn" : "neutral",
+          badgeTone: s.pausedToday > 0 ? "warn" : "neutral",
         },
         {
-          label: "Cancelled (ever)",
-          value: s.cancelledEver,
-          href: ordersHref({ status: "cancelled" }),
+          label: "Cancelled orders",
+          value: s.cancelledOrders,
+          hint: DATE_BASIS_LABEL.orders,
+          href: ordersDrillHref(scope, { status: ["cancelled"] }, visible),
           badge: "Cancelled",
           badgeTone: "neutral",
         },
@@ -100,26 +113,30 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function SignupChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSignupTrend(await parseAnalyticsFilters(await searchParams));
-  return <TrendLineChart data={rows} xKey="day" yKey="n" />;
+async function SignupChart({ scope, daily }: { scope: AnalyticsScope; daily: boolean }) {
+  const rows = await getSignupTrend(scope);
+  return <TrendLineChart data={rows} xKey="period" tipKey="tip" yKey="n" label="New accounts" average={daily} />;
 }
 
-async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSubscriptionMix(await parseAnalyticsFilters(await searchParams));
+async function SignupCalendar({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSignupDaily(scope);
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({
-        label: r.status,
-        n: r.n,
-        href: ordersHref({ status: r.key }),
-      }))}
-      emptyLabel="No subscriptions yet."
+    <CalendarHeatmap
+      from={isoDateInZone(scope.fromMs, scope.tz)}
+      to={isoDateInZone(scope.toMs, scope.tz)}
+      today={isoDateInZone(Date.now(), scope.tz)}
+      label="New accounts"
+      days={rows.map((r) => ({ date: r.iso, value: r.n }))}
     />
   );
 }
 
-async function CitiesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopCities(8, await parseAnalyticsFilters(await searchParams));
-  return <BreakdownBarChart data={rows} xKey="city" yKey="n" />;
+async function MixChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSubscriptionMix(scope);
+  return <PartsDonut caption="Orders" max={6} parts={rows.map((r) => ({ label: r.status, value: r.n, tone: ORDER_TONE[r.key] ?? "chart", href: ordersDrillHref(scope, { status: [r.key] }) }))} />;
+}
+
+async function CitiesChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getTopCities(500, scope);
+  return <BreakdownBarChart data={rows} xKey="city" yKey="n" label="Customers" />;
 }

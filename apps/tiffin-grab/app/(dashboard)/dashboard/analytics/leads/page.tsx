@@ -1,12 +1,19 @@
+import { getSession } from "@/lib/auth/session";
+import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { Skeleton } from "@foundry/ui/skeleton";
+import Link from "next/link";
 import { Suspense } from "react";
-import { SkeletonStatCards } from "@/components/ds";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
-import { AnalyticsPageHeader } from "@/components/analytics/analytics-page-header";
+import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { MetricFootnote, MetricTiles } from "@/components/analytics/metric-tiles";
-import { DistributionDonutChart } from "@/components/analytics/charts";
+import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { BreakdownBarChart, FunnelChart, SankeyChart } from "@/components/analytics/charts";
+import type { Tone } from "@/components/analytics/chart-math";
+import { buildSourceFlow } from "@/lib/analytics/source-flow";
+import { reachedStages } from "@/lib/analytics/lead-funnel";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import {
   getLeadStats,
@@ -14,88 +21,95 @@ import {
   getLostReasonBreakdown,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
-import {
-  parseAnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "@/lib/services/analytics/shared-filters";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
-type SearchParams = Promise<AnalyticsSearchParams>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  const resolved = await scopeOrAlert("/dashboard/analytics/leads", await searchParams);
+  if (!resolved.scope) return resolved.alert;
+  const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-5">
-      <AnalyticsPageHeader
-        section="Leads"
+    <div className="flex flex-col gap-6">
+      <AnalyticsIntro
         description="Inquiries by stage, why they were lost, and which sources convert."
         action={
-          <Suspense fallback={<div className="bg-muted/40 h-7 w-28 animate-pulse rounded-full" />}>
+          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
             <AnalyticsLiveStamp />
           </Suspense>
         }
       />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData searchParams={searchParams} />
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+        <StatsData scope={scope} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-        <ChartCard title="Leads by stage" subtitle="Open a stage to see those inquiries.">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title="Lead stages" subtitle="How far leads got in the pipeline" info="Each step counts leads that reached at least that stage: a converted lead passed through every earlier one. Lost leads count only in All leads, since we do not know where they dropped out.">
           <Suspense fallback={<ChartSkeleton />}>
-            <StageChart searchParams={searchParams} />
+            <StageChart scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
+        <ChartCard title="Where each source's leads went" subtitle="Source to converted, lost or still open" info="Leads in range by source and where they are now. Top 5 sources, the rest folded into Other. Overall conversion is in the cards above.">
           <Suspense fallback={<ChartSkeleton />}>
-            <LostReasonChart searchParams={searchParams} />
+            <ConversionChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
 
-      <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
-        <Suspense fallback={<ChartSkeleton />}>
-          <SourceTable searchParams={searchParams} />
-        </Suspense>
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <ChartCard title="Source performance" subtitle="Leads and conversion rate by source" info="Open a source to see those inquiries.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <SourceTable scope={scope} />
+          </Suspense>
+        </ChartCard>
+        <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
+          <Suspense fallback={<ChartSkeleton />}>
+            <LostReasonChart scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
     </div>
   );
 }
 
-async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getLeadStats(await parseAnalyticsFilters(await searchParams));
+async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const [s, visible] = await Promise.all([getLeadStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
   return (
-    <MetricTiles
-      cols={4}
+    <AnalyticsStatCards
       items={[
-        { label: "Total leads", value: s.total, href: inquiriesHref(), badge: "In range", badgeTone: "neutral" },
+        { label: "Total leads", value: s.total, hint: `Inquiries received · ${DATE_BASIS_LABEL.leads}`, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
         {
           label: "Converted",
           value: s.converted,
-          href: inquiriesHref({ stage: "converted" }),
+          hint: `Inquiries that became an order · ${DATE_BASIS_LABEL.leads}`,
+          href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Won",
           badgeTone: "ok",
         },
         {
           label: "Lost",
           value: s.lost,
-          href: inquiriesHref({ stage: "lost" }),
-          tone: s.lost > 0 ? "warn" : "default",
+          hint: `Inquiries marked lost · ${DATE_BASIS_LABEL.leads}`,
+          href: inquiriesHref(scope, { stage: "lost" }, visible),
+          tone: s.lost > 0 ? "warn" : undefined,
           badge: "Lost",
           badgeTone: s.lost > 0 ? "warn" : "neutral",
         },
         {
           label: "Conversion rate",
           value: `${s.conversionRatePct}%`,
-          hint: s.total === 0 ? "No leads yet" : "Converted leads divided by all leads",
-          href: inquiriesHref({ stage: "converted" }),
+          hint: s.total === 0 ? "No leads yet" : `Converted leads divided by all leads · ${DATE_BASIS_LABEL.leads}`,
+          href: inquiriesHref(scope, { stage: "converted" }, visible),
           badge: "Rate",
           badgeTone: "brand",
           footer:
             s.total === 0 ? undefined : (
-              <MetricFootnote>
+              <StatFootnote>
                 <span className="text-muted-foreground">Converted</span>
                 <span className="text-foreground font-semibold tabular-nums">
                   {s.converted} of {s.total}
                 </span>
-              </MetricFootnote>
+              </StatFootnote>
             ),
         },
       ]}
@@ -103,30 +117,52 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function StageChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLeadsByStage(await parseAnalyticsFilters(await searchParams));
+const STAGE_TONE: Record<string, Tone> = { new: "c2", contacted: "c3", follow_up: "c5", converted: "success", lost: "destructive" };
+
+async function StageChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getLeadsByStage(scope);
+  const counts = Object.fromEntries(rows.map((r) => [r.key, r.n]));
+  const lost = counts.lost ?? 0;
   return (
-    <BreakdownList
-      rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref({ stage: r.key }) }))}
-      emptyLabel="No leads yet."
+    <FunnelChart
+      steps={reachedStages(counts).map(({ key, reached }, i) => ({
+        label: i === 0 ? "All leads" : STAGE_NAME[key]!,
+        value: reached,
+        tone: STAGE_TONE[key],
+        // Only the ends match a stage filter exactly; middle steps also count leads that moved on.
+        href: i === 0 ? inquiriesHref(scope, {}) : key === "converted" ? inquiriesHref(scope, { stage: key }) : undefined,
+      }))}
+      footnote={
+        <Link href={inquiriesHref(scope, { stage: "lost" })} className="hover:text-foreground transition-colors">
+          {lost.toLocaleString()} lost
+        </Link>
+      }
     />
   );
 }
 
-async function LostReasonChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLostReasonBreakdown(await parseAnalyticsFilters(await searchParams));
-  return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
+const STAGE_NAME: Record<string, string> = { new: "Lead", contacted: "Responded", follow_up: "Follow-up", converted: "Took plan/trial" };
+
+async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSourcePerformance(scope);
+  const { nodes, links } = buildSourceFlow(rows);
+  return <SankeyChart nodes={nodes} links={links} />;
 }
 
-async function SourceTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSourcePerformance(await parseAnalyticsFilters(await searchParams));
+async function LostReasonChart({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getLostReasonBreakdown(scope);
+  return <BreakdownBarChart data={rows} xKey="reason" yKey="n" label="Leads lost" />;
+}
+
+async function SourceTable({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getSourcePerformance(scope);
   return (
     <BreakdownList
       rows={rows.map((r) => ({
         label: r.source,
         n: r.total,
         meta: `${r.converted} converted · ${r.conversionRatePct}%`,
-        href: inquiriesHref({ source: r.key }),
+        href: inquiriesHref(scope, { source: r.key }),
       }))}
       emptyLabel="No leads yet."
     />

@@ -1,13 +1,15 @@
 import { Suspense } from "react";
-import { count, eq } from "drizzle-orm";
-import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, FileTextIcon, XCircleIcon } from "lucide-react";
+import { eq } from "drizzle-orm";
+import { zonedDateIso } from "@foundry/commons";
+import { ClipboardListIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
@@ -26,23 +28,29 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
+import { zonedDayStart } from "@/lib/analytics/drill";
+import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
+import { QueueTabs } from "./queue-tabs";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// Single source of truth for the Stage facet. Real DB stages only — the pipeline
-// pseudo-buckets ("all"/"overdue") were client-only toggles and never valid
-// `inquiries.stage` values, so they can't be server-filter facet options.
-const STAGE_OPTIONS = [
-  { value: "new", label: "New" },
-  { value: "contacted", label: "Contacted" },
-  { value: "quoted", label: "Quoted" },
-  { value: "follow_up", label: "Follow-up" },
-  { value: "converted", label: "Converted" },
-  { value: "lost", label: "Lost" },
+// "none" is New (sub_status is null); the resolver maps it to `is null`.
+const SUB_STATUS_FACET_OPTIONS = [
+  { value: "none", label: "New" },
+  ...SUB_STATUSES.map((s) => ({ value: s, label: SUB_STATUS_META[s].label })),
 ];
+
+const QUEUES: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
+const EMPTY_COPY: Record<QueueTab, string> = {
+  due: "Nobody to chase today.",
+  overdue: "Nothing overdue.",
+  upcoming: "No follow-ups scheduled.",
+  open: "No open inquiries.",
+  closed: "No closed inquiries.",
+};
 
 export default function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -59,9 +67,6 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
                 Import
               </Link>
             </Button>
-            <Suspense fallback={<Skeleton className="h-9 w-24" />}>
-              <ExportAction searchParams={searchParams} />
-            </Suspense>
             <Suspense fallback={<Skeleton className="h-9 w-32" />}>
               <NewInquiryAction />
             </Suspense>
@@ -79,7 +84,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         </Suspense>
       </div>
 
-      <SectionCard title="All inquiries">
+      <SectionCard title="Follow-up queue">
         <Suspense fallback={<InquiriesListSkeleton />}>
           <InquiriesData searchParams={searchParams} />
         </Suspense>
@@ -89,7 +94,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function loadSheetData() {
-  const [{ defaultCountry }, sourceRows, subRows, zones, catalog] = await Promise.all([
+  const [{ defaultCountry, timezone }, sourceRows, subRows, zones, catalog] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -130,7 +135,7 @@ async function loadSheetData() {
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays })),
   };
 
-  return { defaultCountry, sources, zones, catalog: interestCatalog };
+  return { defaultCountry, timezone, sources, zones, catalog: interestCatalog };
 }
 
 function newInquiryTrigger() {
@@ -142,38 +147,16 @@ function newInquiryTrigger() {
   );
 }
 
-// Plain-link download rather than client-side xlsx generation: the pipeline list is
-// paginated (only one page of rows ever reaches the client), so the export has to hit
-// the server for the full matching set. Forward every filter param except page/size so
-// "Export" downloads what's currently filtered, not just what's currently in view.
-async function ExportAction({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
-
-  const sp = await searchParams;
-  const qs = new URLSearchParams();
-  for (const [key, value] of Object.entries(sp)) {
-    if (value && key !== "page" && key !== "size") qs.set(key, value);
-  }
-  const href = qs.size > 0 ? `/api/inquiries/export?${qs.toString()}` : "/api/inquiries/export";
-
-  return (
-    <Button variant="outline" asChild>
-      <a href={href}>
-        <DownloadIcon className="size-4" />
-        Export
-      </a>
-    </Button>
-  );
-}
 
 async function NewInquiryAction() {
   await requireStaff();
 
-  const { defaultCountry, sources, zones, catalog } = await loadSheetData();
+  const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
 
   return (
     <AddInquirySheet
       defaultCountry={defaultCountry}
+      timeZone={timezone}
       sources={sources}
       zones={zones}
       catalog={catalog}
@@ -185,32 +168,18 @@ async function NewInquiryAction() {
 async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const where = epochBoundsWhere(inquiries.createdAt, await withDefaultMonth(await searchParams));
-
-  const [stageCounts, [{ total }]] = await Promise.all([
-    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).where(where).groupBy(inquiries.stage),
-    db.select({ total: count() }).from(inquiries).where(where),
-  ]);
-
-  const countOf = (...stages: string[]) =>
-    stageCounts.filter((r) => stages.includes(r.stage)).reduce((sum, r) => sum + r.n, 0);
-
-  const open = countOf("new", "contacted", "follow_up");
-  const converted = countOf("converted");
-  const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
+  const g = await inquiriesService.groupCounts(where);
+  const total = g.lead + g.followUp + g.took + g.lost;
+  const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
 
   return (
     <StatCards
       items={[
-        { icon: InboxIcon, label: "Total", value: total, hint: "created in selected dates" },
-        { icon: UsersIcon, label: "Open", value: open, hint: "new · contacted · follow-up" },
-        { icon: FileTextIcon, label: "Quoted", value: countOf("quoted"), hint: "waiting on the customer's answer" },
-        {
-          icon: TrendingUpIcon,
-          label: "Converted",
-          value: converted,
-          hint: `${conversionRate}% conversion`,
-        },
-        { icon: XCircleIcon, label: "Lost", value: countOf("lost"), hint: total > 0 ? `${Math.round((countOf("lost") / total) * 100)}% of inquiries` : "—" },
+        { icon: ClipboardListIcon, label: "Total", value: total, hint: "created in selected dates" },
+        { icon: InboxIcon, label: "Lead", value: g.lead, hint: "new · no response" },
+        { icon: UsersIcon, label: "Follow-up", value: g.followUp, hint: "responded · future · expected" },
+        { icon: TrendingUpIcon, label: "Took plan/trial", value: g.took, hint: `${pct(g.took)} conversion` },
+        { icon: XCircleIcon, label: "Lost", value: g.lost, hint: `${pct(g.lost)} · lost or undeliverable` },
       ]}
     />
   );
@@ -219,18 +188,22 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await withListDates(await searchParams);
+  // No default-month filter here: a follow-up queue must show older leads. Explicit from/to still apply.
+  const sp = await searchParams;
+  const queue = QUEUES.find((q) => q === sp.queue) ?? "due";
   const sort = parseSort(
     sp,
-    ["name", "owner", "stage", "source", "lastTouch", "created"],
+    ["name", "owner", "stage", "source", "nextFollowUp", "created"],
     { column: "created", dir: "desc" },
   );
 
-  const [owners, { sources, subsources }, sheet, canReassignRecords] = await Promise.all([
+  const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }, zoneOptions] = await Promise.all([
     loadOwnerOptions(),
     loadSourceOptions(),
     loadSheetData(),
     canReassign(),
+    getAppSettings(),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.active, true)).orderBy(deliveryZones.name),
   ]);
 
   // Facet spec is server-authored so parseFilterState (server) and FacetFilters
@@ -238,20 +211,31 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   // nav-bar search, not FacetFilters — and its OR(fullName, phone) is folded into
   // the condition here.
   const spec: FacetDef[] = [
-    { kind: "pills", field: "stage", label: "Stage", options: STAGE_OPTIONS },
+    { kind: "pills", field: "subStatus", label: "Status", options: SUB_STATUS_FACET_OPTIONS },
     { kind: "select", field: "owner", label: "Owner", options: owners },
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
+    ...(zoneOptions.length ? [{ kind: "multi" as const, field: "zone", label: "Zone", options: zoneOptions }] : []),
+    { kind: "multi", field: "lostReason", label: "Lost reason", options: Object.entries(LOST_REASON_LABELS).map(([value, label]) => ({ value, label })) },
     { kind: "dateRange", field: "createdAt", label: "Created" },
     { kind: "search", fields: ["fullName", "phone", "email"] },
   ];
 
   const { condition, page } = parseFilterState(spec, sp);
-  const result = await inquiriesService.listForPipeline(condition, page, sort);
+  const todayIso = zonedDateIso(Date.now(), timezone);
+  const dayStart = zonedDayStart(todayIso, timezone);
+  const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
+  const [result, counts] = await Promise.all([
+    inquiriesService.listForPipeline(condition, page, sort, { tab: queue, dayStart, dayEnd }),
+    inquiriesService.queueCounts(condition, dayStart, dayEnd),
+  ]);
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
+    <div className="flex flex-col gap-4">
+    <QueueTabs counts={counts} />
     <InquiriesList
+      emptyMessage={EMPTY_COPY[queue]}
       spec={spec}
       rows={result.items}
       total={result.total}
@@ -261,9 +245,11 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       canReassign={canReassignRecords}
       staff={staff}
       reassignAction={reassignInquiry}
+      dayStart={dayStart}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}
+          timeZone={sheet.timezone}
           sources={sheet.sources}
           zones={sheet.zones}
           catalog={sheet.catalog}
@@ -271,5 +257,6 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
         />
       }
     />
+    </div>
   );
 }

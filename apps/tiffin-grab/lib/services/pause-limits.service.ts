@@ -1,4 +1,6 @@
-import { differenceInCalendarDays, parseISO } from "date-fns";
+// Per-function entry points: the package root loads every date-fns module (~2s per isolated test file).
+import { differenceInCalendarDays } from "date-fns/differenceInCalendarDays";
+import { parseISO } from "date-fns/parseISO";
 import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";

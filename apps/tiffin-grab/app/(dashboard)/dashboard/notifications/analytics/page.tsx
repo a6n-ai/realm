@@ -1,31 +1,18 @@
 import { Suspense } from "react";
-import { and, eq, isNull, like, not, sql, type SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
+import { getNotificationBuckets } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
+import { PartsDonut, SegmentedBar } from "@/components/analytics/charts";
+import type { Tone } from "@/components/analytics/chart-math";
+
+const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
 
 const intCount = sql<number>`cast(count(*) as int)`;
-
-async function countRows(where?: SQL): Promise<number> {
-  const [row] = await db.select({ n: intCount }).from(notificationOutbox).where(where);
-  return row?.n ?? 0;
-}
-
-// Single source of truth for the stat cards, in display order. StatsData maps
-// these labels onto the queried values to build the StatGrid `items` array.
-const STAT_CARDS = [
-  { key: "total", label: "Total queued" },
-  { key: "sent", label: "Delivered" },
-  { key: "skipped", label: "Skipped (no template)" },
-  { key: "failed", label: "Failed" },
-  { key: "inFlight", label: "In flight" },
-] as const;
-
-type StatKey = (typeof STAT_CARDS)[number]["key"];
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -35,12 +22,12 @@ async function createdWhere(searchParams: SearchParams) {
 
 export default function NotificationAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<SkeletonStatCards count={5} />}>
+    <div className="flex flex-col gap-6">
+      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
         <ChartCard title="By channel" subtitle="Where every queued notification is headed.">
           <Suspense fallback={<ChartSkeleton />}>
             <ChannelChart searchParams={searchParams} />
@@ -57,21 +44,42 @@ export default function NotificationAnalyticsPage({ searchParams }: { searchPara
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const SKIPPED = like(notificationOutbox.lastError, "skipped%");
-  const created = await createdWhere(searchParams);
+  const v = await getNotificationBuckets(await createdWhere(searchParams));
+  const basis = "by queued date";
+  // In flight is folded into the Total card's hint to keep the row at four.
+  const items: AnalyticsStatCardItem[] = [
+    {
+      label: "Total queued",
+      value: v.total,
+      hint: `${v.inFlight} still in flight · ${basis}`,
+      badge: "Queued",
+      badgeTone: "neutral",
+    },
+    {
+      label: "Delivered",
+      value: v.sent,
+      hint: `Sent with a message · ${basis}`,
+      badge: "Sent",
+      badgeTone: "ok",
+    },
+    {
+      label: "Skipped (no template)",
+      value: v.skipped,
+      hint: `Marked sent without a message, no template · ${basis}`,
+      badge: "Skipped",
+      badgeTone: "neutral",
+    },
+    {
+      label: "Failed",
+      value: v.failed,
+      hint: `Send failed · ${basis}`,
+      tone: v.failed > 0 ? "warn" : undefined,
+      badge: "Failed",
+      badgeTone: v.failed > 0 ? "warn" : "neutral",
+    },
+  ];
 
-  const [total, sent, skipped, failed, inFlight] = await Promise.all([
-    countRows(created),
-    countRows(and(created, eq(notificationOutbox.status, "sent"), isNull(notificationOutbox.lastError))),
-    countRows(and(created, eq(notificationOutbox.status, "sent"), SKIPPED)),
-    countRows(and(created, eq(notificationOutbox.status, "failed"))),
-    countRows(and(created, not(sql`${notificationOutbox.status} in ('sent','failed')`))),
-  ]);
-
-  const values: Record<StatKey, number> = { total, sent, skipped, failed, inFlight };
-  const items = STAT_CARDS.map((s) => ({ label: s.label, value: values[s.key] }));
-
-  return <StatGrid cols={5} items={items} />;
+  return <AnalyticsStatCards items={items} />;
 }
 
 async function ChannelChart({ searchParams }: { searchParams: SearchParams }) {
@@ -80,7 +88,7 @@ async function ChannelChart({ searchParams }: { searchParams: SearchParams }) {
     .from(notificationOutbox)
     .where(await createdWhere(searchParams))
     .groupBy(notificationOutbox.channel);
-  return <BreakdownBarChart data={rows} xKey="channel" yKey="n" />;
+  return <SegmentedBar withList parts={rows.map((r) => ({ label: r.channel, value: r.n }))} />;
 }
 
 async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
@@ -89,5 +97,5 @@ async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
     .from(notificationOutbox)
     .where(await createdWhere(searchParams))
     .groupBy(notificationOutbox.status);
-  return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
+  return <PartsDonut caption="Notifications" parts={rows.map((r) => ({ label: r.status, value: r.n, tone: STATUS_TONE[r.status] ?? "chart" }))} />;
 }

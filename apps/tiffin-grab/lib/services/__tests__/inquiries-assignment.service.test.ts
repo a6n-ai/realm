@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { app, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
+import { app, inquiries, inquiryActivities, ownerPool, leadSources, users } from "@/db/schema";
 import type { LeadAssignmentConfig } from "../assignment";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? s
 
 const { inquiriesService } = await import("../inquiries.service");
 const { setLeadAssignment } = await import("../app-settings.service");
-const { resetPoolCache } = await import("../inquiry-user-config.service");
+const { resetPoolCache } = await import("../owner-pool.service");
 
 const seededUserIds: bigint[] = [];
 
@@ -20,7 +20,7 @@ async function seedMember(name: string) {
 }
 
 async function enroll(userId: bigint, sourceId: bigint | null, weight = 1) {
-  await db.insert(inquiryUserConfig).values({ userId, sourceId, weight });
+  await db.insert(ownerPool).values({ entity: "inquiry", userId, sourceId, weight });
 }
 
 async function sourceIdFor(key: string): Promise<bigint> {
@@ -59,7 +59,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
     // Only clear the config rows we own; never touch other tables' fixtures.
-    if (seededUserIds.length) await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+    if (seededUserIds.length) await db.delete(ownerPool).where(inArray(ownerPool.userId, seededUserIds));
     // Raw enroll() bypasses setMembership, so reset the pool cache alongside the rows.
     await resetPoolCache();
     session.user = null;
@@ -69,7 +69,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
     if (seededUserIds.length) {
-      await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+      await db.delete(ownerPool).where(inArray(ownerPool.userId, seededUserIds));
       await db.delete(users).where(inArray(users.id, seededUserIds));
     }
     await setLeadAssignment(originalLeadAssignment ?? { strategy: "creator", perSource: {}, cursor: {} });
@@ -106,13 +106,47 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     expect(row.currentOwner).toBe(pool.id);
   });
 
-  it("falls back to the system user when neither pool has members (never null)", async () => {
-    const sys = await ensureSystemUser();
+  it("falls back to an active staff member when neither pool has members (never the system user)", async () => {
+    await ensureSystemUser();
+    await seedMember("Any Staff");
     await setLeadAssignment(RR);
 
     const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475553004", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
+    const [owner] = await db
+      .select({ role: users.role, isSystem: users.isSystem })
+      .from(inquiries)
+      .innerJoin(users, eq(users.id, inquiries.currentOwner))
+      .where(eq(inquiries.id, inq.id));
+    expect(["admin", "member"]).toContain(owner.role);
+    expect(owner.isSystem).toBe(false);
+  });
+
+  it("a signed-in customer never owns the lead: it goes to the pool", async () => {
+    const pool = await seedMember("Pool Owner");
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `c${Math.random().toString(36).slice(2)}@test.invalid`, name: "Customer", role: "user" })
+      .returning({ id: users.id, publicId: users.publicId });
+    seededUserIds.push(customer.id);
+    await enroll(pool.id, null);
+    // Default config is "creator": without a staff creator it must still rotate.
+    await setLeadAssignment({ strategy: "creator", perSource: {}, cursor: {} });
+    session.user = { id: customer.publicId, role: "user" };
+
+    const inq = await inquiriesService.create({ fullName: "Lead E", phone: "+16475553005", sourceKey: "website" });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
-    expect(row.currentOwner).toBe(sys.id);
-    expect(row.currentOwner).not.toBeNull();
+    expect(row.currentOwner).toBe(pool.id);
+  });
+
+  it("staff adding a lead own it even on a round-robin source", async () => {
+    const pool = await seedMember("Pool Other");
+    const staff = await seedMember("Adder");
+    await enroll(pool.id, await sourceIdFor("website"));
+    await setLeadAssignment(RR);
+    session.user = { id: staff.publicId, role: "member" };
+
+    const inq = await inquiriesService.create({ fullName: "Lead F", phone: "+16475553006", sourceKey: "website" });
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
+    expect(row.currentOwner).toBe(staff.id);
   });
 });

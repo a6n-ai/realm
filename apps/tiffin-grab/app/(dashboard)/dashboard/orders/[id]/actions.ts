@@ -91,7 +91,9 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
     revalidatePath(`/dashboard/orders/${orderId}`);
     revalidatePath("/dashboard/payments", "layout");
     revalidatePath("/me/wallet");
-    
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/orders");
+
     // Trigger customer shell SSE refresh
     const order = await db
       .select({ userPublicId: users.publicId })

@@ -1,17 +1,17 @@
 import { Suspense } from "react";
-import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
-import { zonedDateIso } from "@foundry/commons";
+import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
+import { formatMoney, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, plans } from "@/db/schema";
+import { deliveryFrequencies, deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
+import { and as sqlAnd, eq, inArray } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countFreeTiffinOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { redirect } from "next/navigation";
-import { canReassign } from "@/lib/services/reassign";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderFormCatalog } from "./order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -25,21 +25,30 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
-import { getOrdersOverview } from "@/lib/services/orders-stats.service";
+import { getFreeTiffinStats, getLookOutStats, getOrdersOverview, getPaymentReviewStats } from "@/lib/services/orders-stats.service";
 import { OrderTagsLegend } from "./row-tags";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
-import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
-import { and } from "@foundry/commons/model/condition";
+import { ongoingFilter } from "./status-pills";
+import { buildOrdersSpec, STARTS_DAYS, STARTS_FIELD } from "./orders-spec";
+import { and, between } from "@foundry/commons/model/condition";
+import { addDays } from "@/lib/deliveries-view/week";
 import { NewOrderSheet } from "./new-order-sheet";
 import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
+
+// The work-queue tabs mark "ignores the date range" with an icon beside the date filter.
+function listNote(view?: string) {
+  if (view === "free") return "Orders with a free tiffin delivered in the date range";
+  return undefined;
+}
 
 export default async function OrdersPage({
   searchParams,
@@ -68,17 +77,26 @@ export default async function OrdersPage({
       {/* The date range filters the cards: one group, tighter than the page rhythm. */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionDateRange />
-          <OrderTagsLegend />
+          <div className="flex items-center gap-2">
+            <SectionDateRange />
+            {raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Filter ignored" />
+                </TooltipTrigger>
+                <TooltipContent>Filter ignored: this tab shows every date</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </div>
         </div>
-        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+        <Suspense key={`${raw.view ?? "all"}:${raw.from}:${raw.to}`} fallback={<StatCardsSkeleton count={raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? 4 : raw.view === "free" ? 3 : 5} />}>
           <OrdersStats searchParams={searchParams} />
         </Suspense>
       </div>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
-        <OrdersViews />
+        <OrdersViews searchParams={searchParams} />
       </Suspense>
-      <SectionCard title="Orders">
+      <SectionCard title="Orders" subtitle={listNote(raw.view)} action={raw.view === "missed" ? undefined : <OrderTagsLegend />}>
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
@@ -94,14 +112,26 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
-async function OrdersViews() {
+/**
+ * The Free tiffins tab follows the date range: free tiffins delivered so far inside it, the same count as
+ * Analytics → Revenue. The work-queue tabs (Look out for, Payment review, Missed) stay on every date.
+ */
+async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
+  const [sp, { timezone }] = await Promise.all([withDefaultMonth(raw), getAppSettings()]);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const today = zonedDateIso(Date.now(), timezone);
+  const to = zonedDateIso(Number(sp.to), timezone);
+  return { from: zonedDateIso(Number(sp.from), timezone), to: to < today ? to : today };
+}
+
+async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
     countPaymentReviewOrders(visible),
-    countFreeTiffinOrders(visible),
+    countFreeTiffinOrders(visible, await freeRange(await searchParams)),
   ]);
   return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} freeCount={freeCount} />;
 }
@@ -110,7 +140,68 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
   const range = { from: Number(sp.from), to: Number(sp.to) };
-  const o = await getOrdersOverview(range, await resolveSessionVisibleOrgIds(await getSession()));
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const view = (await searchParams).view;
+  if (view === "lookout") {
+    const l = await getLookOutStats(visible, range);
+    return (
+      <StatCards
+        items={[
+          { label: "Flagged orders", value: l.flagged, icon: FlagIcon, hint: "Every date" },
+          { label: "Running", value: l.running, icon: PlayCircleIcon, hint: "Flagged and active or paused" },
+          { label: "Unpaid", value: l.unpaid, icon: WalletIcon, hint: "Flagged with a payment still due" },
+          { label: "Flagged this range", value: l.inRange, icon: CalendarClockIcon, hint: "Flagged inside the date range" },
+        ]}
+      />
+    );
+  }
+  if (view === "payment") {
+    const [count, p, { currency }] = await Promise.all([countPaymentReviewOrders(visible), getPaymentReviewStats(visible), getAppSettings()]);
+    return (
+      <StatCards
+        items={[
+          { label: "Orders", value: count, icon: PackageIcon, hint: "Waiting on a payment" },
+          { label: "Amount owed", value: formatMoney(p.owed, currency), icon: WalletIcon, hint: "Across their open payments" },
+          { label: "Needs review", value: p.needsReview, icon: ShieldCheckIcon, hint: "Claimed, staff to verify" },
+          { label: "Overdue", value: p.overdue, icon: AlarmClockIcon, hint: "Awaiting payment over 3 days", ...(p.overdue > 0 ? { tone: "bad" as const } : {}) },
+        ]}
+      />
+    );
+  }
+  if (view === "free") {
+    const fr = await freeRange(await searchParams);
+    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    const [count, f] = await Promise.all([countFreeTiffinOrders(visible, fr), getFreeTiffinStats(visible, fr, today)]);
+    return (
+      <StatCards
+        items={[
+          { label: "Orders", value: count, icon: GiftIcon, hint: "With a free tiffin in the range" },
+          { label: "Free tiffins delivered", value: f.delivered, icon: PackageCheckIcon, hint: "In the date range, up to today" },
+          { label: "Still to deliver", value: f.toDeliver, icon: TruckIcon, hint: "Scheduled after today" },
+        ]}
+      />
+    );
+  }
+  if (view === "missed") {
+    const rows = await listMissedDeliveries(visible);
+    const orderCount = new Set(rows.map((r) => r.orderPublicId)).size;
+    return (
+      <StatCards
+        items={[
+          { label: "Missed days", value: rows.length, icon: CalendarX2Icon, hint: "Every date" },
+          { label: "Orders hit", value: orderCount, icon: UsersIcon, hint: "Distinct orders" },
+          ...(Object.entries(MISSED_WHY) as [keyof typeof MISSED_WHY, string][]).map(([kind, label]) => ({
+            label,
+            value: rows.filter((r) => r.kind === kind).length,
+            icon: CalendarOffIcon,
+            hint: "Missed days",
+          })),
+        ]}
+      />
+    );
+  }
+  const o = await getOrdersOverview(range, visible);
 
   const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
 
@@ -170,6 +261,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const freeTiffins = raw.view === "free";
   // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
+  // Free tiffins drops them too, but filters by free-tiffin delivery date instead (freeRange).
   const sp = lookOutOnly || paymentReview || freeTiffins || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
@@ -183,55 +275,46 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     .from(plans)
     .orderBy(plans.name);
 
-  const spec: FacetDef[] = [
-    {
-      kind: "pills",
-      field: "status",
-      label: "Status",
-      options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
-    },
-    { kind: "select", field: "plan", label: "Plan", options: planOptions },
-    {
-      kind: "select",
-      field: "tier",
-      label: "Meal size",
-      options: [
-        { value: "budget", label: "Budget" },
-        { value: "medium", label: "Medium" },
-        { value: "premium", label: "Premium" },
-      ],
-    },
-    { kind: "dateRange", field: "createdAt", label: "Created" },
-    {
-      kind: "select",
-      field: "missed",
-      label: "Deliveries",
-      options: [{ value: "yes", label: "Has missed deliveries" }],
-    },
-    { kind: "search", fields: ["fullName", "deploymentId", "email"] },
-  ];
+  const session = await getSession();
+  const visible = await resolveSessionVisibleOrgIds(session);
+  const [sizeOptions, zoneOptions, orgOptions, ownerOptions, frequencyOptions, { timezone }] = await Promise.all([
+    db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones)
+      .where(sqlAnd(eq(deliveryZones.active, true), visible === "all" ? undefined : inArray(deliveryZones.organizationId, visible)))
+      .orderBy(deliveryZones.name),
+    visible === "all"
+      ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
+      : visible.length > 1
+        ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
+        : [],
+    loadOwnerOptions(),
+    db.select({ value: deliveryFrequencies.key, label: deliveryFrequencies.name }).from(deliveryFrequencies).orderBy(deliveryFrequencies.name),
+    getAppSettings(),
+  ]);
+  const spec = buildOrdersSpec({ planOptions, sizeOptions, zoneOptions, orgOptions, ownerOptions, frequencyOptions });
 
   // "missed" isn't an orders column: strip it before parseFilterState and filter by subquery instead.
   const missedOnly = sp.missed === "yes";
-  const { sp: filterSp, extra } = ongoingFilter({ ...sp, missed: undefined });
+  // "starts" is relative to today in the app timezone, so it is built here rather than by parseFilterState.
+  const startsDays = STARTS_DAYS.find((d) => String(d) === sp[STARTS_FIELD]);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const todayIso = zonedDateIso(Date.now(), timezone);
+  const startsCond = startsDays != null ? between("startDate", todayIso, addDays(todayIso, startsDays)) : null;
+  const { sp: filterSp, extra } = ongoingFilter({ ...sp, missed: undefined, [STARTS_FIELD]: undefined });
   const { condition, page } = parseFilterState(spec, filterSp);
-  const finalCondition = extra ? and(...[condition, extra].filter((c) => c != null)) : condition;
+  const extras = [extra, startsCond].filter((c) => c != null);
+  const finalCondition = extras.length ? and(...[condition, ...extras].filter((c) => c != null)) : condition;
 
-  const session = await getSession();
-  const visible = await resolveSessionVisibleOrgIds(session);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const missedAsOf = missedOnly ? zonedDateIso(Date.now(), (await getAppSettings()).timezone) : undefined;
 
-  const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible, {
+  const result = await listOrdersPage(finalCondition, page, sort, visible, {
       lookOutOnly,
       paymentReview,
       freeTiffins,
+      freeRange: freeTiffins ? await freeRange(raw) : undefined,
       missedAsOf,
-    }),
-    canReassign(),
-  ]);
-  const staff = reassignAllowed ? await listAssignableStaff() : [];
+    });
 
   return (
     <OrdersList
@@ -241,8 +324,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       page={page.page}
       size={page.size}
       sort={sort}
-      canReassign={reassignAllowed}
-      staff={staff}
       lookOutView={lookOutOnly}
       paymentReviewView={paymentReview}
       freeTiffinsView={freeTiffins}

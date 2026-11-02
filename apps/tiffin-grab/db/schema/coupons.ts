@@ -2,6 +2,7 @@ import { baseColumns, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { customerGroups } from "./customer-groups";
 import { orders, payments } from "./orders";
 import { organization } from "./organizations";
 
@@ -87,6 +88,7 @@ export const coupons = pgTable("coupons", {
   // Client-scoping — null = shared across the whole app, set = one org's own
   // coupon. See dishes.organizationId (catalog.ts) for the pattern.
   organizationId: text("organization_id").references(() => organization.id),
+  customerGroupId: bigint("customer_group_id", { mode: "bigint" }).references(() => customerGroups.id),
 }, (t) => [
   index("coupons_kind_active_idx").on(t.kind, t.active),
   // One rep_daily coupon per rep per allowance day (app-settings timezone; column keeps its ist_date name).

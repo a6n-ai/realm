@@ -1,20 +1,25 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
-import { NotFoundError, formatPhone } from "@foundry/commons";
+import { NotFoundError, zonedDateIso } from "@foundry/commons";
+import { zonedDayStart } from "@/lib/analytics/drill";
+import { describeActivityActor } from "@/lib/services/order-activity-describe";
 import { db } from "@/db/client";
-import { leadSources, orders } from "@/db/schema";
+import { leadSources, orders, users } from "@/db/schema";
+import { canReassign } from "@/lib/services/reassign";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { reassignInquiry } from "../actions";
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/services/inquiries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { PageShell, PageHeader, StageBadge } from "@/components/ds";
+import { PageShell } from "@/components/ds";
+import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
@@ -41,13 +46,17 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
+  const [catalog, slots, existing, [source], activities, { currency, timezone }, [owner], mayReassign] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    findExistingByContact(inq.phone, inq.email),
+    inq.phone || inq.email ? findExistingByContact(inq.phone, inq.email) : null,
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     inquiriesService.listActivities(id),
     getAppSettings(),
+    inq.currentOwner
+      ? db.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, inq.currentOwner)).limit(1)
+      : Promise.resolve([] as { publicId: string; name: string | null }[]),
+    canReassign(),
   ]);
 
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
@@ -88,7 +97,14 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
   }
 
-  const timeline: TimelineActivity[] = activities.map((a) => ({
+  const todayIso = zonedDateIso(Date.now(), timezone);
+  const dayStart = zonedDayStart(todayIso, timezone);
+  const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
+
+  // Status changes from the old stage model (no sub-status recorded) are noise now; notes, calls and the rest stay.
+  const timeline: TimelineActivity[] = activities
+    .filter((a) => a.type !== "stage_change" || a.fromSubStatus != null || a.toSubStatus != null)
+    .map((a) => ({
     publicId: a.publicId,
     type: a.type,
     note: a.note,
@@ -97,24 +113,26 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     nextFollowUpAt: a.nextFollowUpAt,
     fromStage: a.fromStage,
     toStage: a.toStage,
+    fromSubStatus: a.fromSubStatus,
+    toSubStatus: a.toSubStatus,
     createdAt: a.createdAt,
+    actor: describeActivityActor(a),
   }));
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        icon={ClipboardListIcon}
-        title={inq.fullName}
-        subtitle={formatPhone(inq.phone)}
-        actions={<StageBadge stage={inq.stage} />}
-      />
-      <InquiryDetailClient
+    <InquiryDetailClient
         inquiryId={inq.publicId}
-        stage={inq.stage as InquiryStage}
+        subStatus={inq.subStatus as SubStatus | null}
+        nextFollowUpAt={inq.nextFollowUpAt}
+        dayStart={dayStart}
+        dayEnd={dayEnd}
+        createdAt={inq.createdAt}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
+        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
         sourceLabel={source?.label ?? ""}
+        owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}
+        reassign={mayReassign ? { staff: await listAssignableStaff(), action: reassignInquiry } : null}
         notes={inq.notes}
         interest={{
           planInterest: inq.planInterest,
@@ -133,30 +151,21 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         unmatched={unmatched}
         existing={existing}
       />
-    </div>
   );
 }
 
 InquiryDetail.Skeleton = function InquiryDetailSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-9 rounded-lg" />
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <Skeleton className="ml-auto h-6 w-20 rounded-full" />
-      </div>
-
-      <Skeleton className="h-24 w-full rounded-xl" />
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
-        <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-12 w-full rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
+        <Skeleton className="h-96 w-full rounded-xl" />
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
         </div>
-        <Skeleton className="h-56 w-full rounded-xl" />
       </div>
     </div>
   );

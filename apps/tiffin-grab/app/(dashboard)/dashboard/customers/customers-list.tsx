@@ -9,7 +9,6 @@ import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
 import { CustomerInviteCell } from "./customer-invite-cell";
-
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. (The leading "#" and ID columns are added by DataTable.)

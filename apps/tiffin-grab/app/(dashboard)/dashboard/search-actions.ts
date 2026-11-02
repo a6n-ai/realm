@@ -62,7 +62,7 @@ export async function globalSearch(query: string): Promise<SearchResults> {
   return {
     orders: ord.map((o) => ({ id: o.publicId, label: o.fullName, sub: `${o.deploymentId} · ${o.status}`, href: `/dashboard/orders/${o.publicId}` })),
     customers: cust.map((u) => ({ id: u.publicId, label: u.name ?? u.email ?? u.publicId, sub: u.email ?? u.phone ?? undefined, href: `/dashboard/customers/${u.publicId}` })),
-    inquiries: inq.map((i) => ({ id: i.publicId, label: i.fullName, sub: `${i.phone} · ${i.stage}`, href: `/dashboard/inquiries/${i.publicId}` })),
+    inquiries: inq.map((i) => ({ id: i.publicId, label: i.fullName ?? i.phone ?? "", sub: `${i.phone ?? ""} · ${i.stage}`, href: `/dashboard/inquiries/${i.publicId}` })),
     tickets: tkt.map((t) => ({ id: t.publicId, label: t.subject, sub: `${t.raiser ?? t.category} · ${t.status}`, href: `/dashboard/tickets/${t.publicId}` })),
   };
 }

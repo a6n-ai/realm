@@ -153,3 +153,4 @@ below comes from an incident (2026-09-24/25).
   marketing (xplorers.life copy), Better Auth (`user` families at `/me` via OTP
   or password; `admin`/`member` staff at `/dashboard` via password), and the CRM
   shell with user invites. No Clover, cart, or orders until a later phase.
+- TiffinGrab analytics numbers come from `apps/tiffin-grab/lib/services/analytics/metrics/*` (`scope.ts`, `money.ts`, `orders.ts`); pages never write their own money or count SQL. Revenue = settled payments × (1 − tax/total) minus ledger refunds, dated by capture (refunds by ledger date), and cancelled-but-paid orders still count. Order and customer counts use `ordersListWhere`, so they equal the Orders listing. Scope franchises through `orders.organization_id`, never `ledger_entries.organization_id`. Profitability and the Products "paid by" splits reuse the same money expressions, so they reconcile with the Revenue tab.

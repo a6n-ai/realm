@@ -201,6 +201,10 @@ function WorkspaceBody({
   }, [email]);
 
   useEffect(() => {
+    form.setValue("phone", phone);
+  }, [phone, form]);
+
+  useEffect(() => {
     if (!pickedId) return;
     let cancelled = false;
     getInquiryInterestForPrefill(pickedId)

@@ -2,11 +2,12 @@ import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "driz
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
-import { notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
+import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
+import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -26,7 +27,7 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; owner?: string; kind?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
 export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
@@ -83,14 +84,20 @@ export type PaymentKpis = {
   toVerify: { count: number; oldestAt: number | null };
   awaiting: { count: number; amount: number };
   overdue: { count: number; amount: number };
+  rejectedCount: number;
+  /** Awaiting payment on a link that has passed its expiry (void links are rejected, so not counted). */
+  expired: { count: number; amount: number };
 };
 
 /**
- * Headline numbers above every payments tab. Collected/orders paid/change follow the
- * date range (by `created_at`, same as the table); the three queues are live and
- * ignore it, since last week's backlog still needs doing today.
+ * Headline numbers above the payments tabs. Every card follows the date range (by `created_at`,
+ * same as the table), so a card always counts the rows the table shows.
  */
-export async function getPaymentKpis(sp: { from?: string; to?: string }, now = Date.now()): Promise<PaymentKpis> {
+export async function getPaymentKpis(
+  sp: { from?: string; to?: string },
+  now = Date.now(),
+  method?: "etransfer" | "stripe",
+): Promise<PaymentKpis> {
   const dated = await withListDates(sp);
   const from = Number(dated.from);
   const to = Number(dated.to);
@@ -100,6 +107,8 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
   const overdueBefore = now - OVERDUE_DAYS * DAY_MS;
   const inRange = (a: number, b: number) => sql`${payments.createdAt} between ${a} and ${b}`;
   const num = (v: unknown) => Number(v ?? 0);
+  const cur = inRange(from, to);
+  const expired = sql`${payments.status} = 'awaiting_payment' and ${payments.expiresAt} > 0 and ${payments.expiresAt} <= ${now} and ${cur}`;
 
   const [r] = await db
     .select({
@@ -107,14 +116,18 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
       collectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
       ordersPaid: sql<number>`cast(count(distinct ${payments.orderId}) filter (where ${payments.status} = 'paid' and ${inRange(from, to)}) as int)`,
       previousCollected: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'paid' and ${inRange(prevFrom, prevTo)}), 0)`,
-      verifyCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification') as int)`,
-      verifyOldestAt: sql<string | null>`min(coalesce(${payments.claimedAt}, ${payments.createdAt})) filter (where ${payments.status} = 'pending_verification')`,
-      awaitingCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment') as int)`,
-      awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment'), 0)`,
-      overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}) as int)`,
-      overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}), 0)`,
+      verifyCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification' and ${cur}) as int)`,
+      verifyOldestAt: sql<string | null>`min(coalesce(${payments.claimedAt}, ${payments.createdAt})) filter (where ${payments.status} = 'pending_verification' and ${cur})`,
+      awaitingCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${cur}) as int)`,
+      awaitingAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${cur}), 0)`,
+      overdueCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore} and ${cur}) as int)`,
+      overdueAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore} and ${cur}), 0)`,
+      rejectedCount: sql<number>`cast(count(*) filter (where ${payments.status} = 'rejected' and ${inRange(from, to)}) as int)`,
+      expiredCount: sql<number>`cast(count(*) filter (where ${expired}) as int)`,
+      expiredAmount: sql<string>`coalesce(sum(${payments.amount}) filter (where ${expired}), 0)`,
     })
-    .from(payments);
+    .from(payments)
+    .where(method ? eq(payments.method, method) : undefined);
 
   return {
     range: { from, to },
@@ -125,7 +138,78 @@ export async function getPaymentKpis(sp: { from?: string; to?: string }, now = D
     toVerify: { count: r.verifyCount, oldestAt: r.verifyOldestAt == null ? null : Number(r.verifyOldestAt) },
     awaiting: { count: r.awaitingCount, amount: num(r.awaitingAmount) },
     overdue: { count: r.overdueCount, amount: num(r.overdueAmount) },
+    rejectedCount: r.rejectedCount,
+    expired: { count: r.expiredCount, amount: num(r.expiredAmount) },
   };
+}
+
+/** Card payments matching any "Needs attention" facet except fallback tax: the same rows that filter shows. */
+export async function countStripeAttention(sp: { from?: string; to?: string }): Promise<number> {
+  const dated = await withListDates(sp);
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(payments)
+    .where(and(eq(payments.method, "stripe"), dateRangeWhere(payments.createdAt, dated), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
+  return count;
+}
+
+/** Ledger totals by type inside the date range; credit is money in, debit money out. */
+export async function getLedgerKpis(sp: { from?: string; to?: string }) {
+  const dated = await withListDates(sp);
+  const rows = await db
+    .select({
+      type: ledgerEntries.type,
+      direction: ledgerEntries.direction,
+      amount: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)`,
+      count: sql<number>`cast(count(*) as int)`,
+    })
+    .from(ledgerEntries)
+    .where(dateRangeWhere(ledgerEntries.createdAt, dated))
+    .groupBy(ledgerEntries.type, ledgerEntries.direction);
+  const total = (type: string) => {
+    const hit = rows.filter((r) => r.type === type);
+    return { amount: hit.reduce((a, r) => a + Number(r.amount), 0), count: hit.reduce((a, r) => a + r.count, 0) };
+  };
+  const signed = (dir: string) => rows.filter((r) => r.direction === dir).reduce((a, r) => a + Number(r.amount), 0);
+  return {
+    payment: total("payment"),
+    refund: total("refund"),
+    discount: total("discount"),
+    adjustment: total("adjustment"),
+    net: signed("credit") - signed("debit"),
+  };
+}
+
+/** Counts behind the Provider logs tab, dated like its rows. */
+export async function getLogKpis(sp: { from?: string; to?: string }) {
+  const dated = await withListDates(sp);
+  const actType = (t: string) => sql<number>`cast(count(*) filter (where ${orderActivities.type} = ${t}) as int)`;
+  const [[a], [e]] = await Promise.all([
+    db
+      .select({
+        claimed: actType("payment_claimed"),
+        verified: actType("payment_verified"),
+        rejected: actType("payment_rejected"),
+        failed: actType("payment_failed"),
+      })
+      .from(orderActivities)
+      .where(dateRangeWhere(orderActivities.createdAt, dated)),
+    db
+      .select({
+        events: sql<number>`cast(count(*) as int)`,
+        errors: sql<number>`cast(count(*) filter (where ${stripeEvents.error} is not null) as int)`,
+      })
+      .from(stripeEvents)
+      .where(dateRangeWhere(stripeEvents.receivedAt, dated)),
+  ]);
+  return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
+}
+
+/** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
+function ownerWhere(v?: string) {
+  if (!v) return undefined;
+  if (v === UNASSIGNED_OWNER) return sql`${payments.orderId} in (select id from ${orders} where current_owner is null)`;
+  return sql`${payments.orderId} in (select id from ${orders} where current_owner in (select id from ${users} where public_id = ${v}))`;
 }
 
 /** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */
@@ -145,8 +229,13 @@ export async function listPayments(
     opts.where,
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
-    dateRangeWhere(payments.createdAt, dated),
+    // basis=money is the analytics drill: dated by when the money moved, like the revenue tiles.
+    dated.basis === "money"
+      ? epochBoundsWhereSql(sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`, dated)
+      : dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
+    ownerWhere(dated.owner),
+    dated.kind === "addon" ? sql`${payments.addonRequest} is not null` : dated.kind === "plan" ? sql`${payments.addonRequest} is null` : undefined,
     q
       ? or(
           ilike(orders.publicId, `%${q}%`),

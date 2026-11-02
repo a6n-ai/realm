@@ -1,73 +1,146 @@
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
-import { parseFilterState } from "@/components/ds";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { Alert, AlertDescription } from "@/components/reui/alert";
+import { requireAdmin } from "@/lib/auth/guards";
+import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { parseSort } from "@/lib/list/sort";
+import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
-import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listOrderCities } from "@/lib/services/customer-payouts.service";
-import { CustomerPayoutPanel } from "../customer-payout-panel";
-import { walletLedgerRows, type WalletSortColumn } from "../ledger/page";
+import { findCustomerGroup, giveCoinsStats, giveFilterOptions, giveHistoryRows, type GiveSortColumn } from "@/lib/services/customer-groups.service";
+import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
+import { GiveHistoryTable, GiveHistoryTableSkeleton } from "./give-history-table";
+import { GiveCoinsFlowDialog } from "./give-coins-flow-dialog";
+import { GiveOneCustomerDialog } from "./give-one-customer-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const query = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <GiveCoinsData />
-      </Suspense>
-      <Suspense fallback={<WalletLedgerTableSkeleton />}>
-        <GrantHistory searchParams={searchParams} />
-      </Suspense>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+          <div className="flex flex-wrap items-center gap-2">
+            <Suspense fallback={<Skeleton className="h-9 w-56" />}>
+              <Launcher searchParams={searchParams} />
+            </Suspense>
+          </div>
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <GiveStats searchParams={searchParams} />
+        </Suspense>
+      </div>
+      <SectionCard
+        title="Grant history"
+        subtitle="Every coin grant, with the staff member who gave it."
+        action={
+          <a className="text-sm underline underline-offset-2" href={`/api/wallet/give/export?${query}`}>
+            Export CSV
+          </a>
+        }
+      >
+        <Suspense fallback={<GiveHistoryTableSkeleton />}>
+          <GrantHistory searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
     </div>
   );
 }
 
-async function GiveCoinsData() {
+async function Launcher({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const cities = await listOrderCities();
-  return <CustomerPayoutPanel cities={cities} />;
+  const groupId = (await searchParams).group;
+  const preset = groupId ? await findCustomerGroup(groupId) : null;
+  return (
+    <>
+      {groupId && !preset && (
+        <Alert variant="destructive" className="w-full">
+          <AlertDescription>That customer group was not found. Pick a group below.</AlertDescription>
+        </Alert>
+      )}
+      <GiveOneCustomerDialog />
+      <GiveCoinsFlowDialog
+        cities={await listOrderCities()}
+        maxRows={MAX_REVIEW_ROWS}
+        presetGroup={preset ? { publicId: preset.publicId, count: preset.memberCount } : null}
+      />
+    </>
+  );
 }
 
-// Every past Give coins grant, with the staff member who saved it. Grants never
-// carry an order, so the table's order column holds "Given by" instead.
+async function GiveStats({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const sp = await withDefaultMonth(await searchParams);
+  const stats = await giveCoinsStats(epochRange(sp));
+  const cards: StatCardItem[] = [
+    { label: "Coins given", value: stats.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
+    { label: "Customers rewarded", value: stats.customersRewarded.toLocaleString(), icon: UserCheckIcon, hint: "received at least one grant" },
+    { label: "Grants", value: stats.grants.toLocaleString(), icon: GiftIcon, hint: "one per Give coins action" },
+    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in range" },
+    {
+      label: "Avg coins per customer",
+      value: stats.avgCoinsPerCustomer.toFixed(1),
+      icon: WalletIcon,
+      hint: "coins per rewarded customer",
+    },
+  ];
+  return <StatCards items={cards} />;
+}
+
+const TYPE_LABEL = { group: "Group grant", one: "One customer" } as const;
+
+// `group` is the Launcher preselect param, so the Group facet uses `inGroup`.
+// A text search spans all dates (withListDates), like Orders.
 async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
-  const sort: SortState<WalletSortColumn> = parseSort(
+  const sp = await withListDates(await searchParams);
+  const range = epochRange(sp);
+  const sort = parseSort<GiveSortColumn>(
     sp,
-    ["time", "user", "event", "source", "coins", "order", "memo"],
-    { column: "time", dir: "desc" },
+    ["when", "customer", "coins", "type", "group", "givenBy", "memo"],
+    { column: "when", dir: "desc" },
   );
-  const { page } = parseFilterState([], sp);
-  const [{ rows, total }, { timezone }] = await Promise.all([
-    walletLedgerRows({ q: sp.q?.trim(), sourceType: "manual_broadcast", sort, page }),
+  const spec0: FacetDef[] = [{ kind: "search", fields: ["customer"] }];
+  const { page } = parseFilterState(spec0, sp);
+  const type = sp.type === "group" || sp.type === "one" ? sp.type : undefined;
+  const [{ rows, total }, { timezone }, { givers, groups }] = await Promise.all([
+    giveHistoryRows({ q: sp.q, type, givenBy: sp.givenBy || undefined, group: sp.inGroup || undefined, range, sort, page }),
     getAppSettings(),
+    giveFilterOptions(),
   ]);
+  const spec: FacetDef[] = [
+    { kind: "select", field: "givenBy", label: "Given by", options: givers.map((g) => ({ value: g.value, label: g.label ?? "Unnamed" })) },
+    { kind: "select", field: "type", label: "Type", options: [{ value: "group", label: TYPE_LABEL.group }, { value: "one", label: TYPE_LABEL.one }] },
+    { kind: "select", field: "inGroup", label: "Group", options: groups },
+    ...spec0,
+  ];
 
   return (
-    <WalletLedgerTable
-      orderColumnLabel="Given by"
-      rows={rows.map((r) => ({
-        publicId: r.publicId,
-        when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
-        direction: r.direction,
-        eventLabel: null,
-        sourceType: walletEntryLabel(r.sourceType),
-        coins: r.coins,
-        memo: r.memo,
-        who: r.email,
-        // Grants saved before 2026-10-28 never recorded who gave them.
-        orderLabel: r.actorName ?? "Not recorded",
-        orderHref: null,
-      }))}
+    <GiveHistoryTable
+      spec={spec}
       sort={sort}
       total={total}
       page={page.page}
       size={page.size}
+      rows={rows.map((r) => ({
+        publicId: r.publicId,
+        when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
+        customer: r.customer,
+        customerPublicId: r.customerPublicId,
+        coins: r.coins,
+        type: TYPE_LABEL[r.type],
+        group: r.group,
+        groupPublicId: r.groupPublicId,
+        // Grants saved before 2026-10-28 never recorded who gave them.
+        givenBy: r.givenBy ?? "Not recorded",
+        memo: r.memo,
+      }))}
     />
   );
 }

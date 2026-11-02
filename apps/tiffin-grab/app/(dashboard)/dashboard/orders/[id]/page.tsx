@@ -26,7 +26,12 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
+import { canReassign } from "@/lib/services/reassign";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { ReassignControl } from "@/components/reassign/reassign-control";
+import { reassignOrderAction } from "../actions";
 import { deliveryZones, plans, users } from "@/db/schema";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -331,8 +336,30 @@ async function OrderDetail({
   // Admin only; a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
   const canGiveFree = session?.user?.role === "admin"
     && complimentaryBlocker(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status)) == null;
+  // Owner changes live here, not in the orders table (a row dropdown shifted row heights).
+  const [ownerRow, mayReassign] = await Promise.all([
+    order.currentOwner
+      ? db.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, order.currentOwner)).limit(1).then((r) => r[0] ?? null)
+      : null,
+    canReassign(),
+  ]);
+  const staffOptions = mayReassign ? await listAssignableStaff() : [];
+
   const headerActions = (
     <>
+      <span className="inline-flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Owner</span>
+        {mayReassign ? (
+          <ReassignControl
+            currentOwnerId={ownerRow?.publicId ?? null}
+            currentOwnerName={ownerRow?.name ?? null}
+            staff={staffOptions}
+            action={reassignOrderAction.bind(null, order.publicId)}
+          />
+        ) : (
+          <span className="font-medium">{ownerRow?.name ?? "Unassigned"}</span>
+        )}
+      </span>
       {order.trialLength != null && <TrialPill className="self-center" />}
       <Button asChild variant="outline" size="sm">
         <a href={receiptPath(order.publicId)} download>
@@ -373,6 +400,7 @@ async function OrderDetail({
 
   return (
     <>
+      <BreadcrumbLabel segment={order.publicId} label={`${order.deploymentId} · ${order.fullName}`} />
       <PageHeader
         icon={PackageIcon}
         title={order.fullName}

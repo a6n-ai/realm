@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { and, asc, desc, eq, ilike, notInArray, or } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
-import { coupons } from "@/db/schema";
+import { coupons, customerGroups } from "@/db/schema";
+import { Alert, AlertDescription } from "@/components/reui/alert";
+import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -81,8 +83,11 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       expiresAt: coupons.expiresAt,
       active: coupons.active,
       config: coupons.config,
+      customerGroupPublicId: customerGroups.publicId,
+      groupName: customerGroups.name,
     })
     .from(coupons)
+    .leftJoin(customerGroups, eq(customerGroups.id, coupons.customerGroupId))
     .where(and(
       notInArray(coupons.kind, ["rep_daily", "rep_code"]),
       epochBoundsWhere(coupons.createdAt, sp),
@@ -106,7 +111,18 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
     { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
   ];
   const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card (Stripe)" : m.label }));
-  return <CouponsManager coupons={couponRows} paymentMethods={paymentMethods} stats={stats} sort={sort} pagination={page} spec={SPEC} />;
+  const groupId = sp.newForGroup;
+  const presetGroup = groupId ? await findCustomerGroup(groupId) : null;
+  return (
+    <>
+      {groupId && !presetGroup && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>That customer group was not found. The new coupon is not restricted to a group.</AlertDescription>
+        </Alert>
+      )}
+      <CouponsManager coupons={couponRows} paymentMethods={paymentMethods} stats={stats} sort={sort} pagination={page} spec={SPEC} presetGroup={presetGroup} />
+    </>
+  );
 }
 
 export type { CouponSortColumn };

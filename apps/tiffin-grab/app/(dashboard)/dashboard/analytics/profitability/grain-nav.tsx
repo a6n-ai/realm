@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { addMonths, type Grain } from "@/lib/analytics/profitability";
 import { MonthInput } from "@/components/dashboard/date-fields";
-import { AnalyticsBadge } from "@/components/analytics/analytics-panel";
+import { Badge } from "@/components/reui/badge";
 
 const GRAINS: { id: Grain; label: string }[] = [
   { id: "daily", label: "Daily" },
@@ -34,24 +34,25 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
   const router = useRouter();
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="bg-muted/70 text-foreground inline-flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold shadow-sm">
-        <CalendarRangeIcon className="text-primary size-[18px] shrink-0" aria-hidden />
+      <div className="text-foreground inline-flex flex-wrap items-center gap-2 text-sm font-medium">
+        <CalendarRangeIcon className="text-primary size-4 shrink-0" aria-hidden />
         <span>{monthLabel(month)}</span>
-        <span className="bg-[var(--accent-badge)] size-1.5 rounded-full" aria-hidden />
-        <AnalyticsBadge tone="ok">Selected month</AnalyticsBadge>
+        <span className="bg-success size-1.5 rounded-full" aria-hidden />
+        <Badge variant="success-light">Selected month</Badge>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="bg-muted/70 flex rounded-xl p-1 shadow-sm">
+        <div className="flex gap-1">
           {GRAINS.map((g) => (
             <Link
               key={g.id}
               href={href(g.id, month)}
               prefetch={false}
+              aria-current={view === g.id ? "true" : undefined}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors",
+                "px-3 py-1.5 text-sm font-medium transition-colors",
                 view === g.id
-                  ? "bg-card text-foreground shadow-sm"
+                  ? "text-foreground underline decoration-2 underline-offset-8"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -62,7 +63,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
 
         <div className="flex flex-wrap items-center gap-1">
           {aside ? <div className="mr-1">{aside}</div> : null}
-          <Button variant="ghost" size="icon" className="size-8" asChild>
+          <Button variant="ghost" size="icon-sm" asChild>
             <Link href={href(view, addMonths(month, -1))} prefetch={false} aria-label="Previous month">
               <ChevronLeftIcon className="size-4" />
             </Link>
@@ -75,7 +76,7 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
               if (v) router.push(href(view, v));
             }}
           />
-          <Button variant="ghost" size="icon" className="size-8" asChild>
+          <Button variant="ghost" size="icon-sm" asChild>
             <Link href={href(view, addMonths(month, 1))} prefetch={false} aria-label="Next month">
               <ChevronRightIcon className="size-4" />
             </Link>

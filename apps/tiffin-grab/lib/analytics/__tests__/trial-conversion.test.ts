@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isoDateInZone } from "../profitability";
-import {
-  conversionDeadline,
-  summarizeTrialConversion,
-  TRIAL_CONVERT_WINDOW_DAYS,
-} from "../trial-conversion";
-
-const TZ = "America/Toronto";
+import { conversionDeadline, summarizeTrialConversion, TRIAL_CONVERT_WINDOW_DAYS } from "../trial-conversion";
 
 describe("conversionDeadline", () => {
   it("adds the window in calendar days", () => {
@@ -15,46 +8,34 @@ describe("conversionDeadline", () => {
 });
 
 describe("summarizeTrialConversion", () => {
-  it("counts a paid plan created within the window after trial end", () => {
-    const trialCreated = Date.parse("2035-03-01T15:00:00Z");
-    const planCreated = Date.parse("2035-03-20T15:00:00Z"); // end 03-10 + 14 = 03-24
+  it("counts closed-window trials and their conversions", () => {
     const stats = summarizeTrialConversion({
-      timezone: TZ,
-      isoDateInZone,
-      trials: [{ orderId: "t1", userId: "u1", trialCreatedAt: trialCreated, endDate: "2035-03-10" }],
-      paidPlans: [{ userId: "u1", createdAt: planCreated }],
+      todayIso: "2035-04-01",
+      trials: [
+        { orderId: "a", endDate: "2035-03-10", converted: true },
+        { orderId: "b", endDate: "2035-03-10", converted: false },
+      ],
     });
-    expect(stats.eligible).toBe(1);
-    expect(stats.converted).toBe(1);
-    expect(stats.conversionRatePct).toBe(100);
+    expect(stats).toMatchObject({ eligible: 2, converted: 1, open: 0, conversionRatePct: 50 });
     expect(stats.windowDays).toBe(TRIAL_CONVERT_WINDOW_DAYS);
   });
 
-  it("ignores plans after the deadline and plans before the trial", () => {
-    const trialCreated = Date.parse("2035-03-05T15:00:00Z");
-    const tooLate = Date.parse("2035-03-26T15:00:00Z"); // after 03-24
-    const beforeTrial = Date.parse("2035-03-01T15:00:00Z");
+  it("keeps trials inside their window out of the rate and reports them as open", () => {
     const stats = summarizeTrialConversion({
-      timezone: TZ,
-      isoDateInZone,
-      trials: [{ orderId: "t1", userId: "u1", trialCreatedAt: trialCreated, endDate: "2035-03-10" }],
-      paidPlans: [
-        { userId: "u1", createdAt: tooLate },
-        { userId: "u1", createdAt: beforeTrial },
-        { userId: "u2", createdAt: Date.parse("2035-03-12T15:00:00Z") },
+      todayIso: "2035-03-24",
+      trials: [
+        { orderId: "closed-today", endDate: "2035-03-10", converted: false }, // 03-10 + 14 = 03-24 <= today
+        { orderId: "open", endDate: "2035-03-11", converted: true }, // deadline 03-25 > today
       ],
     });
-    expect(stats.converted).toBe(0);
-    expect(stats.conversionRatePct).toBe(0);
+    expect(stats).toMatchObject({ eligible: 1, converted: 0, open: 1, conversionRatePct: 0 });
   });
 
-  it("returns null rate when nothing is eligible", () => {
+  it("returns a null rate when nothing is eligible", () => {
     const stats = summarizeTrialConversion({
-      timezone: TZ,
-      isoDateInZone,
-      trials: [],
-      paidPlans: [],
+      todayIso: "2035-03-12",
+      trials: [{ orderId: "x", endDate: "2035-03-11", converted: true }],
     });
-    expect(stats.conversionRatePct).toBeNull();
+    expect(stats).toMatchObject({ eligible: 0, open: 1, conversionRatePct: null });
   });
 });

@@ -75,7 +75,7 @@ describe("inquiriesService.logActivity + markLost", () => {
     await expect(inquiriesService.markLost(inq.publicId, "other")).rejects.toThrow(ValidationError);
   });
 
-  it("persists amount on quote_sent and advances stage to quoted", async () => {
+  it("persists amount on quote_sent without changing stage", async () => {
     const inq = await makeInquiry();
     await inquiriesService.logActivity(inq.publicId, {
       type: "quote_sent",
@@ -83,7 +83,7 @@ describe("inquiriesService.logActivity + markLost", () => {
       note: "quoted veg weekly",
     });
     const after = await inquiriesService.read(inq.publicId);
-    expect(after.stage).toBe("quoted");
+    expect(after.stage).toBe("new");
     const acts = await inquiriesService.listActivities(inq.publicId);
     const quote = acts.find((a) => a.type === "quote_sent");
     expect(quote?.amount).toBe(450000);

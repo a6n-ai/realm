@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useChannel } from "@foundry/realtime/client";
 import type { RealtimeEvent } from "@foundry/realtime";
-import { cn } from "@foundry/ui/cn";
+import { Badge } from "@/components/reui/badge";
 import { ANALYTICS_LIVE } from "@/lib/realtime/inbox";
 
 // Bulk writes (a completions pull, a batch of verifications) ping many times in
@@ -70,20 +70,8 @@ export function LiveRefresh({ updatedLabel, refreshAt }: { updatedLabel: string;
   }, [refresh]);
 
   return (
-    <span
-      className="bg-[color-mix(in_oklab,var(--accent-badge)_14%,transparent)] text-[var(--accent-badge)] inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums"
-      aria-live="polite"
-    >
-      <span className="relative flex size-2">
-        <span
-          className={cn(
-            "absolute inline-flex size-full rounded-full bg-[var(--accent-badge)] opacity-60",
-            !pending && "animate-ping",
-          )}
-        />
-        <span className="relative inline-flex size-2 rounded-full bg-[var(--accent-badge)]" />
-      </span>
+    <Badge variant="success-light" className="tabular-nums" aria-live="polite">
       {pending ? "Updating…" : `Live · ${updatedLabel}`}
-    </span>
+    </Badge>
   );
 }

@@ -1,14 +1,19 @@
 import { Suspense } from "react";
-import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, ilike, like, lte, or, sql, type SQL } from "drizzle-orm";
+import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
-import { walletLedger, users, orders } from "@/db/schema";
+import { walletLedger, users, orders, customerGroupActions, customerGroups } from "@/db/schema";
+import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "@/lib/services/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
+import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { pageOrder } from "@foundry/database";
-import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
+import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -30,16 +35,36 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<SkeletonStatCards count={6} />}>
-        <WalletStatsData />
-      </Suspense>
-
-      <Suspense fallback={<WalletLedgerTableSkeleton />}>
-        <WalletLedgerData searchParams={searchParams} />
-      </Suspense>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <LedgerStats searchParams={searchParams} />
+        </Suspense>
+      </div>
+      <SectionCard title="Ledger" subtitle="Every coin earned, redeemed or given. A text search spans all dates.">
+        <Suspense fallback={<LedgerTableSkeleton />}>
+          <WalletLedgerData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
     </div>
   );
+}
+
+async function LedgerStats({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const sp = await withDefaultMonth(await searchParams);
+  const { agg } = await walletLedgerStats(epochRange(sp));
+  const cards: StatCardItem[] = [
+    { label: "Coins earned", value: agg.earned.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
+    { label: "Coins spent", value: agg.spent.toLocaleString(), icon: ShoppingBagIcon, hint: "net of returns" },
+    { label: "Net", value: (agg.earned - agg.spent).toLocaleString(), icon: ScaleIcon, hint: "earned minus spent" },
+    { label: "Active wallets", value: agg.wallets.toLocaleString(), icon: WalletIcon, hint: "with activity in range" },
+    { label: "Entries", value: agg.entries.toLocaleString(), icon: ScrollTextIcon, hint: "ledger rows in range" },
+  ];
+  return <StatCards items={cards} />;
 }
 
 /**
@@ -47,61 +72,20 @@ export default function WalletLedgerPage({ searchParams }: { searchParams: Searc
  * that bypass `walletService`, so the `unexpired()` filter they need is easy
  * to lose and impossible to notice from the rendered card.
  */
-export async function walletLedgerStats() {
-  // Per-user current balance (credits − debits), so the highest-balance stat
-  // below can rank accounts by what they hold right now, not by lifetime
-  // coins earned — a customer who redeemed everything shouldn't top this.
-  const balancePerUser = db
+export async function walletLedgerStats(range: { from: number; to: number } = { from: 0, to: Number.MAX_SAFE_INTEGER }) {
+  const [agg] = await db
     .select({
-      userId: walletLedger.userId,
-      balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("balance"),
+      earned: earnedCoinsSql(walletLedger),
+      spent: spentCoinsSql(walletLedger),
+      entries: sql<number>`cast(count(*) as int)`,
+      wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
     })
+    // Lapsed holds never spent anything, so they are not earned, not
+    // spent, and not entries — same rule walletService.balance() applies.
     .from(walletLedger)
-    .where(unexpired(walletLedger, Date.now()))
-    .groupBy(walletLedger.userId)
-    .as("bal");
+    .where(and(unexpired(walletLedger, Date.now()), gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)));
 
-  const [[agg], [topWallet]] = await Promise.all([
-    db
-      .select({
-        earned: earnedCoinsSql(walletLedger),
-        spent: spentCoinsSql(walletLedger),
-        entries: sql<number>`cast(count(*) as int)`,
-        wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
-      })
-      // Lapsed holds never spent anything, so they are not earned, not
-      // spent, and not entries — same rule walletService.balance() applies.
-      .from(walletLedger)
-      .where(unexpired(walletLedger, Date.now())),
-    db
-      .select({ name: users.name, email: users.email, balance: balancePerUser.balance })
-      .from(balancePerUser)
-      .innerJoin(users, eq(users.id, balancePerUser.userId))
-      .orderBy(desc(balancePerUser.balance))
-      .limit(1),
-  ]);
-
-  return { agg, topWallet };
-}
-
-async function WalletStatsData() {
-  await requireAdmin();
-  const { agg, topWallet } = await walletLedgerStats();
-
-  const stats = [
-    { label: "Coins earned", value: agg.earned.toLocaleString() },
-    { label: "Coins spent", value: agg.spent.toLocaleString() },
-    { label: "Net outstanding", value: (agg.earned - agg.spent).toLocaleString() },
-    { label: "Active wallets", value: agg.wallets.toLocaleString() },
-    { label: "Entries", value: agg.entries.toLocaleString() },
-    {
-      label: "Highest balance",
-      value: (topWallet?.balance ?? 0).toLocaleString(),
-      hint: topWallet ? (topWallet.name ?? topWallet.email ?? undefined) : undefined,
-    },
-  ];
-
-  return <StatGrid cols={6} items={stats} />;
+  return { agg };
 }
 
 /**
@@ -111,10 +95,15 @@ async function WalletStatsData() {
  */
 const actor = alias(users, "actor");
 
-export async function walletLedgerRows({ q, sourceType, sort, page }: {
+export async function walletLedgerRows({ q, userId, sourceType, direction, range, sort, page }: {
   q?: string;
+  /** Narrows to one customer's wallet (the customer Wallet tab). */
+  userId?: bigint;
+  /** Narrows to entries created inside the window (epoch-ms, inclusive). */
+  range?: { from: number; to: number };
   /** Narrows to one source, e.g. the Give coins history (`manual_broadcast`). */
   sourceType?: string;
+  direction?: "credit" | "debit";
   sort: SortState<WalletSortColumn>;
   page: { page: number; size: number };
 }) {
@@ -130,7 +119,10 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
   const where = and(
     unexpired(walletLedger, Date.now()),
     search,
+    userId ? eq(walletLedger.userId, userId) : undefined,
     sourceType ? eq(walletLedger.sourceType, sourceType) : undefined,
+    direction ? eq(walletLedger.direction, direction) : undefined,
+    range ? and(gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)) : undefined,
   );
 
   const [rows, [{ total }]] = await Promise.all([
@@ -144,6 +136,9 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
         coins: walletLedger.coins,
         memo: walletLedger.memo,
         email: users.email,
+        userPublicId: users.publicId,
+        groupName: grantGroupName,
+        groupPublicId: grantGroupPublicId,
         orderPublicId: orders.publicId,
         actorName: actor.name,
       })
@@ -151,6 +146,9 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
       .leftJoin(actor, eq(actor.id, walletLedger.createdBy))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], walletLedger.id))
       .limit(page.size)
@@ -160,6 +158,9 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
       .from(walletLedger)
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .leftJoin(customerGroupActions, and(like(walletLedger.sourceId, "grant:%"), eq(customerGroupActions.publicId, grantActionId)))
+      .leftJoin(customerGroups, eq(customerGroups.id, customerGroupActions.groupId))
+      .leftJoin(legacyGroup, and(like(walletLedger.sourceId, "grant:%"), eq(legacyGroup.publicId, grantActionId)))
       .where(where),
   ]);
   return { rows, total };
@@ -168,22 +169,50 @@ export async function walletLedgerRows({ q, sourceType, sort, page }: {
 async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await searchParams;
+  // A text search spans all dates, like Orders; the cards above keep the picked range.
+  const sp = await withListDates(await searchParams);
+  const range = epochRange(sp);
 
   const sort: SortState<WalletSortColumn> = parseSort(
     sp,
     ["time", "user", "event", "source", "coins", "order", "memo"],
     { column: "time", dir: "desc" },
   );
-  const { page } = parseFilterState([], sp);
+  const direction = sp.direction === "credit" || sp.direction === "debit" ? sp.direction : undefined;
 
-  const [{ rows, total }, { timezone }] = await Promise.all([
-    walletLedgerRows({ q: sp.q?.trim(), sort, page }),
+  const spec0: FacetDef[] = [{ kind: "search", fields: ["memo", "user", "source", "order"] }];
+  const { page } = parseFilterState(spec0, sp);
+
+  const [{ rows, total }, { timezone }, sources] = await Promise.all([
+    walletLedgerRows({ q: sp.q?.trim(), sourceType: sp.source || undefined, direction, range, sort, page }),
     getAppSettings(),
+    db.selectDistinct({ sourceType: walletLedger.sourceType }).from(walletLedger),
   ]);
 
+  const spec: FacetDef[] = [
+    {
+      kind: "select",
+      field: "source",
+      label: "Source",
+      options: sources
+        .map((s) => ({ value: s.sourceType, label: walletEntryLabel(s.sourceType) }))
+        .sort((x, y) => x.label.localeCompare(y.label)),
+    },
+    {
+      kind: "select",
+      field: "direction",
+      label: "Direction",
+      options: [
+        { value: "credit", label: "Credit" },
+        { value: "debit", label: "Debit" },
+      ],
+    },
+    ...spec0,
+  ];
+
   return (
-    <WalletLedgerTable
+    <LedgerTable
+      spec={spec}
       rows={rows.map((r) => ({
         publicId: r.publicId,
         when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
@@ -193,6 +222,7 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
         coins: r.coins,
         memo: r.memo,
         who: r.email,
+        whoHref: r.userPublicId ? `/dashboard/customers/${r.userPublicId}/wallet` : null,
         orderLabel: r.orderPublicId,
         orderHref: r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : null,
       }))}

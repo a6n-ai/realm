@@ -7,7 +7,7 @@
 import { zonedRangeMs } from "@/lib/analytics/drill";
 import { currentMonth, monthBounds } from "@/lib/analytics/profitability";
 
-export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone"] as const;
+export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone", "org"] as const;
 
 export type AnalyticsSearchParams = Partial<Record<(typeof ANALYTICS_FILTER_PARAMS)[number], string>>;
 
@@ -22,15 +22,19 @@ export type AnalyticsFilters = {
   mealSizes: string[];
   /** Delivery zone names. */
   zones: string[];
+  /** Same semantics as AnalyticsScope.orgIds: "all" = unscoped, [] = nothing (fail closed). */
+  orgIds: "all" | string[];
 };
 
-const list = (raw: string | undefined): string[] =>
+export type DimensionFilters = Omit<AnalyticsFilters, "orgIds">;
+
+export const list = (raw: string | undefined): string[] =>
   (raw ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-const epoch = (raw: string | undefined): number | undefined => {
+export const epoch = (raw: string | undefined): number | undefined => {
   if (!raw) return undefined;
   // Facet dateRange writes epoch ms; revenue once wrote ISO dates — accept both.
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -47,10 +51,11 @@ export function currentMonthEpochRange(timezone: string, now = Date.now()): { fr
   return zonedRangeMs(bounds.from, bounds.to, timezone);
 }
 
+/** Dimension + date parse only; orgIds is deliberately absent. It must come from `resolveAnalyticsScope`, which checks the session. */
 export function parseAnalyticsFilters(
   sp: AnalyticsSearchParams,
   opts?: { timezone?: string; now?: number },
-): AnalyticsFilters {
+): DimensionFilters {
   let from = epoch(sp.from);
   let to = epoch(sp.to);
   // Analytics always scopes to a date range; missing params mean the current month.
@@ -80,4 +85,18 @@ export type AnalyticsFilterOptions = {
   plans: { value: string; label: string }[];
   mealSizes: { value: string; label: string; parent: string }[];
   zones: { value: string; label: string }[];
+  orgs: { value: string; label: string }[];
+  /** Ticket category / sub-category pairs that have rows in the visible orgs (complaints facets). */
+  tickets: { category: string; subcategory?: string }[];
 };
+
+/** Carries every analytics filter param (including org) onto another analytics path. */
+export function analyticsHref(path: string, sp: Partial<Record<string, string>>): string {
+  const qs = new URLSearchParams();
+  for (const key of ANALYTICS_FILTER_PARAMS) {
+    const v = sp[key];
+    if (v) qs.set(key, v);
+  }
+  const s = qs.toString();
+  return s ? `${path}?${s}` : path;
+}

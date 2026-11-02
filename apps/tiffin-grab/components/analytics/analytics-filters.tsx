@@ -1,16 +1,23 @@
 "use client";
 
-import { useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useMemo } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { FilterXIcon } from "lucide-react";
+import { Button } from "@foundry/ui/button";
+import { useListNav } from "@/components/ds";
 import type { FacetDef } from "@/components/ds";
-import { DefaultDateRange } from "@/components/filters/default-date-range";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { pruneSubcategories } from "./subcategory-prune";
+import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
 
+const KEEP = new Set(["from", "to", "month", "view"]);
+
 /**
- * Shared filter bar for every analytics subsection. Date sits outside the facet
- * menu (defaults to the current month). Plan / meal size / zone stay in Filter;
- * Revenue / Complaints append page-only facets when the route matches.
+ * Shared filter bar for every analytics subsection: date presets + range, then the facet menu with its
+ * active-filter chips and Clear all. Franchise shows with 2+ visible; Revenue / Complaints append
+ * tab-only facets, and Sub-category only exists once a Category is picked.
  */
 export function AnalyticsFilters({
   options,
@@ -22,6 +29,30 @@ export function AnalyticsFilters({
   complaintFacets?: FacetDef[];
 }) {
   const pathname = usePathname();
+  const params = useSearchParams();
+  const nav = useListNav();
+  const onComplaints = pathname.startsWith("/dashboard/analytics/complaints");
+  const category = params.get("category") ?? undefined;
+  const hasCategory = Boolean(category);
+  const subs = (params.get("subcategory") ?? "").split(",").filter(Boolean);
+  const subOptions = useMemo(
+    () =>
+      complaintFacets.flatMap((f) =>
+        f.kind === "multi" && f.field === "subcategory" ? f.options : [],
+      ),
+    [complaintFacets],
+  );
+  const kept = pruneSubcategories(subs, category, subOptions);
+  const staleSub = onComplaints && kept.length !== subs.length;
+  const keptKey = kept.join(",");
+
+  useEffect(() => {
+    if (!staleSub) return;
+    const sp = new URLSearchParams(params.toString());
+    if (keptKey) sp.set("subcategory", keptKey);
+    else sp.delete("subcategory");
+    nav(`${pathname}?${sp.toString()}`, "replace");
+  }, [staleSub, keptKey, params, pathname, nav]);
 
   const spec = useMemo<FacetDef[]>(() => {
     const shared: FacetDef[] = [
@@ -34,19 +65,33 @@ export function AnalyticsFilters({
         options: options.mealSizes,
       },
       { kind: "multi", field: "zone", label: "Zone", options: options.zones },
+      ...franchiseFacets(options.orgs),
     ];
     const extras = pathname.startsWith("/dashboard/analytics/revenue")
       ? revenueFacets
-      : pathname.startsWith("/dashboard/analytics/complaints")
-        ? complaintFacets
+      : onComplaints
+        ? complaintFacets.filter((f) => hasCategory || !("field" in f) || f.field !== "subcategory")
         : [];
     return [...shared, ...extras];
-  }, [options, pathname, revenueFacets, complaintFacets]);
+  }, [options, pathname, onComplaints, hasCategory, revenueFacets, complaintFacets]);
+
+  const hasFacets = [...params.keys()].some((k) => !KEEP.has(k));
+  const clearAll = () => {
+    const next = new URLSearchParams();
+    for (const [k, v] of params) if (KEEP.has(k)) next.set(k, v);
+    nav(`${pathname}?${next.toString()}`);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DefaultDateRange />
+      <SectionDateRange presets />
       <ReuiFacetFilters spec={spec} />
+      {hasFacets && (
+        <Button variant="ghost" size="sm" onClick={clearAll}>
+          <FilterXIcon aria-hidden />
+          Clear all
+        </Button>
+      )}
     </div>
   );
 }

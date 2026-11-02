@@ -121,6 +121,7 @@ export const SECTIONS: NavSection[] = [
     label: "Engagement",
     items: [
       { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ["admin"] },
+      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon, roles: ["admin"] },
     ],
   },
   {

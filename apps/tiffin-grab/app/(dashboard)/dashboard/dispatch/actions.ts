@@ -31,6 +31,8 @@ export async function pushDayAction(date: string): Promise<PushResult> {
 
   const result = await pushDay(date, await currentUserId());
   revalidatePath("/dashboard/dispatch");
+  // The Overview's route-push tile and the header badge read the same push status.
+  revalidatePath("/dashboard", "layout");
   return result;
 }
 

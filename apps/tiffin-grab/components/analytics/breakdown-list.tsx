@@ -3,7 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@foundry/ui/cn";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ListPagination } from "@/components/ds";
+import { ChartEmpty } from "@/components/analytics/chart-boundary";
+import { ChartTip } from "@/components/analytics/chart-tip";
 
 /** Compact page size for analytics cards (DataTable defaults to 25). */
 const PAGE_SIZE = 10;
@@ -20,6 +23,10 @@ export type BreakdownRow = {
   active?: boolean;
   /** Dimmed styling for rows that are shown but excluded from the metrics. */
   muted?: boolean;
+  /** Bar colour (a chart token); defaults to the first categorical slot. */
+  color?: string;
+  /** Hover detail for the row, for example the parts a folded row is made of. */
+  tip?: ReactNode;
 };
 
 /**
@@ -56,7 +63,7 @@ export function BreakdownList({
   }, [visible.length, visible[0]?.label, visible[0]?.meta]);
 
   if (visible.length === 0) {
-    return <p className="text-muted-foreground py-6 text-center text-sm">{emptyLabel}</p>;
+    return <ChartEmpty message={emptyLabel} />;
   }
   // Global max so bars stay comparable when the user pages.
   const denom = total ?? Math.max(...visible.map((r) => r.n), 1);
@@ -65,7 +72,7 @@ export function BreakdownList({
   const pageRows = visible.slice(safePage * size, (safePage + 1) * size);
 
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col gap-1">
       <ul className="divide-border/60 -my-1 divide-y">
         {pageRows.map((r) => {
           const pct = denom > 0 ? Math.round((r.n / denom) * 100) : 0;
@@ -74,13 +81,13 @@ export function BreakdownList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={cn("truncate text-sm", r.muted && "text-muted-foreground")}>{r.label}</span>
-                  <span className="nums text-sm font-semibold tabular-nums">{r.aside ?? r.n}</span>
+                  <span className="text-sm font-semibold tabular-nums">{r.aside ?? r.n}</span>
                 </div>
                 {r.meta ? <p className="text-muted-foreground truncate text-xs">{r.meta}</p> : null}
                 <div className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
                   <div
-                    className={cn("h-full rounded-full", r.muted ? "bg-muted-foreground/40" : "bg-primary")}
-                    style={{ width: `${pct}%` }}
+                    className={cn("h-full rounded-full", r.muted ? "bg-muted-foreground/40" : "bg-chart-1")}
+                    style={{ width: `${pct}%`, ...(r.color && !r.muted ? { background: r.color } : {}) }}
                   />
                 </div>
               </div>
@@ -88,7 +95,20 @@ export function BreakdownList({
           );
           return (
             <li key={`${r.label}-${r.meta ?? ""}`}>
-              {r.href ? (
+              {r.tip ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div tabIndex={0} className="focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2">
+                        {body}
+                      </div>
+                    </TooltipTrigger>
+                    <ChartTip side="left" className="max-w-xs">
+                      {r.tip}
+                    </ChartTip>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : r.href ? (
                 <Link
                   href={r.href}
                   className={cn(

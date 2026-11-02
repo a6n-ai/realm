@@ -8,16 +8,19 @@ import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { unexpired } from "@foundry/wallet";
 import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
+import { defaultOwner } from "./default-owner";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
+  deliveryZones,
   deliveryCategorySwaps,
   deliveryExtraTiffins,
   deliveryMoves,
@@ -235,8 +238,11 @@ export interface CreateOrderOptions {
 // read-side-tolerated. Revisit once a second (franchise) org can exist: this will
 // need to become a resolved-context lookup (checkout zone/region -> org), not "the
 // only brand org".
-async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
-  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+// Prefer the seeded brand org (client code TG, db/seed-brand-org.ts), then the oldest: with several
+// top-level orgs (test DBs have many) a bare limit(1) returns whichever row Postgres reads first.
+export async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
+  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId))
+    .orderBy(sql`${organization.clientCode} is distinct from 'TG'`, asc(organization.createdAt)).limit(1);
   return row?.id ?? null;
 }
 
@@ -393,6 +399,10 @@ export async function createOrder(
   // rate. Resolved inside priceWithTax (below), the same helper the checkout
   // preview uses, so the total shown is the total charged.
   const deferSettlement = paymentMethodId !== "simulated";
+
+  // Every order has an owner: the inquiry's (convert), else the staff placing it, else the pool.
+  // Resolved before the transaction so the rotation cursor write is not tied to it.
+  const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "order"));
 
   const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.
@@ -704,7 +714,7 @@ export async function createOrder(
         deliveryInstructions: input.contact.deliveryInstructions?.trim() || null,
         latitude: input.contact.lat ?? null,
         longitude: input.contact.lng ?? null,
-        currentOwner: input.currentOwner ?? null,
+        currentOwner: defaultOwnerId,
         createdBy,
         organizationId,
       })
@@ -996,6 +1006,7 @@ export async function verifyPayment(
         orderId: order.id,
         redeemedBy,
         amountApplied: r.amount,
+        deferredSettlement: true,
         context: { subtotal: snap.subtotal, planType: snap.planType, kind: coupon.kind },
       });
     }
@@ -1148,10 +1159,23 @@ export async function refundOrder(
 // refunded order whose coins were never reversed.
 export async function refundPaymentInTx(
   tx: Tx,
-  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string },
+  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string; /** The Stripe webhook already wrote the ledger refund row(s): it is the only Stripe ledger writer. */ ledgerRecorded?: boolean },
 ): Promise<void> {
+  // Keep this UPDATE before the ledger-sum read: its row lock serializes concurrent refunds of one payment.
   await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
   await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
+  if (!i.ledgerRecorded && i.userId) {
+    const [{ already }] = await tx
+      .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
+    const [{ amount, surcharge }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount }).from(payments).where(eq(payments.id, i.paymentId));
+    // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
+    const remainder = Math.round((Number(amount) + Number(surcharge) - Number(already)) * 100) / 100;
+    if (remainder > 0) {
+      await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
+    }
+  }
   // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
   const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
   if (paid?.addon) return;
@@ -1160,6 +1184,7 @@ export async function refundPaymentInTx(
     // Money back means coins back: a refunded order's spent coins return too.
     await reverseCoinRedemption(tx, { userId: i.userId, orderId: i.orderId });
   }
+  await couponsService.releaseForOrder(tx, i.orderId);
   await reverseReferral(tx, { id: i.orderId });
 }
 
@@ -1432,7 +1457,7 @@ export function renewalStatusSql(paidPlansOnly = false) {
 export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all" ? undefined : inArray(orders.organizationId, visible));
 
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
-function paymentReviewWhere() {
+export function paymentReviewWhere() {
   return and(
     inArray(orders.status, ["active", "pending", "paused"]),
     sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
@@ -1453,9 +1478,23 @@ async function countVisibleOrders(where: SQL | undefined, visible: "all" | strin
 /** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
 export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
 
-/** Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out. */
-const freeTiffinsWhere = () => and(gt(orders.complimentaryTiffins, 0), ne(orders.status, "cancelled"));
-export const countFreeTiffinOrders = (visible: "all" | string[]) => countVisibleOrders(freeTiffinsWhere(), visible);
+/** ISO dates (app timezone), both inclusive. */
+export type FreeTiffinRange = { from: string; to: string };
+
+/**
+ * Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out.
+ * With a range, only orders with a free tiffin scheduled in it: the analytics Free tiffins rule, so both agree.
+ */
+export const freeTiffinsWhere = (range?: FreeTiffinRange) =>
+  and(
+    gt(orders.complimentaryTiffins, 0),
+    ne(orders.status, "cancelled"),
+    range
+      ? sql`exists (select 1 from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.complimentaryNote} is not null
+          and ${deliveries.status} = 'scheduled' and ${deliveries.deliveryDate} between ${range.from} and ${range.to})`
+      : undefined,
+  );
+export const countFreeTiffinOrders = (visible: "all" | string[], range?: FreeTiffinRange) => countVisibleOrders(freeTiffinsWhere(range), visible);
 
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
@@ -1538,6 +1577,7 @@ export type OrderListRow = {
   trial: boolean;
   lookOut: boolean;
   lookOutNote: string | null;
+  lookOutAt: number | null;
   /** Free tiffins staff gave on top of the plan. */
   freeTiffins: number;
 };
@@ -1606,8 +1646,24 @@ function ordersListResolver() {
     fullName: orders.fullName,
     deploymentId: orders.deploymentId,
     createdAt: orders.createdAt,
+    startDate: orders.startDate,
   });
   return (f: FilterCondition) => {
+    if (f.field === "owner") {
+      const vals = filterValues(f);
+      const ids = vals.filter((v) => v !== UNASSIGNED_OWNER);
+      return or(
+        vals.includes(UNASSIGNED_OWNER) ? isNull(orders.currentOwner) : undefined,
+        ids.length ? inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(inArray(users.publicId, ids))) : undefined,
+      )!;
+    }
+    if (f.field === "planType") {
+      const v = filterValues(f)[0];
+      return v === "trial" ? isNotNull(orders.trialLength) : isNull(orders.trialLength);
+    }
+    if (f.field === "frequency") {
+      return inArray(orders.frequencyId, db.select({ id: deliveryFrequencies.id }).from(deliveryFrequencies).where(inArray(deliveryFrequencies.key, filterValues(f))));
+    }
     if (f.field === "plan") {
       return inArray(
         orders.planId,
@@ -1628,6 +1684,13 @@ function ordersListResolver() {
           ),
       );
     }
+    if (f.field === "mealSize") {
+      return inArray(orders.mealSizeId, db.select({ id: mealSizes.id }).from(mealSizes).where(inArray(mealSizes.key, filterValues(f))));
+    }
+    if (f.field === "zone") {
+      return inArray(orders.zoneId, db.select({ id: deliveryZones.id }).from(deliveryZones).where(inArray(deliveryZones.name, filterValues(f))));
+    }
+    if (f.field === "org") return inArray(orders.organizationId, filterValues(f));
     // Orders carry no email of their own; search matches the account's.
     if (f.field === "email") {
       return inArray(
@@ -1639,22 +1702,36 @@ function ordersListResolver() {
   };
 }
 
+export interface OrdersListOpts {
+  lookOutOnly?: boolean;
+  paymentReview?: boolean;
+  freeTiffins?: boolean;
+  /** Free tiffins tab: only orders with a free tiffin in this range. */
+  freeRange?: FreeTiffinRange;
+  /** today in the app timezone; keeps orders with a missed delivery before it. */
+  missedAsOf?: string;
+}
+
+// Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
+export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
+  return and(
+    conditionToSql(condition, ordersListResolver()),
+    opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
+    opts.freeTiffins ? freeTiffinsWhere(opts.freeRange) : undefined,
+    opts.paymentReview ? paymentReviewWhere() : undefined,
+    opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
+    visible === "all" ? undefined : inArray(orders.organizationId, visible),
+  );
+}
+
 export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
-  /** missedAsOf: today in the app timezone; keeps orders with a missed delivery before it. */
-  opts: { lookOutOnly?: boolean; paymentReview?: boolean; freeTiffins?: boolean; missedAsOf?: string } = {},
+  opts: OrdersListOpts = {},
 ): Promise<Page<OrderListRow>> {
-  const where = and(
-    conditionToSql(condition, ordersListResolver()),
-    opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
-    opts.freeTiffins ? freeTiffinsWhere() : undefined,
-    opts.paymentReview ? paymentReviewWhere() : undefined,
-    opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
-    visible === "all" ? undefined : inArray(orders.organizationId, visible),
-  );
+  const where = ordersListWhere(condition, visible, opts);
 
   const SORT_COL = {
     name: orders.fullName,
@@ -1733,6 +1810,7 @@ export async function listOrdersPage(
       trial: r.trialLength != null,
       lookOut: r.lookOutAt != null,
       lookOutNote: r.lookOutNote,
+      lookOutAt: r.lookOutAt,
       freeTiffins: r.freeTiffins,
     };
   });

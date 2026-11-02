@@ -74,11 +74,11 @@ export default async function SettingsPage() {
       href: "/dashboard/settings/lead-sources",
     },
     {
-      key: "lead-assignment",
-      label: "Lead assignment",
-      description: "Routing strategy and pool membership.",
+      key: "owner-assignment",
+      label: "Owner assignment",
+      description: "Who owns new inquiries, orders and tickets.",
       icon: UsersIcon,
-      href: "/dashboard/settings/lead-assignment",
+      href: "/dashboard/settings/owner-assignment",
     },
     {
       key: "meal-types",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useListNav } from "@/components/ds";
 import type { FacetDef, Option } from "@/components/ds";
@@ -57,10 +57,13 @@ function DateFacetRenderer(label: string, timeZone: string) {
 export function ReuiFacetFilters({
   spec,
   hideDate = false,
+  pinned = [],
   clearValues,
 }: {
   spec: FacetDef[];
   hideDate?: boolean;
+  /** Facet fields always shown as chips (empty until picked), so staff never hunt behind the menu. */
+  pinned?: readonly string[];
   /**
    * When a select/pills facet is cleared, write this sentinel instead of deleting the param.
    * Used by Renewals so clearing "Ending within" becomes `ending=off` and the page default redirect does not re-apply.
@@ -129,44 +132,70 @@ export function ReuiFacetFilters({
     });
   }, [view, params, timezone]);
 
+  // reui finds the filter it is building by the id it minted. Re-deriving with
+  // id=field broke that, so every multi-select pick replaced the last one.
+  const [ids, setIds] = useState<Record<string, string>>({});
+  // Chips added from the menu with no value yet; the URL can't hold them.
+  const [pending, setPending] = useState<Filter<Val>[]>([]);
+  // The URL lags a transition behind each pick. Until it moves, show what reui
+  // just sent so a second quick pick builds on the first.
+  const urlKey = params.toString();
+  const [optimistic, setOptimistic] = useState<{ key: string; filters: Filter<Val>[] } | null>(null);
+  const pinnedSet = useMemo(() => new Set(pinned), [pinned]);
+
+  const withPinned = useCallback(
+    (list: Filter<Val>[]): Filter<Val>[] => {
+      const out = [...list];
+      for (const f of view) {
+        if (f.kind === "search" || !pinnedSet.has(f.field) || out.some((x) => x.field === f.field)) continue;
+        const operator = f.kind === "dateRange" ? DATE_OP : f.kind === "multi" ? MULTI_OP : SELECT_OP;
+        out.push({ id: ids[f.field] ?? f.field, field: f.field, operator, values: [] });
+      }
+      // Pinned chips keep their pinned order whether or not they hold a value, so they never jump.
+      const order = (x: Filter<Val>) => {
+        const i = pinned.indexOf(x.field);
+        return i >= 0 ? i : pinned.length;
+      };
+      return out.sort((a, b) => order(a) - order(b));
+    },
+    [view, pinned, pinnedSet, ids],
+  );
+
   // URL is the source of truth: derive the controlled Filter[] from params each
   // render, one Filter per active facet.
-  const filters = useMemo<Filter<Val>[]>(() => {
+  const derived = useMemo<Filter<Val>[]>(() => {
     const out: Filter<Val>[] = [];
+    const push = (field: string, operator: string, values: Val[]) =>
+      out.push({ id: ids[field] ?? field, field, operator, values });
     for (const f of view) {
       if (f.kind === "search") continue;
       if (f.kind === "dateRange") {
         const from = num(params.get("from"));
         const to = num(params.get("to"));
-        if (from != null || to != null) {
-          out.push({
-            id: f.field,
-            field: f.field,
-            operator: DATE_OP,
-            values: [from, to].filter((v): v is number => v != null),
-          });
-        }
+        if (from != null || to != null) push(f.field, DATE_OP, [from, to].filter((v): v is number => v != null));
         continue;
       }
       if (f.kind === "multi") {
         const values = csv(params.get(f.field));
-        if (values.length) {
-          out.push({ id: f.field, field: f.field, operator: MULTI_OP, values });
-        }
+        if (values.length) push(f.field, MULTI_OP, values);
         continue;
       }
       // pills | select — skip clear sentinels so they do not render as chips
       const v = params.get(f.field);
-      if (v && v !== clearValues?.[f.field]) {
-        out.push({ id: f.field, field: f.field, operator: SELECT_OP, values: [v] });
-      }
+      if (v && v !== clearValues?.[f.field]) push(f.field, SELECT_OP, [v]);
     }
+    for (const p of pending) if (!out.some((x) => x.field === p.field)) out.push(p);
     return out;
-  }, [view, params, clearValues]);
+  }, [view, params, clearValues, pending, ids]);
+
+  const filters = withPinned(optimistic?.key === urlKey ? optimistic.filters : derived);
 
   // Serialize the next Filter[] back into the exact URL params parseFilterState
   // reads. Any facet absent from `next` has its param(s) deleted (or set to a clearValues sentinel).
   const onChange = (next: Filter<Val>[]) => {
+    setIds((prev) => ({ ...prev, ...Object.fromEntries(next.map((n) => [n.field, n.id])) }));
+    setPending(next.filter((n) => n.values.length === 0 && !pinnedSet.has(n.field)));
+    setOptimistic({ key: urlKey, filters: next });
     const sp = new URLSearchParams(params.toString());
     const byField = new Map(next.map((n) => [n.field, n]));
 
@@ -206,6 +235,9 @@ export function ReuiFacetFilters({
       onChange={onChange}
       size="sm"
       showSearchInput={false}
+      // One chip per field: a second pick of the same field silently overwrote the first.
+      allowMultiple={false}
+      i18n={pinned.length ? { addFilter: "More filters" } : undefined}
     />
   );
 }

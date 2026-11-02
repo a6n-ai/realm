@@ -103,4 +103,13 @@ describe("admin wallet ledger rows", () => {
     const { rows } = await walletLedgerRows({ q: EMAIL, sort: { column: "time", dir: "desc" }, page: { page: 0, size: 25 } });
     expect(rows.map((r) => r.sourceType)).toEqual(["seed"]);
   });
+
+  it("userId narrows to one customer's wallet, with the keys the customer tab reads", async () => {
+    const { rows, total } = await walletLedgerRows({ userId, sort: { column: "time", dir: "desc" }, page: { page: 0, size: 25 } });
+    expect(total).toBe(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ sourceType: "seed", groupName: null, groupPublicId: null });
+    const other = await walletLedgerRows({ userId: userId + 1_000_000n, sort: { column: "time", dir: "desc" }, page: { page: 0, size: 25 } });
+    expect(other.rows).toHaveLength(0);
+  });
 });

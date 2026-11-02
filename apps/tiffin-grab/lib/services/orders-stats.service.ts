@@ -1,10 +1,11 @@
 import { zonedDateIso } from "@foundry/commons";
 import { and, inArray, isNotNull, isNull, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orderActivities, orders } from "@/db/schema";
+import { deliveries, orderActivities, orders, payments } from "@/db/schema";
 import { addDays } from "@/lib/deliveries-view/week";
 import { getAppSettings } from "./app-settings.service";
-import { lastTiffinSql, laterOrderSql } from "./orders.service";
+import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "./orders.service";
 
 export type OrdersOverview = {
   newOrders: { count: number; prevCount: number; returning: number };
@@ -101,4 +102,66 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
     renewals: { ended: n(ren?.ended), renewed: n(ren?.renewed) },
     cancelled: { count: n(c?.count), prevCount: n(c?.prevCount) },
   };
+}
+
+const DAY_MS = 86_400_000;
+// Same threshold as the Payments page overdue queue (payments/payment-queries.ts OVERDUE_DAYS).
+const OVERDUE_DAYS = 3;
+
+const hidden = (visible: "all" | string[]) => visible !== "all" && visible.length === 0;
+
+export type LookOutStats = { flagged: number; running: number; unpaid: number; inRange: number };
+
+/** Look out for cards: the flagged set ignores dates, only the last card follows the range (epoch ms). */
+export async function getLookOutStats(visible: "all" | string[], range: { from: number; to: number }): Promise<LookOutStats> {
+  if (hidden(visible)) return { flagged: 0, running: 0, unpaid: 0, inRange: 0 };
+  const [r] = await db
+    .select({
+      flagged: sql<number>`cast(count(*) as int)`,
+      running: sql<number>`cast(count(*) filter (where ${inArray(orders.status, ["active", "paused"])}) as int)`,
+      unpaid: sql<number>`cast(count(*) filter (where ${paymentReviewWhere()}) as int)`,
+      inRange: sql<number>`cast(count(*) filter (where ${orders.lookOutAt} between ${range.from} and ${range.to}) as int)`,
+    })
+    .from(orders)
+    .where(and(isNotNull(orders.lookOutAt), visibleOrgWhere(visible)));
+  return r ?? { flagged: 0, running: 0, unpaid: 0, inRange: 0 };
+}
+
+export type PaymentReviewStats = { owed: number; needsReview: number; overdue: number };
+
+/** Payment review cards: same rows as the tab (review-status payments on open orders), all dates. */
+export async function getPaymentReviewStats(visible: "all" | string[]): Promise<PaymentReviewStats> {
+  if (hidden(visible)) return { owed: 0, needsReview: 0, overdue: 0 };
+  const overdueBefore = Date.now() - OVERDUE_DAYS * DAY_MS;
+  const [r] = await db
+    .select({
+      owed: sql<string>`coalesce(sum(${payments.amount}), 0)`,
+      needsReview: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification') as int)`,
+      overdue: sql<number>`cast(count(*) filter (where ${payments.status} = 'awaiting_payment' and ${payments.createdAt} < ${overdueBefore}) as int)`,
+    })
+    .from(payments)
+    .innerJoin(orders, sql`${orders.id} = ${payments.orderId}`)
+    .where(and(
+      inArray(orders.status, ["active", "pending", "paused"]),
+      isNull(payments.addonRequest),
+      inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]),
+      visibleOrgWhere(visible),
+    ));
+  return { owed: n(r?.owed), needsReview: n(r?.needsReview), overdue: n(r?.overdue) };
+}
+
+export type FreeTiffinStats = { delivered: number; toDeliver: number };
+
+/** Free tiffin cards: delivered follows the range (already capped at today); to-deliver is every later scheduled one. */
+export async function getFreeTiffinStats(visible: "all" | string[], range: FreeTiffinRange, today: string): Promise<FreeTiffinStats> {
+  if (hidden(visible)) return { delivered: 0, toDeliver: 0 };
+  const [r] = await db
+    .select({
+      delivered: sql<number>`cast(count(*) filter (where ${deliveries.deliveryDate} between ${range.from} and ${range.to}) as int)`,
+      toDeliver: sql<number>`cast(count(*) filter (where ${deliveries.deliveryDate} > ${today}) as int)`,
+    })
+    .from(deliveries)
+    .innerJoin(orders, sql`${orders.id} = ${deliveries.orderId}`)
+    .where(and(freeTiffinsWhere(), isNotNull(deliveries.complimentaryNote), sql`${deliveries.status} = 'scheduled'`, visibleOrgWhere(visible)));
+  return { delivered: n(r?.delivered), toDeliver: n(r?.toDeliver) };
 }

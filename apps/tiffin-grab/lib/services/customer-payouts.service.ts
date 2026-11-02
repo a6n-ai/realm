@@ -2,10 +2,18 @@
 // broadcast. A manual, admin-picks-people-right-now action with no
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
-import { and, eq, exists, gte, lte, sql } from "drizzle-orm";
+import { zonedDateIso } from "@foundry/commons";
+import { unexpired } from "@foundry/wallet";
+import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
+import { getAppSettings } from "./app-settings.service";
+import { lastTiffinSql, laterOrderSql } from "./orders.service";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
 import { walletService } from "./wallet.service";
+
+export const MAX_REVIEW_ROWS = 2000;
 
 export type RevenueOp = ">" | "<" | "=";
 
@@ -16,6 +24,12 @@ export type PayoutCandidateFilters = {
   startDateFrom?: string | null; // ISO date
   startDateTo?: string | null; // ISO date
   city?: string | null;
+  lastTiffinFrom?: string | null; // ISO date, latest plan's last tiffin
+  lastTiffinTo?: string | null;
+  lapsed?: boolean | null; // latest plan ended before today and was not renewed
+  lapsedFrom?: string | null;
+  lapsedTo?: string | null;
+  userIds?: bigint[]; // restrict to these users
 };
 
 export type PayoutCandidate = {
@@ -25,6 +39,9 @@ export type PayoutCandidate = {
   email: string | null;
   revenue: string;
   firstOrderDate: string;
+  lastTiffin: string | null;
+  /** Spendable wallet balance (credits − debits, lapsed holds excluded). */
+  walletCoins: number;
 };
 
 const REVENUE_SQL = sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`;
@@ -39,7 +56,10 @@ export async function listOrderCities(): Promise<string[]> {
 // revenue (same "payment credits − refund debits" formula as
 // ledger.service.ts::totalSpent, generalized across all customers at once
 // instead of one query per customer).
-export async function listPayoutCandidates(filters: PayoutCandidateFilters): Promise<PayoutCandidate[]> {
+export async function listPayoutCandidates(
+  filters: PayoutCandidateFilters,
+  { limit = MAX_REVIEW_ROWS }: { limit?: number } = {},
+): Promise<{ rows: PayoutCandidate[]; total: number }> {
   const orderAgg = db
     .select({
       userId: orders.userId,
@@ -58,7 +78,40 @@ export async function listPayoutCandidates(filters: PayoutCandidateFilters): Pro
     .groupBy(ledgerEntries.userId)
     .as("ra");
 
+  // Same spendable-balance formula as orders.service / walletService.balance —
+  // lapsed checkout holds must not inflate "already has coins" on this review table.
+  const walletAgg = db
+    .select({
+      userId: walletLedger.userId,
+      coins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("wallet_coins"),
+    })
+    .from(walletLedger)
+    .where(unexpired(walletLedger, Date.now()))
+    .groupBy(walletLedger.userId)
+    .as("wa");
+
+  // Each customer's latest plan; lastTiffinSql/laterOrderSql bind to the outer `orders`.
+  const latestPlan = db
+    .selectDistinctOn([orders.userId], {
+      userId: orders.userId,
+      lastTiffin: sql<string | null>`${lastTiffinSql}`.as("last_tiffin"),
+      renewed: sql<boolean>`${laterOrderSql}`.as("renewed"),
+    })
+    .from(orders)
+    .where(inArray(orders.status, ["active", "paused", "completed"]))
+    .orderBy(orders.userId, desc(orders.startDate))
+    .as("lp");
+
   const conditions = [eq(users.role, "user")];
+  if (filters.lastTiffinFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lastTiffinFrom));
+  if (filters.lastTiffinTo) conditions.push(lte(latestPlan.lastTiffin, filters.lastTiffinTo));
+  if (filters.lapsed || filters.lapsedFrom || filters.lapsedTo) {
+    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    conditions.push(sql`${latestPlan.lastTiffin} < ${today}`, sql`not ${latestPlan.renewed}`);
+    if (filters.lapsedFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lapsedFrom));
+    if (filters.lapsedTo) conditions.push(lte(latestPlan.lastTiffin, filters.lapsedTo));
+  }
+  if (filters.userIds) conditions.push(inArray(users.id, filters.userIds));
   if (filters.accountPublicId) conditions.push(eq(users.publicId, filters.accountPublicId));
   if (filters.startDateFrom) conditions.push(gte(orderAgg.firstOrderDate, filters.startDateFrom));
   if (filters.startDateTo) conditions.push(lte(orderAgg.firstOrderDate, filters.startDateTo));
@@ -88,14 +141,20 @@ export async function listPayoutCandidates(filters: PayoutCandidateFilters): Pro
       email: users.email,
       revenue: sql<string>`coalesce(${revenueAgg.revenue}, 0)`,
       firstOrderDate: orderAgg.firstOrderDate,
+      lastTiffin: latestPlan.lastTiffin,
+      walletCoins: sql<number>`coalesce(${walletAgg.coins}, 0)`.mapWith(Number),
+      total: sql<number>`count(*) over()`.mapWith(Number),
     })
     .from(users)
     .innerJoin(orderAgg, eq(orderAgg.userId, users.id))
     .leftJoin(revenueAgg, eq(revenueAgg.userId, users.id))
+    .leftJoin(latestPlan, eq(latestPlan.userId, users.id))
+    .leftJoin(walletAgg, eq(walletAgg.userId, users.id))
     .where(and(...conditions))
-    .orderBy(users.name);
+    .orderBy(users.name)
+    .limit(limit);
 
-  return rows;
+  return { rows: rows.map(({ total: _t, ...r }) => r), total: rows[0]?.total ?? 0 };
 }
 
 export async function awardCustomerBroadcast(
@@ -109,20 +168,34 @@ export async function awardCustomerBroadcast(
   const { ok, capped } = await walletService.filterUnderCap(userIds, coins);
   if (ok.length === 0) return { awarded: 0, coinsPerCustomer: coins, capped: capped.length };
 
-  await db.insert(walletLedger).values(
-    ok.map((userId) => ({
-      userId,
-      direction: "credit" as const,
-      sourceType: "manual_broadcast",
-      // Unique per row for audit traceability. No exclusion/idempotency
-      // check here: this is a one-off broadcast, re-running the same filters is meant to pay
-      // again, not be blocked.
-      sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
-      coins,
-      memo: memo?.trim() || "Manual customer payout",
-      createdBy: actorId,
-    })),
-  );
+  const reason = memo?.trim() || DEFAULT_GRANT_REASON;
+  const copy = walletCreditedDefaults(coins, reason);
+  await db.transaction(async (tx) => {
+    await tx.insert(walletLedger).values(
+      ok.map((userId) => ({
+        userId,
+        direction: "credit" as const,
+        sourceType: "manual_broadcast",
+        // Unique per row for audit traceability. No exclusion/idempotency
+        // check here: this is a one-off broadcast, re-running the same filters is meant to pay
+        // again, not be blocked.
+        sourceId: `broadcast:${crypto.randomUUID()}:${userId}`,
+        coins,
+        memo: memo?.trim() || "Manual customer payout",
+        createdBy: actorId,
+      })),
+    );
+    // Group grants go through giveGroupCoins, which deliberately does not notify.
+    for (const userId of ok) {
+      await enqueueNotification(tx, {
+        event: "wallet_credited",
+        recipientId: userId,
+        ...copy,
+        href: "/me/wallet",
+        data: { wallet: { coins: String(coins), reason } },
+      });
+    }
+  });
 
   return { awarded: ok.length, coinsPerCustomer: coins, capped: capped.length };
 }

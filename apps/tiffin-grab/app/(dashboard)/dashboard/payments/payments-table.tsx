@@ -11,7 +11,8 @@ import { DataTable, ListPagination, RowActions, RowActionTooltipButton, type Col
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef, Option } from "@/components/ds";
+import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
@@ -28,9 +29,11 @@ const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
   { key: "actions", label: "", align: "right" },
 ];
 
-const SPEC: FacetDef[] = [
+const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
   { kind: "multi", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
   { kind: "multi", field: "method", label: "Method", options: [...PAYMENT_METHOD_OPTIONS] },
+  { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
+  { kind: "select", field: "kind", label: "Type", options: [{ value: "plan", label: "Plan" }, { value: "addon", label: "Add-on" }] },
   { kind: "dateRange", field: "createdAt", label: "Created" },
   { kind: "search", fields: [] },
 ];
@@ -41,12 +44,14 @@ export function PaymentsTable({
   page,
   size,
   sort,
+  ownerOptions,
 }: {
   rows: PaymentRow[];
   total: number;
   page: number;
   size: number;
   sort: SortState<PaymentSortKey>;
+  ownerOptions: Option[];
 }) {
   const tz = useTimezone();
   const [viewing, setViewing] = useState<PaymentRow | null>(null);
@@ -80,7 +85,12 @@ export function PaymentsTable({
       idAccessor={(r) => r.publicId}
       onRowClick={setViewing}
       rowClassName={() => "group/row"}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
+      filters={
+        <>
+          <ListSearchFilters spec={buildSpec(ownerOptions)} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />
+          <DatedByChip />
+        </>
+      }
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
       emptySearchMessage="No payments match your search."

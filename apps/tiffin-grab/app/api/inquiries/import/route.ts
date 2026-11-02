@@ -53,8 +53,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   } catch {
     return problem(400, "Invalid column mapping");
   }
-  if (!mapping.date || !mapping.phone) {
-    return problem(400, "Map both Date and Phone Number before importing");
+  if (!mapping.date || (!mapping.phone && !mapping.fullName)) {
+    return problem(400, "Map Date and at least one of Full Name or Phone Number before importing");
   }
 
   const XLSX = await import("xlsx");
@@ -101,13 +101,17 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     try {
       const rawPhone = cell(row, mapping.phone);
       const dateVal = mapping.date ? row[mapping.date] : undefined;
-      if (!rawPhone) throw new ValidationError("Phone Number is required");
+      const rawFullName = cell(row, mapping.fullName);
+      if (!rawPhone && !rawFullName) throw new ValidationError("Skipped: row has neither a name nor a phone number");
       const dateMs = parseDate(dateVal);
       if (dateMs == null) throw new ValidationError("Date is missing or unreadable");
 
-      const parsedPhone = phoneSchema(defaultCountry).safeParse(rawPhone);
-      if (!parsedPhone.success) throw new ValidationError(`Invalid phone number: ${rawPhone}`);
-      const phone = parsedPhone.data;
+      let phone: string | undefined;
+      if (rawPhone) {
+        const parsedPhone = phoneSchema(defaultCountry).safeParse(rawPhone);
+        if (!parsedPhone.success) throw new ValidationError(`Invalid phone number: ${rawPhone}`);
+        phone = parsedPhone.data;
+      }
 
       const warnings: string[] = [];
 
@@ -122,13 +126,13 @@ export const POST = handler(async (request: Request): Promise<Response> => {
         ? subByParentAndAlias.get(sourceKey)?.get(rawSubSource.toLowerCase())
         : undefined;
 
-      const rawFullName = cell(row, mapping.fullName);
-      const fullName = rawFullName || `Lead ${phone}`;
-
       const rawEmail = cell(row, mapping.email);
-      const emailCandidate = rawEmail || `${phone.replace(/[^0-9]/g, "")}@no-reply.tiffingrab.internal`;
-      const parsedEmail = emailSchema.safeParse(emailCandidate);
-      if (!parsedEmail.success) throw new ValidationError(`Invalid email: ${rawEmail}`);
+      let email: string | undefined;
+      if (rawEmail) {
+        const parsedEmail = emailSchema.safeParse(rawEmail);
+        if (!parsedEmail.success) throw new ValidationError(`Invalid email: ${rawEmail}`);
+        email = parsedEmail.data;
+      }
 
       const notes =
         (mapping.notes ?? [])
@@ -140,12 +144,12 @@ export const POST = handler(async (request: Request): Promise<Response> => {
           .join("\n") || undefined;
 
       // Same person (phone or email) with an open lead: the row folds into it as a re-inquiry.
-      const existingOpen = await inquiriesService.findOpenMatch(phone, parsedEmail.data);
+      const existingOpen = await inquiriesService.findOpenMatch(phone ?? null, email);
 
       const publicId = await inquiriesService.resolveForSource({
         phone,
         sourceKey,
-        contact: { fullName, email: parsedEmail.data },
+        contact: { fullName: rawFullName || undefined, email },
         interest: { subSourceKey, notes },
       });
 
@@ -163,7 +167,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
       if (rawStage && !mappedStage) warnings.push(`Unrecognized stage "${rawStage}" — left as New`);
       const currentStage = existingOpen?.stage ?? "new";
       const targetStage = mappedStage ?? "new";
-      if (targetStage !== currentStage) {
+      // An open lead cannot go back to New and conversion happens via convert, so neither is applied here.
+      if (targetStage !== currentStage && targetStage !== "new" && targetStage !== "converted") {
         if (targetStage === "lost") {
           try {
             await inquiriesService.markLost(publicId, "other", notes);

@@ -79,9 +79,17 @@ describe("inquiriesService.reassign", () => {
     session.user = null;
   });
 
-  it("rejects when the caller lacks the reassign_records flag", async () => {
-    actAs(caller, "admin");
+  it("rejects a non-admin caller without the reassign_records flag", async () => {
+    actAs(caller, "member");
     await expect(inquiriesService.reassign(inquiryPublicId, goodOwner.publicId)).rejects.toThrow(ForbiddenError);
+  });
+
+  it("lets an admin reassign without the flag", async () => {
+    const admin = await seedUser("Flagless Admin", "admin");
+    actAs(admin, "admin");
+    await inquiriesService.reassign(inquiryPublicId, goodOwner.publicId);
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
+    expect(row.currentOwner).toBe(goodOwner.id);
   });
 
   it("rejects an ineligible owner (customer role) even with the flag enabled", async () => {
@@ -95,5 +103,20 @@ describe("inquiriesService.reassign", () => {
     await inquiriesService.reassign(inquiryPublicId, goodOwner.publicId);
     const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
     expect(row.currentOwner).toBe(goodOwner.id);
+  });
+
+  it("reassignMany moves every selected inquiry to the new owner", async () => {
+    actAs(caller, "admin");
+    const second = await inquiriesService.create({ fullName: "Reassign Lead 2", phone: "+16475559001", sourceKey: "facebook" });
+    seededInquiryIds.push(second.id);
+    const n = await inquiriesService.reassignMany([inquiryPublicId, second.publicId, second.publicId], caller.publicId);
+    expect(n).toBe(2);
+    const rows = await db.select().from(inquiries).where(inArray(inquiries.publicId, [inquiryPublicId, second.publicId]));
+    expect(rows.map((r) => r.currentOwner)).toEqual([caller.id, caller.id]);
+  });
+
+  it("reassignMany rejects a customer as owner", async () => {
+    actAs(caller, "admin");
+    await expect(inquiriesService.reassignMany([inquiryPublicId], badOwnerUser.publicId)).rejects.toThrow(ValidationError);
   });
 });
