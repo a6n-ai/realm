@@ -18,7 +18,7 @@ const svc = vi.hoisted(() => ({
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => {}, requireAdmin: async () => {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("@foundry/realtime/server", () => ({ memoryBus: { publish: () => {} } }));
+vi.mock("@/lib/realtime/bus", () => ({ realtimeBus: { publish: () => {} } }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/orders.service", () => svc);
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));

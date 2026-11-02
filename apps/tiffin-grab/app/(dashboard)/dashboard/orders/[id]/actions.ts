@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { formatMoney, ValidationError } from "@foundry/commons";
-import { memoryBus } from "@foundry/realtime/server";
+import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -103,7 +103,7 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
       .limit(1);
       
     if (order.length > 0) {
-      memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
+      publishUserRefresh(order[0].userPublicId);
     }
   }
   return res;
@@ -190,7 +190,7 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
       .limit(1);
       
     if (order.length > 0) {
-      memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
+      publishUserRefresh(order[0].userPublicId);
     }
   }
   return res;
