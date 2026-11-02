@@ -1,0 +1,12 @@
+// Only used by cloudflare/prebundle.mjs: the unminified bundle step. Keep compatibility_date,
+// compatibility_flags and define identical to wrangler.jsonc; bindings are not needed to bundle.
+{
+  "name": "tiffin-grab-bundle",
+  "main": "cloudflare/worker.js",
+  "build": { "command": "node cloudflare/stub-prettier.mjs" },
+  "minify": false,
+  "upload_source_maps": false,
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "define": { "import.meta.url": "\"file:///worker.js\"" }
+}

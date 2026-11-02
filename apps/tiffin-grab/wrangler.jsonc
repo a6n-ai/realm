@@ -9,12 +9,13 @@
 // Task 12. Every id marked PLACEHOLDER is created in Task 12. Runbook: deployment/cloudflare/README.md.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // OpenNext's worker is wrapped by cloudflare/worker.js (queue, cron, OptimoPoller).
-  "main": "cloudflare/worker.js",
-  "build": { "command": "node cloudflare/stub-prettier.mjs" },
+  // OpenNext's worker is wrapped by cloudflare/worker.js (queue, cron, OptimoPoller). prebundle.mjs
+  // bundles and minifies it into cloudflare/dist (why: cloudflare/prebundle.mjs), shipped as is.
+  "main": "cloudflare/dist/worker.js",
+  "no_bundle": true,
+  "build": { "command": "node cloudflare/stub-prettier.mjs && node cloudflare/prebundle.mjs" },
+  "rules": [{ "type": "Data", "globs": ["**/*.bin"], "fallthrough": true }],
   "name": "tiffin-grab",
-  // The Worker limit is 64 MiB uncompressed; unminified this bundle is ~80 MB.
-  "minify": true,
   // Cloudflare rejects more than 60 MiB of encoded sourcemaps; this bundle produces ~113 MiB.
   "upload_source_maps": false,
   "compatibility_date": "2026-09-01",
@@ -61,9 +62,10 @@
   "env": {
     "preview": {
       "name": "tiffin-grab-preview",
-      "minify": true,
+      "no_bundle": true,
+      "rules": [{ "type": "Data", "globs": ["**/*.bin"], "fallthrough": true }],
       "upload_source_maps": false,
-      "build": { "command": "node cloudflare/stub-prettier.mjs" },
+      "build": { "command": "node cloudflare/stub-prettier.mjs && node cloudflare/prebundle.mjs" },
       "workers_dev": false,
       "preview_urls": false,
       "routes": [{ "pattern": "next.tiffingrab.ca", "custom_domain": true }],

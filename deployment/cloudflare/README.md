@@ -77,6 +77,12 @@ Read these before porting tiffin-grab or copper-cloves.
   on xplorers Home and What's On), and a keep-warm Cron Trigger hitting a database-free
   `/api/health` every minute. **Never** ping a page that queries the database, or Neon
   never sleeps. xplorers runs no cron (pilot; warm `/api/health` by hand before demos).
+- **tiffin-grab: do not let wrangler minify the OpenNext bundle** (2026-11-03). Its minify turns the
+  lazy wrapper of the 53 MB server handler into an arrow function, and a cold isolate then spends
+  ~1 s compiling it on the first request, even for `/robots.txt` (local workerd: 0.9 s, vs 0.47 s
+  when the same unminified bundle is minified afterwards as plain text). `cloudflare/prebundle.mjs`
+  does that and wrangler ships it with `no_bundle`. A static `import` of the handler is not an
+  alternative: its top level builds the Next server before the request context exists.
 - Measured `/` and `/whats-on`: EC2 ~0.5-0.65 s; Worker warm ~0.6-1.2 s; cold 1.5-3 s.
 
 **Setup gotchas**
