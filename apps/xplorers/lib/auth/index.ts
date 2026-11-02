@@ -15,7 +15,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
-import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { isWorkers, trustedIpHeaders } from "@/lib/runtime/platform";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp, sendStaffInvitation } from "./security-events";
 
@@ -65,8 +65,9 @@ export const auth = betterAuth({
     // One edge-set header per runtime, never x-forwarded-for (client-controlled).
     ipAddress: { ipAddressHeaders: trustedIpHeaders() },
   },
-  // Counters in Postgres: Workers isolates share no memory.
-  rateLimit: { storage: "database" },
+  // Workers isolates share no memory, so counters live in Postgres there. Node keeps
+  // memory (one process) so EC2 never depends on the rate_limit table.
+  rateLimit: { storage: isWorkers() ? "database" : "memory" },
   // cookieCache (compact, 5 min) skips a DB round-trip on getSession. User
   // additionalFields (role, publicId) are still on the cached user object via
   // parseUserOutput; session additionalFields are not. `getSession` still

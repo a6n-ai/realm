@@ -29,6 +29,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Production (manual or push) only from main: it migrates the prod DB.
+    if: inputs.target == 'preview' || github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy-worker.yml
     with:
       app: xplorers
