@@ -10,6 +10,9 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
   "observability": { "enabled": true },
+  // Run next to the database (Neon aws-ap-southeast-1), not next to the visitor: pages
+  // make many queries, so DB round trips dominate (Delhi->Singapore was ~6s per page).
+  "placement": { "mode": "targeted", "region": "aws:ap-southeast-1" },
   // Reachable only through its custom domain (attached at cutover), never *.workers.dev.
   "workers_dev": false,
   "preview_urls": false,

@@ -34,7 +34,8 @@ function nodeDb(): Db {
 }
 
 // Workers forbid reusing a socket across requests, so each request gets its own
-// one-connection client, keyed on its ExecutionContext. Hyperdrive does the pooling.
+// small client, keyed on its ExecutionContext. Hyperdrive does the real pooling; a
+// few connections let a page's parallel queries actually run in parallel.
 const perRequest = new WeakMap<object, Db>();
 
 function requestDb(): Db {
@@ -43,7 +44,7 @@ function requestDb(): Db {
   if (!d) {
     const hd = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
     if (!hd) throw new Error("HYPERDRIVE binding missing");
-    d = drizzle(postgres(hd.connectionString, { max: 1, prepare: false }), { schema });
+    d = drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema });
     perRequest.set(ctx, d);
   }
   return d;
