@@ -4,6 +4,7 @@ import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { inquiriesService } from "@/lib/services/inquiries.service";
+import { trackConversion } from "@/lib/services/tracking";
 
 export interface ContactInput {
   fullName: string;
@@ -39,13 +40,23 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   }
   const waitlisted = hasPostal ? servedZone === null : false;
 
-  await inquiriesService.create({
+  const inquiry = await inquiriesService.create({
     fullName,
     phone,
     email,
     sourceKey: "website",
     notes: input.message?.trim() || null,
   });
+
+  trackConversion(
+    {
+      eventName: "Lead",
+      eventId: `lead:${inquiry.publicId}`,
+      user: { email, phone, fullName },
+      customData: waitlisted ? { content_name: "waitlist" } : undefined,
+    },
+    { withRequest: true },
+  );
 
   return { ok: true, waitlisted };
 }

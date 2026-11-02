@@ -34,7 +34,7 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
           // eslint-disable-next-line @next/next/no-img-element -- staff-supplied URL from any host
           <img src={promo.imageUrl} alt="" loading="lazy" />
         ) : photo ? (
-          <Image src={photo} alt="A steel thali with sabzi, curry and fresh rotis" placeholder="blur" sizes="(max-width: 900px) 100vw, 400px" />
+          <Image src={photo} alt="Paneer butter masala in a copper pan" placeholder="blur" sizes="(max-width: 900px) 100vw, 400px" />
         ) : null}
       </div>
     </>

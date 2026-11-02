@@ -274,7 +274,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
           {/* Last: the four picks and the price come first in the phone swipe row. */}
           {/* The photo is landscape and the card portrait: the fill crop needs ~1.6x the card width. */}
           <figure className="lp-tile lp-tile--photo">
-            <Image src={photo} alt="" placeholder="blur" fill sizes="(max-width: 640px) 165vw, (max-width: 1000px) 50vw, 420px" />
+            <Image src={photo} alt="A home-style thali: sabzi, dal, rice and rotis in steel katoris" placeholder="blur" fill sizes="(max-width: 640px) 165vw, (max-width: 1000px) 50vw, 420px" />
             <figcaption className="lp-photo-cap">Dal, sabzi and fresh rotis, packed the same morning.<a href="#menu">See this week&apos;s menu <ArrowRight aria-hidden className="size-4" strokeWidth={2} /></a></figcaption>
           </figure>
         </SwipeRow>
