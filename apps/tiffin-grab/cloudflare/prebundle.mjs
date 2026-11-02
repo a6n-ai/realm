@@ -31,7 +31,17 @@ const { code } = esbuild.transformSync(readFileSync(`${raw}/worker.js`, "utf8"),
   target: "es2022",
   logLevel: "error",
 });
-writeFileSync(`${out}/worker.js`, code);
+// One non-Latin1 character (Cyrillic and dashes inside regexes, which esbuild's `charset` leaves alone) makes V8
+// hold the whole script source as a two-byte string: 53M chars = 106 MB of the 128 MB isolate budget before any
+// request, so heavy pages push the isolate over and it is recycled. \uXXXX is valid in strings, regexes,
+// templates (cooked) and identifiers, and keeps the source one-byte.
+const ascii = code.replace(/[\u0100-\uffff]/g, (c, at) => {
+  let slashes = 0;
+  while (code[at - 1 - slashes] === "\\") slashes++;
+  // `\X` (identity escape) already has its backslash; adding a second would turn it into a literal one.
+  return (slashes % 2 ? "u" : "\\u") + c.charCodeAt(0).toString(16).padStart(4, "0");
+});
+writeFileSync(`${out}/worker.js`, ascii);
 
 // wasm / font blobs the bundle imports by relative path.
 for (const f of readdirSync(raw)) if (f !== "worker.js" && f !== "README.md") copyFileSync(`${raw}/${f}`, `${out}/${f}`);
