@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 vi.mock("./db/client", () => ({
   db: { select: () => ({ from: async () => [{ id: "org1", clientCode: "main", isDefault: true }] }) },
@@ -49,6 +49,32 @@ describe("apex/www front door", () => {
     const res = await get("https://tiffingrab.ca/wp-admin/");
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("https://app.tiffingrab.ca/wp-admin/");
+  });
+
+  it("matches case-insensitively like Caddy", async () => {
+    expect((await get("https://tiffingrab.ca/PRICING")).headers.get("location")).toBeNull();
+    expect((await get("https://tiffingrab.ca/ME")).status).toBe(302);
+  });
+
+  it("302s extension paths that are not allowlisted, serves allowlisted ones", async () => {
+    expect((await get("https://tiffingrab.ca/wp-content/uploads/x.jpg")).status).toBe(302);
+    expect((await get("https://tiffingrab.ca/manifest.json")).status).toBe(302);
+    for (const p of ["/logo.svg", "/robots.txt", "/sitemap.xml", "/_next/static/a.js", "/favicon.ico"]) {
+      expect((await get(`https://tiffingrab.ca${p}`)).headers.get("location")).toBeNull();
+    }
+  });
+
+  it("does not set the referral cookie on front-door redirects", async () => {
+    const res = await get("https://www.tiffingrab.ca/menu?ref=ABCDEF");
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("matcher has a host entry so static-looking apex paths reach the proxy", () => {
+    const hostEntry = (config.matcher as unknown[]).find((m) => typeof m === "object") as { has: { type: string; value: string }[] };
+    expect(hostEntry.has[0].type).toBe("host");
+    const re = new RegExp(`^${hostEntry.has[0].value}$`);
+    expect(["tiffingrab.ca", "www.tiffingrab.ca"].every((h) => re.test(h))).toBe(true);
+    expect(re.test("app.tiffingrab.ca")).toBe(false);
   });
 
   it("leaves the app host alone", async () => {

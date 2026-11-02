@@ -83,6 +83,8 @@ const APEX_PUBLIC_EXACT = new Set([
 const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
 
+const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
+
 function frontDoor(request: NextRequest): NextResponse | null {
   const appHost = new URL(process.env.BETTER_AUTH_URL || "http://localhost").hostname;
   if (!appHost.startsWith("app.")) return null;
@@ -104,6 +106,11 @@ function unauthorized(): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  // Caddy never set the referral cookie on these redirects.
+  const door = frontDoor(request);
+  if (door) return door;
+  // The apex matcher entry below sends static assets here too; they skip everything else, as before.
+  if (STATIC_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
   const res = await route(request);
   // A share link: remember the code until the friend signs in (attached there).
   const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "");
@@ -112,8 +119,6 @@ export async function proxy(request: NextRequest) {
 }
 
 async function route(request: NextRequest): Promise<NextResponse> {
-  const door = frontDoor(request);
-  if (door) return door;
   const { pathname } = request.nextUrl;
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
 
@@ -191,10 +196,14 @@ async function route(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
+  // The first entry skips static-looking paths. On the public hosts the second entry runs the proxy for
+  // those too, so frontDoor can 302 non-allowlisted ones (/wp-content/x.jpg, /manifest.json) like Caddy.
+  // A matcher must be a static literal, so the hosts are spelled out; keep in step with BETTER_AUTH_URL.
   // Was scoped to /dashboard, /me, /api only. Broadened to everything (minus
   // static assets) so the URL-segment org resolver above also runs on public
   // customer-facing routes, not just the guarded ones.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$).*)",
+    { source: "/:path*", has: [{ type: "host", value: "(www\\.)?tiffingrab\\.ca" }] },
   ],
 };
