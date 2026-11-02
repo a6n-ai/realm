@@ -1,6 +1,7 @@
 import type { AppEvent } from "@/db/schema/wallet";
 import { db } from "@/db/client";
 import { notifications } from "@/db/schema";
+import { runInBackground } from "@/lib/runtime/background";
 import { broadcastNotification } from "./broadcast";
 
 /** Materialize an in-app feed row and ping the user's SSE bell. */
@@ -22,7 +23,7 @@ export async function pushInAppNotification(input: {
     })
     .returning({ publicId: notifications.publicId });
   if (!row) throw new Error("Failed to create notification");
-  // Fire-and-forget: a slow Worker must not stall callers that notify in a loop.
-  void broadcastNotification({ userId: input.userId }).catch((e) => console.error("broadcastNotification", e));
+  // A slow realtime Worker must not stall callers that notify in a loop.
+  runInBackground(() => broadcastNotification({ userId: input.userId }), "broadcastNotification");
   return row;
 }
