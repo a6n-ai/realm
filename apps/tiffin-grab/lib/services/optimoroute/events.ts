@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
-import { getRedis } from "@/lib/redis";
+import { acquireLease, readLeaseValue, renewLease, writeLeaseValue } from "@/lib/runtime/lease";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
@@ -108,15 +108,13 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
 
 /** One poll: lock, window check, drain the feed from the stored tag. */
 export async function pollOnce(): Promise<"locked" | "outside" | { applied: number; ignored: number }> {
-  const redis = getRedis();
-  const got = await redis.set(LOCK_KEY, OWNER, "PX", LOCK_MS, "NX");
-  if (got !== "OK" && (await redis.get(LOCK_KEY)) !== OWNER) return "locked";
-  await redis.pexpire(LOCK_KEY, LOCK_MS);
+  // Not released after a poll: the next tick of this process renews its own lease, others wait out the TTL.
+  if (!(await acquireLease(LOCK_KEY, OWNER, LOCK_MS)) && !(await renewLease(LOCK_KEY, OWNER, LOCK_MS))) return "locked";
 
   const [{ timezone }, cfg] = await Promise.all([getAppSettings(), getOptimoRouteConfig()]);
   if (!inWindow(Date.now(), timezone, cfg.eventsWindow)) return "outside";
 
-  let tag = (await redis.get(TAG_KEY)) ?? "";
+  let tag = (await readLeaseValue(TAG_KEY)) ?? "";
   const total = { applied: 0, ignored: 0 };
   // ponytail: 10 pages × 500 events per tick; the next tick drains the rest.
   for (let i = 0; i < 10; i++) {
@@ -127,7 +125,7 @@ export async function pollOnce(): Promise<"locked" | "outside" | { applied: numb
       if (tag && shouldResetTag(e)) {
         // A tag OptimoRoute no longer knows: start over. Replays are harmless (see top).
         log.warn({ err: e }, "get_events rejected the stored tag; resetting");
-        await redis.del(TAG_KEY);
+        await writeLeaseValue(TAG_KEY, null);
       }
       throw e;
     }
@@ -135,7 +133,7 @@ export async function pollOnce(): Promise<"locked" | "outside" | { applied: numb
     total.applied += r.applied;
     total.ignored += r.ignored;
     tag = page.tag;
-    await redis.set(TAG_KEY, tag);
+    await writeLeaseValue(TAG_KEY, tag);
     if (page.remaining <= 0) break;
   }
   if (total.applied > 0) publishAnalyticsLive();

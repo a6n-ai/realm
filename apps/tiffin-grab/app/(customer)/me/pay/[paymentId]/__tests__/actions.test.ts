@@ -9,21 +9,10 @@ const chargedReceipt = vi.fn();
 const sessionSecret = vi.fn();
 
 const locks = vi.hoisted(() => new Map<string, string>());
-vi.mock("@/lib/redis", async (orig) => {
-  const real = await orig<typeof import("@/lib/redis")>();
-  return {
-    ...real,
-    getRedis: () =>
-      new Proxy(real.getRedis(), {
-        get: (t, prop) => {
-          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as (...a: unknown[]) => unknown)(k, ...rest));
-          if (prop === "eval") return async (_s: string, _n: number, k: string, owner: string) => (locks.get(k) === owner ? (locks.delete(k), 1) : 0);
-          const v = (t as unknown as Record<string | symbol, unknown>)[prop];
-          return typeof v === "function" ? v.bind(t) : v;
-        },
-      }),
-  };
-});
+vi.mock("@/lib/runtime/lease", () => ({
+  acquireLease: async (k: string, holder: string) => (locks.has(k) ? false : (locks.set(k, holder), true)),
+  releaseLease: async (k: string, holder: string) => void (locks.get(k) === holder && locks.delete(k)),
+}));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/payments/stripe", () => ({ appBaseUrl: () => "https://app.test" }));
 vi.mock("@/lib/payments/card-checkout-context", () => ({ customerSessionSecret: (...a: unknown[]) => sessionSecret(...a) }));
