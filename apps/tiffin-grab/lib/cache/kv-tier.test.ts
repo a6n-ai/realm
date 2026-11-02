@@ -84,6 +84,19 @@ describe("config cache on Workers", () => {
     expect(ctx).not.toHaveBeenCalled();
   });
 
+  it("owner-pool bypasses KV on Workers", async () => {
+    vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+    const ctx = vi.fn(() => {
+      throw new Error("KV touched");
+    });
+    vi.doMock("@opennextjs/cloudflare", () => ({ getCloudflareContext: ctx }));
+    vi.doMock("@/db/client", () => ({ db: {} }));
+    const svc = await import("../services/owner-pool.service");
+    await svc.resetPoolCache();
+    expect(ctx).not.toHaveBeenCalled();
+    vi.doUnmock("@/db/client");
+  });
+
   it("sharedCache uses KV on Workers", async () => {
     vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
     const kv = fakeKv();

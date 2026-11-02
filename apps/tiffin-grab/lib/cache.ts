@@ -23,6 +23,7 @@ export function sharedCache(name: string, defaultTtlMs = 60_000): TieredCache {
  * Workers this is per-isolate LRU only with a short TTL: Postgres is read at
  * most every 5s per isolate. Node keeps the Redis tier unchanged.
  */
+// defaultTtlMs is intentionally ignored on Workers (5s LRU only).
 export function configCache(name: string, defaultTtlMs = 60_000): TieredCache {
   return isWorkers()
     ? new TieredCache({ name, tiers: [new LruTier()], defaultTtlMs: 5_000 })
