@@ -9,7 +9,7 @@ vi.mock("@/components/motion/page-transition", () => ({ PageTransition: ({ child
 vi.mock("@/components/customer/support/unread", () => ({ useSupportUnread: () => 0 }));
 vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
-vi.stubGlobal("EventSource", class { onmessage = null; close() {} });
+vi.mock("@foundry/realtime/client", () => ({ openChannel: () => () => {} }));
 
 const { CustomerShell } = await import("../customer-shell");
 

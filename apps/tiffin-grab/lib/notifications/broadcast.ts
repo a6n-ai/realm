@@ -36,7 +36,7 @@ export async function broadcast(input: BroadcastInput): Promise<void> {
     }
     const { getRedis } = await import("@/lib/redis");
     await getRedis().publish(NOTIFY_PING_CHANNEL, u.publicId);
-  } catch {
-    /* best-effort */
+  } catch (err) {
+    console.error("broadcast", err);
   }
 }
