@@ -54,6 +54,63 @@ copy its shape. Plan and history: `docs/superpowers/plans/2026-11-02-xplorers-wo
 7. **Not yet solved for tiffin-grab/puchkaman:** the Redis BLPOP listener, in-process SSE
    bus and background jobs need Queues, Cron Triggers and the realtime Worker first.
 
+### Lessons from the xplorers port (2026-11-02)
+
+Read these before porting tiffin-grab or copper-cloves.
+
+**Speed**
+- **Place the Worker next to the database.** Workers run in the visitor's city by default.
+  From Delhi to Neon in Singapore, `/` took ~6 s because every query crossed the region.
+  `"placement": { "mode": "targeted", "region": "aws:<db-region>" }` brought it to ~1 s.
+  Smart Placement needs traffic samples first, so prefer targeted. Check the `cf-placement`
+  response header (`remote-SIN` = working).
+- **Give each request a few connections** (`max: 5` in `db/client.ts`) so a page's parallel
+  queries run in parallel; Hyperdrive does the real pooling.
+- **Profile CPU before redesigning.** Workers bill and time CPU. Profile the Node build
+  (`node --cpu-prof .next/standalone/apps/<app>/server.js` against a Neon branch) and read
+  the top self-time functions. On xplorers, building `Intl.DateTimeFormat` on every call
+  was ~40% of page CPU; `lib/intl/date-format.ts` caches them. Expect the same in
+  tiffin-grab (dates and timezones everywhere).
+- **Cold starts are the real cost.** A 5.6 MiB bundle costs 600-1100 ms of CPU on the first
+  request in a fresh isolate, against ~250 ms warm. Low-traffic apps hit many cold starts.
+  Two levers: stream data sections behind `<Suspense>` so static copy shows at once (done
+  on xplorers Home and What's On), and a keep-warm Cron Trigger hitting a database-free
+  `/api/health` every minute. **Never** ping a page that queries the database, or Neon
+  never sleeps. xplorers runs no cron (pilot; warm `/api/health` by hand before demos).
+- Measured `/` and `/whats-on`: EC2 ~0.5-0.65 s; Worker warm ~0.6-1.2 s; cold 1.5-3 s.
+
+**Setup gotchas**
+- OpenNext's `deploy` starts a local wrangler, so **every env needs a Hyperdrive
+  `localConnectionString`**, and local Hyperdrive rejects a URL without a password.
+- Set `"workers_dev": false` and `"preview_urls": false`, or the prod Worker is public on
+  `*.workers.dev` with the prod DB behind it.
+- A new custom domain needs ~1 minute for DNS and the certificate.
+- Cloudflare bot protection returns 403 to script user agents (Python urllib); real browsers
+  are fine. Use a browser user agent when smoke-testing.
+- `wrangler tail --format json` gives `cpuTime`/`wallTime` per request. App logs (pino) do
+  not show there; check SES/CloudWatch metrics to confirm sends.
+- Secrets: a hook blocks agents from reading Secrets Manager, and `asm-exec` could not
+  resolve here, so the owner pipes AWS keys into `wrangler secret put`. SSM values can be
+  piped straight into `wrangler secret put` without printing. `realm-admin` lacks
+  CloudFormation and SSM read; deploy IaC through the AWS MCP connection.
+- Better Auth: trust exactly one client-IP header per runtime (`cf-connecting-ip` on
+  Workers, `x-real-ip` behind Caddy; never both). Keep rate-limit counters in Postgres on
+  Workers only, so the EC2 build never depends on the `rate_limit` table.
+
+**Before porting the next app**
+- **tiffin-grab:** stays on RDS (owner, 2026-11-02). RDS is private, so Hyperdrive needs RDS
+  made publicly reachable (TLS, strong credentials) or a Cloudflare Tunnel on a host inside
+  the VPC; decide that first. Also replace the Redis BLPOP listener (Queues), the in-process
+  SSE bus (realtime Worker), scheduled jobs (Cron Triggers) and the Redis page cache (KV or
+  Cache API). Its DB is awake ~80% of the day, so DB cost does not drop. Traffic is higher,
+  so cold starts matter less than on xplorers. Turning on the Cloudflare proxy for
+  `tiffingrab.ca` (free CDN for Canada) needs Caddy and the app to trust `CF-Connecting-IP`.
+- **copper-cloves** (separate repo, not Realm): EC2 `copper-cloves-prod-box` (t4g.small) and
+  RDS `copper-cloves` (db.t4g.micro), both in ap-south-1, ~5 DB connections steady. The same
+  RDS-private question applies; place the Worker in `aws:ap-south-1`.
+- Costs: Workers Paid is $5/month per account (all Workers), 10M requests + 30M CPU-ms
+  included. At ~0.5 s CPU per heavy page, that covers ~50k such views a month.
+
 ### Per-app values
 
 | | xplorers |
