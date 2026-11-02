@@ -1,0 +1,98 @@
+// tiffin-grab on Cloudflare Workers (OpenNext). Secrets are never in this file; set them with
+// `wrangler secret put <NAME> [--env preview]`: BETTER_AUTH_SECRET, CRON_SECRET (no DATABASE_URL:
+// Hyperdrive), GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, INTEGRATIONS_ENCRYPTION_KEY,
+// OPTIMOROUTE_API_KEY, REALTIME_SECRET, UNSUBSCRIBE_SECRET, TURNSTILE_SECRET_KEY,
+// GOOGLE_PLACES_API_KEY, CLOVER_APP_SECRET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+// FILES_S3_ACCESS_KEY_ID, FILES_S3_SECRET_ACCESS_KEY.
+// Remaining non-secret vars (FILES_S3_BUCKET, NOTIFY_FROM_EMAIL, SES_*_CONFIGURATION_SET, SITE_URL,
+// GA_MEASUREMENT_ID, TURNSTILE_SITE_KEY, CAMPAIGN_*) are copied from SSM /tiffin-grab/prod/* in
+// Task 12. Every id marked PLACEHOLDER is created in Task 12. Runbook: deployment/cloudflare/README.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // OpenNext's worker is wrapped by cloudflare/worker.js (queue, cron, OptimoPoller).
+  "main": "cloudflare/worker.js",
+  "build": { "command": "node cloudflare/stub-prettier.mjs" },
+  "name": "tiffin-grab",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+  "images": { "binding": "IMAGES" },
+  // @react-pdf (yoga-layout's emscripten loader) reads import.meta.url, undefined on workerd.
+  "define": { "import.meta.url": "\"file:///worker.js\"" },
+  "observability": { "enabled": true },
+  // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
+  "placement": { "mode": "targeted", "region": "aws:us-east-1" },
+  "triggers": { "crons": ["* * * * *"] },
+  "workers_dev": false,
+  "preview_urls": false,
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" }],
+  // Create the Hyperdrive config with caching DISABLED (--caching-disabled true): the default
+  // caches SELECTs for ~60 s and a page read right after a write would show old data.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000000000000000000000000000", // PLACEHOLDER (Task 12)
+      "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
+    }
+  ],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }], // PLACEHOLDER (Task 12)
+  "queues": {
+    "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
+    "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 0 }]
+  },
+  "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }],
+  "vars": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info",
+    "AWS_REGION": "us-east-1",
+    "FILES_S3_REGION": "us-east-1",
+    "NOTIFY_FROM_NAME": "Tiffin Grab",
+    "BETTER_AUTH_URL": "https://app.tiffingrab.ca",
+    "REALTIME_URL": "https://rt.tiffingrab.ca",
+    // Mirror of SSM /tiffin-grab/prod/OPTIMO_EVENTS; verify in Task 12 (the poller is OFF today).
+    "OPTIMO_EVENTS": "off"
+  },
+  // No custom domain on production until the cutover task.
+  "env": {
+    "preview": {
+      "name": "tiffin-grab-preview",
+      "build": { "command": "node cloudflare/stub-prettier.mjs" },
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "next.tiffingrab.ca", "custom_domain": true }],
+      "triggers": { "crons": ["* * * * *"] },
+      "placement": { "mode": "targeted", "region": "aws:us-east-1" },
+      "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+      "observability": { "enabled": true },
+      "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+      "images": { "binding": "IMAGES" },
+      "define": { "import.meta.url": "\"file:///worker.js\"" },
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab-preview" }],
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "00000000000000000000000000000000", // PLACEHOLDER (Task 12), caching disabled
+          "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }], // PLACEHOLDER (Task 12)
+      "queues": {
+        "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox-preview" }],
+        "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 0 }]
+      },
+      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }],
+      "vars": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info",
+        "AWS_REGION": "us-east-1",
+        "FILES_S3_REGION": "us-east-1",
+        "NOTIFY_FROM_NAME": "Tiffin Grab",
+        "BETTER_AUTH_URL": "https://next.tiffingrab.ca",
+        "REALTIME_URL": "https://rt.tiffingrab.ca",
+        "OPTIMO_EVENTS": "off"
+      }
+    }
+  }
+}

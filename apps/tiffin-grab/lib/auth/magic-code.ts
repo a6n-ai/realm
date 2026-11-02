@@ -16,7 +16,7 @@ function key(): Buffer {
 export function sealCode(otp: string, now = Date.now()): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key(), iv);
-  const body = Buffer.concat([cipher.update(JSON.stringify({ c: otp, e: now + TTL_MS })), cipher.final()]);
+  const body = Buffer.concat([cipher.update(JSON.stringify({ c: otp, e: now + TTL_MS }), "utf8"), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), body]).toString("base64url");
 }
 
