@@ -2,12 +2,11 @@
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, Loader2Icon, MinusIcon, PercentIcon, PlusIcon, RefreshCwIcon, type LucideIcon } from "lucide-react";
+import { CheckIcon, CornerLeftUpIcon, Loader2Icon, MinusIcon, PercentIcon, PlusIcon, RefreshCwIcon, type LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -20,6 +19,56 @@ const CHOICES: { value: Strategy; title: string; line: string; icon: LucideIcon 
   { value: "round_robin", title: "Round robin", line: "Take turns across the pool.", icon: RefreshCwIcon },
   { value: "percentage", title: "Percentage", line: "Split by weight.", icon: PercentIcon },
 ];
+
+type Choice = { value: string; title: string; line: string; icon: LucideIcon };
+
+// Radio cards for a rule. `compact` (per-source rows) drops the description to keep three cards on one line.
+function StrategyCards({
+  value, onChange, choices, label, compact,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  choices: Choice[];
+  label: string;
+  compact?: boolean;
+}) {
+  return (
+    <RadioGroup
+      value={value}
+      onValueChange={onChange}
+      className={compact ? "grid-cols-1 gap-2 sm:grid-cols-3" : "grid-cols-1 gap-3 sm:grid-cols-2"}
+      aria-label={label}
+    >
+      {choices.map((c) => (
+        <label
+          key={c.value}
+          className={`has-data-[state=checked]:border-primary flex cursor-pointer rounded-lg border transition-colors hover:bg-muted/50 ${compact ? "items-center gap-3 p-3" : "flex-col gap-2 p-4"}`}
+        >
+          {compact ? (
+            <>
+              <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+                <c.icon className="size-4" />
+              </span>
+              <span className="flex-1 text-sm font-medium">{c.title}</span>
+              <RadioGroupItem value={c.value} />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+                  <c.icon className="size-4" />
+                </span>
+                <RadioGroupItem value={c.value} />
+              </div>
+              <span className="text-sm font-medium">{c.title}</span>
+              <span className="text-muted-foreground text-xs">{c.line}</span>
+            </>
+          )}
+        </label>
+      ))}
+    </RadioGroup>
+  );
+}
 
 const TABS: { value: OwnerEntity; label: string }[] = [
   { value: "inquiry", label: "Inquiries" },
@@ -142,28 +191,12 @@ export function OwnerAssignmentForm({
         <h2 className="text-sm font-medium">How owners are chosen</h2>
         {/* The creator rule is fixed in code; this setting only covers records nobody on staff created. */}
         <p className="text-muted-foreground text-sm">Staff who add a record always own it. Records from customers or the website are shared out like this:</p>
-        <RadioGroup
+        <StrategyCards
           value={state.strategy}
-          onValueChange={(v) => patch({ strategy: v as Strategy })}
-          className="grid-cols-1 gap-3 sm:grid-cols-2"
-          aria-label="How owners are chosen"
-        >
-          {CHOICES.map((c) => (
-            <label
-              key={c.value}
-              className={`has-data-[state=checked]:border-primary flex cursor-pointer flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-muted/50`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-                  <c.icon className="size-4" />
-                </span>
-                <RadioGroupItem value={c.value} />
-              </div>
-              <span className="text-sm font-medium">{c.title}</span>
-              <span className="text-muted-foreground text-xs">{c.line}</span>
-            </label>
-          ))}
-        </RadioGroup>
+          onChange={(v) => patch({ strategy: v as Strategy })}
+          choices={CHOICES}
+          label="How owners are chosen"
+        />
       </section>
 
       <section className="grid gap-3">
@@ -190,24 +223,19 @@ export function OwnerAssignmentForm({
               const own = state.perSource[src.key];
               return (
                 <div key={src.key} className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium">{src.label}</span>
-                    <Select
-                      value={own ?? DEFAULT_OVERRIDE}
-                      onValueChange={(v) => {
-                        const next = { ...state.perSource };
-                        if (v === DEFAULT_OVERRIDE) delete next[src.key];
-                        else next[src.key] = v as Strategy;
-                        patch({ perSource: next });
-                      }}
-                    >
-                      <SelectTrigger className="w-44" aria-label={`${src.label} strategy`}><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={DEFAULT_OVERRIDE}>Default</SelectItem>
-                        {CHOICES.map((c) => <SelectItem key={c.value} value={c.value}>{c.title}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <span className="text-sm font-medium">{src.label}</span>
+                  <StrategyCards
+                    value={own ?? DEFAULT_OVERRIDE}
+                    onChange={(v) => {
+                      const next = { ...state.perSource };
+                      if (v === DEFAULT_OVERRIDE) delete next[src.key];
+                      else next[src.key] = v as Strategy;
+                      patch({ perSource: next });
+                    }}
+                    choices={[{ value: DEFAULT_OVERRIDE, title: "Same as default", line: "Follow the rule above.", icon: CornerLeftUpIcon }, ...CHOICES]}
+                    label={`${src.label} strategy`}
+                    compact
+                  />
                   <PoolGroup
                     staff={staff}
                     pool={state.pools[src.key] ?? {}}
