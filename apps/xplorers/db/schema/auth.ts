@@ -1,6 +1,6 @@
 import { makePublicId, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const nextIdText = sql`(next_id())::text`;
 
@@ -95,4 +95,13 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Better Auth `rateLimit` model (storage: "database"). Workers isolates share no
+// memory, so counters live here. Shape fixed by better-auth core get-tables.
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey().default(nextIdText),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });

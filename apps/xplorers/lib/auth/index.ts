@@ -13,7 +13,7 @@ import { ac, roles } from "./permissions";
 import { Role } from "@foundry/commons";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, invitation, member, organization, session, users, verification } from "@/db/schema";
+import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp, sendStaffInvitation } from "./security-events";
@@ -57,19 +57,16 @@ export const auth = betterAuth({
     // this adapter, and an explicit `schema` here takes precedence over the db's own
     // full schema (see @better-auth/drizzle-adapter's getSchema: `config.schema ||
     // db._.fullSchema`), so an incomplete map throws "model not found" at call time.
-    schema: { user: users, account, session, verification, organization, member, invitation },
+    schema: { user: users, account, session, verification, organization, member, invitation, rateLimit },
   }),
   advanced: {
     database: { generateId: false },
-    // Trust ONLY x-real-ip. The default is x-forwarded-for, whose leftmost
-    // token better-auth takes verbatim — a client can prepend any value and
-    // pick its own rate-limit bucket.
-    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+    // Trust ONLY the proxy-set header: cf-connecting-ip on Workers, x-real-ip
+    // behind Caddy. Never x-forwarded-for, whose leftmost token a client controls.
+    ipAddress: { ipAddressHeaders: ["cf-connecting-ip", "x-real-ip"] },
   },
-  // Default in-memory rate-limit store. Correct for one instance; counters
-  // reset on deploy. Move to `storage: "database"` (needs a rateLimit table
-  // migration) if this app is ever scaled past a single process.
-  //
+  // Counters in Postgres: Workers isolates share no memory.
+  rateLimit: { storage: "database" },
   // cookieCache (compact, 5 min) skips a DB round-trip on getSession. User
   // additionalFields (role, publicId) are still on the cached user object via
   // parseUserOutput; session additionalFields are not. `getSession` still
