@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
   transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: { root: monorepoRoot },
+  // Set by the cf:build command. Inlined at build time so instrumentation.ts's Node-only branch is
+  // dropped from the Workers trace (otherwise OpenNext copies and re-bundles the whole app into the
+  // middleware Worker bundle).
+  env: { BUILD_TARGET: process.env.BUILD_TARGET ?? "node" },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a

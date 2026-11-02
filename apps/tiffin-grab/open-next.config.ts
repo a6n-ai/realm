@@ -5,5 +5,5 @@ import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 export default {
   ...defineCloudflareConfig(),
   // Same as OpenNext's default `pnpm build`, plus the yoga wasm patch the PDF routes need on workerd.
-  buildCommand: "pnpm build && node cloudflare/patch-pdf.mjs",
+  buildCommand: "BUILD_TARGET=workers pnpm build && node cloudflare/patch-pdf.mjs",
 };
