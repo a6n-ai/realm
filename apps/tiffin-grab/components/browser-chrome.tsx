@@ -40,6 +40,9 @@ export function BrowserChrome() {
   // dialogs (z-50), so an open sheet's scrim is what tints the bars. The bottom one sits mostly
   // below the edge.
   const strip = "pointer-events-none fixed inset-x-0 z-[45] bg-[var(--background)]";
+  // The home page opens on a full-bleed hero video: a page-colour strip there reads as a white
+  // bar across the top. Safari samples the hero itself instead, which is the colour we want.
+  if (pathname === "/") return null;
   return (
     <>
       <div aria-hidden className={`${strip} top-0 h-1.5`} />
