@@ -60,7 +60,8 @@ function Flip({ a, b, on, h, className }: { a: string; b: string; on: boolean; h
   );
 }
 
-export function PauseDemo({ className }: { className?: string }) {
+/** `cutoffTime` is the real cutoff ("11:00 PM"); without it the line says only "the day before". */
+export function PauseDemo({ className, cutoffTime }: { className?: string; cutoffTime?: string | null }) {
   return (
     <Stage<S>
       width={340}
@@ -141,7 +142,7 @@ export function PauseDemo({ className }: { className?: string }) {
               <div className="pd-del">
                 <div className="pd-del__eyebrow">Delivery</div>
                 <Flip a="Tue, Nov 3" b="Wed, Nov 4" on={wed} h={36} className="pd-del__title" />
-                <Flip a="Changes until Mon 6:00 PM" b="Changes until Tue 6:00 PM" on={wed} h={22} className="pd-del__meta" />
+                <Flip a={cutoffTime ? `Changes until Mon ${cutoffTime}` : "Changes until the day before"} b={cutoffTime ? `Changes until Tue ${cutoffTime}` : "Changes until the day before"} on={wed} h={22} className="pd-del__meta" />
               </div>
 
               <div className="pd-journey">

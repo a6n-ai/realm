@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, Clock, Ellipsis, Gift, House, Info, LifeBuoy, MapPin, Pencil, Truck, User, UtensilsCrossed, Wallet, X } from "lucide-react";
+import { useEffect } from "react";
 import { Phone, Stage, type Act } from "./kit";
 import "./menu-pick-demo.css";
 
@@ -10,10 +11,11 @@ import "./menu-pick-demo.css";
 // tiles and the new dish is there. Reset has a seen cause: the page scrolls
 // back and another day is tapped, then this one again.
 
-type S = { day: "own" | "other"; sheet: boolean; open: boolean; pick: 0 | 1; saved: 0 | 1; toast: boolean; scrolled: boolean };
+type S = { day: "own" | "other"; sheet: boolean; open: boolean; pick: 0 | 1; saved: 0 | 1; toast: boolean; scrolled: boolean; half: boolean };
 
-const START: S = { day: "own", sheet: false, open: false, pick: 0, saved: 0, toast: false, scrolled: false };
-const POSTER: S = { day: "own", sheet: false, open: false, pick: 1, saved: 1, toast: true, scrolled: true };
+const START: S = { day: "own", sheet: false, open: false, pick: 0, saved: 0, toast: false, scrolled: false, half: false };
+// Calm frame for reduced motion: new dish in place, scrolled just far enough that the tiles clear the action bar.
+const POSTER: S = { day: "own", sheet: false, open: false, pick: 1, saved: 1, toast: false, scrolled: false, half: true };
 const REST = { x: 200, y: 420 };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -63,18 +65,30 @@ function Flip({ a, b, on, h, className }: { a: string; b: string; on: boolean; h
   );
 }
 
+/** Tells the page which dish was just saved while "Meals saved" shows (null otherwise), so the
+ *  week board beside the phone can light the same dish. Renders nothing. */
+function SavedSignal({ dish, onSaved }: { dish: string | null; onSaved?: (dish: string | null) => void }) {
+  useEffect(() => { onSaved?.(dish); }, [dish, onSaved]);
+  return null;
+}
+
 export function MenuPickDemo({
   dayLabel,
   dayShort,
   options,
   compact: forceCompact,
   className,
+  cutoffTime,
+  onSaved,
 }: {
   dayLabel: string;
   dayShort: string;
   options: Cat[];
   compact?: boolean;
   className?: string;
+  /** The real cutoff ("11:00 PM"); without it the line says only "the day before". */
+  cutoffTime?: string | null;
+  onSaved?: (dish: string | null) => void;
 }) {
   const rows = options.filter((o) => o.dishes.length > 0);
   const pickAt = rows.findIndex((o) => o.dishes.length > 1);
@@ -88,7 +102,7 @@ export function MenuPickDemo({
   const oi = di === 6 ? 5 : di + 1;
   const other = FULL[oi]!;
   const otherShort = DAYS[oi]!;
-  const cutoff = (i: number) => `Changes until ${DAYS[(i + 6) % 7]} 6:00 PM`;
+  const cutoff = (i: number) => (cutoffTime ? `Changes until ${DAYS[(i + 6) % 7]} ${cutoffTime}` : "Changes until the day before");
   const ownIdx = DAYS.indexOf(dayShort);
 
   return (
@@ -97,7 +111,7 @@ export function MenuPickDemo({
       height={715}
       compact={{ below: forceCompact ? 100000 : 340, width: 300, height: 631 }}
       initial={START}
-      poster={live ? POSTER : START}
+      poster={live ? POSTER : { ...START, half: true }}
       script={live ? script : undefined}
       cursor={live ? { at: REST, style: "touch" } : undefined}
       tokens={{ "--ss-font": "var(--font-poppins), Poppins, system-ui, sans-serif", "--ss-accent": "#F06B1A" }}
@@ -109,7 +123,8 @@ export function MenuPickDemo({
         const sheetName = (c: Cat) => (c === picked ? c.dishes[s.pick]! : c.dishes[0]!);
         const tileCount = Math.max(2, shown.length + (shown.length % 2));
         const tileRows = tileCount / 2;
-        const tilesBottom = 742 + tileRows * 90 - 10;
+        const tilesBottom = 700 + tileRows * 90 - 10;
+        const scrollBy = s.scrolled ? tilesBottom - 564 : s.half ? tilesBottom - 672 : 0;
         return (
           <Phone width={layout === "compact" ? 300 : 340} wallpaper="#FBF4E7" className="mp-phone">
             <div className="mp-app">
@@ -127,7 +142,7 @@ export function MenuPickDemo({
                 </span>
               </div>
 
-              <div className="mp-scroll" data-scrolled={s.scrolled || undefined}>
+              <div className="mp-scroll" data-scrolled={s.scrolled || s.half || undefined} style={{ ["--mp-s" as string]: scrollBy }}>
                 <p className="mp-hi">
                   Hi, <em>Priya.</em>
                 </p>
@@ -217,10 +232,10 @@ export function MenuPickDemo({
                     );
                   })}
                 </ul>
-                <div className="mp-count" style={{ top: tilesBottom + 14 }}>
+                <div className="mp-count" style={{ top: tilesBottom + 12 }}>
                   1 tiffin
                 </div>
-                <div className="mp-dest" style={{ top: tilesBottom + 56 }}>
+                <div className="mp-dest" style={{ top: tilesBottom + 50 }}>
                   <div className="mp-dest__k">Destination</div>
                   <div className="mp-dest__row">
                     <MapPin size={20} />
@@ -232,7 +247,8 @@ export function MenuPickDemo({
                 </div>
               </div>
 
-              <div className="mp-toast" data-on={s.toast || undefined}>
+              <SavedSignal dish={s.toast && picked ? picked.dishes[1] ?? null : null} onSaved={onSaved} />
+              <div className="mp-toast" data-on={s.toast || undefined} style={{ top: 511 - tilesBottom + 564 }}>
                 Meals saved
               </div>
 

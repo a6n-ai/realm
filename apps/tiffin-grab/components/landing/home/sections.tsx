@@ -219,7 +219,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
             <article className="lp-tile lp-tile--row">
               <span className="lp-step">Sides</span>
               <h3 className="lp-tile__title">A little extra.</h3>
-              <ul className="lp-pills">{sides.map((x) => <li key={x.key}>{x.name}{x.note ? <small> · {x.note}</small> : null}</li>)}</ul>
+              <ul className="lp-pills">{sides.map((x) => <li key={x.key}>{x.name}{x.note && !x.name.toLowerCase().includes(x.note.toLowerCase()) ? <small> · {x.note}</small> : null}</li>)}</ul>
             </article>
           ) : null}
 
@@ -283,7 +283,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
   );
 }
 
-export function MenuRail({ days, rows, weekend, range, photo }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; range: string; photo: StaticImageData }) {
+export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
   return (
     <section id="menu" className="lp-section lp-menu scroll-mt-24" aria-labelledby="lp-menu">
       {/* A warm wash of real food behind the glass: blurred, so it reads as colour and light. */}
@@ -298,7 +298,7 @@ export function MenuRail({ days, rows, weekend, range, photo }: { days: BoardDay
           </div>
           <Link href="/menu/weekly" className="lp-textlink">Full menu and PDF <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></Link>
         </header>
-        <MenuBoard days={days} rows={rows} weekend={weekend} />
+        <MenuBoard days={days} rows={rows} weekend={weekend} cutoffTime={cutoffTime} />
       </div>
     </section>
   );
