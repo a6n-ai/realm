@@ -21,6 +21,8 @@ export const PUBLIC_API = [
   // GET serves class photos to anonymous visitors. POST /api/files/upload still
   // requires studioSession:update inside the handler.
   "/api/files",
+  // Warm-up ping before demos; returns "ok", no data.
+  "/api/health",
 ];
 
 export const PROTECTED_PREFIXES = ["/dashboard", "/me", "/no-access"];
