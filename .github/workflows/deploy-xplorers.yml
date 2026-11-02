@@ -7,18 +7,9 @@
 # Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
 name: deploy-xplorers
 
+# Replaced by deploy-xplorers-workers.yml at the 2026-11-02 Workers cutover. Manual only,
+# kept for rollback until the EC2 box is deleted.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/xplorers/**"
-      - "foundry/**"
-      - "relay/**"
-      - "deployment/prod/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "package.json"
-      - ".github/workflows/deploy-xplorers.yml"
   workflow_dispatch: {}
 
 concurrency:

@@ -16,9 +16,10 @@
   // No keep-warm cron while xplorers is a pilot (owner, 2026-11-02): warm by hand before a
   // demo with GET /api/health. An empty list also clears any cron deployed earlier.
   "triggers": { "crons": [] },
-  // Reachable only through its custom domain (attached at cutover), never *.workers.dev.
+  // Reachable only through its custom domain, never *.workers.dev.
   "workers_dev": false,
   "preview_urls": false,
+  "routes": [{ "pattern": "xplorers.a6n.ai", "custom_domain": true }],
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "xplorers" }],
   // Hyperdrive xplorers-prod -> Neon aged-dust-56644803 production, direct endpoint.
   "hyperdrive": [
