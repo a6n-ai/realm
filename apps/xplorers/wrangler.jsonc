@@ -10,13 +10,16 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
   "observability": { "enabled": true },
+  // Reachable only through its custom domain (attached at cutover), never *.workers.dev.
+  "workers_dev": false,
+  "preview_urls": false,
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "xplorers" }],
-  // TODO(task 6): real Hyperdrive id (direct Neon endpoint, production branch).
+  // Hyperdrive xplorers-prod -> Neon aged-dust-56644803 production, direct endpoint.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "00000000000000000000000000000000",
-      "localConnectionString": "postgres://localhost:5432/xplorers"
+      "id": "9d1bcab0f81d462997e9bdb5529416cd",
+      "localConnectionString": "postgres://xplorers:local@localhost:5432/xplorers"
     }
   ],
   "vars": {
@@ -34,9 +37,18 @@
   "env": {
     "preview": {
       "name": "xplorers-preview",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "next.xplorers.a6n.ai", "custom_domain": true }],
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "xplorers-preview" }],
-      // TODO(task 6): Hyperdrive id for the Neon `preview` branch.
-      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "00000000000000000000000000000000" }],
+      // Hyperdrive xplorers-preview -> Neon branch `preview` (br-purple-king-aznpd826).
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "4901a4b146984aa7854caaa8a7d9eca1",
+          "localConnectionString": "postgres://xplorers:local@localhost:5432/xplorers"
+        }
+      ],
       "vars": {
         "NODE_ENV": "production",
         "LOG_LEVEL": "info",
