@@ -1,13 +1,14 @@
 "use server";
 
 import { headers } from "next/headers";
+import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { listFranchiseLocations, type FranchiseLocation } from "@/lib/services/organizations.service";
 
-// Trust ONLY x-real-ip, same as auth/index.ts's rate-limit key — Caddy
-// overwrites this with the real socket peer; x-forwarded-for is spoofable.
+// Trust ONLY the runtime's edge-set header, same as auth/index.ts's rate-limit key;
+// x-forwarded-for is spoofable.
 async function clientIp(): Promise<string | null> {
   const h = await headers();
-  return h.get("x-real-ip");
+  return h.get(trustedIpHeaders()[0]);
 }
 
 type IpApiResponse = { status: "success" | "fail"; city?: string };

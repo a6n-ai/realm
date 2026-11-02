@@ -1,6 +1,8 @@
 /* eslint-disable */
 "use client";
 
+import { openChannel } from "@foundry/realtime/client";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -233,17 +235,11 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
-    const source = new EventSource(`/api/realtime?channel=${encodeURIComponent(`refresh:${userPublicId}`)}`);
-    source.onmessage = (e) => {
-      // Only a "message" frame means data changed; the presence frame sent on
-      // connect used to re-render the whole page right after every load.
-      try {
-        if ((JSON.parse(e.data) as { type?: string }).type === "message") router.refresh();
-      } catch {
-        /* malformed frame: ignore */
-      }
-    };
-    return () => source.close();
+    // Only a "message" frame means data changed; the presence frame sent on
+    // connect used to re-render the whole page right after every load.
+    return openChannel(`refresh:${userPublicId}`, (e) => {
+      if (e.type === "message") router.refresh();
+    });
   }, [userPublicId, router]);
 
   const morePill = cn(

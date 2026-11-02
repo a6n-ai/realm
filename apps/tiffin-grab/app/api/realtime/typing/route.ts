@@ -1,5 +1,5 @@
 import { authorizeChannel } from "@/lib/realtime/authorize";
-import { memoryBus } from "@foundry/realtime/server";
+import { publishLive } from "@/lib/realtime/publish-inbox";
 
 export async function POST(request: Request): Promise<Response> {
   const { channel, typing } = (await request.json()) as { channel?: string; typing?: boolean };
@@ -8,6 +8,6 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await authorizeChannel(channel);
   if (!auth) return new Response("Forbidden", { status: 403 });
 
-  memoryBus.publish(auth.channel, { type: "typing", userId: auth.userId, role: auth.role, typing: Boolean(typing) });
+  publishLive(auth.channel, { type: "typing", userId: auth.userId, role: auth.role, typing: Boolean(typing) });
   return new Response(null, { status: 204 });
 }

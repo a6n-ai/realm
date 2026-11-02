@@ -1,32 +1,30 @@
 import { randomUUID } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
-import { getRedis } from "@/lib/redis";
+import { acquireLease, releaseLease } from "@/lib/runtime/lease";
 
 // Longer than payByCard's worst case (about six Stripe calls at up to 30s each).
 const LOCK_MS = 180_000;
 export const PAY_IN_PROGRESS = "A payment is already in progress.";
-const RELEASE = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 
 /**
  * One card charge flow per customer at a time, across checkout and the /me/pay page: a second
  * order replaces the first only if the first is not mid-charge, so two overlapping flows could
- * charge twice. Redis rather than a DB lock so no pooled connection is held across the Stripe call.
- * Fails closed when Redis is down. The TTL frees the key if the process dies mid-charge.
+ * charge twice. A Postgres lease rather than a held DB lock, so no pooled connection is held across
+ * the Stripe call. Fails closed when the DB is down. The TTL frees the lease if the process dies mid-charge.
  */
 export async function withCustomerPayLock<T>(userPublicId: string, fn: () => Promise<T>): Promise<T> {
   const key = `pay-lock:${userPublicId}`;
   const owner = randomUUID();
-  const redis = getRedis();
-  let got: string | null;
+  let got: boolean;
   try {
-    got = await redis.set(key, owner, "PX", LOCK_MS, "NX");
+    got = await acquireLease(key, owner, LOCK_MS);
   } catch {
     throw new ValidationError("Card payments are busy, please try again.");
   }
-  if (got !== "OK") throw new ValidationError(PAY_IN_PROGRESS);
+  if (!got) throw new ValidationError(PAY_IN_PROGRESS);
   try {
     return await fn();
   } finally {
-    await redis.eval(RELEASE, 1, key, owner).catch(() => {});
+    await releaseLease(key, owner).catch(() => {});
   }
 }

@@ -71,7 +71,7 @@ async function run(weekStart: string, runKey: string, recipients: { userId: bigi
     vars: { weekLabel: formatDateOnly(weekStart, { mode: "long" }), url },
   });
   if ("error" in result) throw new ValidationError(result.error);
-  signalOutbox();
+  await signalOutbox();
   return result;
 }
 

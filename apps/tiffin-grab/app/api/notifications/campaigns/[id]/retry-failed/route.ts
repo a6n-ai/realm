@@ -11,7 +11,7 @@ export const POST = handler(
     const { id } = await ctx.params;
     const result = await retryFailedCampaign({ db, tables: notificationTables }, id);
     if ("error" in result) return problem(result.status, result.error);
-    if (result.requeued > 0) signalOutbox();
+    if (result.requeued > 0) await signalOutbox();
     return json(result);
   },
 );

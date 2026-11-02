@@ -52,29 +52,49 @@ function corsHeaders(origin: string | null): Headers {
 
 // The organization table is a handful of rows, but every public request (and
 // every RSC prefetch) did up to 3 sequential lookups here before routing.
-// ponytail: per-process 60s snapshot; a new/renamed org shows up within a minute.
-// Move to a shared cache if this app ever runs more than one process.
+// ponytail: 60s snapshot per process/isolate; a new/renamed org shows up within a
+// minute. Only the plain-data snapshot is shared: an in-flight query promise must
+// not be, because Workers reject I/O started by another request.
 type OrgSnapshot = { byCode: Map<string, string>; defaultId: string | null; at: number };
 let orgSnapshot: OrgSnapshot | null = null;
-let orgLoad: Promise<OrgSnapshot> | null = null;
 // Tests rewrite org rows between requests, so they always read fresh.
 const ORG_TTL_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
 
-function orgs(): Promise<OrgSnapshot> {
-  if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return Promise.resolve(orgSnapshot);
-  orgLoad ??= db
+async function orgs(): Promise<OrgSnapshot> {
+  if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return orgSnapshot;
+  const rows = await db
     .select({ id: organization.id, clientCode: organization.clientCode, isDefault: organization.isDefaultLocation })
-    .from(organization)
-    .then((rows) => {
-      const byCode = new Map<string, string>();
-      for (const r of rows) if (r.clientCode) byCode.set(r.clientCode, r.id);
-      orgSnapshot = { byCode, defaultId: rows.find((r) => r.isDefault)?.id ?? null, at: Date.now() };
-      return orgSnapshot;
-    })
-    .finally(() => {
-      orgLoad = null;
-    });
-  return orgLoad;
+    .from(organization);
+  const byCode = new Map<string, string>();
+  for (const r of rows) if (r.clientCode) byCode.set(r.clientCode, r.id);
+  orgSnapshot = { byCode, defaultId: rows.find((r) => r.isDefault)?.id ?? null, at: Date.now() };
+  return orgSnapshot;
+}
+
+// Front door, ported from the Caddyfile apex block. The app host comes from BETTER_AUTH_URL;
+// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
+// Caddy matches paths case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
+const APEX_PUBLIC_EXACT = new Set([
+  "/", "/pricing", "/plans", "/menu", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy",
+  "/refund-policy", "/delivery-policy", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
+  "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
+  "/twitter-image.png", "/robots.txt", "/sitemap.xml",
+]);
+const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/"];
+const APEX_SVG = /^\/[^/]*\.svg$/;
+
+const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
+
+function frontDoor(request: NextRequest): NextResponse | null {
+  const appHost = new URL(process.env.BETTER_AUTH_URL || "http://localhost").hostname;
+  if (!appHost.startsWith("app.")) return null;
+  const apex = appHost.slice(4);
+  const { hostname, pathname, search } = request.nextUrl;
+  if (hostname === `www.${apex}`) return NextResponse.redirect(`https://${apex}${pathname}${search}`, 308);
+  if (hostname !== apex) return null;
+  const p = pathname.toLowerCase();
+  if (APEX_PUBLIC_EXACT.has(p) || APEX_PUBLIC_PREFIX.some((x) => p.startsWith(x)) || APEX_SVG.test(p)) return null;
+  return NextResponse.redirect(`https://${appHost}${pathname}${search}`, 302);
 }
 
 function unauthorized(): NextResponse {
@@ -86,6 +106,11 @@ function unauthorized(): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  // Caddy never set the referral cookie on these redirects.
+  const door = frontDoor(request);
+  if (door) return door;
+  // The apex matcher entry below sends static assets here too; they skip everything else, as before.
+  if (STATIC_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
   const res = await route(request);
   // A share link: remember the code until the friend signs in (attached there).
   const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "");
@@ -171,10 +196,14 @@ async function route(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
+  // The first entry skips static-looking paths. On the public hosts the second entry runs the proxy for
+  // those too, so frontDoor can 302 non-allowlisted ones (/wp-content/x.jpg, /manifest.json) like Caddy.
+  // A matcher must be a static literal, so the hosts are spelled out; keep in step with BETTER_AUTH_URL.
   // Was scoped to /dashboard, /me, /api only. Broadened to everything (minus
   // static assets) so the URL-segment org resolver above also runs on public
   // customer-facing routes, not just the guarded ones.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$).*)",
+    { source: "/:path*", has: [{ type: "header", key: "host", value: "(www\\.)?tiffingrab\\.ca" }] },
   ],
 };

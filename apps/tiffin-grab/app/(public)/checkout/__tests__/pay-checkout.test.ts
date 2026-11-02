@@ -1,22 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
-const locks = vi.hoisted(() => new Map<string, string>());
-vi.mock("@/lib/redis", async (orig) => {
-  const real = await orig<typeof import("@/lib/redis")>();
-  return {
-    ...real,
-    getRedis: () =>
-      new Proxy(real.getRedis(), {
-        get: (t, prop) => {
-          if (prop === "set") return (k: string, ...rest: unknown[]) => (k.startsWith("pay-lock:") ? (locks.has(k) ? null : (locks.set(k, String(rest[0])), "OK")) : (t.set as Function)(k, ...rest));
-          if (prop === "eval") return async (_s: string, _n: number, k: string, owner: string) => (locks.get(k) === owner ? (locks.delete(k), 1) : 0);
-          const v = (t as unknown as Record<string | symbol, unknown>)[prop];
-          return typeof v === "function" ? v.bind(t) : v;
-        },
-      }),
-  };
-});
 let session: { user: { id: string; email: string } } | null = null;
 let sessionUserId: bigint | null = null;
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -39,7 +23,8 @@ const payByCard = vi.fn(async (..._a: unknown[]) => ({ kind: "succeeded" as cons
 vi.mock("@/lib/services/payment-stripe", async (orig) => ({ ...(await orig<object>()), payByCard: (...a: unknown[]) => payByCard(...a) }));
 
 const { db } = await import("@/db/client");
-const { orders, payments, users, orderActivities, coupons, coinRate, walletLedger } = await import("@/db/schema");
+const { orders, payments, users, orderActivities, coupons, coinRate, walletLedger, runtimeLeases } = await import("@/db/schema");
+const { acquireLease } = await import("@/lib/runtime/lease");
 const { walletService } = await import("@/lib/services/wallet.service");
 const { payCheckout } = await import("../actions");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
@@ -84,7 +69,7 @@ describe("payCheckout", () => {
     });
     await sharedCache("app-settings").evictAll();
     payByCard.mockClear();
-    locks.clear();
+    await db.delete(runtimeLeases).where(like(runtimeLeases.key, "pay-lock:%"));
     await signInAs("a@test.invalid");
   });
   afterAll(async () => {
@@ -222,7 +207,7 @@ describe("payCheckout", () => {
   });
 
   it("is refused while another card flow holds the customer lock", async () => {
-    locks.set(`pay-lock:${session!.user.id}`, "someone-else");
+    await acquireLease(`pay-lock:${session!.user.id}`, "someone-else", 60_000);
     const r = await pay();
     expect(r).toEqual({ error: "A payment is already in progress." });
     expect(await allOrders()).toHaveLength(0);

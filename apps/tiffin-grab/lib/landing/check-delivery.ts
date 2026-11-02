@@ -6,6 +6,7 @@ import { awsPlaceProvider } from "@foundry/places";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { isFullPostalCode, parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { findZone } from "@/lib/catalog/zone-match";
+import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export type DeliveryCheck =
@@ -22,7 +23,7 @@ export type DeliveryCheck =
 // cap because every valid code costs one geocode.
 export async function checkDelivery(raw: string): Promise<DeliveryCheck> {
   if (!isFullPostalCode(raw)) return { status: "invalid" };
-  const ip = (await headers()).get("x-real-ip")?.trim() || "unknown";
+  const ip = (await headers()).get(trustedIpHeaders()[0])?.trim() || "unknown";
   if (isRateLimited(ip, 20, 60_000, "landing-delivery-check")) return { status: "busy" };
 
   const postalCode = parseCanadianPostalCode(raw);

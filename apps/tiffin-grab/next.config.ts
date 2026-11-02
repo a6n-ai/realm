@@ -9,12 +9,16 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
   // Read with fs at request time, so the tracer can't see them.
-  outputFileTracingIncludes: { "/api/refer-card/[code]": ["./assets/refer/**"] },
+  outputFileTracingIncludes: { "/api/refer-card/[code]": ["./public/refer-card/**"] },
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
   transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: { root: monorepoRoot },
+  // Set by the cf:build command. Inlined at build time so instrumentation.ts's Node-only branch is
+  // dropped from the Workers trace (otherwise OpenNext copies and re-bundles the whole app into the
+  // middleware Worker bundle).
+  env: { BUILD_TARGET: process.env.BUILD_TARGET ?? "node" },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a
@@ -31,6 +35,12 @@ const nextConfig: NextConfig = {
     // lists above. Any next/image usage on file-storage-served images must add that host to
     // remotePatterns (or stay on plain <img>) before that env var is set in prod.
     // Static imports (/_next/static/media/**) are auto-allowed by Next.
+  },
+  // Was Caddy's header on these paths: Next marks dynamic renders no-store, which keeps them out of
+  // the browser back/forward cache. They carry no private data, so ask for revalidation instead.
+  async headers() {
+    const publicPages = ["/", "/pricing", "/plans", "/menu", "/menu/weekly", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy", "/refund-policy", "/delivery-policy"];
+    return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "private, no-cache" }] }));
   },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];

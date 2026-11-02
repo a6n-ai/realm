@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --project unit-mocked",
     "test:db": "vitest run --project db",
@@ -51,6 +54,7 @@
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
     "@hookform/resolvers": "^6.0.0",
+    "@opennextjs/cloudflare": "1.20.13",
     "@react-email/components": "^1.0.12",
     "@react-email/editor": "^1.7.14",
     "@react-email/render": "^2.1.1",
@@ -92,7 +96,6 @@
     "react-hook-form": "^7.90.0",
     "react-phone-number-input": "^3.4.18",
     "recharts": "^3.10.1",
-    "sns-validator": "^0.3.5",
     "sonner": "^2.0.7",
     "stripe": "23.0.1",
     "sucrase": "^3.35.1",
@@ -118,6 +121,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "4.152.0"
   }
 }

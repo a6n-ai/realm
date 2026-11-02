@@ -1,10 +1,16 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { trackOutbox } from "@/lib/notifications/outbox-dirty";
+import { isWorkers } from "@/lib/runtime/platform";
 import * as schema from "./schema";
 
-// Next.js loads .env.local; standalone tsx scripts (seeds) don't. Fill it in
-// when missing. No-op under Next (already set) and in prod (file absent).
-if (!process.env.DATABASE_URL) {
+type Pg = ReturnType<typeof postgres>;
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+const onWorkers = isWorkers();
+
+if (!onWorkers && !process.env.DATABASE_URL) {
   try {
     process.loadEnvFile(".env.local");
   } catch {
@@ -12,26 +18,67 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is not set");
+// A transaction that enqueued notifications wakes the outbox consumer after it commits,
+// never inside it. A rollback throws past the signal.
+function signalAfterCommit(d: Db): Db {
+  const raw = d.transaction.bind(d) as (fn: never, cfg?: never) => Promise<unknown>;
+  d.transaction = (async (fn: never, cfg?: never) => {
+    const { value, dirty } = await trackOutbox(() => raw(fn, cfg));
+    if (dirty) {
+      // Committed work must never fail on a wake-up; the per-minute tick is the backstop.
+      try {
+        await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+      } catch (err) {
+        console.error("outbox signal after commit failed", err);
+      }
+    }
+    return value;
+  }) as Db["transaction"];
+  return d;
+}
 
-type Pg = ReturnType<typeof postgres>;
-const globalForDb = globalThis as typeof globalThis & { __tiffinGrabPg?: Pg };
+function nodeDb(): Db {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is not set");
+  const globalForDb = globalThis as typeof globalThis & { __tiffinGrabPg?: Pg };
+  const client =
+    globalForDb.__tiffinGrabPg ??
+    postgres(connectionString, {
+      max: process.env.NODE_ENV === "production" ? 10 : 4,
+      idle_timeout: 20,
+      max_lifetime: 60 * 30,
+      prepare: false,
+    });
+  if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+  return signalAfterCommit(drizzle(client, { schema }));
+}
 
-// Cache the pool on globalThis. Turbopack re-evaluates this module on HMR and
-// would otherwise open a new 10-connection pool each time without ending the
-// old one — local Postgres max_connections (100) fills in under an hour of
-// `next dev`, then every query dies with "too many clients already".
-const poolSize = process.env.NODE_ENV === "production" ? 10 : 4;
-const client =
-  globalForDb.__tiffinGrabPg ??
-  postgres(connectionString, {
-    max: poolSize,
-    idle_timeout: 20,
-    max_lifetime: 60 * 30,
-    prepare: false,
-  });
-if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+// Workers forbid reusing a socket across requests, so each request gets its own
+// small client, keyed on its ExecutionContext. Hyperdrive does the real pooling; a
+// few connections let a page's parallel queries actually run in parallel.
+const perRequest = new WeakMap<object, Db>();
 
-export const db = drizzle(client, { schema });
+function requestDb(): Db {
+  const { env, ctx } = getCloudflareContext();
+  let d = perRequest.get(ctx);
+  if (!d) {
+    const hd = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
+    if (!hd) throw new Error("HYPERDRIVE binding missing");
+    d = signalAfterCommit(drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema }));
+    perRequest.set(ctx, d);
+  }
+  return d;
+}
+
+// Node keeps the plain singleton (tests spy on it). On Workers each property
+// access resolves the current request's client.
+export const db: Db = onWorkers
+  ? new Proxy({} as Db, {
+      get(_t, prop) {
+        const target = requestDb();
+        const v = Reflect.get(target, prop, target);
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    })
+  : nodeDb();
 export { schema };

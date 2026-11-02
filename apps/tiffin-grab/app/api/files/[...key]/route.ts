@@ -27,7 +27,7 @@ export async function GET(
 
   try {
     const obj = await filesService().get(path);
-    return new Response(Buffer.from(obj.body), {
+    return new Response(obj.body as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": obj.contentType ?? "application/octet-stream",

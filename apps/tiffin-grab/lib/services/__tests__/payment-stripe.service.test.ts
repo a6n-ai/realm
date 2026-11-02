@@ -427,15 +427,15 @@ describe("chargeSavedCardForPayment", () => {
 
   it("is refused while the customer is mid-checkout (customer pay lock held)", async () => {
     const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
-    const { getRedis } = await import("@/lib/redis");
+    const { acquireLease, releaseLease } = await import("@/lib/runtime/lease");
     const key = `pay-lock:${fx.OWNER}`;
-    await getRedis().set(key, "checkout", "PX", 30_000, "NX");
+    await acquireLease(key, "checkout", 30_000);
     try {
       const r = await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER);
       expect(r).toEqual({ kind: "processing", message: "The customer is paying right now." });
       expect(charge).not.toHaveBeenCalled();
     } finally {
-      await getRedis().del(key);
+      await releaseLease(key, "checkout");
     }
   });
 

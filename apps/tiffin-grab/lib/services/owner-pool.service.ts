@@ -1,5 +1,5 @@
 import { db } from "@/db/client";
-import { sharedCache } from "@/lib/cache";
+import { configCache } from "@/lib/cache";
 import { ownerPool, leadSources, users } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import type { OwnerEntity, PoolMember } from "./assignment";
@@ -7,7 +7,7 @@ import type { OwnerEntity, PoolMember } from "./assignment";
 // Per-entity staff pool (inquiries also per-source), read on every new record's owner resolution and
 // written only by admins via setMembership. Cache per pool key; setMembership
 // evicts the pool it replaces. 60s TTL bounds cross-instance staleness.
-const poolCache = sharedCache("owner-pool");
+const poolCache = configCache("owner-pool");
 const poolKey = (entity: OwnerEntity, sourceId: bigint | null) => `${entity}:${sourceId == null ? "default" : String(sourceId)}`;
 
 export async function poolFor(entity: OwnerEntity, sourceId: bigint | null = null): Promise<PoolMember[]> {

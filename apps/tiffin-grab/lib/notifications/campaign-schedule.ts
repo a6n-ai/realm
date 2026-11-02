@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { dueCampaigns } from "@relay/engine";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notificationTables } from "./tables";
@@ -41,4 +42,9 @@ export async function rebuildScheduledCampaigns(redis: Redis): Promise<number> {
     .where(and(eq(notificationTables.campaign.status, "scheduled"), isNotNull(notificationTables.campaign.scheduledAt)));
   for (const r of rows) await redis.zadd(CAMPAIGN_SCHEDULE_KEY, Number(r.scheduledAt), String(r.publicId));
   return rows.length;
+}
+
+/** Workers have no Redis set: due campaigns come straight from the campaigns table. */
+export function dueScheduledCampaignIds(now = Date.now()): Promise<string[]> {
+  return dueCampaigns(db, notificationTables, now);
 }

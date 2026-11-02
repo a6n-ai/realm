@@ -7,7 +7,9 @@ vi.mock("@relay/engine", async (importOriginal) => ({
   recordCampaignEvent: (deps: unknown, id: string, type: string) => recordEvent(id, type),
 }));
 
-import { processSesEvent } from "./route";
+vi.mock("@/lib/notifications/sns-verify", () => ({ verifySnsMessage: async () => true }));
+
+import { POST, processSesEvent } from "./route";
 
 const msg = (o: unknown) => JSON.stringify(o);
 
@@ -58,5 +60,23 @@ describe("processSesEvent", () => {
   it("records an opened campaign stat", async () => {
     await processSesEvent(msg({ eventType: "Open", mail: { messageId: "pid-2" }, open: {} }));
     expect(recordEvent).toHaveBeenCalledExactlyOnceWith("pid-2", "opened");
+  });
+});
+
+describe("POST topic check", () => {
+  const post = () =>
+    POST(new Request("https://x.test/api/webhooks/ses", { method: "POST", body: JSON.stringify({ Type: "Notification", TopicArn: "arn:t", Message: "{}" }) }));
+
+  it("refuses everything when SES_FEEDBACK_TOPIC_ARN is unset", async () => {
+    vi.stubEnv("SES_FEEDBACK_TOPIC_ARN", "");
+    expect((await post()).status).toBe(403);
+  });
+
+  it("refuses a different topic and accepts the configured one", async () => {
+    vi.stubEnv("SES_FEEDBACK_TOPIC_ARN", "arn:other");
+    expect((await post()).status).toBe(403);
+    vi.stubEnv("SES_FEEDBACK_TOPIC_ARN", "arn:t");
+    expect((await post()).status).toBe(200);
+    vi.unstubAllEnvs();
   });
 });

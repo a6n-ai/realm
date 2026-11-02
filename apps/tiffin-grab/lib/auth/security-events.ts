@@ -21,7 +21,7 @@ const log = createLogger("auth-otp");
 export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip: string | null = null): Promise<void> {
   // Over the cap: drop silently. Throwing would turn into an error only known
   // accounts can produce (unknown addresses never reach here), leaking existence.
-  if (!allowOtpTo(email, ip)) {
+  if (!(await allowOtpTo(email, ip))) {
     log.warn({ domain: email.split("@")[1] ?? null, type }, "otp send dropped: per-address cap");
     return;
   }

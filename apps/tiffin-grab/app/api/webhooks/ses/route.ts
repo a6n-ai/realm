@@ -1,30 +1,12 @@
-import MessageValidator from "sns-validator";
 import { recordCampaignEvent } from "@relay/engine";
 import { handler, problem } from "@foundry/routes";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notificationTables } from "@/lib/notifications/tables";
 import { suppressEmailRecipient } from "@/lib/notifications/suppression";
-
-// sns-validator uses node crypto + fetches the signing cert over https.
-export const runtime = "nodejs";
+import { verifySnsMessage, type SnsMessage } from "@/lib/notifications/sns-verify";
 
 const log = createLogger("ses-webhook");
-const validator = new MessageValidator();
-
-interface SnsEnvelope {
-  Type: string;
-  TopicArn?: string;
-  Message: string;
-  SubscribeURL?: string;
-}
-
-/** Verify the message is genuinely from AWS SNS (cert host + signature). */
-function verify(msg: unknown): Promise<void> {
-  return new Promise((resolve, reject) => {
-    validator.validate(msg as Record<string, unknown>, (err) => (err ? reject(err) : resolve()));
-  });
-}
 
 /**
  * Apply one SES feedback event: permanent bounce or complaint suppresses the
@@ -72,23 +54,25 @@ export async function processSesEvent(messageJson: string): Promise<void> {
  */
 export const POST = handler(async (req: Request): Promise<Response> => {
   const raw = await req.text();
-  let msg: SnsEnvelope;
+  let msg: SnsMessage;
   try {
-    msg = JSON.parse(raw) as SnsEnvelope;
+    msg = JSON.parse(raw) as SnsMessage;
   } catch {
     return problem(400, "Invalid JSON");
   }
 
-  try {
-    await verify(msg);
-  } catch (err) {
-    log.error({ err }, "SNS signature verification failed");
+  if (!(await verifySnsMessage(msg))) {
+    log.error("SNS signature verification failed");
     return problem(403, "Invalid signature");
   }
 
   // Defense in depth: only act on our own topic.
   const expected = process.env.SES_FEEDBACK_TOPIC_ARN;
-  if (expected && msg.TopicArn !== expected) {
+  if (!expected) {
+    log.error("SES_FEEDBACK_TOPIC_ARN is not set; refusing SNS message");
+    return problem(403, "Topic not configured");
+  }
+  if (msg.TopicArn !== expected) {
     log.error(`unexpected TopicArn ${msg.TopicArn}`);
     return problem(403, "Unexpected topic");
   }

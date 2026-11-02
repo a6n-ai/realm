@@ -1,7 +1,7 @@
 import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
-import { signalOutbox } from "./outbox-signal";
+import { markOutboxDirty } from "./outbox-dirty";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[number];
@@ -32,16 +32,15 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
 export type { EnqueueInput };
 
 /**
- * App-side enqueue: applies tiffin-grab's per-event channel defaults, then wakes
- * the outbox listener. The signal lands before the caller's transaction commits;
- * the listener's settle delay covers that.
+ * App-side enqueue: applies tiffin-grab's per-event channel defaults, then flags
+ * the outbox; db.transaction signals the consumer once the transaction commits.
  */
 export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
   await enqueue(tx, notificationTables, usersRef, {
     ...input,
     channels: input.channels ?? EVENT_CHANNELS[input.event],
   });
-  signalOutbox();
+  markOutboxDirty();
 }
 
 /** Staff-facing fan-out: one in-app row per active admin/member. */
@@ -51,5 +50,5 @@ export async function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRole
     roles: ["admin", "member"],
     channels: input.channels ?? (input.event ? EVENT_CHANNELS[input.event] : undefined),
   });
-  signalOutbox();
+  markOutboxDirty();
 }
