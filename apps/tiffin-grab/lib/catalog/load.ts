@@ -1,5 +1,5 @@
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { and, eq, isNull, lte, gte, or, type SQL } from "drizzle-orm";
+import { and, eq, isNull, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
@@ -44,7 +44,13 @@ export function invalidateCatalogSnapshot(): Promise<void> {
 // far). Omit it (the ~100 existing callers) to keep seeing every row,
 // unscoped — unchanged behavior.
 export async function loadCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
-  return catalogCache.getOrSet(`snapshot:${orgId ?? "global"}`, () => fetchCatalogSnapshot(orgId));
+  const key = `snapshot:${orgId ?? "global"}`;
+  const cached = await catalogCache.getOrSet(key, () => fetchCatalogSnapshot(orgId));
+  // A discount window opened or closed since this copy was built (KV keeps it up to 10 min): prices are stale.
+  if (cached.validUntil == null || cached.validUntil > Date.now()) return cached;
+  const fresh = await fetchCatalogSnapshot(orgId);
+  await catalogCache.set(key, fresh);
+  return fresh;
 }
 
 export function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | undefined {
@@ -65,7 +71,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     categoryRows,
     addonsByCategory,
     settings,
-    discountRows,
+    windowedDiscountRows,
     configRows,
     strategyRows,
     tagRows,
@@ -84,7 +90,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, weekend: dishCategories.weekend, icon: dishCategories.icon }).from(dishCategories),
     dishCategoriesService.addonsByDishCategory(),
     getAppSettings(),
-    db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
+    db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
     db.select().from(deliveryChargeConfigs).where(scopedTo(deliveryChargeConfigs.organizationId, orgId)).limit(1),
     db.select().from(deliveryStrategies).where(and(eq(deliveryStrategies.active, true), scopedTo(deliveryStrategies.organizationId, orgId))).orderBy(deliveryStrategies.sortOrder, deliveryStrategies.name),
     db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
@@ -98,6 +104,10 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
     ...durRows.map((d) => [`duration:${d.id}`, d.publicId] as [string, string]),
   ]);
+  // Not-yet-started rows are fetched too, only to know when this snapshot stops being true.
+  const discountRows = windowedDiscountRows.filter((d) => d.startsAt == null || d.startsAt <= nowMs);
+  const boundaries = windowedDiscountRows.flatMap((d) => [d.startsAt, d.endsAt]).filter((t): t is number => t != null && t > nowMs);
+  const validUntil = boundaries.length ? Math.min(...boundaries) : null;
   const isWaiverKind = (k: string): k is WaiverKind => (WAIVER_KINDS as readonly string[]).includes(k);
   // meal_size rows set list prices below; only delivery/duration rows are additive order discounts.
   const mealSizeDiscountRows = discountRows.filter((d) => d.kind === "meal_size").map((d) => ({ targetId: d.targetId, percent: Number(d.percent), amount: d.amount == null ? null : Number(d.amount) }));
@@ -141,6 +151,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     }
   };
   return {
+    validUntil,
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => {
       const priced = customPrice(m, itemsByMealSize.get(m.id) ?? []);
