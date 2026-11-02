@@ -19,8 +19,10 @@ import { pageMeta } from "@/lib/landing/meta";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import "@/components/landing/home/home.css";
-// Placeholder stock photos (Unsplash licence) until the kitchen's own shots arrive.
-import heroPhoto from "@/public/landing/stock/thali-hero.jpg";
+// Stock photos of dishes on our menu (Pixabay licence) until the kitchen's own shots arrive.
+import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
+import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
+import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
 
 export const metadata: Metadata = pageMeta("Tiffin Grab: home-style Indian tiffins delivered across the GTA", "Home-style Indian tiffin meals delivered across the Greater Toronto Area. Choose the diet, the size, the sides, the days and how many weeks.", "/");
 
@@ -79,7 +81,7 @@ export default async function LandingPage() {
 
       <Story />
 
-      {promos.sections.length > 0 ? <OfferBand promos={promos.sections} photo={heroPhoto} /> : null}
+      {promos.sections.length > 0 ? <OfferBand promos={promos.sections} photo={paneerPhoto} /> : null}
 
       <Bento
         plans={plans.map((p) => ({ key: p.key, name: p.name, description: p.description, soon: isComingSoon(p.key) }))}
@@ -90,10 +92,10 @@ export default async function LandingPage() {
         frequencies={catalog.frequencies.map((f) => ({ id: f.publicId, name: f.name, days: f.weekdays ?? WEEK.slice(0, f.daysPerWeek) }))}
         lengths={lengths}
         cutoff={cutoff}
-        photo={heroPhoto}
+        photo={homeThali}
       />
 
-      {pub && board.days.length > 0 ? <MenuRail days={board.days} rows={board.rows} weekend={board.weekend} cutoffTime={cutoffTime} range={weekRange(pub.weekStart)} photo={heroPhoto} /> : null}
+      {pub && board.days.length > 0 ? <MenuRail days={board.days} rows={board.rows} weekend={board.weekend} cutoffTime={cutoffTime} range={weekRange(pub.weekStart)} photo={spreadPhoto} /> : null}
 
       <Flex cutoff={cutoff} demo={<PauseDemo cutoffTime={cutoffTime} />} />
 
@@ -108,7 +110,7 @@ export default async function LandingPage() {
 
       <Faq items={FAQS} />
 
-      {promos.popup ? <PromoPopup promo={promos.popup} fallbackImage={heroPhoto.src} /> : null}
+      {promos.popup ? <PromoPopup promo={promos.popup} fallbackImage={spreadPhoto.src} /> : null}
     </div>
   );
 }
