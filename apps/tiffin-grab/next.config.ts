@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
     // remotePatterns (or stay on plain <img>) before that env var is set in prod.
     // Static imports (/_next/static/media/**) are auto-allowed by Next.
   },
+  // Was Caddy's header on these paths: Next marks dynamic renders no-store, which keeps them out of
+  // the browser back/forward cache. They carry no private data, so ask for revalidation instead.
+  async headers() {
+    const publicPages = ["/", "/pricing", "/plans", "/menu", "/menu/weekly", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy", "/refund-policy", "/delivery-policy"];
+    return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "private, no-cache" }] }));
+  },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];
     return [

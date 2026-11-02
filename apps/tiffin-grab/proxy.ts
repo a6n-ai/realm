@@ -71,6 +71,30 @@ async function orgs(): Promise<OrgSnapshot> {
   return orgSnapshot;
 }
 
+// Front door, ported from the Caddyfile apex block. The app host comes from BETTER_AUTH_URL;
+// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
+// Caddy matches paths case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
+const APEX_PUBLIC_EXACT = new Set([
+  "/", "/pricing", "/plans", "/menu", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy",
+  "/refund-policy", "/delivery-policy", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
+  "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
+  "/twitter-image.png", "/robots.txt", "/sitemap.xml",
+]);
+const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/"];
+const APEX_SVG = /^\/[^/]*\.svg$/;
+
+function frontDoor(request: NextRequest): NextResponse | null {
+  const appHost = new URL(process.env.BETTER_AUTH_URL || "http://localhost").hostname;
+  if (!appHost.startsWith("app.")) return null;
+  const apex = appHost.slice(4);
+  const { hostname, pathname, search } = request.nextUrl;
+  if (hostname === `www.${apex}`) return NextResponse.redirect(`https://${apex}${pathname}${search}`, 308);
+  if (hostname !== apex) return null;
+  const p = pathname.toLowerCase();
+  if (APEX_PUBLIC_EXACT.has(p) || APEX_PUBLIC_PREFIX.some((x) => p.startsWith(x)) || APEX_SVG.test(p)) return null;
+  return NextResponse.redirect(`https://${appHost}${pathname}${search}`, 302);
+}
+
 function unauthorized(): NextResponse {
   const body = { type: "about:blank", title: "Unauthorized", status: 401, detail: "Authentication required" };
   return new NextResponse(JSON.stringify(body), {
@@ -88,6 +112,8 @@ export async function proxy(request: NextRequest) {
 }
 
 async function route(request: NextRequest): Promise<NextResponse> {
+  const door = frontDoor(request);
+  if (door) return door;
   const { pathname } = request.nextUrl;
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
 
