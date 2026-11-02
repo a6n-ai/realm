@@ -78,6 +78,7 @@
         "!apps/*/*.config.ts",
         "!apps/*/*.config.mjs",
         "!apps/*/vitest.*.ts",
+    "!apps/*/wrangler.jsonc",
         "!apps/*/proxy.ts",
         "!apps/*/proxy.test.ts",
         "!apps/*/instrumentation.ts",
