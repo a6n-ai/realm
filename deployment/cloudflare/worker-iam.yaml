@@ -22,6 +22,19 @@ Parameters:
   SesConfigurationSet:
     Type: String
     Description: SES configuration set name, for example xplorers-prod
+  SesExtraConfigurationSet:
+    Type: String
+    Default: ""
+    Description: Optional second SES configuration set (for example a transactional one)
+  EnableAwsLocation:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: Grant the Amazon Location maps (tiles/style/glyphs/sprites) and places (autocomplete/geocode/get) calls the app makes
+
+Conditions:
+  AwsLocation: !Equals [!Ref EnableAwsLocation, "true"]
+  ExtraConfigSet: !Not [!Equals [!Ref SesExtraConfigurationSet, ""]]
 
 Resources:
   WorkerAccessPolicy:
@@ -45,6 +58,24 @@ Resources:
             Resource:
               - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:identity/${SesIdentity}"
               - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${SesConfigurationSet}"
+              - !If
+                - ExtraConfigSet
+                - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${SesExtraConfigurationSet}"
+                - !Ref AWS::NoValue
+          - !If
+            - AwsLocation
+            - Sid: GeoMaps
+              Effect: Allow
+              Action: [geo-maps:GetTile, geo-maps:GetStyleDescriptor, geo-maps:GetSprites, geo-maps:GetGlyphs]
+              Resource: !Sub "arn:aws:geo-maps:${ResourceRegion}::provider/default"
+            - !Ref AWS::NoValue
+          - !If
+            - AwsLocation
+            - Sid: GeoPlaces
+              Effect: Allow
+              Action: [geo-places:Autocomplete, geo-places:Geocode, geo-places:GetPlace]
+              Resource: !Sub "arn:aws:geo-places:${ResourceRegion}::provider/default"
+            - !Ref AWS::NoValue
 
   WorkerGroup:
     Type: AWS::IAM::Group
