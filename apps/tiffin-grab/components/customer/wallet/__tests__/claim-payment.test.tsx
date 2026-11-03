@@ -26,7 +26,7 @@ vi.mock("@/components/ds", () => ({
 }));
 
 const mockTrackMeta = vi.fn();
-vi.mock("@/components/meta/track", () => ({
+vi.mock("@foundry/meta-pixel/client", () => ({
   trackMeta: (...args: unknown[]) => mockTrackMeta(...args),
 }));
 

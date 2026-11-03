@@ -312,10 +312,19 @@ export function Checkout({
     placed.current = null;
   }, [selections, appliedCodes, appliedCoins, paymentMethodId, contact, addressPublicId]);
 
+  // Fire once the cart is priced so Meta gets value on InitiateCheckout (AddToCart / Purchase already send it).
+  const checkoutPixelFired = useRef(false);
   useEffect(() => {
-    trackMeta("InitiateCheckout");
+    if (!result || checkoutPixelFired.current) return;
+    checkoutPixelFired.current = true;
+    trackMeta("InitiateCheckout", {
+      value: result.total,
+      currency: "CAD",
+      ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
+      num_items: 1,
+    });
     gtagEvent("begin_checkout");
-  }, []);
+  }, [result, selections?.planKey]);
 
   // e-Transfer: Purchase at proof submit (same event_id as claimPayment CAPI). Card uses PaidSwitch below.
   useEffect(() => {

@@ -12,7 +12,7 @@ import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
