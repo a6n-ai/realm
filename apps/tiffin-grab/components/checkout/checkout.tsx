@@ -317,6 +317,22 @@ export function Checkout({
     gtagEvent("begin_checkout");
   }, []);
 
+  // e-Transfer: Purchase at proof submit (same event_id as claimPayment CAPI). Card uses PaidSwitch below.
+  useEffect(() => {
+    if (!etransferDone || !etransfer || purchasePixelFired.current) return;
+    purchasePixelFired.current = true;
+    trackMeta(
+      "Purchase",
+      {
+        value: etransfer.receipt.total / 100,
+        currency: "CAD",
+        ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
+        num_items: 1,
+      },
+      etransfer.paymentPublicId,
+    );
+  }, [etransferDone, etransfer, selections?.planKey]);
+
   useEffect(() => {
     if (prevStep.current !== step) window.scrollTo({ top: 0 });
     prevStep.current = step;

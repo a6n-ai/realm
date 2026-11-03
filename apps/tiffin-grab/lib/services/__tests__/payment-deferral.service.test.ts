@@ -194,6 +194,14 @@ describe("createOrder payment deferral", () => {
     expect(claimed!.status).toBe("pending_verification");
     expect(claimed!.reference).toBe("INTERAC-123");
     expect(claimed!.claimedAt).toBeTypeOf("number");
+    // Meta Purchase claimed at proof/reference submit (ads conversion); verify must not re-stamp.
+    expect(claimed!.metaPurchaseSentAt).toBeTypeOf("number");
+    const metaAt = claimed!.metaPurchaseSentAt;
+
+    await verifyPayment(pay!.publicId);
+    const [afterVerify] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(afterVerify!.status).toBe("paid");
+    expect(afterVerify!.metaPurchaseSentAt).toBe(metaAt);
 
     // requireProof method rejects a reference-only claim.
     await setPaymentConfig({
@@ -229,6 +237,7 @@ describe("createOrder payment deferral", () => {
       thumbUrl: "https://x/thumb.png",
       name: "shot.png",
     });
+    expect(p2After!.metaPurchaseSentAt).toBeTypeOf("number");
   });
 
   it("rejected → re-claim clears the reject note", async () => {

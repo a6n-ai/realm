@@ -8,12 +8,17 @@ import { sendMetaEvent } from "./capi";
 const log = createLogger("meta-purchase");
 
 /**
- * Exactly-once Purchase CAPI for a settled payment.
- * Claims `metaPurchaseSentAt` before the network call so webhook retries / double
- * verify cannot double-fire. Skips renewals (`metaPurchaseEligible = false`) and
- * any payment that is not the order's first payment. Never reads headers/cookies —
- * attribution must already be on the order from checkout.
+ * Exactly-once Purchase CAPI for a conversion.
+ * Offline methods fire on customer claim (`pending_verification`) — ads conversion
+ * at proof/reference submit; money still settles later on staff verify. Card fires
+ * on settle (`paid` / `simulated_paid`). Claims `metaPurchaseSentAt` before the
+ * network call so claim + verify / webhook retries cannot double-fire. Skips
+ * renewals (`metaPurchaseEligible = false`) and any payment that is not the
+ * order's first payment. Never reads headers/cookies — attribution must already
+ * be on the order from checkout.
  */
+const PURCHASE_STATUSES = new Set(["pending_verification", "paid", "simulated_paid"]);
+
 export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<void> {
   try {
     const claimed = await db.transaction(async (tx) => {
@@ -25,7 +30,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
         .limit(1);
       if (!pay) return null;
       if (pay.metaPurchaseSentAt != null) return null;
-      if (pay.status !== "paid" && pay.status !== "simulated_paid") return null;
+      if (!PURCHASE_STATUSES.has(pay.status)) return null;
 
       const [first] = await tx
         .select({ id: payments.id })

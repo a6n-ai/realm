@@ -1341,6 +1341,11 @@ export async function claimPayment(
   // Staff review queue + sidebar dot via payments:inbox SSE.
   publishPaymentsInbox();
   publishAnalyticsLive();
+
+  // Ads conversion at claim (proof/reference). Awaits the DB claim so metaPurchaseSentAt is
+  // set before the action returns; the Graph HTTP call stays fire-and-forget inside. Staff
+  // verify later is a no-op via metaPurchaseSentAt.
+  await sendMetaPurchaseOnce(paymentPublicId);
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;
