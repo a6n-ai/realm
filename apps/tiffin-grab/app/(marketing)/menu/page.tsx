@@ -5,7 +5,7 @@ import { listableMealSizes } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { PageIntro } from "@/components/landing/public-shell";
 import { MealCard } from "@/components/marketing/meal-card";
-import { MetaViewContent } from "@/components/meta/view-content";
+import { MetaViewContent } from "@/components/meta/meta-view-content";
 import { pageMeta } from "@/lib/landing/meta";
 
 export const metadata: Metadata = pageMeta("Meal sizes | Tiffin Grab", "Every tiffin meal size by tier, with calories, protein, carbs, fat and the per-tiffin rate.", "/menu");

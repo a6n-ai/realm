@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageIntro } from "@/components/landing/public-shell";
 import { WeekBoard } from "@/components/landing/week-board";
-import { MetaViewContent } from "@/components/meta/view-content";
+import { MetaViewContent } from "@/components/meta/meta-view-content";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard, dateOf } from "@/lib/landing/week-board";
 import { getAppSettings } from "@/lib/services/app-settings.service";

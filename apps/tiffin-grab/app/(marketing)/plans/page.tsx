@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageIntro } from "@/components/landing/public-shell";
 import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
-import { MetaViewContent } from "@/components/meta/view-content";
+import { MetaViewContent } from "@/components/meta/meta-view-content";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
