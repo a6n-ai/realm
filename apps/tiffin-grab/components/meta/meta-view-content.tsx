@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
-import { trackMeta } from "./track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 
 type Props = {
   contentIds?: string[];

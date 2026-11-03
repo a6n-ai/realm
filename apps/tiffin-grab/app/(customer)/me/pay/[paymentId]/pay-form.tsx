@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { markPaid } from "@/lib/payments/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";

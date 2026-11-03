@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
-  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
+  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: { root: monorepoRoot },
   // Set by the cf:build command. Inlined at build time so instrumentation.ts's Node-only branch is
   // dropped from the Workers trace (otherwise OpenNext copies and re-bundles the whole app into the

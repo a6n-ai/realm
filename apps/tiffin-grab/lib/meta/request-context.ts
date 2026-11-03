@@ -1,18 +1,8 @@
 import { cookies, headers } from "next/headers";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { requestHasAnalyticsConsent } from "@/lib/consent.server";
+import { fbcFromFbclid } from "@foundry/meta-pixel";
 import type { MetaAttribution } from "./types";
-
-const FBCLID = /(?:^|[?&#])fbclid=([^&#]+)/i;
-
-/** Build `_fbc` when Pixel never set the cookie but the URL still has `fbclid`. */
-export function fbcFromFbclid(url: string | null | undefined, nowMs = Date.now()): string | undefined {
-  if (!url) return undefined;
-  const m = url.match(FBCLID);
-  const fbclid = m?.[1]?.trim();
-  if (!fbclid) return undefined;
-  return `fb.1.${nowMs}.${fbclid}`;
-}
 
 function firstHeader(h: Headers, names: string[]): string | undefined {
   for (const n of names) {

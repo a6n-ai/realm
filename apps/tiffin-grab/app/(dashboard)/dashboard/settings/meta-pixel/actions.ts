@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
-import { encryptionKey, getMetaPixelConfig, sealAccessToken, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";
-import { normalizePixelId, TEST_CODE_RE } from "@/lib/services/meta-pixel/pixel-id";
-import { sendMetaEvent } from "@/lib/services/meta-pixel/capi";
+import { normalizePixelId, postMetaEvent, TEST_CODE_RE } from "@foundry/meta-pixel";
+import { META_PIXEL_SETTINGS_HREF } from "@foundry/meta-pixel/plugin";
+import { getMetaPixelConfig, metaPixel, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";
 import { requestBrowser } from "@/lib/services/tracking";
-import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
 
 type Result = { error?: string };
 
@@ -35,12 +34,8 @@ export async function saveMetaPixelSettings(input: {
     return { error: "That does not look like a Conversions API access token" };
   }
 
-  let sealed: ReturnType<typeof sealAccessToken> | undefined;
-  if (token) {
-    const key = encryptionKey();
-    if (!key) return { error: "Server is missing INTEGRATIONS_ENCRYPTION_KEY, so the token cannot be stored safely" };
-    sealed = sealAccessToken(token, key);
-  }
+  const sealed = token ? metaPixel.accessToken.seal(token) : undefined;
+  if (sealed === null) return { error: "Server is missing INTEGRATIONS_ENCRYPTION_KEY, so the token cannot be stored safely" };
 
   try {
     await updateMetaPixelConfig({
@@ -88,11 +83,17 @@ export async function sendMetaPixelTestEvent(): Promise<{ error?: string; events
   await requireAdmin();
   const cfg = await getMetaPixelConfig();
   if (!cfg.testEventCode) return { error: "Add the test event code from Events Manager → Test events first" };
-  const { sourceUrl: _staffPage, gaClientId: _ga, ...browser } = await requestBrowser();
-  const res = await sendMetaEvent({
+  const browser = await requestBrowser();
+  const res = await postMetaEvent(await metaPixel.connection(), {
     eventName: "PageView",
     eventId: `test:${crypto.randomUUID()}`,
-    user: { ...browser, externalId: "settings-test" },
+    userData: {
+      externalId: "settings-test",
+      clientIpAddress: browser.ip,
+      clientUserAgent: browser.userAgent,
+      fbp: browser.fbp,
+      fbc: browser.fbc,
+    },
   });
   return res.ok ? { eventsReceived: res.eventsReceived } : { error: res.error };
 }

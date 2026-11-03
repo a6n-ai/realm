@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
-import { sealApiSecret, updateGaConfig } from "@/lib/services/google-analytics/config";
-import { GA_ID_RE } from "@/lib/services/google-analytics/ids";
-import { sendGaEvent } from "@/lib/services/google-analytics/mp";
-import { GA_SETTINGS_HREF } from "@/lib/services/google-analytics/plugin";
+import { GA_ID_RE, sendGaEvent } from "@foundry/google-analytics";
+import { GA_SETTINGS_HREF } from "@foundry/google-analytics/plugin";
+import { googleAnalytics, updateGaConfig } from "@/lib/services/google-analytics/config";
 import { requestBrowser } from "@/lib/services/tracking";
 
 type Result = { error?: string };
@@ -24,12 +23,8 @@ export async function saveGaSettings(input: { measurementId: string; apiSecret: 
   if (!GA_ID_RE.test(measurementId)) return { error: "Measurement ID starts with G-, like G-AB12CD34EF" };
   if (secret && !/^[A-Za-z0-9_-]{10,100}$/.test(secret)) return { error: "That does not look like a Measurement Protocol API secret" };
 
-  let sealed: ReturnType<typeof sealApiSecret> | undefined;
-  if (secret) {
-    const key = process.env.INTEGRATIONS_ENCRYPTION_KEY?.trim();
-    if (!key) return { error: "Server is missing INTEGRATIONS_ENCRYPTION_KEY, so the secret cannot be stored safely" };
-    sealed = sealApiSecret(secret, key);
-  }
+  const sealed = secret ? googleAnalytics.apiSecret.seal(secret) : undefined;
+  if (sealed === null) return { error: "Server is missing INTEGRATIONS_ENCRYPTION_KEY, so the secret cannot be stored safely" };
 
   try {
     await updateGaConfig({ measurementId, ...(sealed ? { apiSecret: sealed } : {}) });
@@ -74,10 +69,11 @@ export async function sendGaTestEvent(): Promise<{ error?: string; problems?: st
   await requireAdmin();
   const { gaClientId } = await requestBrowser();
   const event = { name: "settings_test", params: { value: 1, currency: "CAD" } };
-  const check = await sendGaEvent({ clientId: gaClientId, event }, { validate: true });
+  const conn = await googleAnalytics.connection();
+  const check = await sendGaEvent(conn, { clientId: gaClientId, event }, { validate: true });
   if (!check.ok) return { error: check.error };
   const problems = (check.validationMessages ?? []).map((m) => m.description);
   if (problems.length) return { problems };
-  const sent = await sendGaEvent({ clientId: gaClientId, event }, { debug: true });
+  const sent = await sendGaEvent(conn, { clientId: gaClientId, event }, { debug: true });
   return sent.ok ? {} : { error: sent.error };
 }

@@ -7,7 +7,7 @@ import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 const MAPLIBRE_WORKER = "/vendor/maplibre-gl-worker-6.15.0.mjs";
 import { afterFirstInput } from "@/lib/landing/wake";
 import { checkDelivery, type DeliveryCheck as Result } from "@/lib/landing/check-delivery";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 
 type Point = { lat: number; lng: number };
 type Area = { name: string; slotWindow: string | null; point: Point | null };

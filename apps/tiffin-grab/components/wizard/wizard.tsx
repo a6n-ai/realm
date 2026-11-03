@@ -26,7 +26,7 @@ import { TotalChip } from "./total-chip";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
 import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
 

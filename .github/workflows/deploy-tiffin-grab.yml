@@ -8,18 +8,8 @@
 # Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
 name: deploy-tiffin-grab
 
+# EC2 retired from serving on 2026-11-03 (tiffin-grab runs on Workers). Manual only, for rollback.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/tiffin-grab/**"
-      - "foundry/**"
-      - "relay/**"
-      - "deployment/prod/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "package.json"
-      - ".github/workflows/deploy-tiffin-grab.yml"
   workflow_dispatch: {}
 
 concurrency:

@@ -12,7 +12,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { Textarea } from "@foundry/ui/textarea";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 import { contactFormSchema, type ContactFormValues } from "./schema";
 import { createWebsiteInquiry } from "./actions";
 

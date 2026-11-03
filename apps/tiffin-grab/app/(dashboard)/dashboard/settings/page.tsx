@@ -1,194 +1,28 @@
-import Link from "next/link";
-import {
-  ArrowRightIcon,
-  BanknoteIcon,
-  CalendarOffIcon,
-  ChartLineIcon,
-  ClockIcon,
-  CreditCardIcon,
-  HelpCircleIcon,
-  MegaphoneIcon,
-  PuzzleIcon,
-  ScrollTextIcon,
-  SettingsIcon,
-  StarIcon,
-  UsersIcon,
-  UtensilsCrossedIcon,
-  Webhook,
-  type LucideIcon,
-} from "lucide-react";
-import { getCloverConnection } from "@foundry/clover";
-import { getGoogleReviewsConfig } from "@foundry/google-reviews";
-import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
+import { Suspense } from "react";
+import { SettingsIcon } from "lucide-react";
+import { resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { PageHeader } from "@/components/ds";
 import { PLUGINS } from "@/lib/plugins.server";
-import { getMetaPixelConfig } from "@/lib/services/meta-pixel/config";
-import { META_PIXEL_SETTINGS_HREF } from "@/lib/services/meta-pixel/plugin";
-import { getGaConfig } from "@/lib/services/google-analytics/config";
-import { GA_SETTINGS_HREF } from "@/lib/services/google-analytics/plugin";
-
-type SettingsSection = {
-  key: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  href: string;
-};
+import { SettingsDirectory, SettingsDirectorySkeleton } from "./settings-directory";
 
 export default async function SettingsPage() {
   await requireAdmin();
-  const clover = await getCloverConnection(integrationsConfigStore);
-  const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
-  const googleReviews = await getGoogleReviewsConfig(integrationsConfigStore);
-  const metaPixel = await getMetaPixelConfig();
-  const ga = await getGaConfig();
-
-  const sections: SettingsSection[] = [
-    {
-      key: "general",
-      label: "General",
-      description: "Timezone and order cutoff settings.",
-      icon: SettingsIcon,
-      href: "/dashboard/settings/general",
-    },
-    {
-      key: "scheduled-jobs",
-      label: "Scheduled jobs",
-      description: "Nightly OptimoRoute pull and other automatic jobs: last result and next run.",
-      icon: ClockIcon,
-      href: "/dashboard/settings/scheduled-jobs",
-    },
-    {
-      key: "logs",
-      label: "Logs",
-      description: "Customer and staff activity — meals, address, moved tiffins, and more.",
-      icon: ScrollTextIcon,
-      href: "/dashboard/settings/logs",
-    },
-    {
-      key: "holidays",
-      label: "Holidays",
-      description: "Days the kitchen is closed and how affected deliveries are placed.",
-      icon: CalendarOffIcon,
-      href: "/dashboard/settings/holidays",
-    },
-    {
-      key: "promotions",
-      label: "Promotions",
-      description: "Hero sticker, popup and offers carousel on the home page.",
-      icon: MegaphoneIcon,
-      href: "/dashboard/settings/promotions",
-    },
-    {
-      key: "lead-sources",
-      label: "Lead sources",
-      description: "Manage inbound and outbound lead sources.",
-      icon: Webhook,
-      href: "/dashboard/settings/lead-sources",
-    },
-    {
-      key: "owner-assignment",
-      label: "Owner assignment",
-      description: "Who owns new inquiries, orders and tickets.",
-      icon: UsersIcon,
-      href: "/dashboard/settings/owner-assignment",
-    },
-    {
-      key: "meal-types",
-      label: "Meal types",
-      description: "Plan types, dish categories, and menu configuration.",
-      icon: UtensilsCrossedIcon,
-      href: "/dashboard/settings/meal-types",
-    },
-    {
-      key: "public-website",
-      label: "Public Website",
-      description: "Content shown on the public site, like the FAQ.",
-      icon: HelpCircleIcon,
-      href: "/dashboard/settings/public-website",
-    },
-    {
-      key: "integrations",
-      label: "Integrations",
-      description: "Install and remove plugins (Payments, Clover, and more).",
-      icon: PuzzleIcon,
-      href: "/dashboard/settings/integrations",
-    },
-  ];
-
-  if (paymentsStatus?.installed) {
-    sections.push({
-      key: "payments",
-      label: "Payment",
-      description: "Cash on delivery is on by default. Add e-Transfer when you need it.",
-      icon: BanknoteIcon,
-      href: "/dashboard/settings/payments",
-    });
-  }
-
-  if (clover.installed) {
-    sections.push({
-      key: "clover",
-      label: "Clover",
-      description: "Merchant connection, reconnect, and disconnect.",
-      icon: CreditCardIcon,
-      href: "/dashboard/settings/clover",
-    });
-  }
-
-  if (googleReviews.installed) {
-    sections.push({
-      key: "google-reviews",
-      label: "Google Reviews",
-      description: "Place ID and public review display.",
-      icon: StarIcon,
-      href: "/dashboard/settings/google-reviews",
-    });
-  }
-
-  if (metaPixel.installed) {
-    sections.push({
-      key: "meta-pixel",
-      label: "Meta Pixel",
-      description: "Pixel ID, Conversions API token, and test events.",
-      icon: MegaphoneIcon,
-      href: META_PIXEL_SETTINGS_HREF,
-    });
-  }
-
-  if (ga.installed) {
-    sections.push({
-      key: "google-analytics",
-      label: "Google Analytics",
-      description: "Measurement ID and server-side conversion events.",
-      icon: ChartLineIcon,
-      href: GA_SETTINGS_HREF,
-    });
-  }
-
   return (
     <>
       <PageHeader icon={SettingsIcon} title="Settings" subtitle="Configure how the platform runs." />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {sections.map((s) => (
-          <Link key={s.key} href={s.href} className="group" prefetch={false}>
-            <Card variant="lift" className="h-full">
-              <CardHeader className="flex flex-row items-start justify-between">
-                <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-                  <s.icon className="size-5" />
-                </span>
-                <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-medium">{s.label}</div>
-                <div className="text-muted-foreground text-sm">{s.description}</div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <Suspense fallback={<SettingsDirectorySkeleton />}>
+        <SettingsDirectoryLoader />
+      </Suspense>
     </>
   );
+}
+
+// Plugin statuses read config (and may open secrets), so the directory streams in behind its skeleton.
+async function SettingsDirectoryLoader() {
+  const statuses = await resolveStatuses(PLUGINS);
+  const installed = Object.entries(statuses)
+    .filter(([, s]) => s.installed)
+    .map(([id]) => id);
+  return <SettingsDirectory installedPluginIds={installed} />;
 }

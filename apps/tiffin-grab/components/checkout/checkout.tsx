@@ -19,7 +19,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -56,7 +56,7 @@ import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
-import { fbqTrack, gtagEvent } from "@/components/meta-pixel";
+import { gtagEvent } from "@foundry/google-analytics/client";
 import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
@@ -313,7 +313,7 @@ export function Checkout({
   }, [selections, appliedCodes, appliedCoins, paymentMethodId, contact, addressPublicId]);
 
   useEffect(() => {
-    fbqTrack("InitiateCheckout");
+    trackMeta("InitiateCheckout");
     gtagEvent("begin_checkout");
   }, []);
 

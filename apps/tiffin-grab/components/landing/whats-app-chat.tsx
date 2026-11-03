@@ -1,6 +1,6 @@
 "use client";
 
-import { trackMeta } from "@/components/meta/track";
+import { trackMeta } from "@foundry/meta-pixel/client";
 import { hasAnalyticsConsent } from "@/lib/consent";
 import "./whats-app-chat.css";
 
