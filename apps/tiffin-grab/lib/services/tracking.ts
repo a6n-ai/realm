@@ -1,9 +1,11 @@
 import { cookies, headers } from "next/headers";
 import { after } from "next/server";
+import { clientIdFromGaCookie, sendGaEvent, type GaEvent } from "@foundry/google-analytics";
+import type { MetaCustomData } from "@foundry/meta-pixel";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { requestHasAnalyticsConsent } from "@/lib/consent.server";
-import { sendMetaEvent, type MetaEventInput } from "./meta-pixel/capi";
-import { clientIdFromGaCookie, sendGaEvent, type GaEvent } from "./google-analytics/mp";
+import { sendMetaEvent } from "@/lib/meta/capi";
+import { googleAnalytics } from "@/lib/services/google-analytics/config";
 
 export type BrowserSignals = {
   ip: string | null;
@@ -31,14 +33,22 @@ export async function requestBrowser(): Promise<BrowserSignals> {
   }
 }
 
-const GA_NAMES: Record<MetaEventInput["eventName"], string> = {
-  PageView: "page_view",
+export type ConversionInput = {
+  eventName: "Lead" | "CompleteRegistration" | "Purchase";
+  /** Stable per real-world event: Meta drops repeats of the same name + id within 48h. */
+  eventId: string;
+  sourceUrl?: string | null;
+  user: { email?: string | null; phone?: string | null; fullName?: string | null; externalId?: string | null };
+  customData?: MetaCustomData;
+};
+
+const GA_NAMES: Record<ConversionInput["eventName"], string> = {
   Lead: "generate_lead",
   CompleteRegistration: "sign_up",
   Purchase: "purchase",
 };
 
-export function gaEventFor(input: MetaEventInput): GaEvent {
+export function gaEventFor(input: ConversionInput): GaEvent {
   const c = input.customData;
   return {
     name: GA_NAMES[input.eventName],
@@ -55,21 +65,39 @@ export function gaEventFor(input: MetaEventInput): GaEvent {
 /**
  * One conversion, sent to every installed tracker after the response. Pass `withRequest` only
  * when this request is the customer's own browser: a Stripe webhook or a staff verify would
- * attach the wrong IP and session.
+ * attach the wrong IP and session. `meta: false` when Meta gets the event another way
+ * (Purchase goes through sendMetaPurchaseOnce with checkout attribution).
  */
-export function trackConversion(input: MetaEventInput, opts: { withRequest?: boolean; meta?: boolean } = {}): void {
+export function trackConversion(input: ConversionInput, opts: { withRequest?: boolean; meta?: boolean } = {}): void {
   const run = async () => {
-    let gaClientId: string | null = null;
+    let browser: Omit<BrowserSignals, "sourceUrl"> | null = null;
+    let sourceUrl = input.sourceUrl ?? null;
     if (opts.withRequest) {
       if (!(await requestHasAnalyticsConsent())) return;
-      const { sourceUrl, gaClientId: ga, ...browser } = await requestBrowser();
-      gaClientId = ga;
-      input = { ...input, sourceUrl: input.sourceUrl ?? sourceUrl, user: { ...browser, ...input.user } };
+      const { sourceUrl: referer, ...signals } = await requestBrowser();
+      browser = signals;
+      sourceUrl ??= referer;
     }
-    await Promise.all([
-      opts.meta === false ? Promise.resolve() : sendMetaEvent(input),
-      sendGaEvent({ clientId: gaClientId, userId: input.user.externalId, event: gaEventFor(input) }),
-    ]);
+    if (opts.meta !== false) {
+      sendMetaEvent({
+        eventName: input.eventName,
+        eventId: input.eventId,
+        eventSourceUrl: sourceUrl,
+        userData: {
+          ...input.user,
+          clientIpAddress: browser?.ip,
+          clientUserAgent: browser?.userAgent,
+          fbp: browser?.fbp,
+          fbc: browser?.fbc,
+        },
+        customData: input.customData,
+      });
+    }
+    await sendGaEvent(await googleAnalytics.connection(), {
+      clientId: browser?.gaClientId ?? null,
+      userId: input.user.externalId,
+      event: gaEventFor(input),
+    });
   };
   try {
     after(run);

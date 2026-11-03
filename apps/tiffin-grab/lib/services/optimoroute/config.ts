@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { getIntegrationsConfig, getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/services/app-settings.service";
+import { integrationSlice } from "@foundry/commons/plugin-kit";
+import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/services/app-settings.service";
 
 // App-local, not @foundry/clover: OptimoRoute is delivery routing for this client, and
 // nothing has proven it shared. It rides in the same integrations_config blob, which is
@@ -53,20 +54,13 @@ export type OptimoRouteConfig = z.infer<typeof optimoRouteConfigSchema>;
 
 export const DEFAULT_OPTIMOROUTE_CONFIG: OptimoRouteConfig = optimoRouteConfigSchema.parse({});
 
-export function parseOptimoRouteConfig(raw: unknown): OptimoRouteConfig {
-  const parsed = optimoRouteConfigSchema.safeParse(raw ?? {});
-  return parsed.success ? parsed.data : { ...DEFAULT_OPTIMOROUTE_CONFIG };
-}
-
-export async function getOptimoRouteConfig(): Promise<OptimoRouteConfig> {
-  const cfg = await getIntegrationsConfig();
-  return parseOptimoRouteConfig((cfg as Record<string, unknown>)[OPTIMOROUTE_KEY]);
-}
-
-export async function setOptimoRouteConfig(next: OptimoRouteConfig): Promise<void> {
-  const cfg = await getIntegrationsConfigFresh();
-  await setIntegrationsConfig({ ...cfg, [OPTIMOROUTE_KEY]: optimoRouteConfigSchema.parse(next) });
-}
+export const optimoRouteSlice = integrationSlice(OPTIMOROUTE_KEY, optimoRouteConfigSchema, {
+  store: integrationsConfigStore,
+  readStore: integrationsConfigReadStore,
+});
+export const parseOptimoRouteConfig = optimoRouteSlice.parse;
+export const getOptimoRouteConfig = optimoRouteSlice.get;
+export const updateOptimoRouteConfig = optimoRouteSlice.update;
 
 /**
  * The API key is a server-only env var, never a column and never in the config blob — the

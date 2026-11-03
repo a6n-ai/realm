@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PLUGIN_CATEGORIES, PLUGIN_DISPLAY, PLUGIN_METAS, type PluginCategory } from "@/lib/plugins";
 import type { PluginMeta } from "@foundry/crm";
-import { IconTile } from "../_components/icon-tile";
+import { IconTile, IconTileSkeleton } from "../_components/icon-tile";
 import { setPluginInstalledAction } from "./actions";
 
 type Filter = "all" | "installed" | PluginCategory;
@@ -128,7 +128,7 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
     <Card variant="flat" className="h-full gap-0 p-0">
       <div className="flex h-full flex-col gap-4 p-5">
         <div className="flex items-start gap-3">
-          <IconTile icon={meta.icon} tone={display?.tone ?? "gray"} size="lg" />
+          <IconTile icon={meta.icon} tone={display?.tone ?? "gray"} logo={meta.logo} size="lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-sm font-semibold tracking-tight">{meta.label}</h3>
             <span className="text-muted-foreground text-xs">{categoryOf(meta)}</span>
@@ -182,28 +182,37 @@ function statusVariant(label: string | undefined): "success-light" | "warning-li
 
 export function MarketplaceSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" aria-busy="true">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-9 sm:w-72" />
         <Skeleton className="h-8 w-80" />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {PLUGIN_METAS.map((m) => (
-          <Card key={m.id} variant="flat" className="gap-0 p-0">
-            <div className="flex flex-col gap-4 p-5">
-              <div className="flex items-start gap-3">
-                <Skeleton className="size-12 rounded-xl" />
-                <div className="flex flex-col gap-1.5">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-16" />
+      <section className="flex flex-col gap-3">
+        <Skeleton className="h-5 w-24" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {PLUGIN_METAS.map((m) => (
+            <Card key={m.id} variant="flat" className="h-full gap-0 p-0">
+              <div className="flex h-full flex-col gap-4 p-5">
+                <div className="flex items-start gap-3">
+                  <IconTileSkeleton size="lg" />
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-full" />
+                  <Skeleton className="h-3.5 w-2/3" />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-8 w-20" />
                 </div>
               </div>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-8 w-20 self-end" />
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

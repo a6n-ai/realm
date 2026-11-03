@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MetaPixelPageViews } from "@/components/meta-pixel";
+import { MetaPixelPageViews } from "@foundry/meta-pixel/client";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
