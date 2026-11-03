@@ -22,7 +22,7 @@ import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normaliz
 // signed link, or the session owner/staff when there is no signature.
 // /api/refer-card: the referral promo image; link-preview crawlers fetch it with no cookie.
 // /api/analytics: the GA bootstrap script, loaded on every page including signed-out ones.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics"];
+const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics", "/api/meta/events"];
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all

@@ -5,6 +5,8 @@ import { stripePlugin } from "@foundry/payments/stripe";
 import { googleReviewsPlugin } from "@foundry/google-reviews/server";
 import { stripeDeps } from "@/lib/payments/stripe";
 import { optimoRoutePlugin } from "./services/optimoroute/plugin.server";
+import { metaPixelPlugin } from "./services/meta-pixel/plugin.server";
+import { googleAnalyticsPlugin } from "./services/google-analytics/plugin.server";
 import {
   getIntegrationsConfigFresh,
   setIntegrationsConfig,
@@ -36,4 +38,6 @@ export const PLUGINS: PluginRegistry = [
   cloverPlugin(integrationsConfigStore),
   googleReviewsPlugin(integrationsConfigStore),
   optimoRoutePlugin(),
+  metaPixelPlugin(),
+  googleAnalyticsPlugin(),
 ];

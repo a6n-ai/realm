@@ -132,7 +132,8 @@ export default function PrivacyPage() {
         <p className="m-0">
           We use essential cookies to run the site: they keep you signed in, remember your delivery area, and carry a
           referral code through checkout. These do not need your consent. With your consent we also use Google Analytics
-          cookies to understand which pages are visited and for how long. Analytics stays off until you accept it, and
+          and the Meta (Facebook) pixel, in your browser and from our servers, to understand which pages are visited and
+          which ads brought you here. Both stay off until you accept them, and
           you can change your choice at any time with &ldquo;Cookie settings&rdquo; at the foot of every page. Your choice
           is kept for 12 months, then we ask again.
         </p>

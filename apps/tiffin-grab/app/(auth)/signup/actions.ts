@@ -8,6 +8,7 @@ import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+import { trackConversion } from "@/lib/services/tracking";
 
 const log = createLogger("signup");
 
@@ -43,7 +44,7 @@ export async function signUpCustomer(input: {
   // connection open.
   const passwordHash = await hashPassword(password);
 
-  let created = false;
+  let createdId: bigint | null = null;
   try {
     const result = await db.transaction(async (tx) => {
       const [existingPhone] = await tx
@@ -80,7 +81,7 @@ export async function signUpCustomer(input: {
         password: passwordHash,
       });
 
-      created = true;
+      createdId = inserted.id;
       return { ok: true as const };
     });
 
@@ -90,7 +91,11 @@ export async function signUpCustomer(input: {
     // slow SES call must not hold the connection, and a delivery failure must
     // not roll back a created account (the user can re-trigger by attempting to
     // sign in, which re-sends via sendOnSignIn).
-    if (created) {
+    if (createdId != null) {
+      trackConversion(
+        { eventName: "CompleteRegistration", eventId: `signup:${createdId}`, user: { email, phone, fullName: name, externalId: String(createdId) } },
+        { withRequest: true },
+      );
       try {
         const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
         await auth.api.sendVerificationEmail({

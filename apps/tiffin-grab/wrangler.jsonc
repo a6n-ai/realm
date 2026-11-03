@@ -39,7 +39,7 @@
       "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
     }
   ],
-  "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }], // PLACEHOLDER (Task 12)
+  "kv_namespaces": [{ "binding": "CACHE", "id": "c74de8bc0b00407992ad1650561866bf" }], // tiffin-grab-cache
   "queues": {
     "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
     "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 0 }]
@@ -78,11 +78,11 @@
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "00000000000000000000000000000000", // PLACEHOLDER (Task 12), caching disabled
+          "id": "3d7ca623354d4610a9d9ed531e943ca9", // tiffin-grab-preview, caching disabled, user tiffin_app
           "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
         }
       ],
-      "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }], // PLACEHOLDER (Task 12)
+      "kv_namespaces": [{ "binding": "CACHE", "id": "64b3bfc7d10a4c53960db7e8d48a807f" }], // tiffin-grab-cache-preview
       "queues": {
         "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox-preview" }],
         "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 0 }]

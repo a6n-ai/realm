@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MetaPixelPageViews } from "@/components/meta-pixel";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -59,6 +60,7 @@ export default function RootLayout({
           <BrowserChrome />
           <CookieConsent />
         </ThemeProvider>
+        <MetaPixelPageViews />
       </body>
     </html>
   );

@@ -307,8 +307,8 @@ describe("getKitchenPackingSheet", () => {
 
 describe("extraTiffinLabel", () => {
   it("names where a repeat tiffin came from", () => {
-    expect(extraTiffinLabel("2026-10-07")).toBe("Extra · moved from Wed, Oct 7");
-    expect(extraTiffinLabel(null)).toBe("Extra · from pool");
+    expect(extraTiffinLabel("2026-10-07")).toBe("Extra · Oct 7");
+    expect(extraTiffinLabel(null)).toBe("Extra · pool");
     expect(extraTiffinLabel(undefined)).toBe("Extra");
   });
 });

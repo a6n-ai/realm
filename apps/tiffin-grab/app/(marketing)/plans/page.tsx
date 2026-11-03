@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageIntro } from "@/components/landing/public-shell";
 import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
+import { MetaViewContent } from "@/components/meta/view-content";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
@@ -27,6 +28,7 @@ export default async function PlansPage() {
 
   return (
     <>
+    <MetaViewContent contentIds={plans.map((p) => p.key)} contentName="Plans" />
     <div className="tg-wrap tg-section">
       <PageIntro
         eyebrow="Plans"

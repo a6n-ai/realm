@@ -107,6 +107,18 @@ export const orders = pgTable("orders", {
   lookOutAt: bigint("look_out_at", { mode: "number" }),
   lookOutBy: bigint("look_out_by", { mode: "bigint" }).references(() => users.id),
   lookOutNote: text("look_out_note"),
+  // Meta CAPI: browser/request context captured on the customer's checkout request
+  // (IP, UA, _fbp/_fbc, event_source_url). Read at Purchase time in verifyPayment —
+  // never from webhook/staff headers. Null on staff-created or pre-Meta orders.
+  metaAttribution: jsonb("meta_attribution").$type<{
+    clientIpAddress?: string;
+    clientUserAgent?: string;
+    fbp?: string;
+    fbc?: string;
+    eventSourceUrl?: string;
+  } | null>(),
+  // False for renewals — Purchase CAPI fires only for first-time plan purchases.
+  metaPurchaseEligible: boolean("meta_purchase_eligible").notNull().default(true),
 }, (t) => [
   // The Orders "Look out for" tab: only flagged rows, newest flag first.
   index("orders_look_out_idx").on(t.lookOutAt).where(sql`${t.lookOutAt} is not null`),
@@ -177,6 +189,8 @@ export const payments = pgTable("payments", {
   addonRequest: jsonb("addon_request").$type<AddonRequest>(),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
+  // Meta CAPI Purchase: claimed before the network call so webhook retries cannot double-send.
+  metaPurchaseSentAt: bigint("meta_purchase_sent_at", { mode: "number" }),
 }, (t) => [
   index("payments_provider_ref_idx").on(t.providerRef),
   uniqueIndex("payments_provider_event_idx").on(t.providerEventId),

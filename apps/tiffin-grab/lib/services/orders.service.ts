@@ -1,5 +1,6 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
+import { trackConversion } from "@/lib/services/tracking";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -44,6 +45,7 @@ import {
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
+import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
@@ -228,6 +230,16 @@ export interface CreateOrderOptions {
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
+  /** Meta CAPI browser context from the customer's checkout request. */
+  metaAttribution?: {
+    clientIpAddress?: string;
+    clientUserAgent?: string;
+    fbp?: string;
+    fbc?: string;
+    eventSourceUrl?: string;
+  } | null;
+  /** False for renewals — Purchase CAPI is first-plan only. Default true. */
+  metaPurchaseEligible?: boolean;
 }
 
 // Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
@@ -277,7 +289,16 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string; paymentPublicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, staffCreated = false, basePriceOverride } = opts;
+  const {
+    actorId = null,
+    ownerUserId = null,
+    orgId = null,
+    allowCustomMeal = false,
+    staffCreated = false,
+    basePriceOverride,
+    metaAttribution = null,
+    metaPurchaseEligible = true,
+  } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
   // Staff included: a day past its cutoff has already been routed and cooked without this plan.
   const startBase = appToday(snapshot.timezone, snapshot.cutoffHour);
@@ -489,7 +510,8 @@ export async function createOrder(
         addressUnit: savedAddress.addressUnit,
         city: savedAddress.city,
         postalCode: savedAddress.postalCode,
-        deliveryInstructions: savedAddress.deliveryInstructions,
+        // Notes typed for this plan win; callers that send none (renewals) keep the address's.
+        deliveryInstructions: input.contact.deliveryInstructions !== undefined ? input.contact.deliveryInstructions : savedAddress.deliveryInstructions,
         lat: savedAddress.lat == null ? null : Number(savedAddress.lat),
         lng: savedAddress.lng == null ? null : Number(savedAddress.lng),
       };
@@ -717,6 +739,8 @@ export async function createOrder(
         currentOwner: defaultOwnerId,
         createdBy,
         organizationId,
+        metaAttribution: metaAttribution && Object.keys(metaAttribution).length ? metaAttribution : null,
+        metaPurchaseEligible,
       })
       .returning();
 
@@ -833,6 +857,9 @@ export async function createOrder(
       log.error({ err: e }, "replacing older unpaid stripe order failed");
     }
   }
+
+  // Simulated (local) settle never hits verifyPayment — fire Purchase here once.
+  if (!deferSettlement) void sendMetaPurchaseOnce(txResult.paymentPublicId);
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId, paymentPublicId: txResult.paymentPublicId };
 }
@@ -1063,7 +1090,11 @@ export async function verifyPayment(
 
     if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
 
-    const [user] = await tx.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, orderUserId)).limit(1);
+    const [user] = await tx
+      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+      .from(users)
+      .where(eq(users.id, orderUserId))
+      .limit(1);
     const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
 
     await enqueueNotification(tx, {
@@ -1097,13 +1128,38 @@ export async function verifyPayment(
       pay.taxSource === "stripe" && pay.method !== "stripe" && pay.taxCalculationId
         ? { calc: pay.taxCalculationId, ref: pay.publicId, orderId: order.id }
         : null;
-    return { userPublicId: user?.publicId ?? null, taxCommit };
+    const purchase = {
+      orderRef: order.publicId,
+      paymentRef: pay.publicId,
+      value: Number(pay.amount),
+      user: { email: user?.email ?? null, phone: user?.phone ?? null, fullName: user?.name ?? null, externalId: String(orderUserId) },
+      // The buyer declined analytics/ads cookies at checkout: no GA purchase either.
+      consent: (order.metaAttribution as { consent?: boolean } | null)?.consent !== false,
+    };
+    return { userPublicId: user?.publicId ?? null, taxCommit, purchase };
   });
   const userPublicId = settled?.userPublicId ?? null;
   const taxCommit = settled?.taxCommit ?? null;
 
   publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
+
+  // GA purchase only. Meta Purchase is sendMetaPurchaseOnce: same event id as the card
+  // page pixel, stored click ids, and skipped for renewals. This request is a webhook or
+  // a staff verify, so it must not attach this browser.
+  if (settled?.purchase?.consent) {
+    const { purchase } = settled;
+    const { currency } = await getAppSettings();
+    trackConversion(
+      {
+        eventName: "Purchase",
+        eventId: `purchase:${purchase.paymentRef}`,
+        user: purchase.user,
+        customData: { value: purchase.value, currency, order_id: purchase.orderRef },
+      },
+      { meta: false },
+    );
+  }
 
   // Refreshes the customer's wallet/bills views.
   if (userPublicId) publishUserRefresh(userPublicId);
@@ -1118,6 +1174,9 @@ export async function verifyPayment(
       await db.insert(orderActivities).values({ orderId: taxCommit.orderId, type: "note", note: "Stripe Tax commit failed — retry from Payments → Stripe" });
     }
   }
+
+  // Purchase CAPI after settle commits. Uses stored order attribution — never webhook headers.
+  if (settled) void sendMetaPurchaseOnce(paymentPublicId);
 }
 
 // Minimal refund trigger: tiffin-grab has no refund-processing flow yet (no

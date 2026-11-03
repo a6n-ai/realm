@@ -2,37 +2,29 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CONSENT_COOKIE, CONSENT_VERSION, parseConsent, type Consent } from "@/lib/consent";
 import "./cookie-consent.css";
 
 // Cookie consent for Canadian rules (PIPEDA; Quebec Law 25 s. 8.1): anything that tracks a
 // visitor is OFF until they say yes, saying no is one tap like saying yes, and the choice
 // can be changed any time (footer "Cookie settings"). Essential cookies (sign-in, delivery
 // area, referral code) need no consent and always run. The only non-essential tracker is
-// Google Analytics, so it is not even loaded until analytics is accepted.
+// the tracking bootstrap (/api/analytics: Google Analytics and the Meta Pixel), so it is not
+// even loaded until the visitor accepts; server-side sends check the same cookie.
 
-const COOKIE = "tg_consent";
-const VERSION = 1;
-// Ask again after 12 months, or when VERSION changes (new kinds of cookies).
+// Ask again after 12 months, or when CONSENT_VERSION changes.
 const MAX_AGE = 60 * 60 * 24 * 365;
 const OPEN_EVENT = "tg:consent-open";
 
-type Consent = { v: number; analytics: boolean; at: number };
-
 function readConsent(): Consent | null {
-  const raw = document.cookie.split("; ").find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
-  if (!raw) return null;
-  try {
-    const c = JSON.parse(decodeURIComponent(raw)) as Consent;
-    return c.v === VERSION ? c : null;
-  } catch {
-    return null;
-  }
+  const raw = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`))?.slice(CONSENT_COOKIE.length + 1);
+  return parseConsent(raw);
 }
 
 function writeConsent(analytics: boolean): Consent {
-  const c: Consent = { v: VERSION, analytics, at: Date.now() };
+  const c: Consent = { v: CONSENT_VERSION, analytics, at: Date.now() };
   const secure = location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(c))}; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+  document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify(c))}; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax${secure}`;
   return c;
 }
 
@@ -50,11 +42,12 @@ function loadAnalytics() {
 // already-loaded script.
 function stopAnalytics() {
   const w = window as unknown as { gtag?: (...a: unknown[]) => void };
-  w.gtag?.("consent", "update", { analytics_storage: "denied" });
+  w.gtag?.("consent", "update", { analytics_storage: "denied", ad_storage: "denied" });
+  (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.("consent", "revoke");
   const host = location.hostname.split(".").slice(-2).join(".");
   for (const c of document.cookie.split("; ")) {
     const name = c.split("=")[0];
-    if (name && /^_ga/.test(name)) {
+    if (name && /^(_ga|_fbp|_fbc)/.test(name)) {
       for (const domain of ["", `; Domain=.${host}`]) document.cookie = `${name}=; Max-Age=0; Path=/${domain}`;
     }
   }
@@ -102,7 +95,7 @@ export function CookieConsent() {
         <h2 className="tg-consent__title">Cookies on Tiffin Grab</h2>
         <p className="tg-consent__text">
           We use essential cookies to keep you signed in and remember your delivery area. With your OK, we also use
-          Google Analytics to see which pages help people find their tiffin.{" "}
+          Google Analytics and the Meta (Facebook) pixel to see which pages and ads help people find their tiffin.{" "}
           <Link href="/privacy#s8">Privacy policy</Link>
         </p>
         {details ? (
@@ -116,8 +109,8 @@ export function CookieConsent() {
             </li>
             <li>
               <label htmlFor="tg-consent-analytics">
-                <strong>Analytics</strong>
-                <span>Google Analytics: pages visited and how long, counted without your name.</span>
+                <strong>Analytics and ads</strong>
+                <span>Google Analytics and the Meta pixel: which pages you visit and which ads brought you here.</span>
               </label>
               <input
                 id="tg-consent-analytics"

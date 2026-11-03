@@ -10,11 +10,14 @@ import { isWorkers } from "./runtime/platform";
  * keys and scopes `evictAll()` to just this cache.
  */
 export function sharedCache(name: string, defaultTtlMs = 60_000): TieredCache {
-  return new TieredCache({
-    name,
-    tiers: [new LruTier(), isWorkers() ? new KvTier(name) : new RedisTier(getRedis(), name)],
-    defaultTtlMs,
-  });
+  return new TieredCache({ name, tiers: [new LruTier(), ...sharedTier(name)], defaultTtlMs });
+}
+
+function sharedTier(name: string) {
+  if (isWorkers()) return [new KvTier(name)];
+  // `next build` for the Worker artifact runs on Node with no Redis (CI); LRU is enough to collect page data.
+  if (process.env.BUILD_TARGET === "workers") return [];
+  return [new RedisTier(getRedis(), name)];
 }
 
 /**

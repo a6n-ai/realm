@@ -41,9 +41,10 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** NULL from date = a pooled tiffin scheduled onto this trip; undefined = no move row found. */
 export function extraTiffinLabel(fromEatDate: string | null | undefined): string {
   if (fromEatDate === undefined) return "Extra";
-  if (fromEatDate === null) return "Extra · from pool";
-  const day = parseIsoDateUtc(fromEatDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
-  return `Extra · moved from ${day}`;
+  if (fromEatDate === null) return "Extra · pool";
+  // Sits after the customer name in the Excel/labels name cell, so kept short.
+  const day = parseIsoDateUtc(fromEatDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `Extra · ${day}`;
 }
 
 export type KitchenPackingRow = {
@@ -51,7 +52,7 @@ export type KitchenPackingRow = {
   deliveryDate: string;
   /** Eating day of this row; carried days get their own row on the trip's delivery date. */
   forDate: string;
-  /** "For Tue" on trips carrying several eating days, "Extra · moved from Wed, Oct 7" on a moved-in repeat tiffin, else null. */
+  /** "For Tue" on trips carrying several eating days, "Extra · Oct 7" on a moved-in repeat tiffin, else null. */
   forLabel: string | null;
   customerName: string;
   phone: string | null;
