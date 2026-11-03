@@ -52,8 +52,10 @@
     "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
     "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 0 }]
   },
-  "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }],
+  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" }],
+  "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache", "database_id": "e7e348b9-d61d-434d-9b58-bd4f306aefc5" }],
+  "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
   "vars": {
     "NODE_ENV": "production",
     "LOG_LEVEL": "info",
@@ -95,8 +97,10 @@
         "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox-preview" }],
         "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 0 }]
       },
-      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }] },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }],
+      "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache-preview" }],
+      "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache-preview", "database_id": "8a1af6e1-2eed-4d99-a6fa-a27dfc13ee25" }],
+      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
       "vars": {
         "NODE_ENV": "production",
         "LOG_LEVEL": "info",
