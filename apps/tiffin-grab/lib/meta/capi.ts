@@ -2,6 +2,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { getMetaPixelConfig, openAccessToken } from "@/lib/services/meta-pixel/config";
 import { buildMetaUserData } from "./user-data";
 import type { MetaCustomData, SendMetaEventArgs } from "./types";
+import { runInBackground } from "@/lib/runtime/background";
 
 const log = createLogger("meta-capi");
 
@@ -50,7 +51,8 @@ export function sendMetaEvent(args: SendMetaEventArgs): void {
     return;
   }
 
-  void (async () => {
+  // Workers cancel an un-awaited promise when the response ends; runInBackground hands it to waitUntil.
+  runInBackground(async () => {
     const conn = await connection();
     if (!conn) return;
     const built = buildMetaCapiBody(args, conn.testEventCode);
@@ -74,7 +76,7 @@ export function sendMetaEvent(args: SendMetaEventArgs): void {
     } finally {
       clearTimeout(timer);
     }
-  })();
+  }, "meta capi");
 }
 
 /** Exported for unit tests — builds the JSON body without sending. `testEventCode` is the value saved in Settings. */

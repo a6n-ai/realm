@@ -46,6 +46,7 @@ import {
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
+import { runInBackground } from "@/lib/runtime/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
@@ -859,7 +860,7 @@ export async function createOrder(
   }
 
   // Simulated (local) settle never hits verifyPayment — fire Purchase here once.
-  if (!deferSettlement) void sendMetaPurchaseOnce(txResult.paymentPublicId);
+  if (!deferSettlement) runInBackground(() => sendMetaPurchaseOnce(txResult.paymentPublicId), "meta purchase");
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId, paymentPublicId: txResult.paymentPublicId };
 }
@@ -1174,7 +1175,7 @@ export async function verifyPayment(
   }
 
   // Purchase CAPI after settle commits. Uses stored order attribution — never webhook headers.
-  if (settled) void sendMetaPurchaseOnce(paymentPublicId);
+  if (settled) runInBackground(() => sendMetaPurchaseOnce(paymentPublicId), "meta purchase");
 }
 
 // Minimal refund trigger: tiffin-grab has no refund-processing flow yet (no
