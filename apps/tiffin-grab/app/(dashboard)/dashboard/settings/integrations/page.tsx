@@ -2,18 +2,18 @@ import { Suspense } from "react";
 import { resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PLUGINS } from "@/lib/plugins.server";
-import { PluginsCatalog, PluginsCatalogSkeleton } from "./plugins-catalog";
+import { Marketplace, MarketplaceSkeleton } from "./marketplace";
 
 export default async function IntegrationsPage() {
   await requireAdmin();
   return (
-    <Suspense fallback={<PluginsCatalogSkeleton />}>
-      <PluginsCatalogLoader />
+    <Suspense fallback={<MarketplaceSkeleton />}>
+      <MarketplaceLoader />
     </Suspense>
   );
 }
 
-async function PluginsCatalogLoader() {
+async function MarketplaceLoader() {
   const statuses = await resolveStatuses(PLUGINS);
-  return <PluginsCatalog statuses={statuses} />;
+  return <Marketplace statuses={statuses} />;
 }
