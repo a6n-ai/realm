@@ -27,10 +27,15 @@
   "observability": { "enabled": true },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
-  // No crons until cutover: EC2 still runs these jobs against the same DB. Cutover sets ["* * * * *"].
-  "triggers": { "crons": [] },
+  "triggers": { "crons": ["* * * * *"] },
   "workers_dev": false,
   "preview_urls": false,
+  // Live since the 2026-11-03 cutover from EC2. proxy.ts splits apex (public pages) from app. (auth, console, /me).
+  "routes": [
+    { "pattern": "tiffingrab.ca", "custom_domain": true },
+    { "pattern": "www.tiffingrab.ca", "custom_domain": true },
+    { "pattern": "app.tiffingrab.ca", "custom_domain": true }
+  ],
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" }],
   // Create the Hyperdrive config with caching DISABLED (--caching-disabled true): the default
   // caches SELECTs for ~60 s and a page read right after a write would show old data.
@@ -59,8 +64,7 @@
     // Mirror of SSM /tiffin-grab/prod/OPTIMO_EVENTS; verify in Task 12 (the poller is OFF today).
     "OPTIMO_EVENTS": "off"
   },
-  // No custom domain on production until the cutover task.
-  "env": {
+    "env": {
     "preview": {
       "name": "tiffin-grab-preview",
       "no_bundle": true,
