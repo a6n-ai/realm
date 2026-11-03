@@ -25,3 +25,19 @@ export function hasAnalyticsConsent(): boolean {
   const raw = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`))?.slice(CONSENT_COOKIE.length + 1);
   return parseConsent(raw)?.analytics === true;
 }
+
+// Hosts where the last two labels are a public suffix: a Domain= there is rejected by the
+// browser and the whole cookie is dropped, so those keep a host-only cookie.
+const SHARED_HOSTS = new Set(["trycloudflare.com", "workers.dev", "pages.dev", "vercel.app", "github.io"]);
+
+/**
+ * Domain attribute for the consent cookie: the registrable domain (tiffingrab.ca), so one choice
+ * covers tiffingrab.ca and app.tiffingrab.ca (signed-in pages). Null for localhost, IPs and
+ * shared hosting suffixes. ponytail: assumes a two-label registrable domain; add a public-suffix
+ * list if a client ever sits on something like example.co.uk.
+ */
+export function consentCookieDomain(hostname: string): string | null {
+  if (!hostname.includes(".") || /^[\d.]+$/.test(hostname) || hostname.includes(":")) return null;
+  const site = hostname.split(".").slice(-2).join(".");
+  return SHARED_HOSTS.has(site) ? null : site;
+}
