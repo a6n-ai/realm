@@ -68,6 +68,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
     if (!claimed) return;
 
     const attr = (claimed.order.metaAttribution ?? null) as MetaAttribution | null;
+    if (attr?.consent === false) return;
     const value = Number(claimed.pay.amount) + Number(claimed.pay.surchargeAmount ?? 0);
     const settledMs = claimed.pay.capturedAt ?? claimed.claimedAt;
     const contentIds = [claimed.plan?.key, claimed.meal?.key ?? claimed.meal?.publicId].filter(

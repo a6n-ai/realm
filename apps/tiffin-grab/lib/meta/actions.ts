@@ -1,6 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
+import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { sendMetaEvent } from "./capi";
 import { liveMetaRequestContext } from "./request-context";
 import type { MetaCustomData, MetaEventName } from "./types";
@@ -26,6 +27,7 @@ export type MetaClientEventInput = {
 /** CAPI companion for Pixel events that originate in the browser. */
 export async function sendMetaClientEvent(input: MetaClientEventInput): Promise<{ ok: true }> {
   if (!ALLOWED.has(input.eventName)) return { ok: true };
+  if (!(await requestHasAnalyticsConsent())) return { ok: true };
   const eventId = input.eventId?.trim() ?? "";
   if (!UUID_RE.test(eventId)) return { ok: true };
 

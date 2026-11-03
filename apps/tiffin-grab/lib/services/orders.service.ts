@@ -1134,6 +1134,8 @@ export async function verifyPayment(
       paymentRef: pay.publicId,
       value: Number(pay.amount),
       user: { email: user?.email ?? null, phone: user?.phone ?? null, fullName: user?.name ?? null, externalId: String(orderUserId) },
+      // The buyer declined analytics/ads cookies at checkout: no GA purchase either.
+      consent: (order.metaAttribution as { consent?: boolean } | null)?.consent !== false,
     };
     return { userPublicId: user?.publicId ?? null, taxCommit, purchase };
   });
@@ -1146,7 +1148,7 @@ export async function verifyPayment(
   // GA purchase only. Meta Purchase is sendMetaPurchaseOnce: same event id as the card
   // page pixel, stored click ids, and skipped for renewals. This request is a webhook or
   // a staff verify, so it must not attach this browser.
-  if (settled?.purchase) {
+  if (settled?.purchase?.consent) {
     const { purchase } = settled;
     const { currency } = await getAppSettings();
     trackConversion(

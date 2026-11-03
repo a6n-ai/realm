@@ -646,6 +646,19 @@ body:has(.tg-light-root) { background: #FBF4E7; color-scheme: light; }
   --border: oklch(1 0 0 / 12%);
 }
 
+/* Landing bands only (2026-11): a fresher forest than the customer app's dark mode.
+   Cream text on #2A5440 is ~7.6:1; muted text is lifted so it still clears 4.5:1. */
+.tg-land .dark {
+  --background: #2A5440;
+  --card: #33634B;
+  --popover: #33634B;
+  --secondary: #3A6C53;
+  --muted: #3A6C53;
+  --accent: #3A6C53;
+  --sidebar: #2E5A45;
+  --muted-foreground: #D3DCCB;
+}
+
 /* Turnstile's checkbox slot, once Cloudflare shows it: keyboard focus inside the
    widget's iframe shows as a ring around the slot (lib/auth/captcha-client.ts). */
 .captcha-host { border-radius: 8px; }

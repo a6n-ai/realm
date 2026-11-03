@@ -7,6 +7,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { isFullPostalCode, parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { findZone } from "@/lib/catalog/zone-match";
 import { sendMetaEvent } from "@/lib/meta/capi";
+import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { liveMetaRequestContext } from "@/lib/meta/request-context";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -48,7 +49,7 @@ export async function checkDelivery(
   };
 
   const eventId = opts?.eventId?.trim() ?? "";
-  if (UUID_RE.test(eventId)) {
+  if (UUID_RE.test(eventId) && (await requestHasAnalyticsConsent())) {
     const ctx = await liveMetaRequestContext({ eventSourceUrl: opts?.eventSourceUrl });
     sendMetaEvent({
       eventName: "FindLocation",

@@ -1,5 +1,6 @@
 import { isRateLimited } from "@foundry/commons";
 import { sendMetaEvent } from "@/lib/meta/capi";
+import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { liveMetaRequestContext } from "@/lib/meta/request-context";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
   if (eventName !== "Contact" || !UUID_RE.test(eventId)) {
     return new Response(null, { status: 400 });
   }
+
+  // No consent: accept the beacon, send nothing.
+  if (!(await requestHasAnalyticsConsent())) return new Response(null, { status: 204 });
 
   const ctx = await liveMetaRequestContext({ eventSourceUrl });
   sendMetaEvent({

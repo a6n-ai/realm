@@ -3,6 +3,7 @@ import { Suspense, ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { NavRating, reviewsConnected } from "@/components/landing/landing-reviews";
 import { WhatsAppChat } from "@/components/landing/whats-app-chat";
+import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import "@/components/landing/landing.css";
@@ -69,14 +70,14 @@ async function PublicFooter() {
       </div>
       <div className="tg-wrap tg-close__meta">
         {zones.length > 0 ? <p>Delivering to {zones.join(", ")}.</p> : null}
-        <p>© {new Date().getFullYear()} Tiffin Grab</p>
+        <p>© {new Date().getFullYear()} Tiffin Grab · <CookieSettingsButton className="tg-close__cookie" /></p>
       </div>
       <div className="tg-close__base">
         <div className="tg-close__mark" aria-hidden>tiffin grab</div>
         <svg className="tg-sticker tg-sticker--round" viewBox="0 0 200 200" aria-hidden>
           <defs><path id="tg-sticker-ring" d="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" /></defs>
           <circle cx="100" cy="100" r="96" fill="#FBF4E7" />
-          <circle cx="100" cy="100" r="88" fill="#1F2E26" />
+          <circle cx="100" cy="100" r="88" fill="#2A5440" />
           <text className="tg-sticker__ring"><textPath href="#tg-sticker-ring" startOffset="0">SMALL BATCHES · HOME‑STYLE · ACROSS THE GTA ·</textPath></text>
           <image href="/brand/mark.svg" x="62" y="62" width="76" height="76" />
         </svg>

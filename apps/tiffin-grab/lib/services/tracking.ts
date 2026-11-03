@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { sendMetaEvent, type MetaEventInput } from "./meta-pixel/capi";
 import { clientIdFromGaCookie, sendGaEvent, type GaEvent } from "./google-analytics/mp";
 
@@ -60,6 +61,7 @@ export function trackConversion(input: MetaEventInput, opts: { withRequest?: boo
   const run = async () => {
     let gaClientId: string | null = null;
     if (opts.withRequest) {
+      if (!(await requestHasAnalyticsConsent())) return;
       const { sourceUrl, gaClientId: ga, ...browser } = await requestBrowser();
       gaClientId = ga;
       input = { ...input, sourceUrl: input.sourceUrl ?? sourceUrl, user: { ...browser, ...input.user } };

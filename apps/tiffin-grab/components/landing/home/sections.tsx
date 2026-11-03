@@ -9,6 +9,7 @@ import type { BoardWeekend } from "@/lib/landing/week-board";
 import { HeroVideo } from "@/components/landing/home/hero-video";
 import { SwipeRow } from "@/components/landing/home/swipe-row";
 import { MenuBoard } from "@/components/landing/home/menu-board";
+import { TodayPicks } from "@/components/landing/home/today-picks";
 
 const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 const WEEK_LETTER: Record<(typeof WEEK)[number], string> = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" };
@@ -34,7 +35,7 @@ function OfferSticker({ promo }: { promo: LandingPromo }) {
         <circle cx="100" cy="100" r="97" fill="#FBF4E7" />
         <circle cx="100" cy="100" r="90" fill="#FF9843" />
         <g className="lp-sticker__spin"><text className="lp-sticker__ring"><textPath href="#lp-sticker-ring" textLength="462" lengthAdjust="spacing">{ring.toUpperCase()}</textPath></text></g>
-        <circle cx="100" cy="100" r="58" fill="#1F2E26" />
+        <circle cx="100" cy="100" r="58" fill="#2A5440" />
       </svg>
       <span className="lp-sticker__core">
         <strong>{headline}</strong>
@@ -52,7 +53,7 @@ export function Hero({
   video: string;
   poster: string;
   offer: LandingPromo | null;
-  today: { label: string; dishes: string[] } | null;
+  today: { day: string; isToday: boolean; choices: { row: string; dishes: string[] }[]; fixed: string[] } | null;
   ctaHref: string;
   hasMenu: boolean;
   rating: React.ReactNode;
@@ -89,11 +90,18 @@ export function Hero({
           ) : null}
         </div>
         <div className="lp-hero__cards">
-          {today && today.dishes.length > 0 ? (
-            <div className="lp-glass lp-hero__today">
-              <span className="lp-kicker">{today.label}</span>
-              <ul>{today.dishes.slice(0, 5).map((d) => <li key={d}>{d}</li>)}</ul>
-            </div>
+          {today ? (
+            <article className="lp-glass lp-hero__today" aria-label={`${today.day}'s tiffin`}>
+              <header className="lp-today__head">
+                <h2>{today.day}&apos;s tiffin</h2>
+                {today.isToday ? <span className="lp-today__badge">Today</span> : null}
+              </header>
+              <TodayPicks rows={today.choices} />
+              {today.fixed.length > 0 ? (
+                <p className="lp-today__with"><span className="lp-today__label">With it</span>{today.fixed.join(" · ")}</p>
+              ) : null}
+              <a href="#menu" className="lp-today__link">See the week&apos;s menu <ArrowRight aria-hidden className="size-4" strokeWidth={2} /></a>
+            </article>
           ) : null}
         </div>
       </div>
@@ -166,6 +174,10 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
   const names = ["Diet", "Size", ...(sides.length > 0 ? ["Sides"] : []), "Days", "Weeks", "Price", "Photo"];
   return (
     <section className="lp-section lp-build" aria-labelledby="lp-build">
+      {/* The same warm, blurred food wash as the menu: the glass cards read as glass over it. */}
+      <div className="lp-wash" aria-hidden>
+        <Image src={photo} alt="" fill sizes="100vw" placeholder="blur" />
+      </div>
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">
           <div>

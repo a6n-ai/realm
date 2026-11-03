@@ -5,6 +5,8 @@ export type MetaAttribution = {
   fbp?: string;
   fbc?: string;
   eventSourceUrl?: string;
+  /** false when the buyer had not accepted analytics/ads cookies: no Purchase is sent for the order. */
+  consent?: boolean;
 };
 
 export type MetaUserDataInput = {

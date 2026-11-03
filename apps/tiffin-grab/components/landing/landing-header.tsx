@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
+import "./nav.css";
 
 const LINKS = [
   { href: "/menu/weekly", label: "Menu" },
@@ -16,18 +17,21 @@ const LINKS = [
 ];
 
 /** Label that rolls up on hover: the visible copy slides out as an aria-hidden twin rolls in. */
-function Roll({ children }: { children: string }) {
+function Roll({ children, className }: { children: string; className?: string }) {
   return (
-    <span className="tg-roll">
+    <span className={className ? `tg-roll ${className}` : "tg-roll"}>
       <span>{children}</span>
       <span aria-hidden>{children}</span>
     </span>
   );
 }
 
-// The customer top bar's anatomy: brand left, nav pills, one hero action. On phones the
-// pills fold into a panel that drops out of the glass pill (a disclosure, not a modal).
-// The bar tucks away while reading down the page and returns on any scroll up.
+// A floating capsule of liquid glass. It reads what is under it: over the hero video and the
+// dark-green bands it turns to smoked glass with cream type, over cream it is frosted cream.
+// A single lens slides between the links (hover, focus, else the current page), always from
+// where it is, so a quick sweep across the links reads as one object moving. Reading down,
+// the capsule tucks away; any scroll up or focus brings it back. On phones the links fold
+// into a sheet that grows out of the menu button.
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
 export function LandingHeader({ rating }: { rating?: ReactNode }) {
   const { data: session } = useSession();
@@ -36,12 +40,27 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
     ? { href: roleLanding(role ?? Role.USER), label: session.user.name?.split(" ")[0] ?? "Account" }
     : { href: "/login", label: "Sign in" };
   const path = usePathname();
-  const current = (href: string) => (path === href || path.startsWith(`${href}/`) ? "page" : undefined);
+  const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
   const [tucked, setTucked] = useState(false);
+  const [tone, setTone] = useState<"light" | "dark">("light");
+  const barRef = useRef<HTMLElement>(null);
+  const linksRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const firstRef = useRef<HTMLAnchorElement>(null);
   const close = () => setOpen(false);
+
+  // Lens: rests on the current page link, follows hover and keyboard focus.
+  const moveLens = (target: HTMLElement | null) => {
+    const box = linksRef.current;
+    if (!box) return;
+    const el = target ?? box.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el) { box.style.setProperty("--lens-o", "0"); return; }
+    box.style.setProperty("--lens-x", `${el.offsetLeft}px`);
+    box.style.setProperty("--lens-w", `${el.offsetWidth}px`);
+    box.style.setProperty("--lens-o", "1");
+  };
+  useLayoutEffect(() => { moveLens(null); }, [path, account.label]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +70,6 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
       setOpen(false);
       menuRef.current?.focus();
     };
-    // Phones only (the button is hidden wider): close if the viewport grows past the breakpoint.
     const wide = matchMedia("(min-width: 821px)");
     const onWide = () => wide.matches && setOpen(false);
     const html = document.documentElement;
@@ -66,6 +84,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
     };
   }, [open]);
 
+  // Tuck while reading down, return on any scroll up.
   useEffect(() => {
     let last = scrollY;
     let frame = 0;
@@ -83,40 +102,94 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
     return () => { removeEventListener("scroll", onScroll); cancelAnimationFrame(frame); };
   }, []);
 
+  // Tone: dark while any .dark band (hero, green sections) sits under the capsule. The
+  // observer's root is a thin strip where the capsule floats, so no scroll math is needed.
+  useEffect(() => {
+    const bands = [...document.querySelectorAll<HTMLElement>(".tg-land main .dark")];
+    if (bands.length === 0) return;
+    const under = new Set<Element>();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) e.isIntersecting ? under.add(e.target) : under.delete(e.target);
+      setTone(under.size > 0 ? "dark" : "light");
+    }, { rootMargin: "-4% 0px -95% 0px" });
+    bands.forEach((b) => io.observe(b));
+    return () => io.disconnect();
+  }, [path]);
+
+  // Specular sheen follows a fine pointer across the glass.
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || !matchMedia("(pointer: fine)").matches) return;
+    let frame = 0;
+    const onMove = (e: PointerEvent) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const r = bar.getBoundingClientRect();
+        bar.style.setProperty("--mx", `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}%`);
+      });
+    };
+    bar.addEventListener("pointermove", onMove);
+    return () => { bar.removeEventListener("pointermove", onMove); cancelAnimationFrame(frame); };
+  }, []);
+
+  const navLinks = [...LINKS, account];
+
   return (
     <>
       <a href="#main" className="tg-skip">Skip to content</a>
-      {open ? <div className="tg-drawer-scrim" aria-hidden onClick={close} /> : null}
-      <header className="tg-header c-glass" data-open={open} data-tucked={tucked && !open} style={{ viewTransitionName: "site-header" }}>
-        <div className="tg-wrap tg-header__in">
-          <Link href="/" className="tg-header__brand" aria-label="TiffinGrab home" onClick={close}>
-            <BrandMark className="size-9" />
-            <BrandWordmark className="tg-header__word text-lg" grabClassName="text-[#185936]" />
+      {open ? <div className="tg-bar-scrim" aria-hidden onClick={close} /> : null}
+      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone} data-open={open} data-tucked={tucked && !open} style={{ viewTransitionName: "site-header" }}>
+        <div className="tg-bar__in">
+          <Link href="/" className="tg-bar__brand" aria-label="TiffinGrab home" onClick={close}>
+            <BrandMark className="tg-bar__mark" />
+            <BrandWordmark className="tg-bar__word" grabClassName="tg-bar__grab" />
           </Link>
-          <nav className="tg-nav" aria-label="Main">
-            {LINKS.map((l) => <Link key={l.href} href={l.href} className="tg-navpill" aria-current={current(l.href)}><Roll>{l.label}</Roll></Link>)}
-            <Link prefetch={false} href={account.href} className="tg-navpill" aria-current={current(account.href)}><Roll>{account.label}</Roll></Link>
+          <div ref={linksRef} className="tg-bar__links" onPointerLeave={() => moveLens(null)} onBlur={() => moveLens(null)}>
+            <span className="tg-bar__lens" aria-hidden />
+            <nav aria-label="Main" className="contents">
+              {navLinks.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  prefetch={l === account ? false : undefined}
+                  className="tg-bar__link"
+                  aria-current={isCurrent(l.href) ? "page" : undefined}
+                  onPointerEnter={(e) => moveLens(e.currentTarget)}
+                  onFocus={(e) => moveLens(e.currentTarget)}
+                >
+                  <Roll>{l.label}</Roll>
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <div className="tg-bar__end">
             {rating}
-            <Link prefetch={false} href="/subscribe" className="tg-cta tg-header__cta ml-1" tabIndex={open ? -1 : undefined}>
-              <Roll>Build my tiffin</Roll>
-              <ArrowRight aria-hidden className="tg-header__arrow size-4" strokeWidth={2.4} />
+            <Link prefetch={false} href="/subscribe" className="tg-cta tg-bar__cta" tabIndex={open ? -1 : undefined}>
+              <Roll className="tg-bar__cta-long">Build my tiffin</Roll>
+              <Roll className="tg-bar__cta-short">Order</Roll>
+              <ArrowRight aria-hidden className="tg-bar__arrow size-4" strokeWidth={2.4} />
             </Link>
-            <button ref={menuRef} type="button" className="tg-menu-btn" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="tg-drawer" onClick={() => setOpen((v) => !v)}>
+            <button ref={menuRef} type="button" className="tg-bar__menu" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen((v) => !v)}>
               <span className="tg-burger" aria-hidden><span /><span /></span>
             </button>
-          </nav>
+          </div>
         </div>
-        <div id="tg-drawer" className="tg-drawer" inert={!open}>
-          <nav aria-label="Menu" className="tg-drawer__links">
-            {[...LINKS, account].map((l, i) => (
-              <Link key={l.href} ref={i === 0 ? firstRef : undefined} href={l.href} prefetch={l === account ? false : undefined} className="tg-drawer__link" aria-current={current(l.href)} style={{ "--i": i } as CSSProperties} onClick={close}>
+        <div id="tg-sheet" className="tg-sheet" inert={!open}>
+          <nav aria-label="Menu" className="tg-sheet__links">
+            {navLinks.map((l, i) => (
+              <Link key={l.href} ref={i === 0 ? firstRef : undefined} href={l.href} prefetch={l === account ? false : undefined} className="tg-sheet__link" aria-current={isCurrent(l.href) ? "page" : undefined} style={{ "--i": i } as CSSProperties} onClick={close}>
                 {l.label}
                 <ArrowUpRight aria-hidden className="size-6" strokeWidth={2} />
               </Link>
             ))}
           </nav>
-          <Link prefetch={false} href="/subscribe" className="tg-cta tg-drawer__cta" onClick={close}>Build my tiffin</Link>
-          <p className="tg-drawer__note">Home-style Indian tiffins, delivered across the GTA.</p>
+          <Link prefetch={false} href="/subscribe" className="tg-cta tg-sheet__cta" onClick={close}>Build my tiffin</Link>
+          <div className="tg-sheet__foot">
+            <Link href="/contact" onClick={close}>Contact</Link>
+            <Link href="/faq" onClick={close}>FAQ</Link>
+            <Link href="/locations" onClick={close}>Where we deliver</Link>
+          </div>
         </div>
       </header>
     </>

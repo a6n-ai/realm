@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import type { MetaAttribution } from "./types";
 
 const FBCLID = /(?:^|[?&#])fbclid=([^&#]+)/i;
@@ -29,6 +30,7 @@ function firstHeader(h: Headers, names: string[]): string | undefined {
 export async function captureMetaAttribution(opts?: {
   eventSourceUrl?: string | null;
 }): Promise<MetaAttribution> {
+  if (!(await requestHasAnalyticsConsent())) return { consent: false };
   const h = await headers();
   const c = await cookies();
   const eventSourceUrl = opts?.eventSourceUrl?.trim() || undefined;
