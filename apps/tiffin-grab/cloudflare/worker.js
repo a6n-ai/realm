@@ -16,6 +16,15 @@ async function tick(env) {
   if (!res.ok) console.error("notifications tick failed", res.status, await res.text().catch(() => ""));
 }
 
+// Public pages are ISR (stale-while-revalidate): this per-minute check revalidates them at local midnight and promo edges.
+async function publicSite(env) {
+  const res = await env.WORKER_SELF_REFERENCE.fetch("https://internal/api/cron/public-site", {
+    method: "POST",
+    headers: { authorization: "Bearer " + env.CRON_SECRET },
+  });
+  if (!res.ok) console.error("public-site check failed", res.status, await res.text().catch(() => ""));
+}
+
 async function armPoller(env) {
   if (env.OPTIMO_EVENTS !== "on") return;
   await env.OPTIMO_POLLER.getByName("events").arm();
@@ -54,6 +63,7 @@ export default {
     await tick(env);
   },
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([tick(env), armPoller(env)]));
+    const guard = (p) => p.catch((err) => console.error("scheduled task threw", err));
+    ctx.waitUntil(Promise.all([guard(tick(env)), guard(armPoller(env)), guard(publicSite(env))]));
   },
 };
