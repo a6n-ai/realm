@@ -8,16 +8,20 @@ import type { MetaCustomData, MetaEventName } from "./types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const ALLOWED: ReadonlySet<MetaEventName> = new Set([
+/** Standard Meta events we accept from the browser, plus AddPaymentInfo (not yet on the Foundry union). */
+type ClientMetaEvent = MetaEventName | "AddPaymentInfo";
+
+const ALLOWED: ReadonlySet<ClientMetaEvent> = new Set([
   "ViewContent",
   "AddToCart",
   "InitiateCheckout",
+  "AddPaymentInfo",
   "Contact",
   "FindLocation",
 ]);
 
 export type MetaClientEventInput = {
-  eventName: MetaEventName;
+  eventName: ClientMetaEvent;
   eventId: string;
   eventSourceUrl?: string | null;
   customData?: MetaCustomData;
@@ -37,7 +41,8 @@ export async function sendMetaClientEvent(input: MetaClientEventInput): Promise<
   const user = session?.user;
 
   sendMetaEvent({
-    eventName: input.eventName,
+    // AddPaymentInfo is a standard Pixel event; Foundry's MetaEventName union lags it.
+    eventName: input.eventName as MetaEventName,
     eventId,
     eventSourceUrl: ctx.eventSourceUrl ?? input.eventSourceUrl,
     userData: {

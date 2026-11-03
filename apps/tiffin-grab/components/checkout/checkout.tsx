@@ -309,6 +309,8 @@ export function Checkout({
   // (the server re-checks the match too, this just avoids sending a stale id).
   const placed = useRef<{ paymentPublicId: string; deploymentId: string } | null>(null);
   const purchasePixelFired = useRef(false);
+  /** Full charged total (incl. tax / card surcharge) for the Stripe Purchase pixel. */
+  const paidTotalRef = useRef<number | null>(null);
   useEffect(() => {
     placed.current = null;
   }, [selections, appliedCodes, appliedCoins, paymentMethodId, contact, addressPublicId]);
@@ -663,14 +665,33 @@ export function Checkout({
   const selectMethod = async (id: string) => {
     if (!selections) return;
     setPaymentMethodId(id);
-    const r = await refreshPrice(selections, appliedCodes, id, appliedCoins || undefined);
+    let r = await refreshPrice(selections, appliedCodes, id, appliedCoins || undefined);
     // A code tied to another payment method drops out here; say so rather than letting it vanish.
     const refused = (r.couponErrors ?? []).filter((e) => appliedCodes.includes(e.code));
     if (refused.length) {
       const keep = appliedCodes.filter((c) => !refused.some((e) => e.code === c));
       setAppliedCodes(keep);
-      await refreshPrice(selections, keep, id, appliedCoins || undefined);
+      r = await refreshPrice(selections, keep, id, appliedCoins || undefined);
       setCouponState({ status: "error", message: `${refused.map((e) => e.code).join(", ")} removed: ${refused[0]!.error.toLowerCase()}` });
+    }
+    // Meta AddPaymentInfo when the customer picks Stripe or e-Transfer (full priced total).
+    const pricedTotal = r && !("error" in r) ? r.pricing.total : null;
+    if ((id === "stripe" || id === "etransfer") && pricedTotal != null) {
+      const eventId = crypto.randomUUID();
+      const params = {
+        value: pricedTotal,
+        currency: "CAD",
+        content_name: id,
+        ...(selections.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
+        num_items: 1,
+      };
+      trackMeta("AddPaymentInfo", params, eventId);
+      void sendMetaClientEvent({
+        eventName: "AddPaymentInfo",
+        eventId,
+        eventSourceUrl: window.location.href,
+        customData: params,
+      });
     }
   };
 
@@ -780,6 +801,7 @@ export function Checkout({
   };
   const cardReceipt = (info: PaidInfo): ReceiptView => {
     const total = info.totalCents ?? Math.round((result?.total ?? 0) * 100);
+    paidTotalRef.current = total / 100;
     const id = placed.current?.deploymentId ?? "";
     return {
       receipt: {
@@ -1310,14 +1332,15 @@ export function Checkout({
       }}
     >
       <PaidSwitch whenPaid={(v) => {
-        if (v.outcome === "paid" && placed.current && result && !purchasePixelFired.current) {
+        if (v.outcome === "paid" && placed.current && !purchasePixelFired.current) {
           purchasePixelFired.current = true;
+          const value = paidTotalRef.current ?? result?.total ?? 0;
           trackMeta(
             "Purchase",
             {
-              value: result.total,
+              value,
               currency: "CAD",
-              ...(selections.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
+              ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
               num_items: 1,
             },
             placed.current.paymentPublicId,
