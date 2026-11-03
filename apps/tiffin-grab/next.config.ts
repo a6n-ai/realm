@@ -29,7 +29,8 @@ const nextConfig: NextConfig = {
     // secured files are served as /api/files/<path>?ak=<token> with a per-request token,
     // so there is no fixed value to allow-list and they must stay on plain <img>.
     // Optimizing them would cache one user's token-bearing response under a shared key.
-    localPatterns: [{ pathname: "/api/files/**", search: "" }],
+    // /landing/** are the public stock photos promo tiles reuse (lib/landing/promos.ts ownImagePath).
+    localPatterns: [{ pathname: "/api/files/**", search: "" }, { pathname: "/landing/**", search: "" }],
     // If FILES_PUBLIC_BASE_URL (see packages/storage's FileSystemService) ever points at a
     // CDN domain, file-storage thumbnail URLs become https://<cdn-domain>/... — outside both
     // lists above. Any next/image usage on file-storage-served images must add that host to

@@ -35,6 +35,19 @@ function fromCoupon(c: AvailableCoupon): LandingPromo {
 // Biggest saving first, so the sticker and popup lead with the strongest offer.
 const strength = (c: AvailableCoupon) => (Number(c.valuePct ?? 0) * 1000) + Number(c.valueAmount ?? 0);
 
+// Staff paste our own photos as absolute URLs (https://tiffingrab.ca/landing/...). Keep only the
+// path so the tile can go through next/image (WebP at its width) instead of the full JPEG.
+export function ownImagePath(url: string | null): string | null {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    const own = u.hostname === "tiffingrab.ca" || u.hostname.endsWith(".tiffingrab.ca");
+    return own && !u.search && u.pathname.startsWith("/landing/") ? u.pathname : url;
+  } catch {
+    return url;
+  }
+}
+
 function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>): LandingPromo {
   const coupon = p.couponCode ? coupons.get(p.couponCode.toUpperCase()) : undefined;
   return {
@@ -42,7 +55,7 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>): Lan
     title: p.title,
     blurb: p.blurb,
     html: p.html,
-    imageUrl: p.imageUrl,
+    imageUrl: ownImagePath(p.imageUrl),
     badge: coupon ? couponHeadline(coupon) : null,
     code: p.couponCode,
     href: p.ctaHref || subscribeHref(p.couponCode),
