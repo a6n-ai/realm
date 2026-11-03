@@ -24,7 +24,8 @@
   "images": { "binding": "IMAGES" },
   // @react-pdf (yoga-layout's emscripten loader) reads import.meta.url, undefined on workerd.
   "define": { "import.meta.url": "\"file:///worker.js\"" },
-  "observability": { "enabled": true },
+  // Logs for every request; traces sampled at 10% (logs + traces share the 50 GB/cycle Observability allowance).
+  "observability": { "enabled": true, "traces": { "enabled": true, "head_sampling_rate": 0.1 } },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "triggers": { "crons": ["* * * * *"] },
@@ -77,7 +78,7 @@
       "triggers": { "crons": ["* * * * *"] },
       "placement": { "mode": "targeted", "region": "aws:us-east-1" },
       "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-      "observability": { "enabled": true },
+      "observability": { "enabled": true, "traces": { "enabled": true } },
       "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
       "images": { "binding": "IMAGES" },
       "define": { "import.meta.url": "\"file:///worker.js\"" },
