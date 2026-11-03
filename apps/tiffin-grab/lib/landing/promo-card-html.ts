@@ -12,8 +12,11 @@ export function promoCardHtml({ badge, title, blurb }: { badge: string | null; t
   const lines = [
     `<!doctype html>`,
     `<html>`,
+    `  <head>`,
+    `    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" />`,
+    `  </head>`,
     `  <body style="margin: 0; font-family: Poppins, Arial, sans-serif; color: #2e1200">`,
-    `    <div style="display: flex; flex-direction: column; gap: 12px">`,
+    `    <div style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 16px; background: #ff9843">`,
     `      <strong style="font-size: 56px; line-height: 0.9; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase">${esc(badge || title)}</strong>`,
   ];
   if (badge) lines.push(`      <span style="font-size: 18px; font-weight: 700">${esc(title)}</span>`);
