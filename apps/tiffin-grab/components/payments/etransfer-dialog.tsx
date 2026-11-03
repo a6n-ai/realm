@@ -10,6 +10,7 @@ import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
+import { trackMeta } from "@foundry/meta-pixel/client";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -36,6 +37,7 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
   const [submitted, setSubmitted] = useState(false);
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const purchasePixelFired = useRef(false);
   const amount = `$${payment.amount.toFixed(2)}`;
 
   function handleOpenChange(next: boolean) {
@@ -68,6 +70,16 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
         }
         const res = await claimPaymentAction(payment.paymentPublicId, form);
         if ("error" in res) return setError(sanitizeClientError(res.error));
+        // Fire here (not only in a parent effect) so a long-lived checkout tab still
+        // records Purchase even if the page JS predates the Paid-screen effect.
+        if (!purchasePixelFired.current) {
+          purchasePixelFired.current = true;
+          trackMeta(
+            "Purchase",
+            { value: payment.amount, currency: "CAD", num_items: 1 },
+            payment.paymentPublicId,
+          );
+        }
         setSubmitted(true);
       } catch (e) {
         setError(sanitizeClientError(e, "Could not submit payment. Please try again."));

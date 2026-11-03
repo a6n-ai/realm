@@ -3,9 +3,10 @@ import { eq, inArray, ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const sendMetaEvent = vi.fn();
+const sendMetaEventAwait = vi.fn(async () => undefined);
 vi.mock("../capi", () => ({
-  sendMetaEvent: (...args: unknown[]) => sendMetaEvent(...args),
+  sendMetaEvent: vi.fn(),
+  sendMetaEventAwait: (...args: unknown[]) => sendMetaEventAwait(...args),
 }));
 
 const { db } = await import("@/db/client");
@@ -17,7 +18,7 @@ const { baseInput } = await import("@/lib/services/__tests__/stripe-fixture");
 const { sendMetaPurchaseOnce } = await import("../purchase");
 
 async function reset() {
-  sendMetaEvent.mockClear();
+  sendMetaEventAwait.mockClear();
   await db.delete(ledgerEntries);
   await db.delete(deliveries);
   await db.delete(payments);
@@ -61,14 +62,14 @@ describe("sendMetaPurchaseOnce", () => {
     expect(pay.status).toBe("awaiting_payment");
 
     await sendMetaPurchaseOnce(pay.publicId);
-    expect(sendMetaEvent).not.toHaveBeenCalled();
+    expect(sendMetaEventAwait).not.toHaveBeenCalled();
     const [still] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(still!.metaPurchaseSentAt).toBeNull();
 
     await claimPayment(pay.publicId, { reference: "CLAIM-1" });
     // claimPayment already called sendMetaPurchaseOnce
-    expect(sendMetaEvent).toHaveBeenCalledTimes(1);
-    expect(sendMetaEvent.mock.calls[0]![0]).toMatchObject({
+    expect(sendMetaEventAwait).toHaveBeenCalledTimes(1);
+    expect(sendMetaEventAwait.mock.calls[0]![0]).toMatchObject({
       eventName: "Purchase",
       eventId: pay.publicId,
     });
@@ -78,22 +79,22 @@ describe("sendMetaPurchaseOnce", () => {
     expect(claimed!.metaPurchaseSentAt).toBeTypeOf("number");
     const sentAt = claimed!.metaPurchaseSentAt;
 
-    sendMetaEvent.mockClear();
+    sendMetaEventAwait.mockClear();
     await sendMetaPurchaseOnce(pay.publicId);
-    expect(sendMetaEvent).not.toHaveBeenCalled();
+    expect(sendMetaEventAwait).not.toHaveBeenCalled();
 
     await verifyPayment(pay.publicId);
     const [paid] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(paid!.status).toBe("paid");
     expect(paid!.metaPurchaseSentAt).toBe(sentAt);
-    expect(sendMetaEvent).not.toHaveBeenCalled();
+    expect(sendMetaEventAwait).not.toHaveBeenCalled();
   });
 
   it("skips renewals (metaPurchaseEligible = false)", async () => {
     const pay = await etransferOrder("+16475550102");
     await db.update(orders).set({ metaPurchaseEligible: false }).where(eq(orders.id, pay.orderId));
     await claimPayment(pay.publicId, { reference: "RENEW-SKIP" });
-    expect(sendMetaEvent).not.toHaveBeenCalled();
+    expect(sendMetaEventAwait).not.toHaveBeenCalled();
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.metaPurchaseSentAt).toBeNull();
   });

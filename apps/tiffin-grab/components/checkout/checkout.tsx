@@ -20,6 +20,7 @@ import {
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { sendMetaClientEvent } from "@/lib/meta/actions";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -317,11 +318,19 @@ export function Checkout({
   useEffect(() => {
     if (!result || checkoutPixelFired.current) return;
     checkoutPixelFired.current = true;
-    trackMeta("InitiateCheckout", {
+    const eventId = crypto.randomUUID();
+    const params = {
       value: result.total,
       currency: "CAD",
       ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
       num_items: 1,
+    };
+    trackMeta("InitiateCheckout", params, eventId);
+    void sendMetaClientEvent({
+      eventName: "InitiateCheckout",
+      eventId,
+      eventSourceUrl: window.location.href,
+      customData: params,
     });
     gtagEvent("begin_checkout");
   }, [result, selections?.planKey]);
