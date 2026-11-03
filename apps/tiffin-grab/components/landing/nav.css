@@ -1,0 +1,199 @@
+/* Site nav: one floating capsule of liquid glass (see landing-header.tsx).
+   Material: a thin tinted body under heavy blur + saturation, a gradient rim (bright top,
+   faint bottom) drawn with a masked border, an inner top highlight and a pointer sheen.
+   Tone: light = frosted cream with ink type; dark = smoked glass with cream type, used
+   while a hero or green band is under it. Colour and fill ease between tones. */
+
+.tg-land { --lp-nav-h: 56px; }
+
+.tg-bar {
+  --bar-fill: rgb(251 244 231 / 0.72);
+  --bar-ink: #241F1B;
+  --bar-ink-soft: rgb(36 31 27 / 0.72);
+  --bar-lens: rgb(255 255 255 / 0.62);
+  --bar-lens-rim: rgb(255 255 255 / 0.9);
+  --bar-rim-top: rgb(255 255 255 / 0.85);
+  --bar-rim-bot: rgb(255 255 255 / 0.12);
+  --bar-grab: #185936;
+  position: sticky; top: calc(var(--tg-announce-h, 0px) + 10px); z-index: 40;
+  width: calc(min(1200px, 100%) - 2 * var(--gutter, 16px));
+  margin: 10px auto 0;
+  border-radius: 999px;
+  color: var(--bar-ink);
+  background: var(--bar-fill);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+          backdrop-filter: blur(24px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 1px 2px rgb(20 16 12 / 0.08),
+    0 18px 40px -18px rgb(20 16 12 / 0.45);
+  transition:
+    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tg-bar[data-tone="dark"] {
+  --bar-fill: rgb(22 30 25 / 0.42);
+  --bar-ink: #FBF4E7;
+  --bar-ink-soft: rgb(251 244 231 / 0.78);
+  --bar-lens: rgb(251 244 231 / 0.16);
+  --bar-lens-rim: rgb(255 255 255 / 0.32);
+  --bar-rim-top: rgb(255 255 255 / 0.42);
+  --bar-rim-bot: rgb(255 255 255 / 0.06);
+  --bar-grab: #9BCB72;
+}
+/* Gradient rim: a 1px border made of a gradient, masked to the ring. */
+.tg-bar::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(180deg, var(--bar-rim-top), var(--bar-rim-bot) 60%, rgb(255 255 255 / 0.18));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* Sheen: a soft light that sits where the pointer is (centre at rest). */
+.tg-bar::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120px 60px at var(--mx, 50%) -10%, rgb(255 255 255 / 0.32), transparent 70%);
+  opacity: 0.9;
+}
+.tg-bar > * { position: relative; z-index: 1; }
+
+.tg-bar__in { display: flex; align-items: center; gap: 12px; height: var(--lp-nav-h); padding: 0 8px 0 18px; }
+
+.tg-bar__brand { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; flex: none; }
+.tg-bar__mark { width: 30px; height: 30px; transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tg-bar__word { font-size: 17px; }
+.tg-bar__grab { color: var(--bar-grab); transition: color 420ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Links: centred group with the lens behind them. */
+.tg-bar__links { position: relative; display: flex; align-items: center; gap: 2px; margin-inline: auto; }
+.tg-bar__lens {
+  position: absolute; left: 0; top: 50%; height: 38px; width: var(--lens-w, 0px);
+  translate: var(--lens-x, 0px) -50%;
+  border-radius: 999px; pointer-events: none;
+  background: var(--bar-lens);
+  box-shadow: inset 0 1px 0 var(--bar-lens-rim), inset 0 -1px 1px rgb(0 0 0 / 0.06), 0 4px 12px -6px rgb(20 16 12 / 0.35);
+  opacity: var(--lens-o, 0);
+  transition:
+    translate 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    background-color 420ms ease;
+}
+.tg-bar__link {
+  position: relative; display: inline-flex; align-items: center; height: 40px; padding: 0 15px;
+  border-radius: 999px; font-size: 14px; font-weight: 600; letter-spacing: -0.005em;
+  color: var(--bar-ink-soft); text-decoration: none; transition: color 200ms ease;
+}
+.tg-bar__link:hover, .tg-bar__link[aria-current="page"] { color: var(--bar-ink); }
+/* Current page: a saffron dot under the label, besides the lens. */
+.tg-bar__link[aria-current="page"]::after {
+  content: ""; position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; border-radius: 999px;
+  background: #F06B1A; translate: -50% 0;
+}
+
+.tg-bar__end { display: flex; align-items: center; gap: 6px; flex: none; }
+.tg-bar .tg-rating { height: 38px; color: var(--bar-ink); }
+.tg-bar .tg-bar__cta { min-height: 40px; padding: 0 16px 0 18px; gap: 6px; font-size: 14px; }
+.tg-bar__arrow { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.tg-bar__cta:is(:hover, :focus-visible) .tg-bar__arrow { transform: translateX(3px); }
+
+.tg-bar__menu {
+  display: none; width: 40px; height: 40px; border: 0; border-radius: 999px; cursor: pointer;
+  align-items: center; justify-content: center; color: var(--bar-ink);
+  background: var(--bar-lens); box-shadow: inset 0 1px 0 var(--bar-lens-rim);
+  transition: background-color 420ms ease, color 420ms ease, transform 150ms ease;
+}
+.tg-bar__menu:active { transform: scale(0.94); }
+.tg-burger { position: relative; display: block; width: 16px; height: 10px; }
+.tg-burger > span { position: absolute; left: 0; right: 0; height: 2px; border-radius: 2px; background: currentColor; transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.tg-burger > span:first-child { top: 0; }
+.tg-burger > span:last-child { bottom: 0; }
+.tg-bar[data-open="true"] .tg-burger > span:first-child { transform: translateY(4px) rotate(45deg); }
+.tg-bar[data-open="true"] .tg-burger > span:last-child { transform: translateY(-4px) rotate(-45deg); }
+
+/* One hover treatment for every nav target: the label rolls up and its twin rolls in. */
+.tg-roll { display: inline-grid; overflow: hidden; line-height: 1.25; }
+.tg-roll > span { grid-area: 1 / 1; transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1); }
+.tg-roll > span + span { transform: translateY(110%); }
+:is(a, button):is(:hover, :focus-visible) > .tg-roll > span:first-child { transform: translateY(-110%); }
+:is(a, button):is(:hover, :focus-visible) > .tg-roll > span + span { transform: none; }
+
+/* Arrives as a material: blur, scale and opacity together, once. */
+@keyframes tg-bar-in { from { opacity: 0; scale: 0.96; filter: blur(8px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .tg-bar { animation: tg-bar-in 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+  @media (hover: hover) { .tg-bar__brand:hover .tg-bar__mark { transform: rotate(-10deg) scale(1.06); } }
+}
+
+/* Tuck while reading down; focus or scroll up brings it back. */
+.tg-bar[data-tucked="true"]:not(:focus-within) { transform: translateY(calc(-100% - 24px)); }
+
+/* Phones: brand, a short "Order" pill, the menu button. Opening the menu grows the capsule
+   itself into the sheet: the sheet sits under the capsule's own row, clipped to the
+   capsule's shape, and the clip opens downward (clip-path, no layout). The links then
+   rise in one after another. Closing runs the same path back up into the capsule. */
+.tg-sheet { display: none; }
+.tg-bar__cta-short { display: none; }
+@media (max-width: 820px) {
+  .tg-bar__links { display: none; }
+  .tg-bar__end { margin-left: auto; }
+  .tg-bar__menu { display: inline-flex; }
+  .tg-bar__in { padding: 0 6px 0 14px; gap: 8px; }
+  .tg-bar .tg-sheet {
+    position: absolute; inset: 0 0 auto; z-index: 0;
+    display: flex; flex-direction: column; gap: 18px; padding: calc(var(--lp-nav-h) + 4px) 16px 18px;
+    max-height: calc(100svh - 20px); overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 28px; background: #FBF4E7; color: #241F1B;
+    box-shadow: inset 0 1px 0 #fff, 0 30px 60px -20px rgb(20 16 12 / 0.55);
+    clip-path: inset(0 0 calc(100% - var(--lp-nav-h)) 0 round 28px);
+    opacity: 0; visibility: hidden;
+    transition: clip-path 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease 360ms, visibility 0s linear 520ms;
+  }
+  .tg-bar[data-open="true"] .tg-sheet {
+    clip-path: inset(0 0 0 0 round 28px); opacity: 1; visibility: visible;
+    transition: clip-path 560ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, visibility 0s;
+  }
+  .tg-bar > .tg-bar__in { z-index: 2; }
+  .tg-bar[data-open="true"] { z-index: 45; --bar-fill: rgb(251 244 231 / 0.96); }
+  .tg-bar[data-open="true"]::after { opacity: 0; }
+  .tg-bar[data-open="true"] .tg-bar__cta { opacity: 0; scale: 0.9; pointer-events: none; }
+  .tg-bar .tg-bar__cta { transition: opacity 200ms ease, scale 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .tg-sheet__links { display: flex; flex-direction: column; }
+  .tg-sheet__link {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 0 6px;
+    border-bottom: 1px solid rgb(36 31 27 / 0.1); color: inherit; text-decoration: none;
+    font-size: 34px; font-weight: 700; letter-spacing: -0.04em; line-height: 1;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity 240ms ease, transform 460ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms ease;
+  }
+  .tg-sheet__link[aria-current="page"] { color: #B4470F; }
+  .tg-sheet__link > svg { color: #B4470F; transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .tg-sheet__link:is(:hover, :focus-visible) > svg { transform: translate(2px, -2px); }
+  .tg-sheet__link:active { color: #B4470F; }
+  .tg-bar[data-open="true"] .tg-sheet__link { opacity: 1; transform: none; transition-delay: calc(140ms + var(--i, 0) * 50ms); }
+  .tg-sheet .tg-sheet__cta { width: 100%; min-height: 56px; font-size: 17px; opacity: 0; transform: translateY(10px); transition: opacity 240ms ease, transform 460ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .tg-bar[data-open="true"] .tg-sheet__cta { opacity: 1; transform: none; transition-delay: 360ms; }
+  .tg-sheet__foot { display: flex; justify-content: center; gap: 4px 20px; flex-wrap: wrap; }
+  .tg-sheet__foot a { display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; font-weight: 600; color: rgb(36 31 27 / 0.7); text-decoration: none; }
+  .tg-sheet__foot a:active { color: #241F1B; }
+  .tg-bar-scrim { position: fixed; inset: 0; z-index: 44; background: rgb(20 16 12 / 0.45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: tg-scrim-in 280ms ease both; }
+}
+@media (max-width: 420px) {
+  .tg-bar__cta-long { display: none; }
+  .tg-bar__cta-short { display: inline-grid; }
+  .tg-bar .tg-bar__cta { padding: 0 14px 0 16px; }
+}
+@keyframes tg-scrim-in { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-bar, .tg-bar__lens, .tg-roll > span, .tg-bar__arrow, .tg-sheet, .tg-sheet__link, .tg-sheet__cta, .tg-bar__cta, .tg-burger > span { transition-duration: 0s !important; transition-delay: 0s !important; }
+  .tg-bar-scrim { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tg-bar { --bar-fill: #FBF4E7; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .tg-bar[data-tone="dark"] { --bar-fill: #1F2E26; }
+}
+@media (prefers-contrast: more) {
+  .tg-bar { --bar-fill: #FBF4E7; --bar-ink-soft: #241F1B; outline: 1px solid #241F1B; }
+  .tg-bar[data-tone="dark"] { --bar-fill: #14201A; --bar-ink-soft: #FBF4E7; outline-color: #FBF4E7; }
+}

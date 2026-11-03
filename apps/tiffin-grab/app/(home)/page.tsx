@@ -19,6 +19,7 @@ import { pageMeta } from "@/lib/landing/meta";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import "@/components/landing/home/home.css";
+import "@/components/landing/home/motion.css";
 // Stock photos of dishes on our menu (Pixabay licence) until the kitchen's own shots arrive.
 import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
@@ -65,7 +66,11 @@ export default async function LandingPage() {
     : null;
   const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
   const todayDay = board.days.find((d) => d.today) ?? board.days[0] ?? null;
-  const today = todayDay ? { label: todayDay.today ? "Today's tiffin" : `On ${todayDay.label}`, dishes: board.rows.flatMap((r) => todayDay.dishes[r] ?? []) } : null;
+  // Rows with 2+ dishes are the day's choices; single-dish rows come with every tiffin.
+  const todayRows = todayDay ? board.rows.filter((r) => (todayDay.dishes[r] ?? []).length > 0).map((r) => ({ row: r, dishes: todayDay.dishes[r]! })) : [];
+  const today = todayDay && todayRows.length > 0
+    ? { day: todayDay.label, isToday: todayDay.today, choices: todayRows.filter((x) => x.dishes.length > 1), fixed: todayRows.filter((x) => x.dishes.length === 1).map((x) => x.dishes[0]!) }
+    : null;
 
   return (
     <div className="lp">

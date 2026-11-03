@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
 import { MenuPickDemo } from "@/components/landing/stage/menu-pick-demo";
+import { Tilt } from "@/components/landing/home/tilt";
 
 /** This week's menu as one board: a liquid-glass day switcher (a tablist, arrow keys move it)
  *  and the chosen day's tiffin, grouped by row. Switching days re-plates the board in place,
@@ -36,7 +37,7 @@ export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[
   return (
     <div className="lp-menu__grid">
       <div className="lp-menu__main">
-        <div className="lp-days lp-glass-light" role="tablist" aria-label="Day of the week" onKeyDown={onKey} style={{ "--n": days.length, "--i": i } as CSSProperties}>
+        <div className="lp-days lp-glass-light lp-bevel" role="tablist" aria-label="Day of the week" onKeyDown={onKey} style={{ "--n": days.length, "--i": i } as CSSProperties}>
           <span className="lp-days__thumb" aria-hidden />
           {days.map((d, k) => (
             <button
@@ -58,7 +59,8 @@ export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[
           ))}
         </div>
 
-        <article id="lp-day-panel" role="tabpanel" aria-labelledby={`lp-day-${day.key}`} className="lp-plate lp-glass-light">
+        <Tilt>
+        <article id="lp-day-panel" role="tabpanel" aria-labelledby={`lp-day-${day.key}`} className="lp-plate lp-glass-light lp-bevel">
           {/* Keyed by day: the board re-plates (fades up) when the day changes. */}
           <div key={day.key} className="lp-plate__in">
             <header className="lp-plate__head">
@@ -101,9 +103,10 @@ export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[
             </p>
           </div>
         </article>
+        </Tilt>
         {/* Sat and Sun share one weekend menu: it belongs to the week board, so it sits right under it. */}
         {weekend ? (
-          <section className="lp-weekend lp-glass-light" aria-label="Weekend menu">
+          <section className="lp-weekend lp-glass-light lp-bevel" aria-label="Weekend menu">
             <header>
               <h3>Weekend</h3>
               <span>{weekend.today ? <em>Today</em> : null}{weekend.date}</span>

@@ -1,0 +1,18 @@
+/* WhatsApp button, in WhatsApp's own green (#25D366): rises in shortly after load, sends out a soft ripple a few times, then
+   settles; the glyph wiggles on hover. `backwards` fill so the entrance never fights the
+   hover/press transforms afterwards. Reduced motion: a still button. */
+.tg-wa { animation: tg-wa-in 600ms cubic-bezier(0.22, 1, 0.36, 1) 1.2s backwards; }
+.tg-wa::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  animation: tg-wa-ring 2.4s ease-out 2.4s 4;
+}
+.tg-wa:hover .tg-wa__icon, .tg-wa:focus-visible .tg-wa__icon { animation: tg-wa-wiggle 600ms ease; }
+@keyframes tg-wa-in { from { opacity: 0; transform: translateY(16px) scale(0.9); } }
+@keyframes tg-wa-ring {
+  0% { box-shadow: 0 0 0 0 rgb(37 211 102 / 0.55); }
+  100% { box-shadow: 0 0 0 18px rgb(37 211 102 / 0); }
+}
+@keyframes tg-wa-wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -14deg; } 75% { rotate: 12deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .tg-wa, .tg-wa::after, .tg-wa:hover .tg-wa__icon, .tg-wa:focus-visible .tg-wa__icon { animation: none; }
+}

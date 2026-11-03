@@ -1,0 +1,54 @@
+/* Cookie choices: a cream glass card at the bottom-left (bottom sheet on phones). Self-contained
+   colours, so it reads the same over the public site, /me and the dashboard. "Essential only"
+   and "Accept all" are the same size and weight: refusing is as easy as accepting. */
+.tg-consent {
+  position: fixed; z-index: 60; left: 16px; bottom: 16px; width: min(440px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 18px 16px;
+  border-radius: 24px; color: #241F1B; font-family: var(--font-poppins), system-ui, sans-serif;
+  background: rgb(251 244 231 / 0.9);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 1px 2px rgb(20 16 12 / 0.08), 0 24px 56px -20px rgb(20 16 12 / 0.5);
+  animation: tg-consent-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 600ms both;
+}
+@keyframes tg-consent-in { from { opacity: 0; translate: 0 16px; scale: 0.98; } }
+.tg-consent__body { display: flex; flex-direction: column; gap: 8px; }
+.tg-consent__title { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.tg-consent__text { margin: 0; font-size: 14px; line-height: 1.5; color: rgb(36 31 27 / 0.8); }
+.tg-consent__text a { color: #B4470F; font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; }
+.tg-consent__list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; }
+.tg-consent__list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid rgb(36 31 27 / 0.1); }
+.tg-consent__list li > :first-child { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; color: rgb(36 31 27 / 0.72); cursor: default; }
+.tg-consent__list label { cursor: pointer; }
+.tg-consent__list strong { font-size: 14px; color: #241F1B; }
+.tg-consent__always { flex: none; font-size: 12px; font-weight: 700; color: #2A5440; }
+.tg-consent__switch {
+  flex: none; appearance: none; width: 44px; height: 26px; margin: 0; border-radius: 999px; cursor: pointer; position: relative;
+  background: rgb(36 31 27 / 0.2); transition: background-color 200ms ease;
+}
+.tg-consent__switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); transition: translate 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tg-consent__switch:checked { background: #2A5440; }
+.tg-consent__switch:checked::after { translate: 18px 0; }
+.tg-consent__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tg-consent__btn {
+  flex: 1 1 auto; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700; color: #FBF4E7; background: #2A5440;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 6px 14px -8px rgb(20 16 12 / 0.6);
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.tg-consent__btn:hover { background: #33634B; }
+.tg-consent__btn:active { transform: scale(0.97); }
+.tg-consent__btn:focus-visible, .tg-consent__switch:focus-visible, .tg-consent__text a:focus-visible { outline: 2px solid #B4470F; outline-offset: 2px; }
+.tg-consent__btn--ghost { flex: 0 1 auto; color: #241F1B; background: rgb(36 31 27 / 0.08); box-shadow: none; }
+.tg-consent__btn--ghost:hover { background: rgb(36 31 27 / 0.14); }
+.tg-consent__btn--primary { flex-basis: 100%; background: #F06B1A; color: #2E1200; }
+.tg-consent__btn--primary:hover { background: #FF8A3D; }
+@media (max-width: 520px) {
+  .tg-consent { left: 8px; right: 8px; bottom: 8px; width: auto; border-radius: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .tg-consent { animation: none; } .tg-consent__switch::after, .tg-consent__btn { transition: none; } }
+@media (prefers-reduced-transparency: reduce) { .tg-consent { background: #FBF4E7; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (prefers-contrast: more) { .tg-consent { background: #FBF4E7; outline: 1px solid #241F1B; } }
+.tg-consent[data-reopened] { animation-delay: 0s; }

@@ -1,7 +1,11 @@
+import "./whats-app-chat.css";
+
 // Floating “Chat with us” control on every public website page. Opens WhatsApp
 // to the support number already published on the delivery policy.
 const WHATSAPP_E164 = "16472449813";
-const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_E164}`;
+// Opens the chat with a first message already typed, so the visitor only has to press send.
+const WHATSAPP_GREETING = "Hi Tiffin Grab! I'd like to know more about your tiffin plans.";
+const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_E164}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;
 
 function WhatsAppGlyph({ className }: { className?: string }) {
   return (
@@ -18,9 +22,9 @@ export function WhatsAppChat() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
-      className="tg-wa fixed right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#0B7A3E] px-4 py-3 text-sm max-md:size-14 max-md:justify-center max-md:p-0 font-semibold text-white shadow-lg transition-[transform,box-shadow] duration-150 hover:bg-[#096632] hover:shadow-xl active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B7A3E] max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] md:right-6 md:bottom-6"
+      className="tg-wa fixed right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm max-md:size-14 max-md:justify-center max-md:p-0 font-semibold text-white shadow-lg transition-[transform,box-shadow] duration-150 hover:bg-[#1EBE5A] hover:shadow-xl active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] md:right-6 md:bottom-6"
     >
-      <WhatsAppGlyph className="size-5 shrink-0 max-md:size-7" />
+      <WhatsAppGlyph className="tg-wa__icon size-5 shrink-0 max-md:size-7" />
       {/* Phones get the round icon only: the labelled pill covered section text. aria-label carries the name. */}
       <span className="max-md:sr-only">Chat with us</span>
     </a>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -10,6 +9,7 @@ import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
+import { CookieConsent } from "@/components/consent/cookie-consent";
 import "./globals.css";
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
@@ -57,8 +57,8 @@ export default function RootLayout({
           <StaleDeployReloader />
           <NavPending />
           <BrowserChrome />
+          <CookieConsent />
         </ThemeProvider>
-        <Script src="/api/analytics" strategy="afterInteractive" />
       </body>
     </html>
   );
