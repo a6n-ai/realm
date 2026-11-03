@@ -15,9 +15,11 @@ export function promoCardHtml({ badge, title, blurb }: { badge: string | null; t
     `  <head>`,
     `    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" />`,
     `  </head>`,
-    `  <body style="margin: 0; font-family: Poppins, Arial, sans-serif; color: #2e1200">`,
-    `    <div style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 16px; background: #ff9843">`,
-    `      <strong style="font-size: 56px; line-height: 0.9; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase">${esc(badge || title)}</strong>`,
+    // Transparent with no padding: the card behind it already draws the gradient and spacing.
+    // vw here is the frame's width, so 20vw tracks the site's clamp(48px, 6.5vw, 88px) headline.
+    `  <body style="margin: 0; background: transparent; font-family: Poppins, Arial, sans-serif; color: #2e1200">`,
+    `    <div style="display: flex; flex-direction: column; gap: 12px">`,
+    `      <strong style="font-size: clamp(48px, 20vw, 88px); line-height: 0.9; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase; overflow-wrap: anywhere">${esc(badge || title)}</strong>`,
   ];
   if (badge) lines.push(`      <span style="font-size: 18px; font-weight: 700">${esc(title)}</span>`);
   if (blurb) lines.push(`      <p style="margin: 0; max-width: 40ch; font-size: 16px; line-height: 1.5; opacity: 0.8">${esc(blurb)}</p>`);

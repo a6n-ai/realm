@@ -48,6 +48,8 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
   useEffect(() => {
     const frame = ref.current;
     if (!frame) return;
+    // Server-rendered frames can finish loading before hydration attaches onLoad, which then never fires.
+    if (frame.contentDocument?.readyState === "complete") onLoad();
     let width = frame.clientWidth;
     const ro = new ResizeObserver(() => {
       if (frame.clientWidth !== width) { width = frame.clientWidth; fit(); }
