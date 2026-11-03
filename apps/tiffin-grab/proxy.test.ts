@@ -132,11 +132,11 @@ describe("proxy URL-based org resolution", () => {
   });
 
   it("sends a signed-out /activate visitor to /login and back", async () => {
-    const res = await proxy(new NextRequest("http://localhost/activate/SUB-ABC123"));
+    const res = await proxy(new NextRequest("http://localhost/activate/SUB-YV5A4D"));
     expect(res?.status).toBe(307);
     const to = new URL(res!.headers.get("location")!);
     expect(to.pathname).toBe("/login");
-    expect(to.searchParams.get("callbackUrl")).toBe("/activate/SUB-ABC123");
+    expect(to.searchParams.get("callbackUrl")).toBe("/activate/SUB-YV5A4D");
   });
 
   it("redirects to /locations when nothing matches and no default exists", async () => {
@@ -155,5 +155,41 @@ describe("proxy URL-based org resolution", () => {
       expect(res?.status).toBe(307);
       expect(res?.headers.get("location")).toContain("/locations");
     });
+  });
+
+  it("rewrites public paths to the resolved org", async () => {
+    const rewriteOf = (res: Response) => new URL(res.headers.get("x-middleware-rewrite")!).pathname;
+    const picked = await proxy(new NextRequest("http://localhost/menu", { headers: { cookie: "franchise=testclient123" } }));
+    expect(rewriteOf(picked)).toBe(`/site/${matchedOrgId}/menu`);
+    const root = await proxy(new NextRequest("http://localhost/", { headers: { cookie: "franchise=testclient123" } }));
+    expect(rewriteOf(root)).toBe(`/site/${matchedOrgId}`);
+    const fallback = await proxy(new NextRequest("http://localhost/menu"));
+    expect(rewriteOf(fallback)).toMatch(/^\/site\/[^/]+\/menu$/);
+  });
+
+  it("rewrites /locations to the brand when no org resolves", async () => {
+    await withNoDefaultOrg(async () => {
+      const res = await proxy(new NextRequest("http://localhost/locations"));
+      expect(new URL(res.headers.get("x-middleware-rewrite")!).pathname).toBe("/site/brand/locations");
+    });
+  });
+
+  it("rejects external /site requests", async () => {
+    const res = await proxy(new NextRequest("http://localhost/site/anything/menu"));
+    expect(res.status).toBe(404);
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("keeps the referral cookie on rewritten public pages", async () => {
+    const res = await proxy(new NextRequest("http://localhost/?ref=YV5A4D"));
+    expect(res.headers.get("x-middleware-rewrite")).not.toBeNull();
+    expect(res.headers.get("set-cookie") ?? "").toMatch(/tg_ref=YV5A4D/);
+  });
+
+  it("does not rewrite POST /contact or the weekly PDF", async () => {
+    const post = await proxy(new NextRequest("http://localhost/contact", { method: "POST" }));
+    expect(post.headers.get("x-middleware-rewrite")).toBeNull();
+    const pdf = await proxy(new NextRequest("http://localhost/menu/weekly/pdf"));
+    expect(pdf.headers.get("x-middleware-rewrite")).toBeNull();
   });
 });

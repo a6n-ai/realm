@@ -83,6 +83,12 @@ const APEX_PUBLIC_EXACT = new Set([
 const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
 
+// Public pages served from the cacheable /site/<org> tree. Exact matches only.
+const SITE_PAGES = new Set([
+  "/", "/menu", "/menu/weekly", "/plans", "/pricing", "/locations", "/reviews", "/faq", "/contact",
+  "/delivery-policy", "/legal", "/terms", "/privacy", "/refund-policy",
+]);
+
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
 
 function frontDoor(request: NextRequest): NextResponse | null {
@@ -109,6 +115,8 @@ export async function proxy(request: NextRequest) {
   // Caddy never set the referral cookie on these redirects.
   const door = frontDoor(request);
   if (door) return door;
+  // /site/<org>/... is reachable only through the rewrite below (which never re-enters the proxy).
+  if (/^\/site(?:\/|$)/i.test(request.nextUrl.pathname)) return new NextResponse(null, { status: 404 });
   // The apex matcher entry below sends static assets here too; they skip everything else, as before.
   if (STATIC_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
   const res = await route(request);
@@ -155,6 +163,11 @@ async function route(request: NextRequest): Promise<NextResponse> {
 
   if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);
   const forwardedRequest = { request: { headers: request.headers } };
+
+  if ((request.method === "GET" || request.method === "HEAD") && SITE_PAGES.has(pathname)) {
+    const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : pathname}`;
+    return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);
+  }
 
   if (onApi) {
     const origin = request.headers.get("origin");

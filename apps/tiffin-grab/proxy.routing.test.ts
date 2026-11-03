@@ -90,4 +90,17 @@ describe("apex/www front door", () => {
     const res = await get("http://localhost:3000/me");
     expect(res.headers.get("location")).toContain("/login");
   });
+
+  it("keeps the apex /menu on the apex and rewrites it internally; app host /menu is rewritten too", async () => {
+    const apex = await get("https://tiffingrab.ca/menu");
+    expect(apex.headers.get("location")).toBeNull();
+    expect(new URL(apex.headers.get("x-middleware-rewrite")!).host).toBe("tiffingrab.ca");
+    expect(new URL(apex.headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/menu");
+    expect(new URL((await get("https://app.tiffingrab.ca/menu")).headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/menu");
+  });
+
+  it("404s external /site on the preview host where the front door is inert", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+    expect((await get("http://localhost:3000/site/org1/menu")).status).toBe(404);
+  });
 });
