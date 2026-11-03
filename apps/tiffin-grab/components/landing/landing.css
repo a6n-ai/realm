@@ -1,8 +1,6 @@
 /* The landing page on the customer design system (DESIGN.md): cream page,
    Poppins, 24px hairline cards, the hero pill, one italic saffron accent word per
    title. Scoped to .tg-land; the tokens come from globals.css. */
-@import "./iso.css";
-@import "./tiffin-figure.css";
 
 .tg-land {
   --gutter: clamp(16px, 4vw, 48px);

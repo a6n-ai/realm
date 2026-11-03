@@ -57,7 +57,7 @@ async function PublicFooter() {
             <strong>Help</strong>
             <Link href="/contact">Contact</Link>
             <Link href="/locations">Locations</Link>
-            <Link href="/me/support">Support</Link>
+            <Link prefetch={false} href="/me/support">Support</Link>
           </nav>
           <nav aria-label="Legal">
             <strong>Legal</strong>

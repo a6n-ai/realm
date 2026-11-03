@@ -176,7 +176,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
     <section className="lp-section lp-build" aria-labelledby="lp-build">
       {/* The same warm, blurred food wash as the menu: the glass cards read as glass over it. */}
       <div className="lp-wash" aria-hidden>
-        <Image src={photo} alt="" fill sizes="100vw" placeholder="blur" />
+        <Image src={photo} alt="" fill sizes="256px" placeholder="blur" />
       </div>
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">
@@ -300,7 +300,7 @@ export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { da
     <section id="menu" className="lp-section lp-menu scroll-mt-24" aria-labelledby="lp-menu">
       {/* A warm wash of real food behind the glass: blurred, so it reads as colour and light. */}
       <div className="lp-menu__bg" aria-hidden>
-        <Image src={photo} alt="" fill sizes="100vw" placeholder="blur" />
+        <Image src={photo} alt="" fill sizes="256px" placeholder="blur" />
       </div>
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">

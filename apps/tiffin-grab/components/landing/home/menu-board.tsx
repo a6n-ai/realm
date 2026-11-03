@@ -4,7 +4,7 @@ import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react"
 import { Heart } from "lucide-react";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
-import { MenuPickDemo } from "@/components/landing/stage/menu-pick-demo";
+import { LazyMenuPickDemo as MenuPickDemo } from "@/components/landing/stage/lazy";
 import { Tilt } from "@/components/landing/home/tilt";
 
 /** This week's menu as one board: a liquid-glass day switcher (a tablist, arrow keys move it)
@@ -60,7 +60,7 @@ export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[
         </div>
 
         <Tilt>
-        <article id="lp-day-panel" role="tabpanel" aria-labelledby={`lp-day-${day.key}`} className="lp-plate lp-glass-light lp-bevel">
+        <div id="lp-day-panel" role="tabpanel" aria-labelledby={`lp-day-${day.key}`} className="lp-plate lp-glass-light lp-bevel">
           {/* Keyed by day: the board re-plates (fades up) when the day changes. */}
           <div key={day.key} className="lp-plate__in">
             <header className="lp-plate__head">
@@ -102,7 +102,7 @@ export function MenuBoard({ days, rows, weekend, cutoffTime }: { days: BoardDay[
               {popular.size > 0 ? <span className="lp-plate__legend"><Heart aria-hidden className="size-3 fill-current" /> Most picked this week</span> : null}
             </p>
           </div>
-        </article>
+        </div>
         </Tilt>
         {/* Sat and Sun share one weekend menu: it belongs to the week board, so it sits right under it. */}
         {weekend ? (

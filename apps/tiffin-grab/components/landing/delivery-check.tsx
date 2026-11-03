@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 const MAPLIBRE_WORKER = "/vendor/maplibre-gl-worker-6.15.0.mjs";
 import { afterFirstInput } from "@/lib/landing/wake";
@@ -93,7 +92,8 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
       // The map library is heavy to start; wait for a first input or an idle moment.
       await afterFirstInput();
       if (cancelled) return;
-      const ml = await import("maplibre-gl");
+      // Map CSS loads with the map, not with the page: it was 70KB of render-blocking CSS.
+      const [ml] = await Promise.all([import("maplibre-gl"), import("maplibre-gl/dist/maplibre-gl.css")]);
       if (cancelled) return;
       // MapLibre looks for its worker beside its own chunk, which the bundler never emits, so
       // tiles never loaded ("Worker failed to load"). Serve a copy from public/ instead; the

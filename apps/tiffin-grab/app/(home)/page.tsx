@@ -6,7 +6,7 @@ import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
 import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { PromoPopup } from "@/components/landing/promo-popup";
-import { PauseDemo } from "@/components/landing/stage/pause-demo";
+import { LazyPauseDemo as PauseDemo } from "@/components/landing/stage/lazy";
 import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, Story } from "@/components/landing/home/sections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
@@ -81,7 +81,8 @@ export default async function LandingPage() {
         today={today}
         ctaHref={promos.sticker?.href ?? "/subscribe"}
         hasMenu={board.days.length > 0}
-        rating={<Suspense fallback={null}><HeroRating /></Suspense>}
+        // The Google line streams in above the headline; hold its 44px row so the hero does not jump (CLS).
+        rating={<Suspense fallback={<div aria-hidden className="min-h-11" />}><HeroRating /></Suspense>}
       />
 
       <Story />
