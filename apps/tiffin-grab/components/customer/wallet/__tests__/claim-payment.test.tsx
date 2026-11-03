@@ -25,6 +25,11 @@ vi.mock("@/components/ds", () => ({
   makeImageThumbnail: vi.fn(async (file: File) => new File([file], "thumb.jpg", { type: "image/jpeg" })),
 }));
 
+const mockTrackMeta = vi.fn();
+vi.mock("@foundry/meta-pixel/client", () => ({
+  trackMeta: (...args: unknown[]) => mockTrackMeta(...args),
+}));
+
 describe("ClaimPayment rigorous event & upload testing", () => {
   const baseCtx: ClaimPaymentContext = {
     paymentPublicId: "pay_123",
@@ -64,6 +69,11 @@ describe("ClaimPayment rigorous event & upload testing", () => {
 
     await waitFor(() => {
       expect(mockClaimPaymentAction).toHaveBeenCalledWith("pay_123", expect.any(FormData));
+      expect(mockTrackMeta).toHaveBeenCalledWith(
+        "Purchase",
+        { value: 100, currency: "CAD", num_items: 1 },
+        "pay_123",
+      );
       expect(mockToast).toHaveBeenCalledWith("Payment submitted — we'll confirm it shortly");
       expect(onDone).toHaveBeenCalled();
       expect(mockRefresh).toHaveBeenCalled();

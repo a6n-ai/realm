@@ -12,6 +12,7 @@ import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
+import { trackMeta } from "@foundry/meta-pixel/client";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -43,6 +44,7 @@ export function ClaimPayment({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const purchasePixelFired = useRef(false);
 
   const claimable = ctx.status === "awaiting_payment" || ctx.status === "rejected";
 
@@ -106,6 +108,14 @@ export function ClaimPayment({
         if ("error" in res) {
           setError(sanitizeClientError(res.error));
           return;
+        }
+        if (!purchasePixelFired.current) {
+          purchasePixelFired.current = true;
+          trackMeta(
+            "Purchase",
+            { value: Number(ctx.amount), currency, num_items: 1 },
+            ctx.paymentPublicId,
+          );
         }
         toast("Payment submitted — we'll confirm it shortly");
         onDone?.();
