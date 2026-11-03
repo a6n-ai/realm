@@ -80,7 +80,7 @@ const APEX_PUBLIC_EXACT = new Set([
   "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
   "/twitter-image.png", "/robots.txt", "/sitemap.xml",
 ]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/"];
+const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
 
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;

@@ -116,7 +116,8 @@
 /* Wide negative insets so italic overhangs and descenders are never clipped once revealed. */
 @keyframes lp-mask-rise { from { clip-path: inset(-20% -10% 100% -10%); transform: translateY(0.35em); } to { clip-path: inset(-20% -10% -25% -10%); transform: none; } }
 @keyframes lp-rise { from { opacity: 0; transform: translateY(18px); } }
-@keyframes lp-lift { from { opacity: 0; transform: translateY(36px) scale(0.98); } }
+/* Transform only: a half-faded card mid-scroll reads as low-contrast text to axe/Lighthouse. */
+@keyframes lp-lift { from { transform: translateY(36px) scale(0.98); } }
 @keyframes lp-phone-in { from { opacity: 0; transform: translateY(48px) rotate(2deg); } }
 @keyframes lp-slide-in { from { opacity: 0; transform: translateX(-40px); } }
 /* No explicit end: the resting value stays the element's own, so the hover zoom still works. */

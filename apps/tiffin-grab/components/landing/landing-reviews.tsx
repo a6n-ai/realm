@@ -62,10 +62,15 @@ export async function NavRating() {
   const summary = await summaryOrNull();
   if (!summary || summary.total === 0) return null;
   return (
-    <Link href="/reviews" className="tg-rating c-liquid" aria-label={`Rated ${summary.rating.toFixed(1)} out of 5 from ${summary.total} Google reviews`}>
+    // No aria-label: the accessible name must contain the visible "4.5 107" (WCAG 2.5.3), so the
+    // rest of the sentence is screen-reader-only text around the visible numbers.
+    <Link href="/reviews" className="tg-rating c-liquid">
       <Star aria-hidden width={15} height={15} strokeWidth={1.75} className="fill-current text-primary" />
+      <span className="sr-only">Rated </span>
       <span className="tabular-nums">{summary.rating.toFixed(1)}</span>
+      <span className="sr-only"> out of 5 from </span>
       <span className="tg-rating__count tabular-nums">{summary.total}</span>
+      <span className="sr-only"> Google reviews</span>
     </Link>
   );
 }
