@@ -9,6 +9,7 @@ import {
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 export async function saveGoogleReviewsPlaceId(
   placeId: string,
@@ -35,7 +36,7 @@ export async function saveGoogleReviewsPlaceId(
 
   revalidatePath("/dashboard/settings/google-reviews");
   revalidatePath("/dashboard/settings/integrations");
-  revalidatePath("/", "layout");
+  revalidatePublicSite();
 
   return { rating: summary.rating, total: summary.total };
 }

@@ -8,6 +8,7 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { requireAdmin } from "@/lib/auth/guards";
 import { PROMO_PLACEMENTS } from "@/db/schema/promotions";
 import { promotionsService } from "@/lib/services/promotions.service";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 const optText = (max: number) => z.preprocess(emptyToNull, z.string().trim().max(max).nullable());
@@ -42,7 +43,7 @@ export async function savePromotionAction(publicId: string | null, input: Promot
     const html = v.html?.trim() ? sanitizeEmailHtml(v.html).html : null;
     const values = { ...v, couponCode, html, body: v.body?.trim() ? v.body : null };
     const row = publicId ? await promotionsService.update(publicId, values) : await promotionsService.create(values);
-    revalidatePath("/");
+    revalidatePublicSite();
     revalidatePath("/dashboard/settings/promotions", "layout");
     return { publicId: row.publicId, message: "Promotion saved" };
   });
@@ -52,7 +53,7 @@ export async function setPromotionActiveAction(publicId: string, active: boolean
   return runAction(async () => {
     await requireAdmin();
     await promotionsService.update(publicId, { active });
-    revalidatePath("/");
+    revalidatePublicSite();
     revalidatePath("/dashboard/settings/promotions", "layout");
     return active ? "Promotion switched on" : "Promotion switched off";
   });

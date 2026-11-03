@@ -26,6 +26,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 // Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
 // the subscribe hot path. Cache it; catalog admin mutations call
@@ -35,8 +36,9 @@ import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
 // edit). A cold isolate otherwise rebuilt it with ~45 queries whenever traffic paused for over a minute.
 const catalogCache = sharedCache("catalog", 60_000, 10 * 60_000);
 
-export function invalidateCatalogSnapshot(): Promise<void> {
-  return catalogCache.evictAll();
+export async function invalidateCatalogSnapshot(): Promise<void> {
+  await catalogCache.evictAll();
+  revalidatePublicSite();
 }
 
 // orgId scopes rows to a franchise's own catalog rows plus any row with a null

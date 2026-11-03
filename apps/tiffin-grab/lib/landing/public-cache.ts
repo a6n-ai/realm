@@ -1,4 +1,5 @@
 import { sharedCache } from "@/lib/cache";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 /**
  * Data the public pages read on every visit but staff change rarely: the FAQ, the
@@ -8,4 +9,7 @@ import { sharedCache } from "@/lib/cache";
  */
 export const publicPagesCache = sharedCache("public-pages", 10 * 60 * 1000);
 
-export const evictPublicPages = () => publicPagesCache.evictAll();
+export async function evictPublicPages(): Promise<void> {
+  await publicPagesCache.evictAll();
+  revalidatePublicSite();
+}

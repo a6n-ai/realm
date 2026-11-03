@@ -14,8 +14,6 @@ async function bust() {
   await invalidateCatalogSnapshot();
   await menuService.evictPublishedCache();
   revalidatePath("/dashboard/settings");
-  revalidatePath("/menu/weekly");
-  revalidatePath("/");
 }
 
 export async function saveMealTypes(cfg: MealTypesSettings) {

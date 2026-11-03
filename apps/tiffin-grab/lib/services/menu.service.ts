@@ -10,6 +10,7 @@ import { getAppSettings, getMealTypes } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id));
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
@@ -269,7 +270,10 @@ export const menuService = {
     });
 
     // An amend changed a live menu, so the public poster's cached copy is now wrong.
-    if (input.amend) await publishedCache.evictAll();
+    if (input.amend) {
+      await publishedCache.evictAll();
+      revalidatePublicSite();
+    }
 
     // Return the persisted list so the client can adopt the new rows' ids without a
     // full page refresh — the refresh per click was the other half of the old cost.
@@ -454,12 +458,14 @@ export const menuService = {
 
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
     await publishedCache.evictAll();
+    revalidatePublicSite();
   },
 
   // getPublishedWeek caches slots + theme per plan; callers that change either
   // (slot edits, meal-type theme) must evict so the public poster isn't stale.
   async evictPublishedCache() {
     await publishedCache.evictAll();
+    revalidatePublicSite();
   },
 
   async listWeeks() {

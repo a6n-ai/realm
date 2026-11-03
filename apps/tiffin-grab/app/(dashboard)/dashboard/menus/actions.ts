@@ -9,6 +9,7 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
 import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/services/menu-sides.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 // Draft edits are invisible to the public site — only a release changes what is served.
 // Revalidating "/" and /menu/weekly on every add/remove was busting the marketing home
@@ -19,8 +20,7 @@ function revalidate() {
 
 function revalidatePublic() {
   revalidatePath("/dashboard/menus");
-  revalidatePath("/menu/weekly");
-  revalidatePath("/");
+  revalidatePublicSite();
 }
 
 // Expected ValidationErrors and AuthErrors must be RETURNED (runAction): thrown errors are redacted

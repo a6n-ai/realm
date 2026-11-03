@@ -17,7 +17,6 @@ export type FaqFormValues = z.input<typeof faqSchema>;
 
 function revalidate() {
   revalidatePath("/dashboard/settings/public-website/faq");
-  revalidatePath("/faq");
 }
 
 export async function saveFaqAction(values: FaqFormValues): Promise<{ error?: string; publicId?: string }> {

@@ -34,8 +34,6 @@ export type ResourceKey = keyof typeof SERVICES;
 async function bustCatalog(resource: ResourceKey) {
   revalidatePath(`/dashboard/catalog/${resource}`);
   await invalidateCatalogSnapshot();
-  revalidatePath("/menu");
-  revalidatePath("/pricing");
 }
 
 export async function saveItem(resource: ResourceKey, id: string | null, patch: Record<string, unknown>) {

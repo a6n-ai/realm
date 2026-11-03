@@ -13,6 +13,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const PATH = "/dashboard/discounts";
 
@@ -126,6 +127,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     await recordCouponGroupAction(groupId, data.code, await currentUserId());
   }
   revalidatePath(PATH, "layout");
+  revalidatePublicSite();
 }
 
 export async function setCouponActive(publicId: string, active: boolean) {
@@ -144,6 +146,7 @@ export async function setCouponActive(publicId: string, active: boolean) {
   }
   await couponsService.update(publicId, { active });
   revalidatePath(PATH, "layout");
+  revalidatePublicSite();
 }
 
 const policySchema = z.object({
@@ -180,6 +183,7 @@ export async function saveDiscountPolicy(policy: unknown) {
   };
   await setDiscountPolicy(merged);
   revalidatePath(PATH, "layout");
+  revalidatePublicSite();
 }
 
 const repCeilingSchema = z.object({
@@ -224,4 +228,5 @@ export async function setRepCeiling(
   const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
   await setDiscountPolicy(next);
   revalidatePath(PATH, "layout");
+  revalidatePublicSite();
 }
