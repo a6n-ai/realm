@@ -2,7 +2,6 @@ import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { publicFaqs } from "@/db/schema";
-import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { SessionUpdatableService } from "@/lib/services/session-service";
 import { evictPublicPages, publicPagesCache } from "@/lib/landing/public-cache";
 
@@ -20,14 +19,13 @@ const faqService = new FaqService(new UpdatableRepository(db, publicFaqs, public
 /**
  * Public FAQ, override — not union — scoped: an org with its own active rows
  * sees only those, not the brand's rows in addition. Falls back to the
- * brand's null-org rows when the acting org (resolveRequestOrg — the URL/
- * cookie-resolved franchise, see proxy.ts) has none of its own. This app has
+ * brand's null-org rows when the given org (the franchise the page is
+ * rendered for) has none of its own. This app has
  * exactly one org today (see resolveBrandOrgId in orders.service.ts), so the
  * override branch is inert until franchise creation ships — same shape as
  * apps/puchkaman/lib/services/faqs.service.ts either way.
  */
-export async function listPublicFaqs(): Promise<Faq[]> {
-  const orgId = await resolveRequestOrg();
+export async function listPublicFaqs(orgId: string | null): Promise<Faq[]> {
   return publicPagesCache.getOrSet(`faqs:${orgId ?? "brand"}`, () => loadPublicFaqs(orgId));
 }
 

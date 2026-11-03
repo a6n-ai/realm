@@ -4,7 +4,6 @@ import { sharedCache } from "@/lib/cache";
 import { publicPagesCache } from "@/lib/landing/public-cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "@/lib/services/delivery.service";
-import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 // Area names barely move, so each geocode is kept a week: a handful of lookups
 // per week, not one per visitor.
@@ -21,8 +20,7 @@ async function areaPoint(name: string) {
 
 // "Do we deliver to you?": one map card. Every area we serve is a dot on the map,
 // and the postal check floats over it.
-export async function DeliverySection({ heading = "h2" }: { heading?: "h1" | "h2" }) {
-  const orgId = await resolveRequestOrg();
+export async function DeliverySection({ heading = "h2", orgId }: { heading?: "h1" | "h2"; orgId: string | null }) {
   const [{ zones }, origin] = await Promise.all([loadCatalogSnapshot(orgId), publicPagesCache.getOrSet(`origin:${orgId ?? "brand"}`, () => deliveryService.getStoreOrigin(orgId)).catch(() => null)]);
   const active = zones.filter((z) => z.active).sort((a, b) => a.name.localeCompare(b.name));
   const points = await Promise.all(active.map((z) => areaPoint(z.name)));

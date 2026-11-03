@@ -1,3 +1,4 @@
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LandingReviews } from "@/components/landing/landing-reviews";
@@ -21,7 +22,7 @@ export default async function LocationsPage() {
   return (
     <>
       <section className="tg-section" aria-labelledby="tg-deliver">
-        <DeliverySection heading="h1" />
+        <DeliverySection heading="h1" orgId={await resolveRequestOrg()} />
       </section>
       <div className="tg-wrap flex flex-col gap-16 pb-24">
       <section className="tg-stack" aria-labelledby="tg-areas">

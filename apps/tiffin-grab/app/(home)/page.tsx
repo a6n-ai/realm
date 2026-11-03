@@ -1,3 +1,4 @@
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { parseIsoDateUtc } from "@foundry/commons";
@@ -106,7 +107,7 @@ export default async function LandingPage() {
       <Flex cutoff={cutoff} demo={<PauseDemo cutoffTime={cutoffTime} />} />
 
       <section className="lp-section" aria-labelledby="tg-deliver">
-        <DeliverySection />
+        <DeliverySection orgId={await resolveRequestOrg()} />
       </section>
 
       {/* External Places fetch: a cache miss must not hold back the rest of the page. */}

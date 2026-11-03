@@ -1,3 +1,4 @@
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FAQS } from "@/components/landing/faqs";
@@ -25,7 +26,7 @@ function faqJsonLd(faqs: { question: string; answer: string }[]) {
 }
 
 export default async function FaqPage() {
-  const saved = await listPublicFaqs();
+  const saved = await listPublicFaqs(await resolveRequestOrg());
   const faqs = saved.length > 0 ? saved.map((f) => ({ question: f.question, answer: f.answer })) : FAQS.map((f) => ({ question: f.q, answer: f.a }));
 
   return (
