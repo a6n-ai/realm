@@ -85,6 +85,14 @@ describe("apex/www front door", () => {
     expect(res.headers.get("location")).not.toContain("tiffingrab.ca/me");
   });
 
+  it("matcher sends every /site path to the proxy, even with a file extension", () => {
+    const first = (config.matcher as unknown[])[0] as string;
+    expect(first).toBe("/site/:path*");
+    // the generic entry skips extensions, which is why /site needs its own
+    const generic = new RegExp(`^${(config.matcher as string[])[1]}$`);
+    expect(generic.test("/site/x/foo.png")).toBe(false);
+  });
+
   it("is inert when the app host is not app.<apex> (local dev)", async () => {
     vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
     const res = await get("http://localhost:3000/me");

@@ -132,11 +132,11 @@ describe("proxy URL-based org resolution", () => {
   });
 
   it("sends a signed-out /activate visitor to /login and back", async () => {
-    const res = await proxy(new NextRequest("http://localhost/activate/SUB-YV5A4D"));
+    const res = await proxy(new NextRequest("http://localhost/activate/SUB-ABC123"));
     expect(res?.status).toBe(307);
     const to = new URL(res!.headers.get("location")!);
     expect(to.pathname).toBe("/login");
-    expect(to.searchParams.get("callbackUrl")).toBe("/activate/SUB-YV5A4D");
+    expect(to.searchParams.get("callbackUrl")).toBe("/activate/SUB-ABC123");
   });
 
   it("redirects to /locations when nothing matches and no default exists", async () => {
@@ -163,8 +163,15 @@ describe("proxy URL-based org resolution", () => {
     expect(rewriteOf(picked)).toBe(`/site/${matchedOrgId}/menu`);
     const root = await proxy(new NextRequest("http://localhost/", { headers: { cookie: "franchise=testclient123" } }));
     expect(rewriteOf(root)).toBe(`/site/${matchedOrgId}`);
-    const fallback = await proxy(new NextRequest("http://localhost/menu"));
-    expect(rewriteOf(fallback)).toMatch(/^\/site\/[^/]+\/menu$/);
+    await withNoDefaultOrg(async () => {
+      await db.update(organization).set({ isDefaultLocation: true }).where(eq(organization.id, defaultOrgId));
+      try {
+        const fallback = await proxy(new NextRequest("http://localhost/menu"));
+        expect(rewriteOf(fallback)).toBe(`/site/${defaultOrgId}/menu`);
+      } finally {
+        await db.update(organization).set({ isDefaultLocation: false }).where(eq(organization.id, defaultOrgId));
+      }
+    });
   });
 
   it("rewrites /locations to the brand when no org resolves", async () => {
@@ -186,9 +193,12 @@ describe("proxy URL-based org resolution", () => {
     expect(res.headers.get("set-cookie") ?? "").toMatch(/tg_ref=YV5A4D/);
   });
 
-  it("does not rewrite POST /contact or the weekly PDF", async () => {
+  it("rewrites POST /contact (server action) to the org path", async () => {
     const post = await proxy(new NextRequest("http://localhost/contact", { method: "POST" }));
-    expect(post.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(new URL(post.headers.get("x-middleware-rewrite")!).pathname).toMatch(/^\/site\/[^/]+\/contact$/);
+  });
+
+  it("does not rewrite the weekly PDF", async () => {
     const pdf = await proxy(new NextRequest("http://localhost/menu/weekly/pdf"));
     expect(pdf.headers.get("x-middleware-rewrite")).toBeNull();
   });

@@ -164,7 +164,8 @@ async function route(request: NextRequest): Promise<NextResponse> {
   if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);
   const forwardedRequest = { request: { headers: request.headers } };
 
-  if ((request.method === "GET" || request.method === "HEAD") && SITE_PAGES.has(pathname)) {
+  // Every method: server actions POST to the page URL, which now exists only under /site/<org>.
+  if (SITE_PAGES.has(pathname)) {
     const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : pathname}`;
     return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);
   }
@@ -216,6 +217,7 @@ export const config = {
   // static assets) so the URL-segment org resolver above also runs on public
   // customer-facing routes, not just the guarded ones.
   matcher: [
+    "/site/:path*",
     "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$).*)",
     { source: "/:path*", has: [{ type: "header", key: "host", value: "(www\\.)?tiffingrab\\.ca" }] },
   ],
