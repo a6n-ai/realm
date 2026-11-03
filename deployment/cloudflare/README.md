@@ -15,7 +15,7 @@ Everything Realm runs on Cloudflare. AWS pieces stay where they are (`prod/`, `d
 ## tiffingrab.ca
 
 - Zone `970680dc711f59ee1bb17ff536b1c61b`, copied 2026-10-27 from the live Route53 zone `Z0983728P9WL0KVAG4E2` (`dns/tiffingrab.ca.zone`). Registrar Open Provider, managed through Hostinger; nameservers `kia.ns.cloudflare.com` / `zac.ns.cloudflare.com` since 2026-10-27 (zone active 15:10 UTC).
-- Every record is DNS only. Proxying `app`/apex needs Caddy and the app to trust Cloudflare's client-IP header first (rate limits, audit IPs), so it is a separate change.
+- Since the 2026-11-03 cutover, `tiffingrab.ca`, `www` and `app` are custom domains of the `tiffin-grab` Worker (proxied); `next` is `tiffin-grab-preview`, `rt` is `realtime-tiffin-grab`. `app` TTL was lowered to 60 s for the cutover. WAF custom rule `01f4d514…` blocks WordPress paths on apex/www (403: the Free plan cannot send a custom 410).
 - Mail records (Titan MX/SPF/DKIM, SES DKIM and MAIL FROM for the apex and `notify.`) must never be proxied.
 - Left: delete the Route53 zone (after 2026-10-29, once cached NS expire) and retire `deployment/dns/route53-tiffingrab.yaml`.
 
@@ -106,6 +106,33 @@ Read these before porting tiffin-grab or copper-cloves.
   Workers, `x-real-ip` behind Caddy; never both). Keep rate-limit counters in Postgres on
   Workers only, so the EC2 build never depends on the `rate_limit` table.
 
+### Lessons from the tiffin-grab port (2026-11-03)
+
+- **Escape non-Latin1 characters in the bundle.** One character above U+00FF anywhere (here
+  Cyrillic and dashes in `@react-pdf` regexes) makes V8 hold the whole 53M-char script as a
+  two-byte string: 106 MB of the 128 MB isolate before any request. Heavy pages then pushed the
+  isolate over and it was recycled after every request (outcome still `ok`), so every request
+  was cold. `cloudflare/prebundle.mjs` rewrites them as `\uXXXX`: idle heap 108 -> 57 MB, warm
+  `/menu` 77-125 ms CPU.
+- **Minify outside wrangler.** wrangler's `minify` turns esbuild's lazy wrapper around the server
+  handler into an arrow function V8 compiles about twice as slowly on a cold first request.
+  Bundle unminified, minify the text with esbuild, ship `no_bundle` (cold `/robots.txt`
+  1.7-3.5 s -> 0.4 s CPU).
+- **Tag diagnostics, not guesses.** A temporary header with a module-level isolate id and request
+  count showed in minutes whether isolates were reused. `wrangler tail` `cpuTime` alone could not.
+- **Money paths and long caches.** The catalog snapshot sits in KV for 10 minutes; checkout prices
+  from it, so it records the next discount start/end (`validUntil`) and is rebuilt past it.
+- **Fire-and-forget is cancelled.** Any `void promise` outside `after()` dies with the response;
+  route it through `runInBackground` (waitUntil).
+- **Build parity.** Pass an empty `NEXT_PUBLIC_BETTER_AUTH_URL` when auth (app.) and pages (apex)
+  are on different hosts, as the EC2 build did; give the prod Worker no crons until cutover.
+- **Preview on the prod domain shares cookies.** Prod sets its session cookie for `.tiffingrab.ca`,
+  which shadows preview's host cookie on `next.`; test preview in a private window.
+- **Cutover:** lower the TTL an hour ahead (`app` was 3600 s), stop the old app's writers,
+  delete the records, then `wrangler triggers deploy` attaches domains + crons with no code
+  upload (seconds). The classifier blocks agents from DNS, prod psql and EC2 commands: hand the
+  owner scripts.
+
 **Before porting the next app**
 - **tiffin-grab:** stays on RDS (owner, 2026-11-02). RDS is private, so Hyperdrive needs RDS
   made publicly reachable (TLS, strong credentials) or a Cloudflare Tunnel on a host inside
@@ -122,15 +149,17 @@ Read these before porting tiffin-grab or copper-cloves.
 
 ### Per-app values
 
-| | xplorers |
-|---|---|
-| Worker (prod / preview) | `xplorers` / `xplorers-preview` |
-| Hosts | `xplorers.a6n.ai` / `next.xplorers.a6n.ai` |
-| Neon project | `aged-dust-56644803` (aws-ap-southeast-1), branches `production`, `preview` |
-| Hyperdrive | `xplorers-prod`, `xplorers-preview` (direct endpoint) |
-| GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL`, `XPLORERS_PREVIEW_DIRECT_DATABASE_URL` |
-| Wrangler secrets | `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `REALTIME_SECRET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `FILES_S3_ACCESS_KEY_ID`, `FILES_S3_SECRET_ACCESS_KEY` |
-| IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` |
+| | xplorers | tiffin-grab |
+|---|---|---|
+| Worker (prod / preview) | `xplorers` / `xplorers-preview` | `tiffin-grab` / `tiffin-grab-preview` (live 2026-11-03) |
+| Hosts | `xplorers.a6n.ai` / `next.xplorers.a6n.ai` | `tiffingrab.ca`, `www.`, `app.` / `next.tiffingrab.ca`; realtime `rt.tiffingrab.ca` |
+| Database | Neon `aged-dust-56644803` (aws-ap-southeast-1), branches `production`, `preview` | RDS `realm-tiffin-grab-prod-db` (us-east-1, public via `sg-0b4566246ed7528e5`, 5432 only, `rds.force_ssl=1`); preview copy `realm-tiffin-grab-preview-db` (`sg-07c47c099fbe62528`, customers rewritten to SES simulator) |
+| DB roles | owner | Worker connects as `tiffin_app` (DML only, conn limit 40, default privileges for new tables); migrations run as `postgres` |
+| Hyperdrive | `xplorers-prod`, `xplorers-preview` (direct endpoint) | `tiffin-grab-prod` `126477e0…`, `tiffin-grab-preview` `3d7ca623…` (caching disabled) |
+| KV / Queues | none | `tiffin-grab-cache` / `-preview`; `tiffin-outbox` / `-preview` |
+| GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL`, `XPLORERS_PREVIEW_DIRECT_DATABASE_URL` | `TIFFIN_GRAB_DIRECT_DATABASE_URL`, `TIFFIN_GRAB_PREVIEW_DIRECT_DATABASE_URL`; `TIFFIN_GRAB_CRON_SECRET` (GitHub cron workflow) |
+| Wrangler secrets | `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `REALTIME_SECRET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `FILES_S3_ACCESS_KEY_ID`, `FILES_S3_SECRET_ACCESS_KEY` | 26: SSM `/tiffin-grab/prod` values (same auth/unsubscribe/integrations/cron secrets as EC2) + `REALTIME_SECRET` + AWS keys; preview has its own fresh auth/cron/encryption secrets |
+| IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` | `tiffin-grab-workers-iam` (us-east-1), `EnableAwsLocation=true`, extra SES config set |
 
 Shared GitHub secrets for every app: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit,
 Hyperdrive:Read), `CLOUDFLARE_ACCOUNT_ID`.
@@ -138,4 +167,6 @@ Hyperdrive:Read), `CLOUDFLARE_ACCOUNT_ID`.
 ### Rollback
 
 Detach the Worker's custom domain and recreate the A record to the box's Elastic IP. Only
-possible while the box still exists.
+possible while the box still exists. tiffin-grab: also refresh the EC2 env from SSM (the master
+password was rotated after cutover) and `docker compose start web` on Box A
+(`i-0ee52b9750c327d00`, via SSM), then run `deploy-tiffin-grab.yml` by hand.
