@@ -102,7 +102,14 @@ export function CookieConsent() {
       setAnalytics(c.analytics);
       if (c.analytics) loadAnalytics();
     } else {
-      setOpen(true);
+      // Off the critical path: the card mounts only after the page has loaded and the main
+      // thread is idle, so it never competes with the hero for first/largest paint.
+      const show = () => {
+        const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
+        idle(() => setOpen(true), { timeout: 2000 });
+      };
+      if (document.readyState === "complete") show();
+      else addEventListener("load", show, { once: true });
     }
     const reopen = () => {
       clearTimeout(timer.current);

@@ -298,16 +298,14 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-lost__fig img { display: block; width: 100%; height: auto; }
 @media (max-width: 900px) { .tg-lost__fig { max-width: 420px; } }
 
-/* Navbar rating capsule (NavRating): liquid glass, saffron star, count hidden on phones. */
+/* Navbar rating capsule (NavRating): liquid glass, saffron star, rating and the Google "G". */
 .tg-rating { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--foreground); text-decoration: none; transition: transform 150ms ease; }
 .tg-rating:active { transform: scale(0.97); }
-.tg-rating__count { font-weight: 500; color: var(--muted-foreground); }
-.tg-rating__count::before { content: "· "; }
+.tg-rating__g { flex: none; margin-left: 2px; }
 /* Phones: the top bar keeps the TiffinGrab wordmark; the rating capsule steps out (the hero
    shows the Google rating right below). */
 @media (max-width: 520px) {
   .tg-rating { height: 36px; padding: 0 10px; gap: 4px; }
-  .tg-rating__count { display: none; }
   /* The brand name wins on phones: the rating already shows in the hero ("4.5 on Google"). */
   .tg-bar .tg-rating { display: none; }
 }
