@@ -5,6 +5,7 @@ import { listableMealSizes } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { PageIntro } from "@/components/landing/public-shell";
 import { MealCard } from "@/components/marketing/meal-card";
+import { MetaViewContent } from "@/components/meta/view-content";
 import { pageMeta } from "@/lib/landing/meta";
 
 export const metadata: Metadata = pageMeta("Meal sizes | Tiffin Grab", "Every tiffin meal size by tier, with calories, protein, carbs, fat and the per-tiffin rate.", "/menu");
@@ -22,15 +23,17 @@ const TIERS = [
 export default async function MenuPage() {
   const orgId = await resolveRequestOrg();
   const { mealSizes } = await loadCatalogSnapshot(orgId);
+  const listed = listableMealSizes(mealSizes);
   return (
     <div className="tg-wrap tg-section flex flex-col gap-12">
+      <MetaViewContent contentIds={listed.map((m) => m.key)} contentName="Meal sizes" />
       <PageIntro
         eyebrow="Meal sizes"
         title={<>As much as you <span className="c-accent">need.</span></>}
         lede="Every size with its calories, macros and per-tiffin rate. The dishes change weekly; see this week's menu for them."
       />
       {TIERS.map((tier) => {
-        const meals = listableMealSizes(mealSizes).filter((m) => m.tier === tier.key);
+        const meals = listed.filter((m) => m.tier === tier.key);
         if (meals.length === 0) return null;
         return (
           <section key={tier.key} className="flex flex-col gap-4" aria-label={tier.label}>

@@ -17,10 +17,19 @@ import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
+import { captureMetaAttribution } from "@/lib/meta/request-context";
 
 export type ConfirmInput = CreateOrderInput & {
   /** Set by checkout when the customer came from /me/renew. */
   renewal?: boolean;
+  /** Browser URL at submit — used for Meta event_source_url / fbclid fallback. */
+  eventSourceUrl?: string | null;
+  /**
+   * True when this checkout continues an existing subscription (wizard origin
+   * "renew" or quick-renew). Distinct from `renewal`, which only locks identity.
+   * Meta Purchase CAPI skips these until product asks otherwise.
+   */
+  planRenewal?: boolean;
 };
 
 // A served checkout returns the created order; an out-of-zone one creates no
@@ -227,7 +236,7 @@ async function findReusableCheckout(paymentPublicId: string, userPublicId: strin
 async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
   // Resolve the contact FIRST: serviceability, geocoding and tax below must all
   // run against the identity and address the order will actually be placed with.
-  const { renewal: _renewal, ...rest } = rawInput;
+  const { renewal: _renewal = false, eventSourceUrl, planRenewal = false, ...rest } = rawInput;
   const contact = await resolveContact(rawInput);
   // A malformed postal code is a typo to fix, not a lead for the waitlist.
   const input: CreateOrderInput = { ...rest, contact: { ...contact, postalCode: parseCanadianPostalCode(contact.postalCode) } };
@@ -279,13 +288,22 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   // honor a repCoupon arriving on the public checkout payload — even from a
   // logged-in member whose owner==actor check would otherwise pass — so the role
   // boundary is explicit rather than incidental.
+  // Capture Meta click IDs + IP/UA on the *customer's* request — verifyPayment
+  // later runs from Stripe/staff and must not read headers for CAPI.
+  const metaAttribution = await captureMetaAttribution({ eventSourceUrl });
   const result = await createOrder(
     {
       ...input,
       contact: { ...input.contact, lat: resolvedDelivery?.lat ?? null, lng: resolvedDelivery?.lng ?? null },
       repCoupon: null,
     },
-    { actorId: userId, ownerUserId: userId, orgId },
+    {
+      actorId: userId,
+      ownerUserId: userId,
+      orgId,
+      metaAttribution,
+      metaPurchaseEligible: !planRenewal,
+    },
   );
   await maybeSendAccountSetup(input.contact.email);
   return { waitlisted: false, ...result };

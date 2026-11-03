@@ -8,6 +8,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 const MAPLIBRE_WORKER = "/vendor/maplibre-gl-worker-6.15.0.mjs";
 import { afterFirstInput } from "@/lib/landing/wake";
 import { checkDelivery, type DeliveryCheck as Result } from "@/lib/landing/check-delivery";
+import { trackMeta } from "@/components/meta/track";
 
 type Point = { lat: number; lng: number };
 type Area = { name: string; slotWindow: string | null; point: Point | null };
@@ -159,9 +160,13 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     start(async () => {
-      const r = await checkDelivery(value);
+      const eventId = crypto.randomUUID();
+      const r = await checkDelivery(value, { eventId, eventSourceUrl: window.location.href });
       setResult(r);
       setFocus(r.status === "served" ? (r.zone?.name ?? null) : null);
+      if (r.status === "served" || r.status === "not_served") {
+        trackMeta("FindLocation", {}, eventId);
+      }
     });
   };
 

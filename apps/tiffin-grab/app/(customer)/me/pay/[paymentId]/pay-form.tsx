@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
+import { trackMeta } from "@/components/meta/track";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { markPaid } from "@/lib/payments/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -92,6 +93,20 @@ export function PayForm(p: {
       </Shell>
     );
   }
+  return <LivePayForm {...p} />;
+}
+
+function LivePayForm(p: {
+  paymentId: string;
+  deploymentId: string;
+  planTitle: string;
+  planSubtitle: string | null;
+  ctx: CardCheckoutContext;
+  amountCents: number;
+  lines: Line[];
+  total: number;
+}) {
+  const purchasePixelFired = useRef(false);
   return (
     <CardPayProvider
       ctx={p.ctx}
@@ -107,11 +122,21 @@ export function PayForm(p: {
         return "error" in c || !c.paid ? { outcome: "processing" as const } : { outcome: "paid" as const, receipt: c.receipt };
       }}
     >
-      <PaidSwitch whenPaid={(v) => (
-        <div className="mx-auto max-w-lg">
-          <PaidPage kind={v.outcome === "paid" ? "paid" : "processing"} subtitle={v.outcome === "paid" ? "We've emailed your receipt." : "We'll confirm by email."} receipt={v.receipt} ready={v.ready} primary={v.primary} secondary={v.secondary} />
-        </div>
-      )}>
+      <PaidSwitch whenPaid={(v) => {
+        if (v.outcome === "paid" && !purchasePixelFired.current) {
+          purchasePixelFired.current = true;
+          trackMeta(
+            "Purchase",
+            { value: p.total, currency: "CAD", num_items: 1 },
+            p.paymentId,
+          );
+        }
+        return (
+          <div className="mx-auto max-w-lg">
+            <PaidPage kind={v.outcome === "paid" ? "paid" : "processing"} subtitle={v.outcome === "paid" ? "We've emailed your receipt." : "We'll confirm by email."} receipt={v.receipt} ready={v.ready} primary={v.primary} secondary={v.secondary} />
+          </div>
+        );
+      }}>
         <Shell after={<PayChoices ctx={p.ctx} />}>
           <div>
             {p.lines.map((l, i) => <Row key={`${i}-${l.label}`} label={l.label} amount={l.amount} />)}

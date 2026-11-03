@@ -53,6 +53,7 @@ describe("normalizePixelId", () => {
   it("pulls the ID out of pasted text with invisible marks or a label", async () => {
     const { normalizePixelId } = await import("../pixel-id");
     expect(normalizePixelId("1234567890123456")).toBe("1234567890123456");
+    expect(normalizePixelId("111704771741343")).toBe("111704771741343");
     expect(normalizePixelId("‎1234567890123456‏ ")).toBe("1234567890123456");
     expect(normalizePixelId("Pixel ID: 1234567890123456")).toBe("1234567890123456");
     expect(normalizePixelId("123 456")).toBeNull();

@@ -1,3 +1,7 @@
+"use client";
+
+import { trackMeta } from "@/components/meta/track";
+
 // Floating “Chat with us” control on every public website page. Opens WhatsApp
 // to the support number already published on the delivery policy.
 const WHATSAPP_E164 = "16472449813";
@@ -11,6 +15,20 @@ function WhatsAppGlyph({ className }: { className?: string }) {
   );
 }
 
+function beaconContact(eventId: string) {
+  const body = JSON.stringify({
+    eventName: "Contact",
+    eventId,
+    eventSourceUrl: window.location.href,
+  });
+  const url = "/api/meta/events";
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    const blob = new Blob([body], { type: "application/json" });
+    if (navigator.sendBeacon(url, blob)) return;
+  }
+  void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => undefined);
+}
+
 export function WhatsAppChat() {
   return (
     <a
@@ -18,6 +36,11 @@ export function WhatsAppChat() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
+      onClick={() => {
+        const eventId = crypto.randomUUID();
+        trackMeta("Contact", {}, eventId);
+        beaconContact(eventId);
+      }}
       className="tg-wa fixed right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#0B7A3E] px-4 py-3 text-sm max-md:size-14 max-md:justify-center max-md:p-0 font-semibold text-white shadow-lg transition-[transform,box-shadow] duration-150 hover:bg-[#096632] hover:shadow-xl active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B7A3E] max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] md:right-6 md:bottom-6"
     >
       <WhatsAppGlyph className="size-5 shrink-0 max-md:size-7" />

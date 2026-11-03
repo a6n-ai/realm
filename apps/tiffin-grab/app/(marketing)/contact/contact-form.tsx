@@ -12,6 +12,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { Textarea } from "@foundry/ui/textarea";
+import { trackMeta } from "@/components/meta/track";
 import { contactFormSchema, type ContactFormValues } from "./schema";
 import { createWebsiteInquiry } from "./actions";
 
@@ -29,7 +30,13 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
 
   async function onSubmit(values: ContactFormValues) {
     try {
-      const res = await createWebsiteInquiry(values);
+      const eventId = crypto.randomUUID();
+      trackMeta("Lead", {}, eventId);
+      const res = await createWebsiteInquiry({
+        ...values,
+        eventId,
+        eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+      });
       setDone({ waitlisted: res.waitlisted });
     } catch (e) {
       form.setError("root", { message: e instanceof Error ? e.message : "Something went wrong" });
