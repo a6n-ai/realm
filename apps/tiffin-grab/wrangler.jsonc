@@ -36,7 +36,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "00000000000000000000000000000000", // PLACEHOLDER (Task 12)
+      "id": "126477e03eb34846819031b66a0b74e2", // tiffin-grab-prod, caching disabled, user tiffin_app
       "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
     }
   ],
