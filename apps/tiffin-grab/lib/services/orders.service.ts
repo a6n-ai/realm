@@ -510,7 +510,8 @@ export async function createOrder(
         addressUnit: savedAddress.addressUnit,
         city: savedAddress.city,
         postalCode: savedAddress.postalCode,
-        deliveryInstructions: savedAddress.deliveryInstructions,
+        // Notes typed for this plan win; callers that send none (renewals) keep the address's.
+        deliveryInstructions: input.contact.deliveryInstructions !== undefined ? input.contact.deliveryInstructions : savedAddress.deliveryInstructions,
         lat: savedAddress.lat == null ? null : Number(savedAddress.lat),
         lng: savedAddress.lng == null ? null : Number(savedAddress.lng),
       };
