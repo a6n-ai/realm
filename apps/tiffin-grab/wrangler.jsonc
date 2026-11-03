@@ -27,7 +27,8 @@
   "observability": { "enabled": true },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
-  "triggers": { "crons": ["* * * * *"] },
+  // No crons until cutover: EC2 still runs these jobs against the same DB. Cutover sets ["* * * * *"].
+  "triggers": { "crons": [] },
   "workers_dev": false,
   "preview_urls": false,
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" }],

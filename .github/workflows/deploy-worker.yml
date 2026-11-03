@@ -14,9 +14,10 @@ on:
         required: true
         type: string
       site-url:
-        description: public origin, baked into NEXT_PUBLIC_* at build time
-        required: true
+        description: public origin baked into NEXT_PUBLIC_* at build time; empty = the browser uses the page's own origin
+        required: false
         type: string
+        default: ""
       wrangler-env:
         description: wrangler env name; "production" = top-level config
         required: false

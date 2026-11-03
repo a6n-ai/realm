@@ -24,7 +24,8 @@ jobs:
     uses: ./.github/workflows/deploy-worker.yml
     with:
       app: tiffin-grab
-      site-url: ${{ inputs.target == 'preview' && 'https://next.tiffingrab.ca' || 'https://tiffingrab.ca' }}
+      # Empty, as on EC2: auth is on app. while public pages are on the apex, so the browser must call its own origin.
+      site-url: ""
       wrangler-env: ${{ inputs.target == 'preview' && 'preview' || 'production' }}
       db-host: ${{ inputs.target == 'preview' && 'realm-tiffin-grab-preview-db.caf2iueu67ew.us-east-1.rds.amazonaws.com' || 'realm-tiffin-grab-prod-db.caf2iueu67ew.us-east-1.rds.amazonaws.com' }}
     secrets:
