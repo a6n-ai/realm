@@ -38,7 +38,8 @@ describe("app/site", () => {
         hits.push(chain.join(" -> "));
       }
       // Services are leaves: they share helpers with the dashboard and the graph below them cannot say
-      // which function a page calls. `dynamic = "error"` fails the build if a page actually reaches headers().
+      // which function a page calls. At runtime `dynamic = "error"` makes headers() throw, and the callers
+      // that swallow errors rethrow it (lib/next-bailout.ts).
       if (file.includes("/lib/services/")) continue;
       for (const m of src.matchAll(SPEC)) {
         const target = resolveSpec(m[1] ?? m[2], file);

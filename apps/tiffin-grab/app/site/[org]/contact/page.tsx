@@ -9,9 +9,6 @@ export const metadata: Metadata = pageMeta("Contact | Tiffin Grab", "Ask us abou
 export const revalidate = 3600;
 export const dynamic = "error";
 
-// Reads live app settings (timezone) for the form — render per request, don't
-// prerender at build (keeps the container build DB-free).
-
 export default async function ContactPage() {
   const { defaultCountry } = await getAppSettings();
 

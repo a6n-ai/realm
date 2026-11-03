@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { rethrowNextInternal } from "@/lib/next-bailout";
 
 // Reads the organization id proxy.ts resolved from the URL's client-code segment
 // (docs/superpowers/specs/2026-08-19-tenant-url-routing-design.md). Returns null on
@@ -15,7 +16,8 @@ export async function resolveRequestOrg(): Promise<string | null> {
   try {
     const h = await headers();
     return h.get("x-realm-org-id");
-  } catch {
+  } catch (err) {
+    rethrowNextInternal(err);
     return null;
   }
 }

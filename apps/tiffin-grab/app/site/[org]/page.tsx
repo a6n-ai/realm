@@ -43,7 +43,7 @@ function weekRange(weekStart: string) {
 
 export default async function LandingPage({ params }: { params: Promise<{ org: string }> }) {
   const orgId = await siteOrgId((await params).org);
-  const [pub, catalog, { timezone }, promos] = await Promise.all([menuService.getPublishedWeek(undefined, orgId), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos()]);
+  const [pub, catalog, { timezone }, promos] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos()]);
 
   const plans = publicPlans(catalog.plans);
   const firstPlan = plans.find((p) => !isComingSoon(p.key));

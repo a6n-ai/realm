@@ -27,4 +27,12 @@ describe("siteOrgId", () => {
     await expect(siteOrgId("nope")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
+  it("finds an org created after the snapshot was taken", async () => {
+    const [{ id }] = await db.insert(organization).values({ name: "Late Org", clientCode: `LO-${Date.now()}` }).returning({ id: organization.id });
+    try {
+      expect(await siteOrgId(id)).toBe(id);
+    } finally {
+      await db.delete(organization).where(eq(organization.id, id));
+    }
+  });
 });

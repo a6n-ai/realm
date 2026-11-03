@@ -17,4 +17,15 @@ describe("resolveRequestOrg", () => {
     vi.mocked(headers).mockResolvedValue(new Headers() as never);
     expect(await resolveRequestOrg()).toBeNull();
   });
+
+  it("rethrows Next static bailout errors instead of returning brand", async () => {
+    const err = Object.assign(new Error("bailout"), { code: "NEXT_STATIC_GEN_BAILOUT" });
+    vi.mocked(headers).mockRejectedValue(err);
+    await expect(resolveRequestOrg()).rejects.toBe(err);
+  });
+
+  it("returns null for a plain error outside a request", async () => {
+    vi.mocked(headers).mockRejectedValue(new Error("headers was called outside a request scope"));
+    expect(await resolveRequestOrg()).toBeNull();
+  });
 });

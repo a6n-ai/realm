@@ -12,8 +12,6 @@ export const metadata: Metadata = pageMeta("Reviews | Tiffin Grab", "Real Google
 export const revalidate = 3600;
 export const dynamic = "error";
 
-// Plugin config (installed, place id) is read from the DB per request.
-
 export default async function ReviewsPage() {
   const [summary, cfg] = await Promise.all([
     getReviewsSummary(integrationsConfigReadStore),

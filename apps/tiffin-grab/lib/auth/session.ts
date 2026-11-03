@@ -2,6 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { Role, type RoleValue } from "@foundry/commons";
 import { auth } from "./index";
+import { rethrowNextInternal } from "@/lib/next-bailout";
 
 function isDynamicServerError(e: unknown): boolean {
   // Next.js throws this (digest "DYNAMIC_SERVER_USAGE") when `headers()` is used
@@ -21,6 +22,7 @@ export const getSession = cache(async () => {
     s = await auth.api.getSession({ headers: await headers() });
   } catch (e) {
     if (isDynamicServerError(e)) throw e; // let Next mark the route dynamic
+    rethrowNextInternal(e);
     // Genuine no-request-context (tests, scripts) → treat as unauthenticated.
     return null;
   }
