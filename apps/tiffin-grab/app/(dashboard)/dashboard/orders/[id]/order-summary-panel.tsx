@@ -147,6 +147,14 @@ export function OrderOverview({
               {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}
               <br />
               {order.city} {order.postalCode}
+              {customer ? (
+                <Link
+                  href={`/dashboard/customers/${customer.publicId}/addresses`}
+                  className="text-primary block text-sm underline-offset-2 hover:underline"
+                >
+                  Change address or notes
+                </Link>
+              ) : null}
             </DetailRow>
             <DetailRow label="Zone">{zoneName ?? dash}</DetailRow>
             <DetailRow label="Drop-off">{details || dash}</DetailRow>

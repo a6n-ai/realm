@@ -343,8 +343,8 @@ export function DeliverySection({ d }: { d: Draft }) {
                 </Field>
               )}
               <DropOffToggles catalog={d.dropOffs} value={d.dropOff} onChange={d.setDropOff} disabled={submitting} />
-              {!estimateOnly && <Field label="Delivery notes" hint={savedAddress ? "From the saved address" : undefined}>
-                <Textarea value={d.notes} onChange={(e) => d.setNotes(e.target.value)} disabled={savedAddress} placeholder="Buzzer code, leave at door, call on arrival…" rows={2} maxLength={500} />
+              {!estimateOnly && <Field label="Delivery notes" hint={savedAddress ? "For this plan only" : undefined}>
+                <Textarea value={d.notes} onChange={(e) => d.setNotes(e.target.value)} disabled={submitting} placeholder="Buzzer code, leave at door, call on arrival…" rows={2} maxLength={500} />
               </Field>}
             </CollapsibleContent>
           </Collapsible>

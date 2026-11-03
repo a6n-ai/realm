@@ -56,7 +56,7 @@ export function gaEventFor(input: MetaEventInput): GaEvent {
  * when this request is the customer's own browser: a Stripe webhook or a staff verify would
  * attach the wrong IP and session.
  */
-export function trackConversion(input: MetaEventInput, opts: { withRequest?: boolean } = {}): void {
+export function trackConversion(input: MetaEventInput, opts: { withRequest?: boolean; meta?: boolean } = {}): void {
   const run = async () => {
     let gaClientId: string | null = null;
     if (opts.withRequest) {
@@ -65,7 +65,7 @@ export function trackConversion(input: MetaEventInput, opts: { withRequest?: boo
       input = { ...input, sourceUrl: input.sourceUrl ?? sourceUrl, user: { ...browser, ...input.user } };
     }
     await Promise.all([
-      sendMetaEvent(input),
+      opts.meta === false ? Promise.resolve() : sendMetaEvent(input),
       sendGaEvent({ clientId: gaClientId, userId: input.user.externalId, event: gaEventFor(input) }),
     ]);
   };

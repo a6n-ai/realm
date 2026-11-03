@@ -26,6 +26,8 @@ import { TotalChip } from "./total-chip";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
+import { trackMeta } from "@/components/meta/track";
+import { sendMetaClientEvent } from "@/lib/meta/actions";
 import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
@@ -145,6 +147,21 @@ export function Wizard({
     sessionStorage.setItem(WIZARD_PLAN_STEPS_KEY, JSON.stringify(stepLabels));
     if (quote?.codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(quote.codes));
     if (quote?.coins) sessionStorage.setItem(QUOTE_COINS_KEY, String(quote.coins));
+    const meal = catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId);
+    const contentIds = [selections.planKey, meal?.key].filter((x): x is string => !!x);
+    const eventId = crypto.randomUUID();
+    const params = {
+      ...(contentIds.length ? { content_ids: contentIds, content_type: "product" } : {}),
+      ...(result ? { value: result.total, currency: "CAD" } : {}),
+      num_items: 1,
+    };
+    trackMeta("AddToCart", params, eventId);
+    void sendMetaClientEvent({
+      eventName: "AddToCart",
+      eventId,
+      eventSourceUrl: window.location.href,
+      customData: params,
+    });
     if (checkout) {
       setAtCheckout(true);
       window.scrollTo({ top: 0 });

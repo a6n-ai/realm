@@ -8,10 +8,14 @@ import { MetaPixelForm, SendTestEvent } from "./meta-pixel-form";
 
 const EVENTS = [
   { name: "PageView", where: "Every public and customer page. Browser." },
+  { name: "ViewContent", where: "Menu, weekly menu, and plans. Browser and server." },
+  { name: "FindLocation", where: "Delivery postal check. Browser and server." },
+  { name: "AddToCart", where: "Plan chosen in the subscribe wizard. Browser and server." },
   { name: "InitiateCheckout", where: "Checkout opens. Browser." },
-  { name: "Lead", where: "Contact form or waitlist sign-up. Server." },
+  { name: "Lead", where: "Contact form or waitlist sign-up. Browser and server, counted once." },
+  { name: "Contact", where: "WhatsApp chat. Browser and server." },
   { name: "CompleteRegistration", where: "New account from the sign-up page. Server." },
-  { name: "Purchase", where: "Payment confirmed (card settles or staff verifies), with the amount paid. Server." },
+  { name: "Purchase", where: "Payment confirmed (card settles or staff verifies), with the amount paid. Server, and the browser when the customer pays by card — same id, counted once." },
 ];
 
 export default async function MetaPixelSettingsPage() {

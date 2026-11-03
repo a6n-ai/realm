@@ -19,6 +19,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
+import { trackMeta } from "@/components/meta/track";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -35,6 +36,15 @@ import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { firstBlockedStep, mealNote, pickedAddons, QUOTE_CODES_KEY, QUOTE_COINS_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+
+function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
+  if (lastTiffin) return true;
+  try {
+    return sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew";
+  } catch {
+    return false;
+  }
+}
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
@@ -297,6 +307,7 @@ export function Checkout({
   // The card payment placed for these exact inputs. A retry reuses it; any input change drops it
   // (the server re-checks the match too, this just avoids sending a stale id).
   const placed = useRef<{ paymentPublicId: string; deploymentId: string } | null>(null);
+  const purchasePixelFired = useRef(false);
   useEffect(() => {
     placed.current = null;
   }, [selections, appliedCodes, appliedCoins, paymentMethodId, contact, addressPublicId]);
@@ -661,9 +672,11 @@ export function Checkout({
         contact,
         addressPublicId,
         renewal: lockContact,
+        planRenewal: isPlanRenewalCheckout(lastTiffin),
         couponCodes: appliedCodes,
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
+        eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
       });
       if ("error" in res) {
         toast.error(res.error);
@@ -713,6 +726,7 @@ export function Checkout({
       contact,
       addressPublicId,
       renewal: lockContact,
+      planRenewal: isPlanRenewalCheckout(lastTiffin),
       couponCodes: appliedCodes,
       coins: appliedCoins || undefined,
       paymentMethodId: "stripe",
@@ -720,6 +734,7 @@ export function Checkout({
       paymentPublicId: placed.current?.paymentPublicId ?? null,
       source,
       acceptSurcharge,
+      eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
     });
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.
@@ -1260,7 +1275,22 @@ export function Checkout({
         return r && !("error" in r) && r.paid ? { outcome: "paid" as const, receipt: r.receipt } : { outcome: "processing" as const };
       }}
     >
-      <PaidSwitch whenPaid={(v) => paidLayout(v.outcome === "paid" ? "paid" : "processing", v.receipt, v.ready, v.primary, v.secondary)}>{withDialog}</PaidSwitch>
+      <PaidSwitch whenPaid={(v) => {
+        if (v.outcome === "paid" && placed.current && result && !purchasePixelFired.current) {
+          purchasePixelFired.current = true;
+          trackMeta(
+            "Purchase",
+            {
+              value: result.total,
+              currency: "CAD",
+              ...(selections.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
+              num_items: 1,
+            },
+            placed.current.paymentPublicId,
+          );
+        }
+        return paidLayout(v.outcome === "paid" ? "paid" : "processing", v.receipt, v.ready, v.primary, v.secondary);
+      }}>{withDialog}</PaidSwitch>
     </CardPayProvider>
   ) : withDialog;
 }

@@ -28,10 +28,12 @@ export async function saveMetaPixelSettings(input: {
   const token = input.accessToken.trim();
   const testEventCode = input.testEventCode.replace(/[^A-Za-z0-9]/g, "");
   if (!pixelId) {
-    return { error: "Could not find a pixel ID in that. Paste just the number under the pixel name in Events Manager (15 or 16 digits)" };
+    return { error: "Pixel ID is the number from Events Manager, digits only" };
   }
   if (testEventCode && !TEST_CODE_RE.test(testEventCode)) return { error: "Test event code is letters and numbers only, like TEST12345" };
-  if (token && !/^[A-Za-z0-9_-]{20,1000}$/.test(token)) return { error: "That does not look like a Conversions API access token" };
+  if (token && (token.length < 20 || token.length > 2000 || /\s/.test(token))) {
+    return { error: "That does not look like a Conversions API access token" };
+  }
 
   let sealed: ReturnType<typeof sealAccessToken> | undefined;
   if (token) {
@@ -42,6 +44,7 @@ export async function saveMetaPixelSettings(input: {
 
   try {
     await updateMetaPixelConfig({
+      installed: true,
       pixelId,
       testEventCode: testEventCode || null,
       ...(sealed ? { accessToken: sealed } : {}),
