@@ -31,10 +31,30 @@ export function CopyCode({ code }: { code: string }) {
  *  allow-same-origin only lets this page read the height; nothing inside can run. */
 export function PromoHtml({ html, title }: { html: string; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  // scrollHeight never reports less than the frame's current height, so collapse first to let it shrink.
   const fit = () => {
-    const doc = ref.current?.contentDocument;
-    if (ref.current && doc?.documentElement) ref.current.style.height = `${doc.documentElement.scrollHeight}px`;
+    const frame = ref.current;
+    const doc = frame?.contentDocument;
+    if (!frame || !doc?.documentElement) return;
+    frame.style.height = "0px";
+    frame.style.height = `${doc.documentElement.scrollHeight}px`;
   };
+  const onLoad = () => {
+    fit();
+    // Web fonts land after load and change the text height.
+    ref.current?.contentDocument?.fonts?.ready.then(fit).catch(() => {});
+  };
+  // Width changes (carousel resize, phone rotation) rewrap the text.
+  useEffect(() => {
+    const frame = ref.current;
+    if (!frame) return;
+    let width = frame.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (frame.clientWidth !== width) { width = frame.clientWidth; fit(); }
+    });
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, []);
   return (
     <iframe
       ref={ref}
@@ -42,7 +62,7 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
       title={title}
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       srcDoc={`<base target="_blank">${html}`}
-      onLoad={fit}
+      onLoad={onLoad}
     />
   );
 }
