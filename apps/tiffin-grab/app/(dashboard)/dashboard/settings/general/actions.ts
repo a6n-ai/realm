@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
+import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { requireAdmin } from "@/lib/auth/guards";
 import { setAppSettings } from "@/lib/services/app-settings.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -38,5 +39,7 @@ export async function saveAppSettings(input: {
     }
     await setAppSettings(input as Parameters<typeof setAppSettings>[0]);
     revalidatePath("/dashboard/settings/general");
+    // timezone, country and currency show on the public pages and feed the catalog snapshot
+    await invalidateCatalogSnapshot();
   });
 }

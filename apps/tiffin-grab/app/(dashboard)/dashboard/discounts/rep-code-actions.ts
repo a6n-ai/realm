@@ -11,7 +11,6 @@ import { getSession } from "@/lib/auth/session";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { repAllowanceFor, repAllowanceZone } from "@/lib/services/rep-allowance";
-import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 export type RepCodeAllowance = { capAmount: number; capPct: number; left: number; total: number; validityHours: number };
 
@@ -63,7 +62,6 @@ export async function issueRepCode(
       note: note?.slice(0, 200),
     });
     revalidatePath("/dashboard/discounts", "layout");
-    revalidatePublicSite();
     return { code, expiresAt, allowance: view(allowance, usedToday) };
   });
 }

@@ -228,5 +228,4 @@ export async function setRepCeiling(
   const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
   await setDiscountPolicy(next);
   revalidatePath(PATH, "layout");
-  revalidatePublicSite();
 }

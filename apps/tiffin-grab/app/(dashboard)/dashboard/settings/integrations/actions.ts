@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { blockedBy, resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 import { PLUGINS } from "@/lib/plugins.server";
 
 function revalidatePluginPaths() {
@@ -54,5 +55,7 @@ export async function setPluginInstalledAction(
   });
 
   revalidatePluginPaths();
+  // the Reviews nav entry and page follow the plugin install state
+  revalidatePublicSite();
   return {};
 }

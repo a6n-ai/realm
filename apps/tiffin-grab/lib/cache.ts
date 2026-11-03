@@ -9,8 +9,20 @@ import { isWorkers } from "./runtime/platform";
  * not in commons), so the tier is wired here and injected. `name` namespaces
  * keys and scopes `evictAll()` to just this cache.
  */
-export function sharedCache(name: string, defaultTtlMs = 60_000, kvRetainMs = 0): TieredCache {
-  return new TieredCache({ name, tiers: [new LruTier(), ...sharedTier(name, kvRetainMs)], defaultTtlMs });
+export function sharedCache(name: string, defaultTtlMs = 60_000, kvRetainMs = 0, workersL1CapMs?: number): TieredCache {
+  const l1 = isWorkers() && workersL1CapMs ? new CappedLruTier(workersL1CapMs) : new LruTier();
+  return new TieredCache({ name, tiers: [l1, ...sharedTier(name, kvRetainMs)], defaultTtlMs });
+}
+
+// Another isolate's L1 cannot be evicted, so a cache that public pages regenerate from must not hold
+// a copy longer than the cap, or a revalidation re-caches the stale value.
+class CappedLruTier extends LruTier {
+  constructor(private readonly capMs: number) {
+    super();
+  }
+  override set<T>(key: string, value: T, ttlMs?: number): Promise<void> {
+    return super.set(key, value, Math.min(ttlMs || this.capMs, this.capMs));
+  }
 }
 
 function sharedTier(name: string, kvRetainMs: number) {

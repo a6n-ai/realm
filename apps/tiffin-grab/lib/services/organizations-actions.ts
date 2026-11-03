@@ -18,7 +18,7 @@ import {
   type UpdateOrganizationResult,
   type UserSearchRow,
 } from "./organizations.service";
-import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
+import { evictPublicPages } from "@/lib/landing/public-cache";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -88,7 +88,7 @@ export async function createFranchise(
     });
 
     revalidatePath("/dashboard/organization/settings");
-    revalidatePublicSite();
+    await evictPublicPages();
     return { ok: true, id: createdId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Organization creation failed." };
@@ -118,7 +118,7 @@ export async function updateOrganizationAction(
   const result = await updateOrganization(id, fields);
   if (result.ok) {
     revalidatePath(`/dashboard/organization/settings/${id}`);
-    revalidatePublicSite();
+    await evictPublicPages();
   }
   return result;
 }

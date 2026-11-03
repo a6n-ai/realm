@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const order: string[] = [];
-const { revalidatePath, evictAll } = vi.hoisted(() => ({ revalidatePath: vi.fn(), evictAll: vi.fn() }));
+const { revalidatePath, evictAll, set } = vi.hoisted(() => ({ revalidatePath: vi.fn(), evictAll: vi.fn(), set: vi.fn() }));
 
 vi.mock("next/cache", () => ({ revalidatePath }));
-vi.mock("@/lib/cache", () => ({ sharedCache: () => ({ evictAll }) }));
+vi.mock("@/lib/cache", () => ({ sharedCache: () => ({ evictAll, set }) }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: vi.fn() }));
 vi.mock("@/lib/services/dish-categories.service", () => ({ dishCategoriesService: {} }));
@@ -17,6 +17,7 @@ import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 beforeEach(() => {
   order.length = 0;
   revalidatePath.mockReset().mockImplementation(() => void order.push("revalidate"));
+  set.mockReset().mockResolvedValue(undefined);
   evictAll.mockReset().mockImplementation(async () => {
     await Promise.resolve();
     order.push("evict");
@@ -27,6 +28,14 @@ describe("revalidatePublicSite", () => {
   it("revalidates the site layout", () => {
     revalidatePublicSite();
     expect(revalidatePath).toHaveBeenCalledWith("/site/[org]", "layout");
+  });
+
+  it("records when a revalidation was requested, without throwing if that fails", async () => {
+    revalidatePublicSite();
+    await Promise.resolve();
+    expect(set).toHaveBeenCalledWith("requested-at", expect.any(Number));
+    set.mockRejectedValue(new Error("kv down"));
+    expect(() => revalidatePublicSite()).not.toThrow();
   });
 
   it("does not throw when revalidatePath throws", () => {

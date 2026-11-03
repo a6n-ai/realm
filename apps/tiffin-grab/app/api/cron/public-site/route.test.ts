@@ -8,7 +8,8 @@ vi.mock("@/lib/cache", () => ({
     set: async (k: string, v: number) => void store.set(k, v),
   }),
 }));
-vi.mock("@/lib/landing/revalidate-site", () => ({ revalidatePublicSite: revalidate }));
+vi.mock("next/cache", () => ({ revalidatePath: revalidate }));
+vi.mock("@/lib/runtime/background", () => ({ runInBackground: () => {} }));
 vi.mock("@/lib/landing/site-boundaries", async (orig) => ({
   ...(await orig<typeof import("@/lib/landing/site-boundaries")>()),
   loadWindowEdges: async () => [],
@@ -33,8 +34,20 @@ describe("public-site cron", () => {
   });
 
   it("revalidates once per boundary", async () => {
-    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: true });
-    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false });
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: true, followUp: false });
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: false });
+    expect(revalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows up once, 90 s after a revalidation was requested", async () => {
+    await POST(req("Bearer s3cret"));
+    revalidate.mockClear();
+    store.set("requested-at", Date.now() - 80_000);
+    expect((await (await POST(req("Bearer s3cret"))).json()).followUp).toBe(false);
+    expect(revalidate).not.toHaveBeenCalled();
+    store.set("requested-at", Date.now() - 100_000);
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: true });
+    expect((await (await POST(req("Bearer s3cret"))).json()).followUp).toBe(false);
     expect(revalidate).toHaveBeenCalledTimes(1);
   });
 });
