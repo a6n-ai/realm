@@ -3,10 +3,10 @@ import { eq, inArray, ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const sendMetaEventAwait = vi.fn(async () => undefined);
+const sendMetaEventAwait = vi.fn(async (_args: unknown) => undefined);
 vi.mock("../capi", () => ({
   sendMetaEvent: vi.fn(),
-  sendMetaEventAwait: (...args: unknown[]) => sendMetaEventAwait(...args),
+  sendMetaEventAwait: (args: unknown) => sendMetaEventAwait(args),
 }));
 
 const { db } = await import("@/db/client");
@@ -69,7 +69,7 @@ describe("sendMetaPurchaseOnce", () => {
     await claimPayment(pay.publicId, { reference: "CLAIM-1" });
     // claimPayment already called sendMetaPurchaseOnce
     expect(sendMetaEventAwait).toHaveBeenCalledTimes(1);
-    expect(sendMetaEventAwait.mock.calls[0]![0]).toMatchObject({
+    expect(sendMetaEventAwait.mock.calls.at(0)?.at(0)).toMatchObject({
       eventName: "Purchase",
       eventId: pay.publicId,
     });
