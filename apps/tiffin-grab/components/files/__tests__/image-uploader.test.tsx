@@ -19,9 +19,13 @@ const detail = {
 describe("ImageUploader", () => {
   it("shows a preview image when a value is set", () => {
     render(<ImageUploader value={detail} onChange={() => {}} />);
-    expect(screen.getByRole("img").getAttribute("src")).toContain(
-      encodeURIComponent("/api/files/x/a.webp"),
-    );
+    expect(screen.getByRole("img").getAttribute("src")).toBe("/api/files/x/a.webp");
+  });
+
+  it("keeps an absolute URL from another host as-is", () => {
+    const url = "https://tiffingrab.ca/landing/stock/dish-paneer-butter-masala.jpg";
+    render(<ImageUploader value={{ ...detail, url }} onChange={() => {}} />);
+    expect(screen.getByRole("img").getAttribute("src")).toBe(url);
   });
 
   it("renders a round preview when shape=round", () => {

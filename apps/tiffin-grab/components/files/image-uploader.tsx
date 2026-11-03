@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import type { FileDetail } from "@foundry/storage/model";
 import { Button } from "@foundry/ui/button";
@@ -112,12 +111,12 @@ export function ImageUploader({
     return (
       <div className="flex items-center gap-3">
         <div className={cn("relative size-16 border", shape === "round" ? "rounded-full" : "rounded-md")}>
-          <Image
+          {/* Plain <img>: values can be any host or a token-bearing /api/files URL, which next/image's allowlist rejects. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={value.url}
             alt={value.fileName ?? "image"}
-            fill
-            sizes="64px"
-            className={cn("object-cover", shape === "round" ? "rounded-full" : "rounded-md")}
+            className={cn("size-full object-cover", shape === "round" ? "rounded-full" : "rounded-md")}
           />
         </div>
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange(null)}>
