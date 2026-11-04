@@ -159,7 +159,7 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   const channel = `ticket:${ticket.publicId}`;
 
   // Mint token-gated hrefs at render time (staff already passed requireStaff above).
-  const withHref = await withAttachmentViews(messages);
+  const withHref = await withAttachmentViews(messages, `tickets/${ticket.publicId}`);
   const authorIds = [...new Set(messages.map((m) => m.authorId))];
   const names = new Map(
     (authorIds.length ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, authorIds)) : [])

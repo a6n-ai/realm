@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid";
-import { ValidationError } from "@foundry/commons";
-import { AuthError, ForbiddenError } from "@foundry/commons";
+import { AuthError, ForbiddenError, ValidationError } from "@foundry/commons";
 import { filesSecuredAccess, securedFilesService } from "@/lib/files";
 import { protectThumbnail } from "@/lib/files/protect-thumbnail";
 import { requirePermission } from "@/lib/auth/guards";
@@ -60,11 +59,16 @@ export async function uploadAttachments(
 }
 
 type Stored = { path: string; thumbPath?: string; thumbUrl?: string; name: string };
-export type AttachmentView = { name: string; href: string; thumbUrl: string };
+export type AttachmentView = { name: string; href: string; thumbUrl: string | null };
 type Linker = (path: string) => string;
 
-// An entity folder is exactly `tickets/<id>` or `payments/<id>`, never a bare prefix.
+// Shown where the shared chat UI needs an image src but the row has no thumbnail.
+export const NO_THUMB = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23ccc'/%3E%3C/svg%3E";
+
+// An entity folder is exactly `tickets/<id>` or `payments/<id>`, never a bare prefix;
+// an attachment folder adds the upload's nanoid.
 const ENTITY_FOLDER = /^(tickets|payments)\/[^/]+$/;
+const ATTACHMENT_FOLDER = /^(tickets|payments)\/[^/]+\/[^/]+$/;
 const dirname = (p: string): string => p.slice(0, p.lastIndexOf("/"));
 
 async function canBulkAccess(): Promise<boolean> {
@@ -89,19 +93,30 @@ export async function mintFolderAccess(folder: string, fileCount: number): Promi
   return (path) => `/api/files/${path}?ak=${accessKey}`;
 }
 
-// Links for the attachments one viewer sees of ONE entity. Bulk-permitted viewers get a
-// single folder token; everyone else gets one token per attachment folder (covering the
-// original and its thumbnail). Called at render for a viewer who already passed access
-// checks. ponytail: add a periodic prune of expired files_secured_access_key rows if it grows.
-export async function attachmentLinks(entityFolder: string, files: Stored[]): Promise<(a: Stored) => AttachmentView> {
+// Links for the attachments one viewer sees of ONE entity. `folders` are the entity folders
+// the caller access-checked (a payment proof may live under its payment id or, for add-ons,
+// its order id); a file outside them gets no link. Bulk-permitted viewers get one folder
+// token per folder used; everyone else one token per attachment folder (original +
+// thumbnail). ponytail: add a periodic prune of expired files_secured_access_key rows if it grows.
+export async function attachmentLinks(folders: string | string[], files: Stored[]): Promise<(a: Stored) => AttachmentView | null> {
+  const allowed = [folders].flat();
   const links = new Map<string, Linker>();
-  if (files.length) {
+  const folderOf = (f: Stored): string | undefined => allowed.find((d) => f.path.startsWith(`${d}/`));
+  const ok = files.filter((f) => {
+    const good = folderOf(f) !== undefined && ATTACHMENT_FOLDER.test(dirname(f.path));
+    if (!good) console.error("attachmentLinks: refusing to link", f.path);
+    return good;
+  });
+  if (ok.length) {
     if (await canBulkAccess()) {
-      const link = await mintFolderAccess(entityFolder, files.length);
-      for (const f of files) links.set(f.path, link);
+      for (const d of new Set(ok.map(folderOf) as string[])) {
+        const mine = ok.filter((f) => folderOf(f) === d);
+        const link = await mintFolderAccess(d, mine.length);
+        for (const f of mine) links.set(f.path, link);
+      }
     } else {
       await Promise.all(
-        files.map(async (f) => {
+        ok.map(async (f) => {
           const { accessKey } = await filesSecuredAccess.mint(dirname(f.path), { ttlSeconds: HREF_TTL_SECONDS, limit: 40 });
           links.set(f.path, (path) => `/api/files/${path}?ak=${accessKey}`);
         }),
@@ -110,24 +125,31 @@ export async function attachmentLinks(entityFolder: string, files: Stored[]): Pr
   }
   return (a) => {
     const link = links.get(a.path);
-    if (!link) throw new Error("attachmentLinks: file was not in the minted set");
-    return { name: a.name, href: link(a.path), thumbUrl: a.thumbPath ? link(a.thumbPath) : (a.thumbUrl ?? link(a.path)) };
+    if (!link) return null;
+    const thumbUrl = a.thumbPath && dirname(a.thumbPath) === dirname(a.path) ? link(a.thumbPath) : (a.thumbUrl ?? null);
+    return { name: a.name, href: link(a.path), thumbUrl };
   };
 }
 
-// `payments/<id>/<nanoid>/orig-x` -> `payments/<id>`.
-export const entityFolderOf = (path: string): string => path.split("/").slice(0, 2).join("/");
-
-export async function proofView(proof: Stored | null): Promise<AttachmentView | null> {
+export async function proofView(proof: Stored | null, folders: string | string[]): Promise<AttachmentView | null> {
   if (!proof) return null;
-  return (await attachmentLinks(entityFolderOf(proof.path), [proof]))(proof);
+  return (await attachmentLinks(folders, [proof]))(proof);
 }
 
-// One ticket's messages: every attachment linked off a single mint (bulk) or per attachment.
+// One ticket's messages (`ticketFolder` = `tickets/<ticketPublicId>`): every attachment
+// linked off a single mint (bulk) or per attachment. Unlinkable attachments are dropped.
 export async function withAttachmentViews<M extends { attachments: Stored[] | null }>(
   messages: M[],
-): Promise<(Omit<M, "attachments"> & { attachments: AttachmentView[] | null })[]> {
-  const all = messages.flatMap((m) => m.attachments ?? []);
-  const view = all.length ? await attachmentLinks(entityFolderOf(all[0].path), all) : null;
-  return messages.map((m) => ({ ...m, attachments: m.attachments && view ? m.attachments.map(view) : null }));
+  ticketFolder: string,
+): Promise<(Omit<M, "attachments"> & { attachments: { name: string; href: string; thumbUrl: string }[] | null })[]> {
+  const view = await attachmentLinks(ticketFolder, messages.flatMap((m) => m.attachments ?? []));
+  return messages.map((m) => ({
+    ...m,
+    attachments: m.attachments
+      ? m.attachments.flatMap((a) => {
+          const v = view(a);
+          return v ? [{ ...v, thumbUrl: v.thumbUrl ?? NO_THUMB }] : [];
+        })
+      : null,
+  }));
 }

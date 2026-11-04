@@ -2051,7 +2051,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
   const enriched: OrderPaymentDetail[] = await Promise.all(
     pays.map(async (p) => {
       const proof = p.proof ?? null;
-      const view = await proofView(proof);
+      const view = await proofView(proof, [`payments/${p.publicId}`, `payments/${row.order.publicId}`]);
       return {
         ...p,
         proof,

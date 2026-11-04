@@ -65,7 +65,7 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
 
   const [{ timezone }, hours] = await Promise.all([getAppSettings(), loadSupportHoursView()]);
 
-  const messages = await withAttachmentViews(rawMessages);
+  const messages = await withAttachmentViews(rawMessages, `tickets/${ticket.publicId}`);
 
   return (
     <TicketThread

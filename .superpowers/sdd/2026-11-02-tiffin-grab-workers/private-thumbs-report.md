@@ -18,3 +18,8 @@ customer `me/support/[id]/page.tsx`; staff `tickets/[id]/page.tsx`; `orders.serv
 ## Tests
 `env -u DATABASE_URL pnpm vitest run lib/files lib/services/__tests__/{attachment-links,upload-image-bytes,tickets.service,order-addons.service,payment-deferral.service}.test.ts app/api/files` all pass: protectThumbnail (passthrough, blur+draw+webp, failure throws); uploads (secured thumb in same folder, thumbPath, protect called); links (admin: 1 mint/ticket and /payment; non-permitted: 1 per attachment, shared ak; legacy thumbUrl; mintFolderAccess throws without permission / bare prefix); folder-token validate (opens orig+thumb, refuses other folder incl. `T10` vs `T1`; the route's 403 comes straight from validate).
 `pnpm --filter tiffin-grab typecheck` clean; `pnpm konsistent` no violations; `pnpm cf:build` OK. No "use client" touched; no named exports demoted.
+
+## Fix round 1
+- Per-attachment and bulk minting now require the file to sit under a caller-supplied, access-checked folder (`tickets/<ticket.publicId>`; payments: `payments/<payment.publicId>` and `payments/<order.publicId>`, because add-on proofs are uploaded under the order id) and the attachment folder to match `<tickets|payments>/<id>/<nanoid>`. Otherwise: no mint, no link, logged. No folder is derived from stored paths any more.
+- A row with no `thumbPath`/`thumbUrl` (or a `thumbPath` outside its original's folder) gets `thumbUrl: null` (payment views) or an inline grey placeholder (chat UI); the original is never used as a thumbnail.
+- attachment-links tests tightened (distinct tokens per attachment, equal ak for orig+thumb) and extended for malformed folders, out-of-folder files, no-thumb. Duplicate commons import merged. Typecheck, konsistent and the covering tests (29) pass.

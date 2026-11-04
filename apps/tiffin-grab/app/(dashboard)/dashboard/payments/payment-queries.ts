@@ -297,7 +297,7 @@ export async function listPayments(
   return {
     rows: await Promise.all(
       rows.map(async ({ proof, ...r }) => {
-        const view = await proofView(proof);
+        const view = await proofView(proof, [`payments/${r.publicId}`, `payments/${r.orderPublicId}`]);
         return { ...r, proofThumb: view?.thumbUrl ?? null, proofHref: view?.href ?? null, proofName: proof?.name ?? null };
       }),
     ),
