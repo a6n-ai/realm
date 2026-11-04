@@ -11,6 +11,7 @@ import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { gtagEvent } from "@foundry/google-analytics/client";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -79,6 +80,12 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
             { value: payment.amount, currency: "CAD", num_items: 1 },
             payment.paymentPublicId,
           );
+          gtagEvent("purchase", {
+            transaction_id: payment.paymentPublicId,
+            value: payment.amount,
+            currency: "CAD",
+            payment_type: "etransfer",
+          });
         }
         setSubmitted(true);
       } catch (e) {

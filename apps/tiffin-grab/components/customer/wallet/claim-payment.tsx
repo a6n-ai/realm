@@ -13,6 +13,7 @@ import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { gtagEvent } from "@foundry/google-analytics/client";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -116,6 +117,12 @@ export function ClaimPayment({
             { value: Number(ctx.amount), currency, num_items: 1 },
             ctx.paymentPublicId,
           );
+          gtagEvent("purchase", {
+            transaction_id: ctx.paymentPublicId,
+            value: Number(ctx.amount),
+            currency,
+            payment_type: ctx.methodId,
+          });
         }
         toast("Payment submitted — we'll confirm it shortly");
         onDone?.();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { gtagEvent } from "@foundry/google-analytics/client";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { markPaid } from "@/lib/payments/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -130,6 +131,12 @@ function LivePayForm(p: {
             { value: p.total, currency: "CAD", num_items: 1 },
             p.paymentId,
           );
+          gtagEvent("purchase", {
+            transaction_id: p.paymentId,
+            value: p.total,
+            currency: "CAD",
+            payment_type: "stripe",
+          });
         }
         return (
           <div className="mx-auto max-w-lg">

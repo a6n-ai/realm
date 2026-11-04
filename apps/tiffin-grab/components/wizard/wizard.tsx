@@ -27,6 +27,7 @@ import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { gtagEvent } from "@foundry/google-analytics/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
 import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
 
@@ -161,6 +162,12 @@ export function Wizard({
       eventId,
       eventSourceUrl: window.location.href,
       customData: params,
+    });
+    gtagEvent("add_to_cart", {
+      ...(result ? { value: result.total, currency: "CAD" } : {}),
+      items: contentIds.length
+        ? contentIds.map((id) => ({ item_id: id, quantity: 1 }))
+        : undefined,
     });
     if (checkout) {
       setAtCheckout(true);

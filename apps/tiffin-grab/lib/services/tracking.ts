@@ -40,6 +40,13 @@ export type ConversionInput = {
   sourceUrl?: string | null;
   user: { email?: string | null; phone?: string | null; fullName?: string | null; externalId?: string | null };
   customData?: MetaCustomData;
+  /**
+   * GA4 purchase transaction_id. Prefer the payment public id so browser gtag and
+   * Measurement Protocol dedupe; falls back to customData.order_id.
+   */
+  transactionId?: string;
+  /** GA4 payment_type (stripe | etransfer | …). Not sent to Meta CAPI. */
+  paymentType?: string;
 };
 
 const GA_NAMES: Record<ConversionInput["eventName"], string> = {
@@ -53,10 +60,11 @@ export function gaEventFor(input: ConversionInput): GaEvent {
   return {
     name: GA_NAMES[input.eventName],
     params: {
-      // GA dedupes purchases on transaction_id.
-      transaction_id: input.eventName === "Purchase" ? c?.order_id : undefined,
+      // GA dedupes purchases on transaction_id (shared with browser gtag).
+      transaction_id: input.eventName === "Purchase" ? (input.transactionId ?? c?.order_id) : undefined,
       value: c?.value,
       currency: c?.currency,
+      payment_type: input.eventName === "Purchase" ? input.paymentType : undefined,
       method: input.eventName === "CompleteRegistration" ? "email" : undefined,
     },
   };

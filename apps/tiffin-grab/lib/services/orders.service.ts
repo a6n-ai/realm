@@ -1132,6 +1132,7 @@ export async function verifyPayment(
     const purchase = {
       orderRef: order.publicId,
       paymentRef: pay.publicId,
+      method: pay.method,
       value: Number(pay.amount),
       user: { email: user?.email ?? null, phone: user?.phone ?? null, fullName: user?.name ?? null, externalId: String(orderUserId) },
       // The buyer declined analytics/ads cookies at checkout: no GA purchase either.
@@ -1157,6 +1158,9 @@ export async function verifyPayment(
         eventId: `purchase:${purchase.paymentRef}`,
         user: purchase.user,
         customData: { value: purchase.value, currency, order_id: purchase.orderRef },
+        // Same id as browser gtag so GA4 dedupes; payment_type mirrors Meta's single Purchase.
+        transactionId: purchase.paymentRef,
+        paymentType: purchase.method,
       },
       { meta: false },
     );

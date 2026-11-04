@@ -334,23 +334,36 @@ export function Checkout({
       eventSourceUrl: window.location.href,
       customData: params,
     });
-    gtagEvent("begin_checkout");
+    gtagEvent("begin_checkout", {
+      value: result.total,
+      currency: "CAD",
+      ...(selections?.planKey
+        ? { items: [{ item_id: selections.planKey, quantity: 1 }] }
+        : {}),
+    });
   }, [result, selections?.planKey]);
 
   // e-Transfer: Purchase at proof submit (same event_id as claimPayment CAPI). Card uses PaidSwitch below.
   useEffect(() => {
     if (!etransferDone || !etransfer || purchasePixelFired.current) return;
     purchasePixelFired.current = true;
+    const value = etransfer.receipt.total / 100;
     trackMeta(
       "Purchase",
       {
-        value: etransfer.receipt.total / 100,
+        value,
         currency: "CAD",
         ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
         num_items: 1,
       },
       etransfer.paymentPublicId,
     );
+    gtagEvent("purchase", {
+      transaction_id: etransfer.paymentPublicId,
+      value,
+      currency: "CAD",
+      payment_type: "etransfer",
+    });
   }, [etransferDone, etransfer, selections?.planKey]);
 
   useEffect(() => {
@@ -691,6 +704,11 @@ export function Checkout({
         eventId,
         eventSourceUrl: window.location.href,
         customData: params,
+      });
+      gtagEvent("add_payment_info", {
+        value: pricedTotal,
+        currency: "CAD",
+        payment_type: id,
       });
     }
   };
@@ -1335,6 +1353,7 @@ export function Checkout({
         if (v.outcome === "paid" && placed.current && !purchasePixelFired.current) {
           purchasePixelFired.current = true;
           const value = paidTotalRef.current ?? result?.total ?? 0;
+          const transactionId = placed.current.paymentPublicId;
           trackMeta(
             "Purchase",
             {
@@ -1343,8 +1362,14 @@ export function Checkout({
               ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
               num_items: 1,
             },
-            placed.current.paymentPublicId,
+            transactionId,
           );
+          gtagEvent("purchase", {
+            transaction_id: transactionId,
+            value,
+            currency: "CAD",
+            payment_type: "stripe",
+          });
         }
         return paidLayout(v.outcome === "paid" ? "paid" : "processing", v.receipt, v.ready, v.primary, v.secondary);
       }}>{withDialog}</PaidSwitch>

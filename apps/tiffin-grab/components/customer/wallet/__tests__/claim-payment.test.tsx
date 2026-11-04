@@ -30,6 +30,11 @@ vi.mock("@foundry/meta-pixel/client", () => ({
   trackMeta: (...args: unknown[]) => mockTrackMeta(...args),
 }));
 
+const mockGtagEvent = vi.fn();
+vi.mock("@foundry/google-analytics/client", () => ({
+  gtagEvent: (...args: unknown[]) => mockGtagEvent(...args),
+}));
+
 describe("ClaimPayment rigorous event & upload testing", () => {
   const baseCtx: ClaimPaymentContext = {
     paymentPublicId: "pay_123",
@@ -74,6 +79,12 @@ describe("ClaimPayment rigorous event & upload testing", () => {
         { value: 100, currency: "CAD", num_items: 1 },
         "pay_123",
       );
+      expect(mockGtagEvent).toHaveBeenCalledWith("purchase", {
+        transaction_id: "pay_123",
+        value: 100,
+        currency: "CAD",
+        payment_type: "interac",
+      });
       expect(mockToast).toHaveBeenCalledWith("Payment submitted — we'll confirm it shortly");
       expect(onDone).toHaveBeenCalled();
       expect(mockRefresh).toHaveBeenCalled();
