@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
   // Was Caddy's header on these paths: Next marks dynamic renders no-store, which keeps them out of
   // the browser back/forward cache. They carry no private data, so ask for revalidation instead.
   async headers() {
-    const publicPages = ["/", "/pricing", "/plans", "/menu", "/menu/weekly", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy", "/refund-policy", "/delivery-policy"];
+    const publicPages = ["/", "/pricing", "/plans", "/menu", "/menu/weekly", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy", "/refund-policy", "/delivery-policy", "/reviews"];
     return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "private, no-cache" }] }));
   },
   async redirects() {
