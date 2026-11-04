@@ -8,7 +8,7 @@ Description: >-
 
   APEX: tiffingrab.ca and www point at the app box. Caddy there serves the app's public
   pages and proxies the WordPress admin paths to the Hostinger server (82.180.129.236,
-  see deployment/prod/proxy/conf/Caddyfile); everything else redirects to app.
+  Caddyfile removed with the EC2 box); everything else redirects to app.
 
 Parameters:
   AppIp:

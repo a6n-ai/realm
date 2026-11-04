@@ -12,7 +12,7 @@ import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from 
 import { getOptimoRouteConfig } from "./config";
 
 // OptimoRoute has no webhooks. get_events is its cursor feed of driver-app events for live
-// routes; polling it gives the same result (the Worker cron calls pollOnce). The cursor and a single-runner lock
+// routes; polling it gives the same result (the OptimoPoller Durable Object alarm calls pollOnce). The cursor and a single-runner lock
 // live in the lease table. Losing the cursor only replays events, and applyCompletion leaves rows that
 // are already settled, so a replay changes nothing.
 

@@ -3,15 +3,13 @@
 tiffin-grab and xplorers run ONLY on Cloudflare Workers (see `deployment/cloudflare/README.md`);
 their EC2 boxes and deploy configs are gone. This folder now serves **puchkaman** (retired
 2026-10-13, code kept, workflows manual-only): Box B, https://puchkaman.ca, **us-east-1**.
-Deploy steps + folder layout: `puchkaman/RUNBOOK.md`.
+Deploy steps: `puchkaman/RUNBOOK.md`.
 
 ## Folder layout (`deployment/prod/`)
 
 ```
 Dockerfile              shared, multi-app (--build-arg APP=<name>)
-deploy-all.sh           create edge net -> up proxy -> deploy puchkaman
-proxy/                  standalone Caddy (443, auto-TLS) - the SOLE public ingress
-puchkaman/              puchkaman compose + deploy.sh + RUNBOOK
+puchkaman/              puchkaman compose + deploy.sh + RUNBOOK + its own Caddy (puchkaman/proxy/)
 neon-copy.sh, neon-fit.sh   Neon database helpers
 ```
 

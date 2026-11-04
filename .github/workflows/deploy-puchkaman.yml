@@ -1,8 +1,6 @@
-# Deploy puchkaman (Box B) on push to main. Self-contained: builds puchkaman-web
-# (runner) + puchkaman-tools (build) → GHCR, then the box pulls + migrates +
-# restarts. Triggered only when puchkaman or shared code changes (see paths);
-# tiffin-grab has its own workflow (deploy-tiffin-grab.yml) targeting Box A — the
-# two apps live on separate boxes and deploy fully independently.
+# Deploy puchkaman (Box B). Manual only (workflow_dispatch). Self-contained: builds
+# puchkaman-web (runner) + puchkaman-tools (build) → GHCR, then the box pulls +
+# migrates + restarts.
 #
 # Required repo secrets: EC2_HOST_PUCHKAMAN (Box B), EC2_USER, EC2_SSH_KEY.
 # Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
