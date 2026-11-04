@@ -344,7 +344,6 @@
 .lp-sticker__spin { transform-origin: 100px 100px; }
 .lp-sticker__core { position: absolute; inset: 21%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; color: #FBF4E7; }
 .lp-sticker__core strong { font-size: clamp(18px, 2vw, 26px); line-height: 1; font-weight: 800; letter-spacing: -0.03em; text-transform: uppercase; color: #FF9843; text-wrap: balance; }
-.lp-sticker__core small { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .lp-sticker:focus-visible { outline: 3px solid #FBF4E7; outline-offset: 4px; border-radius: 999px; }
 @media (prefers-reduced-motion: no-preference) {
   .lp-sticker__spin { animation: lp-spin 24s linear infinite; }
@@ -361,7 +360,6 @@
   .lp-sticker { width: 120px; }
   .lp-sticker__core { inset: 23%; }
   .lp-sticker__core strong { font-size: 17px; }
-  .lp-sticker__core small { display: none; }
 }
 
 /* Coupon tickets (hero on phones, "more offers" row): notched saffron stub with a tear line.
