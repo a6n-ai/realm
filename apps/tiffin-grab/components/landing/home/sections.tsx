@@ -1,6 +1,5 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { preload } from "react-dom";
 import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, CookingPot, Salad, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import type { LandingPromo } from "@/lib/landing/promo-types";
@@ -60,12 +59,10 @@ export function Hero({
   hasMenu: boolean;
   rating: React.ReactNode;
 }) {
-  // The poster is the phone LCP while the video buffers: fetch it first.
-  preload(poster, { as: "image", fetchPriority: "high" });
   return (
     <section className="lp-hero dark" aria-labelledby="lp-hero-title">
       <div className="lp-hero__bg" aria-hidden>
-        <HeroVideo src={video} poster={poster} />
+        <HeroVideo desktop={{ src: video, poster }} phone={{ src: video.replace(/\.mp4$/, "-mobile.mp4"), poster: poster.replace(/\.jpg$/, "-mobile.jpg") }} />
         <div className="lp-hero__scrim" />
         <div className="lp-hero__melt" />
       </div>

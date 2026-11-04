@@ -56,9 +56,30 @@ export class OptimoPoller {
   }
 }
 
+// OpenNext's image route sends no Cache-Control, so every visit re-ran the Images transform
+// (400-700 ms each). localPatterns only allow immutable static photos, so a year is safe.
+// The output format follows Accept, so it is part of the cache key.
+async function cachedImage(request, env, ctx) {
+  const accept = request.headers.get("accept") || "";
+  const fmt = accept.includes("image/avif") ? "avif" : accept.includes("image/webp") ? "webp" : "orig";
+  const key = new Request(`${request.url}&_fmt=${fmt}`, { method: "GET" });
+  const cache = caches.default;
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  const res = await openNext.fetch(request, env, ctx);
+  if (res.status !== 200) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("cache-control", "public, max-age=31536000, immutable");
+  ctx.waitUntil(cache.put(key, out.clone()));
+  // Browsers and any shared cache in between must also key on Accept.
+  out.headers.set("vary", "accept");
+  return out;
+}
+
 export default {
   fetch(request, env, ctx) {
     bootOnce(env, ctx, armPoller);
+    if (request.method === "GET" && new URL(request.url).pathname === "/_next/image") return cachedImage(request, env, ctx);
     return openNext.fetch(request, env, ctx);
   },
   async queue(batch, env) {

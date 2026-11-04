@@ -29,6 +29,11 @@ export function CopyCode({ code }: { code: string }) {
 
 /** Staff promo HTML (a full email document, sanitized on save) in a sandbox with no scripts.
  *  allow-same-origin only lets this page read the height; nothing inside can run. */
+// Saved promo HTML carries a Google Fonts <link> (the old starter). Each frame then re-fetched
+// Google's CSS on the critical path; the same latin Poppins files are served from this origin.
+const GOOGLE_POPPINS = /<link[^>]+fonts\.googleapis\.com\/css2\?family=Poppins[^>]*>/gi;
+const FRAME_FONTS = `<style>${[400, 700, 800].map((w) => `@font-face{font-family:Poppins;font-style:normal;font-weight:${w};font-display:swap;src:url(/landing/fonts/poppins-${w}.woff2) format("woff2")}`).join("")}</style>`;
+
 export function PromoHtml({ html, title }: { html: string; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
   // scrollHeight never reports less than the frame's current height, so collapse first to let it shrink.
@@ -63,7 +68,7 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
       className="lp-promo-frame"
       title={title}
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      srcDoc={`<base target="_blank">${html}`}
+      srcDoc={`<base target="_blank">${FRAME_FONTS}${html.replace(GOOGLE_POPPINS, "")}`}
       onLoad={onLoad}
     />
   );

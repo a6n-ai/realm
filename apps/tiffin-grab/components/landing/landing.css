@@ -324,7 +324,7 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 @media (hover: hover) { .tg-review-glass:hover { transform: translateY(-2px); box-shadow: 0 1px 0 color-mix(in srgb, white 35%, transparent) inset, 0 18px 40px -18px rgb(0 0 0 / 0.4); } }
 .dark .tg-review-glass { box-shadow: 0 1px 0 color-mix(in srgb, white 8%, transparent) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7); }
 @media (prefers-reduced-motion: reduce) { .tg-review-glass, .tg-rating { transition: none; } .tg-review-glass:hover { transform: none; } }
-@media (prefers-reduced-transparency: reduce) { .tg-review-glass { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } .tg-reviews__glow { display: none; } }
+@media (prefers-reduced-transparency: reduce), (max-width: 767px) { .tg-review-glass { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } .tg-reviews__glow { display: none; } }
 @media (prefers-contrast: more) { .tg-review-glass { background: var(--card); border: 1px solid var(--foreground); } }
 
 /* ── 2026-11 redesign: food-first hero, offers, build grid, steps, popup ── */

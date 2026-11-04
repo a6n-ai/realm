@@ -79,6 +79,9 @@ const APEX_PUBLIC_EXACT = new Set([
   "/refund-policy", "/delivery-policy", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
   "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
   "/twitter-image.png", "/robots.txt", "/sitemap.xml", "/llms.txt",
+  // The landing header asks this on every apex view; a 302 to app. cost a cross-origin hop.
+  // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
+  "/api/auth/get-session",
 ]);
 const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;

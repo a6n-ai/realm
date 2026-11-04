@@ -1,23 +1,41 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/** Full-bleed muted loop behind the hero. Reduced motion keeps the poster still; the video
- *  also pauses off-screen so it costs nothing once the visitor scrolls past. */
-export function HeroVideo({ src, poster }: { src: string; poster: string }) {
+export const PHONE_QUERY = "(max-width: 767px)";
+
+type Clip = { src: string; poster: string };
+
+/** Full-bleed muted loop behind the hero. The poster is a real <picture> (the LCP element,
+ *  phone or desktop crop by media query); the video gets its src only after hydration, so it
+ *  never competes with first paint, and a phone loads the small portrait encode (~430 KB)
+ *  instead of the 1.6 MB landscape one. Reduced motion keeps the poster; off-screen pauses. */
+export function HeroVideo({ desktop, phone }: { desktop: Clip; phone: Clip }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     const v = ref.current;
-    if (!v) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduce.matches) { v.pause(); return; }
+    if (!v || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    v.src = window.matchMedia(PHONE_QUERY).matches ? phone.src : desktop.src;
     const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) void v.play().catch(() => {}); else v.pause(); });
     io.observe(v);
-    return () => io.disconnect();
-  }, []);
+    return () => { io.disconnect(); v.pause(); v.removeAttribute("src"); v.load(); };
+  }, [desktop.src, phone.src]);
 
   return (
-    <video ref={ref} className="lp-hero__video" src={src} poster={poster} autoPlay muted loop playsInline preload="metadata" aria-hidden tabIndex={-1} />
+    <>
+      <picture>
+        <source media={PHONE_QUERY} srcSet={phone.poster} />
+        <img className="lp-hero__video" src={desktop.poster} alt="" fetchPriority="high" decoding="async" />
+      </picture>
+      <video
+        ref={ref}
+        className="lp-hero__video"
+        data-playing={playing || undefined}
+        onPlaying={() => setPlaying(true)}
+        muted loop playsInline preload="none" aria-hidden tabIndex={-1}
+      />
+    </>
   );
 }

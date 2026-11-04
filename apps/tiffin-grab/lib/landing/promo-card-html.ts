@@ -12,9 +12,7 @@ export function promoCardHtml({ badge, title, blurb }: { badge: string | null; t
   const lines = [
     `<!doctype html>`,
     `<html>`,
-    `  <head>`,
-    `    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" />`,
-    `  </head>`,
+    // Poppins comes from the frame wrapper (PromoHtml), self-hosted.
     // Transparent with no padding: the card behind it already draws the gradient and spacing.
     // vw here is the frame's width, so 20vw tracks the site's clamp(48px, 6.5vw, 88px) headline.
     `  <body style="margin: 0; background: transparent; font-family: Poppins, Arial, sans-serif; color: #2e1200">`,
