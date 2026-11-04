@@ -27,7 +27,10 @@ function dayRange(days: string[]): string {
  *  the offer text circling it. Staff pick it with the "Hero sticker" placement. */
 function OfferSticker({ promo }: { promo: LandingPromo }) {
   const headline = promo.badge ?? promo.title;
-  const ring = `${promo.blurb ?? promo.title} · ${promo.code ? `Code ${promo.code}` : promo.cta} · `;
+  // The ring holds ~46 characters at its font size; a short phrase repeated reads cleaner than a
+  // long blurb squeezed to fit.
+  const segment = `${headline} · ${promo.code ?? promo.cta} · `;
+  const ring = segment.repeat(Math.max(1, Math.floor(46 / segment.length)));
   return (
     <Link prefetch={false} href={promo.href} className="lp-sticker">
       <svg viewBox="0 0 200 200" aria-hidden>
@@ -39,7 +42,6 @@ function OfferSticker({ promo }: { promo: LandingPromo }) {
       </svg>
       <span className="lp-sticker__core">
         <strong>{headline}</strong>
-        <small>{promo.cta}</small>
         {/* Name from content (visible text first), so voice control can say what it sees. */}
         <span className="sr-only">: {promo.title}</span>
       </span>
