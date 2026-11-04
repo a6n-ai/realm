@@ -31,6 +31,8 @@ export interface PromotionFormValues {
   blurb: string;
   body: string;
   html: string;
+  /** Prefill for the editor when nothing is saved; saved only once staff change it. */
+  starterHtml: string;
   imageUrl: string;
   couponCode: string;
   ctaLabel: string;
@@ -68,10 +70,17 @@ export function PromotionForm({
   const [priority, setPriority] = useState(String(initial?.priority ?? 0));
   const [previewHtml, setPreviewHtml] = useState(initial?.html ?? "");
   const [refreshing, startRefresh] = useTransition();
+  const starter = initial?.starterHtml ?? "";
+
+  // An untouched starter is the built-in card, so it stays unsaved: the card keeps following the fields.
+  const exportBody = async () => {
+    const out = await editor.current?.exportEmail();
+    return out && starter && out.body === starter ? { body: "", html: "" } : out;
+  };
 
   const refreshPreview = () =>
     startRefresh(async () => {
-      const out = await editor.current?.exportEmail().catch(() => null);
+      const out = await exportBody().catch(() => null);
       if (out) setPreviewHtml(out.html);
     });
 
@@ -81,7 +90,7 @@ export function PromotionForm({
   const save = () =>
     start(async () => {
       setError(null);
-      const out = await editor.current?.exportEmail();
+      const out = await exportBody();
       if (out) setPreviewHtml(out.html);
       const res = await savePromotionAction(initial?.publicId ?? null, {
         title,
@@ -188,14 +197,14 @@ export function PromotionForm({
         <p className="text-muted-foreground mt-3 text-xs">Times are in the app timezone ({timezone}). Leave both empty to run until switched off.</p>
       </SectionCard>
 
-      <SectionCard title="Body (popup and landing section)">
+      <SectionCard title="Card content (popup and landing section)">
         <EmailContentEditor
           ref={editor}
-          initialBody={initial?.body ?? ""}
-          initialHtml={initial?.html ?? ""}
+          initialBody={initial?.body || starter}
+          initialHtml={initial?.html || starter}
           variables={[]}
         />
-        <p className="text-muted-foreground mt-3 text-xs">Same code editor as notification templates. Saved HTML is sanitized before it reaches the public site.</p>
+        <p className="text-muted-foreground mt-3 text-xs">Saved HTML replaces the card&apos;s headline, title and blurb; the button and code stay. Leave it unchanged to keep the built-in card. Sanitized before it reaches the public site.</p>
       </SectionCard>
 
       <SectionCard

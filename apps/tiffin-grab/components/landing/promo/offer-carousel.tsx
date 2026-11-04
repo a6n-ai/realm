@@ -14,10 +14,14 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
     <>
       <article className="lp-coupon" aria-label={promo.title}>
         <div className="lp-coupon__main">
-          <strong className="lp-coupon__badge">{promo.badge || promo.title}</strong>
-          {promo.badge ? <span className="lp-coupon__title">{promo.title}</span> : null}
-          {promo.blurb ? <p className="lp-coupon__blurb">{promo.blurb}</p> : null}
-          {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : null}
+          {/* Staff HTML is the whole card text; without it the fields draw the card. */}
+          {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : (
+            <>
+              <strong className="lp-coupon__badge">{promo.badge || promo.title}</strong>
+              {promo.badge ? <span className="lp-coupon__title">{promo.title}</span> : null}
+              {promo.blurb ? <p className="lp-coupon__blurb">{promo.blurb}</p> : null}
+            </>
+          )}
           <div><Link prefetch={false} href={promo.href} className="tg-promo-cta tg-promo-cta--ink">{promo.cta}</Link></div>
         </div>
         <div className="lp-coupon__stub">
@@ -30,7 +34,7 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
         </div>
       </article>
       <div className={promo.imageUrl ? "lp-offers__photo lp-offers__photo--own" : "lp-offers__photo"}>
-        {promo.imageUrl && /^\/(?!\/)[^?]*$/.test(promo.imageUrl) ? (
+        {promo.imageUrl && /^\/landing\/[^?]*$/.test(promo.imageUrl) ? (
           // Same-origin file: let the optimizer serve WebP/AVIF at the tile's width.
           <Image src={promo.imageUrl} alt="" fill sizes="(max-width: 900px) 100vw, 740px" />
         ) : promo.imageUrl ? (

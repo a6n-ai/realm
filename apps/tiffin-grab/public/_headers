@@ -1,0 +1,6 @@
+# Workers static assets (wrangler `assets`) read this; next.config headers() never reach files in public/.
+# Names are not content-hashed, so a week, not immutable: a replaced hero.mp4 shows within 7 days.
+/landing/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/brand/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400

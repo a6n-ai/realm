@@ -42,10 +42,11 @@ export function BrowserChrome() {
   const strip = "pointer-events-none fixed inset-x-0 z-[45] bg-[var(--background)]";
   // The home page opens on a full-bleed hero video: a page-colour strip there reads as a white
   // bar across the top. Safari samples the hero itself instead, which is the colour we want.
-  if (pathname === "/") return null;
+  // Keyed on the hero being on the page, not the pathname: public pages are rewritten to
+  // /site/<org>, so usePathname() no longer reads "/" there.
   return (
     <>
-      <div aria-hidden className={`${strip} top-0 h-1.5`} />
+      <div aria-hidden className={`${strip} top-0 h-1.5 [body:has(.lp-hero)_&]:hidden`} />
       <div aria-hidden className={`${strip} -bottom-2 h-3`} />
     </>
   );

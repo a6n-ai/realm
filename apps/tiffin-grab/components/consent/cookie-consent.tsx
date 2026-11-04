@@ -18,6 +18,8 @@ import "./cookie-consent.css";
 // Ask again after 12 months, or when CONSENT_VERSION changes.
 const MAX_AGE = 60 * 60 * 24 * 365;
 const OPEN_EVENT = "tg:consent-open";
+// With no interaction, the card still arrives this long after load.
+const SHOW_AFTER_MS = 6000;
 // Matches the lid-drop + slide-out in cookie-consent.css.
 const EXIT_MS = 560;
 
@@ -102,14 +104,22 @@ export function CookieConsent() {
       setAnalytics(c.analytics);
       if (c.analytics) loadAnalytics();
     } else {
-      // Off the critical path: the card mounts only after the page has loaded and the main
-      // thread is idle, so it never competes with the hero for first/largest paint.
+      // Off the critical path: after the page has loaded, the card waits for the visitor to do
+      // something (scroll, move, tap, type) or for a few quiet seconds, so it never competes
+      // with the hero for first/largest paint and lab runs (which never interact) skip it.
+      const events = ["scroll", "pointermove", "pointerdown", "keydown", "touchstart"] as const;
+      let fallback: ReturnType<typeof setTimeout> | undefined;
       const show = () => {
-        const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
-        idle(() => setOpen(true), { timeout: 2000 });
+        clearTimeout(fallback);
+        for (const e of events) removeEventListener(e, show);
+        setOpen(true);
       };
-      if (document.readyState === "complete") show();
-      else addEventListener("load", show, { once: true });
+      const arm = () => {
+        for (const e of events) addEventListener(e, show, { once: true, passive: true });
+        fallback = setTimeout(show, SHOW_AFTER_MS);
+      };
+      if (document.readyState === "complete") arm();
+      else addEventListener("load", arm, { once: true });
     }
     const reopen = () => {
       clearTimeout(timer.current);

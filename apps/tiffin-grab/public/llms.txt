@@ -1,0 +1,30 @@
+# Tiffin Grab
+
+> Home-style Indian tiffin meals delivered across the Greater Toronto Area, Ontario, Canada. Customers choose the diet (vegetarian or non-veg), the meal size, the sides, the delivery days and how many weeks, then order online.
+
+Each tiffin is a home-style meal: sabzi, dal, rice, roti, raita and salad, with a weekend dish. Plans can be paused or changed before the daily cutoff. Ordering, account and checkout pages need sign-in and are not meant for crawling.
+
+## Plans and pricing
+
+- [Plans](https://tiffingrab.ca/plans): the vegetarian and non-veg plans, what comes in them, the sizes and the per-tiffin rates
+- [Pricing](https://tiffingrab.ca/pricing): per-tiffin rates for every meal size, and what longer plans take off each tiffin
+- [Build a tiffin](https://app.tiffingrab.ca/subscribe): pick diet, size, sides, days and weeks, then check out
+
+## Menu and delivery
+
+- [This week's menu](https://tiffingrab.ca/menu/weekly): the dishes day by day
+- [Meal sizes](https://tiffingrab.ca/menu): every size by tier, with calories, protein, carbs, fat and the per-tiffin rate
+- [Delivery areas](https://tiffingrab.ca/locations): GTA areas served, delivery windows, and a postal code check
+
+## Help
+
+- [FAQ](https://tiffingrab.ca/faq): plans, delivery, meal sizes, pausing and billing
+- [Contact](https://tiffingrab.ca/contact): ask about a plan, an area or an order
+- [Reviews](https://tiffingrab.ca/reviews): Google reviews from customers
+
+## Policies
+
+- [Terms](https://tiffingrab.ca/terms)
+- [Privacy policy](https://tiffingrab.ca/privacy)
+- [Refund policy](https://tiffingrab.ca/refund-policy)
+- [Delivery policy](https://tiffingrab.ca/delivery-policy)

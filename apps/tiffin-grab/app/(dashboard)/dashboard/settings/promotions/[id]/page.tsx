@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { couponsService } from "@/lib/services/coupons.service";
 import { couponHeadline } from "@/lib/landing/promos";
+import { promoCardHtml } from "@/lib/landing/promo-card-html";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { promotionsService, type Promotion } from "@/lib/services/promotions.service";
 import { PromotionForm } from "../promotion-form";
@@ -48,6 +49,12 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
           couponCode: promotion.couponCode ?? "",
           ctaLabel: promotion.ctaLabel,
           ctaHref: promotion.ctaHref ?? "",
+          // No saved HTML: open the editor on the card as the landing page draws it today.
+          starterHtml: promotion.html ? "" : promoCardHtml({
+            badge: coupons.find((c) => c.code === promotion.couponCode)?.badge || null,
+            title: promotion.title,
+            blurb: promotion.blurb,
+          }),
           placements: promotion.placements,
           startsAt: promotion.startsAt,
           endsAt: promotion.endsAt,

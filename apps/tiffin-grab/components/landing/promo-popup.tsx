@@ -31,10 +31,32 @@ export function CopyCode({ code }: { code: string }) {
  *  allow-same-origin only lets this page read the height; nothing inside can run. */
 export function PromoHtml({ html, title }: { html: string; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  // scrollHeight never reports less than the frame's current height, so collapse first to let it shrink.
   const fit = () => {
-    const doc = ref.current?.contentDocument;
-    if (ref.current && doc?.documentElement) ref.current.style.height = `${doc.documentElement.scrollHeight}px`;
+    const frame = ref.current;
+    const doc = frame?.contentDocument;
+    if (!frame || !doc?.documentElement) return;
+    frame.style.height = "0px";
+    frame.style.height = `${doc.documentElement.scrollHeight}px`;
   };
+  const onLoad = () => {
+    fit();
+    // Web fonts land after load and change the text height.
+    ref.current?.contentDocument?.fonts?.ready.then(fit).catch(() => {});
+  };
+  // Width changes (carousel resize, phone rotation) rewrap the text.
+  useEffect(() => {
+    const frame = ref.current;
+    if (!frame) return;
+    // Server-rendered frames can finish loading before hydration attaches onLoad, which then never fires.
+    if (frame.contentDocument?.readyState === "complete") onLoad();
+    let width = frame.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (frame.clientWidth !== width) { width = frame.clientWidth; fit(); }
+    });
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, []);
   return (
     <iframe
       ref={ref}
@@ -42,7 +64,7 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
       title={title}
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       srcDoc={`<base target="_blank">${html}`}
-      onLoad={fit}
+      onLoad={onLoad}
     />
   );
 }
@@ -121,9 +143,9 @@ export function PromoPanel({ promo, fallbackImage, onClose, className }: { promo
       ) : null}
       <div className="tg-popup__body">
         <span className="tg-popup__eyebrow">Offer running now</span>
-        <h2 id="tg-popup-title" className="tg-popup__title">{promo.title}</h2>
-        {promo.blurb ? <p className="tg-popup__blurb">{promo.blurb}</p> : null}
-        {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : null}
+        {/* The dialog is labelled by the title, so it stays for screen readers when staff HTML replaces it. */}
+        <h2 id="tg-popup-title" className={promo.html ? "sr-only" : "tg-popup__title"}>{promo.title}</h2>
+        {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : promo.blurb ? <p className="tg-popup__blurb">{promo.blurb}</p> : null}
         <div className="tg-popup__actions">
           <Link prefetch={false} href={promo.href} className="tg-promo-cta" onClick={onClose}>{promo.cta}</Link>
           {promo.code ? <CopyCode code={promo.code} /> : null}

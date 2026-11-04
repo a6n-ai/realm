@@ -91,8 +91,11 @@
   -webkit-backdrop-filter: blur(28px) saturate(170%); backdrop-filter: blur(28px) saturate(170%); }
 .lp-today__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lp-today__head h2 { margin: 0; font-size: 20px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: #FBF4E7; }
-.lp-today__badge { padding: 4px 10px; border-radius: 999px; background: #FF9843; color: #2E1200; font-size: 12px; font-weight: 700;
+.lp-today__badge { position: relative; padding: 4px 10px; border-radius: 999px; background: #FF9843; color: #2E1200; font-size: 12px; font-weight: 700;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 4px 10px -4px rgb(255 152 67 / 0.7); }
+/* The glow peak lives on a layer whose opacity animates (composited), not an animated box-shadow (a repaint per frame). */
+.lp-today__badge::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 4px 18px 0 rgb(255 152 67 / 0.55); opacity: 0; }
 .lp-today__row { display: flex; flex-direction: column; gap: 8px; }
 .lp-today__label { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(251 244 231 / 0.72); }
 .lp-today__chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }

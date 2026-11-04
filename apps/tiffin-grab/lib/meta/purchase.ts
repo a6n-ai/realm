@@ -3,17 +3,23 @@ import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { MetaAttribution } from "./types";
-import { sendMetaEvent } from "./capi";
+import { sendMetaEventAwait } from "./capi";
 
 const log = createLogger("meta-purchase");
 
 /**
- * Exactly-once Purchase CAPI for a settled payment.
- * Claims `metaPurchaseSentAt` before the network call so webhook retries / double
- * verify cannot double-fire. Skips renewals (`metaPurchaseEligible = false`) and
- * any payment that is not the order's first payment. Never reads headers/cookies —
- * attribution must already be on the order from checkout.
+ * Exactly-once Purchase CAPI for a conversion.
+ * Offline methods fire on customer claim (`pending_verification`) — ads conversion
+ * at proof/reference submit; money still settles later on staff verify. Card fires
+ * on settle (`paid` / `simulated_paid`). Claims `metaPurchaseSentAt` before the
+ * network call so claim + verify / webhook retries cannot double-fire. Skips
+ * renewals (`metaPurchaseEligible = false`) and any payment that is not the
+ * order's first payment. Never reads headers/cookies — attribution must already
+ * be on the order from checkout. Awaits the Graph POST so Workers keep the isolate
+ * alive through the send.
  */
+const PURCHASE_STATUSES = new Set(["pending_verification", "paid", "simulated_paid"]);
+
 export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<void> {
   try {
     const claimed = await db.transaction(async (tx) => {
@@ -25,7 +31,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
         .limit(1);
       if (!pay) return null;
       if (pay.metaPurchaseSentAt != null) return null;
-      if (pay.status !== "paid" && pay.status !== "simulated_paid") return null;
+      if (!PURCHASE_STATUSES.has(pay.status)) return null;
 
       const [first] = await tx
         .select({ id: payments.id })
@@ -36,7 +42,19 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
       if (!first || first.id !== pay.id) return null;
 
       const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
-      if (!order || !order.metaPurchaseEligible) return null;
+      if (!order) return null;
+      if (!order.metaPurchaseEligible) {
+        log.info({ paymentPublicId, orderId: order.publicId }, "meta purchase skipped: renewal");
+        return null;
+      }
+
+      const attr = (order.metaAttribution ?? null) as MetaAttribution | null;
+      // Do not claim the stamp when consent was denied — a later verify with consent
+      // still cannot recover, but we must not burn the once-flag on a no-op send.
+      if (attr?.consent === false) {
+        log.info({ paymentPublicId }, "meta purchase skipped: no analytics consent");
+        return null;
+      }
 
       const claimedAt = Date.now();
       await tx.update(payments).set({ metaPurchaseSentAt: claimedAt }).where(eq(payments.id, pay.id));
@@ -62,20 +80,19 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
         .limit(1);
       const [plan] = await tx.select({ key: plans.key }).from(plans).where(eq(plans.id, order.planId)).limit(1);
 
-      return { pay, order, user, meal, plan, claimedAt };
+      return { pay, order, user, meal, plan, claimedAt, attr };
     });
 
     if (!claimed) return;
 
-    const attr = (claimed.order.metaAttribution ?? null) as MetaAttribution | null;
-    if (attr?.consent === false) return;
     const value = Number(claimed.pay.amount) + Number(claimed.pay.surchargeAmount ?? 0);
-    const settledMs = claimed.pay.capturedAt ?? claimed.claimedAt;
+    const settledMs = claimed.pay.capturedAt ?? claimed.pay.claimedAt ?? claimed.claimedAt;
     const contentIds = [claimed.plan?.key, claimed.meal?.key ?? claimed.meal?.publicId].filter(
       (x): x is string => !!x,
     );
+    const attr = claimed.attr;
 
-    sendMetaEvent({
+    await sendMetaEventAwait({
       eventName: "Purchase",
       eventId: claimed.pay.publicId,
       eventSourceUrl: attr?.eventSourceUrl,

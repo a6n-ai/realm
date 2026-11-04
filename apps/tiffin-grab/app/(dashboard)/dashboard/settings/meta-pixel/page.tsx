@@ -11,11 +11,12 @@ const EVENTS = [
   { name: "ViewContent", where: "Menu, weekly menu, and plans. Browser and server." },
   { name: "FindLocation", where: "Delivery postal check. Browser and server." },
   { name: "AddToCart", where: "Plan chosen in the subscribe wizard. Browser and server." },
-  { name: "InitiateCheckout", where: "Checkout opens. Browser." },
+  { name: "InitiateCheckout", where: "Checkout opens with the priced total. Browser and server." },
+  { name: "AddPaymentInfo", where: "Customer picks Stripe or e-Transfer. Browser and server, with the full priced total." },
   { name: "Lead", where: "Contact form or waitlist sign-up. Browser and server, counted once." },
   { name: "Contact", where: "WhatsApp chat. Browser and server." },
   { name: "CompleteRegistration", where: "New account from the sign-up page. Server." },
-  { name: "Purchase", where: "Payment confirmed (card settles or staff verifies), with the amount paid. Server, and the browser when the customer pays by card — same id, counted once." },
+  { name: "Purchase", where: "Card: when the charge settles (full amount incl. tax/surcharge). Offline: when proof or a reference is submitted. Browser and server share one id; staff verify does not send again." },
 ];
 
 export default async function MetaPixelSettingsPage() {

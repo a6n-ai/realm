@@ -201,7 +201,7 @@
   .lp-coupon__main::after { animation: lp-glint 8s cubic-bezier(0.22, 1, 0.36, 1) 3.5s infinite; }
   .lp-offers .lp-kicker::before { animation: lp-live 2.4s ease-out infinite; }
   .lp-story__mark { animation: lp-twinkle 4s ease-in-out infinite; transform-origin: center; }
-  .lp-today__badge { animation: lp-glow 3s ease-in-out infinite; }
+  .lp-today__badge::after { animation: lp-glow 3s ease-in-out infinite; }
 
   @media (hover: hover) and (pointer: fine) {
     /* Buttons: lift, deeper shadow, and the glint runs now instead of waiting. */
@@ -231,7 +231,7 @@
 @keyframes lp-glint-now { from { transform: translateX(-160%) skewX(-18deg); } to { transform: translateX(360%) skewX(-18deg); } }
 @keyframes lp-live { 0% { box-shadow: 0 0 0 0 rgb(226 98 27 / 0.5); } 100% { box-shadow: 0 0 0 8px rgb(226 98 27 / 0); } }
 @keyframes lp-twinkle { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(0.82) rotate(45deg); opacity: 0.75; } }
-@keyframes lp-glow { 0%, 100% { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 4px 10px -4px rgb(255 152 67 / 0.7); } 50% { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 4px 18px 0 rgb(255 152 67 / 0.55); } }
+@keyframes lp-glow { 50% { opacity: 1; } }
 
 /* No section seams: the food washes fade to transparent at their own top and bottom
    (a mask), instead of an overlay ending in flat cream that no longer matches the

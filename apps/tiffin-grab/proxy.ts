@@ -78,7 +78,7 @@ const APEX_PUBLIC_EXACT = new Set([
   "/", "/pricing", "/plans", "/menu", "/locations", "/faq", "/contact", "/reviews", "/legal", "/terms", "/privacy",
   "/refund-policy", "/delivery-policy", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
   "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
-  "/twitter-image.png", "/robots.txt", "/sitemap.xml",
+  "/twitter-image.png", "/robots.txt", "/sitemap.xml", "/llms.txt",
 ]);
 const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
