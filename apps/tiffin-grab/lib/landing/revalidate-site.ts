@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { sharedCache } from "@/lib/cache";
 import { runInBackground } from "@/lib/runtime/background";
+import { setSiteNext } from "@/lib/runtime/cron-markers";
 
 const WEEK_MS = 7 * 24 * 3600_000;
 
@@ -22,7 +23,11 @@ export function revalidateSitePaths(): void {
 export function revalidatePublicSite(): void {
   revalidateSitePaths();
   try {
-    runInBackground(() => publicSiteState.set("requested-at", Date.now()), "public-site requested-at");
+    // The 90 s follow-up (cron/public-site) only runs if the cron wakes then, so mark it due.
+    runInBackground(
+      () => Promise.all([publicSiteState.set("requested-at", Date.now()), setSiteNext(Date.now() + 90_000)]),
+      "public-site requested-at",
+    );
   } catch {
     // no request context
   }

@@ -3,6 +3,8 @@
 import openNext from "../.open-next/worker.js";
 
 export * from "../.open-next/worker.js";
+import { readMarkers } from "./due-tasks.js";
+import { consume } from "./queue-consumer.js";
 
 const POLL_MS = 30_000;
 
@@ -13,7 +15,12 @@ async function tick(env) {
     method: "POST",
     headers: { authorization: "Bearer " + env.CRON_SECRET },
   });
-  if (!res.ok) console.error("notifications tick failed", res.status, await res.text().catch(() => ""));
+  if (!res.ok) {
+    console.error("notifications tick failed", res.status, await res.text().catch(() => ""));
+    return { ok: false, retryAfterMs: 0 };
+  }
+  const body = await res.json().catch(() => ({}));
+  return { ok: true, retryAfterMs: body.retryAfterMs ?? null };
 }
 
 // Public pages are ISR (stale-while-revalidate): this per-minute check revalidates them at local midnight and promo edges.
@@ -59,11 +66,15 @@ export class OptimoPoller {
 
 export default {
   fetch: openNext.fetch,
-  async queue(_batch, env) {
-    await tick(env);
+  async queue(batch, env) {
+    await consume(batch, () => tick(env));
   },
-  async scheduled(_event, env, ctx) {
+  async scheduled(event, env, ctx) {
     const guard = (p) => p.catch((err) => console.error("scheduled task threw", err));
-    ctx.waitUntil(Promise.all([guard(tick(env)), guard(armPoller(env)), guard(publicSite(env))]));
+    // Each tick loads the whole Next server, so only call a route when a KV marker says work is due.
+    const due = await readMarkers(env.CACHE, Date.now(), new Date(event.scheduledTime).getUTCMinutes()).catch(() => ({ notify: true, site: true }));
+    ctx.waitUntil(
+      Promise.all([due.notify && guard(tick(env)), guard(armPoller(env)), due.site && guard(publicSite(env))]),
+    );
   },
 };

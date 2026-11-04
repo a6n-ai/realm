@@ -7,6 +7,7 @@ import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { addScheduledCampaign } from "@/lib/notifications/campaign-schedule";
+import { lowerNotifyNext } from "@/lib/runtime/cron-markers";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
@@ -35,7 +36,10 @@ export const POST = handler(
       return problem(result.status, `${result.error}${items}`);
     }
     // A stale Redis entry after unscheduling is harmless: the drain reads status from the DB.
-    if (result.scheduledAt) addScheduledCampaign(id, result.scheduledAt);
+    if (result.scheduledAt) {
+      addScheduledCampaign(id, result.scheduledAt);
+      await lowerNotifyNext(result.scheduledAt);
+    }
     return json(result);
   },
 );

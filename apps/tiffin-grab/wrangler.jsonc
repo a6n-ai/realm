@@ -50,7 +50,7 @@
   "kv_namespaces": [{ "binding": "CACHE", "id": "c74de8bc0b00407992ad1650561866bf" }], // tiffin-grab-cache
   "queues": {
     "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
-    "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 0 }]
+    "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-dlq" }]
   },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" }],
   "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache", "database_id": "e7e348b9-d61d-434d-9b58-bd4f306aefc5" }],
@@ -95,7 +95,7 @@
       "kv_namespaces": [{ "binding": "CACHE", "id": "64b3bfc7d10a4c53960db7e8d48a807f" }], // tiffin-grab-cache-preview
       "queues": {
         "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox-preview" }],
-        "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 0 }]
+        "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-preview-dlq" }]
       },
       "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache-preview" }],
       "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache-preview", "database_id": "8a1af6e1-2eed-4d99-a6fa-a27dfc13ee25" }],

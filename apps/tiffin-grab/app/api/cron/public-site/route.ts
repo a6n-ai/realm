@@ -1,5 +1,6 @@
 import { publicSiteState as marker, revalidateSitePaths } from "@/lib/landing/revalidate-site";
-import { lastBoundary, loadWindowEdges } from "@/lib/landing/site-boundaries";
+import { computeSiteNextAt, lastBoundary, loadWindowEdges } from "@/lib/landing/site-boundaries";
+import { setSiteNext } from "@/lib/runtime/cron-markers";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
 // ISR is stale-while-revalidate: a quiet page would serve yesterday's menu or an ended promo to the
@@ -29,6 +30,9 @@ async function handle(request: Request): Promise<Response> {
     if (revalidated || followUp) revalidateSitePaths();
     if (revalidated) await marker.set("last-boundary", boundary);
     if (followUp) await marker.set("followed-up", requestedAt);
+    const requested = followUp ? requestedAt : (await marker.get<number>("requested-at"))?.value;
+    const followed = followUp ? requestedAt : followedUp;
+    await setSiteNext(await computeSiteNextAt(now, timezone, { requestedAt: requested, followedUp: followed }));
     return Response.json({ ok: true, revalidated, followUp });
   } catch (err) {
     return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });

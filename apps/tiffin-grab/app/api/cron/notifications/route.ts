@@ -1,4 +1,5 @@
 import { runCronJob } from "@/lib/cron/run";
+import { setNotifyNext } from "@/lib/runtime/cron-markers";
 
 // Manual backstop for the Redis-signalled outbox listener (no longer scheduled): expands
 // any due campaign and sends anything a lost signal left pending. Scheduled campaigns now
@@ -19,7 +20,13 @@ async function handle(request: Request): Promise<Response> {
     try {
       const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
       const materialized = await materializeDue();
-      return Response.json({ ok: true, summary: { materialized, processed: await drainPending() } });
+      const processed = await drainPending();
+      const { computeNotifyNextAt, earliestPendingAt } = await import("@/lib/notifications/notify-next");
+      await setNotifyNext(await computeNotifyNextAt());
+      // Rows left pending (their send failed and they await a retry): the Queue consumer re-delivers its message after this.
+      const pendingAt = await earliestPendingAt();
+      const retryAfterMs = pendingAt == null ? null : Math.max(0, pendingAt - Date.now());
+      return Response.json({ ok: true, retryAfterMs, summary: { materialized, processed } });
     } catch (err) {
       return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });
     }

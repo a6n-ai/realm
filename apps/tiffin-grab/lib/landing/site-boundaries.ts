@@ -1,4 +1,4 @@
-import { and, between, eq, notInArray, or } from "drizzle-orm";
+import { and, between, eq, gt, notInArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, discounts, promotions } from "@/db/schema";
 import { dateTimeFormat } from "@/lib/intl/date-format";
@@ -42,4 +42,34 @@ export async function loadWindowEdges(nowMs = Date.now(), timezone = "UTC"): Pro
     db.select({ a: discounts.startsAt, b: discounts.endsAt }).from(discounts).where(within(discounts.startsAt, discounts.endsAt)),
   ]);
   return [...p, ...c, ...d].flatMap((r) => [r.a, r.b]).filter((e): e is number => e != null);
+}
+
+/** The next local midnight after `nowMs`. Stepping 36 h from a midnight always lands mid-next-day, even across a clock change. */
+export function nextLocalMidnightMs(nowMs: number, timezone: string): number {
+  return localMidnightMs(localMidnightMs(nowMs, timezone) + 36 * 3600_000, timezone);
+}
+
+const FOLLOW_UP_AFTER_MS = 90_000;
+
+/** Pure part of computeSiteNextAt: the earliest of the next midnight, a future window edge and an owed follow-up. */
+export function nextSiteAt(nowMs: number, timezone: string, futureEdgesMs: number[], followUp: { requestedAt?: number; followedUp?: number }): number {
+  const times = [nextLocalMidnightMs(nowMs, timezone), ...futureEdgesMs.filter((e) => e > nowMs)];
+  const { requestedAt, followedUp } = followUp;
+  if (requestedAt != null && requestedAt > (followedUp ?? 0)) times.push(requestedAt + FOLLOW_UP_AFTER_MS);
+  return Math.min(...times);
+}
+
+/** When the public-site cron next has work. Same tables and filters as loadWindowEdges, looking forward. */
+export async function computeSiteNextAt(nowMs: number, timezone: string, followUp: { requestedAt?: number; followedUp?: number }): Promise<number> {
+  const after = (a: Parameters<typeof gt>[0], b: Parameters<typeof gt>[0]) => or(gt(a, nowMs), gt(b, nowMs));
+  const [p, c, d] = await Promise.all([
+    db.select({ a: promotions.startsAt, b: promotions.endsAt }).from(promotions).where(after(promotions.startsAt, promotions.endsAt)),
+    db
+      .select({ a: coupons.startsAt, b: coupons.expiresAt })
+      .from(coupons)
+      .where(and(eq(coupons.active, true), eq(coupons.visible, true), notInArray(coupons.kind, ["rep_daily", "rep_code"]), after(coupons.startsAt, coupons.expiresAt))),
+    db.select({ a: discounts.startsAt, b: discounts.endsAt }).from(discounts).where(after(discounts.startsAt, discounts.endsAt)),
+  ]);
+  const edges = [...p, ...c, ...d].flatMap((r) => [r.a, r.b]).filter((e): e is number => e != null);
+  return nextSiteAt(nowMs, timezone, edges, followUp);
 }
