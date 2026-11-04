@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Open a local port onto one app's prod Postgres, via Systems Manager.
 #
-#   ./deployment/prod/db-tunnel.sh tiffin-grab     # localhost:5433  (us-east-1)
 #   ./deployment/prod/db-tunnel.sh puchkaman       # localhost:5434  (us-east-1)
-#   ./deployment/prod/db-tunnel.sh xplorers        # localhost:5435  (ap-southeast-1)
 #
 # No SSH, no .pem, no bastion hop: SSM port-forwards from the app's OWN box, so
 # each RDS keeps its security group as-is (5432 reachable only from members of
@@ -26,16 +24,14 @@ set -euo pipefail
 app=${1:-}
 if [[ -z $app ]]; then
   echo "usage: $(basename "$0") <app> [local-port]" >&2
-  echo "  apps: tiffin-grab (5433), puchkaman (5434), xplorers (5435)" >&2
+  echo "  apps: puchkaman (5434)" >&2
   exit 64
 fi
 
 # One line per app. A new app gets its own port here — never reuse one, or two
 # apps' data sources become indistinguishable at localhost.
 case $app in
-  tiffin-grab) default_port=5433; region=us-east-1 ;;
   puchkaman)   default_port=5434; region=us-east-1 ;;
-  xplorers)    default_port=5435; region=ap-southeast-1 ;;
   *) echo "unknown app: $app" >&2; exit 64 ;;
 esac
 port=${2:-$default_port}

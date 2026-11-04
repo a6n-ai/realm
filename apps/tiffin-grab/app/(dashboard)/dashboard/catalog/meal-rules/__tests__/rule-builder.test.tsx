@@ -5,10 +5,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RuleForm, emptyDraft, type Draft } from "../rule-builder";
 
-vi.mock("@/lib/redis", () => ({
-  getRedis: () => ({ flushdb: vi.fn().mockResolvedValue("OK") }),
-}));
-
 afterEach(cleanup);
 
 describe("RuleForm", () => {

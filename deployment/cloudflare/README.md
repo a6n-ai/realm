@@ -169,4 +169,4 @@ Hyperdrive:Read), `CLOUDFLARE_ACCOUNT_ID`.
 Detach the Worker's custom domain and recreate the A record to the box's Elastic IP. Only
 possible while the box still exists. tiffin-grab: also refresh the EC2 env from SSM (the master
 password was rotated after cutover) and `docker compose start web` on Box A
-(`i-0ee52b9750c327d00`, via SSM), then run `deploy-tiffin-grab.yml` by hand.
+(`i-0ee52b9750c327d00`, via SSM).

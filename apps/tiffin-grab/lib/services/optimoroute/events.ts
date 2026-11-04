@@ -12,8 +12,8 @@ import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from 
 import { getOptimoRouteConfig } from "./config";
 
 // OptimoRoute has no webhooks. get_events is its cursor feed of driver-app events for live
-// routes; polling it every 30 s gives the same result. The cursor and a single-runner lock
-// live in Redis. Losing the cursor only replays events, and applyCompletion leaves rows that
+// routes; polling it gives the same result (the Worker cron calls pollOnce). The cursor and a single-runner lock
+// live in the lease table. Losing the cursor only replays events, and applyCompletion leaves rows that
 // are already settled, so a replay changes nothing.
 
 const log = createLogger("optimoroute.events");
@@ -21,8 +21,6 @@ const TAG_KEY = "optimo:events:tag";
 const LOCK_KEY = "optimo:events:lock";
 const OWNER = randomUUID();
 const LOCK_MS = 90_000;
-const INTERVAL_MS = 30_000;
-const MAX_BACKOFF_MS = 5 * 60_000;
 const ACTIONABLE = new Set(["success", "failed"]);
 
 export function inWindow(nowMs: number, timezone: string, window: { start: string; end: string }): boolean {
@@ -138,22 +136,4 @@ export async function pollOnce(): Promise<"locked" | "outside" | { applied: numb
   }
   if (total.applied > 0) publishAnalyticsLive();
   return total;
-}
-
-/** Started once per server from instrumentation.ts when OPTIMO_EVENTS=on. */
-export function startOptimoEventPoller(): void {
-  let delay = INTERVAL_MS;
-  const tick = async () => {
-    try {
-      const r = await pollOnce();
-      if (typeof r === "object" && r.applied > 0) log.info(r, "optimoroute events applied");
-      delay = INTERVAL_MS;
-    } catch (err) {
-      log.error({ err }, "optimoroute event poll failed");
-      delay = Math.min(delay * 2, MAX_BACKOFF_MS);
-    }
-    setTimeout(tick, delay).unref?.();
-  };
-  setTimeout(tick, INTERVAL_MS).unref?.();
-  log.info({ intervalMs: INTERVAL_MS }, "optimoroute event poller started");
 }

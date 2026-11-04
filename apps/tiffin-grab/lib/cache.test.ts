@@ -5,9 +5,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-test("Workers build on Node without REDIS_URL gets an LRU-only cache", async () => {
-  vi.stubEnv("BUILD_TARGET", "workers");
-  vi.stubEnv("REDIS_URL", "");
+test("off Workers the cache is LRU-only", async () => {
   const { sharedCache } = await import("./cache");
   const cache = sharedCache("build-probe");
   await cache.set("k", 42);

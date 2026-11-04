@@ -16,7 +16,6 @@ vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/notifications/tables", () => ({ notificationTables: {}, usersRef: {} }));
 vi.mock("@/lib/notifications/campaign-config", () => ({ campaignConfig: async () => ({}) }));
 vi.mock("@/lib/campaigns/segment", () => ({ resolveSegment: () => {} }));
-vi.mock("@/lib/notifications/campaign-schedule", () => ({ addScheduledCampaign: () => {} }));
 vi.mock("@/lib/runtime/workflow-wake", () => ({ scheduleCampaignWake: wake }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 

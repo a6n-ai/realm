@@ -1,12 +1,10 @@
-import { LruTier, RedisTier, TieredCache } from "@foundry/commons";
+import { LruTier, TieredCache } from "@foundry/commons";
 import { KvTier } from "./cache/kv-tier";
-import { getRedis } from "./redis";
 import { isWorkers } from "./runtime/platform";
 
 /**
- * A read-through cache tiered L1 in-process LRU → L2 shared store: Redis on
- * Node, Workers KV on Workers. The connection lives in the app (server-only,
- * not in commons), so the tier is wired here and injected. `name` namespaces
+ * A read-through cache tiered L1 in-process LRU → L2 Workers KV (Workers only; Node
+ * dev/tests/build are LRU-only). The tier is wired here and injected. `name` namespaces
  * keys and scopes `evictAll()` to just this cache.
  */
 export function sharedCache(name: string, defaultTtlMs = 60_000, kvRetainMs = 0, workersL1CapMs?: number): TieredCache {
@@ -26,17 +24,14 @@ class CappedLruTier extends LruTier {
 }
 
 function sharedTier(name: string, kvRetainMs: number) {
-  if (isWorkers()) return [new KvTier(name, undefined, kvRetainMs)];
-  // `next build` for the Worker artifact runs on Node with no Redis (CI); LRU is enough to collect page data.
-  if (process.env.BUILD_TARGET === "workers") return [];
-  return [new RedisTier(getRedis(), name)];
+  return isWorkers() ? [new KvTier(name, undefined, kvRetainMs)] : [];
 }
 
 /**
  * For admin-edited config that must reflect a write immediately. KV is
  * eventually consistent (~60s) and cannot be evicted across locations, so on
  * Workers this is per-isolate LRU only with a short TTL: Postgres is read at
- * most every 5s per isolate. Node keeps the Redis tier unchanged.
+ * most every 5s per isolate.
  */
 // defaultTtlMs is intentionally ignored on Workers (5s LRU only).
 export function configCache(name: string, defaultTtlMs = 60_000): TieredCache {

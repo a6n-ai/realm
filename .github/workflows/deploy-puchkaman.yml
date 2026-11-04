@@ -8,17 +8,8 @@
 # Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
 name: deploy-puchkaman
 
+# retired 2026-10-13: manual only
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/puchkaman/**"
-      - "foundry/**"
-      - "relay/**"
-      - "deployment/prod/**"
-      # No root lockfile/workspace triggers: puchkaman is sunset (2026-10-13) and
-      # is not kept building against shared dependency upgrades.
-      - ".github/workflows/deploy-puchkaman.yml"
   workflow_dispatch: {}
 
 concurrency:

@@ -6,7 +6,6 @@ import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { resolveSegment } from "@/lib/campaigns/segment";
-import { addScheduledCampaign } from "@/lib/notifications/campaign-schedule";
 import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
@@ -35,11 +34,7 @@ export const POST = handler(
       const items = result.blocking?.length ? `: ${result.blocking.map((b) => b.message).join(" ")}` : "";
       return problem(result.status, `${result.error}${items}`);
     }
-    // A stale Redis entry after unscheduling is harmless: the drain reads status from the DB.
-    if (result.scheduledAt) {
-      addScheduledCampaign(id, result.scheduledAt);
-      await scheduleCampaignWake(result.scheduledAt);
-    }
+    if (result.scheduledAt) await scheduleCampaignWake(result.scheduledAt);
     return json(result);
   },
 );

@@ -110,7 +110,7 @@ or SNS can't auto-confirm it:
    aws ssm put-parameter --region us-east-1 --overwrite \
      --name /tiffin-grab/prod/SES_FEEDBACK_TOPIC_ARN --type String --value <FeedbackTopicArn>
    ```
-   Then redeploy the app (box: `cd ~/realm/deployment/prod/tiffin-grab && ./deploy.sh`)
+   Then redeploy the app (the Worker reads SES_CONFIGURATION_SET from its Cloudflare env)
    so `getEmailProvider` picks up `SES_CONFIGURATION_SET`.
 4. **Verify**: send to `bounce@simulator.amazonses.com` and
    `complaint@simulator.amazonses.com` (SES mailbox simulator — works even in the
