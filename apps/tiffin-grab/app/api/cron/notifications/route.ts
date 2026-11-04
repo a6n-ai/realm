@@ -1,5 +1,5 @@
 import { runCronJob } from "@/lib/cron/run";
-import { setNotifyNext } from "@/lib/runtime/cron-markers";
+import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";
 
 // Manual backstop for the Redis-signalled outbox listener (no longer scheduled): expands
 // any due campaign and sends anything a lost signal left pending. Scheduled campaigns now
@@ -14,7 +14,7 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // The Workers queue consumer and per-minute cron: no cron_runs row per minute. Due scheduled
+  // The Workers queue consumer and CampaignWake Workflow: no cron_runs row per call. Due scheduled
   // campaigns come from the DB (no Redis set on Workers); drainPending claims rows atomically.
   if (new URL(request.url).searchParams.get("mode") === "tick") {
     try {
@@ -22,7 +22,10 @@ async function handle(request: Request): Promise<Response> {
       const materialized = await materializeDue();
       const processed = await drainPending();
       const { computeNotifyNextAt, earliestPendingAt } = await import("@/lib/notifications/notify-next");
-      await setNotifyNext(await computeNotifyNextAt());
+      // Chain the next wake (not in the past, so a stuck row cannot make a tight loop). Recurring/system
+      // campaigns have no schedule in code; they send via signalOutbox.
+      const nextAt = await computeNotifyNextAt();
+      if (nextAt != null) await scheduleCampaignWake(Math.max(nextAt, Date.now() + 60_000));
       // Rows left pending (their send failed and they await a retry): the Queue consumer re-delivers its message after this.
       const pendingAt = await earliestPendingAt();
       const retryAfterMs = pendingAt == null ? null : Math.max(0, pendingAt - Date.now());

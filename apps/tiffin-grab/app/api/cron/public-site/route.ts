@@ -1,10 +1,10 @@
 import { publicSiteState as marker, revalidateSitePaths } from "@/lib/landing/revalidate-site";
 import { computeSiteNextAt, lastBoundary, loadWindowEdges } from "@/lib/landing/site-boundaries";
-import { setSiteNext } from "@/lib/runtime/cron-markers";
+import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
 // ISR is stale-while-revalidate: a quiet page would serve yesterday's menu or an ended promo to the
-// first visitor of the day. Every minute (Worker cron) we revalidate once per day / promo edge.
+// first visitor of the day. A SiteRefreshWake Workflow calls this at each local midnight / promo edge / owed follow-up, and it schedules the next one.
 // Fail-closed CRON_SECRET.
 export const dynamic = "force-dynamic";
 
@@ -32,8 +32,9 @@ async function handle(request: Request): Promise<Response> {
     if (followUp) await marker.set("followed-up", requestedAt);
     const requested = followUp ? requestedAt : (await marker.get<number>("requested-at"))?.value;
     const followed = followUp ? requestedAt : followedUp;
-    await setSiteNext(await computeSiteNextAt(now, timezone, { requestedAt: requested, followedUp: followed }));
-    return Response.json({ ok: true, revalidated, followUp });
+    const nextAt = await computeSiteNextAt(now, timezone, { requestedAt: requested, followedUp: followed });
+    await scheduleSiteRefreshWake(Math.max(nextAt, now + 60_000));
+    return Response.json({ ok: true, revalidated, followUp, nextAt });
   } catch (err) {
     return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

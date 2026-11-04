@@ -9,7 +9,7 @@
 // Task 12. Every id marked PLACEHOLDER is created in Task 12. Runbook: deployment/cloudflare/README.md.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // OpenNext's worker is wrapped by cloudflare/worker.js (queue, cron, OptimoPoller). prebundle.mjs
+  // OpenNext's worker is wrapped by cloudflare/worker.js (queue, Workflows, OptimoPoller). prebundle.mjs
   // bundles and minifies it into cloudflare/dist (why: cloudflare/prebundle.mjs), shipped as is.
   "main": "cloudflare/dist/worker.js",
   "no_bundle": true,
@@ -28,7 +28,6 @@
   "observability": { "enabled": true, "traces": { "enabled": true, "head_sampling_rate": 0.1 } },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
-  "triggers": { "crons": ["* * * * *"] },
   "workers_dev": false,
   "preview_urls": false,
   // Live since the 2026-11-03 cutover from EC2. proxy.ts splits apex (public pages) from app. (auth, console, /me).
@@ -54,6 +53,10 @@
   },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" }],
   "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache", "database_id": "e7e348b9-d61d-434d-9b58-bd4f306aefc5" }],
+  "workflows": [
+    { "name": "tiffin-campaign-wake", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },
+    { "name": "tiffin-site-refresh-wake", "binding": "SITE_REFRESH_WAKE", "class_name": "SiteRefreshWake" }
+  ],
   "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
   "vars": {
@@ -77,8 +80,7 @@
       "workers_dev": false,
       "preview_urls": false,
       "routes": [{ "pattern": "next.tiffingrab.ca", "custom_domain": true }],
-      "triggers": { "crons": ["* * * * *"] },
-      "placement": { "mode": "targeted", "region": "aws:us-east-1" },
+          "placement": { "mode": "targeted", "region": "aws:us-east-1" },
       "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
       "observability": { "enabled": true, "traces": { "enabled": true } },
       "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
@@ -99,7 +101,11 @@
       },
       "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache-preview" }],
       "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache-preview", "database_id": "8a1af6e1-2eed-4d99-a6fa-a27dfc13ee25" }],
-      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
+      "workflows": [
+    { "name": "tiffin-campaign-wake", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },
+    { "name": "tiffin-site-refresh-wake", "binding": "SITE_REFRESH_WAKE", "class_name": "SiteRefreshWake" }
+  ],
+  "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
       "vars": {
         "NODE_ENV": "production",

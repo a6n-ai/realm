@@ -1,9 +1,10 @@
-// Custom Worker entry: OpenNext's fetch handler plus the Queue consumer, the per-minute Cron
-// and the OptimoRoute poller Durable Object. wrangler.jsonc `main` points here.
+// Custom Worker entry: OpenNext's fetch handler plus the Queue consumer, the Workflows that wake
+// campaign sends and page refreshes (no cron), and the OptimoRoute poller Durable Object. wrangler.jsonc `main` points here.
 import openNext from "../.open-next/worker.js";
 
 export * from "../.open-next/worker.js";
-import { readMarkers } from "./due-tasks.js";
+export { CampaignWake, SiteRefreshWake } from "./workflows.js";
+import { bootOnce } from "./bootstrap.js";
 import { consume } from "./queue-consumer.js";
 
 const POLL_MS = 30_000;
@@ -23,15 +24,6 @@ async function tick(env) {
   return { ok: true, retryAfterMs: body.retryAfterMs ?? null };
 }
 
-// Public pages are ISR (stale-while-revalidate): this per-minute check revalidates them at local midnight and promo edges.
-async function publicSite(env) {
-  const res = await env.WORKER_SELF_REFERENCE.fetch("https://internal/api/cron/public-site", {
-    method: "POST",
-    headers: { authorization: "Bearer " + env.CRON_SECRET },
-  });
-  if (!res.ok) console.error("public-site check failed", res.status, await res.text().catch(() => ""));
-}
-
 async function armPoller(env) {
   if (env.OPTIMO_EVENTS !== "on") return;
   await env.OPTIMO_POLLER.getByName("events").arm();
@@ -43,7 +35,7 @@ export class OptimoPoller {
     this.env = env;
   }
 
-  // RPC, called from scheduled(): keeps the alarm chain alive if it ever broke.
+  // RPC, called from the isolate bootstrap: keeps the alarm chain alive if it ever broke.
   async arm() {
     if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + POLL_MS);
   }
@@ -65,16 +57,11 @@ export class OptimoPoller {
 }
 
 export default {
-  fetch: openNext.fetch,
+  fetch(request, env, ctx) {
+    bootOnce(env, ctx, armPoller);
+    return openNext.fetch(request, env, ctx);
+  },
   async queue(batch, env) {
     await consume(batch, () => tick(env));
-  },
-  async scheduled(event, env, ctx) {
-    const guard = (p) => p.catch((err) => console.error("scheduled task threw", err));
-    // Each tick loads the whole Next server, so only call a route when a KV marker says work is due.
-    const due = await readMarkers(env.CACHE, Date.now(), new Date(event.scheduledTime).getUTCMinutes()).catch(() => ({ notify: true, site: true }));
-    ctx.waitUntil(
-      Promise.all([due.notify && guard(tick(env)), guard(armPoller(env)), due.site && guard(publicSite(env))]),
-    );
   },
 };

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { sharedCache } from "@/lib/cache";
 import { runInBackground } from "@/lib/runtime/background";
-import { setSiteNext } from "@/lib/runtime/cron-markers";
+import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
 
 const WEEK_MS = 7 * 24 * 3600_000;
 
@@ -18,14 +18,14 @@ export function revalidateSitePaths(): void {
   }
 }
 
-// Other isolates may still hold the old data in their L1 when this regenerates; the cron revalidates once
+// Other isolates may still hold the old data in their L1 when this regenerates; the public-site check revalidates once
 // more after that window, keyed on the time recorded here.
 export function revalidatePublicSite(): void {
   revalidateSitePaths();
   try {
-    // The 90 s follow-up (cron/public-site) only runs if the cron wakes then, so mark it due.
+    // The 90 s follow-up (cron/public-site) only runs if a wake is set for then.
     runInBackground(
-      () => Promise.all([publicSiteState.set("requested-at", Date.now()), setSiteNext(Date.now() + 90_000)]),
+      () => Promise.all([publicSiteState.set("requested-at", Date.now()), scheduleSiteRefreshWake(Date.now() + 90_000)]),
       "public-site requested-at",
     );
   } catch {

@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const store = vi.hoisted(() => new Map<string, number>());
 const revalidate = vi.hoisted(() => vi.fn());
-const setSiteNext = vi.hoisted(() => vi.fn());
+const scheduleSiteRefreshWake = vi.hoisted(() => vi.fn());
 const computeSiteNextAt = vi.hoisted(() => vi.fn(async (_n: number, _tz: string, _f: unknown) => 12345));
-vi.mock("@/lib/runtime/cron-markers", () => ({ setSiteNext }));
+vi.mock("@/lib/runtime/workflow-wake", () => ({ scheduleSiteRefreshWake }));
 vi.mock("@/lib/cache", () => ({
   sharedCache: () => ({
     get: async (k: string) => (store.has(k) ? { value: store.get(k) } : undefined),
@@ -28,7 +28,7 @@ const req = (auth?: string) =>
 beforeEach(() => {
   store.clear();
   revalidate.mockReset();
-  setSiteNext.mockReset();
+  scheduleSiteRefreshWake.mockReset();
   computeSiteNextAt.mockClear();
   vi.stubEnv("CRON_SECRET", "s3cret");
 });
@@ -40,8 +40,8 @@ describe("public-site cron", () => {
   });
 
   it("revalidates once per boundary", async () => {
-    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: true, followUp: false });
-    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: false });
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: true, followUp: false, nextAt: 12345 });
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: false, nextAt: 12345 });
     expect(revalidate).toHaveBeenCalledTimes(1);
   });
 
@@ -52,15 +52,16 @@ describe("public-site cron", () => {
     expect((await (await POST(req("Bearer s3cret"))).json()).followUp).toBe(false);
     expect(revalidate).not.toHaveBeenCalled();
     store.set("requested-at", Date.now() - 100_000);
-    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: true });
+    expect(await (await POST(req("Bearer s3cret"))).json()).toEqual({ ok: true, revalidated: false, followUp: true, nextAt: 12345 });
     expect((await (await POST(req("Bearer s3cret"))).json()).followUp).toBe(false);
     expect(revalidate).toHaveBeenCalledTimes(1);
   });
 
-  it("writes its next-work marker after a run, counting an owed follow-up", async () => {
+  it("schedules the next wake after a run, counting an owed follow-up", async () => {
     store.set("requested-at", 5000);
     await POST(req("Bearer s3cret"));
-    expect(setSiteNext).toHaveBeenCalledWith(12345);
+    expect(scheduleSiteRefreshWake).toHaveBeenCalledTimes(1);
+    expect(scheduleSiteRefreshWake.mock.calls[0][0]).toBeGreaterThan(Date.now() + 50_000);
     expect(computeSiteNextAt).toHaveBeenLastCalledWith(expect.any(Number), "America/Toronto", { requestedAt: 5000, followedUp: 5000 });
   });
 });
