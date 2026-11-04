@@ -71,19 +71,50 @@ describe("workflows", () => {
 });
 
 describe("bootOnce", () => {
-  it("schedules both wakes and arms the poller once per isolate", async () => {
+  const setup = (store: Map<string, string>, failGet = false) => {
     resetBootForTest();
     const wf = () => ({ create: vi.fn() });
-    const env = { SITE_REFRESH_WAKE: wf(), CAMPAIGN_WAKE: wf() };
+    const CACHE = {
+      get: vi.fn(async (k: string) => {
+        if (failGet) throw new Error("kv down");
+        return store.get(k) ?? null;
+      }),
+      put: vi.fn(async (k: string, v: string) => void store.set(k, v)),
+    };
+    const env = { SITE_REFRESH_WAKE: wf(), CAMPAIGN_WAKE: wf(), CACHE, CF_VERSION_METADATA: { id: "v1" } };
     const waits: Promise<unknown>[] = [];
     const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) };
-    const arm = vi.fn();
-    bootOnce(env, ctx, arm);
-    bootOnce(env, ctx, arm);
-    await Promise.all(waits);
-    expect(waits).toHaveLength(1);
-    expect(env.SITE_REFRESH_WAKE.create).toHaveBeenCalledTimes(1);
-    expect(env.CAMPAIGN_WAKE.create).toHaveBeenCalledTimes(1);
-    expect(arm).toHaveBeenCalledTimes(1);
+    return { env, ctx, waits, arm: vi.fn() };
+  };
+
+  it("creates wakes and arms the poller when the version key is absent, reading KV once per isolate", async () => {
+    const store = new Map<string, string>();
+    const t = setup(store);
+    bootOnce(t.env, t.ctx, t.arm);
+    bootOnce(t.env, t.ctx, t.arm);
+    await Promise.all(t.waits);
+    expect(t.env.CACHE.get).toHaveBeenCalledTimes(1);
+    expect(store.has("wake-bootstrap:v1")).toBe(true);
+    expect(t.env.SITE_REFRESH_WAKE.create).toHaveBeenCalledTimes(1);
+    expect(t.env.CAMPAIGN_WAKE.create).toHaveBeenCalledTimes(1);
+    expect(t.arm).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when this deployment already bootstrapped", async () => {
+    const t = setup(new Map([["wake-bootstrap:v1", "1"]]));
+    bootOnce(t.env, t.ctx, t.arm);
+    await Promise.all(t.waits);
+    expect(t.env.CAMPAIGN_WAKE.create).not.toHaveBeenCalled();
+    expect(t.env.SITE_REFRESH_WAKE.create).not.toHaveBeenCalled();
+    expect(t.arm).not.toHaveBeenCalled();
+  });
+
+  it("skips (and logs) when the KV read fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const t = setup(new Map(), true);
+    bootOnce(t.env, t.ctx, t.arm);
+    await Promise.all(t.waits);
+    expect(t.env.CAMPAIGN_WAKE.create).not.toHaveBeenCalled();
+    expect(t.env.CACHE.put).not.toHaveBeenCalled();
   });
 });
