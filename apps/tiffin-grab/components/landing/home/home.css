@@ -563,7 +563,7 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
 .lp-build .lp-tile--price, .lp-build .lp-tile--photo { box-shadow: 0 1px 2px rgb(46 18 0 / 0.1), 0 24px 44px -22px rgb(42 84 64 / 0.5); }
 @media (prefers-reduced-transparency: reduce), (max-width: 767px) {
   .lp-build .lp-tile:not(.lp-tile--price):not(.lp-tile--photo) { background: #FFFDF8; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .lp-wash { display: none; }
+  .lp-wash, .lp-menu__bg { display: none; }
 }
 @media (prefers-contrast: more) {
   .lp-bevel, .lp-build .lp-tile { box-shadow: none; outline: 1px solid rgb(46 18 0 / 0.5); }
