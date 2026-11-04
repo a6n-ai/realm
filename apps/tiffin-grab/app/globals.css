@@ -675,3 +675,14 @@ html[data-nav="pending"] body::before {
 @media (prefers-reduced-motion: reduce) {
   html[data-nav="pending"] body::before { animation: none; transform: scaleX(0.6); }
 }
+
+/* Cross-host splash (components/cross-host-splash.tsx): covers the blank between
+   tiffingrab.ca and app.tiffingrab.ca. One element, opacity only. */
+.tg-splash {
+  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center;
+  background: var(--background); animation: tg-splash-in 160ms ease-out both;
+}
+.tg-splash > img { animation: tg-splash-pulse 1.2s ease-in-out 200ms infinite; }
+@keyframes tg-splash-in { from { opacity: 0; } }
+@keyframes tg-splash-pulse { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .tg-splash, .tg-splash > img { animation: none; } }

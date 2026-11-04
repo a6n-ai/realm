@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
+import { apexServes } from "./lib/routing/apex";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -74,18 +75,6 @@ async function orgs(): Promise<OrgSnapshot> {
 // Front door, ported from the Caddyfile apex block. The app host comes from BETTER_AUTH_URL;
 // the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
 // Caddy matches paths case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
-const APEX_PUBLIC_EXACT = new Set([
-  "/", "/pricing", "/plans", "/menu", "/locations", "/faq", "/contact", "/reviews", "/legal", "/terms", "/privacy",
-  "/refund-policy", "/delivery-policy", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
-  "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
-  "/twitter-image.png", "/robots.txt", "/sitemap.xml", "/llms.txt",
-  // The landing header asks this on every apex view; a 302 to app. cost a cross-origin hop.
-  // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
-  "/api/auth/get-session",
-]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
-const APEX_SVG = /^\/[^/]*\.svg$/;
-
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
 const SITE_PAGES = new Set([
   "/", "/menu", "/menu/weekly", "/plans", "/pricing", "/locations", "/reviews", "/faq", "/contact",
@@ -101,8 +90,7 @@ function frontDoor(request: NextRequest): NextResponse | null {
   const { hostname, pathname, search } = request.nextUrl;
   if (hostname === `www.${apex}`) return NextResponse.redirect(`https://${apex}${pathname}${search}`, 308);
   if (hostname !== apex) return null;
-  const p = pathname.toLowerCase();
-  if (APEX_PUBLIC_EXACT.has(p) || APEX_PUBLIC_PREFIX.some((x) => p.startsWith(x)) || APEX_SVG.test(p)) return null;
+  if (apexServes(pathname)) return null;
   return NextResponse.redirect(`https://${appHost}${pathname}${search}`, 302);
 }
 

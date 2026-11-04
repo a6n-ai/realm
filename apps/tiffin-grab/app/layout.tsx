@@ -10,6 +10,7 @@ import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
+import { CrossHostSplash } from "@/components/cross-host-splash";
 import { CookieConsent } from "@/components/consent/cookie-consent";
 import "./globals.css";
 
@@ -50,6 +51,9 @@ export default function RootLayout({
     >
       <head>
         <InlineScript html={themeInitScript} />
+        {/* Before the stylesheet arrives the page would paint white (a white blur on iOS when
+            hopping between tiffingrab.ca and app.); start on the brand ground instead. */}
+        <style>{`html{background:#FBF4E7}html.dark{background:#14201A}`}</style>
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
@@ -58,6 +62,7 @@ export default function RootLayout({
           <StaleDeployReloader />
           <NavPending />
           <BrowserChrome />
+          <CrossHostSplash />
           <CookieConsent />
         </ThemeProvider>
         <MetaPixelPageViews />
