@@ -113,6 +113,19 @@
 .tg-popup__blurb { margin: 0; font-size: 16px; line-height: 1.5; color: var(--muted-foreground); }
 .tg-popup__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
+/* Phones: a bottom sheet. A centred card left the page's own buttons showing above and below
+   it; this sits flush on the bottom edge over a darker scrim, clear of the home indicator. */
+@media (max-width: 640px) {
+  .tg-popup:not(.tg-popup--inline) { inset: auto 0 0; margin: 0; width: 100%; max-width: none; max-height: calc(100svh - 48px); border-radius: 28px 28px 0 0; }
+  .tg-popup:not(.tg-popup--inline)::backdrop { background: rgb(20 16 12 / 0.7); }
+  .tg-popup:not(.tg-popup--inline)[open] { animation-name: tg-sheet-in; }
+  .tg-popup:not(.tg-popup--inline) .tg-popup__body { gap: 12px; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); }
+  .tg-popup__img { aspect-ratio: 2 / 1; }
+  .tg-popup__actions { flex-wrap: nowrap; }
+  .tg-popup__actions > .tg-promo-cta { flex: 1; justify-content: center; }
+}
+@keyframes tg-sheet-in { from { transform: translateY(100%); } }
+
 @media (prefers-reduced-motion: reduce) {
   .tg-popup[open] { animation: none; }
   .lp-offers__track { scroll-behavior: auto; }

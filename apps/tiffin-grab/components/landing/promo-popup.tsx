@@ -44,8 +44,15 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
     frame.style.height = "0px";
     frame.style.height = `${doc.documentElement.scrollHeight}px`;
   };
+  // The frame's content also resizes by itself: a font swap after fonts.ready already resolved
+  // (a closed dialog lays out at width 0 and clipped the last line), or an image in staff HTML.
+  // Observed per load: srcdoc replaces the document, and with it the body.
+  const inner = useRef<ResizeObserver | null>(null);
   const onLoad = () => {
     fit();
+    const body = ref.current?.contentDocument?.body;
+    inner.current?.disconnect();
+    if (body) { inner.current = new ResizeObserver(fit); inner.current.observe(body); }
     // Web fonts land after load and change the text height.
     ref.current?.contentDocument?.fonts?.ready.then(fit).catch(() => {});
   };
@@ -60,7 +67,7 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
       if (frame.clientWidth !== width) { width = frame.clientWidth; fit(); }
     });
     ro.observe(frame);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); inner.current?.disconnect(); };
   }, []);
   return (
     <iframe
