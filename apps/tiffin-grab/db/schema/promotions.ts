@@ -11,6 +11,8 @@ export const promotions = pgTable("promotions", {
   organizationId: text("organization_id").references(() => organization.id),
   title: text("title").notNull(),
   blurb: text("blurb"),
+  // Staff headline ("$65 off") for the hero sticker and card; null falls back to the coupon value.
+  badge: text("badge"),
   body: text("body"),
   html: text("html"),
   imageUrl: text("image_url"),

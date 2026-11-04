@@ -56,7 +56,7 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>): Lan
     blurb: p.blurb,
     html: p.html,
     imageUrl: ownImagePath(p.imageUrl),
-    badge: coupon ? couponHeadline(coupon) : null,
+    badge: p.badge || (coupon ? couponHeadline(coupon) : null),
     code: p.couponCode,
     href: p.ctaHref || subscribeHref(p.couponCode),
     cta: p.ctaLabel,
