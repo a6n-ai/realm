@@ -34,7 +34,14 @@ function Roll({ children, className }: { children: string; className?: string })
 // into a sheet that grows out of the menu button.
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
 export function LandingHeader({ rating }: { rating?: ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, refetch } = useSession();
+  // Back from app.tiffingrab.ca restores this page from the bfcache with the session it had
+  // before sign-in; ask again so the header shows the account, not "Sign in".
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) void refetch(); };
+    addEventListener("pageshow", onShow);
+    return () => removeEventListener("pageshow", onShow);
+  }, [refetch]);
   const role = (session?.user as { role?: RoleValue } | undefined)?.role;
   const account = session?.user
     ? { href: roleLanding(role ?? Role.USER), label: session.user.name?.split(" ")[0] ?? "Account" }
