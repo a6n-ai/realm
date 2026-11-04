@@ -7,6 +7,7 @@ import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
 import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { PromoPopup } from "@/components/landing/promo-popup";
+import { PhoneReveal } from "@/components/landing/home/phone-reveal";
 import { LazyPauseDemo as PauseDemo } from "@/components/landing/stage/lazy";
 import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, Story } from "@/components/landing/home/sections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -117,6 +118,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
 
       <Faq items={FAQS} />
 
+      <PhoneReveal />
       {promos.popup ? <PromoPopup promo={promos.popup} fallbackImage={spreadPhoto.src} /> : null}
     </div>
   );

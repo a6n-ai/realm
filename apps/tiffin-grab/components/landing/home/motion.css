@@ -278,3 +278,13 @@
     .lp-hero .lp-hero__today:hover { transform: translateY(-3px); }
   }
 }
+
+/* Phones: one-shot reveals (PhoneReveal) instead of scroll timelines. Transform and opacity
+   only, no will-change: the layer exists for the transition and is dropped after. */
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), translate 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: calc(var(--reveal-i, 0) * 70ms);
+  }
+  [data-reveal]:not([data-in]) { opacity: 0; translate: 0 24px; }
+}
