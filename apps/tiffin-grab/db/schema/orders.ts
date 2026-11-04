@@ -142,8 +142,8 @@ export const orders = pgTable("orders", {
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket
-// attachments): path = secured original, thumbUrl = public inline thumbnail.
-export type PaymentProof = { path: string; thumbUrl: string; name: string };
+// attachments): path = secured original, thumbPath = secured blurred+watermarked thumbnail; thumbUrl = legacy public thumbnail (old rows).
+export type PaymentProof = { path: string; thumbPath?: string; thumbUrl?: string; name: string };
 
 export type AddonRequest = {
   // The quoted price and tax rates: what the customer pays for is what is applied on settle.

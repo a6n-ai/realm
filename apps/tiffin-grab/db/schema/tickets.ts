@@ -51,8 +51,8 @@ export const tickets = pgTable("tickets", {
 ]);
 
 // A message may carry image attachments uploaded with the reply.
-// path = secured original (token-gated read); thumbUrl = static thumbnail (public, inline).
-export type Attachment = { path: string; thumbUrl: string; name: string };
+// path = secured original (token-gated read); thumbPath = secured blurred+watermarked thumbnail; thumbUrl = legacy public thumbnail (old rows).
+export type Attachment = { path: string; thumbPath?: string; thumbUrl?: string; name: string };
 
 export const ticketMessages = pgTable("ticket_messages", {
   ...baseColumns("tms"),

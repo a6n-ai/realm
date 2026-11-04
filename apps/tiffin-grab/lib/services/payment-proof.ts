@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { ValidationError } from "@foundry/commons";
-import { filesService, securedFilesService } from "@/lib/files";
+import { securedFilesService } from "@/lib/files";
+import { protectThumbnail } from "@/lib/files/protect-thumbnail";
 import type { PaymentProof } from "@/db/schema";
 import { sniffUploadImage } from "@/lib/images/validate";
 
@@ -12,7 +13,7 @@ const asFile = (entry: FormDataEntryValue | null): File | null =>
 const safe = (name: string): string => name.replace(/[^\w.\-]+/g, "_") || "image";
 const bytesOf = async (f: File): Promise<Uint8Array> => new Uint8Array(await f.arrayBuffer());
 
-// One proof image for a payment claim: secured original + public thumbnail
+// One proof image for a payment claim: secured original + secured blurred/watermarked thumbnail
 // (same pairing as ticket attachments). Returns null when no file was attached.
 export async function uploadPaymentProof(
   paymentPublicId: string,
@@ -34,20 +35,21 @@ export async function uploadPaymentProof(
   if (!origType) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
   if (!thumbType) throw new ValidationError("Bad thumbnail");
 
+  const prot = await protectThumbnail(thumbBytes, thumbType);
   const base = `payments/${paymentPublicId}/${nanoid()}`;
   const origDetail = await securedFilesService().create(
     `${base}/orig-${safe(orig.name)}`,
     origBytes,
     { contentType: origType },
   );
-  const thumbDetail = await filesService().create(
+  const thumbDetail = await securedFilesService().create(
     `${base}/thumb-${safe(thumb.name)}`,
-    thumbBytes,
-    { contentType: thumbType },
+    prot.bytes,
+    { contentType: prot.contentType },
   );
   return {
     path: origDetail.filePath,
-    thumbUrl: thumbDetail.url ?? thumbDetail.filePath,
+    thumbPath: thumbDetail.filePath,
     name: orig.name,
   };
 }

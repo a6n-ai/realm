@@ -8,7 +8,7 @@ import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { attachmentHref } from "@/lib/services/ticket-attachments";
+import { proofView } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
   PAYMENT_SORT_KEYS,
@@ -296,12 +296,10 @@ export async function listPayments(
 
   return {
     rows: await Promise.all(
-      rows.map(async ({ proof, ...r }) => ({
-        ...r,
-        proofThumb: proof?.thumbUrl ?? null,
-        proofHref: proof ? await attachmentHref(proof) : null,
-        proofName: proof?.name ?? null,
-      })),
+      rows.map(async ({ proof, ...r }) => {
+        const view = await proofView(proof);
+        return { ...r, proofThumb: view?.thumbUrl ?? null, proofHref: view?.href ?? null, proofName: proof?.name ?? null };
+      }),
     ),
     total,
     page: page.page,

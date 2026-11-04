@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { SupportHoursNote, loadSupportHoursView } from "@/components/customer/support/support-hours";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
-import { attachmentHref } from "@/lib/services/ticket-attachments";
+import { withAttachmentViews } from "@/lib/services/ticket-attachments";
 import { PageHeader } from "@/components/customer/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
@@ -65,20 +65,7 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
 
   const [{ timezone }, hours] = await Promise.all([getAppSettings(), loadSupportHoursView()]);
 
-  const messages = await Promise.all(
-    rawMessages.map(async (m) => ({
-      ...m,
-      attachments: m.attachments
-        ? await Promise.all(
-            m.attachments.map(async (a) => ({
-              thumbUrl: a.thumbUrl,
-              name: a.name,
-              href: await attachmentHref(a),
-            })),
-          )
-        : null,
-    })),
-  );
+  const messages = await withAttachmentViews(rawMessages);
 
   return (
     <TicketThread

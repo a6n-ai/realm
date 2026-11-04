@@ -16,7 +16,7 @@ import {
 } from "@/lib/services/tickets.service";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { canReassign } from "@/lib/services/reassign";
-import { attachmentHref } from "@/lib/services/ticket-attachments";
+import { withAttachmentViews } from "@/lib/services/ticket-attachments";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge } from "../ticket-badges";
@@ -158,17 +158,8 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   const closed = ticket.status === "resolved" || ticket.status === "closed";
   const channel = `ticket:${ticket.publicId}`;
 
-  // Mint a token-gated href per attachment at render time (staff already passed requireStaff above).
-  const withHref = await Promise.all(
-    messages.map(async (m) => ({
-      ...m,
-      attachments: m.attachments
-        ? await Promise.all(
-            m.attachments.map(async (a) => ({ thumbUrl: a.thumbUrl, name: a.name, href: await attachmentHref(a) })),
-          )
-        : null,
-    })),
-  );
+  // Mint token-gated hrefs at render time (staff already passed requireStaff above).
+  const withHref = await withAttachmentViews(messages);
   const authorIds = [...new Set(messages.map((m) => m.authorId))];
   const names = new Map(
     (authorIds.length ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, authorIds)) : [])

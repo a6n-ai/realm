@@ -12,6 +12,8 @@ export const statement = {
   menu: ["read", "write", "publish"],
   finance: ["read", "refund", "charge"],
   holiday: ["read", "write"],
+  // Open many private files with one link: one folder token covers a whole ticket/payment.
+  files: ["bulkAccess"],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -40,6 +42,7 @@ export const roles = {
     menu: ["read", "write", "publish"],
     finance: ["read", "refund", "charge"],
     holiday: ["read", "write"],
+    files: ["bulkAccess"],
   }),
   member: ac.newRole({
     order: ["read", "write"],

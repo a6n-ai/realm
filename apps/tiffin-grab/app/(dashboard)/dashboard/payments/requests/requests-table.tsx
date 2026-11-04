@@ -144,7 +144,7 @@ export function RequestsTable({
             <TableCell className="font-mono text-xs">{r.reference ?? "-"}</TableCell>
             <TableCell>
               {r.proofThumb ? (
-                <a href={r.proofThumb} target="_blank" rel="noreferrer">
+                <a href={r.proofHref ?? r.proofThumb} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={r.proofThumb} alt="Payment proof" className="size-7 rounded border object-cover" />
                 </a>

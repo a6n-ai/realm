@@ -88,8 +88,8 @@ export async function listReviewPayments(visible: Visible, limit: number) {
     .orderBy(asc(payments.createdAt), asc(payments.id))
     .limit(limit);
   // Lazy import, as in orders.service: storage signing stays out of callers that need no proof link.
-  const { attachmentHref } = await import("./ticket-attachments");
-  return Promise.all(rows.map(async ({ proof, ...r }) => ({ ...r, proofUrl: proof ? await attachmentHref(proof) : null })));
+  const { proofView } = await import("./ticket-attachments");
+  return Promise.all(rows.map(async ({ proof, ...r }) => ({ ...r, proofUrl: (await proofView(proof))?.href ?? null })));
 }
 
 // ---- sources ----

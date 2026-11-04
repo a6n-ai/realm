@@ -2047,15 +2047,16 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
 
   // Lazy import avoids pulling storage/mint into every orders.service caller path
   // that doesn't need proof hrefs (createOrder tests, etc.).
-  const { attachmentHref } = await import("./ticket-attachments");
+  const { proofView } = await import("./ticket-attachments");
   const enriched: OrderPaymentDetail[] = await Promise.all(
     pays.map(async (p) => {
       const proof = p.proof ?? null;
+      const view = await proofView(proof);
       return {
         ...p,
         proof,
-        proofThumbUrl: proof?.thumbUrl ?? null,
-        proofHref: proof ? await attachmentHref(proof) : null,
+        proofThumbUrl: view?.thumbUrl ?? null,
+        proofHref: view?.href ?? null,
       };
     }),
   );
