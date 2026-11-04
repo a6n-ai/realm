@@ -45,19 +45,28 @@ describe("workflows", () => {
     const { fetch, step, steps } = await run("CampaignWake", at);
     expect(step.sleepUntil).toHaveBeenCalledWith("wait", new Date(at));
     expect(steps).toEqual(["wait", "run"]);
-    expect(fetch).toHaveBeenCalledWith("https://internal/api/cron/notifications?mode=tick", expect.objectContaining({ headers: { authorization: "Bearer s" } }));
+    expect(fetch).toHaveBeenCalledWith("https://internal/api/cron/notifications?mode=tick&wake=1", expect.objectContaining({ headers: { authorization: "Bearer s" } }));
   });
 
-  it("SiteRefreshWake skips the sleep when `at` is past and calls the route", async () => {
+  it("SiteRefreshWake sleeps then calls the route", async () => {
     const { fetch, step } = await run("SiteRefreshWake", 1);
-    expect(step.sleepUntil).not.toHaveBeenCalled();
+    expect(step.sleepUntil).toHaveBeenCalled();
     expect((fetch.mock.calls[0] as unknown[])[0]).toBe("https://internal/api/cron/public-site");
   });
 
-  it("fails the step on a non-2xx so the Workflow retries", async () => {
+  it.each([
+    ["CampaignWake", "CAMPAIGN_WAKE"],
+    ["SiteRefreshWake", "SITE_REFRESH_WAKE"],
+  ])("%s books a 15 min fallback wake when the route still fails after retries", async (cls, binding) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const mod = (await import("./workflows.js")) as any;
-    const w = new mod.SiteRefreshWake({}, { WORKER_SELF_REFERENCE: { fetch: async () => new Response("x", { status: 500 }) }, CRON_SECRET: "s" });
-    await expect(w.run({ payload: { at: 1 } }, { sleepUntil: vi.fn(), do: (_n: string, _o: unknown, fn: () => Promise<void>) => fn() })).rejects.toThrow("500");
+    const create = vi.fn();
+    const env = { WORKER_SELF_REFERENCE: { fetch: async () => new Response("x", { status: 500 }) }, CRON_SECRET: "s", [binding]: { create } };
+    const step = { sleepUntil: vi.fn(), do: (_n: string, ...rest: any[]) => rest[rest.length - 1]() };
+    const before = Date.now();
+    await new mod[cls]({}, env).run({ payload: { at: 1 } }, step);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].params.at).toBeGreaterThanOrEqual(before + 15 * 60_000);
   });
 });
 

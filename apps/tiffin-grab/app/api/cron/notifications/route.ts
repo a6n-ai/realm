@@ -1,10 +1,8 @@
 import { runCronJob } from "@/lib/cron/run";
-import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";
 
-// Manual backstop for the Redis-signalled outbox listener (no longer scheduled): expands
-// any due campaign and sends anything a lost signal left pending. Scheduled campaigns now
-// start from the listener (lib/notifications/campaign-schedule.ts). Fail-closed CRON_SECRET.
-// Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
+// Two callers. mode=tick: the Queue consumer (every transactional email) and the CampaignWake Workflow
+// (`wake=1`, recorded in cron_runs as campaign-wake). Otherwise the manual backstop that expands any due
+// campaign and sends anything a lost signal left pending. Fail-closed CRON_SECRET.
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
@@ -14,22 +12,16 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // The Workers queue consumer and CampaignWake Workflow: no cron_runs row per call. Due scheduled
-  // campaigns come from the DB (no Redis set on Workers); drainPending claims rows atomically.
-  if (new URL(request.url).searchParams.get("mode") === "tick") {
+  const params = new URL(request.url).searchParams;
+  if (params.get("mode") === "tick") {
+    if (params.get("wake") === "1") {
+      const r = await runCronJob("campaign-wake", "schedule");
+      return Response.json(r, { status: r.ok ? 200 : 500 });
+    }
     try {
-      const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
-      const materialized = await materializeDue();
-      const processed = await drainPending();
-      const { computeNotifyNextAt, earliestPendingAt } = await import("@/lib/notifications/notify-next");
-      // Chain the next wake (not in the past, so a stuck row cannot make a tight loop). Recurring/system
-      // campaigns have no schedule in code; they send via signalOutbox.
-      const nextAt = await computeNotifyNextAt();
-      if (nextAt != null) await scheduleCampaignWake(Math.max(nextAt, Date.now() + 60_000));
-      // Rows left pending (their send failed and they await a retry): the Queue consumer re-delivers its message after this.
-      const pendingAt = await earliestPendingAt();
-      const retryAfterMs = pendingAt == null ? null : Math.max(0, pendingAt - Date.now());
-      return Response.json({ ok: true, retryAfterMs, summary: { materialized, processed } });
+      const { runTick } = await import("@/lib/notifications/tick");
+      const { retryAfterMs, ...summary } = await runTick();
+      return Response.json({ ok: true, retryAfterMs, summary });
     } catch (err) {
       return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });
     }

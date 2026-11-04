@@ -17,10 +17,18 @@ describe("workflow wake helpers", () => {
   });
   it("creates wake-<minute> / site-<minute> instances on Workers", async () => {
     vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
-    await scheduleCampaignWake(60_001);
-    await scheduleSiteRefreshWake(60_001);
-    expect(env.CAMPAIGN_WAKE.create).toHaveBeenCalledWith({ id: "wake-120000", params: { at: 60_001 } });
-    expect(env.SITE_REFRESH_WAKE.create).toHaveBeenCalledWith({ id: "site-120000", params: { at: 60_001 } });
+    const at = Date.now() + 3600_000;
+    await scheduleCampaignWake(at);
+    await scheduleSiteRefreshWake(at);
+    const minute = Math.ceil(at / 60_000) * 60_000;
+    expect(env.CAMPAIGN_WAKE.create).toHaveBeenCalledWith({ id: `wake-${minute}`, params: { at } });
+    expect(env.SITE_REFRESH_WAKE.create).toHaveBeenCalledWith({ id: `site-${minute}`, params: { at } });
+  });
+  it("never schedules sooner than a minute out", async () => {
+    vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+    const before = Date.now();
+    await scheduleCampaignWake(before + 30_000);
+    expect(env.CAMPAIGN_WAKE.create.mock.calls[0][0].params.at).toBeGreaterThanOrEqual(before + 60_000);
   });
   it("never throws", async () => {
     vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });

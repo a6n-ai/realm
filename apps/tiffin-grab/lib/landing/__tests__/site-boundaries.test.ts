@@ -90,11 +90,20 @@ describe("computeSiteNextAt", () => {
   const now = Date.parse("2026-11-09T15:00:00Z");
   afterEach(async () => {
     await db.delete(promotions).where(like(promotions.title, "zz-next%"));
+    await db.delete(coupons).where(like(coupons.code, "ZZNEXT%"));
   });
 
   it("picks up an upcoming promo edge from the database", async () => {
     const soon = now + 3600_000;
     await db.insert(promotions).values({ title: "zz-next-promo", startsAt: soon });
     expect(await computeSiteNextAt(now, TZ, {})).toBe(soon);
+  });
+
+  it("uses the same filters as loadWindowEdges: a future end edge counts, a hidden coupon does not", async () => {
+    const end = now + 2 * 3600_000;
+    await db.insert(promotions).values({ title: "zz-next-ends", startsAt: now - 3600_000, endsAt: end });
+    await db.insert(coupons).values({ name: "zz-next", kind: "percentage", code: "ZZNEXT-HIDDEN", visible: false, expiresAt: now + 1000 });
+    expect(await computeSiteNextAt(now, TZ, {})).toBe(end);
+    expect(await loadWindowEdges(now, TZ)).toContain(now - 3600_000);
   });
 });

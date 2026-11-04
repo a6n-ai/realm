@@ -102,10 +102,10 @@
       "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache-preview" }],
       "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache-preview", "database_id": "8a1af6e1-2eed-4d99-a6fa-a27dfc13ee25" }],
       "workflows": [
-    { "name": "tiffin-campaign-wake", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },
-    { "name": "tiffin-site-refresh-wake", "binding": "SITE_REFRESH_WAKE", "class_name": "SiteRefreshWake" }
-  ],
-  "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
+        { "name": "tiffin-campaign-wake-preview", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },
+        { "name": "tiffin-site-refresh-wake-preview", "binding": "SITE_REFRESH_WAKE", "class_name": "SiteRefreshWake" }
+      ],
+      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
       "vars": {
         "NODE_ENV": "production",

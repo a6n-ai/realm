@@ -1,43 +1,17 @@
-import { publicSiteState as marker, revalidateSitePaths } from "@/lib/landing/revalidate-site";
-import { computeSiteNextAt, lastBoundary, loadWindowEdges } from "@/lib/landing/site-boundaries";
-import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { runCronJob } from "@/lib/cron/run";
 
 // ISR is stale-while-revalidate: a quiet page would serve yesterday's menu or an ended promo to the
-// first visitor of the day. A SiteRefreshWake Workflow calls this at each local midnight / promo edge / owed follow-up, and it schedules the next one.
-// Fail-closed CRON_SECRET.
+// first visitor of the day. A SiteRefreshWake Workflow calls this at each local midnight / promo edge /
+// owed follow-up; the run schedules the next one. Recorded in cron_runs. Fail-closed CRON_SECRET.
 export const dynamic = "force-dynamic";
-
-// Isolates may still serve a stale L1 copy (<= 60 s) when an admin edit regenerates the pages, so one
-// follow-up revalidation runs once the edit is this old.
-const FOLLOW_UP_AFTER_MS = 90_000;
 
 async function handle(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const now = Date.now();
-    const { timezone } = await getAppSettings();
-    const edges = await loadWindowEdges(now, timezone);
-    const boundary = lastBoundary(now, timezone, edges);
-    const [last, requestedAt, followedUp] = await Promise.all(
-      ["last-boundary", "requested-at", "followed-up"].map(async (k) => (await marker.get<number>(k))?.value),
-    );
-    const revalidated = last == null || last < boundary;
-    const followUp = requestedAt != null && now - requestedAt >= FOLLOW_UP_AFTER_MS && requestedAt > (followedUp ?? 0);
-    if (revalidated || followUp) revalidateSitePaths();
-    if (revalidated) await marker.set("last-boundary", boundary);
-    if (followUp) await marker.set("followed-up", requestedAt);
-    const requested = followUp ? requestedAt : (await marker.get<number>("requested-at"))?.value;
-    const followed = followUp ? requestedAt : followedUp;
-    const nextAt = await computeSiteNextAt(now, timezone, { requestedAt: requested, followedUp: followed });
-    await scheduleSiteRefreshWake(Math.max(nextAt, now + 60_000));
-    return Response.json({ ok: true, revalidated, followUp, nextAt });
-  } catch (err) {
-    return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });
-  }
+  const result = await runCronJob("site-refresh", "schedule");
+  return Response.json(result.ok ? { ok: true, ...result.summary } : result, { status: result.ok ? 200 : 500 });
 }
 
 export const GET = handle;

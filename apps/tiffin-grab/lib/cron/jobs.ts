@@ -3,7 +3,7 @@
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
 // the app); change both together. Times are UTC, as GitHub runs them.
 
-export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders";
+export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "campaign-wake" | "site-refresh" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders";
 
 export type CronJob = {
   key: CronJobKey;
@@ -36,7 +36,21 @@ export const CRON_JOBS: CronJob[] = [
   {
     key: "notifications",
     name: "Send pending notifications",
-    description: "Scheduled campaigns now start on their own (the app checks Redis every 30s). Run this to send anything a lost signal left pending.",
+    description: "Emails and campaign rows send from the Queue as soon as they are created. Run this to expand any due campaign and send anything a lost signal left pending.",
+    cron: null,
+    runnable: true,
+  },
+  {
+    key: "campaign-wake",
+    name: "Scheduled campaign wake",
+    description: "A Cloudflare Workflow wakes the app at each scheduled campaign's time (and to finish a large send), then books the next wake. Not a fixed schedule; if the last run is old while campaigns are waiting, run it here.",
+    cron: null,
+    runnable: true,
+  },
+  {
+    key: "site-refresh",
+    name: "Public page refresh",
+    description: "A Cloudflare Workflow refreshes the public pages at local midnight, when a promotion, coupon or discount starts or ends, and 90 s after an admin edit, then books the next wake. If the last run is old, run it here to restart the chain.",
     cron: null,
     runnable: true,
   },

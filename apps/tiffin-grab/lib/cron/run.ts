@@ -68,6 +68,15 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     const { sendRenewalReminders } = await import("@/lib/notifications/renewal-reminder");
     return sendRenewalReminders();
   },
+  "campaign-wake": async () => {
+    const { runTick } = await import("@/lib/notifications/tick");
+    return runTick();
+  },
+  "site-refresh": async () => {
+    const { runSiteRefresh } = await import("@/lib/landing/site-refresh");
+    const r = await runSiteRefresh();
+    return { revalidated: r.revalidated ? "yes" : "no", followUp: r.followUp ? "yes" : "no", nextAt: r.nextAt };
+  },
   notifications: async () => {
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
     const materialized = await materializeDue();

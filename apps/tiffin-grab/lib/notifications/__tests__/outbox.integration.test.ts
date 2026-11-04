@@ -120,6 +120,25 @@ describe("enqueue + drain", () => {
     expect(row.lastError).toBe("skipped: no template");
   });
 
+  it("maxAttempts 3 leaves a transient failure pending for the Queue retry", async () => {
+    const id = await makeUser(`${MARK}-t@example.test`);
+    await db.transaction((tx) =>
+      enqueue(tx, notificationTables, usersRef, { event: "order_activated", recipientId: id, title: "t", body: "b", channels: ["email"] }),
+    );
+    const handlers = await buildAppHandlers();
+    await drainPending({
+      db,
+      tables: notificationTables,
+      handlers: { ...handlers, email: async () => { throw new Error("SES timeout"); } },
+      maxAttempts: 3,
+    });
+    const [row] = await db
+      .select({ status: notificationOutbox.status, attempts: notificationOutbox.attempts })
+      .from(notificationOutbox)
+      .where(and(eq(notificationOutbox.recipientId, id), eq(notificationOutbox.channel, "email")));
+    expect(row).toEqual({ status: "pending", attempts: 1 });
+  });
+
   it("sends once with maxAttempts 1: a failed send is final, not retried", async () => {
     const id = await makeUser(`${MARK}-e@example.test`);
     await db.transaction((tx) =>
