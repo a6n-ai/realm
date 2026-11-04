@@ -16,6 +16,7 @@ const optText = (max: number) => z.preprocess(emptyToNull, z.string().trim().max
 const schema = z.object({
   title: z.string().trim().min(1, "Title is required").max(120),
   blurb: optText(160),
+  badge: optText(24),
   body: z.string().max(200_000).nullable(),
   html: z.string().max(200_000).nullable(),
   // Uploads come back as /api/files/... unless FILES_PUBLIC_BASE_URL points at the CDN.

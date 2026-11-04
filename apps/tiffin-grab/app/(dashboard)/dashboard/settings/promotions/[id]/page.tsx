@@ -43,6 +43,7 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
           publicId: promotion.publicId,
           title: promotion.title,
           blurb: promotion.blurb ?? "",
+          badge: promotion.badge ?? "",
           body: promotion.body ?? promotion.html ?? "",
           html: promotion.html ?? "",
           imageUrl: promotion.imageUrl ?? "",
@@ -51,7 +52,7 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
           ctaHref: promotion.ctaHref ?? "",
           // No saved HTML: open the editor on the card as the landing page draws it today.
           starterHtml: promotion.html ? "" : promoCardHtml({
-            badge: coupons.find((c) => c.code === promotion.couponCode)?.badge || null,
+            badge: promotion.badge || coupons.find((c) => c.code === promotion.couponCode)?.badge || null,
             title: promotion.title,
             blurb: promotion.blurb,
           }),

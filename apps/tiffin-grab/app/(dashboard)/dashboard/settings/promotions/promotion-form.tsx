@@ -29,6 +29,7 @@ export interface PromotionFormValues {
   publicId: string;
   title: string;
   blurb: string;
+  badge: string;
   body: string;
   html: string;
   /** Prefill for the editor when nothing is saved; saved only once staff change it. */
@@ -59,6 +60,7 @@ export function PromotionForm({
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [blurb, setBlurb] = useState(initial?.blurb ?? "");
+  const [badge, setBadge] = useState(initial?.badge ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [couponCode, setCouponCode] = useState(initial?.couponCode ?? "");
   const [ctaLabel, setCtaLabel] = useState(initial?.ctaLabel ?? "Claim offer");
@@ -71,6 +73,7 @@ export function PromotionForm({
   const [previewHtml, setPreviewHtml] = useState(initial?.html ?? "");
   const [refreshing, startRefresh] = useTransition();
   const starter = initial?.starterHtml ?? "";
+  const couponBadge = coupons.find((c) => c.code === couponCode)?.badge ?? "";
 
   // An untouched starter is the built-in card, so it stays unsaved: the card keeps following the fields.
   const exportBody = async () => {
@@ -95,6 +98,7 @@ export function PromotionForm({
       const res = await savePromotionAction(initial?.publicId ?? null, {
         title,
         blurb,
+        badge,
         body: out?.body ?? null,
         html: out?.html ?? null,
         imageUrl,
@@ -124,6 +128,11 @@ export function PromotionForm({
           <div className="grid gap-2">
             <Label htmlFor="prm-blurb">One-line blurb</Label>
             <Input id="prm-blurb" value={blurb} maxLength={160} placeholder="Shown on the coupon and in the popup" onChange={(e) => setBlurb(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="prm-badge">Headline</Label>
+            <Input id="prm-badge" value={badge} maxLength={24} placeholder={couponBadge ? `Default: ${couponBadge} (from coupon)` : "Default: the title"} onChange={(e) => setBadge(e.target.value)} />
+            <p className="text-muted-foreground text-xs">Big text in the middle of the hero sticker and on the offer card, like &quot;$65 off&quot;.</p>
           </div>
           <div className="grid gap-2">
             <Label>Image</Label>
@@ -219,7 +228,7 @@ export function PromotionForm({
             blurb: blurb.trim() || null,
             html: previewHtml.trim() ? previewHtml : null,
             imageUrl: imageUrl.trim() || null,
-            badge: coupons.find((c) => c.code === couponCode)?.badge ?? null,
+            badge: badge.trim() || couponBadge || null,
             code: couponCode || null,
             href: ctaHref || "/subscribe",
             cta: ctaLabel.trim() || "Claim offer",
