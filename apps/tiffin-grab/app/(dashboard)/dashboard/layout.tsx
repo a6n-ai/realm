@@ -28,7 +28,7 @@ import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { InboxRealtime } from "@/components/dashboard/inbox-realtime";
 import { AppClock } from "@/components/dashboard/app-clock";
 import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
-import { geistSansAdmin } from "@/app/fonts";
+import { geistSansAdmin } from "./admin-font";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this just stops Next from wastefully rendering all
