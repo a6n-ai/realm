@@ -61,7 +61,7 @@
 /* ── 2. Scroll transitions ───────────────────────────────────────────────────── */
 
 @supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
+  @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
     /* Headlines rise from behind a mask as they reach the reading line. */
     .lp-section .lp-h2, .tg-deliver__head .tg-h, .tg-reviews .tg-h {
       animation: lp-mask-rise linear both;
