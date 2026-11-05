@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ComponentProps, type ReactNode } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBreadcrumbs, BreadcrumbLabelsProvider } from "@/components/dashboard/app-breadcrumbs";
@@ -14,13 +14,15 @@ import { NotificationBellMount } from "@/components/dashboard/notification-bell-
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
-import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 
 // One client module for the whole admin shell. The server layout used to import
 // each of these itself, and Turbopack then copied that module's chunk list into
 // every dashboard page manifest.
+//
+// Server-only UI (e.g. RoutePushBadge → DB) must arrive as a slot from the
+// layout — importing it here would pull postgres into the client graph.
 export function DashboardProviders({ tz, children }: { tz: string; children: ReactNode }) {
   return (
     <TimezoneProvider tz={tz}>
@@ -52,6 +54,7 @@ export function DashboardActions({
   userPublicId,
   notifications,
   hasPin,
+  routePush,
 }: {
   cutoffHour: number;
   organizations: ComponentProps<typeof OrgSwitcher>["organizations"];
@@ -59,14 +62,13 @@ export function DashboardActions({
   userPublicId: string;
   notifications: ComponentProps<typeof NotificationBellMount>["initial"];
   hasPin: boolean;
+  /** Server Component slot — OptimoRoute push status (streams via Suspense in the layout). */
+  routePush?: ReactNode;
 }) {
   return (
     <>
       <AppClock cutoffHour={cutoffHour} />
-      {/* Streams in after the shell: small reads that must not hold up every page. */}
-      <Suspense fallback={null}>
-        <RoutePushBadge />
-      </Suspense>
+      {routePush}
       <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
       <NotificationBellMount userPublicId={userPublicId} initial={notifications} />
       <LockButton hasPin={hasPin} />

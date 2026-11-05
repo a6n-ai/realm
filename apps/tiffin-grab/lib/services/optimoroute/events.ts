@@ -10,6 +10,7 @@ import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-lab
 import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";
 import { getOptimoRouteConfig } from "./config";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 // OptimoRoute has no webhooks. get_events is its cursor feed of driver-app events for live
 // routes; polling it gives the same result (the OptimoPoller Durable Object alarm calls pollOnce). The cursor and a single-runner lock
@@ -24,7 +25,7 @@ const LOCK_MS = 90_000;
 const ACTIONABLE = new Set(["success", "failed"]);
 
 export function inWindow(nowMs: number, timezone: string, window: { start: string; end: string }): boolean {
-  const hhmm = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+  const hhmm = dateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
     .format(nowMs);
   return hhmm >= window.start && hhmm < window.end;
 }

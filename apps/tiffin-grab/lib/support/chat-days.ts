@@ -1,10 +1,11 @@
 import type { ChatMessage } from "@foundry/design-system";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 const dayKey = (t: number, tz: string) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
+  dateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
 
 export const chatTime = (t: number, tz: string) =>
-  new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(t).toLowerCase();
+  dateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(t).toLowerCase();
 
 /** "Today", "Yesterday", else "Mon, Oct 5" (with the year when it isn't this year). */
 export function chatDayLabel(t: number, tz: string, now = Date.now()): string {
@@ -12,7 +13,7 @@ export function chatDayLabel(t: number, tz: string, now = Date.now()): string {
   if (key === dayKey(now, tz)) return "Today";
   if (key === dayKey(now - 864e5, tz)) return "Yesterday";
   const sameYear = key.slice(0, 4) === dayKey(now, tz).slice(0, 4);
-  return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(t);
+  return dateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(t);
 }
 
 /**

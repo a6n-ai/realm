@@ -1,3 +1,5 @@
+import { dateTimeFormat } from "@/lib/intl/date-format";
+
 // Scheduled jobs shown in Settings → Scheduled jobs. Client-safe: no server imports.
 //
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
@@ -112,6 +114,6 @@ export function describeCron(cron: string | null, timezone: string, now: number)
   if (!m) return cron;
   if (m[2] === "*") return `Every hour at :${m[1].padStart(2, "0")}`;
   const next = nextCronRun(cron, now)!;
-  const time = new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit" }).format(next);
+  const time = dateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit" }).format(next);
   return `Daily ${time}`;
 }

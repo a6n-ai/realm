@@ -39,6 +39,7 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import { GlanceCard } from "./_overview/glance-card";
 import { ServiceCard } from "./_overview/service-card";
 import { NeedsActionCard } from "./_overview/needs-action-card";
@@ -85,7 +86,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   // "Hi Vishwas" and "Saturday, October 31", both from the app timezone's today.
   const firstName = await staffFirstName(session.user.email);
   const greeting = firstName ? `Hi ${firstName}` : "Overview";
-  const todayLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${today}T12:00:00Z`));
+  const todayLabel = dateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${today}T12:00:00Z`));
 
   const seesAll = await coversAllOrgs(visible);
   const weekStart = parseWeekParam(week) ?? mondayOf(today);
@@ -203,7 +204,7 @@ const CUSTOMER_LINKS = [
 // timezone so it never slips to the previous/next day across a DST boundary.
 function formatDeliveryDate(iso: string, timeZone: string): string {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateTimeFormat("en-CA", {
     year: "numeric", month: "short", day: "numeric", timeZone,
   }).format(Date.UTC(y, m - 1, d, 12));
 }
@@ -211,7 +212,7 @@ function formatDeliveryDate(iso: string, timeZone: string): string {
 // Short label for the delivery timezone (e.g. "EDT") so customer-facing dates are
 // unambiguously stamped in Canada local time, not the viewer's locale.
 function zoneAbbrev(timeZone: string): string {
-  const part = new Intl.DateTimeFormat("en-CA", { timeZone, timeZoneName: "short" })
+  const part = dateTimeFormat("en-CA", { timeZone, timeZoneName: "short" })
     .formatToParts(Date.now())
     .find((p) => p.type === "timeZoneName");
   return part?.value ?? timeZone;

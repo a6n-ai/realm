@@ -22,6 +22,7 @@ import {
   DashboardSearch,
   DashboardSidebar,
 } from "@/components/dashboard/dashboard-frame";
+import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { geistSansAdmin } from "./admin-font";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
@@ -139,6 +140,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               userPublicId={session.user.id}
               notifications={notificationFeed}
               hasPin={hasPin}
+              routePush={
+                <Suspense fallback={null}>
+                  <RoutePushBadge />
+                </Suspense>
+              }
             />
           }
           footer={<DashboardFooter hasPin={hasPin} />}
