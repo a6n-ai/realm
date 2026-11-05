@@ -24,6 +24,7 @@ import {
 } from "@/lib/inquiries/status";
 import type { LostReason } from "@/lib/services/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { followUpAtDate, followUpPick } from "./follow-up-picks";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
@@ -162,7 +163,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
   function save(to: SubStatus | null, extra?: { lostReason?: LostReason; note?: string; nextFollowUpAt?: number }) {
     start(async () => {
       try {
-        const { previous } = await updateStatus(inquiryId, { subStatus: to, ...extra });
+        const { previous } = await unwrapAction(updateStatus(inquiryId, { subStatus: to, ...extra }));
         setLostOpen(false);
         setTarget(null);
         router.refresh();
@@ -173,7 +174,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
             ? {
                 label: "Undo",
                 onClick: () => start(async () => {
-                  try { await updateStatus(inquiryId, { subStatus: previous }); router.refresh(); }
+                  try { await unwrapAction(updateStatus(inquiryId, { subStatus: previous })); router.refresh(); }
                   catch (e) { toast.error(e instanceof Error ? e.message : "Could not undo"); }
                 }),
               }
@@ -463,9 +464,9 @@ export function NoteDialog({
     start(async () => {
       try {
         const text = note.trim();
-        if (kind === "note") await addNote(inquiryId, text, followUp?.at);
+        if (kind === "note") await unwrapAction(addNote(inquiryId, text, followUp?.at));
         // A follow-up on its own is a scheduled callback in the timeline.
-        else await logActivity(inquiryId, { type: kind === "follow_up" ? "callback" : kind, note: text || undefined, nextFollowUpAt: followUp?.at });
+        else await unwrapAction(logActivity(inquiryId, { type: kind === "follow_up" ? "callback" : kind, note: text || undefined, nextFollowUpAt: followUp?.at }));
         onOpenChange(false);
         setNote("");
         setFollowUp(null);

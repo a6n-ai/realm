@@ -139,11 +139,11 @@ describe("inquiriesService.setStatus", () => {
     const b = await mk();
     await inquiriesService.setStatus(b.publicId, { subStatus: "undeliverable" });
     const res = await bulkSetStatus([a.publicId, b.publicId], "responded");
-    expect(res).toEqual({ updated: 1, skipped: 1 });
+    expect(res).toEqual({ ok: true, updated: 1, skipped: 1 });
     expect((await row(a.id)).subStatus).toBe("responded");
     expect((await row(b.id)).subStatus).toBe("undeliverable");
-    await expect(bulkSetStatus([a.publicId], "lost")).rejects.toThrow("bulk");
-    await expect(bulkSetStatus([a.publicId], "took_plan")).rejects.toThrow("bulk");
+    expect(await bulkSetStatus([a.publicId], "lost")).toEqual({ error: expect.stringContaining("bulk") });
+    expect(await bulkSetStatus([a.publicId], "took_plan")).toEqual({ error: expect.stringContaining("bulk") });
   });
 
   it("stores follow-up date on row and activity, and the note", async () => {

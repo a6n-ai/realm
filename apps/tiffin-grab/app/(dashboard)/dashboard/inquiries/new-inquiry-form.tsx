@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { formatPhone, phoneSchema } from "@foundry/commons";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { FollowUpPicker, StatusTilePicker } from "./_leads/status-dialog";
 import { NoSources } from "../_leads/no-sources";
 import { useExistingCustomer } from "../_leads/use-existing-customer";
@@ -173,7 +174,7 @@ export function AddInquirySheet({
 
   async function submit(values: InquiryFormValues, another: boolean) {
     try {
-      const res = await createInquiry({
+      const res = await unwrapAction(createInquiry({
         fullName: values.fullName || undefined,
         phone: e164 ?? (values.phone || undefined),
         email: values.email || undefined,
@@ -190,7 +191,7 @@ export function AddInquirySheet({
         preferredStart: values.preferredStart || undefined,
         quotedPrice: values.quotedPrice,
         notes: values.notes || undefined,
-      });
+      }));
       try {
         localStorage.setItem(LAST_SOURCE_KEY, JSON.stringify({ source: values.sourceKey, sub: values.subSourceKey || "" }));
       } catch {}

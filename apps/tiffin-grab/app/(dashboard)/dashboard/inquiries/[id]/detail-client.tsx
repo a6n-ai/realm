@@ -18,6 +18,8 @@ import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
+import type { ActionResult } from "@/app/(customer)/me/action-result";
 import { FollowUpPicker, NoteDialog, StatusBoard, StatusPill, type NoteKind } from "../_leads/status-dialog";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
@@ -126,7 +128,7 @@ export function InquiryDetailClient({
   contact: { fullName: string | null; phone: string | null; email: string | null };
   sourceLabel: string;
   owner: { publicId: string | null; name: string | null };
-  reassign: { staff: { publicId: string; name: string }[]; action: (inquiryId: string, ownerId: string) => Promise<void> } | null;
+  reassign: { staff: { publicId: string; name: string }[]; action: (inquiryId: string, ownerId: string) => Promise<ActionResult> } | null;
   notes: string | null;
   interest: Interest;
   activities: TimelineActivity[];
@@ -149,7 +151,7 @@ export function InquiryDetailClient({
   function saveFollowUp(at: number) {
     startPick(async () => {
       try {
-        await logActivity(inquiryId, { type: "callback", nextFollowUpAt: at });
+        await unwrapAction(logActivity(inquiryId, { type: "callback", nextFollowUpAt: at }));
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save follow-up");
@@ -209,7 +211,7 @@ export function InquiryDetailClient({
                   currentOwnerId={owner.publicId}
                   currentOwnerName={owner.name}
                   staff={reassign.staff}
-                  action={(ownerId) => reassign.action(inquiryId, ownerId)}
+                  action={async (ownerId) => { await unwrapAction(reassign.action(inquiryId, ownerId)); }}
                 />
               ) : (
                 <span className="font-medium">{owner.name ?? "Unassigned"}</span>

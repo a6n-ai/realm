@@ -21,6 +21,8 @@ import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { displayName } from "@/lib/inquiries/display";
 import { SUB_STATUSES, SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
+import type { ActionResult } from "@/app/(customer)/me/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
@@ -81,7 +83,7 @@ function BulkBar({
     if (!ownerId) return;
     start(async () => {
       try {
-        const done = await reassignInquiries(selectedIds, ownerId);
+        const { count: done } = await unwrapAction(reassignInquiries(selectedIds, ownerId));
         const name = staff.find((s) => s.publicId === ownerId)?.name ?? "staff";
         toast(`${done} ${done === 1 ? "inquiry" : "inquiries"} reassigned to ${name}`);
         onChange(new Set());
@@ -95,7 +97,7 @@ function BulkBar({
     if (!status) return;
     start(async () => {
       try {
-        const { updated, skipped } = await bulkSetStatus(selectedIds, status);
+        const { updated, skipped } = await unwrapAction(bulkSetStatus(selectedIds, status));
         toast(`${updated} updated${skipped ? `, ${skipped} skipped (closed or converted)` : ""}`);
         onChange(new Set());
         router.refresh();
@@ -155,7 +157,7 @@ export function InquiriesList({
   emptyMessage: string;
   canReassign?: boolean;
   staff?: StaffOption[];
-  reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
+  reassignAction?: (inquiryId: string, ownerId: string) => Promise<ActionResult>;
   dayStart: number;
 }) {
   const tz = useTimezone();
