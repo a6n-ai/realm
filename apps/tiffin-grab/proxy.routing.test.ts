@@ -108,6 +108,24 @@ describe("apex/www front door", () => {
     expect(new URL((await get("https://app.tiffingrab.ca/menu")).headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/menu");
   });
 
+  it("serves /refer and a code-shaped /refer/<code> from the site tree on the apex", async () => {
+    const page = await get("https://tiffingrab.ca/refer");
+    expect(page.headers.get("location")).toBeNull();
+    expect(new URL(page.headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/refer");
+    const friend = await get("https://tiffingrab.ca/refer/k7m2qx");
+    expect(friend.headers.get("location")).toBeNull();
+    expect(new URL(friend.headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/refer/K7M2QX");
+  });
+
+  it("does not rewrite a /refer/<x> that is not code-shaped", async () => {
+    const res = await get("https://app.tiffingrab.ca/refer/not-a-code!");
+    expect(res.headers.get("x-middleware-rewrite") ?? "").not.toContain("/site/");
+  });
+
+  it("keeps /r short links on the apex", async () => {
+    expect((await get("https://tiffingrab.ca/r/K7M2QX")).headers.get("location")).toBeNull();
+  });
+
   it("404s external /site on the preview host where the front door is inert", async () => {
     vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
     expect((await get("http://localhost:3000/site/org1/menu")).status).toBe(404);

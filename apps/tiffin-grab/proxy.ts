@@ -83,8 +83,15 @@ async function orgs(): Promise<OrgSnapshot> {
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
 const SITE_PAGES = new Set([
   "/", "/menu", "/menu/weekly", "/plans", "/pricing", "/locations", "/reviews", "/faq", "/contact",
-  "/delivery-policy", "/legal", "/terms", "/privacy", "/refund-policy",
+  "/delivery-policy", "/legal", "/terms", "/privacy", "/refund-policy", "/refer",
 ]);
+
+// A referral friend page, /refer/<code>: personalised, so never in public-pages.json (edge cache).
+function siteFriendPath(pathname: string): string | null {
+  const m = /^\/refer\/([^/]+)$/.exec(pathname);
+  const code = m ? normalizeReferralCode(m[1]!) : "";
+  return isReferralCodeShape(code) ? `/refer/${code}` : null;
+}
 
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
 
@@ -166,8 +173,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
   const forwardedRequest = { request: { headers: request.headers } };
 
   // Every method: server actions POST to the page URL, which now exists only under /site/<org>.
-  if (SITE_PAGES.has(pathname)) {
-    const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : pathname}`;
+  const friendPath = siteFriendPath(pathname);
+  if (SITE_PAGES.has(pathname) || friendPath) {
+    const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : friendPath ?? pathname}`;
     return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);
   }
 
