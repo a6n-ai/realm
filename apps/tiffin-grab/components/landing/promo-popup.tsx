@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
 import { useSession } from "@/lib/auth/client";
+import { SavingsReceipt } from "@/components/landing/promo/savings-receipt";
 import "@/components/landing/promo/promo.css";
 
 export function CopyCode({ code }: { code: string }) {
@@ -177,8 +178,18 @@ export function PromoPanel({ promo, fallbackImage, onClose, className }: { promo
       <div className="tg-popup__body">
         <span className="tg-popup__eyebrow">Offer running now</span>
         {/* The dialog is labelled by the title, so it stays for screen readers when staff HTML replaces it. */}
-        <h2 id="tg-popup-title" className={promo.html ? "sr-only" : "tg-popup__title"}>{promo.title}</h2>
-        {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : promo.blurb ? <p className="tg-popup__blurb">{promo.blurb}</p> : null}
+        {promo.savings ? (
+          <>
+            <h2 id="tg-popup-title" className="tg-popup__title">{promo.savings.headline} <span className="tg-popup__cond">{promo.savings.condition}</span></h2>
+            {promo.blurb ? <p className="tg-popup__blurb">{promo.blurb}</p> : null}
+            <SavingsReceipt savings={promo.savings} className="tg-receipt--flat" />
+          </>
+        ) : (
+          <>
+            <h2 id="tg-popup-title" className={promo.html ? "sr-only" : "tg-popup__title"}>{promo.title}</h2>
+            {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : promo.blurb ? <p className="tg-popup__blurb">{promo.blurb}</p> : null}
+          </>
+        )}
         <div className="tg-popup__actions">
           <Link prefetch={false} href={promo.href} className="tg-promo-cta" onClick={onClose}>{promo.cta}</Link>
           {promo.code ? <CopyCode code={promo.code} /> : null}

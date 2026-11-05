@@ -1,3 +1,6 @@
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import type { CatalogSnapshot } from "@/lib/catalog/types";
+import { promoSavings } from "@/lib/landing/savings";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
 import { hasPlacement } from "@/lib/promotions/live";
 import { promotionsService, type Promotion } from "@/lib/services/promotions.service";
@@ -18,15 +21,17 @@ export function couponHeadline(c: Pick<AvailableCoupon, "valuePct" | "valueAmoun
   return c.name;
 }
 
-function fromCoupon(c: AvailableCoupon): LandingPromo {
+function fromCoupon(c: AvailableCoupon, snapshot: CatalogSnapshot | null): LandingPromo {
+  const savings = snapshot ? promoSavings(snapshot, c) : null;
   return {
+    savings,
     id: `coupon:${c.code}`,
     title: `${couponHeadline(c)} with ${c.code}`,
     blurb: c.description ?? c.name,
     html: null,
     imageUrl: null,
     code: c.code,
-    badge: couponHeadline(c),
+    badge: savings?.headline ?? couponHeadline(c),
     href: subscribeHref(c.code),
     cta: "Claim offer",
   };
@@ -48,15 +53,18 @@ export function ownImagePath(url: string | null): string | null {
   }
 }
 
-function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>): LandingPromo {
+function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null): LandingPromo {
   const coupon = p.couponCode ? coupons.get(p.couponCode.toUpperCase()) : undefined;
+  const savings = coupon && snapshot ? promoSavings(snapshot, coupon) : null;
   return {
+    savings,
     id: p.publicId,
     title: p.title,
     blurb: p.blurb,
     html: p.html,
     imageUrl: ownImagePath(p.imageUrl),
-    badge: p.badge || (coupon ? couponHeadline(coupon) : null),
+    // A worked-out saving beats a typed one: a hand-typed "$65 off" drifted from what checkout gives.
+    badge: savings?.headline ?? (p.badge || (coupon ? couponHeadline(coupon) : null)),
     code: p.couponCode,
     href: p.ctaHref || subscribeHref(p.couponCode),
     cta: p.ctaLabel,
@@ -64,15 +72,16 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>): Lan
 }
 
 export async function loadLandingPromos(): Promise<LandingPromos> {
-  const [coupons, live] = await Promise.all([
+  const [coupons, live, snapshot] = await Promise.all([
     couponsService.listAvailable().catch(() => [] as AvailableCoupon[]),
     promotionsService.listLive().catch(() => [] as Promotion[]),
+    loadCatalogSnapshot().catch(() => null),
   ]);
   const byCode = new Map(coupons.map((c) => [c.code.toUpperCase(), c]));
-  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode));
+  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot));
   const strongest = [...coupons].sort((a, b) => strength(b) - strength(a))[0];
   return {
-    sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest) : null),
+    sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest, snapshot) : null),
     popup: placed("popup")[0] ?? null,
     sections: placed("section"),
   };

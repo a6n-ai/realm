@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { CopyCode, PromoHtml } from "@/components/landing/promo-popup";
 import type { LandingPromo } from "@/lib/landing/promo-types";
+import { SavingsReceipt } from "./savings-receipt";
 import "./promo.css";
 
 /** One promotion as a die-cut coupon (main + tear-off code stub) beside its photo tile. */
@@ -14,11 +15,12 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
     <>
       <article className="lp-coupon" aria-label={promo.title}>
         <div className="lp-coupon__main">
-          {/* Staff HTML is the whole card text; without it the fields draw the card. */}
-          {promo.html ? <PromoHtml html={promo.html} title={promo.title} /> : (
+          {/* Staff HTML is the whole card text; without it the fields draw the card. A worked-out
+              saving wins over both: hand-typed figures are what drifted from checkout. */}
+          {promo.html && !promo.savings ? <PromoHtml html={promo.html} title={promo.title} /> : (
             <>
               <strong className="lp-coupon__badge">{promo.badge || promo.title}</strong>
-              {promo.badge ? <span className="lp-coupon__title">{promo.title}</span> : null}
+              {promo.savings ? <span className="lp-coupon__title">{promo.savings.condition}</span> : promo.badge ? <span className="lp-coupon__title">{promo.title}</span> : null}
               {promo.blurb ? <p className="lp-coupon__blurb">{promo.blurb}</p> : null}
             </>
           )}
@@ -33,7 +35,7 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
           ) : <span className="lp-coupon__label">No code needed</span>}
         </div>
       </article>
-      <div className={promo.imageUrl ? "lp-offers__photo lp-offers__photo--own" : "lp-offers__photo"}>
+      <div className={["lp-offers__photo", promo.imageUrl ? "lp-offers__photo--own" : "", promo.savings ? "lp-offers__photo--receipt" : ""].filter(Boolean).join(" ")}>
         {promo.imageUrl && /^\/landing\/[^?]*$/.test(promo.imageUrl) ? (
           // Same-origin file: let the optimizer serve WebP/AVIF at the tile's width.
           <Image src={promo.imageUrl} alt="" fill sizes="(max-width: 900px) 100vw, 740px" />
@@ -43,6 +45,7 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
         ) : photo ? (
           <Image src={photo} alt="Paneer butter masala in a copper pan" placeholder="blur" sizes="(max-width: 900px) 100vw, 400px" />
         ) : null}
+        {promo.savings ? <SavingsReceipt savings={promo.savings} /> : null}
       </div>
     </>
   );

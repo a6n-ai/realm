@@ -14,6 +14,24 @@ export interface LandingPromo {
   code: string | null;
   href: string;
   cta: string;
+  /** Worked out from live discounts + the linked coupon (lib/landing/savings.ts); null when there is no coupon. */
+  savings?: PromoSavings | null;
+}
+
+/** An honest example receipt: what one real plan saves at checkout today. */
+export interface PromoSavings {
+  /** "Save over $70": always below the example's real total. */
+  headline: string;
+  /** "on 8+ week plans" */
+  condition: string;
+  /** "8 weeks, 3 Days/Wk Alternate (MWF)" */
+  example: string;
+  subtotalLabel: string;
+  subtotal: number;
+  lines: { label: string; amount: number }[];
+  total: number;
+  /** The most any plan saves (dearest size, longest plan); null when it adds nothing. */
+  upTo: number | null;
 }
 
 export interface LandingPromos {
