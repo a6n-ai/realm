@@ -63,20 +63,36 @@ Resources:
       EventDestination:
         Name: sns-bounce-complaint
         Enabled: true
+        # Only what the app acts on: each SNS event wakes the Worker. A campaign
+        # produced ~20k Delivery/Open/Click events; those go to CloudWatch below.
         MatchingEventTypes:
           - BOUNCE
           - COMPLAINT
-          # Campaign stats (delivered/opened/clicked on the outbox row).
+        SnsDestination:
+          TopicARN: !Ref FeedbackTopic
+
+  # Campaign Delivered/Opened/Clicked: SES counts them per `campaign` message tag
+  # (set on every campaign send) and the campaign page's Refresh results reads the
+  # totals with GetMetricData. No per-recipient delivered/opened stamps for campaigns.
+  MetricsEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Properties:
+      ConfigurationSetName: !Ref ConfigSet
+      EventDestination:
+        Name: cloudwatch-campaign-counts
+        Enabled: true
+        MatchingEventTypes:
           - DELIVERY
           - OPEN
           - CLICK
-          # No-ops in the webhook today; recorded so an accepted-but-never-
-          # delivered send shows up in SES metrics instead of vanishing.
           - DELIVERY_DELAY
           - REJECT
           - RENDERING_FAILURE
-        SnsDestination:
-          TopicARN: !Ref FeedbackTopic
+        CloudWatchDestination:
+          DimensionConfigurations:
+            - DimensionName: campaign
+              DimensionValueSource: messageTag
+              DefaultDimensionValue: none
 
   # Creating this triggers a SubscriptionConfirmation POST to WebhookEndpoint,
   # which the live route auto-confirms (after verifying the SNS signature).
@@ -102,13 +118,12 @@ Resources:
       EventDestination:
         Name: sns-bounce-complaint
         Enabled: true
+        # DELIVERY stays: invite, payment-reminder and renewal history show it per
+        # message (~45/day). Delay/reject/rendering were webhook no-ops; see VDM.
         MatchingEventTypes:
           - BOUNCE
           - COMPLAINT
           - DELIVERY
-          - DELIVERY_DELAY
-          - REJECT
-          - RENDERING_FAILURE
         SnsDestination:
           TopicARN: !Ref FeedbackTopic
 

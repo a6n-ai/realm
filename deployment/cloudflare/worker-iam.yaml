@@ -71,6 +71,12 @@ Resources:
                 - ExtraConfigSet
                 - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${SesExtraConfigurationSet}"
                 - !Ref AWS::NoValue
+          # Campaign Delivered/Opened/Clicked come from SES's CloudWatch counts (Refresh results).
+          # GetMetricData has no resource-level scoping.
+          - Sid: CampaignMetricsRead
+            Effect: Allow
+            Action: cloudwatch:GetMetricData
+            Resource: "*"
           - !If
             - AwsLocation
             - Sid: GeoMaps

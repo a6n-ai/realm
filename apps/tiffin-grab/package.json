@@ -29,6 +29,7 @@
     "audit:skeletons": "playwright test skeleton-audit/capture.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1161.0",
     "@aws-sdk/client-geo-maps": "^3.1155.0",
     "@base-ui/react": "^1.9.0",
     "@date-fns/tz": "^1.5.0",

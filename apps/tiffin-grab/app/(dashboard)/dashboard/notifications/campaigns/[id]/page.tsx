@@ -28,6 +28,7 @@ import type { AudienceValue } from "@relay/engine/ui/audience-builder";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 import { BulkRuns } from "./bulk-runs";
+import { RefreshResultsButton } from "./refresh-results-button";
 
 const log = createLogger("campaign-page");
 
@@ -192,6 +193,7 @@ export default async function CampaignPage({
           {!isSystem && (
             <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
           )}
+          {!isSystem && row.sentAt != null && <RefreshResultsButton campaignPublicId={row.publicId} />}
           {!isSystem && row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
           {failedCount > 0 && (

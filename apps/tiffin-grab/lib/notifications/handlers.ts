@@ -21,6 +21,7 @@ function emailChannelProvider(): ChannelProvider {
         text: msg.text,
         attachments: msg.attachments,
         headers: msg.headers,
+        tags: msg.tags,
       }),
   };
 }
