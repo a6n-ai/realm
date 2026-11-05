@@ -4,6 +4,7 @@ import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
 import { addDays, mondayOf } from "@/lib/deliveries-view/week";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import { menuService } from "@/lib/services/menu.service";
 import { FooterLink } from "./footer-link";
 
@@ -15,7 +16,7 @@ const STATE = {
 } as const;
 
 const weekLabel = (monday: string) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${monday}T12:00:00Z`));
+  dateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${monday}T12:00:00Z`));
 
 /** This week's and next week's menu: is each released, so customers can pick and the kitchen can plan? */
 export async function MenusCard({ today }: { today: string }) {

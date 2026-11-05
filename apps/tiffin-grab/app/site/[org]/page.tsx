@@ -14,6 +14,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadLandingPromos } from "@/lib/landing/promos";
@@ -34,7 +35,7 @@ export const dynamic = "error";
 const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 const hourLabel = (h: number) =>
-  new Intl.DateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();
+  dateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();
 
 function weekRange(weekStart: string) {
   const end = parseIsoDateUtc(weekStart);
@@ -64,7 +65,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
   // The demos say "Changes until Mon 11:00 PM": the real cutoff, never a hard-coded hour.
   const cutoffTime = catalog.cutoffHour != null
-    ? new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, catalog.cutoffHour)).replace(/\./g, "").toUpperCase()
+    ? dateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, catalog.cutoffHour)).replace(/\./g, "").toUpperCase()
     : null;
   const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
   const todayDay = board.days.find((d) => d.today) ?? board.days[0] ?? null;

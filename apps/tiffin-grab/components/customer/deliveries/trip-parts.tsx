@@ -4,10 +4,11 @@ import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
-const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
+const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 export const dayNum = (iso: string) => d(iso).getUTCDate();
 export const weekday = (iso: string) => WD.format(d(iso));
@@ -188,7 +189,7 @@ export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"
   ];
 }
 
-export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
+export const cutoffFmt = (ms: number, tz: string) => dateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
 export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, addonTiles, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; addonTiles?: MealCategory[]; children?: React.ReactNode }) {

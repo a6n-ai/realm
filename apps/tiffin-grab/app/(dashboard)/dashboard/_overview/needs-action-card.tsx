@@ -8,6 +8,7 @@ import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
 import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service";
 import { menuService } from "@/lib/services/menu.service";
 import { addDays, mondayOf } from "@/lib/deliveries-view/week";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
 
@@ -15,7 +16,7 @@ import { VerifyPaymentButton } from "./verify-payment-button";
 type Line = { key: string; icon: LucideIcon; count: number | null; label: string; sub: string; action: React.ReactNode; bare?: boolean };
 
 const dayLabel = (iso: string) =>
-  new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+  dateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
 
 const go = (href: string, text: string) => (
   <Button asChild size="sm" variant="outline">

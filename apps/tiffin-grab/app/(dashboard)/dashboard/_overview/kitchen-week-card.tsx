@@ -3,10 +3,11 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { addDays } from "@/lib/deliveries-view/week";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import { getKitchenWeek, getKitchenWeekDishes } from "@/lib/services/overview.service";
 import { KitchenWeekView } from "./kitchen-week-view";
 
-const md = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+const md = (iso: string) => dateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
 
 /**
  * The week at a glance for the kitchen: tiffins per meal plan, and (all-scope users) containers per
