@@ -12,14 +12,15 @@ export function referHeadline(offer: ReferralOffer): string {
 }
 
 /** The program as a two-part ticket: the friend's half and yours, joined at a tear line. */
-export function ReferTicket({ friend, referrer }: { friend: OfferFigure | null; referrer: OfferFigure | null }) {
+// `friendLabel` set = the friend is reading (their own half, their own wallet).
+export function ReferTicket({ friend, referrer, friendLabel }: { friend: OfferFigure | null; referrer: OfferFigure | null; friendLabel?: string }) {
   return (
     <div className="tg-refer__ticket" aria-hidden>
       {friend ? (
         <div className="tg-refer__half tg-refer__half--friend">
-          <span className="tg-refer__who">Your friend</span>
+          <span className="tg-refer__who">{friendLabel ?? "Your friend"}</span>
           <strong>{friend.big}</strong>
-          <small>{friend.small.replace("your wallet", "their wallet")}</small>
+          <small>{friendLabel ? friend.small : friend.small.replace("your wallet", "their wallet")}</small>
         </div>
       ) : null}
       {referrer ? (
