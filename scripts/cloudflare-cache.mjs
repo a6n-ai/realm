@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 
 const ZONE = "tiffingrab.ca";
 const REF = "tg-public-pages";
+const ROUTER_HEADERS = ["rsc", "next-router-prefetch", "next-router-state-tree", "next-url"];
 const pages = JSON.parse(readFileSync(new URL("../apps/tiffin-grab/lib/routing/public-pages.json", import.meta.url), "utf8"));
 const token = process.env.CLOUDFLARE_API_TOKEN;
 if (!token) throw new Error("CLOUDFLARE_API_TOKEN is not set");
@@ -33,10 +34,13 @@ const cmd = process.argv[2];
 if (cmd === "rule") {
   // Plain GETs of the public paths only: a query (?ref= sets a cookie, _rsc is router data) or a
   // franchise cookie (a visitor who picked a non-default franchise) always reaches the Worker.
+  // Next answers the same URL with router data (not HTML) when these headers are present; the
+  // cache key ignores headers, so one such request could otherwise store router data as the page
+  // for everyone. http.request.headers keys are lowercase; a missing header makes [0] compare false.
   const rule = {
     ref: REF,
     description: "tiffin-grab public pages: edge cache per origin Cache-Control (scripts/cloudflare-cache.mjs)",
-    expression: `(http.host eq "${ZONE}" and http.request.method eq "GET" and http.request.uri.path in {${pages.map((p) => JSON.stringify(p)).join(" ")}} and http.request.uri.query eq "" and not http.cookie contains "franchise=")`,
+    expression: `(http.host eq "${ZONE}" and http.request.method eq "GET" and http.request.uri.path in {${pages.map((p) => JSON.stringify(p)).join(" ")}} and http.request.uri.query eq "" and not http.cookie contains "franchise="${ROUTER_HEADERS.map((h) => ` and not http.request.headers["${h}"][0] ne ""`).join("")})`,
     action: "set_cache_settings",
     action_parameters: { cache: true, edge_ttl: { mode: "respect_origin" }, browser_ttl: { mode: "respect_origin" } },
     enabled: true,
