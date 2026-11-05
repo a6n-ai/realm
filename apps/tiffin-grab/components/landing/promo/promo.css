@@ -72,7 +72,9 @@
 /* Container queries, not viewport ones: the admin preview is narrower than the screen. */
 .lp-offers { container-type: inline-size; }
 @container (max-width: 820px) {
-  .lp-offers__slide { grid-template-columns: minmax(0, 1fr); }
+  /* Stacked, a slide is as tall as its own content: the row is as tall as the tallest slide
+     (the welcome coupon plus its receipt photo), which stretched a short coupon to fill it. */
+  .lp-offers__slide { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .lp-offers__photo { display: none; }
   /* Staff's own picture still shows on narrow screens, as a banner above the coupon. */
   .lp-offers__photo--own { display: block; order: -1; min-height: 0; aspect-ratio: 16 / 9; border-radius: 24px; }
@@ -97,6 +99,10 @@
 /* Popup. The panel is its own block so the admin preview can show it without a <dialog>. */
 .tg-popup { position: fixed; inset: 0; margin: auto; height: fit-content; width: min(520px, calc(100vw - 32px)); max-height: calc(100svh - 32px); padding: 0; border: 0; border-radius: 28px; background: var(--card); color: var(--foreground); box-shadow: var(--c-shadow-sheet, 0 -8px 40px rgb(0 0 0 / 0.18)); overflow: auto; }
 .tg-popup::backdrop { background: var(--c-scrim, rgb(0 0 0 / 0.45)); }
+/* A modal <dialog> doesn't stop the page behind it scrolling: lock it while open, and keep the
+   sheet's own scroll from chaining to the page when it hits its end. */
+html:has(.tg-popup[open]) { overflow: hidden; }
+.tg-popup { overscroll-behavior: contain; }
 .tg-popup[open] { animation: tg-popup-in 300ms cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes tg-popup-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
 .tg-popup__panel { position: relative; background: var(--card); color: var(--foreground); }
@@ -171,7 +177,9 @@
 
 @container (max-width: 820px) {
   /* The receipt keeps its photo on narrow screens: a banner the slip sits on. */
-  .lp-offers__photo--receipt { display: grid; order: 1; min-height: 0; border-radius: 24px; padding-top: 72px; }
+  /* Also wins over --own's fixed 16:9 banner: a staff photo is the receipt's backdrop here, and
+     at 16:9 (185px on a phone) it clipped the 245px receipt. */
+  .lp-offers__photo--receipt, .lp-offers__photo--own.lp-offers__photo--receipt { display: grid; order: 1; min-height: 0; aspect-ratio: auto; border-radius: 24px; padding-top: 72px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tg-receipt, .tg-receipt__line--off { transform: none; opacity: 1; transition: none; }
