@@ -289,7 +289,7 @@ export async function listCustomersPage(
   customFilters?: {
     planCompletesInDays?: number;
     activePlan?: "yes" | "no";
-    customerType?: "none" | "new" | "repeat";
+    customerType?: "none" | "ordered" | "new" | "repeat";
     latestStatus?: string;
   }
 ): Promise<Page<CustomerRow>> {
@@ -307,17 +307,20 @@ export async function listCustomersPage(
 
   // ponytail: literal active+paused (ONGOING_STATUSES lives in an app file; lib must not import it).
   const hasRunning = sql`exists (select 1 from ${orders} o where o.user_id = ${users.id} and o.status in ('active', 'paused'))`;
+  // Same non-cancelled definition the Customers KPI cards use for With orders / Repeat / No order yet.
   const liveOrderCount = sql`(select count(*) from ${orders} o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
   const f = customFilters;
   const activePlanWhere = f?.activePlan === "yes" ? hasRunning : f?.activePlan === "no" ? sql`not ${hasRunning}` : undefined;
   const customerTypeWhere =
     f?.customerType === "none"
       ? sql`${liveOrderCount} = 0`
-      : f?.customerType === "new"
-        ? sql`${liveOrderCount} = 1`
-        : f?.customerType === "repeat"
-          ? sql`${liveOrderCount} >= 2`
-          : undefined;
+      : f?.customerType === "ordered"
+        ? sql`${liveOrderCount} >= 1`
+        : f?.customerType === "new"
+          ? sql`${liveOrderCount} = 1`
+          : f?.customerType === "repeat"
+            ? sql`${liveOrderCount} >= 2`
+            : undefined;
   const latestStatusWhere = f?.latestStatus
     ? sql`(select o.status from ${orders} o where o.user_id = ${users.id} order by o.created_at desc limit 1) = ${f.latestStatus}`
     : undefined;

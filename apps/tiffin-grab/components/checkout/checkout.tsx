@@ -21,6 +21,7 @@ import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/action
 import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
+import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
@@ -343,22 +344,24 @@ export function Checkout({
     });
   }, [result, selections?.planKey]);
 
-  // e-Transfer: Purchase at proof submit (same event_id as claimPayment CAPI). Card uses PaidSwitch below.
+  // e-Transfer: order_submitted at proof submit (same event_id as claim CAPI). Purchase waits for verify.
+  // Card uses PaidSwitch below for Purchase after Stripe settles.
   useEffect(() => {
     if (!etransferDone || !etransfer || purchasePixelFired.current) return;
     purchasePixelFired.current = true;
     const value = etransfer.receipt.total / 100;
+    const eventId = orderSubmittedEventId(etransfer.paymentPublicId);
     trackMeta(
-      "Purchase",
+      "order_submitted",
       {
         value,
         currency: "CAD",
         ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
         num_items: 1,
       },
-      etransfer.paymentPublicId,
+      eventId,
     );
-    gtagEvent("purchase", {
+    gtagEvent("order_submitted", {
       transaction_id: etransfer.paymentPublicId,
       value,
       currency: "CAD",

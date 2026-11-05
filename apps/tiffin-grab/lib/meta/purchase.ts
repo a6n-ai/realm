@@ -9,16 +9,17 @@ const log = createLogger("meta-purchase");
 
 /**
  * Exactly-once Purchase CAPI for a conversion.
- * Offline methods fire on customer claim (`pending_verification`) — ads conversion
- * at proof/reference submit; money still settles later on staff verify. Card fires
- * on settle (`paid` / `simulated_paid`). Claims `metaPurchaseSentAt` before the
- * network call so claim + verify / webhook retries cannot double-fire. Skips
- * renewals (`metaPurchaseEligible = false`) and any payment that is not the
- * order's first payment. Never reads headers/cookies — attribution must already
- * be on the order from checkout. Awaits the Graph POST so Workers keep the isolate
- * alive through the send.
+ * Fires only after money settles (`paid` / `simulated_paid`) — card via Stripe
+ * confirm, offline (e-Transfer/cash) via staff verify. Offline claims fire
+ * `order_submitted` instead (see order-submitted.ts); `pending_verification` is
+ * never a Purchase. Claims `metaPurchaseSentAt` before the network call so
+ * webhook retries / double verify cannot double-fire. Skips renewals
+ * (`metaPurchaseEligible = false`) and any payment that is not the order's first
+ * payment. Never reads headers/cookies — attribution must already be on the
+ * order from checkout. Awaits the Graph POST so Workers keep the isolate alive
+ * through the send. event_id = payment public id (same as card browser Pixel).
  */
-const PURCHASE_STATUSES = new Set(["pending_verification", "paid", "simulated_paid"]);
+const PURCHASE_STATUSES = new Set(["paid", "simulated_paid"]);
 
 export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<void> {
   try {
@@ -114,6 +115,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
       customData: {
         value,
         currency: "CAD",
+        order_id: claimed.order.publicId,
         ...(contentIds.length ? { content_ids: contentIds, content_type: "product" } : {}),
         num_items: claimed.order.tiffinCount,
       },

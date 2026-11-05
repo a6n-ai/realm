@@ -75,11 +75,11 @@ describe("ClaimPayment rigorous event & upload testing", () => {
     await waitFor(() => {
       expect(mockClaimPaymentAction).toHaveBeenCalledWith("pay_123", expect.any(FormData));
       expect(mockTrackMeta).toHaveBeenCalledWith(
-        "Purchase",
+        "order_submitted",
         { value: 100, currency: "CAD", num_items: 1 },
-        "pay_123",
+        "order_submitted:pay_123",
       );
-      expect(mockGtagEvent).toHaveBeenCalledWith("purchase", {
+      expect(mockGtagEvent).toHaveBeenCalledWith("order_submitted", {
         transaction_id: "pay_123",
         value: 100,
         currency: "CAD",

@@ -45,6 +45,7 @@ import {
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
+import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@/lib/runtime/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -1346,10 +1347,8 @@ export async function claimPayment(
   publishPaymentsInbox();
   publishAnalyticsLive();
 
-  // Ads conversion at claim (proof/reference). Awaits the DB claim so metaPurchaseSentAt is
-  // set before the action returns; the Graph HTTP call stays fire-and-forget inside. Staff
-  // verify later is a no-op via metaPurchaseSentAt.
-  await sendMetaPurchaseOnce(paymentPublicId);
+  // Funnel only: offline claim is not a Purchase. Purchase CAPI waits for verifyPayment.
+  await sendMetaOrderSubmitted(paymentPublicId);
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;
@@ -1779,7 +1778,20 @@ export interface OrdersListOpts {
   freeRange?: FreeTiffinRange;
   /** today in the app timezone; keeps orders with a missed delivery before it. */
   missedAsOf?: string;
+  /**
+   * Orders cancelled inside this epoch window (by the cancel activity timestamp),
+   * matching the Orders "Cancelled" KPI — not `orders.created_at`.
+   */
+  cancelledInRange?: { from: number; to: number };
 }
+
+const cancelledInRangeWhere = (range: { from: number; to: number }) =>
+  sql`exists (
+    select 1 from ${orderActivities} oa
+    where oa.order_id = ${orders.id}
+      and oa.type = 'cancelled'
+      and oa.created_at between ${range.from} and ${range.to}
+  )`;
 
 // Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
 export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
@@ -1789,6 +1801,7 @@ export function ordersListWhere(condition: Condition | undefined, visible: "all"
     opts.freeTiffins ? freeTiffinsWhere(opts.freeRange) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
+    opts.cancelledInRange ? cancelledInRangeWhere(opts.cancelledInRange) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 }

@@ -35,10 +35,11 @@ import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/da
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
-import { ongoingFilter } from "./status-pills";
+import { orderStatusFilter } from "./status-pills";
 import { buildOrdersSpec, STARTS_DAYS, STARTS_FIELD } from "./orders-spec";
 import { and, between } from "@foundry/commons/model/condition";
 import { addDays } from "@/lib/deliveries-view/week";
+import { ordersListHref } from "@/lib/list/orders-drill";
 import { NewOrderSheet } from "./new-order-sheet";
 import { StartMigratedDialog } from "./start-migrated-dialog";
 
@@ -79,12 +80,23 @@ export default async function OrdersPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <SectionDateRange />
-            {raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? (
+            {raw.view === "lookout" ||
+            raw.view === "payment" ||
+            raw.view === "missed" ||
+            raw.status === "running" ||
+            raw.status === "soon" ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Filter ignored" />
                 </TooltipTrigger>
-                <TooltipContent>Filter ignored: this tab shows every date</TooltipContent>
+                <TooltipContent>Created-date filter ignored for this view</TooltipContent>
+              </Tooltip>
+            ) : raw.cancelledAt === "1" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Dated by cancel" />
+                </TooltipTrigger>
+                <TooltipContent>Dated by cancel activity, not order created date</TooltipContent>
               </Tooltip>
             ) : null}
           </div>
@@ -142,13 +154,20 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   const range = { from: Number(sp.from), to: Number(sp.to) };
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const view = (await searchParams).view;
+  const dates = { from: sp.from, to: sp.to };
   if (view === "lookout") {
     const l = await getLookOutStats(visible, range);
     return (
       <StatCards
         items={[
-          { label: "Flagged orders", value: l.flagged, icon: FlagIcon, hint: "Every date" },
-          { label: "Running", value: l.running, icon: PlayCircleIcon, hint: "Flagged and active or paused" },
+          { label: "Flagged orders", value: l.flagged, icon: FlagIcon, hint: "Every date", href: ordersListHref({}, { view: "lookout" }) },
+          {
+            label: "Running",
+            value: l.running,
+            icon: PlayCircleIcon,
+            hint: "Flagged and active or paused",
+            href: ordersListHref({}, { view: "lookout", status: "running", clearDates: true }),
+          },
           { label: "Unpaid", value: l.unpaid, icon: WalletIcon, hint: "Flagged with a payment still due" },
           { label: "Flagged this range", value: l.inRange, icon: CalendarClockIcon, hint: "Flagged inside the date range" },
         ]}
@@ -160,7 +179,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
     return (
       <StatCards
         items={[
-          { label: "Orders", value: count, icon: PackageIcon, hint: "Waiting on a payment" },
+          { label: "Orders", value: count, icon: PackageIcon, hint: "Waiting on a payment", href: ordersListHref({}, { view: "payment" }) },
           { label: "Amount owed", value: formatMoney(p.owed, currency), icon: WalletIcon, hint: "Across their open payments" },
           { label: "Needs review", value: p.needsReview, icon: ShieldCheckIcon, hint: "Claimed, staff to verify" },
           { label: "Overdue", value: p.overdue, icon: AlarmClockIcon, hint: "Awaiting payment over 3 days", ...(p.overdue > 0 ? { tone: "bad" as const } : {}) },
@@ -176,7 +195,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
     return (
       <StatCards
         items={[
-          { label: "Orders", value: count, icon: GiftIcon, hint: "With a free tiffin in the range" },
+          { label: "Orders", value: count, icon: GiftIcon, hint: "With a free tiffin in the range", href: ordersListHref(dates, { view: "free" }) },
           { label: "Free tiffins delivered", value: f.delivered, icon: PackageCheckIcon, hint: "In the date range, up to today" },
           { label: "Still to deliver", value: f.toDeliver, icon: TruckIcon, hint: "Scheduled after today" },
         ]}
@@ -189,13 +208,14 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
     return (
       <StatCards
         items={[
-          { label: "Missed days", value: rows.length, icon: CalendarX2Icon, hint: "Every date" },
+          { label: "Missed days", value: rows.length, icon: CalendarX2Icon, hint: "Every date", href: ordersListHref({}, { view: "missed" }) },
           { label: "Orders hit", value: orderCount, icon: UsersIcon, hint: "Distinct orders" },
           ...(Object.entries(MISSED_WHY) as [keyof typeof MISSED_WHY, string][]).map(([kind, label]) => ({
             label,
             value: rows.filter((r) => r.kind === kind).length,
             icon: CalendarOffIcon,
             hint: "Missed days",
+            href: `/dashboard/orders?view=missed&why=${kind}`,
           })),
         ]}
       />
@@ -212,19 +232,29 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
       icon: PackageIcon,
       hint: `${o.newOrders.count - o.newOrders.returning} first-time · ${o.newOrders.returning} returning`,
       delta: { now: o.newOrders.count, before: o.newOrders.prevCount, good: "up" },
+      href: ordersListHref(dates, { status: "booked" }),
     },
     {
       label: "Starting soon",
       value: o.startingSoon.count,
       icon: CalendarClockIcon,
       hint: `Next 7 days · ${o.startingSoon.unpaid} unpaid · ${o.startingSoon.waitlisted} waitlisted`,
+      href: ordersListHref({}, { status: "soon", starts: "7", clearDates: true }),
     },
-    { label: "Running plans", value: o.running.count, icon: ActivityIcon, hint: `${o.running.trials} on trial · right now` },
+    {
+      label: "Running plans",
+      value: o.running.count,
+      icon: ActivityIcon,
+      hint: `${o.running.trials} on trial · right now`,
+      href: ordersListHref({}, { status: "running", clearDates: true }),
+    },
     {
       label: "Renewal rate",
       value: pct(o.renewals.renewed, o.renewals.ended),
       icon: RefreshCwIcon,
       hint: `${o.renewals.renewed} of ${o.renewals.ended} plans that ended booked again`,
+      // Rate over a cohort — drill to the Renewals desk rather than inventing a list facet.
+      href: "/dashboard/renewals",
     },
     {
       label: "Cancelled",
@@ -232,6 +262,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
       icon: CircleXIcon,
       hint: `${o.cancelled.prevCount} in the previous period`,
       delta: { now: o.cancelled.count, before: o.cancelled.prevCount, good: "down" },
+      href: ordersListHref(dates, { cancelledAt: true }),
     },
   ];
 
@@ -259,10 +290,21 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const lookOutOnly = raw.view === "lookout";
   const paymentReview = raw.view === "payment";
   const freeTiffins = raw.view === "free";
+  const cancelledAt = raw.cancelledAt === "1";
+  // Running / starting-soon KPIs are "right now"; cancel-dated lists use activity time, not createdAt.
+  const ignoreCreatedAt =
+    lookOutOnly ||
+    paymentReview ||
+    freeTiffins ||
+    raw.missed === "yes" ||
+    cancelledAt ||
+    raw.status === "running" ||
+    raw.status === "soon";
   // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
   // Free tiffins drops them too, but filters by free-tiffin delivery date instead (freeRange).
-  const sp = lookOutOnly || paymentReview || freeTiffins || raw.missed === "yes" ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const sp = ignoreCreatedAt ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const cancelRange = cancelledAt ? await withDefaultMonth(raw) : null;
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -293,14 +335,21 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   ]);
   const spec = buildOrdersSpec({ planOptions, sizeOptions, zoneOptions, orgOptions, ownerOptions, frequencyOptions });
 
-  // "missed" isn't an orders column: strip it before parseFilterState and filter by subquery instead.
+  // "missed" / "starts" / "cancelledAt" aren't plain orders columns: strip before parseFilterState.
   const missedOnly = sp.missed === "yes";
   // "starts" is relative to today in the app timezone, so it is built here rather than by parseFilterState.
   const startsDays = STARTS_DAYS.find((d) => String(d) === sp[STARTS_FIELD]);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const todayIso = zonedDateIso(Date.now(), timezone);
-  const startsCond = startsDays != null ? between("startDate", todayIso, addDays(todayIso, startsDays)) : null;
-  const { sp: filterSp, extra } = ongoingFilter({ ...sp, missed: undefined, [STARTS_FIELD]: undefined });
+  // N calendar days inclusive of today: starts=7 → today..today+6 (Starting soon KPI).
+  const startsEnd = startsDays == null ? null : startsDays === 0 ? todayIso : addDays(todayIso, startsDays - 1);
+  const startsCond = startsEnd != null ? between("startDate", todayIso, startsEnd) : null;
+  const { sp: filterSp, extra } = orderStatusFilter({
+    ...sp,
+    missed: undefined,
+    cancelledAt: undefined,
+    [STARTS_FIELD]: undefined,
+  });
   const { condition, page } = parseFilterState(spec, filterSp);
   const extras = [extra, startsCond].filter((c) => c != null);
   const finalCondition = extras.length ? and(...[condition, ...extras].filter((c) => c != null)) : condition;
@@ -314,6 +363,10 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       freeTiffins,
       freeRange: freeTiffins ? await freeRange(raw) : undefined,
       missedAsOf,
+      cancelledInRange:
+        cancelRange?.from != null && cancelRange.to != null
+          ? { from: Number(cancelRange.from), to: Number(cancelRange.to) }
+          : undefined,
     });
 
   return (

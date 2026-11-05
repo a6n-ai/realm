@@ -16,7 +16,8 @@ const EVENTS = [
   { name: "Lead", where: "Contact form or waitlist sign-up. Browser and server, counted once." },
   { name: "Contact", where: "WhatsApp chat. Browser and server." },
   { name: "CompleteRegistration", where: "New account from the sign-up page. Server." },
-  { name: "Purchase", where: "Card: when the charge settles (full amount incl. tax/surcharge). Offline: when proof or a reference is submitted. Browser and server share one id; staff verify does not send again." },
+  { name: "order_submitted", where: "Offline (e-Transfer/cash): when proof or a reference is submitted. Browser and server share one id. Not a Purchase." },
+  { name: "Purchase", where: "Card: when the charge settles (full amount incl. tax/surcharge). Offline: when staff verifies payment. Browser and server share one id (card); offline Purchase is server-only. Idempotent via metaPurchaseSentAt." },
 ];
 
 export default async function MetaPixelSettingsPage() {
