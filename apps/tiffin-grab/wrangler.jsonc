@@ -20,35 +20,20 @@
   "upload_source_maps": false,
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  // OpenNext defaults to worker-first for every URL (so /robots.txt paid isolate CPU).
-  // `/*` keeps SSR/ISR/API on the Worker; `!` paths are served from Assets with no isolate.
+  // Assets-first (false): any file present under .open-next/assets is served with no isolate.
+  // OpenNext puts only static files there (0 HTML), so SSR/ISR/API still hit the Worker; every
+  // static hit used to pay Worker CPU under worker-first `/*` even with `!` exclusions.
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets",
-    "run_worker_first": [
-      "/*",
-      "!/_next/static/*",
-      "!/landing/*",
-      "!/brand/*",
-      "!/vendor/*",
-      "!/lottie/*",
-      "!/uploads/*",
-      "!/refer-card/*",
-      "!/watermark/*",
-      "!/robots.txt",
-      "!/llms.txt",
-      "!/favicon.ico",
-      "!/*.svg",
-      "!/*.woff",
-      "!/*.woff2",
-      "!/*.mp4"
-    ]
+    "run_worker_first": false
   },
   "images": { "binding": "IMAGES" },
   // @react-pdf (yoga-layout's emscripten loader) reads import.meta.url, undefined on workerd.
   "define": { "import.meta.url": "\"file:///worker.js\"" },
-  // Logs for every request; traces sampled at 10% (logs + traces share the 50 GB/cycle Observability allowance).
-  "observability": { "enabled": true, "traces": { "enabled": true, "head_sampling_rate": 0.1 } },
+  // Keep request logs; turn traces off — they share the Observability GB allowance with logs
+  // and were burning paid credits without changing product behavior.
+  "observability": { "enabled": true, "traces": { "enabled": false } },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "workers_dev": false,

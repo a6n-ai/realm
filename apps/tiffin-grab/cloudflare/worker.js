@@ -80,11 +80,15 @@ async function cachedImage(request, env, ctx) {
 const PROBE =
   /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|\.git(?:\/.*)?|\.svn(?:\/.*)?|\.hg(?:\/.*)?|\.aws(?:\/.*)?|\.docker(?:\/.*)?|\.DS_Store|Dockerfile|docker-compose(?:\..*)?\.ya?ml|\.htaccess|web\.config|server-status|actuator(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|xmlrpc\.php)(?:$|\?)/i;
 
+// Immutable static extensions — Assets-first usually never reaches the isolate; if one does, skip wake bootstrap.
+const STATIC_EXT = /\.(?:js|css|map|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|mp4|webm|txt|xml)$/i;
+
 export default {
   fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+    // Scanners first: never boot wakes / OpenNext for these (still billed only if the isolate is cold).
     if (PROBE.test(path)) return new Response(null, { status: 404 });
-    bootOnce(env, ctx, armPoller);
+    if (!STATIC_EXT.test(path)) bootOnce(env, ctx, armPoller);
     if (request.method === "GET" && path === "/_next/image") return cachedImage(request, env, ctx);
     return openNext.fetch(request, env, ctx);
   },
