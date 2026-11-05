@@ -50,7 +50,9 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
   const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
   const [tucked, setTucked] = useState(false);
-  const [tone, setTone] = useState<"light" | "dark">("light");
+  // null until the observer reports: nav.css then picks the first-paint tone from the page
+  // itself, so a phone that hydrates late never shows a cream bar over the dark hero.
+  const [tone, setTone] = useState<"light" | "dark" | null>(null);
   const barRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -146,7 +148,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
     <>
       <a href="#main" className="tg-skip">Skip to content</a>
       {open ? <div className="tg-bar-scrim" aria-hidden onClick={close} /> : null}
-      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone} data-open={open} data-tucked={tucked && !open} style={{ viewTransitionName: "site-header" }}>
+      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone ?? undefined} data-open={open} data-tucked={tucked && !open} style={{ viewTransitionName: "site-header" }}>
         <div className="tg-bar__in">
           <Link href="/" className="tg-bar__brand" aria-label="TiffinGrab home" onClick={close}>
             <BrandMark className="tg-bar__mark" />
