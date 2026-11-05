@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apexServes } from "@/lib/routing/apex";
+import { BrandWordmark } from "@/components/brand-logo";
 
 // The site is two hosts: public pages on tiffingrab.ca, the app on app.tiffingrab.ca. A tap
 // between them is a full page load, and until the next page paints the browser shows a blank
@@ -51,10 +52,16 @@ export function CrossHostSplash() {
   }, [on]);
 
   if (!on) return null;
+  // Frosted glass over the old page (it stays painted until the next one is ready), with the
+  // brand in a glass capsule and a hairline that creeps toward done.
   return (
     <div className="tg-splash" role="status" aria-live="polite">
-      {/* eslint-disable-next-line @next/next/no-img-element -- already cached by the header */}
-      <img src="/brand/mark.svg" alt="" width={56} height={56} />
+      <div className="tg-splash__capsule">
+        {/* eslint-disable-next-line @next/next/no-img-element -- already cached by the header */}
+        <img src="/brand/mark.svg" alt="" width={44} height={44} />
+        <BrandWordmark className="text-[22px]" />
+        <span className="tg-splash__bar" aria-hidden />
+      </div>
       <span className="sr-only">Loading</span>
     </div>
   );

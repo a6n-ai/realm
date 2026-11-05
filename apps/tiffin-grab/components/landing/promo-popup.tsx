@@ -36,13 +36,20 @@ const FRAME_FONTS = `<style>${[400, 700, 800].map((w) => `@font-face{font-family
 
 export function PromoHtml({ html, title }: { html: string; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
-  // scrollHeight never reports less than the frame's current height, so collapse first to let it shrink.
+  // Measure the content itself, not documentElement.scrollHeight: that never reports less than
+  // the frame's own height, and iOS Safari can still return the old (tall) value right after a
+  // collapse to 0px, leaving a gap under the text that pushed the Claim button off a phone.
   const fit = () => {
     const frame = ref.current;
     const doc = frame?.contentDocument;
-    if (!frame || !doc?.documentElement) return;
-    frame.style.height = "0px";
-    frame.style.height = `${doc.documentElement.scrollHeight}px`;
+    const body = doc?.body;
+    if (!frame || !doc || !body) return;
+    const range = doc.createRange();
+    range.selectNodeContents(body);
+    const cs = doc.defaultView?.getComputedStyle(body);
+    const tail = cs ? parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + parseFloat(cs.marginBottom) : 0;
+    const h = Math.ceil(range.getBoundingClientRect().bottom + (doc.defaultView?.scrollY ?? 0) + tail);
+    if (h > 0) frame.style.height = `${h}px`;
   };
   // The frame's content also resizes by itself: a font swap after fonts.ready already resolved
   // (a closed dialog lays out at width 0 and clipped the last line), or an image in staff HTML.
