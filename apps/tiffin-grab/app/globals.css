@@ -684,10 +684,10 @@ html[data-nav="pending"] body::before {
   --s-ink: var(--foreground);
   position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  /* White up top, the brand orange through the middle, a breath of kitchen green at the foot. */
   background:
-    radial-gradient(60% 45% at 18% 22%, color-mix(in oklch, var(--brand) 26%, transparent), transparent 70%),
-    radial-gradient(55% 45% at 85% 70%, color-mix(in oklch, #2f7d4f 20%, transparent), transparent 70%),
-    var(--background);
+    radial-gradient(70% 38% at 50% 52%, color-mix(in oklch, var(--brand) 22%, transparent), transparent 72%),
+    linear-gradient(to bottom, color-mix(in oklch, white 70%, var(--background)) 0%, var(--background) 38%, color-mix(in oklch, var(--brand) 12%, var(--background)) 72%, color-mix(in oklch, #2f7d4f 12%, var(--background)) 100%);
   color: var(--s-ink);
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   animation: tg-splash-in 140ms ease-out both;
@@ -696,7 +696,7 @@ html[data-nav="pending"] body::before {
 .tg-splash__tiffin * { transform-box: fill-box; }
 .tg-splash__tier { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) calc(80ms + var(--i) * 110ms) both; }
 .tg-splash__lid { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 540ms both; }
-.tg-splash__spoon { animation: tg-splash-spoon 420ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
+.tg-splash__spoon { transform-origin: 30% 50%; animation: tg-splash-spoon 420ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
 .tg-splash__shadow { fill: color-mix(in oklch, var(--s-ink) 14%, transparent); transform-origin: 50% 50%; animation: tg-splash-shadow 560ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both; }
 .tg-splash__steam path { stroke: color-mix(in oklch, var(--s-ink) 30%, transparent); stroke-dasharray: 22; animation: tg-splash-steam 1.8s ease-in-out infinite both; }
 .tg-splash__steam path:nth-child(1) { animation-delay: 1000ms; }
@@ -713,6 +713,11 @@ html[data-nav="pending"] body::before {
   0% { opacity: 0; stroke-dashoffset: 22; transform: translateY(4px); }
   35% { opacity: 1; }
   100% { opacity: 0; stroke-dashoffset: -22; transform: translateY(-6px); }
+}
+:root.dark .tg-splash {
+  background:
+    radial-gradient(70% 38% at 50% 52%, color-mix(in oklch, var(--brand) 18%, transparent), transparent 72%),
+    linear-gradient(to bottom, var(--background) 45%, color-mix(in oklch, #2f7d4f 14%, var(--background)) 100%);
 }
 /* Reduced motion: the packed dabba appears whole, with still steam. */
 @media (prefers-reduced-motion: reduce) {

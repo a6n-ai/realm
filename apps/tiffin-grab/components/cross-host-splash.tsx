@@ -75,9 +75,13 @@ export function CrossHostSplash() {
           <circle cx={60} cy={37} r={5} fill="#FB801C" />
         </g>
         {/* The mark's orange spoon, set down in front once the tiffin is packed. */}
-        <g className="tg-splash__spoon" fill="#FB801C">
-          <path d="M10 153.5 74 147.2" stroke="#FB801C" strokeWidth={5} strokeLinecap="round" />
-          <ellipse cx={89} cy={145.6} rx={14} ry={6.5} transform="rotate(-6 89 145.6)" />
+        {/* Drawn on one axis (y = 0) so the handle runs into the bowl's centre, then tilted like the mark's. */}
+        <g className="tg-splash__spoon">
+          <g transform="translate(0 153) rotate(-8 58 0)" fill="#FB801C">
+            <path d="M14 -2.6 71 -1.3 71 1.3 14 2.6Z" stroke="#FB801C" strokeWidth={2.2} strokeLinejoin="round" />
+            <ellipse cx={85} cy={0} rx={15.5} ry={7.2} />
+            <ellipse cx={81} cy={-2.2} rx={6} ry={2.2} fill="#FFB46E" />
+          </g>
         </g>
       </svg>
       <BrandWordmark className="tg-splash__word text-[28px]" />
