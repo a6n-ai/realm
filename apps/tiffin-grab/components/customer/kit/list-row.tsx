@@ -14,11 +14,14 @@ interface ListRowProps {
   /** Renders a link with a chevron. Omit for a static row. */
   href?: string;
   className?: string;
+  prefetch?: boolean;
+  onMouseEnter?: () => void;
+  onFocus?: () => void;
 }
 
 const base = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
 
-export function ListRow({ label, sublabel, icon, tint, value, href, className }: ListRowProps) {
+export function ListRow({ label, sublabel, icon, tint, value, href, className, prefetch, onMouseEnter, onFocus }: ListRowProps) {
   const body = (
     <>
       {icon && (tint ? <IconTile tint={tint}>{icon}</IconTile> : <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--muted)]">{icon}</span>)}
@@ -31,7 +34,7 @@ export function ListRow({ label, sublabel, icon, tint, value, href, className }:
     </>
   );
   return href ? (
-    <Link href={href} className={cn(FONT, FOCUS, base, "rounded-2xl active:bg-[var(--muted)]", className)}>
+    <Link href={href} prefetch={prefetch} onMouseEnter={onMouseEnter} onFocus={onFocus} className={cn(FONT, FOCUS, base, "rounded-2xl active:bg-[var(--muted)]", className)}>
       {body}
     </Link>
   ) : (

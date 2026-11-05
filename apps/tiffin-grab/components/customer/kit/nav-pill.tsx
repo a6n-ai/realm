@@ -4,10 +4,29 @@ import type { ReactNode } from "react";
 import { cn, FONT, FOCUS } from "./cn";
 
 /** Top-nav pill: h-11, saffron wash when current. */
-export function NavPill({ href, active, children, className }: { href: string; active?: boolean; children: ReactNode; className?: string }) {
+export function NavPill({
+  href,
+  active,
+  children,
+  className,
+  prefetch,
+  onMouseEnter,
+  onFocus,
+}: {
+  href: string;
+  active?: boolean;
+  children: ReactNode;
+  className?: string;
+  prefetch?: boolean;
+  onMouseEnter?: () => void;
+  onFocus?: () => void;
+}) {
   return (
     <Link
       href={href}
+      prefetch={prefetch}
+      onMouseEnter={onMouseEnter}
+      onFocus={onFocus}
       aria-current={active ? "page" : undefined}
       className={cn(
         FONT,
@@ -26,11 +45,31 @@ export function NavPill({ href, active, children, className }: { href: string; a
 }
 
 /** Wallet chip: the only entry point to Finances (/me/wallet). Active while on it. */
-export function CoinChip({ href, balance, value, active }: { href: string; balance: number | string; /** Money value of the coins; null/absent = no coin rate, coins only. */ value?: number | null; active?: boolean }) {
+export function CoinChip({
+  href,
+  balance,
+  value,
+  active,
+  prefetch,
+  onMouseEnter,
+  onFocus,
+}: {
+  href: string;
+  balance: number | string;
+  /** Money value of the coins; null/absent = no coin rate, coins only. */
+  value?: number | null;
+  active?: boolean;
+  prefetch?: boolean;
+  onMouseEnter?: () => void;
+  onFocus?: () => void;
+}) {
   const money = value == null ? null : `$${value.toFixed(2)}`;
   return (
     <Link
       href={href}
+      prefetch={prefetch}
+      onMouseEnter={onMouseEnter}
+      onFocus={onFocus}
       aria-current={active ? "page" : undefined}
       aria-label={`Finances, ${balance} coins${money ? `, worth ${money}` : ""}`}
       className={cn(

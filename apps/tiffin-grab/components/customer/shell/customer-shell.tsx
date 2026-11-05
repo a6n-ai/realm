@@ -14,6 +14,7 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
 import { PageTransition } from "@/components/motion/page-transition";
 import { subscribeChannel, type RealtimeBootstrap } from "@/components/notifications/realtime";
+import { useCoalescedRefresh } from "@/components/notifications/use-coalesced-refresh";
 import { notifyChannel } from "@/lib/realtime/notify";
 
 const ACCOUNT_PATHS = ["/me/account"];
@@ -87,11 +88,14 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
 /** Live countdown to the next cutoff in the app timezone; tap for what it means. Server render and
  * the first client frame show a dashed placeholder, so hydration never sees a clock. */
 /** The account's photo, or its initials, as a round glass button to Account — the iOS profile corner. */
-function AccountAvatar({ name, image, active }: { name: string | null; image: string | null; active: boolean }) {
+function AccountAvatar({ name, image, active, onWarm }: { name: string | null; image: string | null; active: boolean; onWarm?: () => void }) {
   const initials = (name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
   return (
     <Link
       href="/me/account"
+      prefetch={false}
+      onMouseEnter={onWarm}
+      onFocus={onWarm}
       aria-label="Account"
       aria-current={active ? "page" : undefined}
       className={cn(FOCUS, "c-liquid grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-transparent text-[15px] font-semibold transition-transform active:scale-[.96] motion-reduce:transform-none", active && "ring-[1.5px] ring-[var(--primary)]")}
@@ -180,6 +184,12 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
+  const refresh = useCoalescedRefresh();
+  // Intent-only warm (same as dashboard sidebar): viewport prefetch of every
+  // tab + the menu FAB was firing RSC work on every /me page paint.
+  const warm = (href: string) => () => {
+    router.prefetch(href);
+  };
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const tab = activeTab(pathname);
@@ -237,15 +247,16 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   useEffect(() => {
     // Personal hub (`notify:<user>`): same channel as the bell elsewhere. Only a
     // "message" frame means data changed; presence on connect must not refresh.
+    // Coalesce so a notify burst is one RSC refresh, not N.
     const channel = notifyChannel(userPublicId);
     return subscribeChannel(
       channel,
       (e) => {
-        if (e.type === "message") router.refresh();
+        if (e.type === "message") refresh();
       },
       notifyBootstrap ? { bootstrap: notifyBootstrap } : undefined,
     );
-  }, [userPublicId, router, notifyBootstrap?.url, notifyBootstrap?.token]);
+  }, [userPublicId, refresh, notifyBootstrap?.url, notifyBootstrap?.token]);
 
   const morePill = cn(
     "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transform-none",
@@ -267,18 +278,18 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
               The logo opens the public site; "/" on this host serves it, so no hop to the apex and no reload. */}
           <Brand href="/" markOnlyNarrow />
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
-            <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
-            <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
-            <NavPill href="/me/refer" active={tab === "refer"}>Refer</NavPill>
-            <NavPill href="/me/account" active={tab === "account"}>Account</NavPill>
+            <NavPill href="/me" active={tab === "deliveries"} prefetch={false} onMouseEnter={warm("/me")} onFocus={warm("/me")}>Deliveries</NavPill>
+            <NavPill href="/me/support" active={tab === "support"} prefetch={false} onMouseEnter={warm("/me/support")} onFocus={warm("/me/support")}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
+            <NavPill href="/me/refer" active={tab === "refer"} prefetch={false} onMouseEnter={warm("/me/refer")} onFocus={warm("/me/refer")}>Refer</NavPill>
+            <NavPill href="/me/account" active={tab === "account"} prefetch={false} onMouseEnter={warm("/me/account")} onFocus={warm("/me/account")}>Account</NavPill>
             <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={morePill}>
               More<ChevronDown aria-hidden className="ml-1 size-4" />
             </MenuButton>
           </nav>
           <div className="flex items-center justify-end gap-2">
             <CutoffChip cutoffHour={cutoffHour} />
-            <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} />
-            <AccountAvatar name={userName} image={userImage} active={tab === "account"} />
+            <CoinChip href="/me/wallet" balance={coinBalance} value={coinValue} active={under(pathname, "/me/wallet")} prefetch={false} onMouseEnter={warm("/me/wallet")} onFocus={warm("/me/wallet")} />
+            <AccountAvatar name={userName} image={userImage} active={tab === "account"} onWarm={warm("/me/account")} />
           </div>
         </div>
       </header>}
@@ -298,20 +309,20 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
             className={cn("absolute inset-y-0 left-0 w-1/5 origin-left rounded-full bg-[color-mix(in_oklab,var(--primary)_16%,transparent)]", litAt < 0 && "opacity-0")}
             style={{ transform: `translateX(${Math.max(litAt, 0) * 100}%)` }}
           />
-          <Link href="/me" onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>
+          <Link href="/me" prefetch={false} onTouchStart={warm("/me")} onMouseEnter={warm("/me")} onFocus={warm("/me")} onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>
             <AnimatedIcon active={lit === "deliveries"} gesture="pop"><CalendarDays aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Deliveries</span>
           </Link>
-          <Link href="/me/support" onClick={() => setTapped("support")} aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "support", compact))}>
+          <Link href="/me/support" prefetch={false} onTouchStart={warm("/me/support")} onMouseEnter={warm("/me/support")} onFocus={warm("/me/support")} onClick={() => setTapped("support")} aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "support", compact))}>
             <span className="relative">
               <AnimatedIcon active={lit === "support"} gesture="spin"><LifeBuoy aria-hidden className="size-6" /></AnimatedIcon>
               <UnreadBadge count={unread} className="absolute -right-2.5 -top-1.5" />
             </span>
             <span className={label}>Support</span>
           </Link>
-          <Link href="/me/refer" onClick={() => setTapped("refer")} aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "refer", compact))}>
+          <Link href="/me/refer" prefetch={false} onTouchStart={warm("/me/refer")} onMouseEnter={warm("/me/refer")} onFocus={warm("/me/refer")} onClick={() => setTapped("refer")} aria-current={tab === "refer" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "refer", compact))}>
             <AnimatedIcon active={lit === "refer"} gesture="wiggle"><Gift aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Refer</span>
           </Link>
-          <Link href="/me/account" onClick={() => setTapped("account")} aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "account", compact))}>
+          <Link href="/me/account" prefetch={false} onTouchStart={warm("/me/account")} onMouseEnter={warm("/me/account")} onFocus={warm("/me/account")} onClick={() => setTapped("account")} aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "account", compact))}>
             <AnimatedIcon active={lit === "account"} gesture="pop"><User aria-hidden className="size-6" /></AnimatedIcon><span className={label}>Account</span>
           </Link>
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(lit === "menu", compact)}>
@@ -323,11 +334,15 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
       {/* This week's menu one tap away from anywhere: a tinted glass button in one fixed spot on every page, on the
           line of Deliveries' floating action bar (same 58px height); that bar and the support composer end short of it.
           Its own view-transition name keeps it still while pages change, like the header and tab bar.
-          A full prefetch: the default stops at the menu's loading.tsx, so every tap flashed its skeleton. */}
+          Intent-warm the full RSC (viewport `prefetch` was a background hit on every /me paint; default
+          Link prefetch only warms loading.tsx and flashed a skeleton on tap). */}
       {!flow && (
         <Link
           href="/me/menu"
-          prefetch
+          prefetch={false}
+          onTouchStart={warm("/me/menu")}
+          onMouseEnter={warm("/me/menu")}
+          onFocus={warm("/me/menu")}
           aria-label="This week's menu"
           aria-current={tab === "menu" ? "page" : undefined}
           className={cn(
@@ -346,13 +361,13 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
         <MenuSection title="Meals">
           {/* Renew sits in the middle and is the one lit up: it is what most customers open this for. */}
           <div className="grid grid-cols-3 gap-2">
-            <MenuTile href="/me/menu" tint="orange" icon={<UtensilsCrossed />} label="Weekly menu" sublabel="This week" />
-            <MenuTile href="/me/renew" tint="green" icon={<RefreshCw />} label="Renew" sublabel="Same plan" primary />
-            <MenuTile href="/me/renew?full=1" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" />
+            <MenuTile href="/me/menu" tint="orange" icon={<UtensilsCrossed />} label="Weekly menu" sublabel="This week" onWarm={warm("/me/menu")} />
+            <MenuTile href="/me/renew" tint="green" icon={<RefreshCw />} label="Renew" sublabel="Same plan" primary onWarm={warm("/me/renew")} />
+            <MenuTile href="/me/renew?full=1" tint="blue" icon={<Plus />} label="New order" sublabel="Another plan" onWarm={warm("/me/renew?full=1")} />
           </div>
         </MenuSection>
         <MenuSection title="Money">
-          <ListRow href="/me/wallet" tint="indigo" icon={<Wallet />} label="Finances" sublabel="Coins, coupons, bills" />
+          <ListRow href="/me/wallet" tint="indigo" icon={<Wallet />} label="Finances" sublabel="Coins, coupons, bills" prefetch={false} onMouseEnter={warm("/me/wallet")} onFocus={warm("/me/wallet")} />
         </MenuSection>
         <MenuSection title="Appearance">
           <Segmented label="Theme" idPrefix="menu-theme" items={THEMES} value={theme ?? "system"} onChange={(t) => setTheme(t as "light" | "dark" | "system")} className="[&>button]:flex-1" />
@@ -362,10 +377,14 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   );
 }
 
-function MenuTile({ href, icon, tint, label, sublabel, primary = false }: { href: string; icon: ReactNode; tint: IconTint; label: string; sublabel: string; primary?: boolean }) {
+function MenuTile({ href, icon, tint, label, sublabel, primary = false, onWarm }: { href: string; icon: ReactNode; tint: IconTint; label: string; sublabel: string; primary?: boolean; onWarm?: () => void }) {
   return (
     <Link
       href={href}
+      prefetch={false}
+      onMouseEnter={onWarm}
+      onFocus={onWarm}
+      onTouchStart={onWarm}
       className={cn(
         FONT, FOCUS,
         "c-surface flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
