@@ -39,13 +39,8 @@ const nextConfig: NextConfig = {
   // Cloudflare's edge keeps a copy for 60 s and serves it stale up to 5 min while refetching, so a
   // visit skips the Worker's cold start. The zone cache rule (scripts/cloudflare-cache.mjs) makes
   // these paths eligible on the apex only; every deploy purges them.
-  // Router-data responses (RSC header) for the same URLs stay private: a shared cache must never
-  // hold one, since the cache key ignores the header that changed the response.
   async headers() {
-    return publicPages.flatMap((source) => [
-      { source, missing: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] },
-      { source, has: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "private, no-cache" }] },
-    ]);
+    return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] }));
   },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];
