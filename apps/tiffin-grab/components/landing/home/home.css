@@ -67,7 +67,9 @@
   padding-block: calc(var(--lp-nav-h, 52px) + 48px) clamp(32px, 6vw, 72px);
   color: #FBF4E7;
 }
-.lp-hero__bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+/* Dark ground under the footage: the first paint lands before the poster image does, and the
+   cream page behind it flashed white on phones. */
+.lp-hero__bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #14110E; }
 .lp-hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 video.lp-hero__video { opacity: 0; transition: opacity 400ms ease; }
 video.lp-hero__video[data-playing] { opacity: 1; }
