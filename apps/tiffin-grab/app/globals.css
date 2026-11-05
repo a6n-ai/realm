@@ -677,37 +677,43 @@ html[data-nav="pending"] body::before {
 }
 
 /* Cross-host splash (components/cross-host-splash.tsx): covers the blank between
-   tiffingrab.ca and app.tiffingrab.ca. Frosted glass over the old page, a glass capsule
-   that materializes (scale + opacity together), and a hairline easing toward 90%.
-   The blur radius itself never animates: a full-screen blur change costs phones frames. */
+   tiffingrab.ca and app.tiffingrab.ca with a dabba being packed. Tiers fall and land with a
+   small settle (they were dropped, so a little overshoot is earned), the lid follows, the
+   clamp closes, then steam loops until the next page paints. Transform and opacity only. */
 .tg-splash {
-  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center;
-  background: color-mix(in oklch, var(--background) 80%, transparent);
-  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
-  animation: tg-splash-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --s-ink: var(--foreground);
+  position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  background: var(--background); color: var(--s-ink);
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  animation: tg-splash-in 140ms ease-out both;
 }
-.tg-splash__capsule {
-  position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 24px 14px 16px; overflow: hidden;
-  border-radius: 999px; font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  background: color-mix(in oklch, var(--card) 72%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 55%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent),
-              0 24px 48px -20px rgb(36 31 27 / 0.35), 0 2px 6px -2px rgb(36 31 27 / 0.12);
-  animation: tg-splash-capsule 420ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both;
-}
-.tg-splash__capsule > img { flex: none; width: 44px; height: 44px; }
-.tg-splash__bar {
-  position: absolute; inset: auto 20px 6px; height: 2px; border-radius: 999px; transform-origin: left;
-  background: var(--brand, var(--primary)); opacity: 0.85;
-  animation: tg-splash-bar 2.4s cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
-}
+.tg-splash__tiffin { width: 120px; height: 160px; margin-bottom: 10px; overflow: visible; }
+.tg-splash__tiffin * { transform-box: fill-box; }
+.tg-splash__tier { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) calc(80ms + var(--i) * 110ms) both; }
+.tg-splash__lid { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 540ms both; }
+/* Steel, like a real dabba clamp; a lighter steel on the dark ground. */
+.tg-splash__clamp { stroke: #6E7A74; transform-origin: 50% 100%; animation: tg-splash-clamp 320ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
+.tg-splash__shadow { fill: color-mix(in oklch, var(--s-ink) 14%, transparent); transform-origin: 50% 50%; animation: tg-splash-shadow 560ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both; }
+.tg-splash__steam path { stroke: color-mix(in oklch, var(--s-ink) 30%, transparent); stroke-dasharray: 22; animation: tg-splash-steam 1.8s ease-in-out infinite both; }
+.tg-splash__steam path:nth-child(1) { animation-delay: 1000ms; }
+.tg-splash__steam path:nth-child(2) { animation-delay: 1300ms; }
+.tg-splash__steam path:nth-child(3) { animation-delay: 1600ms; }
+.tg-splash__word { animation: tg-splash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both; }
+.tg-splash__line { font-size: 14px; letter-spacing: 0.01em; color: color-mix(in oklch, var(--s-ink) 62%, transparent); animation: tg-splash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both; }
 @keyframes tg-splash-in { from { opacity: 0; } }
-@keyframes tg-splash-capsule { from { opacity: 0; transform: translateY(6px) scale(0.92); } }
-@keyframes tg-splash-bar { from { transform: scaleX(0.04); } to { transform: scaleX(0.9); } }
-@media (prefers-reduced-motion: reduce) {
-  .tg-splash, .tg-splash__capsule { animation-name: tg-splash-in; animation-duration: 160ms; }
-  .tg-splash__bar { animation: none; transform: scaleX(0.6); }
+@keyframes tg-splash-drop { from { opacity: 0; transform: translateY(-28px); } 40% { opacity: 1; } }
+@keyframes tg-splash-clamp { from { opacity: 0; transform: scaleY(0.6); } }
+@keyframes tg-splash-shadow { from { opacity: 0.2; transform: scaleX(0.35); } }
+@keyframes tg-splash-rise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes tg-splash-steam {
+  0% { opacity: 0; stroke-dashoffset: 22; transform: translateY(4px); }
+  35% { opacity: 1; }
+  100% { opacity: 0; stroke-dashoffset: -22; transform: translateY(-6px); }
 }
-@media (prefers-reduced-transparency: reduce) {
-  .tg-splash { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .tg-splash__capsule { background: var(--card); }
+:root.dark .tg-splash__clamp { stroke: #B8C2BC; }
+/* Reduced motion: the packed dabba appears whole, with still steam. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-splash__tier, .tg-splash__lid, .tg-splash__clamp, .tg-splash__shadow, .tg-splash__word, .tg-splash__line { animation: tg-splash-in 160ms ease-out both; }
+  .tg-splash__steam path { animation: none; stroke-dasharray: none; opacity: 0.6; }
 }

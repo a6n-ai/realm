@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { apexServes } from "@/lib/routing/apex";
 import { BrandWordmark } from "@/components/brand-logo";
 
@@ -52,17 +52,35 @@ export function CrossHostSplash() {
   }, [on]);
 
   if (!on) return null;
-  // Frosted glass over the old page (it stays painted until the next one is ready), with the
-  // brand in a glass capsule and a hairline that creeps toward done.
+  // A dabba being packed: four tiers land one on another, the lid settles, the clamp closes,
+  // and steam keeps rising until the next page paints over it. Its shadow grows per tier.
   return (
     <div className="tg-splash" role="status" aria-live="polite">
-      <div className="tg-splash__capsule">
-        {/* eslint-disable-next-line @next/next/no-img-element -- already cached by the header */}
-        <img src="/brand/mark.svg" alt="" width={44} height={44} />
-        <BrandWordmark className="text-[22px]" />
-        <span className="tg-splash__bar" aria-hidden />
-      </div>
-      <span className="sr-only">Loading</span>
+      <svg className="tg-splash__tiffin" viewBox="0 0 120 160" width={120} height={160} aria-hidden>
+        <g className="tg-splash__steam" fill="none" strokeLinecap="round" strokeWidth={3}>
+          <path d="M48 30c-5-6 5-10 0-17" />
+          <path d="M60 26c-5-6 5-10 0-17" />
+          <path d="M72 30c-5-6 5-10 0-17" />
+        </g>
+        <ellipse className="tg-splash__shadow" cx={60} cy={150} rx={44} ry={5} />
+        {[0, 1, 2, 3].map((i) => (
+          <g key={i} className="tg-splash__tier" style={{ "--i": i } as CSSProperties}>
+            <rect x={26} y={120 - i * 23} width={68} height={22} rx={6} fill="#72A94B" />
+            <rect x={26} y={120 - i * 23} width={68} height={5} rx={2.5} fill="#9CC654" />
+          </g>
+        ))}
+        <g className="tg-splash__lid">
+          <path d="M24 52h72a4 4 0 0 1 0 8H24a4 4 0 0 1 0-8Z" fill="#F6A934" />
+          <path d="M32 52c4-9 14-13 28-13s24 4 28 13Z" fill="#F6A934" />
+          <circle cx={60} cy={37} r={5} fill="#FB801C" />
+        </g>
+        <g className="tg-splash__clamp" fill="none" strokeWidth={3.5} strokeLinecap="round">
+          <path d="M22 140V48M98 140V48" />
+          <path d="M22 48c0-14 76-14 76 0" />
+        </g>
+      </svg>
+      <BrandWordmark className="tg-splash__word text-[28px]" />
+      <span className="tg-splash__line">Packing your tiffin</span>
     </div>
   );
 }
