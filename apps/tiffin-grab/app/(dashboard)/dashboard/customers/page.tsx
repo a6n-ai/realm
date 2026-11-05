@@ -154,7 +154,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
   return <StatCards items={stats} />;
 }
 
-export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
+async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
   const sp = await withListDates(await searchParams);

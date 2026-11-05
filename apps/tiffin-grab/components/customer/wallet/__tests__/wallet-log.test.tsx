@@ -8,7 +8,6 @@ vi.mock("@/components/motion", () => ({
     ({ children }: { children: React.ReactNode }) => <>{children}</>,
     { Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div> },
   ),
-  LottieEmptyState: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
 vi.mock("@/components/ds", () => ({

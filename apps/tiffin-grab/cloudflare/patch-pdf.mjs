@@ -69,4 +69,9 @@ for (const file of globSync(".next/standalone/apps/*/.next/server/**/*.js")) {
   const after = before.replace(/\w+\.y\("prettier-[0-9a-f]+[^"]*"\)/g, () => (stubbed++, "({})"));
   if (after !== before) writeFileSync(file, after);
 }
-if (!stubbed) throw new Error("patch-pdf: no prettier loads found in the server chunks; the stub is stale, check whether it is still needed");
+// Turbopack externalizes prettier as `y("prettier-<hash>")`. Webpack inlines it
+// into the server chunks instead, so there is no external load to stub.
+if (!stubbed) {
+  const inlined = globSync(".next/standalone/apps/*/.next/server/**/*.js").some((file) => readFileSync(file, "utf8").includes("prettier.io/docs/plugins"));
+  if (!inlined) throw new Error("patch-pdf: no prettier loads found in the server chunks; the stub is stale, check whether it is still needed");
+}

@@ -1,5 +1,5 @@
 import { Card } from "@foundry/ui/card";
-import { applyUnsubscribe } from "@/app/api/unsubscribe/route";
+import { applyUnsubscribe } from "@/lib/notifications/apply-unsubscribe";
 
 // Reads the request URL and writes, so it can never be prerendered or cached.
 export const dynamic = "force-dynamic";

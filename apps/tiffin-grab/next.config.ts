@@ -64,7 +64,6 @@ const nextConfig: NextConfig = {
     // every dashboard page via the notification bell.
     optimizePackageImports: [
       "radix-ui",
-      "cmdk",
       "@relay/engine",
       "@foundry/commons",
       "@foundry/design-system",
@@ -80,6 +79,20 @@ const nextConfig: NextConfig = {
     // 10 MB, so anything bigger was rejected or truncated.
     serverActions: { bodySizeLimit: "25mb" },
     proxyClientMaxBodySize: "25mb",
+  },
+  // Webpack's client compiler rejects the `node:` scheme. A client page
+  // (`@relay/engine` contact-list upload) reaches `@foundry/commons` `generateCode`,
+  // which imports `node:crypto`, through a barrel re-export it never calls.
+  // Turbopack compiles that graph; webpack does not. The server compiler already
+  // understands `node:`. This stub is only for the client build.
+  webpack: (config, { isServer, webpack }) => {
+    if (!isServer) {
+      const stub = path.join(import.meta.dirname, "lib/webpack/node-crypto-stub.cjs");
+      config.plugins.push(new webpack.NormalModuleReplacementPlugin(/^node:crypto$/, (resource: { request: string }) => {
+        resource.request = stub;
+      }));
+    }
+    return config;
   },
 };
 

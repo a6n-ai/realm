@@ -1,7 +1,10 @@
 "use client";
 
-import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@foundry/ui/input-otp";
+
+// Same as input-otp's REGEXP_ONLY_DIGITS — keep the constant here so the app
+// does not need a direct dependency on the package Foundry already wraps.
+const DIGITS_ONLY = "^\\d+$";
 
 type PinOtpProps = {
   value: string;
@@ -19,7 +22,7 @@ export function PinOtp({ value, onChange, onComplete, autoFocus, disabled, ...ar
   return (
     <InputOTP
       maxLength={4}
-      pattern={REGEXP_ONLY_DIGITS}
+      pattern={DIGITS_ONLY}
       inputMode="numeric"
       autoComplete="off"
       value={value}

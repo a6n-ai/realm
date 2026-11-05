@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { DateRange } from "react-day-picker";
 import { endOfMonth, startOfMonth, subDays, subMonths } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -10,6 +9,10 @@ import { Button } from "@foundry/ui/button";
 import { Calendar } from "@foundry/ui/calendar";
 import { zonedEndOfDay, zonedStartOfDay } from "@foundry/ui/date-range-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+
+// Same shape as react-day-picker's DateRange; Calendar comes from @foundry/ui
+// (which owns that dependency), so the app does not need a direct install.
+type DateRange = { from?: Date; to?: Date };
 
 // ReUI c-calendar-29 (range calendar with presets), wired to epoch-ms bounds in the business timezone.
 
@@ -107,7 +110,7 @@ export function RangeCalendarPicker({
             onMonthChange={setMonth}
             selected={draft}
             onSelect={(_range, day) => {
-              // A click on a finished range starts a new one; react-day-picker would only move one end.
+              // A click on a finished range starts a new one; the default range mode would only move one end.
               if (!draft?.from || draft.to) return setDraft({ from: day, to: undefined });
               const [a, b] = day < draft.from ? [day, draft.from] : [draft.from, day];
               setDraft({ from: a, to: b });

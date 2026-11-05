@@ -9,7 +9,8 @@ vi.mock("@relay/engine", async (importOriginal) => ({
 
 vi.mock("@/lib/notifications/sns-verify", () => ({ verifySnsMessage: async () => true }));
 
-import { POST, processSesEvent } from "./route";
+import { POST } from "./route";
+import { processSesEvent } from "./process-event";
 
 const msg = (o: unknown) => JSON.stringify(o);
 

@@ -15,13 +15,6 @@ vi.mock("@/components/motion", () => ({
   Reveal: Object.assign(({ children }: { children: ReactNode }) => <div>{children}</div>, {
     Group: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   }),
-  LottieEmptyState: ({ title, body, action }: { title: string; body: string; action?: ReactNode }) => (
-    <div>
-      <p>{title}</p>
-      <p>{body}</p>
-      {action}
-    </div>
-  ),
 }));
 
 vi.mock("@/components/filters/reui-facet-filters", () => ({
