@@ -14,7 +14,11 @@ const nextConfig: NextConfig = {
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
   transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
-  turbopack: { root: monorepoRoot },
+  turbopack: {
+    root: monorepoRoot,
+    // maplibre (1.2 MB) is only loaded inside map effects; keep it out of the server bundle.
+    resolveAlias: { "maplibre-gl": { browser: "maplibre-gl", default: "./lib/browser-only-stub.ts" } },
+  },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a

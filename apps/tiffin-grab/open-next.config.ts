@@ -15,6 +15,7 @@ export default {
     queue: queueCache(doQueue),
     enableCacheInterception: true,
   }),
-  // Same as OpenNext's default `pnpm build`, plus the yoga wasm patch the PDF routes need on workerd.
-  buildCommand: "pnpm build && node cloudflare/patch-pdf.mjs",
+  // Same as OpenNext's default `pnpm build`, plus the yoga wasm patch the PDF routes need on workerd
+  // and the duplicate Turbopack chunk fold (why: cloudflare/dedupe-chunks.mjs).
+  buildCommand: "pnpm build && node cloudflare/patch-pdf.mjs && node cloudflare/dedupe-chunks.mjs",
 };
