@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  GitHub Actions OIDC role for the tiffin-grab Workers deploy. Lets deploy-worker.yml on main
+  read the prod migration DB URL from SSM, so no DB password is stored in GitHub.
+
+Parameters:
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >-
+      false if the account already has the token.actions.githubusercontent.com provider
+      (IAM console - Identity providers).
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      # AWS validates GitHub's certificate itself; the thumbprint is only a required placeholder.
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: realm-github-deploy-tiffin-grab
+      Description: GitHub Actions (a6n-ai/realm, main only) reads the tiffin-grab migration DB URL
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                # Pushes and manual runs on main only; branches and forks cannot assume it.
+                token.actions.githubusercontent.com:sub: repo:a6n-ai/realm:ref:refs/heads/main
+      Policies:
+        - PolicyName: read-migration-db-url
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # SecureString under the AWS-managed aws/ssm key: GetParameter with decryption
+              # needs no separate KMS grant.
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tiffin-grab/prod/DIRECT_DATABASE_URL
+
+Outputs:
+  DeployRoleArn:
+    Value: !GetAtt DeployRole.Arn

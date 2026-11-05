@@ -1,8 +1,8 @@
 # tiffin-grab on Cloudflare Workers (live since the 2026-11-03 cutover). Push to main deploys
 # production; a manual run on main redeploys it. The preview Worker was removed on 2026-11-05.
 #
-# Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, TIFFIN_GRAB_DIRECT_DATABASE_URL (prod RDS,
-# direct, migration user).
+# Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID. The migration DB URL is read from SSM
+# through the OIDC role in deployment/cloudflare/github-deploy-role.yaml; no DB password lives in GitHub.
 name: deploy-tiffin-grab-workers
 
 on:
@@ -25,6 +25,9 @@ jobs:
   deploy:
     # Production only from main: it migrates the prod DB.
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/deploy-worker.yml
     with:
       app: tiffin-grab
@@ -32,7 +35,8 @@ jobs:
       site-url: ""
       wrangler-env: production
       db-host: realm-tiffin-grab-prod-db.caf2iueu67ew.us-east-1.rds.amazonaws.com
+      aws-role-arn: arn:aws:iam::947042607945:role/realm-github-deploy-tiffin-grab
+      aws-db-url-param: /tiffin-grab/prod/DIRECT_DATABASE_URL
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DIRECT_DATABASE_URL: ${{ secrets.TIFFIN_GRAB_DIRECT_DATABASE_URL }}
