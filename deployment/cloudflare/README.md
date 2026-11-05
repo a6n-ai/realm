@@ -15,7 +15,7 @@ Everything Realm runs on Cloudflare. AWS pieces stay where they are (`prod/`, `d
 ## tiffingrab.ca
 
 - Zone `970680dc711f59ee1bb17ff536b1c61b`, copied 2026-10-27 from the live Route53 zone `Z0983728P9WL0KVAG4E2` (`dns/tiffingrab.ca.zone`). Registrar Open Provider, managed through Hostinger; nameservers `kia.ns.cloudflare.com` / `zac.ns.cloudflare.com` since 2026-10-27 (zone active 15:10 UTC).
-- Since the 2026-11-03 cutover, `tiffingrab.ca`, `www` and `app` are custom domains of the `tiffin-grab` Worker (proxied); `next` is `tiffin-grab-preview`, `rt` is `realtime-tiffin-grab`. `app` TTL was lowered to 60 s for the cutover. WAF custom rule `01f4d514…` blocks WordPress paths on apex/www (403: the Free plan cannot send a custom 410).
+- Since the 2026-11-03 cutover, `tiffingrab.ca`, `www` and `app` are custom domains of the `tiffin-grab` Worker (proxied); `rt` is `realtime-tiffin-grab`. `app` TTL was lowered to 60 s for the cutover. WAF custom rule `01f4d514…` blocks WordPress paths on apex/www (403: the Free plan cannot send a custom 410).
 - Mail records (Titan MX/SPF/DKIM, SES DKIM and MAIL FROM for the apex and `notify.`) must never be proxied.
 - Left: delete the Route53 zone (after 2026-10-29, once cached NS expire) and retire `deployment/dns/route53-tiffingrab.yaml`.
 
@@ -151,8 +151,8 @@ Read these before porting tiffin-grab or copper-cloves.
 
 | | xplorers | tiffin-grab |
 |---|---|---|
-| Worker (prod / preview) | `xplorers` / `xplorers-preview` | `tiffin-grab` / `tiffin-grab-preview` (live 2026-11-03) |
-| Hosts | `xplorers.a6n.ai` / `next.xplorers.a6n.ai` | `tiffingrab.ca`, `www.`, `app.` / `next.tiffingrab.ca`; realtime `rt.tiffingrab.ca` |
+| Worker (prod / preview) | `xplorers` / `xplorers-preview` | `tiffin-grab` (live 2026-11-03); `tiffin-grab-preview` and `next.tiffingrab.ca` deleted 2026-11-05 (its leftover KV, queue, R2, D1, Hyperdrive and preview DB are unused) |
+| Hosts | `xplorers.a6n.ai` / `next.xplorers.a6n.ai` | `tiffingrab.ca`, `www.`, `app.`; realtime `rt.tiffingrab.ca` |
 | Database | Neon `aged-dust-56644803` (aws-ap-southeast-1), branches `production`, `preview` | RDS `realm-tiffin-grab-prod-db` (us-east-1, public via `sg-0b4566246ed7528e5`, 5432 only, `rds.force_ssl=1`); preview copy `realm-tiffin-grab-preview-db` (`sg-07c47c099fbe62528`, customers rewritten to SES simulator) |
 | DB roles | owner | Worker connects as `tiffin_app` (DML only, conn limit 40, default privileges for new tables); migrations run as `postgres` |
 | Hyperdrive | `xplorers-prod`, `xplorers-preview` (direct endpoint) | `tiffin-grab-prod` `126477e0…`, `tiffin-grab-preview` `3d7ca623…` (caching disabled) |

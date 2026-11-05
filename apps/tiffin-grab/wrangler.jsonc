@@ -74,54 +74,5 @@
     "REALTIME_URL": "https://rt.tiffingrab.ca",
     // Mirror of SSM /tiffin-grab/prod/OPTIMO_EVENTS; verify in Task 12 (the poller is OFF today).
     "OPTIMO_EVENTS": "off"
-  },
-    "env": {
-    "preview": {
-      "name": "tiffin-grab-preview",
-      "no_bundle": true,
-      "rules": [{ "type": "Data", "globs": ["**/*.bin"], "fallthrough": true }],
-      "upload_source_maps": false,
-      "build": { "command": "node cloudflare/stub-prettier.mjs && node cloudflare/prebundle.mjs" },
-      "workers_dev": false,
-      "preview_urls": false,
-          "placement": { "mode": "targeted", "region": "aws:us-east-1" },
-      "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-      "observability": { "enabled": true, "traces": { "enabled": true } },
-      "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
-      "images": { "binding": "IMAGES" },
-      "define": { "import.meta.url": "\"file:///worker.js\"" },
-      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab-preview" }],
-      "version_metadata": { "binding": "CF_VERSION_METADATA" },
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": "3d7ca623354d4610a9d9ed531e943ca9", // tiffin-grab-preview, caching disabled, user tiffin_app
-          "localConnectionString": "postgres://tiffin:local@localhost:5432/tiffin"
-        }
-      ],
-      "kv_namespaces": [{ "binding": "CACHE", "id": "64b3bfc7d10a4c53960db7e8d48a807f" }], // tiffin-grab-cache-preview
-      "queues": {
-        "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox-preview" }],
-        "consumers": [{ "queue": "tiffin-outbox-preview", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-preview-dlq" }]
-      },
-      "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache-preview" }],
-      "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache-preview", "database_id": "8a1af6e1-2eed-4d99-a6fa-a27dfc13ee25" }],
-      "workflows": [
-        { "name": "tiffin-campaign-wake-preview", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },
-        { "name": "tiffin-site-refresh-wake-preview", "binding": "SITE_REFRESH_WAKE", "class_name": "SiteRefreshWake" }
-      ],
-      "durable_objects": { "bindings": [{ "name": "OPTIMO_POLLER", "class_name": "OptimoPoller" }, { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OptimoPoller"] }, { "tag": "v2", "new_sqlite_classes": ["DOQueueHandler"] }],
-      "vars": {
-        "NODE_ENV": "production",
-        "LOG_LEVEL": "info",
-        "AWS_REGION": "us-east-1",
-        "FILES_S3_REGION": "auto",
-        "NOTIFY_FROM_NAME": "Tiffin Grab",
-        "BETTER_AUTH_URL": "https://next.tiffingrab.ca",
-        "REALTIME_URL": "https://rt.tiffingrab.ca",
-        "OPTIMO_EVENTS": "off"
-      }
-    }
   }
 }
