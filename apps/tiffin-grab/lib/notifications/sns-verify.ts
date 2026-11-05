@@ -70,7 +70,9 @@ async function importKey(url: URL, version: string): Promise<CryptoKey> {
   const id = `${version}|${url.origin}${url.pathname}`;
   const hit = certKeys.get(id);
   if (hit) return hit;
-  const res = await fetch(url, { redirect: "error" });
+  // Workers reject redirect: "error" (it throws), so every message read as a bad signature.
+  // "manual" returns a 3xx unfollowed, which the res.ok check below refuses.
+  const res = await fetch(url, { redirect: "manual" });
   if (!res.ok) throw new Error(`cert fetch ${res.status}`);
   const hash = version === "1" ? "SHA-1" : "SHA-256";
   const key = await crypto.subtle.importKey("spki", spkiOf(await res.text()), { name: "RSASSA-PKCS1-v1_5", hash }, false, ["verify"]);

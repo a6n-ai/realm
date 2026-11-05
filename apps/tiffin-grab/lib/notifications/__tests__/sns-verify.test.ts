@@ -123,6 +123,19 @@ describe("verifySnsMessage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(18);
   });
 
+  it("fetches the cert with a redirect mode Workers accept, and refuses a redirect", async () => {
+    // workerd throws on redirect: "error"; that made every SES event a 403 after the Workers cutover.
+    fetchMock.mockImplementation(async (_url: unknown, init?: RequestInit) => {
+      if (init?.redirect === "error") throw new TypeError("Invalid redirect value");
+      return new Response(pem);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const msg = sign({ ...base, Type: "Notification", Message: "x" }, priv, "2");
+    expect(await verifySnsMessage({ ...msg, SigningCertURL: "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-aa.pem" })).toBe(true);
+    fetchMock.mockResolvedValue(new Response(null, { status: 302, headers: { location: "https://evil.com/x.pem" } }));
+    expect(await verifySnsMessage({ ...msg, SigningCertURL: "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-bb.pem" })).toBe(false);
+  });
+
   it("rejects an unknown SignatureVersion and a failed cert fetch", async () => {
     stubCert();
     const msg = sign({ ...base, Type: "Notification", Message: "x" }, priv, "2");
