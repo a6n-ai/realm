@@ -262,9 +262,12 @@
 }
 .lp-today__chips li[data-picked] .lp-today__check { scale: 1; transition-delay: 120ms; }
 
-@keyframes lp-today-in { from { opacity: 0; scale: 0.94; filter: blur(10px); translate: 0 16px; } }
+/* No filter blur: animating blur over the playing hero video cost phones frames (glitchy). */
+@keyframes lp-today-in { from { opacity: 0; scale: 0.96; translate: 0 16px; } }
 @keyframes lp-today-row { from { opacity: 0; translate: 0 8px; } }
-@media (prefers-reduced-motion: no-preference) {
+/* Desktop only: on phones the card sits under the first screen of copy, and holding it at
+   opacity 0 for a second read as content popping in late. It ships in the HTML; show it. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 901px) {
   .lp-hero .lp-hero__today { animation: lp-today-in 800ms cubic-bezier(0.22, 1, 0.36, 1) 500ms both; transform-origin: 80% 100%; }
   .lp-hero__today > :not(.contents), .lp-hero__today .lp-today__row { animation: lp-today-row 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   .lp-hero__today > :nth-child(1) { animation-delay: 750ms; }

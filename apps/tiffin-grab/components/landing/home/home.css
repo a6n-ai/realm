@@ -202,6 +202,10 @@ video.lp-hero__video[data-playing] { opacity: 1; }
 .lp-menu { position: relative; isolation: isolate; overflow: hidden; }
 .lp-menu__bg { position: absolute; inset: -60px; z-index: -1; opacity: 0.55; filter: blur(48px) saturate(1.35); }
 .lp-menu__bg img { object-fit: cover; }
+/* Phones: a 48px blur over a section-sized layer is a large offscreen texture on iOS (memory
+   that Safari counts against the tab), as the reviews glow already learned. A faint, unblurred
+   wash keeps the warmth; the glass cards still blur what sits right behind them. */
+@media (max-width: 767px) { .lp-menu__bg { filter: none; opacity: 0.18; } }
 .lp-menu::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to bottom, var(--background), color-mix(in srgb, var(--background) 35%, transparent) 22%, color-mix(in srgb, var(--background) 35%, transparent) 78%, var(--background)); }
 .lp-glass-light {
   background: color-mix(in srgb, #fff 56%, transparent);
