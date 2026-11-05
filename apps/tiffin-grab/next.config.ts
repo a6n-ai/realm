@@ -1,6 +1,5 @@
 import path from "node:path";
 import type { NextConfig } from "next";
-import publicPages from "./lib/routing/public-pages.json";
 
 const monorepoRoot = path.join(import.meta.dirname, "..", "..");
 
@@ -34,13 +33,11 @@ const nextConfig: NextConfig = {
     // remotePatterns (or stay on plain <img>) before that env var is set in prod.
     // Static imports (/_next/static/media/**) are auto-allowed by Next.
   },
-  // Public pages carry no private data (the signed-in header and the popup fill in on the client).
-  // Browsers revalidate every view (max-age=0 keeps the back/forward cache, which no-store broke);
-  // Cloudflare's edge keeps a copy for 60 s and serves it stale up to 5 min while refetching, so a
-  // visit skips the Worker's cold start. The zone cache rule (scripts/cloudflare-cache.mjs) makes
-  // these paths eligible on the apex only; every deploy purges them.
+  // Was Caddy's header on these paths: Next marks dynamic renders no-store, which keeps them out of
+  // the browser back/forward cache. They carry no private data, so ask for revalidation instead.
   async headers() {
-    return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] }));
+    const publicPages = ["/", "/pricing", "/plans", "/menu", "/menu/weekly", "/locations", "/faq", "/contact", "/legal", "/terms", "/privacy", "/refund-policy", "/delivery-policy", "/reviews"];
+    return publicPages.map((source) => ({ source, headers: [{ key: "Cache-Control", value: "private, no-cache" }] }));
   },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];

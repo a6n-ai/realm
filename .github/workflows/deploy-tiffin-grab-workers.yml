@@ -37,9 +37,6 @@ jobs:
       db-host: realm-tiffin-grab-prod-db.caf2iueu67ew.us-east-1.rds.amazonaws.com
       aws-role-arn: arn:aws:iam::947042607945:role/realm-github-deploy-tiffin-grab
       aws-db-url-param: /tiffin-grab/prod/DIRECT_DATABASE_URL
-      # Public pages are edge-cached (next.config.ts headers + the zone cache rule); purge them on deploy.
-      edge-cache: true
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
