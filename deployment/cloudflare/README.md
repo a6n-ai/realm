@@ -151,13 +151,13 @@ Read these before porting tiffin-grab or copper-cloves.
 
 | | xplorers | tiffin-grab |
 |---|---|---|
-| Worker (prod / preview) | `xplorers` / `xplorers-preview` | `tiffin-grab` (live 2026-11-03); `tiffin-grab-preview` and `next.tiffingrab.ca` deleted 2026-11-05 with all its resources |
-| Hosts | `xplorers.a6n.ai` / `next.xplorers.a6n.ai` | `tiffingrab.ca`, `www.`, `app.`; realtime `rt.tiffingrab.ca` |
-| Database | Neon `aged-dust-56644803` (aws-ap-southeast-1), branches `production`, `preview` | RDS `realm-tiffin-grab-prod-db` (us-east-1, public via `sg-0b4566246ed7528e5`, 5432 only, `rds.force_ssl=1`) |
+| Worker | `xplorers` (`xplorers-preview` and `next.xplorers.a6n.ai` deleted 2026-11-05) | `tiffin-grab` (live 2026-11-03); `tiffin-grab-preview` and `next.tiffingrab.ca` deleted 2026-11-05 with all its resources |
+| Hosts | `xplorers.a6n.ai` | `tiffingrab.ca`, `www.`, `app.`; realtime `rt.tiffingrab.ca` |
+| Database | Neon `aged-dust-56644803` (aws-ap-southeast-1), branch `production` | RDS `realm-tiffin-grab-prod-db` (us-east-1, public via `sg-0b4566246ed7528e5`, 5432 only, `rds.force_ssl=1`) |
 | DB roles | owner | Worker connects as `tiffin_app` (DML only, conn limit 40, default privileges for new tables); migrations run as `postgres` |
-| Hyperdrive | `xplorers-prod`, `xplorers-preview` (direct endpoint) | `tiffin-grab-prod` `126477e0…` (caching disabled) |
+| Hyperdrive | `xplorers-prod` (direct endpoint) | `tiffin-grab-prod` `126477e0…` (caching disabled) |
 | KV / Queues | none | `tiffin-grab-cache`; `tiffin-outbox` |
-| GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL`, `XPLORERS_PREVIEW_DIRECT_DATABASE_URL` | `TIFFIN_GRAB_DIRECT_DATABASE_URL`; `TIFFIN_GRAB_CRON_SECRET` (GitHub cron workflow) |
+| GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL` | `TIFFIN_GRAB_DIRECT_DATABASE_URL`; `TIFFIN_GRAB_CRON_SECRET` (GitHub cron workflow) |
 | Wrangler secrets | `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `REALTIME_SECRET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `FILES_S3_ACCESS_KEY_ID`, `FILES_S3_SECRET_ACCESS_KEY` | 26: SSM `/tiffin-grab/prod` values (same auth/unsubscribe/integrations/cron secrets as EC2) + `REALTIME_SECRET` + AWS keys; preview has its own fresh auth/cron/encryption secrets |
 | IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` | `tiffin-grab-workers-iam` (us-east-1), `EnableAwsLocation=true`, extra SES config set |
 
