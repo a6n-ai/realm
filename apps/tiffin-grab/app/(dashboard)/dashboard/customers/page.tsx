@@ -29,6 +29,7 @@ import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { customersListHref } from "@/lib/list/customers-drill";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -85,10 +86,13 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
   const sp = await withDefaultMonth(await searchParams);
 
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  // Non-cancelled only — same definition as listCustomersPage customerType filters.
   const oc = db
     .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })
     .from(orders)
+    .where(sql`${orders.status} <> 'cancelled'`)
     .groupBy(orders.userId)
     .as("oc");
 
@@ -110,11 +114,41 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 
   const pct = (n: number) => (s.total > 0 ? `${Math.round((n / s.total) * 100)}% of customers` : "—");
   const stats: StatCardItem[] = [
-    { label: "Total customers", value: s.total, icon: UsersIcon, hint: "joined in selected dates" },
-    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon, hint: pct(s.withOrders) },
-    { label: "No order yet", value: s.total - s.withOrders, icon: UserXIcon, hint: "signed up, never ordered" },
-    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: `2+ orders · ${pct(s.repeat)}` },
-    { label: "New this week", value: week.n, icon: UserPlusIcon, hint: "joined in the last 7 days" },
+    {
+      label: "Total customers",
+      value: s.total,
+      icon: UsersIcon,
+      hint: "joined in selected dates",
+      href: customersListHref(sp),
+    },
+    {
+      label: "With orders",
+      value: s.withOrders,
+      icon: ShoppingBagIcon,
+      hint: pct(s.withOrders),
+      href: customersListHref(sp, { customerType: "ordered" }),
+    },
+    {
+      label: "No order yet",
+      value: s.total - s.withOrders,
+      icon: UserXIcon,
+      hint: "signed up, never ordered",
+      href: customersListHref(sp, { customerType: "none" }),
+    },
+    {
+      label: "Repeat buyers",
+      value: s.repeat,
+      icon: RepeatIcon,
+      hint: `2+ orders · ${pct(s.repeat)}`,
+      href: customersListHref(sp, { customerType: "repeat" }),
+    },
+    {
+      label: "New this week",
+      value: week.n,
+      icon: UserPlusIcon,
+      hint: "joined in the last 7 days",
+      href: customersListHref(sp, { from: String(weekAgo), to: String(now) }),
+    },
   ];
 
   return <StatCards items={stats} />;
@@ -155,6 +189,7 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
       label: "Customer type",
       options: [
         { value: "none", label: "No orders" },
+        { value: "ordered", label: "Has orders (1+)" },
         { value: "new", label: "New (1 order)" },
         { value: "repeat", label: "Repeat (2+ orders)" },
       ],
@@ -181,7 +216,7 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
   const result = await listCustomersPage(dbCondition, dbPage, sort, {
     planCompletesInDays,
     activePlan: pick(sp.activePlan, ["yes", "no"]),
-    customerType: pick(sp.customerType, ["none", "new", "repeat"]),
+    customerType: pick(sp.customerType, ["none", "ordered", "new", "repeat"]),
     latestStatus: pick(sp.latestStatus, latestStatusOptions),
   });
 

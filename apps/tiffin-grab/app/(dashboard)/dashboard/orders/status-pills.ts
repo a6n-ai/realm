@@ -8,24 +8,43 @@ import { inList, type Condition } from "@foundry/commons/model/condition";
 // of its exports reaches the RSC graph as a client reference. The server page
 // calling .map() on such a reference throws "…map is not a function" at render.
 
-// "ongoing" is the second pseudo-bucket: a saved view rather than an
-// `orders.status` value, which the server expands to inList(status, …). It has to
-// work this way because the `pills` facet kind parses to eq() — a comma-separated
-// list in the URL would query status = "pending,active,paused" and match nothing.
+// Pseudo-buckets expand to real status sets. They exist because the `pills` facet
+// kind parses to eq() — a comma list in the URL would match nothing.
 export const ONGOING_STATUSES = ["pending", "active", "paused"] as const;
+/** Active + paused — matches the Orders "Running plans" KPI. */
+export const RUNNING_STATUSES = ["active", "paused"] as const;
+/** Pending + active + waitlisted — matches the "Starting soon" KPI. */
+export const SOON_STATUSES = ["pending", "active", "waitlisted"] as const;
+/** Every status except cancelled — matches the "New orders" KPI. */
+export const BOOKED_STATUSES = ["pending", "active", "waitlisted", "paused", "completed"] as const;
 
-// Strips the pseudo-value out of the search params and hands back the real
-// condition to AND in. Keeping both halves here means they can't drift apart.
-export function ongoingFilter(sp: Record<string, string | undefined>): {
+const PSEUDO: Record<string, readonly string[]> = {
+  ongoing: ONGOING_STATUSES,
+  running: RUNNING_STATUSES,
+  soon: SOON_STATUSES,
+  booked: BOOKED_STATUSES,
+};
+
+/**
+ * Strips a pseudo-status out of the search params and hands back the real
+ * condition to AND in. Keeping both halves here means they can't drift apart.
+ */
+export function orderStatusFilter(sp: Record<string, string | undefined>): {
   sp: Record<string, string | undefined>;
   extra: Condition | null;
 } {
-  if (sp.status !== "ongoing") return { sp, extra: null };
-  return { sp: { ...sp, status: undefined }, extra: inList("status", [...ONGOING_STATUSES]) };
+  const set = sp.status ? PSEUDO[sp.status] : undefined;
+  if (!set) return { sp, extra: null };
+  return { sp: { ...sp, status: undefined }, extra: inList("status", [...set]) };
 }
+
+/** @deprecated Use orderStatusFilter — kept for older call sites. */
+export const ongoingFilter = orderStatusFilter;
 
 export const ORDER_STATUS_PILLS = [
   { value: "ongoing", label: "Ongoing" },
+  { value: "running", label: "Running" },
+  { value: "booked", label: "Booked" },
   { value: "pending", label: "Pending" },
   { value: "active", label: "Active" },
   { value: "waitlisted", label: "Waitlisted" },

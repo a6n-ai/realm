@@ -1778,7 +1778,20 @@ export interface OrdersListOpts {
   freeRange?: FreeTiffinRange;
   /** today in the app timezone; keeps orders with a missed delivery before it. */
   missedAsOf?: string;
+  /**
+   * Orders cancelled inside this epoch window (by the cancel activity timestamp),
+   * matching the Orders "Cancelled" KPI — not `orders.created_at`.
+   */
+  cancelledInRange?: { from: number; to: number };
 }
+
+const cancelledInRangeWhere = (range: { from: number; to: number }) =>
+  sql`exists (
+    select 1 from ${orderActivities} oa
+    where oa.order_id = ${orders.id}
+      and oa.type = 'cancelled'
+      and oa.created_at between ${range.from} and ${range.to}
+  )`;
 
 // Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
 export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
@@ -1788,6 +1801,7 @@ export function ordersListWhere(condition: Condition | undefined, visible: "all"
     opts.freeTiffins ? freeTiffinsWhere(opts.freeRange) : undefined,
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
+    opts.cancelledInRange ? cancelledInRangeWhere(opts.cancelledInRange) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 }

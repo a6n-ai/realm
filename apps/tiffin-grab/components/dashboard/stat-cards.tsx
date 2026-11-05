@@ -10,6 +10,14 @@ import { cn } from "@foundry/ui/cn";
 import { StatBar } from "@foundry/design-system";
 import { isValidAnalyticsCardCount } from "@/lib/analytics/card-rules";
 
+/**
+ * Interactive KPI contract (TiffinGrab standard):
+ * - Set `href` whenever the figure is backed by retrievable rows whose listing
+ *   filters can reproduce the same count (same query definition + date/scope).
+ * - Omit `href` only for decorative or non-listable metrics (rates, composites).
+ * - Prefer navigating to an existing filtered list (search/sort/pagination/CSV
+ *   already live there) over a one-off drawer.
+ */
 export type StatCardItem = {
   label: string;
   value: string | number;
@@ -63,22 +71,63 @@ export function StatCards({
   items: StatCardItem[];
   cols?: 3 | 4 | 5;
 }) {
+  const anyLink = items.some((i) => i.href);
   return (
     <>
       <div className="md:hidden">
-        <StatBar
-          items={items.map(({ label, value, tone }) => ({
-            label,
-            value,
-            tone: tone === "warn" ? undefined : tone,
-          }))}
-        />
+        {anyLink ? (
+          <div className="bg-card flex divide-x overflow-x-auto rounded-lg border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {items.map(({ label, value, tone, href }) => {
+              const body = (
+                <div className="flex w-full flex-col items-center gap-0.5 px-4 py-3 text-center">
+                  <span
+                    className={cn(
+                      "text-base leading-none font-semibold whitespace-nowrap tabular-nums",
+                      tone === "ok" && "text-success-foreground dark:text-success",
+                      tone === "bad" && "text-destructive-foreground dark:text-destructive",
+                      tone === "warn" && "text-warning-foreground dark:text-warning",
+                    )}
+                  >
+                    {value}
+                  </span>
+                  <span className="text-muted-foreground text-[11px] leading-tight whitespace-nowrap">{label}</span>
+                </div>
+              );
+              const shell = "flex min-w-fit flex-1";
+              return href ? (
+                <Link
+                  key={label}
+                  href={href}
+                  className={cn(shell, "hover:bg-muted/50 focus-visible:ring-ring outline-none focus-visible:ring-2")}
+                >
+                  {body}
+                </Link>
+              ) : (
+                <div key={label} className={shell}>
+                  {body}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <StatBar
+            items={items.map(({ label, value, tone }) => ({
+              label,
+              value,
+              tone: tone === "warn" ? undefined : tone,
+            }))}
+          />
+        )}
       </div>
       <div className={GRID[cols]}>
         {items.map(
           ({ label, value, icon: Icon, hint, tone, delta, href, badge, badgeTone, footer, valueSize }) => {
             const card = (
-              <Card className={href ? "h-full" : undefined}>
+              <Card
+                className={cn(
+                  href && "h-full transition-[border-color,box-shadow,transform] group-hover/stat:-translate-y-0.5 group-hover/stat:border-foreground/20 group-hover/stat:shadow-md",
+                )}
+              >
                 <CardContent className="flex flex-col gap-5">
                   <div className="flex items-center justify-between gap-3">
                     <h3
@@ -125,7 +174,7 @@ export function StatCards({
               <Link
                 key={label}
                 href={href}
-                className="group/stat focus-visible:ring-ring block h-full rounded-xl outline-none focus-visible:ring-2"
+                className="group/stat focus-visible:ring-ring block h-full cursor-pointer rounded-xl outline-none focus-visible:ring-2"
               >
                 {card}
               </Link>

@@ -11,7 +11,11 @@ const field = (f: OrderFacetField) => f;
  * The Orders listing's facets. plan / mealSize / zone / org are `multi` (comma list in the URL parses
  * to an IN), so analytics drill links can carry several values. Status stays a single-value pill.
  */
-/** `?starts=N`: orders whose first delivery is today through N days out (app timezone). Applied by the page, not parseFilterState. */
+/**
+ * `?starts=N`: first delivery from today through the next N calendar days (inclusive of
+ * today). So `7` is today..today+6 — the same window as the "Starting soon" KPI.
+ * Applied by the page, not parseFilterState.
+ */
 export const STARTS_FIELD = "starts";
 export const STARTS_DAYS = [0, 7, 14] as const;
 const STARTS_OPTIONS = STARTS_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `Next ${d} days` }));

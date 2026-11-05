@@ -61,7 +61,10 @@ export default async function DesignPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Stat cards" subtitle="Four stat cards — two with deltas">
+        <SectionCard
+          title="Stat cards"
+          subtitle="Dashboard KPIs use StatCards with optional href — every listable metric should drill into the filtered rows behind it. Omit href only for decorative or composite figures."
+        >
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard
               label="Total inquiries"
