@@ -43,14 +43,22 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
     const frame = ref.current;
     const doc = frame?.contentDocument;
     const body = doc?.body;
-    if (!frame || !doc || !body) return;
+    // A closed dialog lays the frame out at width 0, where the text wraps a letter per line;
+    // measure once it has a width (the width observer below calls again on open).
+    if (!frame || !doc || !body || frame.clientWidth === 0) return;
     const range = doc.createRange();
     range.selectNodeContents(body);
     const cs = doc.defaultView?.getComputedStyle(body);
     const tail = cs ? parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth) + parseFloat(cs.marginBottom) : 0;
     const h = Math.ceil(range.getBoundingClientRect().bottom + (doc.defaultView?.scrollY ?? 0) + tail);
-    if (h > 0) frame.style.height = `${h}px`;
+    // Only write a real change: each write resizes the frame, which wakes the observers.
+    if (h > 0 && Math.abs(h - frame.offsetHeight) >= 1) frame.style.height = `${h}px`;
   };
+  // Observers call through the next frame, never inside their own callback: resizing there
+  // re-triggered them in the same frame (WebKit: "ResizeObserver loop completed with
+  // undelivered notifications"), the loop that crashed iPhone Safari when the popup opened.
+  const raf = useRef(0);
+  const scheduleFit = () => { cancelAnimationFrame(raf.current); raf.current = requestAnimationFrame(fit); };
   // The frame's content also resizes by itself: a font swap after fonts.ready already resolved
   // (a closed dialog lays out at width 0 and clipped the last line), or an image in staff HTML.
   // Observed per load: srcdoc replaces the document, and with it the body.
@@ -59,9 +67,9 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
     fit();
     const body = ref.current?.contentDocument?.body;
     inner.current?.disconnect();
-    if (body) { inner.current = new ResizeObserver(fit); inner.current.observe(body); }
+    if (body) { inner.current = new ResizeObserver(scheduleFit); inner.current.observe(body); }
     // Web fonts land after load and change the text height.
-    ref.current?.contentDocument?.fonts?.ready.then(fit).catch(() => {});
+    ref.current?.contentDocument?.fonts?.ready.then(scheduleFit).catch(() => {});
   };
   // Width changes (carousel resize, phone rotation) rewrap the text.
   useEffect(() => {
@@ -71,10 +79,10 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
     if (frame.contentDocument?.readyState === "complete") onLoad();
     let width = frame.clientWidth;
     const ro = new ResizeObserver(() => {
-      if (frame.clientWidth !== width) { width = frame.clientWidth; fit(); }
+      if (frame.clientWidth !== width) { width = frame.clientWidth; scheduleFit(); }
     });
     ro.observe(frame);
-    return () => { ro.disconnect(); inner.current?.disconnect(); };
+    return () => { ro.disconnect(); inner.current?.disconnect(); cancelAnimationFrame(raf.current); };
   }, []);
   return (
     <iframe
@@ -105,7 +113,8 @@ const markSession = (id: string) => {
 };
 
 /** The running offer as a popup.
- *  - Signed in: opens 3 s after load on any device, once per browser session.
+ *  - Signed in: opens 3 s after load on any device, once per browser session, unless the
+ *    visitor taps, types or scrolls first.
  *  - Signed out: exit intent only (a mouse leaving through the top edge after a few seconds),
  *    never on a timer, once per promo; touch screens rely on the hero ticket and carousel. */
 export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fallbackImage?: string }) {
@@ -121,7 +130,12 @@ export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fall
       markSession(promo.id);
       d.showModal();
     }, 3000);
-    return () => clearTimeout(t);
+    // Someone already tapping, typing or scrolling has somewhere to be: never interrupt them
+    // (and never land on top of the cross-host splash a tap just raised).
+    const cancel = () => clearTimeout(t);
+    const events = ["pointerdown", "keydown", "scroll", "pagehide"] as const;
+    events.forEach((ev) => addEventListener(ev, cancel, { once: true, passive: true, capture: true }));
+    return () => { clearTimeout(t); events.forEach((ev) => removeEventListener(ev, cancel, { capture: true })); };
   }, [isPending, signedIn, promo.id]);
 
   useEffect(() => {
