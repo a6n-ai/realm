@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { setProfitabilityAssumptions } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/analytics/profitability";
@@ -22,6 +21,5 @@ const schema = z.object({
 export async function saveAssumptionsAction(input: unknown): Promise<void> {
   await requireAdmin();
   await setProfitabilityAssumptions(schema.parse(input));
-  publishAnalyticsLive();
   revalidatePath(PATH);
 }

@@ -95,7 +95,7 @@ importers:
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/places(react@19.2.4)
       '@foundry/realtime':
         specifier: github:a6n-ai/foundry#path:packages/realtime
-        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.2.4)
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.2.4)
       '@foundry/routes':
         specifier: github:a6n-ai/foundry#path:packages/routes
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/routes(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
@@ -135,7 +135,7 @@ importers:
     devDependencies:
       '@foundry/realtime-worker':
         specifier: github:a6n-ai/foundry#path:services/realtime
-        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:services/realtime(react@19.2.4)
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:services/realtime(react@19.2.4)
       jose:
         specifier: ^6.2.13
         version: 6.2.13
@@ -430,7 +430,7 @@ importers:
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/places(react@19.3.1)
       '@foundry/realtime':
         specifier: github:a6n-ai/foundry#path:packages/realtime
-        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.3.1)
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.3.1)
       '@foundry/routes':
         specifier: github:a6n-ai/foundry#path:packages/routes
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/routes(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
@@ -2205,6 +2205,10 @@ packages:
     resolution: {gitHosted: true, integrity: sha512-vPg0efnZ9llZEoCgI3OTRE1v1UwcYo/jS5jvavnWwXXGpCLJp5mQRYWnayysPxZuiUcy+4aaNwZ0b9rTDTCCRw==, path: packages/commons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060}
     version: 0.0.0
 
+  '@foundry/commons@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/commons':
+    resolution: {gitHosted: true, integrity: sha512-YaT81sb+Oq4ZLxLadbY585oJjzbmAolxm79oR0ApIXi/6Qi/ue3K6gRHn0nHW3a0m/pYVuyQhWACZa+oyifc4w==, path: packages/commons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52}
+    version: 0.0.0
+
   '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/coupons':
     resolution: {gitHosted: true, integrity: sha512-vPg0efnZ9llZEoCgI3OTRE1v1UwcYo/jS5jvavnWwXXGpCLJp5mQRYWnayysPxZuiUcy+4aaNwZ0b9rTDTCCRw==, path: packages/coupons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060}
     version: 0.0.0
@@ -2304,12 +2308,18 @@ packages:
     peerDependencies:
       react: ^19
 
-  '@foundry/realtime-worker@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:services/realtime':
-    resolution: {gitHosted: true, integrity: sha512-vPg0efnZ9llZEoCgI3OTRE1v1UwcYo/jS5jvavnWwXXGpCLJp5mQRYWnayysPxZuiUcy+4aaNwZ0b9rTDTCCRw==, path: services/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060}
+  '@foundry/realtime-worker@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:services/realtime':
+    resolution: {gitHosted: true, integrity: sha512-YaT81sb+Oq4ZLxLadbY585oJjzbmAolxm79oR0ApIXi/6Qi/ue3K6gRHn0nHW3a0m/pYVuyQhWACZa+oyifc4w==, path: services/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52}
     version: 0.0.0
 
   '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime':
     resolution: {gitHosted: true, integrity: sha512-vPg0efnZ9llZEoCgI3OTRE1v1UwcYo/jS5jvavnWwXXGpCLJp5mQRYWnayysPxZuiUcy+4aaNwZ0b9rTDTCCRw==, path: packages/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060}
+    version: 0.0.0
+    peerDependencies:
+      react: ^19
+
+  '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime':
+    resolution: {gitHosted: true, integrity: sha512-YaT81sb+Oq4ZLxLadbY585oJjzbmAolxm79oR0ApIXi/6Qi/ue3K6gRHn0nHW3a0m/pYVuyQhWACZa+oyifc4w==, path: packages/realtime, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52}
     version: 0.0.0
     peerDependencies:
       react: ^19
@@ -12658,6 +12668,13 @@ snapshots:
       pino: 10.4.0
       zod: 4.6.7
 
+  '@foundry/commons@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/commons':
+    dependencies:
+      libphonenumber-js: 1.13.15
+      lru-cache: 11.5.3
+      pino: 10.4.0
+      zod: 4.6.7
+
   '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/coupons': {}
 
   '@foundry/crm@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/crm(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next@16.3.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
@@ -12751,7 +12768,7 @@ snapshots:
   '@foundry/design-system@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/design-system(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next@16.3.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/commons
-      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.2.4)
+      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.2.4)
       '@foundry/ui': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/ui(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       class-variance-authority: 0.7.1
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.2.4)
@@ -12766,7 +12783,7 @@ snapshots:
   '@foundry/design-system@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/design-system(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/commons
-      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.2.4)
+      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.2.4)
       '@foundry/ui': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/ui(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       class-variance-authority: 0.7.1
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.2.4)
@@ -12781,7 +12798,7 @@ snapshots:
   '@foundry/design-system@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/design-system(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/commons
-      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.3.1)
+      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.3.1)
       '@foundry/ui': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/ui(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       class-variance-authority: 0.7.1
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
@@ -12981,9 +12998,9 @@ snapshots:
       react: 19.3.1
       zod: 4.6.7
 
-  '@foundry/realtime-worker@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:services/realtime(react@19.2.4)':
+  '@foundry/realtime-worker@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:services/realtime(react@19.2.4)':
     dependencies:
-      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.2.4)
+      '@foundry/realtime': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.2.4)
     transitivePeerDependencies:
       - react
 
@@ -12995,6 +13012,16 @@ snapshots:
   '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/realtime(react@19.3.1)':
     dependencies:
       '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/commons
+      react: 19.3.1
+
+  '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.2.4)':
+    dependencies:
+      '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/commons
+      react: 19.2.4
+
+  '@foundry/realtime@https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/realtime(react@19.3.1)':
+    dependencies:
+      '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/d0494436d0d00b7fff401a75136f7f5f3c458f52#path:packages/commons
       react: 19.3.1
 
   '@foundry/routes@https://codeload.github.com/a6n-ai/foundry/tar.gz/aa58809b9c26e7150d39dd71dea3e23a99404060#path:packages/routes(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@20.19.43))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@20.19.43))(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':

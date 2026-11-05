@@ -13,7 +13,7 @@ import { fromCents, toCents } from "@/lib/payments/stripe";
 import { resolveAddonSelections, type ResolvedAddon } from "@/lib/pricing/build-catalog";
 import { addAddonsToSnapshot, round2, type MidPlanAddonPricing } from "@/lib/pricing/mid-plan-addons";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
-import { publishAnalyticsLive, publishUserRefresh } from "@/lib/realtime/publish-inbox";
+import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import { getAppSettings, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
@@ -304,7 +304,6 @@ export async function addOrderAddons(
   });
   // The save is committed: nothing below may throw, or staff would retry and pay twice.
   try {
-    publishAnalyticsLive();
     if (userPublicId) publishUserRefresh(userPublicId);
   } catch (e) {
     log.error({ err: e }, "add-on live refresh failed");
@@ -526,7 +525,6 @@ export async function settleAddonPayment(
     }
   }
   try {
-    publishAnalyticsLive();
     const [customer] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, res.userId)).limit(1);
     if (customer) publishUserRefresh(customer.publicId);
   } catch (e) {

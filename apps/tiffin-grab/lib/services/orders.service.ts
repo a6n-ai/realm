@@ -94,7 +94,7 @@ import { allowedDaysError, eatingDaysError, orderDeliveryDays, planDaysError, pl
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
-import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
+import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
 
@@ -848,8 +848,6 @@ export async function createOrder(
     return { deploymentId, publicId: order.publicId, paymentPublicId: recorded.publicId, orderId: order.id, ownerId: userId };
   });
 
-  publishAnalyticsLive();
-
   // A new card checkout replaces the customer's older unpaid one, only once this order is safely committed
   // (staff-made orders are left alone).
   if (paymentMethodId === "stripe" && !staffCreated) {
@@ -1143,8 +1141,6 @@ export async function verifyPayment(
   });
   const userPublicId = settled?.userPublicId ?? null;
   const taxCommit = settled?.taxCommit ?? null;
-
-  publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
 
   // GA purchase only. Meta Purchase is sendMetaPurchaseOnce: same event id as the card
@@ -1216,7 +1212,6 @@ export async function refundOrder(
       note: "Order refunded",
     });
   });
-  publishAnalyticsLive();
 }
 
 // Clawback runs in the SAME transaction as the payment-status flip: both
@@ -1345,7 +1340,6 @@ export async function claimPayment(
 
   // Staff review queue + sidebar dot via payments:inbox SSE.
   publishPaymentsInbox();
-  publishAnalyticsLive();
 
   // Funnel only: offline claim is not a Purchase. Purchase CAPI waits for verifyPayment.
   await sendMetaOrderSubmitted(paymentPublicId);
@@ -1381,7 +1375,6 @@ export async function rejectPayment(
     note: reason,
     createdBy: actorId,
   });
-  publishAnalyticsLive();
 }
 
 /** Staff fix a mistyped or missing transfer reference on one of this order's payments.
@@ -2182,7 +2175,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             await awardOrderCoins(tx, fresh, "paid");
           }
         });
-        publishAnalyticsLive();
         return;
       }
     }
@@ -2227,8 +2219,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await awardReferral(tx, row, pay?.status ?? null);
       await awardOrderCoins(tx, row, pay?.status ?? null);
     });
-
-    publishAnalyticsLive();
   }
 
   // A plan migrated from WordPress (db/seed-customers.ts) waits as `pending` with its
@@ -2293,7 +2283,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         createdBy: actorId,
       });
     });
-    publishAnalyticsLive();
   }
 
   /**
@@ -2401,7 +2390,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         organizationId: order.organizationId,
       });
     });
-    publishAnalyticsLive();
   }
 
   // Admin: change which days the customer eats. The delivery days (frequency) and the tiffin
@@ -2537,7 +2525,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         organizationId: order.organizationId,
       });
     });
-    publishAnalyticsLive();
   }
 
   // Switch-over day: start every WordPress plan still waiting, from `fromDate` or its own
@@ -2611,7 +2598,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       });
       await clearLookOutOnEnd(tx, row.id, "order cancelled");
     });
-    publishAnalyticsLive();
     // External API call, deliberately outside the tx — see walletService.award above for the
     // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.
     await deleteFromOptimoRouteBestEffort(cancelledRows);
@@ -2775,5 +2761,4 @@ export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
     }
     if (await retireLegacyPaused(tx, orderId)) changed = true;
   });
-  if (changed) publishAnalyticsLive();
 }

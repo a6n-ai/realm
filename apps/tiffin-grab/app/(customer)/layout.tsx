@@ -11,6 +11,8 @@ import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { Suspense } from "react";
 import { ReviewNudge } from "./me/review-nudge";
+import { mintRealtimeTokens } from "@/lib/realtime/mint";
+import { notifyChannel } from "@/lib/realtime/notify";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this stops Next from wastefully rendering all of them
@@ -34,10 +36,12 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   // session already in flight, not only block the next sign-in.
   if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
 
-  const [{ timezone, cutoffHour, currency }, coinBalance, staffReplies] = await Promise.all([
+  const notify = notifyChannel(user.publicId);
+  const [{ timezone, cutoffHour, currency }, coinBalance, staffReplies, realtimeTokens] = await Promise.all([
     getAppSettings(),
     walletService.balance(user.id),
     ticketsService.latestStaffReplies(user.id),
+    mintRealtimeTokens([notify]),
   ]);
   const coinValue = await walletService.moneyValue(coinBalance, currency);
 
@@ -47,7 +51,18 @@ export default async function CustomerLayout({ children }: { children: ReactNode
         <MotionProvider>
           {/* Top-bar review request on every customer page; streams in, never blocks the shell. */}
           <Suspense fallback={null}><ReviewNudge /></Suspense>
-          <CustomerShell coinBalance={coinBalance} coinValue={coinValue} cutoffHour={cutoffHour} userPublicId={user.publicId} userName={user.name ?? null} userImage={user.image ?? null} staffReplies={staffReplies}>{children}</CustomerShell>
+          <CustomerShell
+            coinBalance={coinBalance}
+            coinValue={coinValue}
+            cutoffHour={cutoffHour}
+            userPublicId={user.publicId}
+            userName={user.name ?? null}
+            userImage={user.image ?? null}
+            staffReplies={staffReplies}
+            notifyBootstrap={realtimeTokens[notify]}
+          >
+            {children}
+          </CustomerShell>
         </MotionProvider>
       </TimezoneProvider>
     </div>

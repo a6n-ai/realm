@@ -53,6 +53,7 @@ export function DashboardActions({
   activeOrganizationId,
   userPublicId,
   notifications,
+  notifyBootstrap,
   hasPin,
   routePush,
 }: {
@@ -61,6 +62,7 @@ export function DashboardActions({
   activeOrganizationId: string | null;
   userPublicId: string;
   notifications: ComponentProps<typeof NotificationBellMount>["initial"];
+  notifyBootstrap?: ComponentProps<typeof NotificationBellMount>["bootstrap"];
   hasPin: boolean;
   /** Server Component slot — OptimoRoute push status (streams via Suspense in the layout). */
   routePush?: ReactNode;
@@ -70,7 +72,7 @@ export function DashboardActions({
       <AppClock cutoffHour={cutoffHour} />
       {routePush}
       <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
-      <NotificationBellMount userPublicId={userPublicId} initial={notifications} />
+      <NotificationBellMount userPublicId={userPublicId} initial={notifications} bootstrap={notifyBootstrap} />
       <LockButton hasPin={hasPin} />
       <ModeToggle />
     </>
@@ -85,10 +87,25 @@ export function DashboardBottomNav({ role }: { role: string }) {
   return <AppBottomNav role={role} />;
 }
 
-export function DashboardLive({ payments, showRepCode }: { payments: boolean; showRepCode: boolean }) {
+export function DashboardLive({
+  payments,
+  showRepCode,
+  ticketsBootstrap,
+  paymentsBootstrap,
+}: {
+  payments: boolean;
+  showRepCode: boolean;
+  ticketsBootstrap?: ComponentProps<typeof InboxRealtime>["ticketsBootstrap"];
+  paymentsBootstrap?: ComponentProps<typeof InboxRealtime>["paymentsBootstrap"];
+}) {
   return (
     <>
-      <InboxRealtime tickets payments={payments} />
+      <InboxRealtime
+        tickets
+        payments={payments}
+        ticketsBootstrap={ticketsBootstrap}
+        paymentsBootstrap={paymentsBootstrap}
+      />
       {showRepCode ? <RepCodeFab /> : null}
     </>
   );

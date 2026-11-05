@@ -16,14 +16,13 @@ import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import {
-  clockInZone,
   currentMonth,
   isoDateInZone,
   navScope,
   type Grain,
   type ProfitabilityKpis,
 } from "@/lib/analytics/profitability";
-import { LiveRefresh } from "@/components/analytics/live-refresh";
+import { ManualRefresh } from "@/components/analytics/manual-refresh";
 import { AssumptionChips } from "./assumption-chips";
 import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
@@ -121,12 +120,11 @@ const reportFrom = ({ month, grain, scope }: View) => loadReport(month, grain, s
 
 async function Nav({ view }: { view: View }) {
   const report = await reportFrom(view);
-  const timezone = view.scope.tz;
   return (
     <GrainNav
       view={report.grain}
       month={report.month}
-      aside={<LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} refreshAt={report.nextCutoffAt} />}
+      aside={<ManualRefresh />}
     />
   );
 }

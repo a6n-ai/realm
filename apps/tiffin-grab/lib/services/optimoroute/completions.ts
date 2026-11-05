@@ -1,7 +1,6 @@
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
 import { skipDelivery } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoCompletionDetail, type OptimoStop } from "./client";
@@ -250,8 +249,6 @@ export async function pullCompletions(
       settled.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName, reason: result.reason });
     } else outcomes.push(result.outcome);
   }
-
-  if (outcomes.length) publishAnalyticsLive();
   return { date, outcomes, ambiguous, pendingCount, unmatched, settled };
 }
 

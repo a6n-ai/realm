@@ -1,8 +1,6 @@
 /* eslint-disable */
 "use client";
 
-import { openChannel } from "@foundry/realtime/client";
-
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -15,6 +13,8 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
 import { PageTransition } from "@/components/motion/page-transition";
+import { subscribeChannel, type RealtimeBootstrap } from "@/components/notifications/realtime";
+import { notifyChannel } from "@/lib/realtime/notify";
 
 const ACCOUNT_PATHS = ["/me/account"];
 const MENU_PATHS = ["/me/menu", "/me/renew"];
@@ -176,7 +176,7 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   );
 }
 
-export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, userName = null, userImage = null, staffReplies = {}, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; userName?: string | null; userImage?: string | null; staffReplies?: Record<string, number>; children: ReactNode }) {
+export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userPublicId, userName = null, userImage = null, staffReplies = {}, notifyBootstrap, children }: { coinBalance: number; coinValue?: number | null; cutoffHour: number; userPublicId: string; userName?: string | null; userImage?: string | null; staffReplies?: Record<string, number>; notifyBootstrap?: RealtimeBootstrap; children: ReactNode }) {
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
@@ -235,12 +235,17 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
-    // Only a "message" frame means data changed; the presence frame sent on
-    // connect used to re-render the whole page right after every load.
-    return openChannel(`refresh:${userPublicId}`, (e) => {
-      if (e.type === "message") router.refresh();
-    });
-  }, [userPublicId, router]);
+    // Personal hub (`notify:<user>`): same channel as the bell elsewhere. Only a
+    // "message" frame means data changed; presence on connect must not refresh.
+    const channel = notifyChannel(userPublicId);
+    return subscribeChannel(
+      channel,
+      (e) => {
+        if (e.type === "message") router.refresh();
+      },
+      notifyBootstrap ? { bootstrap: notifyBootstrap } : undefined,
+    );
+  }, [userPublicId, router, notifyBootstrap?.url, notifyBootstrap?.token]);
 
   const morePill = cn(
     "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transform-none",

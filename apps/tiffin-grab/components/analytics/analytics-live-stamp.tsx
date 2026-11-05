@@ -1,10 +1,6 @@
-/* eslint-disable react-hooks/purity */
-import { clockInZone } from "@/lib/analytics/profitability";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { LiveRefresh } from "@/components/analytics/live-refresh";
+import { ManualRefresh } from "@/components/analytics/manual-refresh";
 
-/** Live clock in the business timezone, same pill Profitability shows beside its month nav. */
-export async function AnalyticsLiveStamp({ refreshAt }: { refreshAt?: number | null }) {
-  const { timezone } = await getAppSettings();
-  return <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} refreshAt={refreshAt} />;
+/** Server slot that used to stream a live clock; now just the manual Refresh control. */
+export async function AnalyticsLiveStamp(_props: { refreshAt?: number | null }) {
+  return <ManualRefresh />;
 }

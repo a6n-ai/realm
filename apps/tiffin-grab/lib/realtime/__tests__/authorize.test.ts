@@ -54,16 +54,8 @@ describe("authorizeChannel", () => {
     expect(await authorizeChannel("payments:inbox")).toBeNull();
   });
 
-  it("allows only admins on analytics:live", async () => {
+  it("rejects analytics:live (manual refresh only)", async () => {
     session.user = { id: "usr_admin", role: "admin" };
-    await expect(authorizeChannel("analytics:live")).resolves.toEqual({
-      channel: "analytics:live",
-      userId: "usr_admin",
-      role: "staff",
-    });
-    session.user = { id: "usr_member", role: "member" };
-    expect(await authorizeChannel("analytics:live")).toBeNull();
-    session.user = { id: "usr_cust", role: "user" };
     expect(await authorizeChannel("analytics:live")).toBeNull();
   });
 

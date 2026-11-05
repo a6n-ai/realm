@@ -8,7 +8,6 @@ import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd } from "./pause-auto-move";
 import { CUSTOMER_PAUSED, MOVED_AWAY, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -103,7 +102,6 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     return { paused: pausedDates, skipped };
   });
   await removeStopsBestEffort(removed);
-  publishAnalyticsLive();
   return result;
 }
 
@@ -140,7 +138,6 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
   });
   await removeStopsBestEffort(closed.filter((r) => r.routeSyncedAt != null));
   if (resumed.length > 0) await restoreStopsBestEffort(order.id, resumed, actorId);
-  publishAnalyticsLive();
   return { resumed, reclosed };
 }
 
@@ -158,7 +155,6 @@ export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
   });
   // The plan's switch sends these new holds straight to the end; its own transactions, after this one commits.
   if (n > 0 && (await autoMovePausedOn(db, orderId))) await moveLapsedPausesToEnd(orderId);
-  if (n > 0 || retired) publishAnalyticsLive();
   return n;
 }
 

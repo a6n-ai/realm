@@ -18,7 +18,6 @@ import { addressService } from "@/lib/services/addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { holidayForOrderDate } from "./holiday-dates";
@@ -282,7 +281,6 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
     return updated.length;
   });
   await deleteFromOptimoRouteBestEffort(pausedRows);
-  if (updatedCount > 0) publishAnalyticsLive();
   return updatedCount;
 }
 
@@ -316,7 +314,6 @@ export async function resumeOrder(orderPublicId: string, fromDate?: string): Pro
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  publishAnalyticsLive();
   return updatedCount;
 }
 
@@ -355,7 +352,6 @@ export async function skipDelivery(
     syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
-  publishAnalyticsLive();
   return { missedDates };
 }
 
@@ -488,7 +484,6 @@ export async function adminSetDeliveryStatus(
   });
   if (syncedRow) await deleteFromOptimoRouteBestEffort([syncedRow]);
   if (resumed) await restoreStopsBestEffort(resumed.orderId, resumed.dates, actorId);
-  if (changed) publishAnalyticsLive();
 }
 
 // Self-join alias used only to test "does a make-up already exist for this row" — a correlated
@@ -599,7 +594,6 @@ export async function completeFinishedOrders(): Promise<{ checked: number; compl
   const active = await db.select({ id: orders.id }).from(orders).where(eq(orders.status, "active"));
   let completed = 0;
   for (const o of active) if (await maybeComplete(o.id)) completed++;
-  if (completed > 0) publishAnalyticsLive();
   return { checked: active.length, completed };
 }
 
@@ -1129,7 +1123,6 @@ export async function rescheduleDelivery(
   });
   if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
   for (const id of refreshIds) await refreshStopBestEffort(id);
-  publishAnalyticsLive();
   return result;
 }
 
@@ -1219,7 +1212,6 @@ export async function redeliverTrip(
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
   if (result.merged) await refreshStopBestEffort(targetId!);
-  publishAnalyticsLive();
   return result;
 }
 
@@ -1322,7 +1314,6 @@ export async function grantComplimentaryTiffin(
     }
     return { deliveryPublicId: row!.publicId, reopened };
   });
-  publishAnalyticsLive();
   return result;
 }
 

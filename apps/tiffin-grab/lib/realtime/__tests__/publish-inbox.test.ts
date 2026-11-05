@@ -12,7 +12,7 @@ vi.mock("@/lib/realtime/bus", () => ({
   },
 }));
 
-const { publishTicketsInbox, publishPaymentsInbox, publishAnalyticsLive, publishUserRefresh, publishLive } =
+const { publishTicketsInbox, publishPaymentsInbox, publishUserRefresh, publishLive } =
   await import("../publish-inbox");
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -26,8 +26,7 @@ describe("publishers use realtimeBus", () => {
   it.each([
     ["tickets:inbox", () => publishTicketsInbox()],
     ["payments:inbox", () => publishPaymentsInbox()],
-    ["analytics:live", () => publishAnalyticsLive()],
-    ["refresh:u1", () => publishUserRefresh("u1")],
+    ["notify:u1", () => publishUserRefresh("u1")],
   ])("%s", async (channel, fire) => {
     fire();
     await flush();

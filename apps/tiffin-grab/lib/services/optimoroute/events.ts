@@ -5,7 +5,6 @@ import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { acquireLease, readLeaseValue, renewLease, writeLeaseValue } from "@/lib/runtime/lease";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
 import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";
@@ -135,6 +134,5 @@ export async function pollOnce(): Promise<"locked" | "outside" | { applied: numb
     await writeLeaseValue(TAG_KEY, tag);
     if (page.remaining <= 0) break;
   }
-  if (total.applied > 0) publishAnalyticsLive();
   return total;
 }

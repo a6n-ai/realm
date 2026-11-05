@@ -9,12 +9,12 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { CalendarHeatmap, GaugeChart, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
-import { LiveRefresh } from "@/components/analytics/live-refresh";
+import { ManualRefresh } from "@/components/analytics/manual-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { clockInZone, isoDateInZone } from "@/lib/analytics/profitability";
+import { isoDateInZone } from "@/lib/analytics/profitability";
 import { slotTone, topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
@@ -128,7 +128,7 @@ async function RangeAndLive({ scope }: { scope: AnalyticsScope }) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
-      <LiveRefresh updatedLabel={clockInZone(Date.now(), scope.tz)} />
+      <ManualRefresh />
     </div>
   );
 }

@@ -11,6 +11,9 @@ import { repAllowanceFor } from "@/lib/services/rep-allowance";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
+import { mintRealtimeTokens } from "@/lib/realtime/mint";
+import { notifyChannel } from "@/lib/realtime/notify";
+import { PAYMENTS_INBOX, TICKETS_INBOX } from "@/lib/realtime/inbox";
 import { AppBrand } from "@/components/app-brand";
 import {
   DashboardActions,
@@ -101,15 +104,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     return couponsService.getTodayRepCoupon(session.user.id, istDate);
   };
 
+  const notify = notifyChannel(session.user.id);
+  const realtimeChannels = [notify, TICKETS_INBOX, ...(role === "admin" ? [PAYMENTS_INBOX] : [])];
+
   // Independent reads; this layout blocks first byte of every /dashboard page.
-  const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
-    timed("settings", getAppSettings()),
-    timed("orgs", getMemberOrganizations(session)),
-    timed("activity", newActivity()),
-    timed("repCoupon", loadRepCoupon()),
-    // Server-rendered so the bell paints with its badge instead of fetching after hydration.
-    timed("feed", getFeed(user.id)),
-  ]);
+  const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
+    await Promise.all([
+      timed("settings", getAppSettings()),
+      timed("orgs", getMemberOrganizations(session)),
+      timed("activity", newActivity()),
+      timed("repCoupon", loadRepCoupon()),
+      // Server-rendered so the bell paints with its badge instead of fetching after hydration.
+      timed("feed", getFeed(user.id)),
+      timed("realtime", mintRealtimeTokens(realtimeChannels)),
+    ]);
   log();
 
   return (
@@ -139,6 +147,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               activeOrganizationId={session.session.activeOrganizationId}
               userPublicId={session.user.id}
               notifications={notificationFeed}
+              notifyBootstrap={realtimeTokens[notify]}
               hasPin={hasPin}
               routePush={
                 <Suspense fallback={null}>
@@ -150,7 +159,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           footer={<DashboardFooter hasPin={hasPin} />}
           bottomNav={<DashboardBottomNav role={role} />}
         >
-          <DashboardLive payments={role === "admin"} showRepCode={hasRepAllowance} />
+          <DashboardLive
+            payments={role === "admin"}
+            showRepCode={hasRepAllowance}
+            ticketsBootstrap={realtimeTokens[TICKETS_INBOX]}
+            paymentsBootstrap={realtimeTokens[PAYMENTS_INBOX]}
+          />
           {children}
           {/* Room to scroll the last row out from under the floating button. */}
           {hasRepAllowance && <div aria-hidden className="h-20" />}

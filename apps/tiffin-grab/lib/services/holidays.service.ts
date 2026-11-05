@@ -7,7 +7,6 @@ import { deliveries, holidays, orderActivities, orders, organization, users } fr
 import { humanDate } from "@/lib/deliveries-view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { notificationTables } from "@/lib/notifications/tables";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { getAppSettings } from "./app-settings.service";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
@@ -175,7 +174,6 @@ async function applyToOrders(holiday: Holiday, notify: boolean, actorId: bigint 
     }
   }
   run.removedFromRoute = await removeStopsBestEffort(stops);
-  publishAnalyticsLive();
   return run;
 }
 
@@ -266,7 +264,6 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
       log.error({ err, holiday: holiday.publicId }, "holiday delete blocked by a newly closed delivery");
     }
   }
-  publishAnalyticsLive();
   return out;
 }
 
@@ -283,7 +280,6 @@ export async function placeHolidayDay(deliveryPublicId: string, fromDate: string
     if (!order) throw new NotFoundError("Delivery not found");
     return placeHolidayExtras(tx, order, found.id, fromDate, actorId);
   });
-  publishAnalyticsLive();
   return dates;
 }
 
