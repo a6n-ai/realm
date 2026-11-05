@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { desc } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate } from "@/db/schema";
 import {
@@ -26,8 +25,6 @@ export default function WalletSettingsPage() {
 }
 
 async function WalletSettingsData() {
-  await requireAdmin();
-
   const [[latestRate], maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
     db.select({ valuePerCoin: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1),
     getMaxWalletBalance(),

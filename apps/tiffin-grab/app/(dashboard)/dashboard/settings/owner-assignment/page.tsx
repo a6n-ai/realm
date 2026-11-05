@@ -6,7 +6,6 @@ import { Separator } from "@foundry/ui/separator";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
 import { listConfig } from "@/lib/services/owner-pool.service";
 import { PageHeader } from "@/components/ds";
@@ -75,7 +74,6 @@ function OwnerAssignmentSkeleton() {
 }
 
 async function OwnerAssignmentData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await searchParams;
   const initialEntity = ENTITIES.find((e) => e === sp.entity) ?? "inquiry";
   const [cfg, sources, staff, inquiryConfig, orderConfig, ticketConfig] = await Promise.all([

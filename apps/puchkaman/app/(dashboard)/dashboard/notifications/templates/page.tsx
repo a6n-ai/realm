@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { CheckCircleIcon, CircleSlashIcon, LayersIcon } from "lucide-react";
 import { SectionCard, SkeletonStatCards, StatCard, StatGrid } from "@foundry/design-system";
-import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -21,7 +20,6 @@ const CHANNEL_ORDER = ["email", "in_app", "sms", "whatsapp"];
 const HIDDEN_EVENTS = new Set(["signup"]);
 
 async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configured: number }> {
-  await requireAdmin();
   const all = await listTemplates();
 
   // event → channel → set of locales (enabled templates only), plus latest update.

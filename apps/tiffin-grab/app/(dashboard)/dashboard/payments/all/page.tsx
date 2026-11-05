@@ -1,6 +1,5 @@
 import { SectionCard } from "@/components/ds";
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { listPayments } from "../payment-queries";
@@ -23,7 +22,6 @@ export default function AllPaymentsPage({ searchParams }: { searchParams: Search
 }
 
 async function AllPaymentsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const ownerOptions = [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...(await loadOwnerOptions())];
   const { rows, total, page, size, sort } = await listPayments(await searchParams);
   return <PaymentsTable ownerOptions={ownerOptions} rows={rows} total={total} page={page} size={size} sort={sort} />;

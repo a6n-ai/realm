@@ -1,5 +1,4 @@
 import { MegaphoneIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
@@ -21,7 +20,6 @@ const EVENTS = [
 ];
 
 export default async function MetaPixelSettingsPage() {
-  await requireAdmin();
   const s = await getMetaPixelStatus();
 
   const connection = !s.pixelId ? (

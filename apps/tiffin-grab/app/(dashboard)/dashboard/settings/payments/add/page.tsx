@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { ProviderCatalogSkeleton } from "../provider-catalog";
 import { ProviderCatalogLoader } from "../provider-catalog-loader";
@@ -7,7 +6,6 @@ import { PaymentsBackLink } from "../back-link";
 
 /** Reachable from the hub's Payment providers card "Add provider" action. */
 export default async function AddPaymentProviderPage() {
-  await requireAdmin();
   const cfg = await getPaymentConfig();
 
   return (

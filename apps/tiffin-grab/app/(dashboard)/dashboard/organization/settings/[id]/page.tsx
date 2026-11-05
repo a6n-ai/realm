@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth/guards";
 import { BackButton, SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { getOrganization, listFranchiseCities, listMembers, type MemberRole } from "@/lib/services/organizations.service";
@@ -7,7 +6,6 @@ import { ClientDetailForm } from "./client-detail-form";
 import { MemberManagement } from "../member-management";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
   const org = await getOrganization(id);
   if (!org) notFound();

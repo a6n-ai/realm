@@ -4,7 +4,6 @@ import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
@@ -44,8 +43,6 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 }
 
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
   const sp = await withListDates(await searchParams);
   const sort: SortState<DiscountLogSortColumn> = parseSort(
     sp,

@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth/guards";
 import { SectionCard } from "@foundry/design-system";
 import { getOrganization, listMembers, type MemberRole } from "@/lib/services/organizations.service";
 import { resolveOrgScopeMode } from "@/lib/services/org-scope";
@@ -7,7 +6,6 @@ import { ClientDetailForm } from "./client-detail-form";
 import { MemberManagement } from "../member-management";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
   // requireAdmin has no org concept — without this, a franchise-scoped admin
   // could open another franchise's (or the brand's) detail page directly by

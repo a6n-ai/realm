@@ -5,7 +5,6 @@ import { pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { usd } from "../discount-stats";
@@ -60,7 +59,6 @@ export default function StaffCodesPage({ searchParams }: { searchParams: SearchP
 }
 
 async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
   const sort: SortState<StaffCodeSortColumn> = parseSort(sp, ["code", "amount", "created", "expires"], { column: "created", dir: "desc" });
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point

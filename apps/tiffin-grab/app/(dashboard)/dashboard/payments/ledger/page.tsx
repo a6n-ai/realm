@@ -3,7 +3,6 @@ import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
@@ -36,7 +35,6 @@ export default function MoneyLedgerPage({ searchParams }: { searchParams: Search
 }
 
 async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
   const q = sp.q?.trim();
   const sort = parseSort(sp, LEDGER_SORT_KEYS, { column: "time", dir: "desc" });

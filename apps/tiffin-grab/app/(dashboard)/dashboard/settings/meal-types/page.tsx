@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
@@ -22,8 +21,6 @@ export default function MealTypesPage() {
 }
 
 async function MealTypesData() {
-  await requireAdmin();
-
   // Slots are edited on the Categories tab of /dashboard/catalog/dishes, which
   // owns plan membership. This page keeps only the per-plan-type poster theme
   // (accent + title prefix), which nothing else edits.

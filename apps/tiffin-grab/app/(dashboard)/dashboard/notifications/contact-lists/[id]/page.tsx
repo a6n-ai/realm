@@ -7,7 +7,6 @@ import { ContactListAddMember } from "@relay/engine/ui/contact-list-add-member";
 import { ContactListDeleteButton } from "@relay/engine/ui/contact-list-delete-button";
 import { ContactListMemberRow } from "@relay/engine/ui/contact-list-member-row";
 import { formatConsentDate } from "@relay/engine/ui/date";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
@@ -25,7 +24,6 @@ const CONSENT_LABEL: Record<string, string> = {
 };
 
 export default async function ContactListPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
 
   const [[list], { timezone }] = await Promise.all([

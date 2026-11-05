@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
-import { requireAdmin } from "@/lib/auth/guards";
 import { SectionCard, TonePill } from "@/components/ds";
 import { ensurePaymentCatalog, getProvinceTaxes, installedPlugins } from "@/lib/services/app-settings.service";
 
@@ -14,7 +13,6 @@ function providerHref(id: string): string {
 }
 
 export default async function PaymentsSettingsHub() {
-  await requireAdmin();
   const [cfg, provinceTaxes, plugins] = await Promise.all([ensurePaymentCatalog(), getProvinceTaxes(), installedPlugins()]);
 
   const providers = PAYMENT_PROVIDERS.filter(

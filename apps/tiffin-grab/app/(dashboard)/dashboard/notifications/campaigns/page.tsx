@@ -4,7 +4,6 @@ import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { NewCampaignButtons } from "./new-campaign-buttons";
 import { db } from "@/db/client";
 import { campaign, contactList } from "@/db/schema";
@@ -72,7 +71,6 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function Buttons({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const groupId = (await searchParams).emailGroup;
   const preset = groupId ? await findCustomerGroup(groupId) : null;
   return <NewCampaignButtons presetGroup={preset} groupMissing={Boolean(groupId) && !preset} />;
@@ -102,7 +100,6 @@ async function SesQuotaCard() {
 }
 
 async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
 
   const sort: SortState<CampaignSortColumn> = parseSort(sp, ["name", "status", "createdAt"], {

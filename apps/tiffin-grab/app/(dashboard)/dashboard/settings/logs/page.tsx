@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
-import { requireAdmin } from "@/lib/auth/guards";
 import { SETTINGS_ACTIVITY_FACETS } from "@/lib/order-activity/log-facets";
 import { parseSort } from "@/lib/list/sort";
 import {
@@ -29,8 +28,6 @@ export default function SettingsLogsPage({ searchParams }: { searchParams: Searc
 }
 
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
   const sp = await searchParams;
   const sort = parseSort(sp, SORT_COLUMNS, { column: "time", dir: "desc" });
   const { condition, page } = parseFilterState(SETTINGS_ACTIVITY_FACETS, sp);

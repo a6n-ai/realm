@@ -3,13 +3,11 @@ import { ArrowLeftIcon, UploadIcon } from "lucide-react";
 import { PageHeader } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
-import { requireAdmin } from "@/lib/auth/guards";
 import { ContactListUpload } from "@relay/engine/ui/contact-list-upload";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactListImportPage() {
-  await requireAdmin();
   return (
     <div className="space-y-6">
       <PageHeader

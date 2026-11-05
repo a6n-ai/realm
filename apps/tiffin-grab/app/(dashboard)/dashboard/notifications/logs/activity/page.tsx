@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
-import { requireAdmin } from "@/lib/auth/guards";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
 import { parseSort } from "@/lib/list/sort";
 import { withListDates } from "@/lib/list/default-month";
@@ -35,7 +34,6 @@ export default function NotificationActivityLogsPage({
 }
 
 async function ActivityData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const params = await withListDates(await searchParams);
   const sort = parseSort(params, SORT_COLUMNS, { column: "time", dir: "desc" });
   const { condition, page } = parseFilterState(CUSTOMER_ACTIVITY_FACETS, params);

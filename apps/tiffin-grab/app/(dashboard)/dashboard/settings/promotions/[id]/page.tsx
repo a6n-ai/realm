@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { MegaphoneIcon } from "lucide-react";
 import { NotFoundError } from "@foundry/commons";
 import { PageHeader } from "@/components/ds";
-import { requireAdmin } from "@/lib/auth/guards";
 import { couponsService } from "@/lib/services/coupons.service";
 import { couponHeadline } from "@/lib/landing/promos";
 import { promoCardHtml } from "@/lib/landing/promo-card-html";
@@ -11,7 +10,6 @@ import { promotionsService, type Promotion } from "@/lib/services/promotions.ser
 import { PromotionForm } from "../promotion-form";
 
 export default async function PromotionPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
   let promotion: Promotion | null = null;
   if (id !== "new") {

@@ -4,7 +4,6 @@ import { BackButton, SectionCard, StatCard } from "@foundry/design-system";
 import { UsersIcon } from "lucide-react";
 import { listContactListMembers } from "@relay/engine";
 import { ContactListAddMember, ContactListDeleteButton, ContactListMemberRow, formatConsentDate } from "@relay/engine/ui";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
@@ -20,7 +19,6 @@ const CONSENT_LABEL: Record<string, string> = {
 };
 
 export default async function ContactListPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
 
   const [[list], [appRow]] = await Promise.all([

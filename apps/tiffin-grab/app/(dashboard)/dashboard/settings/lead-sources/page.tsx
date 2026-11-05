@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { asc } from "drizzle-orm";
 import { Webhook } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
 import { PageHeader } from "@/components/ds";
@@ -19,8 +18,6 @@ export default function LeadSourcesSettingsPage() {
 }
 
 async function LeadSourcesData() {
-  await requireAdmin();
-
   const [srcRows, subRows] = await Promise.all([
     db
       .select({

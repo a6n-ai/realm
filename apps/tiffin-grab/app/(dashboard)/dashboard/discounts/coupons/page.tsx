@@ -5,7 +5,6 @@ import { db } from "@/db/client";
 import { coupons, customerGroups } from "@/db/schema";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { findCustomerGroup } from "@/lib/services/customer-groups.service";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
@@ -46,8 +45,6 @@ export default function CouponsPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
   const sp = await withDefaultMonth(await searchParams);
   const sort: SortState<CouponSortColumn> = parseSort(
     sp,

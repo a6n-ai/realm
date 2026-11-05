@@ -5,7 +5,6 @@ import { buildCampaignConfig, campaignFromLine, buildUnsubscribeUrl, withPreview
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
@@ -36,7 +35,6 @@ export default async function CampaignPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
-  await requireAdmin();
   const { id } = await params;
 
   const [row] = await db

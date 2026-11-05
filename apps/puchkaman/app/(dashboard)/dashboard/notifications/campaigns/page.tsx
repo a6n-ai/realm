@@ -4,7 +4,6 @@ import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { NewCampaignButtons } from "./new-campaign-buttons";
 import { db } from "@/db/client";
 import { app, campaign, contactList } from "@/db/schema";
@@ -90,7 +89,6 @@ async function SesQuotaCard() {
 }
 
 async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await searchParams;
 
   const sort: SortState<CampaignSortColumn> = parseSort(sp, ["name", "status", "createdAt"], {

@@ -3,7 +3,6 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { requireAdmin } from "@/lib/auth/guards";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { getMembersForOrgs } from "../members/members-query";
 import { countPendingInvites } from "../invites/invites-query";
@@ -33,7 +32,6 @@ export default function OrganizationOverviewPage() {
 }
 
 async function OverviewData() {
-  await requireAdmin();
   const session = await getSession();
   const visible = await resolveMemberVisibleOrgIds(session);
   const allOrgs = await listOrganizations();

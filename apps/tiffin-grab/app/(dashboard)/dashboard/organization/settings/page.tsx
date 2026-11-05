@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -35,7 +34,6 @@ export default function ClientsPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sort = parseSort(await searchParams, ["name", "clientCode", "memberCount"], {
     column: "name",
     dir: "asc",

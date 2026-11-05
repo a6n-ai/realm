@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { SectionCard } from "@/components/ds";
-import { requireAdmin } from "@/lib/auth/guards";
 import { loadSuppressedAddresses, suppressionSummary, SUPPRESSED_SPEC } from "@/lib/notifications/logs-query";
 import { SuppressedTable, SuppressedTableSkeleton } from "../logs/suppressed-table";
 import { ManualSuppress } from "./suppression-actions";
@@ -10,7 +9,6 @@ const LABELS = { unsubscribe: "Unsubscribed", bounce: "Bounced", complaint: "Com
 
 export default async function UnsubscribedPage({ searchParams }: { searchParams: SearchParams }) {
   // Not left to the layout: a layout is not re-run on client navigation.
-  await requireAdmin();
   const [summary, sp] = await Promise.all([suppressionSummary(), searchParams]);
   const query = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();
   return (
@@ -47,7 +45,6 @@ export default async function UnsubscribedPage({ searchParams }: { searchParams:
 }
 
 async function Rows({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const { rows, sort, total, page, size } = await loadSuppressedAddresses(await searchParams);
   return <SuppressedTable spec={SUPPRESSED_SPEC} rows={rows} sort={sort} total={total} page={page} size={size} />;
 }

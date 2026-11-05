@@ -3,7 +3,6 @@ import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
@@ -33,7 +32,6 @@ export default function KindsPage({ searchParams }: { searchParams: SearchParams
 }
 
 async function KindsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();

@@ -78,7 +78,15 @@ export const auth = betterAuth({
   // recently-authenticated session. Default is 24h, which is most of a working
   // day against a 30-day session; 1h keeps a walked-away browser from being
   // enough to change the account's email.
-  session: { expiresIn: SESSION_MAX_AGE_S, freshAge: 60 * 60 },
+  // cookieCache (compact, 5 min) skips a DB round-trip on getSession. User
+  // additionalFields (role, publicId) stay on the cached user object; session
+  // additionalFields do not. Our getSession still requires publicId — if that
+  // ever goes missing on a cache hit, disable this.
+  session: {
+    expiresIn: SESSION_MAX_AGE_S,
+    freshAge: 60 * 60,
+    cookieCache: { enabled: true, strategy: "compact", maxAge: 5 * 60 },
+  },
   emailAndPassword: {
     enabled: true,
     password: betterAuthPassword,

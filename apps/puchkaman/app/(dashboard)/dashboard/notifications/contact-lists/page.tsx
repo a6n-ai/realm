@@ -5,7 +5,6 @@ import { ListIcon, UsersIcon } from "lucide-react";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -85,7 +84,6 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
 }
 
 async function StatsData() {
-  await requireAdmin();
   const [[{ n: listCount }], [{ total }]] = await Promise.all([
     db.select({ n: count() }).from(contactList),
     db.select({ total: sql<number>`cast(coalesce(sum(${contactList.memberCount}), 0) as int)` }).from(contactList),
@@ -108,7 +106,6 @@ function StatsSkeleton() {
 }
 
 async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await searchParams;
 
   const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {

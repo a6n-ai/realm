@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Condition } from "@foundry/commons/model/condition";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
@@ -98,7 +97,6 @@ function matchesCondition(row: MemberRow, condition: Condition): boolean {
 }
 
 async function UsersData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const session = await getSession();
   const sp = await searchParams;
 

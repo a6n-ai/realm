@@ -4,7 +4,6 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from "@
 import { Button } from "@foundry/ui/button";
 import { EmptyState, PageHeader, SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
-import { requireAdmin } from "@/lib/auth/guards";
 import { formatEpoch } from "@/lib/format/datetime";
 import { promotionStatus, type PromotionStatus } from "@/lib/promotions/live";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -19,7 +18,6 @@ const STATUS: Record<PromotionStatus, { label: string; variant: "success-light" 
 };
 
 export default async function PromotionsPage() {
-  await requireAdmin();
   const [{ timezone }, rows] = await Promise.all([getAppSettings(), promotionsService.listAll()]);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();

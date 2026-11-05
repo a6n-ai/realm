@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { ExternalLinkIcon, StarIcon } from "lucide-react";
 import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv, placesProvider, writeReviewUrl } from "@foundry/google-reviews";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
@@ -104,7 +103,6 @@ function PreviewSkeleton() {
 }
 
 export default async function GoogleReviewsSettingsPage() {
-  await requireAdmin();
   const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
   const apiKeyConfigured = Boolean(loadPlacesApiKeyFromEnv());
   const placeId = cfg.placeId ?? "";

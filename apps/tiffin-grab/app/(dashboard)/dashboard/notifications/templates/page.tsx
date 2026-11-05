@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -18,7 +17,6 @@ type SearchParams = Promise<{ sort?: string; dir?: string }>;
 const CHANNEL_ORDER = ["email", "in_app", "sms", "whatsapp"];
 
 async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configured: number }> {
-  await requireAdmin();
   const all = await listTemplates();
 
   // event → channel → set of locales (enabled templates only), plus latest update.

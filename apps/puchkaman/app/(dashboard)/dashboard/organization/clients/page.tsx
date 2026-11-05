@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { queryOrganizations, type OrgSortColumn } from "@/lib/services/organizations.service";
 import { ClientsTable, ClientsTableSkeleton } from "./clients-table";
@@ -35,8 +34,6 @@ export default function ClientsPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
   const sp = await searchParams;
   const sort = parseSort(sp, ORG_SORT_COLUMNS, { column: "name", dir: "asc" });
   const { condition, page } = parseFilterState(SPEC, sp);

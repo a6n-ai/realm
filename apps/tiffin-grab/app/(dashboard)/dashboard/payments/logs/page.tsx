@@ -3,7 +3,6 @@ import { asc, desc, eq, ilike, inArray, and, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
@@ -50,7 +49,6 @@ const CMP = {
 // Activity rows and stripe_events are two tables, so the page is merged in memory: each source
 // yields its first (offset + size) rows in the chosen order, the union is sorted and sliced.
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
   const q = sp.q?.trim();
   const sort = parseSort(sp, LOG_SORT_KEYS, { column: "time", dir: "desc" });

@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { buildUnsubscribeUrl } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
@@ -36,7 +35,6 @@ export default function Page({ params }: { params: Promise<{ event: string }> })
 }
 
 async function TemplateHeader({ params }: { params: Promise<{ event: string }> }) {
-  await requireAdmin();
   const { event } = await params;
   if (!appEvent.enumValues.includes(event as AppEvent) || event === "manual_adjustment") notFound();
 
@@ -49,7 +47,6 @@ async function TemplateHeader({ params }: { params: Promise<{ event: string }> }
 }
 
 async function TemplateData({ params }: { params: Promise<{ event: string }> }) {
-  await requireAdmin();
   const { event } = await params;
   if (!appEvent.enumValues.includes(event as AppEvent) || event === "manual_adjustment") notFound();
 

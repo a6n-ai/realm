@@ -5,7 +5,6 @@ import { ListIcon, UsersIcon } from "lucide-react";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList, customerGroups } from "@/db/schema";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
@@ -94,7 +93,6 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const where = and(notGroupBacked, epochBoundsWhere(contactList.createdAt, await withDefaultMonth(await searchParams)));
   const [[{ n: listCount }], [{ total }]] = await Promise.all([
     db.select({ n: count() }).from(contactList).where(where),
@@ -118,7 +116,6 @@ function StatsSkeleton() {
 }
 
 async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
 
   const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {

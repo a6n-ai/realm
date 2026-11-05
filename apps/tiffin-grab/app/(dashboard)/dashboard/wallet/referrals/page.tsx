@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { getReferralSettings } from "@/lib/services/app-settings.service";
@@ -44,7 +43,6 @@ export default function DiscountReferralsPage({ searchParams }: { searchParams: 
 }
 
 async function SummaryData() {
-  await requireAdmin();
   const [settings, s] = await Promise.all([getReferralSettings(), referralStats()]);
   const off = settings.referrerValue <= 0 && settings.friendValue <= 0;
   const pct = settings.mode === "pct";
@@ -64,7 +62,6 @@ async function SummaryData() {
 }
 
 async function ReferralsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await searchParams;
   const { page } = parseFilterState(SPEC, sp);
   const status = STATUSES.find((st) => st === sp.status);

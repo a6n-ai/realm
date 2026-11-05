@@ -3,7 +3,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { RepAllowanceForm, RepAllowanceFormSkeleton } from "./form";
 
@@ -26,7 +25,6 @@ export default function RepAllowancePage({ searchParams }: { searchParams: Searc
 }
 
 async function RepAllowanceData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await searchParams;
   const { page } = parseFilterState(REP_SPEC, sp);
 

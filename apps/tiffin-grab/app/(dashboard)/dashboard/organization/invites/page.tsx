@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth/session";
-import { requireAdmin } from "@/lib/auth/guards";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { getMemberOrganizations, resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { SectionCard } from "@/components/ds";
@@ -46,7 +45,6 @@ export default function InvitesPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const session = await getSession();
   const visible = await resolveMemberVisibleOrgIds(session);
   const orgIds = visible === "all" ? (await listOrganizations()).map((o) => o.id) : visible;

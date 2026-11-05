@@ -8,7 +8,6 @@ import {
   toPublicCloverConnection,
 } from "@foundry/clover";
 import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
-import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import {
@@ -18,7 +17,6 @@ import {
 } from "../integrations/clover-actions";
 
 export default async function CloverSettingsPage() {
-  await requireAdmin();
   return (
     <div className="grid gap-6">
       <PageHeader

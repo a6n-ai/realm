@@ -4,7 +4,6 @@ import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
@@ -40,7 +39,6 @@ export default function Page({ params }: { params: Promise<{ event: string }> })
 }
 
 async function TemplateHeader({ params }: { params: Promise<{ event: string }> }) {
-  await requireAdmin();
   const { event } = await params;
   assertEditableEvent(event);
 
@@ -55,7 +53,6 @@ async function TemplateHeader({ params }: { params: Promise<{ event: string }> }
 }
 
 async function TemplateData({ params }: { params: Promise<{ event: string }> }) {
-  await requireAdmin();
   const { event } = await params;
   assertEditableEvent(event);
 

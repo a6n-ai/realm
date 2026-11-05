@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { CoinsIcon, TrendingDownIcon, TrendingUpIcon, WalletIcon, BanknoteIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
@@ -53,7 +52,6 @@ export default function WalletBalancesPage({ searchParams }: { searchParams: Sea
 }
 
 async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
   const [stats, { currency, timezone }] = await Promise.all([walletBalanceStats(epochRange(sp)), getAppSettings()]);
   const range = epochRange(sp);
@@ -76,7 +74,6 @@ async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
 
 // Balance figures are as of the range end; Earned and Redeemed are within the range.
 async function BalancesData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
   const range = epochRange(sp);
   const sort: SortState<BalanceSortColumn> = parseSort(

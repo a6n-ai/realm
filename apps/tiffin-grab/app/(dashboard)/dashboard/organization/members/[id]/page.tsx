@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { NotFoundError, Role } from "@foundry/commons";
-import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";
@@ -41,7 +40,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
 
   let user;

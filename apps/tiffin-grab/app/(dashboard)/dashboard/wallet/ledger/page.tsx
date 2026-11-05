@@ -6,7 +6,6 @@ import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders, customerGroupActions, customerGroups } from "@/db/schema";
 import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "@/lib/services/customer-groups.service";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -54,7 +53,6 @@ export default function WalletLedgerPage({ searchParams }: { searchParams: Searc
 }
 
 async function LedgerStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
   const { agg } = await walletLedgerStats(epochRange(sp));
   const cards: StatCardItem[] = [
@@ -167,8 +165,6 @@ export async function walletLedgerRows({ q, userId, sourceType, direction, range
 }
 
 async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
-
   // A text search spans all dates, like Orders; the cards above keep the picked range.
   const sp = await withListDates(await searchParams);
   const range = epochRange(sp);

@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { requireAdmin } from "@/lib/auth/guards";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
@@ -54,7 +53,6 @@ export default async function GiveCoinsPage({ searchParams }: { searchParams: Se
 }
 
 async function Launcher({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const groupId = (await searchParams).group;
   const preset = groupId ? await findCustomerGroup(groupId) : null;
   return (
@@ -75,7 +73,6 @@ async function Launcher({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function GiveStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withDefaultMonth(await searchParams);
   const stats = await giveCoinsStats(epochRange(sp));
   const cards: StatCardItem[] = [
@@ -98,7 +95,6 @@ const TYPE_LABEL = { group: "Group grant", one: "One customer" } as const;
 // `group` is the Launcher preselect param, so the Group facet uses `inGroup`.
 // A text search spans all dates (withListDates), like Orders.
 async function GrantHistory({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
   const sp = await withListDates(await searchParams);
   const range = epochRange(sp);
   const sort = parseSort<GiveSortColumn>(

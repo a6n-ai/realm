@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { SettingsIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
 import { getAppSettings, getDefaultCountrySetting, getPauseDefaultsSetting } from "@/lib/services/app-settings.service";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { SettingsForm, SettingsFormSkeleton } from "./settings-form";
@@ -19,7 +18,6 @@ export default function GeneralSettingsPage() {
 }
 
 async function SettingsData() {
-  await requireAdmin();
   const [settings, rawCountry, pauseDefaults] = await Promise.all([
     getAppSettings(),
     getDefaultCountrySetting(),
