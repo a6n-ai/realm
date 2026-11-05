@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 
 // Same shape as react-day-picker's DateRange; Calendar comes from @foundry/ui
 // (which owns that dependency), so the app does not need a direct install.
-type DateRange = { from?: Date; to?: Date };
+type DateRange = { from: Date; to?: Date };
 
 // ReUI c-calendar-29 (range calendar with presets), wired to epoch-ms bounds in the business timezone.
 
