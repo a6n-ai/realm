@@ -1,18 +1,12 @@
 # xplorers on Cloudflare Workers (live since the 2026-11-02 cutover). Push to main deploys
-# production; a manual run can target preview.
+# production; a manual run on main redeploys it. The preview Worker was removed on 2026-11-05.
 #
 # Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, XPLORERS_DIRECT_DATABASE_URL (Neon
-# production, direct), XPLORERS_PREVIEW_DIRECT_DATABASE_URL (Neon `preview` branch, direct).
-# A push (no inputs) deploys production; only an explicit `preview` dispatch targets preview.
+# production, direct).
 name: deploy-xplorers-workers
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        type: choice
-        options: [preview, production]
-        default: preview
   push:
     branches: [main]
     paths:
@@ -29,16 +23,20 @@ concurrency:
 
 jobs:
   deploy:
-    # Production (manual or push) only from main: it migrates the prod DB.
-    if: inputs.target == 'preview' || github.ref == 'refs/heads/main'
+    # Production only from main: it migrates the prod DB.
+    if: github.ref == 'refs/heads/main'
+    # deploy-worker.yml asks for id-token (tiffin-grab's AWS OIDC login); xplorers passes no role.
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/deploy-worker.yml
     with:
       app: xplorers
-      site-url: ${{ inputs.target == 'preview' && 'https://next.xplorers.a6n.ai' || 'https://xplorers.a6n.ai' }}
-      wrangler-env: ${{ inputs.target == 'preview' && 'preview' || 'production' }}
-      # Neon endpoint ids: preview branch / production branch (pooler and compute hosts share the prefix).
-      db-host: ${{ inputs.target == 'preview' && 'ep-small-truth-azkj1h72' || 'ep-cold-salad-azc3uxye' }}
+      site-url: https://xplorers.a6n.ai
+      wrangler-env: production
+      # Neon production endpoint id (pooler and compute hosts share the prefix).
+      db-host: ep-cold-salad-azc3uxye
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DIRECT_DATABASE_URL: ${{ inputs.target == 'preview' && secrets.XPLORERS_PREVIEW_DIRECT_DATABASE_URL || secrets.XPLORERS_DIRECT_DATABASE_URL }}
+      DIRECT_DATABASE_URL: ${{ secrets.XPLORERS_DIRECT_DATABASE_URL }}
