@@ -258,8 +258,9 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
           {/* Phones under 430px can't fit the wordmark beside cutoff, wallet and avatar; the page then grew wider
-              than the screen and cut off everything pinned to the right edge. The mark alone still says home. */}
-          <Brand markOnlyNarrow />
+              than the screen and cut off everything pinned to the right edge. The mark alone still says home.
+              The logo opens the public site; "/" on this host serves it, so no hop to the apex and no reload. */}
+          <Brand href="/" markOnlyNarrow />
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
