@@ -7,7 +7,10 @@ import { toast } from "sonner";
 import { MailIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { DataTable, useListNav, type Column } from "@/components/ds";
+import type { InviteBucket } from "../org-stats";
 import { cancelInvitation, resendInvite } from "../members/actions";
 import { StatusBadge } from "../status-badge";
 
@@ -31,15 +34,35 @@ const COLUMNS: readonly Column<"email" | "role" | "status" | "expiresAt" | "acti
 
 // actionableOrgIds: orgs the viewer is a direct member of — the only ones where
 // better-auth's createInvitation/cancelInvitation won't reject with MEMBER_NOT_FOUND.
+const STATUS_OPTIONS: { value: "all" | InviteBucket; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "expired", label: "Expired" },
+  { value: "canceled", label: "Canceled" },
+];
+
 export function InvitesList({
   rows,
+  status = "all",
   actionableOrgIds,
   emptyAction,
 }: {
   rows: InviteRow[];
+  status?: "all" | InviteBucket;
   actionableOrgIds: string[];
   emptyAction?: ReactNode;
 }) {
+  const nav = useListNav();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const setStatus = (value: string) => {
+    const sp = new URLSearchParams(params.toString());
+    if (value === "all") sp.delete("status");
+    else sp.set("status", value);
+    const qs = sp.toString();
+    nav(qs ? `${pathname}?${qs}` : pathname);
+  };
   const canAct = (r: InviteRow) => actionableOrgIds.includes(r.organizationId);
   return (
     <DataTable
@@ -51,6 +74,16 @@ export function InvitesList({
       emptyMessage="No pending invites."
       emptySearchMessage="No invites match your search."
       emptyAction={emptyAction}
+      filters={
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
       renderRow={(r) => <InviteRowCells row={r} canAct={canAct(r)} />}
       mobileCard={(r) => <InviteRowCard row={r} canAct={canAct(r)} />}
     />

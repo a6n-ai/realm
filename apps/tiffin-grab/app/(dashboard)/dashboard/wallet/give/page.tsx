@@ -82,7 +82,7 @@ async function GiveStats({ searchParams }: { searchParams: SearchParams }) {
     { label: "Coins given", value: stats.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "in selected range" },
     { label: "Customers rewarded", value: stats.customersRewarded.toLocaleString(), icon: UserCheckIcon, hint: "received at least one grant" },
     { label: "Grants", value: stats.grants.toLocaleString(), icon: GiftIcon, hint: "one per Give coins action" },
-    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in range" },
+    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in range", href: `/dashboard/customer-groups?from=${sp.from}&to=${sp.to}` },
     {
       label: "Avg coins per customer",
       value: stats.avgCoinsPerCustomer.toFixed(1),

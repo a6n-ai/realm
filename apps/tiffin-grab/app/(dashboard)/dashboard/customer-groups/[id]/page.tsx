@@ -33,11 +33,12 @@ async function GroupData({ params }: { params: Promise<{ id: string }> }) {
   const detail = await getCustomerGroup(id);
   if (!detail) notFound();
   const [actions, s, { timezone }] = await Promise.all([listGroupActions(id), groupStats(id), getAppSettings()]);
+  const base = `/dashboard/customer-groups/${id}`;
   const cards: StatCardItem[] = [
-    { label: "Members", value: s.members.toLocaleString(), icon: UsersIcon, hint: "customers in this group" },
-    { label: "Email on", value: s.emailOn.toLocaleString(), icon: MailIcon, hint: "can be emailed" },
+    { label: "Members", value: s.members.toLocaleString(), icon: UsersIcon, hint: "customers in this group", href: base },
+    { label: "Email on", value: s.emailOn.toLocaleString(), icon: MailIcon, hint: "can be emailed", href: `${base}?m_email=on` },
     { label: "Coins given", value: s.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "through this group" },
-    { label: "Actions run", value: s.actionsRun.toLocaleString(), icon: PlayIcon, hint: "incl. campaigns" },
+    { label: "Actions run", value: s.actionsRun.toLocaleString(), icon: PlayIcon, hint: "incl. campaigns", href: `${base}?tab=activity` },
     {
       label: "Last action",
       value: s.lastAction ? (ACTION_LABEL[s.lastAction.kind] ?? s.lastAction.kind) : "None yet",

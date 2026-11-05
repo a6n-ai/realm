@@ -18,15 +18,17 @@ const TABS: { value: QueueTab; label: string }[] = [
 export function QueueTabs({ counts }: { counts: Record<QueueTab, number> }) {
   const pathname = usePathname();
   const sp = useSearchParams();
+  const drilled = sp.has("bucket");
   const current = TABS.find((t) => t.value === sp.get("queue"))?.value ?? "due";
   const href = (tab: QueueTab) => {
     const next = new URLSearchParams(sp.toString());
     next.set("queue", tab);
+    next.delete("bucket");
     next.delete("page");
     return `${pathname}?${next.toString()}`;
   };
   return (
-    <Tabs value={current}>
+    <Tabs value={drilled ? "" : current}>
       <TabsList variant="line" aria-label="Follow-up queues">
         {TABS.map((t) => (
           <TabsTrigger key={t.value} value={t.value} asChild className="gap-1.5">

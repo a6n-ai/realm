@@ -30,6 +30,12 @@ const SPEC: FacetDef[] = [
     label: "Status",
     options: USER_STATUSES.map((s) => ({ value: s, label: s })),
   },
+  {
+    kind: "pills",
+    field: "password",
+    label: "Password",
+    options: [{ value: "unset", label: "No password yet" }],
+  },
   { kind: "search", fields: ["name", "email", "phone"] },
 ];
 
@@ -75,6 +81,7 @@ function matchesCondition(row: MemberRow, condition: Condition): boolean {
       ? condition.conditions.every((c) => matchesCondition(row, c))
       : condition.conditions.some((c) => matchesCondition(row, c));
   }
+  if (condition.field === "password") return condition.value === "unset" ? !row.passwordSet : row.passwordSet;
   const value = row[condition.field as keyof MemberRow];
   switch (condition.operator) {
     case "eq":

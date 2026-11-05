@@ -114,8 +114,17 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
 
   // Cards follow the same date range and search as the table.
   const discounted = Number(agg.discounted);
+  const logHref = () => {
+    const qs = new URLSearchParams();
+    if (sp.from) qs.set("from", sp.from);
+    if (sp.to) qs.set("to", sp.to);
+    if (kind) qs.set("kind", kind);
+    if (q) qs.set("q", q);
+    const s = qs.toString();
+    return s ? `/dashboard/discounts/logs?${s}` : "/dashboard/discounts/logs";
+  };
   const stats = [
-    { label: "Redemptions", value: agg.redemptions.toLocaleString() },
+    { label: "Redemptions", value: agg.redemptions.toLocaleString(), href: logHref() },
     { label: "Total discounted", value: usd(discounted) },
     { label: "Avg discount", value: usd(agg.redemptions ? discounted / agg.redemptions : 0) },
     { label: "Coupons used", value: agg.coupons.toLocaleString() },

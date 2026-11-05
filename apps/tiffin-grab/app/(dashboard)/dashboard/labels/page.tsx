@@ -19,11 +19,10 @@ import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { groupKitchenCounts } from "./kitchen-groups";
 import { KitchenCounts, LabelList } from "./labels-view";
+import { GOING_OUT } from "./label-tab";
 import { LabelsTabs } from "./labels-tabs";
 
 type SearchParams = Promise<{ date?: string }>;
-
-const GOING_OUT = new Set(["To be delivered", "Awaiting confirmation", "Delivered"]);
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -95,9 +94,9 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
 
       <StatCards
         items={[
-          { icon: PackageIcon, label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)" },
+          { icon: PackageIcon, label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)", href: `/dashboard/labels?date=${date}&tab=packing` },
           // Same number Dispatch shows as stops: held, paused and cancelled rows are listed but not going out.
-          { icon: TruckIcon, label: "Stops", value: deliveries.filter((d) => GOING_OUT.has(d.status)).length, hint: `going out · ${deliveries.length} listed` },
+          { icon: TruckIcon, label: "Stops", value: deliveries.filter((d) => GOING_OUT.has(d.status)).length, hint: `going out · ${deliveries.length} listed`, href: `/dashboard/labels?date=${date}&tab=deliveries&out=1` },
           { icon: LayoutListIcon, label: "Item slots", value: packing.itemHeaders.length, hint: "columns on the packing sheet" },
           { icon: BoxIcon, label: "Containers", value: containers, hint: "to pack for this day" },
           sheet.menuWeekPublicId

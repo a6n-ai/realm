@@ -17,16 +17,24 @@ function fullAddress(line: string | null, unit: string | null, city: string | nu
 }
 
 /** Orders tab: every subscription (each row opens the order page, which owns its calendar and log), then where live plans deliver. */
-export default async function CustomerOrdersPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerOrdersPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ status?: string }>;
+}) {
   const { id } = await params;
+  const activeOnly = (await searchParams).status === "active";
   const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
+  const orders = activeOnly ? data.orders.filter((o) => o.status === "active") : data.orders;
   const changes = await upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone));
   const live = data.orders.filter((o) => LIVE_PLAN.has(o.status));
 
   return (
     <>
-      <SectionCard title="Orders">
-        <CustomerOrdersTable orders={data.orders} />
+      <SectionCard title={activeOnly ? "Active orders" : "Orders"}>
+        <CustomerOrdersTable orders={orders} />
       </SectionCard>
 
       {/* Where tiffins actually go: each live plan's address (it follows the default saved

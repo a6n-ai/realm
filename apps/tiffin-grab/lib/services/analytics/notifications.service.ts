@@ -2,10 +2,9 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
+import { notificationOutcomeWhere } from "@/lib/notifications/outcome";
 
 export type NotificationBuckets = { total: number; sent: number; skipped: number; failed: number; inFlight: number };
-
-const skipped = sql`${notificationOutbox.status} = 'sent' and ${notificationOutbox.lastError} like 'skipped%'`;
 
 /**
  * Every outbox row falls in exactly one bucket, so sent + skipped + failed + inFlight = total.
@@ -15,10 +14,10 @@ export async function getNotificationBuckets(created?: SQL): Promise<Notificatio
   const [row] = await db
     .select({
       total: sql<number>`cast(count(*) as int)`,
-      sent: sql<number>`cast(count(*) filter (where ${notificationOutbox.status} = 'sent' and not coalesce(${notificationOutbox.lastError} like 'skipped%', false)) as int)`,
-      skipped: sql<number>`cast(count(*) filter (where ${skipped}) as int)`,
-      failed: sql<number>`cast(count(*) filter (where ${notificationOutbox.status} = 'failed') as int)`,
-      inFlight: sql<number>`cast(count(*) filter (where ${notificationOutbox.status} not in ('sent', 'failed')) as int)`,
+      sent: sql<number>`cast(count(*) filter (where ${notificationOutcomeWhere("delivered")}) as int)`,
+      skipped: sql<number>`cast(count(*) filter (where ${notificationOutcomeWhere("skipped")}) as int)`,
+      failed: sql<number>`cast(count(*) filter (where ${notificationOutcomeWhere("failed")}) as int)`,
+      inFlight: sql<number>`cast(count(*) filter (where ${notificationOutcomeWhere("inflight")}) as int)`,
     })
     .from(notificationOutbox)
     .where(created);

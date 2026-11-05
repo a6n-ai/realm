@@ -6,6 +6,9 @@ import type { InviteRow } from "../invites/invites-list";
 const values = (items: { label: string; value: string | number }[]) =>
   Object.fromEntries(items.map((i) => [i.label, i.value]));
 
+const hrefs = (items: { label: string; href?: string }[]) =>
+  Object.fromEntries(items.map((i) => [i.label, i.href]));
+
 const member = (id: string, over: Partial<MemberRow> = {}): MemberRow => ({
   id,
   name: null,
@@ -27,6 +30,13 @@ describe("org stats", () => {
       member("b", { status: "inactive", passwordSet: false }),
     ];
     expect(values(memberStats(rows))).toEqual({ Total: 2, Admins: 1, Members: 1, Active: 1, "No password yet": 1 });
+    expect(hrefs(memberStats(rows))).toEqual({
+      Total: "/dashboard/organization/members",
+      Admins: "/dashboard/organization/members?role=admin",
+      Members: "/dashboard/organization/members?role=member",
+      Active: "/dashboard/organization/members?status=active",
+      "No password yet": "/dashboard/organization/members?password=unset",
+    });
   });
 
   it("splits expired out of pending using the given clock", () => {
@@ -48,6 +58,8 @@ describe("org stats", () => {
       invite("rejected", "2026-10-21T00:00:00Z"),
     ];
     expect(values(inviteStats(rows, now))).toEqual({ Total: 5, Pending: 1, Accepted: 1, Expired: 1, Canceled: 2 });
+    expect(hrefs(inviteStats(rows, now)).Expired).toBe("/dashboard/organization/invites?status=expired");
+    expect(hrefs(inviteStats(rows, now)).Canceled).toBe("/dashboard/organization/invites?status=canceled");
   });
 
   it("counts clients by type and staffing", () => {
@@ -57,6 +69,9 @@ describe("org stats", () => {
       { isBrand: false, memberCount: 0 },
     ];
     expect(values(clientStats(clients))).toEqual({ Clients: 3, Brands: 1, Franchises: 2, "Staff seats": 5, "No staff": 1 });
+    expect(hrefs(clientStats(clients))["Staff seats"]).toBeUndefined();
+    expect(hrefs(clientStats(clients))["No staff"]).toBe("/dashboard/organization/settings?staff=none");
+    expect(hrefs(clientStats(clients)).Franchises).toBe("/dashboard/organization/settings?type=franchise");
     expect(values(overviewStats(clients, [member("a", { role: "admin" })], 4))).toMatchObject({
       Franchises: 2,
       Staff: 1,

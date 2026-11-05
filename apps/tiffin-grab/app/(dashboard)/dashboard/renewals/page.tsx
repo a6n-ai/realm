@@ -129,18 +129,33 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   const trials = f.tab === "trials";
   const c = await countRenewals(visible, trials ? "trials" : "renewals", today, resolveRange(f, timezone));
   const noun = trials ? "trials" : "plans";
+  // Cards count the date range only. Ending, ended, owner and search stay off the link
+  // so the list total equals the card. The customers tab lists people, so a plan card opens the plan desk.
+  const href = (status: RenewalsFilter["status"]) =>
+    `/dashboard/renewals${renewalsQuery({
+      tab: f.tab === "customers" ? "renewals" : f.tab,
+      dateBy: f.dateBy,
+      ending: null,
+      ended: null,
+      status,
+      renewed: null,
+      from: f.from,
+      to: f.to,
+      q: "",
+    })}`;
   return (
     <StatCards
       items={[
-        { label: trials ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range` },
-        { label: trials ? "Converted" : "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running" },
-        { label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted" },
-        { label: trials ? "Not converted" : "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after" },
+        { label: trials ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
+        { label: trials ? "Converted" : "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
+        { label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted", href: href("booked_unpaid") },
+        { label: trials ? "Not converted" : "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
         {
           label: "Lapsed",
           value: c.lapsed,
           icon: CalendarX2Icon,
           hint: "Ended, nothing booked after",
+          href: href("lapsed"),
           ...(c.lapsed > 0 ? { tone: "bad" as const } : {}),
         },
       ]}

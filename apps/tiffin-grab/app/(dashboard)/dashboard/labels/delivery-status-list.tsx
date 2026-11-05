@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { TruckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
@@ -9,6 +10,7 @@ import { DataTable, TonePill, type Column } from "@/components/ds";
 import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { sortRows } from "@/lib/list/sort";
 import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
+import { GOING_OUT } from "./label-tab";
 import { useTableParams } from "./use-table-params";
 
 type Key = "customer" | "deliveryId" | "orderId" | "planName" | "mealSize" | "tiffins" | "status";
@@ -34,6 +36,8 @@ const VALUE: Record<Key, (r: DayDeliveryStatusRow) => string | number> = {
 };
 
 export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
+  const goingOut = useSearchParams().get("out") === "1";
+  const pool = useMemo(() => (goingOut ? rows.filter((r) => GOING_OUT.has(r.status)) : rows), [rows, goingOut]);
   const [statusFilter, setStatusFilter] = useState<LabelDeliveryStatus | "all">("all");
   const { sort, pagination } = useTableParams(
     COLUMNS.map((c) => c.key),
@@ -42,14 +46,14 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
 
   const statusCounts = useMemo(() => {
     const counts = new Map<LabelDeliveryStatus, number>();
-    for (const r of rows) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
+    for (const r of pool) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
     return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [rows]);
+  }, [pool]);
 
   const shown = useMemo(() => {
-    const filtered = statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
+    const filtered = statusFilter === "all" ? pool : pool.filter((r) => r.status === statusFilter);
     return sortRows(filtered, sort, (r, column) => VALUE[column](r));
-  }, [rows, statusFilter, sort]);
+  }, [pool, statusFilter, sort]);
 
   return (
     <DataTable
@@ -63,7 +67,7 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
         statusCounts.length > 1 ? (
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" variant={statusFilter === "all" ? "default" : "outline"} onClick={() => setStatusFilter("all")}>
-              All <span className="tabular-nums opacity-70">{rows.length}</span>
+              All <span className="tabular-nums opacity-70">{pool.length}</span>
             </Button>
             {statusCounts.map(([status, n]) => (
               <Button

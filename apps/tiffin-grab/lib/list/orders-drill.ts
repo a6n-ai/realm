@@ -13,6 +13,8 @@ export function ordersListHref(
     cancelledAt?: boolean;
     /** Drop createdAt bounds — running / starting-soon are "right now". */
     clearDates?: boolean;
+    /** Every date, including orders older than the default month. */
+    datesAll?: boolean;
     view?: "all" | "lookout" | "payment" | "free" | "missed";
   } = {},
 ): string {
@@ -28,6 +30,7 @@ export function ordersListHref(
     if (sp.to) qs.set("to", sp.to);
   }
   if (opts.status) qs.set("status", opts.status);
+  if (opts.datesAll) qs.set("dates", "all");
   if (opts.starts) qs.set("starts", opts.starts);
   const s = qs.toString();
   return s ? `/dashboard/orders?${s}` : "/dashboard/orders";

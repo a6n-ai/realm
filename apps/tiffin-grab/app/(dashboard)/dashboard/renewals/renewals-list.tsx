@@ -10,7 +10,7 @@ import { Badge } from "@/components/reui/badge";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { humanDate } from "@/lib/deliveries-view";
-import { rowStatus, statusLabel, type RenewalStatusFilter, type RenewalsTab } from "@/lib/renewals/filters";
+import { rowStatus, statusLabel, type RenewalRowStatus, type RenewalsTab } from "@/lib/renewals/filters";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -29,7 +29,7 @@ const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "coins"
   { key: "actions", label: "Actions", align: "right", width: "w-20" },
 ];
 
-const STATUS_VARIANT: Record<RenewalStatusFilter, "success-light" | "warning-light" | "info-light" | "secondary" | "destructive-light"> = {
+const STATUS_VARIANT: Record<RenewalRowStatus, "success-light" | "warning-light" | "info-light" | "secondary" | "destructive-light"> = {
   renewed: "success-light",
   unpaid: "warning-light",
   waitlisted: "info-light",

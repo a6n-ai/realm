@@ -58,6 +58,7 @@ function statusWhere(f: RenewalsFilter, today: string) {
   const status = renewalStatusSql(f.tab === "trials");
   if (f.status === "not_renewed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} >= ${today}`);
   if (f.status === "lapsed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} < ${today}`);
+  if (f.status === "booked_unpaid") return sql`${status} in ('unpaid', 'waitlisted')`;
   return sql`${status} = ${f.status}`;
 }
 

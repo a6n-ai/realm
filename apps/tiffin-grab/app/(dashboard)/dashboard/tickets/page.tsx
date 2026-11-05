@@ -22,6 +22,7 @@ import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { ticketsListHref } from "@/lib/list/tickets-drill";
 
 const SORT_COLUMNS = [
   "subject",
@@ -88,7 +89,8 @@ async function SupportHoursAction() {
 async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
-  const filters = parseComplaintFilters(sp);
+  // Cards are the date-range overview. A status on the URL (including the overdue drill) filters the list only.
+  const filters = parseComplaintFilters({ from: sp.from, to: sp.to });
 
   const [statusCounts, { overdueCount: overdue }] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
@@ -100,15 +102,16 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
 
   const open = countOf("open", "in_progress", "waiting_on_customer");
   const resolved = countOf("resolved", "closed");
+  const href = (status?: string) => ticketsListHref(sp, status ? { status } : {});
 
   return (
     <StatCards
       items={[
-        { icon: TicketIcon, label: "Created", value: countOf("open", "in_progress", "waiting_on_customer", "resolved", "closed"), hint: "in selected dates" },
-        { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting" },
-        { icon: HourglassIcon, label: "Waiting on customer", value: countOf("waiting_on_customer"), hint: "staff replied, customer hasn't" },
-        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h", tone: overdue > 0 ? "bad" : undefined },
-        { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed" },
+        { icon: TicketIcon, label: "Created", value: countOf("open", "in_progress", "waiting_on_customer", "resolved", "closed"), hint: "in selected dates", href: href() },
+        { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting", href: href("open,in_progress,waiting_on_customer") },
+        { icon: HourglassIcon, label: "Waiting on customer", value: countOf("waiting_on_customer"), hint: "staff replied, customer hasn't", href: href("waiting_on_customer") },
+        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h", tone: overdue > 0 ? "bad" : undefined, href: href("overdue") },
+        { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed", href: href("resolved,closed") },
       ]}
     />
   );

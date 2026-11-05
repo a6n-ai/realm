@@ -11,8 +11,9 @@ export const ENDED_DAYS = [7, 14, 30, 60, 90] as const;
 /** Renewed customers tab: "Renewed in the last N days" choices. */
 export const RENEWED_DAYS = [7, 14, 30, 90] as const;
 /** The Status filter: the renewal status, with "none" split by whether the plan is still running. */
-export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed" | "lapsed";
-export const RENEWAL_STATUSES: readonly RenewalStatusFilter[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
+export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed" | "lapsed" | "booked_unpaid";
+/** Pills. `booked_unpaid` is the KPI drill (unpaid + waitlisted) and is not a pill. */
+export const RENEWAL_STATUSES: readonly Exclude<RenewalStatusFilter, "booked_unpaid">[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
 
 /** What the top date range filters on: the plan's last tiffin (default), its order date, or any delivery in range. */
 export type DateBy = "last" | "ordered" | "running";
@@ -55,7 +56,7 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   const from = ms(sp.from);
   const to = ms(sp.to);
   if (tab === "customers") return { tab, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
-  const status = RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
+  const status = sp.status === "booked_unpaid" ? "booked_unpaid" : RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
   return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, owner: sp.owner || undefined, from, to, q };
 }
 
@@ -80,12 +81,16 @@ const STATUS_LABEL: Record<RenewalStatusFilter, string> = {
   renewed: "Renewed",
   unpaid: "Renewed: unpaid",
   waitlisted: "Renewed: waitlisted",
+  booked_unpaid: "Booked, not paid",
   not_renewed: "Not renewed",
   lapsed: "Lapsed",
 };
 
 /** A row's status: "none" reads Not renewed while the plan runs and Lapsed once its last tiffin has passed. */
-export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalStatusFilter =>
+/** A row is never the combined `booked_unpaid` bucket; that exists only as a list filter. */
+export type RenewalRowStatus = Exclude<RenewalStatusFilter, "booked_unpaid">;
+
+export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalRowStatus =>
   s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";
 
 /** Status label; trials read Converted / Not converted / Lapsed. Here, not in a client file: the server page builds the filter options from it. */

@@ -28,17 +28,20 @@ export function DefaultDateRange({ presets = false }: { presets?: boolean }) {
   const to = toParam != null && toParam !== "" ? Number(toParam) : undefined;
   const hasUrlRange =
     (from != null && Number.isFinite(from)) || (to != null && Number.isFinite(to));
+  // `dates=all` is an orders drill (every active plan). Filling this month would hide the older ones.
+  const datesAll = params.get("dates") === "all";
 
   useEffect(() => {
-    if (hasUrlRange) return;
+    if (hasUrlRange || datesAll) return;
     const sp = new URLSearchParams(params.toString());
     sp.set("from", String(defaults.from));
     sp.set("to", String(defaults.to));
     nav(`${pathname}?${sp.toString()}`, "replace");
-  }, [hasUrlRange, defaults, params, pathname, nav]);
+  }, [hasUrlRange, datesAll, defaults, params, pathname, nav]);
 
   const writeRange = (next: { from?: number; to?: number }) => {
     const sp = new URLSearchParams(params.toString());
+    sp.delete("dates");
     const range =
       next.from == null && next.to == null ? defaults : { from: next.from, to: next.to };
     if (range.from != null) sp.set("from", String(range.from));
@@ -48,7 +51,7 @@ export function DefaultDateRange({ presets = false }: { presets?: boolean }) {
     nav(`${pathname}?${sp.toString()}`);
   };
 
-  const shown = hasUrlRange ? { from, to } : defaults;
+  const shown = hasUrlRange ? { from, to } : datesAll ? {} : defaults;
   // Re-read the clock when the tab regains focus so the highlight cannot go stale past midnight.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -64,7 +67,7 @@ export function DefaultDateRange({ presets = false }: { presets?: boolean }) {
 
   return (
     <>
-      <RangeCalendarPicker label="Date" from={shown.from} to={shown.to} timeZone={timezone} onChange={writeRange} />
+      <RangeCalendarPicker label={datesAll ? "All dates" : "Date"} from={shown.from} to={shown.to} timeZone={timezone} onChange={writeRange} />
       {presets && (
       <ToggleGroup
         type="single"

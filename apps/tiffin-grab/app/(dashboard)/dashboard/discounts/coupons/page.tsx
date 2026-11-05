@@ -15,7 +15,9 @@ import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
 // Same Search + Filter bar as the other lists.
 const SPEC: FacetDef[] = [
   { kind: "select", field: "kind", label: "Kind", options: CREATABLE_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] })) },
-  { kind: "select", field: "status", label: "Status", options: [{ value: "active", label: "Active" }, { value: "disabled", label: "Disabled" }] },
+  { kind: "select", field: "status", label: "Status", options: [{ value: "active", label: "Active" }, { value: "live", label: "Live" }, { value: "disabled", label: "Disabled" }] },
+  { kind: "select", field: "auto", label: "Auto-apply", options: [{ value: "1", label: "Auto-apply" }] },
+  { kind: "select", field: "expiring", label: "Expiring", options: [{ value: "1", label: "Within 7 days" }] },
   { kind: "search", fields: ["code", "name"] },
 ];
 
@@ -92,22 +94,44 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       notInArray(coupons.kind, ["rep_daily", "rep_code"]),
       epochBoundsWhere(coupons.createdAt, sp),
       kind ? eq(coupons.kind, kind) : undefined,
-      sp.status === "active" || sp.status === "disabled" ? eq(coupons.active, sp.status === "active") : undefined,
       q ? or(ilike(coupons.code, `%${q}%`), ilike(coupons.name, `%${q}%`)) : undefined,
     ))
     .orderBy(primary, desc(coupons.createdAt));
 
-  // Hand-made coupons are a small set: filtered in the query, paged client-side.
+  // Hand-made coupons are a small set: the cards count the date/kind set; status, auto-apply
+  // and expiring narrow the table only, so a card still matches its own drill.
   const { page } = parseFilterState(SPEC, sp);
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const weekOut = now + 7 * 86_400_000;
-  const live = couponRows.filter((c) => c.active && (c.expiresAt == null || c.expiresAt > now));
+  const isLive = (c: (typeof couponRows)[number]) => c.active && (c.expiresAt == null || c.expiresAt > now);
+  const isExpiring = (c: (typeof couponRows)[number]) => c.active && c.expiresAt != null && c.expiresAt > now && c.expiresAt <= weekOut;
+  const live = couponRows.filter(isLive);
+  const shown = couponRows.filter((c) => {
+    if (sp.status === "active" && !c.active) return false;
+    if (sp.status === "disabled" && c.active) return false;
+    if (sp.status === "live" && !isLive(c)) return false;
+    if (sp.auto === "1" && !c.autoApply) return false;
+    if (sp.expiring === "1" && !isExpiring(c)) return false;
+    return true;
+  });
+  const href = (over: { status?: string; auto?: string; expiring?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (sp.from) qs.set("from", sp.from);
+    if (sp.to) qs.set("to", sp.to);
+    if (kind) qs.set("kind", kind);
+    if (q) qs.set("q", q);
+    if (over.status) qs.set("status", over.status);
+    if (over.auto) qs.set("auto", over.auto);
+    if (over.expiring) qs.set("expiring", over.expiring);
+    const s = qs.toString();
+    return s ? `/dashboard/discounts/coupons?${s}` : "/dashboard/discounts/coupons";
+  };
   const stats = [
-    { label: "Coupons", value: couponRows.length.toLocaleString() },
-    { label: "Live", value: live.length.toLocaleString(), hint: "Active and not expired" },
-    { label: "Auto-apply", value: live.filter((c) => c.autoApply).length.toLocaleString() },
-    { label: "Expiring in 7 days", value: live.filter((c) => c.expiresAt != null && c.expiresAt <= weekOut).length.toLocaleString() },
+    { label: "Coupons", value: couponRows.length.toLocaleString(), href: href() },
+    { label: "Live", value: live.length.toLocaleString(), hint: "Active and not expired", href: href({ status: "live" }) },
+    { label: "Auto-apply", value: live.filter((c) => c.autoApply).length.toLocaleString(), href: href({ status: "live", auto: "1" }) },
+    { label: "Expiring in 7 days", value: live.filter(isExpiring).length.toLocaleString(), href: href({ expiring: "1" }) },
     { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
   ];
   const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card (Stripe)" : m.label }));
@@ -120,7 +144,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
           <AlertDescription>That customer group was not found. The new coupon is not restricted to a group.</AlertDescription>
         </Alert>
       )}
-      <CouponsManager coupons={couponRows} paymentMethods={paymentMethods} stats={stats} sort={sort} pagination={page} spec={SPEC} presetGroup={presetGroup} />
+      <CouponsManager coupons={shown} paymentMethods={paymentMethods} stats={stats} sort={sort} pagination={page} spec={SPEC} presetGroup={presetGroup} />
     </>
   );
 }

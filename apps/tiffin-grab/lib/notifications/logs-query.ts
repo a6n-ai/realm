@@ -1,4 +1,5 @@
 import { and, count, eq } from "drizzle-orm";
+import { notificationOutcomeWhere, parseNotificationOutcome } from "@/lib/notifications/outcome";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canClearSuppression, suppressionKind } from "@relay/engine";
 import { eventLabel } from "@relay/engine/ui/template-status";
@@ -118,7 +119,12 @@ export async function loadNotificationLogs(
   // id filter carried in the URL when this is the standalone Logs page.
   const linkedCampaignId =
     opts.campaignId ?? (dated.campaignId && /^\d+$/.test(dated.campaignId) ? BigInt(dated.campaignId) : undefined);
-  const where = linkedCampaignId ? and(facetWhere, eq(notificationOutbox.campaignId, linkedCampaignId)) : facetWhere;
+  const outcome = parseNotificationOutcome(dated.outcome);
+  const where = and(
+    facetWhere,
+    linkedCampaignId ? eq(notificationOutbox.campaignId, linkedCampaignId) : undefined,
+    outcome ? notificationOutcomeWhere(outcome) : undefined,
+  );
 
   const col = SORT_COL[sort.column];
   const orderBy = pageOrder(sort.dir, col, notificationOutbox.id);

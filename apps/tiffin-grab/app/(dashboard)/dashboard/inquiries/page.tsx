@@ -9,7 +9,7 @@ import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/sche
 import { requireStaff } from "@/lib/auth/guards";
 import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { inquiriesService, type QueueTab } from "@/lib/services/inquiries.service";
+import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
@@ -34,7 +34,7 @@ import { QueueTabs } from "./queue-tabs";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
-
+import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // "none" is New (sub_status is null); the resolver maps it to `is null`.
@@ -167,19 +167,21 @@ async function NewInquiryAction() {
 
 async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
-  const where = epochBoundsWhere(inquiries.createdAt, await withDefaultMonth(await searchParams));
+  const sp = await withDefaultMonth(await searchParams);
+  const where = epochBoundsWhere(inquiries.createdAt, sp);
   const g = await inquiriesService.groupCounts(where);
   const total = g.lead + g.followUp + g.took + g.lost;
   const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
+  const href = (bucket: "all" | "lead" | "follow_up" | "took" | "lost") => inquiriesListHref(sp, bucket);
 
   return (
     <StatCards
       items={[
-        { icon: ClipboardListIcon, label: "Total", value: total, hint: "created in selected dates" },
-        { icon: InboxIcon, label: "Lead", value: g.lead, hint: "new · no response" },
-        { icon: UsersIcon, label: "Follow-up", value: g.followUp, hint: "responded · future · expected" },
-        { icon: TrendingUpIcon, label: "Took plan/trial", value: g.took, hint: `${pct(g.took)} conversion` },
-        { icon: XCircleIcon, label: "Lost", value: g.lost, hint: `${pct(g.lost)} · lost or undeliverable` },
+        { icon: ClipboardListIcon, label: "Total", value: total, hint: "created in selected dates", href: href("all") },
+        { icon: InboxIcon, label: "Lead", value: g.lead, hint: "new · no response", href: href("lead") },
+        { icon: UsersIcon, label: "Follow-up", value: g.followUp, hint: "responded · future · expected", href: href("follow_up") },
+        { icon: TrendingUpIcon, label: "Took plan/trial", value: g.took, hint: `${pct(g.took)} conversion`, href: href("took") },
+        { icon: XCircleIcon, label: "Lost", value: g.lost, hint: `${pct(g.lost)} · lost or undeliverable`, href: href("lost") },
       ]}
     />
   );
@@ -190,6 +192,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
 
   // No default-month filter here: a follow-up queue must show older leads. Explicit from/to still apply.
   const sp = await searchParams;
+  const bucket = parseInquiryBucket(sp.bucket);
   const queue = QUEUES.find((q) => q === sp.queue) ?? "due";
   const sort = parseSort(
     sp,
@@ -226,7 +229,13 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const dayStart = zonedDayStart(todayIso, timezone);
   const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
   const [result, counts] = await Promise.all([
-    inquiriesService.listForPipeline(condition, page, sort, { tab: queue, dayStart, dayEnd }),
+    inquiriesService.listForPipeline(
+      condition,
+      page,
+      sort,
+      bucket ? undefined : { tab: queue, dayStart, dayEnd },
+      bucket ? inquiryBucketWhere(bucket) : undefined,
+    ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
   ]);
   const staff = canReassignRecords ? await listAssignableStaff() : [];

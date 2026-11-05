@@ -56,6 +56,36 @@ export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed";
 
 const openSql = sql`${inquiries.stage} not in ('converted', 'lost')`;
 
+/** Same buckets as the Inquiries KPI cards. `all` is their union (null sub-status on a closed stage is in none of them). */
+export const INQUIRY_BUCKETS = ["lead", "follow_up", "took", "lost"] as const;
+export type InquiryBucket = (typeof INQUIRY_BUCKETS)[number];
+
+const inquirySubs = (f: (s: SubStatus) => boolean) => inArray(inquiries.subStatus, SUB_STATUSES.filter(f));
+
+export function inquiryBucketWhere(bucket: InquiryBucket | "all"): SQL {
+  const one = (b: InquiryBucket): SQL => {
+    switch (b) {
+      case "lead":
+        return or(
+          and(isNull(inquiries.subStatus), notInArray(inquiries.stage, ["converted", "lost"])),
+          inquirySubs((s) => !isClosed(s) && groupFor(s) === "lead"),
+        )!;
+      case "follow_up":
+        return inquirySubs((s) => !isClosed(s) && groupFor(s) === "follow_up");
+      case "took":
+        return inquirySubs((s) => s === "took_plan" || s === "took_trial");
+      case "lost":
+        return inquirySubs((s) => s === "lost" || s === "undeliverable");
+      default: {
+        const unreachable: never = b;
+        return unreachable;
+      }
+    }
+  };
+  if (bucket === "all") return or(...INQUIRY_BUCKETS.map(one))!;
+  return one(bucket);
+}
+
 function queuePredicate(tab: QueueTab, dayStart: number, dayEnd: number): SQL {
   const next = inquiries.nextFollowUpAt;
   switch (tab) {
@@ -532,10 +562,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     page: PageRequest,
     sort: SortState<PipelineSortColumn> = { column: "created", dir: "desc" },
     queue?: { tab: QueueTab; dayStart: number; dayEnd: number },
+    /** KPI bucket. When set, the follow-up queue is not applied — the card counted every matching inquiry. */
+    bucket?: SQL,
   ) {
     const where = and(
       conditionToSql(condition, inquiriesResolver()),
       queue ? queuePredicate(queue.tab, queue.dayStart, queue.dayEnd) : undefined,
+      bucket,
     );
 
     const agg = db
@@ -612,14 +645,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   async groupCounts(where: SQL | undefined): Promise<{ lead: number; followUp: number; took: number; lost: number }> {
-    const subs = (f: (s: SubStatus) => boolean) => inArray(inquiries.subStatus, SUB_STATUSES.filter(f));
-    const cnt = (p: SQL | undefined) => sql<number>`cast(count(*) filter (where ${p}) as int)`;
+    const cnt = (p: SQL) => sql<number>`cast(count(*) filter (where ${p}) as int)`;
     const [row] = await db
       .select({
-        lead: cnt(or(and(isNull(inquiries.subStatus), notInArray(inquiries.stage, ["converted", "lost"])), subs((s) => !isClosed(s) && groupFor(s) === "lead"))),
-        followUp: cnt(subs((s) => !isClosed(s) && groupFor(s) === "follow_up")),
-        took: cnt(subs((s) => s === "took_plan" || s === "took_trial")),
-        lost: cnt(subs((s) => s === "lost" || s === "undeliverable")),
+        lead: cnt(inquiryBucketWhere("lead")),
+        followUp: cnt(inquiryBucketWhere("follow_up")),
+        took: cnt(inquiryBucketWhere("took")),
+        lost: cnt(inquiryBucketWhere("lost")),
       })
       .from(inquiries)
       .where(where);

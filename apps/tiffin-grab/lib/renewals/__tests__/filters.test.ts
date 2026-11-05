@@ -22,6 +22,7 @@ describe("renewals filter", () => {
       { ...base, dateBy: "ordered", from: 1_790_000_000_000, to: 1_791_000_000_000 },
       { ...base, tab: "customers", renewed: 30 },
       { ...base, tab: "customers", from: 1, to: 2, q: "ram" },
+      { ...base, status: "booked_unpaid", from: 5, to: 9 },
     ] satisfies RenewalsFilter[]) {
       expect(parseRenewalsFilter(Object.fromEntries(new URLSearchParams(renewalsQuery(f))))).toEqual(f);
     }

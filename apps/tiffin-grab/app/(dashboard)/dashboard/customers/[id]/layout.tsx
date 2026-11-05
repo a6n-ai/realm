@@ -55,8 +55,8 @@ async function CustomerHeader({ id }: { id: string }) {
   const last = data.orders[0];
   const first = data.orders[data.orders.length - 1];
   const cards: StatCardItem[] = [
-    { label: "Orders", value: data.orders.length, icon: PackageIcon, hint: `${activeOrders} active` },
-    { label: "Active", value: activeOrders, icon: ActivityIcon, hint: activeOrders && planEnd ? `ends ${formatDateOnly(planEnd)}` : "No active plan" },
+    { label: "Orders", value: data.orders.length, icon: PackageIcon, hint: `${activeOrders} active`, href: `/dashboard/customers/${id}/orders` },
+    { label: "Active", value: activeOrders, icon: ActivityIcon, hint: activeOrders && planEnd ? `ends ${formatDateOnly(planEnd)}` : "No active plan", href: `/dashboard/customers/${id}/orders?status=active` },
     { label: "Lifetime spend", value: formatMoney(lifetimeSpend), icon: WalletIcon, hint: first ? `since ${formatEpoch(first.createdAt, { mode: "date", timeZone: timezone })}` : "no orders yet" },
     { label: "Wallet coins", value: coinBalance, icon: CoinsIcon, hint: rate == null ? undefined : `≈ ${usd(coinBalance * rate)}` },
     { label: "Last order", value: last ? formatEpoch(last.createdAt, { mode: "date", timeZone: timezone }) : "—", icon: CalendarClockIcon, hint: last ? last.status : "no orders yet" },

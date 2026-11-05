@@ -5,6 +5,7 @@ import { notificationOutbox } from "@/db/schema";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { getNotificationBuckets } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { notificationLogsHref } from "@/lib/notifications/outcome";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { PartsDonut, SegmentedBar } from "@/components/analytics/charts";
@@ -44,14 +45,17 @@ export default function NotificationAnalyticsPage({ searchParams }: { searchPara
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const v = await getNotificationBuckets(await createdWhere(searchParams));
+  const sp = await withDefaultMonth(await searchParams);
+  const v = await getNotificationBuckets(epochBoundsWhere(notificationOutbox.createdAt, sp));
   const basis = "by queued date";
+  const href = notificationLogsHref(sp);
   // In flight is folded into the Total card's hint to keep the row at four.
   const items: AnalyticsStatCardItem[] = [
     {
       label: "Total queued",
       value: v.total,
       hint: `${v.inFlight} still in flight · ${basis}`,
+      href,
       badge: "Queued",
       badgeTone: "neutral",
     },
@@ -59,6 +63,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
       label: "Delivered",
       value: v.sent,
       hint: `Sent with a message · ${basis}`,
+      href: notificationLogsHref(sp, "delivered"),
       badge: "Sent",
       badgeTone: "ok",
     },
@@ -66,6 +71,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
       label: "Skipped (no template)",
       value: v.skipped,
       hint: `Marked sent without a message, no template · ${basis}`,
+      href: notificationLogsHref(sp, "skipped"),
       badge: "Skipped",
       badgeTone: "neutral",
     },
@@ -73,6 +79,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
       label: "Failed",
       value: v.failed,
       hint: `Send failed · ${basis}`,
+      href: notificationLogsHref(sp, "failed"),
       tone: v.failed > 0 ? "warn" : undefined,
       badge: "Failed",
       badgeTone: v.failed > 0 ? "warn" : "neutral",

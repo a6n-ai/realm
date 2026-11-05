@@ -181,7 +181,13 @@ export function GroupView({
         </Alert>
       )}
       {stats}
-      <Tabs defaultValue="members">
+      <Tabs value={params.get("tab") === "activity" ? "activity" : "members"} onValueChange={(value) => {
+        const sp = new URLSearchParams(params.toString());
+        if (value === "members") sp.delete("tab");
+        else sp.set("tab", value);
+        const qs = sp.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      }}>
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>

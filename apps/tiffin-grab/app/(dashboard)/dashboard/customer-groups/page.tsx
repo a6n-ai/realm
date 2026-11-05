@@ -47,7 +47,7 @@ async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withDefaultMonth(await searchParams);
   const stats = await customerGroupStats(epochRange(sp));
   const cards: StatCardItem[] = [
-    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in selected range" },
+    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in selected range", href: `/dashboard/customer-groups?from=${sp.from}&to=${sp.to}` },
     {
       label: "Members",
       value: stats.members.toLocaleString(),

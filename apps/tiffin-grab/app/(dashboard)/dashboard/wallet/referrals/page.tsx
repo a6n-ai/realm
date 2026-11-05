@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { parseFilterState, SectionCard, SkeletonStatCards, StatGrid, type FacetDef } from "@/components/ds";
+import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { getReferralSettings } from "@/lib/services/app-settings.service";
 import { listReferrals, referralStats, type ReferralFriendStatus } from "@/lib/services/referrals.service";
 import { REFERRAL_STATUS } from "./referral-status";
@@ -26,7 +27,7 @@ export default function DiscountReferralsPage({ searchParams }: { searchParams: 
       <Suspense
         fallback={
           <>
-            <SkeletonStatCards count={5} className="md:grid-cols-2 lg:grid-cols-5" />
+            <StatCardsSkeleton count={5} />
             <ReferralFormSkeleton />
           </>
         }
@@ -47,16 +48,16 @@ async function SummaryData() {
   const [settings, s] = await Promise.all([getReferralSettings(), referralStats()]);
   const off = settings.referrerValue <= 0 && settings.friendValue <= 0;
   const pct = settings.mode === "pct";
-  const stats = [
+  const stats: StatCardItem[] = [
     { label: "Rewards", value: off ? "Off" : `${settings.referrerValue}${pct ? "%" : ""} · ${settings.friendValue}${pct ? "%" : ""}`, hint: pct ? "% of first order: referrer · friend" : "Coins: referrer · friend" },
-    { label: "Referrals", value: s.total.toLocaleString() },
-    { label: "Rewarded", value: s.rewarded.toLocaleString(), hint: `${s.waiting.toLocaleString()} waiting on a first order` },
+    { label: "Referrals", value: s.total.toLocaleString(), href: "/dashboard/wallet/referrals" },
+    { label: "Rewarded", value: s.rewarded.toLocaleString(), hint: `${s.waiting.toLocaleString()} waiting on a first order`, href: "/dashboard/wallet/referrals?status=rewarded" },
     { label: "Coins to referrers", value: s.referrerCoins.toLocaleString() },
     { label: "Coins to friends", value: s.friendCoins.toLocaleString() },
   ];
   return (
     <>
-      <StatGrid cols={5} items={stats} />
+      <StatCards items={stats} />
       <ReferralForm current={settings} />
     </>
   );

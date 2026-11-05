@@ -5,12 +5,16 @@ import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { getMemberOrganizations, resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { inviteStats } from "../org-stats";
+import { inviteBucket, inviteStats, type InviteBucket } from "../org-stats";
 import { InviteUserButton } from "../members/invite-user-button";
 import { InvitesList, InvitesListSkeleton } from "./invites-list";
 import { getInvitationsForOrgs } from "./invites-query";
 
 const ROLES = INVITABLE_ROLES.map((r) => ({ value: r, label: r }));
+
+const BUCKETS: readonly InviteBucket[] = ["pending", "accepted", "expired", "canceled"];
+
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 function InvitesCard({ children }: { children: React.ReactNode }) {
   return (
@@ -24,7 +28,7 @@ function InvitesCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function InvitesPage() {
+export default function InvitesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense
       fallback={
@@ -36,12 +40,12 @@ export default function InvitesPage() {
         </>
       }
     >
-      <InvitesData />
+      <InvitesData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function InvitesData() {
+async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const session = await getSession();
   const visible = await resolveMemberVisibleOrgIds(session);
@@ -53,11 +57,14 @@ async function InvitesData() {
   // row in the invitation's org, so actions are only offered there.
   // eslint-disable-next-line react-hooks/purity -- server component: "expired" is relative to the request clock
   const now = Date.now();
+  const sp = await searchParams;
+  const status = BUCKETS.find((b) => b === sp.status);
+  const shown = status ? rows.filter((r) => inviteBucket(r, now) === status) : rows;
   return (
     <>
       <StatCards items={inviteStats(rows, now)} />
       <InvitesCard>
-        <InvitesList rows={rows} actionableOrgIds={directOrgs.map((o) => o.id)} />
+        <InvitesList rows={shown} status={status ?? "all"} actionableOrgIds={directOrgs.map((o) => o.id)} />
       </InvitesCard>
     </>
   );

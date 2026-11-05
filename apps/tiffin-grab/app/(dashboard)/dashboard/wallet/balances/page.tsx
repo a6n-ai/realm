@@ -61,7 +61,13 @@ async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
   const cards: StatCardItem[] = [
     { label: "Coins outstanding", value: stats.outstanding.toLocaleString(), icon: CoinsIcon, hint: held },
     { label: "Money value", value: stats.value == null ? "—" : formatMoney(Math.round(stats.value * 100), currency), icon: BanknoteIcon, hint: `${held}, at the current rate` },
-    { label: "Wallets with a balance", value: stats.walletsWithBalance.toLocaleString(), icon: WalletIcon, hint: held },
+    {
+      label: "Wallets with a balance",
+      value: stats.walletsWithBalance.toLocaleString(),
+      icon: WalletIcon,
+      hint: held,
+      href: `/dashboard/wallet/balances?from=${sp.from}&to=${sp.to}&balance=has`,
+    },
     { label: "Coins earned", value: stats.earned.toLocaleString(), icon: TrendingUpIcon, hint: "in selected range" },
     { label: "Coins redeemed", value: stats.redeemed.toLocaleString(), icon: TrendingDownIcon, hint: "in selected range" },
   ];

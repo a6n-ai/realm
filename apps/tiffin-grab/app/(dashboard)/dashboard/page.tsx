@@ -110,7 +110,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />
 
       <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
-        <GlanceCard visible={visible} today={today} now={now} />
+        <GlanceCard visible={visible} today={today} now={now} timeZone={timezone} />
       </Suspense>
 
       {/* Act first: what needs doing, how today is going, the menus to release. */}

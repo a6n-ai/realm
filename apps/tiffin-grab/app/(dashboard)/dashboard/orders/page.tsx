@@ -292,7 +292,9 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const freeTiffins = raw.view === "free";
   const cancelledAt = raw.cancelledAt === "1";
   // Running / starting-soon KPIs are "right now"; cancel-dated lists use activity time, not createdAt.
+  const datesAll = raw.dates === "all" && !raw.from && !raw.to;
   const ignoreCreatedAt =
+    datesAll ||
     lookOutOnly ||
     paymentReview ||
     freeTiffins ||

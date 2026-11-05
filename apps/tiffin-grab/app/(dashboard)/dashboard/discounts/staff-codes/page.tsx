@@ -196,10 +196,20 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
     };
   });
 
+  const href = (status?: string) => {
+    const qs = new URLSearchParams();
+    if (sp.from) qs.set("from", sp.from);
+    if (sp.to) qs.set("to", sp.to);
+    if (sp.type) qs.set("type", sp.type);
+    if (sp.issuer) qs.set("issuer", sp.issuer);
+    if (status) qs.set("status", status);
+    const s = qs.toString();
+    return s ? `/dashboard/discounts/staff-codes?${s}` : "/dashboard/discounts/staff-codes";
+  };
   const stats = [
-    { label: "Codes issued", value: agg.issued.toLocaleString(), hint: "Staff codes and daily coupons" },
-    { label: "Used up", value: agg.used.toLocaleString() },
-    { label: "Open", value: agg.open.toLocaleString(), hint: "Uses left and still valid" },
+    { label: "Codes issued", value: agg.issued.toLocaleString(), hint: "Staff codes and daily coupons", href: href() },
+    { label: "Used up", value: agg.used.toLocaleString(), href: href("used") },
+    { label: "Open", value: agg.open.toLocaleString(), hint: "Uses left and still valid", href: href("unused") },
     { label: "Expired or revoked", value: (agg.issued - agg.used - agg.open).toLocaleString() },
     { label: "Given", value: usd(Number(agg.given)), hint: "Applied on orders" },
   ];

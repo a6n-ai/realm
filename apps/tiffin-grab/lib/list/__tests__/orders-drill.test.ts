@@ -23,6 +23,12 @@ describe("ordersListHref", () => {
     );
   });
 
+  it("marks an all-time active-plans drill so the default month is not filled back in", () => {
+    expect(ordersListHref({}, { status: "active", clearDates: true, datesAll: true })).toBe(
+      "/dashboard/orders?status=active&dates=all",
+    );
+  });
+
   it("carries work-queue views", () => {
     expect(ordersListHref({}, { view: "lookout", status: "running", clearDates: true })).toBe(
       "/dashboard/orders?view=lookout&status=running",
