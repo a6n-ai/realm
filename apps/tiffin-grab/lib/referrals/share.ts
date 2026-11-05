@@ -4,7 +4,27 @@ export type CoinRate = { perCoin: number; currency: string } | null;
 
 /** The friend's reward split for a promo layout: the headline figure and what it is. Null while rewards are off. */
 export function friendOfferParts(settings: ReferralSettings, rate: CoinRate): { big: string; small: string } | null {
-  const v = settings.friendValue;
+  return offerParts(settings.friendValue, settings, rate);
+}
+
+/** The sharer's side, in the same format as the friend's. Null while that side is off. */
+export function referrerOfferParts(settings: ReferralSettings, rate: CoinRate): { big: string; small: string } | null {
+  return offerParts(settings.referrerValue, settings, rate);
+}
+
+/** Public pages read "$15", not "$15.00"; the share card and /me keep the full format. */
+export function siteFigure(big: string): string {
+  return big.replace(/^(\$\d+)\.00$/, "$1");
+}
+
+/** The phone pill holds a short dollar figure ("🎁 Give $15"); anything longer reads "🎁 Refer". */
+export function referralPillLabel(friend: { big: string } | null): string | null {
+  if (!friend) return null;
+  const figure = siteFigure(friend.big);
+  return figure.startsWith("$") && figure.length <= 4 ? `🎁 Give ${figure}` : "🎁 Refer";
+}
+
+function offerParts(v: number, settings: ReferralSettings, rate: CoinRate): { big: string; small: string } | null {
   if (v <= 0) return null;
   if (settings.mode === "pct") return { big: `${v}%`, small: "back in coins" };
   const coins = `${v} ${v === 1 ? "coin" : "coins"}`;
