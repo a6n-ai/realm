@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { Navigation } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { StaticMap, writeFranchiseCookie } from "@foundry/design-system";
+import { writeFranchiseCookie } from "@foundry/design-system";
+import { StaticMapClient } from "@/components/maps/static-map-client";
 import type { FranchiseLocation } from "@/lib/services/organizations.service";
 
 // Turn-by-turn directions link, key-free.
@@ -30,7 +31,7 @@ export function LocationCard({ location }: { location: FranchiseLocation }) {
   return (
     <div className="overflow-hidden rounded-2xl border-[1.5px] border-foreground">
       {hasCoords && (
-        <StaticMap
+        <StaticMapClient
           center={{ lat: location.latitude!, lng: location.longitude! }}
           markers={[{ lat: location.latitude!, lng: location.longitude!, title: location.name }]}
           heightPx={192}

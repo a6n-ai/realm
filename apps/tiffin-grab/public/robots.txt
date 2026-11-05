@@ -1,0 +1,14 @@
+# Public marketing pages are crawlable; the signed-in app and its APIs are not.
+# Rules match by prefix, so the customer area uses /me$ and /me/ — a bare /me
+# would also block /menu.
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /me$
+Disallow: /me/
+Disallow: /checkout
+Disallow: /activate
+Disallow: /lock
+
+Sitemap: https://tiffingrab.ca/sitemap.xml

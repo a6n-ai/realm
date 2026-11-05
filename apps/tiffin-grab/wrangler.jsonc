@@ -20,7 +20,30 @@
   "upload_source_maps": false,
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "assets": { "binding": "ASSETS", "directory": ".open-next/assets" },
+  // OpenNext defaults to worker-first for every URL (so /robots.txt paid isolate CPU).
+  // `/*` keeps SSR/ISR/API on the Worker; `!` paths are served from Assets with no isolate.
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets",
+    "run_worker_first": [
+      "/*",
+      "!/_next/static/*",
+      "!/landing/*",
+      "!/brand/*",
+      "!/vendor/*",
+      "!/lottie/*",
+      "!/uploads/*",
+      "!/refer-card/*",
+      "!/watermark/*",
+      "!/robots.txt",
+      "!/llms.txt",
+      "!/favicon.ico",
+      "!/*.svg",
+      "!/*.woff",
+      "!/*.woff2",
+      "!/*.mp4"
+    ]
+  },
   "images": { "binding": "IMAGES" },
   // @react-pdf (yoga-layout's emscripten loader) reads import.meta.url, undefined on workerd.
   "define": { "import.meta.url": "\"file:///worker.js\"" },

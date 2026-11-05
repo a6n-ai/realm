@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import { Suspense, type ComponentProps, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBreadcrumbs, BreadcrumbLabelsProvider } from "@/components/dashboard/app-breadcrumbs";
@@ -14,6 +14,7 @@ import { NotificationBellMount } from "@/components/dashboard/notification-bell-
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
+import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 
@@ -62,6 +63,10 @@ export function DashboardActions({
   return (
     <>
       <AppClock cutoffHour={cutoffHour} />
+      {/* Streams in after the shell: small reads that must not hold up every page. */}
+      <Suspense fallback={null}>
+        <RoutePushBadge />
+      </Suspense>
       <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
       <NotificationBellMount userPublicId={userPublicId} initial={notifications} />
       <LockButton hasPin={hasPin} />

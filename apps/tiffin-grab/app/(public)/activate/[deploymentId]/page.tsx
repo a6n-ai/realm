@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
-import { StaticMap } from "@foundry/design-system";
+import { StaticMapClient } from "@/components/maps/static-map-client";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/landing";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
@@ -121,7 +121,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
 
         {sub.latitude != null && sub.longitude != null && (
           <div className="mt-6 overflow-hidden rounded-2xl border">
-            <StaticMap
+            <StaticMapClient
               center={{ lat: sub.latitude, lng: sub.longitude }}
               markers={[{ lat: sub.latitude, lng: sub.longitude }]}
               heightPx={180}

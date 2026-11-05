@@ -1,33 +1,27 @@
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
+import { CrmShell } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings, getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { repAllowanceFor } from "@/lib/services/rep-allowance";
-import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
-import { MotionProvider } from "@/components/motion/motion-provider";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
-import { AppSidebar } from "@/components/dashboard/app-sidebar";
-import { GlobalSearch } from "@/components/dashboard/global-search";
-import { IdleLock } from "@/components/dashboard/idle-lock";
-import { LockButton } from "@/components/dashboard/lock-button";
-import { AppBreadcrumbs, BreadcrumbLabelsProvider } from "@/components/dashboard/app-breadcrumbs";
-import { ModeToggle } from "@/components/mode-toggle";
-import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
-import { CrmShell } from "@foundry/crm";
-import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
-import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBrand } from "@/components/app-brand";
-import { OrgSwitcher } from "@/components/dashboard/org-switcher";
-import { InboxRealtime } from "@/components/dashboard/inbox-realtime";
-import { AppClock } from "@/components/dashboard/app-clock";
-import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
+import {
+  DashboardActions,
+  DashboardBottomNav,
+  DashboardBreadcrumbs,
+  DashboardFooter,
+  DashboardLive,
+  DashboardProviders,
+  DashboardSearch,
+  DashboardSidebar,
+} from "@/components/dashboard/dashboard-frame";
 import { geistSansAdmin } from "./admin-font";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
@@ -119,49 +113,43 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className={`crm-app ${geistSansAdmin.variable}`}>
-    <TimezoneProvider tz={timezone}>
-    <MotionProvider>
-    <QuickAddProvider>
-    <BreadcrumbLabelsProvider>
-    <CrmShell
-      hideSidebarOnMobile
-      brand={<AppBrand href="/dashboard" subtitle="Operations" />}
-      sidebar={
-        <AppSidebar
-          user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
-          hasPin={hasPin}
-          repCoupon={repCoupon}
-          activity={activity}
-        />
-      }
-      breadcrumbs={<Suspense fallback={null}><AppBreadcrumbs /></Suspense>}
-      center={<GlobalSearch role={role} />}
-      actions={
-        <>
-          <AppClock cutoffHour={cutoffHour} />
-          {/* Streams in after the shell: two small reads that must not hold up every page. */}
-          <Suspense fallback={null}>
-            <RoutePushBadge />
-          </Suspense>
-          <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-          <NotificationBellMount userPublicId={session.user.id} initial={notificationFeed} />
-          <LockButton hasPin={hasPin} />
-          <ModeToggle />
-        </>
-      }
-      footer={hasPin ? <IdleLock /> : null}
-      bottomNav={<AppBottomNav role={role} />}
-    >
-      <InboxRealtime tickets payments={role === "admin"} />
-      {hasRepAllowance && <RepCodeFab />}
-      {children}
-      {/* Room to scroll the last row out from under the floating button. */}
-      {hasRepAllowance && <div aria-hidden className="h-20" />}
-    </CrmShell>
-    </BreadcrumbLabelsProvider>
-    </QuickAddProvider>
-    </MotionProvider>
-    </TimezoneProvider>
+      <DashboardProviders tz={timezone}>
+        <CrmShell
+          hideSidebarOnMobile
+          brand={<AppBrand href="/dashboard" subtitle="Operations" />}
+          sidebar={
+            <DashboardSidebar
+              user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
+              hasPin={hasPin}
+              repCoupon={repCoupon}
+              activity={activity}
+            />
+          }
+          breadcrumbs={
+            <Suspense fallback={null}>
+              <DashboardBreadcrumbs />
+            </Suspense>
+          }
+          center={<DashboardSearch role={role} />}
+          actions={
+            <DashboardActions
+              cutoffHour={cutoffHour}
+              organizations={memberOrganizations}
+              activeOrganizationId={session.session.activeOrganizationId}
+              userPublicId={session.user.id}
+              notifications={notificationFeed}
+              hasPin={hasPin}
+            />
+          }
+          footer={<DashboardFooter hasPin={hasPin} />}
+          bottomNav={<DashboardBottomNav role={role} />}
+        >
+          <DashboardLive payments={role === "admin"} showRepCode={hasRepAllowance} />
+          {children}
+          {/* Room to scroll the last row out from under the floating button. */}
+          {hasRepAllowance && <div aria-hidden className="h-20" />}
+        </CrmShell>
+      </DashboardProviders>
     </div>
   );
 }

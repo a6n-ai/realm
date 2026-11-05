@@ -1,6 +1,7 @@
 import { parseIsoDateUtc } from "@foundry/commons";
 import type { BoardDay } from "@/components/landing/week-board";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import { popularThisWeek } from "@/lib/menu/customer-week";
@@ -20,7 +21,7 @@ export type BoardWeekend = { date: string; today: boolean; dishes: string[] };
 /** The released week as Mon to Fri board columns with their dish-type rows; Sat and Sun come apart as one weekend line.
  *  `picks` (plain dish name to pick count, see foldPicks) marks each row's Popular veg and non-veg dish per day. */
 export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; items: PosterItem[] }, timezone: string, picks: Record<string, number> = {}): { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null } {
-  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+  const todayIso = dateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
   const rows: string[] = [];
   const top = popularThisWeek(pub.items, picks);
   let weekend: BoardWeekend | null = null;

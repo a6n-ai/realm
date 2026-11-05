@@ -76,10 +76,16 @@ async function cachedImage(request, env, ctx) {
   return out;
 }
 
+// Same scanner denylist as proxy.ts — belt for hosts that skip the Next proxy matcher.
+const PROBE =
+  /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|xmlrpc\.php)(?:$|\?)/i;
+
 export default {
   fetch(request, env, ctx) {
+    const path = new URL(request.url).pathname;
+    if (PROBE.test(path)) return new Response(null, { status: 404 });
     bootOnce(env, ctx, armPoller);
-    if (request.method === "GET" && new URL(request.url).pathname === "/_next/image") return cachedImage(request, env, ctx);
+    if (request.method === "GET" && path === "/_next/image") return cachedImage(request, env, ctx);
     return openNext.fetch(request, env, ctx);
   },
   async queue(batch, env) {

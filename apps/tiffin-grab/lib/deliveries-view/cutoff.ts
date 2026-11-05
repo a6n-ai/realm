@@ -1,3 +1,5 @@
+import { dateTimeFormat } from "@/lib/intl/date-format";
+
 // The cutoff is shown once in the header from live settings, never per trip: a trip's
 // stored cutoffAt is a snapshot and would show a stale hour after an admin changes it.
 // Own module so the shells can import it without pulling in the deliveries view model.
@@ -6,7 +8,7 @@ export const cutoffNote = (cutoffHour: number) => `Changes close at ${cutoffTime
 
 /** Time left until the next cutoffHour:00 in the app timezone, and whether that is today. */
 export function nextCutoff(nowMs: number, cutoffHour: number, timeZone: string): { ms: number; today: boolean } {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(nowMs);
+  const parts = dateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(nowMs);
   const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   const secs = n("hour") * 3600 + n("minute") * 60 + n("second");
   const left = cutoffHour * 3600 - secs;

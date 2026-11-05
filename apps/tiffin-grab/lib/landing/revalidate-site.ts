@@ -1,7 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { sharedCache } from "@/lib/cache";
+import { computeSiteNextAt } from "@/lib/landing/site-boundaries";
 import { runInBackground } from "@/lib/runtime/background";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 
 const WEEK_MS = 7 * 24 * 3600_000;
 
@@ -23,11 +25,16 @@ export function revalidateSitePaths(): void {
 export function revalidatePublicSite(): void {
   revalidateSitePaths();
   try {
-    // The 90 s follow-up (cron/public-site) only runs if a wake is set for then.
-    runInBackground(
-      () => Promise.all([publicSiteState.set("requested-at", Date.now()), scheduleSiteRefreshWake(Date.now() + 90_000)]),
-      "public-site requested-at",
-    );
+    // One wake at computeSiteNextAt (includes requestedAt+90s and any sooner boundary),
+    // instead of always booking a separate +90s instance alongside the boundary chain.
+    runInBackground(async () => {
+      const now = Date.now();
+      const followedUp = (await publicSiteState.get<number>("followed-up"))?.value;
+      await publicSiteState.set("requested-at", now);
+      const { timezone } = await getAppSettings();
+      const nextAt = await computeSiteNextAt(now, timezone, { requestedAt: now, followedUp });
+      await scheduleSiteRefreshWake(nextAt);
+    }, "public-site requested-at");
   } catch {
     // no request context
   }

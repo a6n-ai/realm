@@ -1,3 +1,5 @@
+import { dateTimeFormat } from "@/lib/intl/date-format";
+
 /** One weekday's support window, "HH:MM" 24h in the app timezone. */
 export type DayHours = { open: string; close: string };
 
@@ -40,7 +42,7 @@ export function formatTime(hhmm: string): string {
 }
 
 function nowIn(timezone: string, now: number): { day: number; minute: number } {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const parts = dateTimeFormat("en-US", { timeZone: timezone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return { day: DAY_NAMES.indexOf(get("weekday")), minute: Number(get("hour")) * 60 + Number(get("minute")) };
 }

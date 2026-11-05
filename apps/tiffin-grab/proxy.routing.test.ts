@@ -46,10 +46,10 @@ describe("apex/www front door", () => {
     expect(res.headers.get("location")).toBe(to);
   });
 
-  it("does not serve retired WordPress paths from the app", async () => {
+  it("404s retired WordPress paths instead of bouncing them to app", async () => {
     const res = await get("https://tiffingrab.ca/wp-admin/");
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("https://app.tiffingrab.ca/wp-admin/");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
   });
 
   it("matches case-insensitively like Caddy", async () => {
@@ -112,4 +112,14 @@ describe("apex/www front door", () => {
     vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
     expect((await get("http://localhost:3000/site/org1/menu")).status).toBe(404);
   });
+
+  it.each(["/.env", "/environment.ts", "/next.config.js", "/.mcp.json", "/src/environments/environment.ts", "/wp-login.php"])(
+    "404s scanner probe %s without rewriting",
+    async (p) => {
+      const res = await get(`https://tiffingrab.ca${p}`);
+      expect(res.status).toBe(404);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+    },
+  );
 });

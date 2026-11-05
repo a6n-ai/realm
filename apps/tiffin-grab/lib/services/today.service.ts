@@ -14,6 +14,7 @@ import { listRenewals } from "@/lib/services/renewals.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import type { RenewalsFilter } from "@/lib/renewals/filters";
 import { OVERVIEW_KINDS, TODAY_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/today/types";
+import { dateTimeFormat } from "@/lib/intl/date-format";
 
 type Visible = "all" | string[];
 const empty = (visible: Visible) => visible !== "all" && visible.length === 0;
@@ -40,8 +41,8 @@ export function dayStartMs(iso: string, tz: string): number {
   return guess - tzOffsetMinutes(tz, guess) * 60000;
 }
 
-const weekday = (iso: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
-const monthDay = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+const weekday = (iso: string) => dateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+const monthDay = (iso: string) => dateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
 
 /** Urgency ascending, then waiting longest, then key so the order is stable. */
 export function rankTodayItems(items: TodayItem[]): TodayItem[] {

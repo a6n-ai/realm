@@ -9,7 +9,8 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { AddressFields, defaultAddressUi, type AddressFieldSlotProps } from "@foundry/ui/address-fields";
 import type { OrgLocation } from "@foundry/commons";
-import { SectionCard, StaticMap } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
+import { StaticMapClient } from "@/components/maps/static-map-client";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 
 function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: React.ReactNode }) {
@@ -127,7 +128,7 @@ export function ClientDetailForm({
             />
             {pin ? (
               <div className="flex flex-col gap-2">
-                <StaticMap center={pin} markers={[{ ...pin, title: name }]} zoom={14} heightPx={200} className="overflow-hidden rounded-lg border" />
+                <StaticMapClient center={pin} markers={[{ ...pin, title: name }]} zoom={14} heightPx={200} className="overflow-hidden rounded-lg border" />
                 <p className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums">
                   <MapPinIcon className="size-3.5" />
                   {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}

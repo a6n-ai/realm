@@ -23,7 +23,11 @@ import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normaliz
 // signed link, or the session owner/staff when there is no signature.
 // /api/refer-card: the referral promo image; link-preview crawlers fetch it with no cookie.
 // /api/analytics: the GA bootstrap script, loaded on every page including signed-out ones.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics", "/api/meta/events"];
+const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics", "/api/meta/events", "/api/health"];
+
+// Vuln scanners (.env, next.config, IDE mcp files, …). 404 before org resolution / Next.
+const PROBE_PATH =
+  /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|xmlrpc\.php)(?:$|\?)/i;
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all
@@ -103,13 +107,18 @@ function unauthorized(): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  // Cheap rejects before front-door redirects / org snapshot / Next — scanners were a large
+  // share of Worker invocations (and would otherwise 302 to app. from the apex).
+  if (PROBE_PATH.test(pathname)) return new NextResponse(null, { status: 404 });
   // Caddy never set the referral cookie on these redirects.
   const door = frontDoor(request);
   if (door) return door;
   // /site/<org>/... is reachable only through the rewrite below (which never re-enters the proxy).
-  if (/^\/site(?:\/|$)/i.test(request.nextUrl.pathname)) return new NextResponse(null, { status: 404 });
+  if (/^\/site(?:\/|$)/i.test(pathname)) return new NextResponse(null, { status: 404 });
   // The apex matcher entry below sends static assets here too; they skip everything else, as before.
-  if (STATIC_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
+  // With Assets run_worker_first exclusions these ideally never reach the isolate; belt-and-braces here.
+  if (STATIC_PATH.test(pathname)) return NextResponse.next();
   const res = await route(request);
   // A share link: remember the code until the friend signs in (attached there).
   const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "");
