@@ -14,6 +14,7 @@ import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
+import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -45,7 +46,7 @@ export function ClaimPayment({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const purchasePixelFired = useRef(false);
+  const orderSubmittedPixelFired = useRef(false);
 
   const claimable = ctx.status === "awaiting_payment" || ctx.status === "rejected";
 
@@ -110,14 +111,16 @@ export function ClaimPayment({
           setError(sanitizeClientError(res.error));
           return;
         }
-        if (!purchasePixelFired.current) {
-          purchasePixelFired.current = true;
+        // Funnel only — Purchase waits for staff verify (server CAPI). Same event_id as claim CAPI.
+        if (!orderSubmittedPixelFired.current) {
+          orderSubmittedPixelFired.current = true;
+          const eventId = orderSubmittedEventId(ctx.paymentPublicId);
           trackMeta(
-            "Purchase",
+            "order_submitted",
             { value: Number(ctx.amount), currency, num_items: 1 },
-            ctx.paymentPublicId,
+            eventId,
           );
-          gtagEvent("purchase", {
+          gtagEvent("order_submitted", {
             transaction_id: ctx.paymentPublicId,
             value: Number(ctx.amount),
             currency,

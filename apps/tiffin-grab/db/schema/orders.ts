@@ -108,8 +108,9 @@ export const orders = pgTable("orders", {
   lookOutBy: bigint("look_out_by", { mode: "bigint" }).references(() => users.id),
   lookOutNote: text("look_out_note"),
   // Meta CAPI: browser/request context captured on the customer's checkout request
-  // (IP, UA, _fbp/_fbc, event_source_url). Read at Purchase time in verifyPayment —
-  // never from webhook/staff headers. Null on staff-created or pre-Meta orders.
+  // (IP, UA, _fbp/_fbc, event_source_url). Read for order_submitted (claim) and
+  // Purchase (settle) — never from webhook/staff headers. Null on staff-created
+  // or pre-Meta orders.
   metaAttribution: jsonb("meta_attribution").$type<{
     clientIpAddress?: string;
     clientUserAgent?: string;

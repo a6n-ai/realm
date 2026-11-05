@@ -12,6 +12,7 @@ import { sanitizeClientError } from "@/lib/format/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
+import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -38,7 +39,7 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
   const [submitted, setSubmitted] = useState(false);
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const purchasePixelFired = useRef(false);
+  const orderSubmittedPixelFired = useRef(false);
   const amount = `$${payment.amount.toFixed(2)}`;
 
   function handleOpenChange(next: boolean) {
@@ -71,16 +72,16 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
         }
         const res = await claimPaymentAction(payment.paymentPublicId, form);
         if ("error" in res) return setError(sanitizeClientError(res.error));
-        // Fire here (not only in a parent effect) so a long-lived checkout tab still
-        // records Purchase even if the page JS predates the Paid-screen effect.
-        if (!purchasePixelFired.current) {
-          purchasePixelFired.current = true;
+        // Funnel only — Purchase waits for staff verify (server CAPI). Same event_id as claim CAPI.
+        if (!orderSubmittedPixelFired.current) {
+          orderSubmittedPixelFired.current = true;
+          const eventId = orderSubmittedEventId(payment.paymentPublicId);
           trackMeta(
-            "Purchase",
+            "order_submitted",
             { value: payment.amount, currency: "CAD", num_items: 1 },
-            payment.paymentPublicId,
+            eventId,
           );
-          gtagEvent("purchase", {
+          gtagEvent("order_submitted", {
             transaction_id: payment.paymentPublicId,
             value: payment.amount,
             currency: "CAD",

@@ -45,6 +45,7 @@ import {
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
+import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@/lib/runtime/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -1346,10 +1347,8 @@ export async function claimPayment(
   publishPaymentsInbox();
   publishAnalyticsLive();
 
-  // Ads conversion at claim (proof/reference). Awaits the DB claim so metaPurchaseSentAt is
-  // set before the action returns; the Graph HTTP call stays fire-and-forget inside. Staff
-  // verify later is a no-op via metaPurchaseSentAt.
-  await sendMetaPurchaseOnce(paymentPublicId);
+  // Funnel only: offline claim is not a Purchase. Purchase CAPI waits for verifyPayment.
+  await sendMetaOrderSubmitted(paymentPublicId);
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;

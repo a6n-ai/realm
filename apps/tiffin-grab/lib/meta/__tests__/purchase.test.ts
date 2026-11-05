@@ -57,7 +57,7 @@ describe("sendMetaPurchaseOnce", () => {
     return pay!;
   }
 
-  it("skips awaiting_payment; sends on pending_verification; skips a second call", async () => {
+  it("skips awaiting_payment and pending_verification; Purchase only on paid verify; idempotent", async () => {
     const pay = await etransferOrder("+16475550101");
     expect(pay.status).toBe("awaiting_payment");
 
@@ -67,33 +67,54 @@ describe("sendMetaPurchaseOnce", () => {
     expect(still!.metaPurchaseSentAt).toBeNull();
 
     await claimPayment(pay.publicId, { reference: "CLAIM-1" });
-    // claimPayment already called sendMetaPurchaseOnce
+    // claim fires order_submitted, not Purchase
     expect(sendMetaEventAwait).toHaveBeenCalledTimes(1);
     expect(sendMetaEventAwait.mock.calls.at(0)?.at(0)).toMatchObject({
-      eventName: "Purchase",
-      eventId: pay.publicId,
+      eventName: "order_submitted",
+      eventId: `order_submitted:${pay.publicId}`,
     });
-
     const [claimed] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(claimed!.status).toBe("pending_verification");
-    expect(claimed!.metaPurchaseSentAt).toBeTypeOf("number");
-    const sentAt = claimed!.metaPurchaseSentAt;
+    expect(claimed!.metaPurchaseSentAt).toBeNull();
 
     sendMetaEventAwait.mockClear();
     await sendMetaPurchaseOnce(pay.publicId);
     expect(sendMetaEventAwait).not.toHaveBeenCalled();
 
     await verifyPayment(pay.publicId);
+    // verify schedules Purchase in the background; await the helper to assert settle + stamp.
+    await sendMetaPurchaseOnce(pay.publicId);
+    expect(sendMetaEventAwait).toHaveBeenCalledTimes(1);
+    expect(sendMetaEventAwait.mock.calls.at(0)?.at(0)).toMatchObject({
+      eventName: "Purchase",
+      eventId: pay.publicId,
+      customData: expect.objectContaining({ currency: "CAD", order_id: expect.any(String) }),
+    });
+
     const [paid] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(paid!.status).toBe("paid");
-    expect(paid!.metaPurchaseSentAt).toBe(sentAt);
+    expect(paid!.metaPurchaseSentAt).toBeTypeOf("number");
+    const sentAt = paid!.metaPurchaseSentAt;
+
+    sendMetaEventAwait.mockClear();
+    await sendMetaPurchaseOnce(pay.publicId);
     expect(sendMetaEventAwait).not.toHaveBeenCalled();
+    const [again] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(again!.metaPurchaseSentAt).toBe(sentAt);
   });
 
-  it("skips renewals (metaPurchaseEligible = false)", async () => {
+  it("skips renewals (metaPurchaseEligible = false) on verify", async () => {
     const pay = await etransferOrder("+16475550102");
     await db.update(orders).set({ metaPurchaseEligible: false }).where(eq(orders.id, pay.orderId));
     await claimPayment(pay.publicId, { reference: "RENEW-SKIP" });
+    // order_submitted still fires for renewals (funnel); Purchase must not
+    expect(sendMetaEventAwait).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: "order_submitted" }),
+    );
+    sendMetaEventAwait.mockClear();
+
+    await verifyPayment(pay.publicId);
+    await sendMetaPurchaseOnce(pay.publicId);
     expect(sendMetaEventAwait).not.toHaveBeenCalled();
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.metaPurchaseSentAt).toBeNull();

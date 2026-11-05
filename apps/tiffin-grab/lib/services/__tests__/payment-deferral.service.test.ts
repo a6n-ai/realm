@@ -10,6 +10,7 @@ const { createOrder, verifyPayment, claimPayment } = await import("../orders.ser
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput } = await import("./stripe-fixture");
+const { sendMetaPurchaseOnce } = await import("@/lib/meta/purchase");
 
 type Snapshot = {
   subtotal: number;
@@ -194,14 +195,14 @@ describe("createOrder payment deferral", () => {
     expect(claimed!.status).toBe("pending_verification");
     expect(claimed!.reference).toBe("INTERAC-123");
     expect(claimed!.claimedAt).toBeTypeOf("number");
-    // Meta Purchase claimed at proof/reference submit (ads conversion); verify must not re-stamp.
-    expect(claimed!.metaPurchaseSentAt).toBeTypeOf("number");
-    const metaAt = claimed!.metaPurchaseSentAt;
+    // Meta Purchase waits for staff verify; claim only fires order_submitted.
+    expect(claimed!.metaPurchaseSentAt).toBeNull();
 
     await verifyPayment(pay!.publicId);
+    await sendMetaPurchaseOnce(pay!.publicId);
     const [afterVerify] = await db.select().from(payments).where(eq(payments.id, pay!.id));
     expect(afterVerify!.status).toBe("paid");
-    expect(afterVerify!.metaPurchaseSentAt).toBe(metaAt);
+    expect(afterVerify!.metaPurchaseSentAt).toBeTypeOf("number");
 
     // requireProof method rejects a reference-only claim.
     await setPaymentConfig({
@@ -237,7 +238,7 @@ describe("createOrder payment deferral", () => {
       thumbUrl: "https://x/thumb.png",
       name: "shot.png",
     });
-    expect(p2After!.metaPurchaseSentAt).toBeTypeOf("number");
+    expect(p2After!.metaPurchaseSentAt).toBeNull();
   });
 
   it("rejected → re-claim clears the reject note", async () => {

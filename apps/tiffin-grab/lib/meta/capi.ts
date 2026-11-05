@@ -14,8 +14,8 @@ export function sendMetaEvent(args: SendMetaEventArgs): void {
 }
 
 /**
- * Same as sendMetaEvent but awaits the Graph POST. Use for Purchase on claim/settle so Workers
- * cannot end the isolate before Meta receives the event.
+ * Same as sendMetaEvent but awaits the Graph POST. Use for Purchase on settle and
+ * order_submitted on claim so Workers cannot end the isolate before Meta receives the event.
  */
 export async function sendMetaEventAwait(args: SendMetaEventArgs): Promise<void> {
   await postMetaEvent(await metaPixel.connection(), args);
