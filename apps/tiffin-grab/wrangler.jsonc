@@ -31,9 +31,8 @@
   "images": { "binding": "IMAGES" },
   // @react-pdf (yoga-layout's emscripten loader) reads import.meta.url, undefined on workerd.
   "define": { "import.meta.url": "\"file:///worker.js\"" },
-  // Keep request logs; turn traces off — they share the Observability GB allowance with logs
-  // and were burning paid credits without changing product behavior.
-  "observability": { "enabled": true, "traces": { "enabled": false } },
+  // Logs for every request; traces sampled at 10% (logs + traces share the Observability allowance).
+  "observability": { "enabled": true, "traces": { "enabled": true, "head_sampling_rate": 0.1 } },
   // Run next to RDS/Neon (us-east-1): pages make many queries, so DB round trips dominate.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "workers_dev": false,
