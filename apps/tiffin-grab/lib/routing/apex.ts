@@ -10,7 +10,7 @@ const APEX_PUBLIC_EXACT = new Set([
   // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
   "/api/auth/get-session",
 ]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
+const APEX_PUBLIC_PREFIX = ["/menu/", "/_next/", "/api/files/", "/api/analytics", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
 
 export function apexServes(pathname: string): boolean {

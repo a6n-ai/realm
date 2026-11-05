@@ -16,6 +16,7 @@ Everything Realm runs on Cloudflare. AWS pieces stay where they are (`prod/`, `d
 
 - Zone `970680dc711f59ee1bb17ff536b1c61b`, copied 2026-10-27 from the live Route53 zone `Z0983728P9WL0KVAG4E2` (`dns/tiffingrab.ca.zone`). Registrar Open Provider, managed through Hostinger; nameservers `kia.ns.cloudflare.com` / `zac.ns.cloudflare.com` since 2026-10-27 (zone active 15:10 UTC).
 - Since the 2026-11-03 cutover, `tiffingrab.ca`, `www` and `app` are custom domains of the `tiffin-grab` Worker (proxied); `rt` is `realtime-tiffin-grab`. `app` TTL was lowered to 60 s for the cutover. WAF custom rules (403; Free plan cannot send a custom 410): `01f4d514…` WordPress paths on apex/www; `70337cfe…` scanner probes (`.env`, `.git`, Dockerfiles, lockfiles, …) on apex/www/app so they never burn Worker CPU.
+- Public HTML on the apex is edge-cached (`scripts/cloudflare-cache.mjs`, ref `tg-public-pages`): `s-maxage=60` from `next.config.ts`, RSC/prefetch headers and `?ref=` / franchise cookies bypass the cache. Deploy upserts the rule and purges those URLs so cached pages never point at the previous build's chunks.
 - Mail records (Titan MX/SPF/DKIM, SES DKIM and MAIL FROM for the apex and `notify.`) must never be proxied.
 - Left: delete the Route53 zone (after 2026-10-29, once cached NS expire) and retire `deployment/dns/route53-tiffingrab.yaml`.
 
