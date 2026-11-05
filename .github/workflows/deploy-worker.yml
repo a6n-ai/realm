@@ -27,20 +27,31 @@ on:
         description: prefix the DIRECT_DATABASE_URL hostname must start with (RDS full host, Neon endpoint id); guards against a caller's `a && b || c` secret pick falling through to the wrong DB
         required: true
         type: string
+      aws-role-arn:
+        description: OIDC role that reads the migration DB URL from SSM (aws-db-url-param); when set, the DIRECT_DATABASE_URL secret is not needed
+        required: false
+        type: string
+        default: ""
+      aws-db-url-param:
+        description: SSM SecureString holding the direct Postgres URL (us-east-1)
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
       CLOUDFLARE_ACCOUNT_ID:
         required: true
       DIRECT_DATABASE_URL:
-        description: direct (non-pooled) Postgres URL for migrations
-        required: true
+        description: direct (non-pooled) Postgres URL for migrations; not needed with aws-role-arn
+        required: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # OIDC login to AWS; unused when aws-role-arn is empty
     steps:
       - uses: actions/checkout@v5
         with:
@@ -55,30 +66,48 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: AWS login (OIDC)
+        if: inputs.aws-role-arn != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.aws-role-arn }}
+          aws-region: us-east-1
+      # Later steps read DATABASE_URL from the job env (GITHUB_ENV), masked before it is written.
+      - name: Resolve DB URL
+        env:
+          PARAM: ${{ inputs.aws-db-url-param }}
+          ROLE: ${{ inputs.aws-role-arn }}
+          SECRET_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+        run: |
+          if [[ -n "$ROLE" ]]; then
+            [[ "$PARAM" =~ ^/[A-Za-z0-9/_-]+$ ]] || { echo "bad aws-db-url-param"; exit 1; }
+            url=$(aws ssm get-parameter --name "$PARAM" --with-decryption --query Parameter.Value --output text)
+          else
+            url="$SECRET_URL"
+          fi
+          echo "::add-mask::$url"
+          echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
       - name: Validate inputs
         env:
           APP: ${{ inputs.app }}
           WRANGLER_ENV: ${{ inputs.wrangler-env }}
           DB_HOST: ${{ inputs.db-host }}
-          DB_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
           [[ "$APP" =~ ^[a-z0-9-]+$ && -f "apps/$APP/wrangler.jsonc" ]] || { echo "bad app: $APP"; exit 1; }
           [[ "$WRANGLER_ENV" =~ ^[a-z0-9-]+$ ]] || { echo "bad wrangler-env"; exit 1; }
-          host=$(node -e 'try { console.log(new URL(process.env.DB_URL).hostname) } catch { console.log("") }')
+          host=$(node -e 'try { console.log(new URL(process.env.DATABASE_URL).hostname) } catch { console.log("") }')
           [[ -n "$host" && -n "$DB_HOST" && "$host" == "$DB_HOST"* ]] || { echo "DIRECT_DATABASE_URL is missing or not on $DB_HOST*"; exit 1; }
       - name: Migrate
         run: pnpm --filter "$APP" exec drizzle-kit migrate
         env:
           APP: ${{ inputs.app }}
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
       - name: Build
         run: pnpm --filter "$APP" cf:build
         env:
           APP: ${{ inputs.app }}
           NEXT_PUBLIC_SITE_URL: ${{ inputs.site-url }}
           NEXT_PUBLIC_BETTER_AUTH_URL: ${{ inputs.site-url }}
-          # Read at import time by db/client on Node during `next build`; the Worker uses Hyperdrive.
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+          # DATABASE_URL (job env) is read at import time by db/client on Node during `next build`; the Worker uses Hyperdrive.
       - name: Deploy
         run: |
           if [[ "$WRANGLER_ENV" == production ]]; then pnpm --filter "$APP" cf:deploy
