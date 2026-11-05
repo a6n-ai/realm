@@ -19,6 +19,10 @@ Parameters:
   SesIdentity:
     Type: String
     Description: Verified SES domain identity, for example xplorers.a6n.ai
+  SesExtraIdentity:
+    Type: String
+    Default: ""
+    Description: Optional second SES identity, for example tiffingrab.ca when campaigns send from the root domain
   SesConfigurationSet:
     Type: String
     Description: SES configuration set name, for example xplorers-prod
@@ -35,6 +39,7 @@ Parameters:
 Conditions:
   AwsLocation: !Equals [!Ref EnableAwsLocation, "true"]
   ExtraConfigSet: !Not [!Equals [!Ref SesExtraConfigurationSet, ""]]
+  ExtraIdentity: !Not [!Equals [!Ref SesExtraIdentity, ""]]
 
 Resources:
   WorkerAccessPolicy:
@@ -57,6 +62,10 @@ Resources:
             Action: [ses:SendEmail, ses:SendRawEmail]
             Resource:
               - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:identity/${SesIdentity}"
+              - !If
+                - ExtraIdentity
+                - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:identity/${SesExtraIdentity}"
+                - !Ref AWS::NoValue
               - !Sub "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${SesConfigurationSet}"
               - !If
                 - ExtraConfigSet
