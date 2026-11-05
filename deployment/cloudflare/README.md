@@ -159,7 +159,7 @@ Read these before porting tiffin-grab or copper-cloves.
 | KV / Queues | none | `tiffin-grab-cache`; `tiffin-outbox` |
 | GitHub secrets | `XPLORERS_DIRECT_DATABASE_URL` | `TIFFIN_GRAB_DIRECT_DATABASE_URL`; `TIFFIN_GRAB_CRON_SECRET` (GitHub cron workflow) |
 | Wrangler secrets | `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `REALTIME_SECRET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `FILES_S3_ACCESS_KEY_ID`, `FILES_S3_SECRET_ACCESS_KEY` | 26: SSM `/tiffin-grab/prod` values (same auth/unsubscribe/integrations/cron secrets as EC2) + `REALTIME_SECRET` + AWS keys; preview has its own fresh auth/cron/encryption secrets |
-| IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` | `tiffin-grab-workers-iam` (us-east-1), `EnableAwsLocation=true`, extra SES config set |
+| IAM stack | `xplorers-workers-iam` (us-east-1): `ResourceRegion=ap-southeast-1`, `FilesBucketName=xplorers-files-947042607945-ap-southeast-1-an`, `SesIdentity=xplorers.a6n.ai`, `SesConfigurationSet=xplorers-prod` | `tiffin-grab-workers-iam` (us-east-1), `EnableAwsLocation=true`, extra SES config set, `SesExtraIdentity=tiffingrab.ca` (campaigns send from info@) |
 
 Shared GitHub secrets for every app: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit,
 Hyperdrive:Read), `CLOUDFLARE_ACCOUNT_ID`.
