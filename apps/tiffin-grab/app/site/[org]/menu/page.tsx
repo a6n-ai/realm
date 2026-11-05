@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { siteOrgId } from "@/lib/tenant/site-org";
@@ -44,7 +45,7 @@ export default async function MenuPage({ params }: { params: Promise<{ org: stri
         );
       })}
       <div className="flex flex-wrap items-center gap-3">
-        <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
+        <BuildTiffinLink className="tg-cta">Build my tiffin</BuildTiffinLink>
         <Link href="/menu/weekly" className="tg-btn">This week&apos;s menu</Link>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { PageIntro } from "@/components/landing/public-shell";
 import { WeekBoard } from "@/components/landing/week-board";
 import { MetaViewContent } from "@/components/meta/meta-view-content";
@@ -38,7 +39,7 @@ export default async function WeeklyMenuPage({ params }: { params: Promise<{ org
         <>
           <WeekBoard days={days} rows={rows} weekend={weekend} />
           <div className="mt-10 flex flex-wrap gap-3">
-            <Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link>
+            <BuildTiffinLink className="tg-cta">Build my tiffin</BuildTiffinLink>
             <a href="/menu/weekly/pdf" className="tg-btn">Download PDF</a>
             <Link href="/menu" className="tg-btn">Meal sizes and rates</Link>
           </div>

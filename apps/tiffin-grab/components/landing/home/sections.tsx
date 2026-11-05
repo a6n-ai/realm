@@ -1,5 +1,6 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, CookingPot, Salad, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import type { LandingPromo } from "@/lib/landing/promo-types";
@@ -75,7 +76,7 @@ export function Hero({
           </h1>
           <p className="lp-lede">Dal, rice, sabzi and fresh rotis, cooked in small batches and brought to your door across the GTA.</p>
           <div className="lp-actions lp-actions--start">
-            <Link prefetch={false} href={ctaHref} className="lp-cta">Build my tiffin</Link>
+            <BuildTiffinLink href={ctaHref} className="lp-cta">Build my tiffin</BuildTiffinLink>
             {hasMenu ? <a href="#menu" className="lp-textlink lp-textlink--light">This week&apos;s menu <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></a> : null}
           </div>
           {offer ? (
@@ -332,7 +333,7 @@ export function Flex({ cutoff, demo }: { cutoff: string | null; demo: React.Reac
               <li key={s.t}><strong><span className="lp-points__n">{i + 1}</span>{s.t}</strong><span>{s.d}</span></li>
             ))}
           </ol>
-          <div><Link prefetch={false} href="/subscribe" className="lp-cta">Build my tiffin</Link></div>
+          <div><BuildTiffinLink className="lp-cta">Build my tiffin</BuildTiffinLink></div>
         </div>
         <div className="lp-flex__stage">{demo}</div>
       </div>

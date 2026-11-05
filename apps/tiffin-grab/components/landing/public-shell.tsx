@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { Suspense, ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { NavRating, reviewsConnected } from "@/components/landing/landing-reviews";
@@ -42,7 +43,7 @@ async function PublicFooter() {
             <small>delivered</small>
           </span>
           <h2 className="tg-h2 max-w-[14ch]">Your first tiffin, your <span className="c-accent">way.</span></h2>
-          <div><Link prefetch={false} href="/subscribe" className="tg-cta">Build my tiffin</Link></div>
+          <div><BuildTiffinLink className="tg-cta">Build my tiffin</BuildTiffinLink></div>
         </div>
         <div className="tg-close__cols">
           <nav aria-label="Site">

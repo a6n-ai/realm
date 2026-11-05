@@ -52,11 +52,11 @@ export function CrossHostSplash() {
   }, [on]);
 
   if (!on) return null;
-  // A dabba being packed: four tiers land one on another, the lid settles, the clamp closes,
+  // A dabba being packed: four tiers land one on another, the lid settles, the spoon is set down,
   // and steam keeps rising until the next page paints over it. Its shadow grows per tier.
   return (
     <div className="tg-splash" role="status" aria-live="polite">
-      <svg className="tg-splash__tiffin" viewBox="0 0 120 160" width={120} height={160} aria-hidden>
+      <svg className="tg-splash__tiffin" viewBox="0 0 120 162" width={120} height={162} aria-hidden>
         <g className="tg-splash__steam" fill="none" strokeLinecap="round" strokeWidth={3}>
           <path d="M48 30c-5-6 5-10 0-17" />
           <path d="M60 26c-5-6 5-10 0-17" />
@@ -74,9 +74,10 @@ export function CrossHostSplash() {
           <path d="M32 52c4-9 14-13 28-13s24 4 28 13Z" fill="#F6A934" />
           <circle cx={60} cy={37} r={5} fill="#FB801C" />
         </g>
-        <g className="tg-splash__clamp" fill="none" strokeWidth={3.5} strokeLinecap="round">
-          <path d="M22 140V48M98 140V48" />
-          <path d="M22 48c0-14 76-14 76 0" />
+        {/* The mark's orange spoon, set down in front once the tiffin is packed. */}
+        <g className="tg-splash__spoon" fill="#FB801C">
+          <path d="M10 153.5 74 147.2" stroke="#FB801C" strokeWidth={5} strokeLinecap="round" />
+          <ellipse cx={89} cy={145.6} rx={14} ry={6.5} transform="rotate(-6 89 145.6)" />
         </g>
       </svg>
       <BrandWordmark className="tg-splash__word text-[28px]" />

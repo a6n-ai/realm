@@ -46,6 +46,8 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
   const account = session?.user
     ? { href: roleLanding(role ?? Role.USER), label: session.user.name?.split(" ")[0] ?? "Account" }
     : { href: "/login", label: "Sign in" };
+  // Signed in: the order button goes home (running plan, renewals), not to a fresh order.
+  const orderHref = session?.user ? account.href : "/subscribe";
   const path = usePathname();
   const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
@@ -174,7 +176,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
           </div>
           <div className="tg-bar__end">
             {rating}
-            <Link prefetch={false} href="/subscribe" className="tg-cta tg-bar__cta" tabIndex={open ? -1 : undefined}>
+            <Link prefetch={false} href={orderHref} className="tg-cta tg-bar__cta" tabIndex={open ? -1 : undefined}>
               <Roll className="tg-bar__cta-long">Build my tiffin</Roll>
               <Roll className="tg-bar__cta-short">Order</Roll>
               <ArrowRight aria-hidden className="tg-bar__arrow size-4" strokeWidth={2.4} />
@@ -193,7 +195,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <Link prefetch={false} href="/subscribe" className="tg-cta tg-sheet__cta" onClick={close}>Build my tiffin</Link>
+          <Link prefetch={false} href={orderHref} className="tg-cta tg-sheet__cta" onClick={close}>Build my tiffin</Link>
           <div className="tg-sheet__foot">
             <Link href="/contact" onClick={close}>Contact</Link>
             <Link href="/faq" onClick={close}>FAQ</Link>

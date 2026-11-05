@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
 const MAPLIBRE_WORKER = "/vendor/maplibre-gl-worker-6.15.0.mjs";
@@ -210,7 +211,7 @@ export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; 
             <div className="tg-verdict" data-tone={verdict.tone}>
               <strong>{verdict.title}</strong>
               <span>{verdict.body}</span>
-              {verdict.tone === "yes" ? <Link prefetch={false} href="/subscribe" className="tg-link tg-link--tap">Build my tiffin</Link> : null}
+              {verdict.tone === "yes" ? <BuildTiffinLink className="tg-link tg-link--tap">Build my tiffin</BuildTiffinLink> : null}
               {verdict.tone === "no" ? <Link href="/contact" className="tg-link tg-link--tap">Ask us about your area</Link> : null}
             </div>
           ) : null}

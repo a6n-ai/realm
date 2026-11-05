@@ -679,12 +679,16 @@ html[data-nav="pending"] body::before {
 /* Cross-host splash (components/cross-host-splash.tsx): covers the blank between
    tiffingrab.ca and app.tiffingrab.ca with a dabba being packed. Tiers fall and land with a
    small settle (they were dropped, so a little overshoot is earned), the lid follows, the
-   clamp closes, then steam loops until the next page paints. Transform and opacity only. */
+   spoon is set down, then steam loops until the next page paints. Transform and opacity only. */
 .tg-splash {
   --s-ink: var(--foreground);
   position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-  background: var(--background); color: var(--s-ink);
+  background:
+    radial-gradient(60% 45% at 18% 22%, color-mix(in oklch, var(--brand) 26%, transparent), transparent 70%),
+    radial-gradient(55% 45% at 85% 70%, color-mix(in oklch, #2f7d4f 20%, transparent), transparent 70%),
+    var(--background);
+  color: var(--s-ink);
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   animation: tg-splash-in 140ms ease-out both;
 }
@@ -692,8 +696,7 @@ html[data-nav="pending"] body::before {
 .tg-splash__tiffin * { transform-box: fill-box; }
 .tg-splash__tier { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) calc(80ms + var(--i) * 110ms) both; }
 .tg-splash__lid { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 540ms both; }
-/* Steel, like a real dabba clamp; a lighter steel on the dark ground. */
-.tg-splash__clamp { stroke: #6E7A74; transform-origin: 50% 100%; animation: tg-splash-clamp 320ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
+.tg-splash__spoon { animation: tg-splash-spoon 420ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
 .tg-splash__shadow { fill: color-mix(in oklch, var(--s-ink) 14%, transparent); transform-origin: 50% 50%; animation: tg-splash-shadow 560ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both; }
 .tg-splash__steam path { stroke: color-mix(in oklch, var(--s-ink) 30%, transparent); stroke-dasharray: 22; animation: tg-splash-steam 1.8s ease-in-out infinite both; }
 .tg-splash__steam path:nth-child(1) { animation-delay: 1000ms; }
@@ -703,7 +706,7 @@ html[data-nav="pending"] body::before {
 .tg-splash__line { font-size: 14px; letter-spacing: 0.01em; color: color-mix(in oklch, var(--s-ink) 62%, transparent); animation: tg-splash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both; }
 @keyframes tg-splash-in { from { opacity: 0; } }
 @keyframes tg-splash-drop { from { opacity: 0; transform: translateY(-28px); } 40% { opacity: 1; } }
-@keyframes tg-splash-clamp { from { opacity: 0; transform: scaleY(0.6); } }
+@keyframes tg-splash-spoon { from { opacity: 0; transform: translateX(-14px) rotate(-4deg); } }
 @keyframes tg-splash-shadow { from { opacity: 0.2; transform: scaleX(0.35); } }
 @keyframes tg-splash-rise { from { opacity: 0; transform: translateY(6px); } }
 @keyframes tg-splash-steam {
@@ -711,9 +714,8 @@ html[data-nav="pending"] body::before {
   35% { opacity: 1; }
   100% { opacity: 0; stroke-dashoffset: -22; transform: translateY(-6px); }
 }
-:root.dark .tg-splash__clamp { stroke: #B8C2BC; }
 /* Reduced motion: the packed dabba appears whole, with still steam. */
 @media (prefers-reduced-motion: reduce) {
-  .tg-splash__tier, .tg-splash__lid, .tg-splash__clamp, .tg-splash__shadow, .tg-splash__word, .tg-splash__line { animation: tg-splash-in 160ms ease-out both; }
+  .tg-splash__tier, .tg-splash__lid, .tg-splash__spoon, .tg-splash__shadow, .tg-splash__word, .tg-splash__line { animation: tg-splash-in 160ms ease-out both; }
   .tg-splash__steam path { animation: none; stroke-dasharray: none; opacity: 0.6; }
 }
