@@ -113,13 +113,19 @@ describe("apex/www front door", () => {
     expect((await get("http://localhost:3000/site/org1/menu")).status).toBe(404);
   });
 
-  it.each(["/.env", "/environment.ts", "/next.config.js", "/.mcp.json", "/src/environments/environment.ts", "/wp-login.php"])(
-    "404s scanner probe %s without rewriting",
-    async (p) => {
-      const res = await get(`https://tiffingrab.ca${p}`);
-      expect(res.status).toBe(404);
-      expect(res.headers.get("location")).toBeNull();
-      expect(res.headers.get("x-middleware-rewrite")).toBeNull();
-    },
-  );
+  it.each([
+    "/.env",
+    "/.git/config",
+    "/Dockerfile",
+    "/environment.ts",
+    "/next.config.js",
+    "/.mcp.json",
+    "/src/environments/environment.ts",
+    "/wp-login.php",
+  ])("404s scanner probe %s without rewriting", async (p) => {
+    const res = await get(`https://tiffingrab.ca${p}`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
 });
