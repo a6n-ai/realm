@@ -62,3 +62,18 @@
   }
 }
 @keyframes tg-refer-rise { from { transform: translateY(12px); opacity: 0; } }
+
+/* Refer hero: a dark green stage, full bleed with rounded ends, the phone demo rising out of it. */
+.tg-refer-stage { margin: 0 8px; border-radius: 40px; overflow: hidden; color: #FBF4E7; isolation: isolate; position: relative;
+  background: radial-gradient(80% 90% at 85% 10%, #3C7457 0, transparent 60%), radial-gradient(60% 70% at 0 100%, #1E3D2E 0, transparent 70%), #2A5440; }
+.tg-refer-stage::before { /* a soft saffron glow behind the phone, the colour the glass picks up */
+  content: ""; position: absolute; z-index: -1; right: 8%; top: 18%; width: 420px; height: 420px; border-radius: 999px;
+  background: radial-gradient(closest-side, rgb(255 152 67 / 0.55), transparent); filter: blur(20px); }
+.tg-refer-stage__in { display: grid; gap: 40px; align-items: center; padding-block: clamp(96px, 10vw, 120px) clamp(48px, 5vw, 64px); }
+@media (min-width: 960px) { .tg-refer-stage__in { grid-template-columns: minmax(0, 1fr) 340px; gap: 64px; } }
+.tg-refer-stage__eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: #FF9843; }
+.tg-refer-stage__h { margin: 0 0 8px; font-size: clamp(48px, 7vw, 96px); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; text-wrap: balance; }
+.tg-refer-stage__lede { margin: 0; max-width: 40ch; font-size: clamp(17px, 1.5vw, 20px); line-height: 1.5; color: rgb(251 244 231 / 0.8); }
+.tg-refer-stage__phone { width: 100%; max-width: 320px; justify-self: center; filter: drop-shadow(0 40px 60px rgb(0 0 0 / 0.35)); }
+@media (prefers-reduced-transparency: reduce) { .tg-refer-stage::before { display: none; } }
+@media (max-width: 640px) { .tg-refer-stage { margin: 0; border-radius: 0 0 32px 32px; } }

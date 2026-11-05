@@ -9,3 +9,4 @@ const Placeholder = () => <div aria-hidden style={{ width: "100%", maxWidth: 340
 
 export const LazyPauseDemo = dynamic(() => import("./pause-demo").then((m) => m.PauseDemo), { ssr: false, loading: Placeholder });
 export const LazyMenuPickDemo = dynamic(() => import("./menu-pick-demo").then((m) => m.MenuPickDemo), { ssr: false, loading: Placeholder });
+export const LazyReferDemo = dynamic(() => import("./refer-demo").then((m) => m.ReferDemo), { ssr: false, loading: Placeholder });

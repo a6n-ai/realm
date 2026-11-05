@@ -9,7 +9,7 @@ import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { PromoPopup } from "@/components/landing/promo-popup";
 import { PhoneReveal } from "@/components/landing/home/phone-reveal";
 import { LazyPauseDemo as PauseDemo } from "@/components/landing/stage/lazy";
-import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, Story } from "@/components/landing/home/sections";
+import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, ReferBand, Story } from "@/components/landing/home/sections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
@@ -23,6 +23,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import "@/components/landing/home/home.css";
 import "@/components/landing/home/motion.css";
+import { loadReferralOffer } from "@/lib/referrals/offer";
 // Stock photos of dishes on our menu (Pixabay licence) until the kitchen's own shots arrive.
 import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
@@ -45,7 +46,7 @@ function weekRange(weekStart: string) {
 
 export default async function LandingPage({ params }: { params: Promise<{ org: string }> }) {
   const orgId = await siteOrgId((await params).org);
-  const [pub, catalog, { timezone }, promos] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos()]);
+  const [pub, catalog, { timezone }, promos, referral] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null)]);
 
   const plans = publicPlans(catalog.plans);
   const firstPlan = plans.find((p) => !isComingSoon(p.key));
@@ -91,6 +92,8 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
       <Story />
 
       {promos.sections.length > 0 ? <OfferBand promos={promos.sections} photo={paneerPhoto} /> : null}
+
+      {referral?.on ? <ReferBand offer={referral} /> : null}
 
       <Bento
         plans={plans.map((p) => ({ key: p.key, name: p.name, description: p.description, soon: isComingSoon(p.key) }))}

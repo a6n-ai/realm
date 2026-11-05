@@ -1,6 +1,7 @@
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import type { OfferFigure, ReferralOffer } from "@/lib/referrals/offer";
 import { ReferCta } from "./refer-cta";
+import { ReferStage } from "./refer-stage";
 import "./refer.css";
 
 /** "Give $15, get $15." with each side's own figure; one figure when only one side pays. */
@@ -53,16 +54,20 @@ export function ReferContent({ offer }: { offer: ReferralOffer }) {
     );
   }
   return (
-    <section className="tg-wrap tg-section tg-refer" aria-labelledby="tg-refer-title">
-      <div className="tg-refer__hero">
-      <div className="tg-refer__intro">
-        <span className="c-eyebrow !mb-0">Refer a friend</span>
-        <h1 id="tg-refer-title" className="tg-h2">{referHeadline(offer)}</h1>
-        <p className="tg-lede">Share your link. When your friend pays for their first plan, you both get coins to spend on tiffins.</p>
-        <div><ReferCta /></div>
+    <>
+    <section className="tg-refer-stage" aria-labelledby="tg-refer-title">
+      <div className="tg-wrap tg-refer-stage__in">
+        <div className="tg-refer__intro">
+          <span className="tg-refer-stage__eyebrow">Refer a friend</span>
+          <h1 id="tg-refer-title" className="tg-refer-stage__h">{referHeadline(offer)}</h1>
+          <p className="tg-refer-stage__lede">Share your link. When your friend pays for their first plan, you both get coins to spend on tiffins.</p>
+          <div><ReferCta /></div>
+        </div>
+        <ReferStage gift={offer.friend?.big ?? null} coins={offer.friendCoins} />
       </div>
+    </section>
+    <section className="tg-wrap tg-section tg-refer" aria-label="How it works">
       <ReferTicket friend={offer.friend} referrer={offer.referrer} />
-      </div>
       <ol className="tg-refer__steps">
         {STEPS.map(([title, body], i) => (
           <li key={title}>
@@ -76,5 +81,6 @@ export function ReferContent({ offer }: { offer: ReferralOffer }) {
         New customers only.{offer.maxPerReferrer ? ` Up to ${offer.maxPerReferrer} friends each.` : ""} Coins are spent on your orders and can't be cashed out.
       </p>
     </section>
+    </>
   );
 }

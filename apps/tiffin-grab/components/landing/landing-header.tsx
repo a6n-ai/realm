@@ -33,7 +33,8 @@ function Roll({ children, className }: { children: string; className?: string })
 // the capsule tucks away; any scroll up or focus brings it back. On phones the links fold
 // into a sheet that grows out of the menu button.
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
-export function LandingHeader({ rating }: { rating?: ReactNode }) {
+/** `refer` is on when the referral program pays someone; the phone pill carries it below 640px. */
+export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; refer?: boolean }) {
   const { data: session, refetch } = useSession();
   // Back from app.tiffingrab.ca restores this page from the bfcache with the session it had
   // before sign-in; ask again so the header shows the account, not "Sign in".
@@ -145,6 +146,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
   }, []);
 
   const navLinks = [...LINKS, account];
+  const sheetLinks = refer ? [...LINKS, { href: "/refer", label: "Refer a friend" }, account] : navLinks;
 
   return (
     <>
@@ -176,6 +178,11 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
           </div>
           <div className="tg-bar__end">
             {rating}
+            {refer ? (
+              <Link href="/refer" className="tg-bar__refer" aria-current={isCurrent("/refer") ? "page" : undefined} tabIndex={open ? -1 : undefined}>
+                <span aria-hidden>🎁</span> <Roll>Refer</Roll>
+              </Link>
+            ) : null}
             <Link prefetch={false} href={orderHref} className="tg-cta tg-bar__cta" tabIndex={open ? -1 : undefined}>
               <Roll className="tg-bar__cta-long">Build my tiffin</Roll>
               <Roll className="tg-bar__cta-short">Order</Roll>
@@ -188,7 +195,7 @@ export function LandingHeader({ rating }: { rating?: ReactNode }) {
         </div>
         <div id="tg-sheet" className="tg-sheet" inert={!open}>
           <nav aria-label="Menu" className="tg-sheet__links">
-            {navLinks.map((l, i) => (
+            {sheetLinks.map((l, i) => (
               <Link key={l.href} ref={i === 0 ? firstRef : undefined} href={l.href} prefetch={l === account ? false : undefined} className="tg-sheet__link" aria-current={isCurrent(l.href) ? "page" : undefined} style={{ "--i": i } as CSSProperties} onClick={close}>
                 {l.label}
                 <ArrowUpRight aria-hidden className="size-6" strokeWidth={2} />

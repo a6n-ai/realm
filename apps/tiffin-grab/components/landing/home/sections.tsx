@@ -4,6 +4,8 @@ import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, CookingPot, Salad, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import type { LandingPromo } from "@/lib/landing/promo-types";
+import { ReferTicket, referHeadline } from "@/components/landing/refer/refer-content";
+import type { ReferralOffer } from "@/lib/referrals/offer";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
 import { HeroVideo } from "@/components/landing/home/hero-video";
@@ -357,6 +359,23 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
             </details>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Referral band: the two-part ticket beside one line and a link to /refer. Hidden while the program is off. */
+export function ReferBand({ offer }: { offer: ReferralOffer }) {
+  return (
+    <section className="lp-section lp-refer" aria-labelledby="lp-refer">
+      <div className="lp-wrap lp-refer__in">
+        <div className="lp-refer__copy">
+          <span className="lp-kicker">Refer a friend</span>
+          <h2 id="lp-refer" className="lp-h2">{referHeadline(offer)}</h2>
+          <p className="lp-lede">Share your link. When a friend pays for their first plan, you both get coins for your next tiffins.</p>
+          <div><Link prefetch={false} href="/refer" className="tg-cta">How referrals work <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} /></Link></div>
+        </div>
+        <ReferTicket friend={offer.friend} referrer={offer.referrer} />
       </div>
     </section>
   );

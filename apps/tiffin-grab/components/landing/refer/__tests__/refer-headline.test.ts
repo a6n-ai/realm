@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { referHeadline } from "../refer-content";
 
-const base = { on: true, maxPerReferrer: 30, pillLabel: null };
+const base = { on: true, maxPerReferrer: 30, pillLabel: null, friendCoins: 60 };
 const f = (big: string) => ({ big, small: "" });
 
 describe("referHeadline", () => {

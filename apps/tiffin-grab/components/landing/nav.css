@@ -135,6 +135,14 @@
    itself into the sheet: the sheet sits under the capsule's own row, clipped to the
    capsule's shape, and the clip opens downward (clip-path, no layout). The links then
    rise in one after another. Closing runs the same path back up into the capsule. */
+/* Refer sits beside Build my tiffin; on phones the floating pill carries it instead. */
+.tg-bar__refer {
+  display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: inherit; text-decoration: none; white-space: nowrap;
+  background: color-mix(in srgb, currentColor 8%, transparent); transition: background-color 200ms ease;
+}
+.tg-bar__refer:hover, .tg-bar__refer[aria-current="page"] { background: color-mix(in srgb, currentColor 14%, transparent); }
+@media (max-width: 640px) { .tg-bar__refer { display: none; } }
 .tg-sheet { display: none; }
 .tg-bar__cta-short { display: none; }
 @media (max-width: 820px) {

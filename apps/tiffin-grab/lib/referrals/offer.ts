@@ -11,6 +11,8 @@ export type ReferralOffer = {
   referrer: OfferFigure | null;
   maxPerReferrer: number | null;
   pillLabel: string | null;
+  /** Coins the friend gets on a flat reward (the demo counts them up); null in pct mode or when off. */
+  friendCoins: number | null;
 };
 
 const forSite = (f: OfferFigure | null): OfferFigure | null => (f ? { ...f, big: siteFigure(f.big) } : null);
@@ -28,5 +30,6 @@ export async function loadReferralOffer(): Promise<ReferralOffer> {
     referrer: forSite(referrer),
     maxPerReferrer: settings.maxPerReferrer,
     pillLabel: referralPillLabel(friend),
+    friendCoins: settings.mode === "flat" && settings.friendValue > 0 ? settings.friendValue : null,
   };
 }

@@ -7,17 +7,19 @@ import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { loadReferralOffer } from "@/lib/referrals/offer";
 import "@/components/landing/landing.css";
 
 // One shell for every public page: the landing header, the ink close band and
 // the location picker. .customer-app opts in to the customer design system.
 // The public site has one look whatever the visitor's theme: .tg-light-root pins the cream
 // tokens and chosen bands opt into dark green with .dark (the toggle lives in /me and the dashboard).
-export function PublicShell({ children }: { children: ReactNode }) {
+export async function PublicShell({ children }: { children: ReactNode }) {
+  const offer = await loadReferralOffer().catch(() => null);
   return (
     <div className="tg-light-root">
     <div className="tg-land customer-app">
-      <LandingHeader rating={<Suspense fallback={null}><NavRating /></Suspense>} />
+      <LandingHeader refer={offer?.on ?? false} rating={<Suspense fallback={null}><NavRating /></Suspense>} />
       {/* Route changes cross-fade the page under a header that stays put (see landing.css). */}
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />
