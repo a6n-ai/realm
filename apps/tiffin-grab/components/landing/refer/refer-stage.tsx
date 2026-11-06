@@ -2,8 +2,8 @@
 
 import { LazyReferDemo } from "@/components/landing/stage/lazy";
 
-/** The phone demo needs a dollar figure and a coin count; a pct or coins-only reward shows no phone. */
-export function ReferStage({ gift, coins }: { gift: string | null; coins: number | null }) {
-  if (!gift?.startsWith("$") || coins == null) return null;
-  return <div className="tg-refer-stage__phone"><LazyReferDemo gift={gift} coins={coins} /></div>;
+/** The phone demo counts the referrer's coins in, so it needs a flat reward for them; otherwise no phone. */
+export function ReferStage({ gift, earn, coins }: { gift: string | null; earn: string | null; coins: number | null }) {
+  if (!earn || coins == null) return null;
+  return <div className="tg-refer-stage__phone"><LazyReferDemo gift={gift} earn={earn} coins={coins} /></div>;
 }

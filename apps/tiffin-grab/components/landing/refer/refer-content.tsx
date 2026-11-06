@@ -58,7 +58,7 @@ export function ReferContent({ offer }: { offer: ReferralOffer }) {
           <p className="tg-refer-stage__lede">Share your link. When your friend pays for their first plan, you both get coins to spend on tiffins.</p>
           <div><ReferCta /></div>
         </div>
-        <ReferStage gift={offer.friend?.big ?? null} coins={offer.friendCoins} />
+        <ReferStage gift={offer.friend?.big ?? null} earn={offer.referrer?.big ?? null} coins={offer.referrerCoins} />
       </div>
     </section>
     <ReferFlow offer={offer} />

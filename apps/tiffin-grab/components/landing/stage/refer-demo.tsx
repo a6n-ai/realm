@@ -1,49 +1,75 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronLeft, Phone as PhoneIcon, Video, Wallet } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, Coins, Copy, Download, Ellipsis, Gift, LifeBuoy, Link2, Mail, MessageSquare, Phone as PhoneIcon, Send, Share, Share2, Ticket, User, Users, UtensilsCrossed, Video, Wallet } from "lucide-react";
+import { WhatsAppGlyph } from "@/components/landing/whats-app-chat";
 import { Phone, Stage, type Act } from "./kit";
 import "./refer-demo.css";
 
-// A referral, start to payoff, on one phone. Three screens slide as one track:
-//   1. WhatsApp: a friend's message with the share card. Tap the card.
-//   2. TiffinGrab: "Priya gave you $15. Let's build your tiffin." Tap Build my tiffin.
-//   3. Paid: the order confirms and the coins drop into the wallet, counting up.
-// The reset has a cause on screen: the back arrow returns to the chat.
+// A referral told from the referrer's own app, the same three screens as the section below:
+//   1. Me > Refer: the offer and the share card. Tap Share on WhatsApp.
+//   2. WhatsApp with Aman: the link goes out with its card, gets read, Aman replies. Tap back.
+//   3. Me > Refer, Your friends: Aman walks Joined → Ordered → Rewarded and the coins count in.
+// The reset has a cause on screen: Share again, under the list, opens the share card.
+// Priya, Aman and the code are illustrative; the figures are the live offer.
 
 type Screen = 0 | 1 | 2;
-type S = { screen: Screen; typing: boolean; sent: boolean; coins: number; landed: boolean };
+type Status = "joined" | "ordered" | "rewarded";
+type S = { screen: Screen; sent: boolean; read: boolean; typing: boolean; reply: boolean; status: Status; coins: number };
 
-const START: S = { screen: 0, typing: true, sent: false, coins: 0, landed: false };
+const START: S = { screen: 0, sent: false, read: false, typing: false, reply: false, status: "joined", coins: 0 };
 const REST = { x: 230, y: 600 };
+const CODE = "PRIYA5";
+const PILL: Record<Status, string> = { joined: "Joined", ordered: "Ordered", rewarded: "Rewarded" };
 
 const script = (total: number) => async (a: Act<S>) => {
-  await a.wait(900);
-  a.put({ typing: false, sent: true });
-  await a.wait(1600);
-  a.mark("open");
-  await a.click("card");
+  await a.wait(1100);
+  a.mark("share");
+  await a.click("share");
   a.put({ screen: 1 });
-  await a.wait(2300);
-  a.mark("build");
-  await a.click("build");
-  a.put({ screen: 2 });
-  await a.wait(500);
-  a.put({ landed: true });
-  for (let i = 1; i <= 12; i++) {
-    a.put({ coins: Math.round((total * i) / 12) });
-    await a.wait(45);
-  }
-  await a.wait(2600);
+  await a.wait(650);
+  a.put({ sent: true });
+  await a.wait(900);
+  a.put({ read: true });
+  await a.wait(350);
+  a.put({ typing: true });
+  await a.wait(1300);
+  a.put({ typing: false, reply: true });
+  await a.wait(1400);
   a.mark("back");
   await a.click("back");
-  a.put({ screen: 0, typing: true, sent: false, coins: 0, landed: false });
+  a.put({ screen: 2 });
+  await a.wait(1000);
+  a.put({ status: "ordered" });
+  await a.wait(1100);
+  a.put({ status: "rewarded" });
+  for (let i = 1; i <= 14; i++) {
+    a.put({ coins: Math.round((total * i) / 14) });
+    await a.wait(40);
+  }
+  await a.wait(2600);
+  a.mark("again");
+  await a.click("again");
+  a.put(START);
   await a.move(REST);
   await a.wait(300);
 };
 
-/** `gift` is the friend's figure ("$15"), `coins` the coins it pays (60). */
-export function ReferDemo({ gift, coins, className }: { gift: string; coins: number; className?: string }) {
-  const POSTER: S = { screen: 1, typing: false, sent: true, coins, landed: true };
+/** The customer app's floating glass tab bar, Refer lit. */
+function TabBar() {
+  return (
+    <nav className="rd-tabs">
+      <span><CalendarDays size={20} />Deliveries</span>
+      <span><LifeBuoy size={20} />Support</span>
+      <span data-on><Gift size={20} />Refer</span>
+      <span><User size={20} />Account</span>
+      <span><Ellipsis size={20} />More</span>
+    </nav>
+  );
+}
+
+/** `gift` is the friend's figure ("$15"), `earn` yours, `coins` the coins yours pays (60). */
+export function ReferDemo({ gift, earn, coins, className }: { gift: string | null; earn: string; coins: number; className?: string }) {
+  const POSTER: S = { screen: 2, sent: true, read: true, typing: false, reply: true, status: "rewarded", coins };
   return (
     <Stage<S>
       width={340}
@@ -59,66 +85,120 @@ export function ReferDemo({ gift, coins, className }: { gift: string; coins: num
       {(s, _rect, layout) => (
         <Phone width={layout === "compact" ? 300 : 340} wallpaper="#FBF4E7" className="rd-phone">
           <div className="rd-track" style={{ transform: `translateX(${-100 * s.screen}%)` }}>
-            {/* 1. The chat */}
-            <section className="rd-screen rd-chat" aria-hidden={s.screen !== 0}>
+            {/* 1. Me > Refer */}
+            <section className="rd-screen rd-app" aria-hidden={s.screen !== 0}>
+              <header className="rd-app__bar"><span>Refer</span></header>
+              <div className="rd-tiles">
+                <div className="rd-tile">
+                  <span className="rd-ic rd-ic--orange"><Gift size={16} /></span>
+                  <small>You get</small>
+                  <b>{earn}</b>
+                </div>
+                {gift ? (
+                  <div className="rd-tile">
+                    <span className="rd-ic rd-ic--pink"><Users size={16} /></span>
+                    <small>Your friend gets</small>
+                    <b>{gift}</b>
+                  </div>
+                ) : null}
+              </div>
+              <div className="rd-card">
+                <div className="rd-card__head">
+                  <span className="rd-ic rd-ic--purple"><Ticket size={16} /></span>
+                  <span><b>Your referral code</b><small>Share it with friends</small></span>
+                </div>
+                <div className="rd-code"><span>{CODE}</span><em><Copy size={11} /> Copy code</em></div>
+                <span className="rd-wa-btn" data-target="share"><WhatsAppGlyph className="size-4" /> Share on WhatsApp</span>
+                <div className="rd-targets">
+                  <span className="rd-ic rd-ic--blue"><Download size={16} /></span>
+                  <span className="rd-ic rd-ic--green"><MessageSquare size={16} /></span>
+                  <span className="rd-ic rd-ic--orange"><Mail size={16} /></span>
+                  <span className="rd-ic rd-ic--cyan"><Send size={16} /></span>
+                  <span className="rd-ic rd-ic--gray"><Link2 size={16} /></span>
+                </div>
+              </div>
+              <p className="rd-label">How it works</p>
+              <ol className="rd-steps">
+                <li><span className="rd-ic rd-ic--blue"><Share2 size={16} /></span><span><b>Share your code</b><small>Send your link to a friend</small></span></li>
+                <li><span className="rd-ic rd-ic--cyan"><UtensilsCrossed size={16} /></span><span><b>They order</b><small>And pay for their first plan</small></span></li>
+                <li><span className="rd-ic rd-ic--green"><Coins size={16} /></span><span><b>You both get coins</b><small>In both wallets</small></span></li>
+              </ol>
+              <TabBar />
+            </section>
+
+            {/* 2. WhatsApp with Aman */}
+            <section className="rd-screen rd-chat" aria-hidden={s.screen !== 1}>
               <header className="rd-wa__bar">
-                <ChevronLeft size={22} />
-                <span className="rd-wa__av">P</span>
-                <span className="rd-wa__who"><b>Priya</b><small>{s.typing ? "typing…" : "online"}</small></span>
+                <span data-target="back" className="rd-wa__back"><ChevronLeft size={22} /></span>
+                <span className="rd-wa__av">A</span>
+                <span className="rd-wa__who"><b>Aman</b><small>{s.typing ? "typing…" : "online"}</small></span>
                 <Video size={20} />
                 <PhoneIcon size={18} />
               </header>
               <div className="rd-wa__wall">
-                <p className="rd-wa__in">Have you tried TiffinGrab? Dal like my mom's 😋</p>
-                <div className="rd-wa__in rd-wa__card" data-on={s.sent || undefined} data-target="card">
-                  <div className="rd-card">
-                    <span className="rd-card__k">Priya gave you</span>
-                    <strong>{gift}</strong>
-                    <span className="rd-card__m">for your first tiffin plan</span>
-                    <span className="rd-card__code">K7M2QX</span>
+                <span className="rd-wa__day">Yesterday</span>
+                <p className="rd-wa__in">New job is great but I&apos;m living on instant noodles 😅</p>
+                <p className="rd-wa__mine">Haha same before I found a tiffin place</p>
+                <span className="rd-wa__day">Today</span>
+                <p className="rd-wa__in">Any good tiffin near you? So tired of cooking every night.</p>
+                <div className="rd-wa__out" data-on={s.sent || undefined}>
+                  <div className="rd-prev">
+                    <b className="rd-prev__brand">Tiffin<i>Grab</i></b>
+                    <strong>{gift ? `Priya gave you ${gift}` : "Priya invited you"}</strong>
+                    <span className="rd-prev__code">{CODE}</span>
                   </div>
-                  <span className="rd-wa__link">tiffingrab.ca/r/K7M2QX</span>
+                  <span className="rd-wa__link">tiffingrab.ca/r/{CODE}</span>
+                  <p>Try mine, home-style dal like mom&apos;s.</p>
+                  <time data-read={s.read || undefined}>7:42 <Check size={12} /><Check size={12} /></time>
                 </div>
                 {s.typing ? <span className="rd-wa__dots"><i /><i /><i /></span> : null}
+                {s.reply ? <p className="rd-wa__in rd-wa__reply">Ordering tonight 🙌</p> : null}
               </div>
             </section>
 
-            {/* 2. The friend page */}
-            <section className="rd-screen rd-invite" aria-hidden={s.screen !== 1}>
-              <span className="rd-invite__eyebrow">You're invited</span>
-              <h3 className="rd-invite__h">Priya gave you <em>{gift}.</em></h3>
-              <p className="rd-invite__sub">Let's build your tiffin.</p>
-              <div className="rd-ticket">
-                <span>From Priya</span>
-                <strong>{gift}</strong>
-                <small>{coins} coins in your wallet</small>
+            {/* 3. Me > Refer, Your friends */}
+            <section className="rd-screen rd-app" aria-hidden={s.screen !== 2}>
+              <header className="rd-app__bar">
+                <span>Refer</span>
+              </header>
+              <div className="rd-card rd-stat" data-landed={s.status === "rewarded" || undefined}>
+                <span className="rd-ic rd-ic--brown"><Coins size={16} /></span>
+                <span><small>From referrals</small><b>{s.coins}<em> coins</em></b></span>
+                <span className="rd-stat__plus" aria-hidden>+{earn}</span>
               </div>
-              <p className="rd-invite__label">Your first plan</p>
-              <div className="rd-opts">
-                <span className="rd-opt" data-on>Veg</span>
-                <span className="rd-opt">Non-veg</span>
-                <span className="rd-opt">Healthy</span>
+              <div className="rd-card rd-wallet">
+                <span className="rd-ic rd-ic--indigo"><Wallet size={16} /></span>
+                <span><small>In your wallet</small><b>{120 + s.coins}<em> coins</em></b></span>
               </div>
-              <div className="rd-rows">
-                <span className="rd-row"><b>4 Item Thali</b><i>Sabzi · Daal · Rice · Roti</i></span>
-                <span className="rd-row"><b>Mon to Fri</b><i>4 weeks</i></span>
+              <p className="rd-label">Your friends</p>
+              <ul className="rd-list">
+                <li className="rd-list__live">
+                  <span className="rd-av rd-av--a">A</span>
+                  <span className="rd-list__name">Aman<small>Joined today</small></span>
+                  <span key={s.status} className={`rd-pill rd-pill--${s.status}`}>{PILL[s.status]}</span>
+                </li>
+                <li>
+                  <span className="rd-av rd-av--n">N</span>
+                  <span className="rd-list__name">Neha<small>Joined Oct 28</small></span>
+                  <span className="rd-pill rd-pill--rewarded">Rewarded</span>
+                </li>
+                <li>
+                  <span className="rd-av rd-av--r">R</span>
+                  <span className="rd-list__name">Ravi<small>Joined Oct 12</small></span>
+                  <span className="rd-pill rd-pill--rewarded">Rewarded</span>
+                </li>
+                <li>
+                  <span className="rd-av rd-av--s">S</span>
+                  <span className="rd-list__name">Sana<small>Joined Sep 30</small></span>
+                  <span className="rd-pill rd-pill--rewarded">Rewarded</span>
+                </li>
+              </ul>
+              <div className="rd-card rd-again">
+                <span className="rd-ic rd-ic--purple"><Ticket size={16} /></span>
+                <span><b>{CODE}</b><small>Invite more friends</small></span>
+                <span className="rd-again__btn" data-target="again"><Share size={14} /> Share again</span>
               </div>
-              <span className="rd-invite__cta" data-target="build">Build my tiffin</span>
-            </section>
-
-            {/* 3. Paid: coins land */}
-            <section className="rd-screen rd-paid" aria-hidden={s.screen !== 2}>
-              <span className="rd-paid__back" data-target="back"><ArrowLeft size={20} /></span>
-              <span className="rd-paid__ok"><Check size={28} strokeWidth={3} /></span>
-              <h3 className="rd-paid__h">Your plan is booked.</h3>
-              <p className="rd-paid__sub">4 Item Thali · 4 weeks · Mon to Fri</p>
-              <div className="rd-wallet" data-landed={s.landed || undefined}>
-                <span className="rd-wallet__ic"><Wallet size={20} /></span>
-                <span className="rd-wallet__t">Wallet</span>
-                <b className="rd-wallet__n">{s.coins}<small> coins</small></b>
-              </div>
-              <span className="rd-coin" data-landed={s.landed || undefined} aria-hidden>+{coins}</span>
-              <p className="rd-paid__note">A thank-you just went to Priya too.</p>
+              <TabBar />
             </section>
           </div>
         </Phone>
