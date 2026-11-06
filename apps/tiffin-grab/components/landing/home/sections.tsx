@@ -177,10 +177,6 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
   const names = ["Diet", "Size", ...(sides.length > 0 ? ["Sides"] : []), "Days", "Weeks", "Price", "Photo"];
   return (
     <section className="lp-section lp-build" aria-labelledby="lp-build">
-      {/* The same warm, blurred food wash as the menu: the glass cards read as glass over it. */}
-      <div className="lp-wash" aria-hidden>
-        <Image src={photo} alt="" fill sizes="256px" placeholder="blur" />
-      </div>
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">
           <div>
@@ -301,10 +297,6 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
 export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
   return (
     <section id="menu" className="lp-section lp-menu scroll-mt-24" aria-labelledby="lp-menu">
-      {/* A warm wash of real food behind the glass: blurred, so it reads as colour and light. */}
-      <div className="lp-menu__bg" aria-hidden>
-        <Image src={photo} alt="" fill sizes="256px" placeholder="blur" />
-      </div>
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">
           <div>

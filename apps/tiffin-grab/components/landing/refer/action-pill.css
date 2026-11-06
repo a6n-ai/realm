@@ -83,9 +83,6 @@
 @media (prefers-reduced-transparency: reduce) { .tg-pill__orb, .tg-drum { --glass-tint: rgb(255 255 255 / 0.96); } }
 html[data-consent="open"] .tg-pill { display: none; }
 
-/* WhatsApp lives in the dock; the round float only stands in while the dock is away or hidden. */
-html:not([data-consent="open"]) .tg-land:has(.tg-pill:not([data-away])) .tg-wa { display: none; }
-.tg-land:has(.tg-pill) .tg-wa { bottom: max(14px, env(safe-area-inset-bottom)); }
 
 /* Room inside the footer (not under it, which showed a cream strip) so the dock never sits on its last line. */
 .tg-land:has(.tg-pill) .tg-close { padding-bottom: 92px; }

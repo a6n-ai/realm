@@ -3,7 +3,6 @@ import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { Suspense, ViewTransition, type ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { NavRating, reviewsConnected } from "@/components/landing/landing-reviews";
-import { WhatsAppChat } from "@/components/landing/whats-app-chat";
 import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -31,7 +30,6 @@ export async function PublicShell({ children }: { children: ReactNode }) {
       <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
       <PublicFooter />
       <LocationPicker />
-      <WhatsAppChat />
       <ActionPill label={offer?.pillLabel ?? null} refer={offer?.on ? referHeadline(offer).replace(/\.$/, "") : null} promo={dockPromo} />
       <EdgeTint />
     </div>

@@ -657,3 +657,4 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
   background: radial-gradient(60% 80% at 100% 0, rgb(255 152 67 / 0.26), transparent 60%), radial-gradient(60% 80% at 0 100%, #1E3D2E, transparent 70%), #2A5440;
 }
 @media (max-width: 640px) { .lp .lp-flex__slab.dark:not(.lp-hero) { border-radius: 32px; padding: 32px 20px; } }
+
