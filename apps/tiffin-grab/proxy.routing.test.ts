@@ -117,9 +117,12 @@ describe("apex/www front door", () => {
     expect(new URL(friend.headers.get("x-middleware-rewrite")!).pathname).toBe("/site/org1/refer/K7M2QX");
   });
 
-  it("does not rewrite a /refer/<x> that is not code-shaped", async () => {
-    const res = await get("https://app.tiffingrab.ca/refer/not-a-code!");
-    expect(res.headers.get("x-middleware-rewrite") ?? "").not.toContain("/site/");
+  it("sends a mistyped /refer/<x> to the friend page too, which falls back to the general refer content", async () => {
+    for (const p of ["/refer/K7M2Q", "/refer/hello"]) {
+      const res = await get(`https://tiffingrab.ca${p}`);
+      expect(res.headers.get("location")).toBeNull();
+      expect(new URL(res.headers.get("x-middleware-rewrite")!).pathname).toMatch(/^\/site\/org1\/refer\/[A-Z0-9]+$/);
+    }
   });
 
   it("keeps /r short links on the apex", async () => {

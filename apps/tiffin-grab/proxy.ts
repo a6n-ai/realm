@@ -87,10 +87,12 @@ const SITE_PAGES = new Set([
 ]);
 
 // A referral friend page, /refer/<code>: personalised, so never in public-pages.json (edge cache).
+// Any one segment goes through: the page falls back to the general refer content for a mistyped
+// or unknown code, which beats a 404 for someone who typed a friend's code by hand.
 function siteFriendPath(pathname: string): string | null {
   const m = /^\/refer\/([^/]+)$/.exec(pathname);
-  const code = m ? normalizeReferralCode(m[1]!) : "";
-  return isReferralCodeShape(code) ? `/refer/${code}` : null;
+  const code = m ? normalizeReferralCode(m[1]!).replace(/[^A-Z0-9]/g, "") : "";
+  return code ? `/refer/${code}` : null;
 }
 
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;

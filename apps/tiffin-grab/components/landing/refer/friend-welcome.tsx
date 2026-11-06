@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { OfferFigure } from "@/lib/referrals/offer";
 import type { PromoSavings } from "@/lib/landing/promo-types";
-import { friendHeadline } from "./friend-copy";
+import { friendGiftLine, friendHeadline } from "./friend-copy";
 import { ReferTicket } from "./refer-content";
 import "./refer.css";
 
@@ -29,7 +29,7 @@ export function FriendWelcome({ code, firstName, friend, promo }: {
             {friendHeadline(firstName, friend)} <span className="c-accent">Let's build your tiffin.</span>
           </h1>
           <p className="tg-lede">
-            {friend.big} in coins, added to your wallet after your first paid order.
+            {friendGiftLine(friend)}
             {promo ? ` Plus ${promo.savings.headline.toLowerCase()} ${promo.savings.condition} with ${promo.code}.` : ""}
           </p>
           <div><Link prefetch={false} href={subscribe} className="tg-cta tg-refer__cta">Build my tiffin</Link></div>

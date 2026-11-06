@@ -20,8 +20,9 @@
   .tg-pill__order { background: #F06B1A; color: #2E1200; }
   html[data-consent="open"] .tg-pill { display: none; }
   /* Order lives in the pill on phones; the header keeps the menu button only. */
-  .tg-land:has(.tg-pill) .tg-bar__cta { display: none; }
-  .tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
+  /* While the cookie card hides the pill, Order goes back to the header and WhatsApp drops back down. */
+  html:not([data-consent="open"]) .tg-land:has(.tg-pill) .tg-bar__cta { display: none; }
+  html:not([data-consent="open"]) .tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
 }
 @keyframes tg-pill-in { from { opacity: 0; transform: translate(-50%, 16px); } }
 @media (prefers-reduced-transparency: reduce) { .tg-pill { background: #FBF4E7; -webkit-backdrop-filter: none; backdrop-filter: none; } }
