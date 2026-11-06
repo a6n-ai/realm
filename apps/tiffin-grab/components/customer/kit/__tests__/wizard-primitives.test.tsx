@@ -71,7 +71,7 @@ describe("form bits", () => {
         <Button variant="ghost" pill>Go</Button>
       </>,
     );
-    expect(screen.getByText("Save 10%").className).toMatch(/py-0\.5.*color-mix/);
+    expect(screen.getByText("Save 10%").className).toMatch(/py-0\.5.*bg-primary\/15/);
     expect(screen.getByRole("link", { name: "Close" })).toHaveAttribute("href", "/x");
     expect(screen.getByRole("button", { name: "Prev" })).toBeDisabled();
     expect(screen.getByRole("separator")).toBeInTheDocument();

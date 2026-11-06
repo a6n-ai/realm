@@ -11,11 +11,11 @@ async function loadAuth(workers: boolean) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("auth config", () => {
-  it("keeps rate-limit counters in memory on Node and trusts x-real-ip", async () => {
+  it("keeps rate-limit counters in memory on Node and trusts only cf-connecting-ip", async () => {
     const { auth, trusted } = await loadAuth(false);
     expect(auth.options.rateLimit?.storage).toBe("memory");
     expect(auth.options.advanced?.ipAddress?.ipAddressHeaders).toEqual(trusted);
-    expect(trusted).toEqual(["x-real-ip"]);
+    expect(trusted).toEqual(["cf-connecting-ip"]);
   });
 
   it("uses the database store and cf-connecting-ip on Workers", async () => {
