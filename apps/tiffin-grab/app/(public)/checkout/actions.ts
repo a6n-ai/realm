@@ -14,7 +14,7 @@ import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { captureMetaAttribution } from "@/lib/meta/request-context";

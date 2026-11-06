@@ -19,7 +19,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import type { ActionResult } from "@/app/(customer)/me/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { FollowUpPicker, NoteDialog, StatusBoard, StatusPill, type NoteKind } from "../_leads/status-dialog";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";

@@ -8,7 +8,7 @@ import { addressScopeFor, addressService } from "@/lib/services/addresses.servic
 import { resolveDropOff, setAddressDropOff } from "@/lib/services/address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { assertAddressServiceable } from "@/lib/catalog/zone-match";
-import { runAction, type ActionResult } from "../action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 // Every action returns { error } instead of throwing: production builds redact thrown
 // server-action errors, and "that address is outside every zone" must reach the customer.

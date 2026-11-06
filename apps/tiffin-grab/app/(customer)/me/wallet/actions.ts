@@ -10,7 +10,7 @@ import {
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { assertCanManageOrder, assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
-import { runAction, type ActionResult } from "../action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { emailOrderReceipt } from "@/lib/billing/email-receipt";
 
 async function assertCanClaimPayment(paymentPublicId: string): Promise<ClaimPaymentContext> {

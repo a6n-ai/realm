@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 const log = createLogger("customers-actions");
 

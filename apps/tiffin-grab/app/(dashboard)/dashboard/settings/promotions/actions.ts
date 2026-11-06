@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { sanitizeEmailHtml } from "@relay/engine";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PROMO_PLACEMENTS } from "@/db/schema/promotions";
 import { promotionsService } from "@/lib/services/promotions.service";

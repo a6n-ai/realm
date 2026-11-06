@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
 import { isRunnable, runCronJob } from "@/lib/cron/run";
-import { runAction } from "@/app/(customer)/me/action-result";
+import { runAction } from "@/lib/actions/action-result";
 
 export async function runCronJobAction(job: string, input: { date?: string; mode?: string } = {}) {
   return runAction(async () => {

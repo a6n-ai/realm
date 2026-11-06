@@ -12,7 +12,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { assertOrderVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { orderFormCatalog } from "../orders/order-form-catalog";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";

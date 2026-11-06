@@ -9,7 +9,7 @@ import { assertOnePerson, assertOrderVisible, createOrder, resolveSessionVisible
 import { defaultPaymentMethodId, findUnpaidRenewal, loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
 import type { QuickRenewData } from "@/components/renew/types";
 import type { WizardSelections } from "@/components/wizard/selections";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { AdminOrderCreated } from "../admin-order-created-dialog";
 
 const RENEWABLE = new Set(["active", "paused", "completed"]);

@@ -85,7 +85,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     actAs(userA.publicId);
     // Returned, not thrown: a thrown error across a Server Action boundary gets
     // redacted to a message-less "Minified React error #441" in production
-    // builds (see app/(customer)/me/action-result.ts) — expected rejections must
+    // builds (see lib/actions/action-result.ts) — expected rejections must
     // come back as { error } so the customer actually sees why.
     await expect(rescheduleMyDelivery(bDelivery.publicId, "2030-01-07")).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));

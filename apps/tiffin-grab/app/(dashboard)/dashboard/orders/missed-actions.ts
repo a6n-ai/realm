@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { assertDeliveryVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/services/missed-deliveries.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 export async function reconcileMissedAction(): Promise<ActionResult> {
   const res = await runAction(async () => {

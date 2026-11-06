@@ -18,7 +18,7 @@ import {
   type ReconcileRow,
   type SettleOutcome,
 } from "@/lib/services/payment-stripe";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 const OUTCOME_TEXT: Record<SettleOutcome, string> = {
   paid: "Settled: payment marked paid",

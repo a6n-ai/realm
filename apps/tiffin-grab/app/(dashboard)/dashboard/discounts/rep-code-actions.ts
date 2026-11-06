@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";

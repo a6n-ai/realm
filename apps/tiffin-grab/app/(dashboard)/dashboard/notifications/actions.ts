@@ -2,7 +2,7 @@
 
 import { buildResubscribeUrl } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { getSession } from "@/lib/auth/session";

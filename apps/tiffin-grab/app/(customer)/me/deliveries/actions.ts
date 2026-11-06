@@ -15,7 +15,7 @@ import type { SwapOption } from "@/lib/menu/meal-validation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { runAction, type ActionResult } from "../action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 // Every action gates with assertCanManage* (owner OR staff) before mutating, then stamps the
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.

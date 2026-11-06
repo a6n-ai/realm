@@ -5,7 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, orders, users } from "@/db/schema";

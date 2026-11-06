@@ -22,7 +22,7 @@ import { displayName } from "@/lib/inquiries/display";
 import { SUB_STATUSES, SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import type { ActionResult } from "@/app/(customer)/me/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";

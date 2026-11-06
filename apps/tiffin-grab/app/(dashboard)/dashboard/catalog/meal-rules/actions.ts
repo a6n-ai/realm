@@ -84,7 +84,7 @@ export type RuleSaveResult = { ok: true } | { error: string };
  * This Next build redacts anything thrown across the Server Action boundary to a
  * message-less "Minified React error #441", so a thrown ValidationError reaches
  * the admin as gibberish instead of "Give the rule a name." (Same rule as
- * app/(customer)/me/action-result.ts, which documents it.)
+ * lib/actions/action-result.ts, which documents it.)
  */
 export async function saveMealRule(input: unknown): Promise<RuleSaveResult> {
   await requireAdmin();

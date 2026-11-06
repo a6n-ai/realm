@@ -14,7 +14,7 @@ const { createMyAddress, archiveMyAddress } = await import("../address-actions")
 const reset = () => db.delete(users).where(like(users.email, "acctaddr_%")); // cascades addresses
 
 // Production builds redact errors thrown from server actions; expected refusals must come
-// back as { error } so the customer sees the real reason (see app/(customer)/me/action-result.ts).
+// back as { error } so the customer sees the real reason (see lib/actions/action-result.ts).
 describe("account address actions return refusals, never throw", () => {
   beforeEach(async () => {
     await reset();

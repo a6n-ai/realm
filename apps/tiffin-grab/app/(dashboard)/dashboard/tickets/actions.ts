@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { setSupportHours } from "@/lib/services/app-settings.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import {
   ticketsService,
   type TicketPriority,

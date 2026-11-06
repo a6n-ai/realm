@@ -8,7 +8,7 @@ import { menuWeeks, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { selectionsService } from "@/lib/menu/selections.service";
-import { runAction, type ActionResult } from "../action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 async function me(): Promise<bigint> {
   const id = await currentUserId();

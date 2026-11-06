@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { setTrialSettings } from "@/lib/services/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { runAction } from "@/app/(customer)/me/action-result";
+import { runAction } from "@/lib/actions/action-result";
 
 export async function saveTrialSettings(input: { frequencyKey: string | null; maxDays: number | null }) {
   return runAction(async () => {

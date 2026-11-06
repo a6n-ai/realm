@@ -9,7 +9,7 @@ import {
 } from "@/lib/services/inquiries.service";
 import { ValidationError } from "@foundry/commons";
 import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 // Every action returns { error } instead of throwing: production redacts thrown messages and the
 // POST shows up as a 500, so staff saw a generic error for a plain validation miss.

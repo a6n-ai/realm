@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { sendRenewalReminderNow } from "@/lib/notifications/renewal-reminder";
 import { assertOrderVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 /** Send the renewal reminder email now for one of this customer's running plans. */
 export async function sendRenewalReminderAction(orderPublicId: string, customerPublicId: string): Promise<ActionResult> {

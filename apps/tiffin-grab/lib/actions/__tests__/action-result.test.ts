@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AppError, AuthError, ForbiddenError, ValidationError } from "@foundry/commons";
 import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
-import { runAction } from "../action-result";
+import { runAction } from "@/lib/actions/action-result";
 
 describe("runAction", () => {
   it("returns { ok: true } when void function succeeds", async () => {

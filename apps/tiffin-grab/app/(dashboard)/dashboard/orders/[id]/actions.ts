@@ -29,7 +29,7 @@ import { cancelOrderAndOpenPayments } from "@/lib/services/stripe-expiry";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 // Staff of one organization must not act on another's order: every action below checks the

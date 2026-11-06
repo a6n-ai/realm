@@ -13,7 +13,7 @@ import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { MISSED_WHY } from "@/lib/missed-filter";
 import { humanDate } from "@/lib/deliveries-view";
 import type { MissedDeliveryRow } from "@/lib/services/missed-deliveries.service";
-import type { ActionResult } from "@/app/(customer)/me/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { setDeliveryStatusAction } from "./[id]/actions";
 import { moveMissedAction, reconcileMissedAction } from "./missed-actions";
 import { DateInput } from "@/components/dashboard/date-fields";

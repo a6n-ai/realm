@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { requireAdmin } from "@/lib/auth/guards";
 import { setAppSettings } from "@/lib/services/app-settings.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { CURRENCIES, PHONE_COUNTRIES } from "./options";
 
 export async function saveAppSettings(input: {

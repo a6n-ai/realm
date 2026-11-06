@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/services/menu-sides.service";
-import type { ActionResult } from "@/app/(customer)/me/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { setDaySide, setSideDefault } from "./actions";
 
 export type SideCategory = { key: string; label: string };

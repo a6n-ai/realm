@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { ResponsiveDialog } from "@/components/ds";
-import type { ActionResult } from "@/app/(customer)/me/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { cancel, sendPaymentReminderAction } from "../../../orders/[id]/actions";
 import { broadcastCustomerPayout } from "../../../wallet/actions";
 import { sendRenewalReminderAction } from "./actions";

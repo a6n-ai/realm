@@ -12,7 +12,7 @@ import {
   type StripePluginConfig,
 } from "@foundry/payments/stripe";
 import { requirePermission } from "@/lib/auth/guards";
-import { runAction } from "@/app/(customer)/me/action-result";
+import { runAction } from "@/lib/actions/action-result";
 import { clearStripeCustomers, stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
 import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
 

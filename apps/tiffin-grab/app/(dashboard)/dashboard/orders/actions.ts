@@ -6,7 +6,7 @@ import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { assertOrderVisible, resolveSessionVisibleOrgIds, reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { stripePayLink } from "@/lib/payments/stripe";

@@ -5,7 +5,7 @@ import { CalendarCheck, LinkIcon, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { RowActions } from "@/components/ds";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
-import { promptReloadIfStale } from "@/components/stale-deploy-reloader";
+import { promptReloadIfStale } from "@/lib/stale-deploy";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { SendState } from "@/lib/services/customers.service";

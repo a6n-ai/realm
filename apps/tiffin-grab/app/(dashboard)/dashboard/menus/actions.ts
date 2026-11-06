@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService, type DraftMenuItem } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
 import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/services/menu-sides.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";

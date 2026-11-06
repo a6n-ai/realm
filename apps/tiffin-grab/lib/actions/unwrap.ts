@@ -1,5 +1,5 @@
-import type { ActionResult } from "@/app/(customer)/me/action-result";
-import { promptReloadIfStale } from "@/components/stale-deploy-reloader";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { promptReloadIfStale } from "@/lib/stale-deploy";
 
 /**
  * Server actions return `{ error }` instead of throwing (production redacts thrown errors).

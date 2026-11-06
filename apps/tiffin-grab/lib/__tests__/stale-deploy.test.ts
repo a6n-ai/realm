@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isStaleActionError, isStaleActionResponse } from "../stale-deploy-reloader";
+import { isStaleActionError, isStaleActionResponse } from "../stale-deploy";
 
 describe("isStaleActionError", () => {
   it("matches Next's stale server-action messages", () => {

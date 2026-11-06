@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 import { paymentConfigSaveError, paymentConfigSchema, type PaymentConfig } from "@foundry/payments";
 import { findPaymentProvider } from "@foundry/payments/providers";
 import { requireAdmin } from "@/lib/auth/guards";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
 
 function revalidatePaymentPaths() {

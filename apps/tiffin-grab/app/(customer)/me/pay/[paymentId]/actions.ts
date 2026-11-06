@@ -1,7 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";

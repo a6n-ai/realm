@@ -5,7 +5,7 @@ import type { AddressInput, SavedAddress } from "@foundry/address";
 import { requireAdmin } from "@/lib/auth/guards";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { assertAddressServiceable } from "@/lib/catalog/zone-match";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 // Admin-only, always scoped to the customer whose page this is. Returns { error } rather
 // than throwing so validation messages survive production's server-action redaction.

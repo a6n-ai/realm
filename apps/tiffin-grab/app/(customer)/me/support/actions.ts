@@ -10,7 +10,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { ticketsService, type TicketCategory } from "@/lib/services/tickets.service";
 import { uploadAttachments } from "@/lib/services/ticket-attachments";
 import { isTicketCategory, isValidPair } from "@/lib/support/ticket-taxonomy";
-import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 export async function createTicket(form: FormData): Promise<void> {
   const subject = String(form.get("subject") ?? "").trim();
