@@ -44,10 +44,13 @@ export function BrowserChrome() {
   // bar across the top. Safari samples the hero itself instead, which is the colour we want.
   // Keyed on the hero being on the page, not the pathname: public pages are rewritten to
   // /site/<org>, so usePathname() no longer reads "/" there.
+  // The public site (.tg-land) is a gradient with heroes and green bands, so a flat page-colour
+  // strip there reads as a thin bar at the top and bottom edge (desktop Chrome included). It
+  // leaves the strips out; its own EdgeTint keeps the html background on the colour at the edge.
   return (
     <>
-      <div aria-hidden className={`${strip} top-0 h-1.5 [body:has(.lp-hero)_&]:hidden`} />
-      <div aria-hidden className={`${strip} -bottom-2 h-3`} />
+      <div aria-hidden className={`${strip} top-0 h-1.5 [body:has(.lp-hero)_&]:hidden [body:has(.tg-land)_&]:hidden`} />
+      <div aria-hidden className={`${strip} -bottom-2 h-3 [body:has(.tg-land)_&]:hidden`} />
     </>
   );
 }
