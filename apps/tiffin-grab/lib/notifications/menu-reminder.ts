@@ -25,7 +25,7 @@ export async function ensureMenuReminder() {
 }
 
 export async function renderMenuReminder() {
-  const { render } = await import("@react-email/components");
+  const { render } = await import("@react-email/render");
   return {
     subject: MENU_REMINDER.subject,
     html: await render(MENU_REMINDER.element),

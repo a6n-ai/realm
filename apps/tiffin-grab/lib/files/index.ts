@@ -15,8 +15,8 @@ import { db } from "@/db/client";
 //   FILES_S3_REGION             default "auto"
 //   FILES_S3_ENDPOINT           set for R2/MinIO/Backblaze; omit for AWS S3
 //   FILES_S3_FORCE_PATH_STYLE   "true" for MinIO / most non-AWS endpoints
-//   FILES_S3_ACCESS_KEY_ID      omit on AWS to use the EC2 instance role
-//   FILES_S3_SECRET_ACCESS_KEY  omit on AWS to use the EC2 instance role
+//   FILES_S3_ACCESS_KEY_ID      required (no instance-role fallback)
+//   FILES_S3_SECRET_ACCESS_KEY  required (no instance-role fallback)
 //   FILES_LOCAL_DIR             local-disk base dir (default ".files-storage")
 //   FILES_PUBLIC_BASE_URL       public base for static file URLs
 function required(name: string): string {
@@ -25,8 +25,8 @@ function required(name: string): string {
   return v;
 }
 
-// Static keys only when both are set (MinIO/R2 dev). Left undefined, the SDK's
-// default chain finds the EC2 instance role — prod keeps no long-lived keys.
+// Static keys only when both are set. Left undefined, signing is skipped and
+// every S3 call fails — there is no instance-role fallback.
 function s3Credentials(): { accessKeyId: string; secretAccessKey: string } | undefined {
   const accessKeyId = process.env.FILES_S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.FILES_S3_SECRET_ACCESS_KEY;
