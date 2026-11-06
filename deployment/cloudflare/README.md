@@ -103,8 +103,9 @@ Read these before porting tiffin-grab or copper-cloves.
   resolve here, so the owner pipes AWS keys into `wrangler secret put`. SSM values can be
   piped straight into `wrangler secret put` without printing. `realm-admin` lacks
   CloudFormation and SSM read; deploy IaC through the AWS MCP connection.
-- Better Auth: trust exactly one client-IP header per runtime (`cf-connecting-ip` on
-  Workers, `x-real-ip` behind Caddy; never both). Keep rate-limit counters in Postgres on
+- Better Auth (tiffin-grab): trust exactly one client-IP header, `cf-connecting-ip`, which
+  Cloudflare overwrites on every request. Never `x-real-ip` or `x-forwarded-for`: no proxy in
+  front of the app sets them, so a client could send its own. Keep rate-limit counters in Postgres on
   Workers only, so the EC2 build never depends on the `rate_limit` table.
 
 ### Lessons from the tiffin-grab port (2026-11-03)
@@ -141,7 +142,7 @@ Read these before porting tiffin-grab or copper-cloves.
   SSE bus (realtime Worker), scheduled jobs (Cron Triggers) and the Redis page cache (KV or
   Cache API). Its DB is awake ~80% of the day, so DB cost does not drop. Traffic is higher,
   so cold starts matter less than on xplorers. Turning on the Cloudflare proxy for
-  `tiffingrab.ca` (free CDN for Canada) needs Caddy and the app to trust `CF-Connecting-IP`.
+  `tiffingrab.ca` (free CDN for Canada) needs the app to trust `CF-Connecting-IP`, which it now does.
 - **copper-cloves** (separate repo, not Realm): EC2 `copper-cloves-prod-box` (t4g.small) and
   RDS `copper-cloves` (db.t4g.micro), both in ap-south-1, ~5 DB connections steady. The same
   RDS-private question applies; place the Worker in `aws:ap-south-1`.
