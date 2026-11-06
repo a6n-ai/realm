@@ -8,12 +8,26 @@ import { useEffect } from "react";
 // those edges and take the colour of the section under them, updated as the page scrolls.
 const SKIP = ".tg-bar, .tg-pill, .tg-wa, .tg-edge, .tg-consent";
 
+// A band painted only with gradients has a transparent background-color: take its base layer's colour
+// (the last gradient), its first stop for the top edge and its last stop for the bottom edge.
+function gradientColour(image: string, edge: "top" | "bottom"): string | null {
+  if (!image || image === "none") return null;
+  const base = image.slice(Math.max(image.lastIndexOf("linear-gradient("), image.lastIndexOf("radial-gradient(")));
+  const stops = (base.match(/rgba?\([^)]+\)/g) ?? []).filter((c) => !/,\s*0\)$/.test(c));
+  return (edge === "top" ? stops[0] : stops.at(-1)) ?? null;
+}
+
 function colourAt(y: number): string | null {
   for (const el of document.elementsFromPoint(innerWidth / 2, y)) {
     if (el.closest(SKIP)) continue;
+    // Only a full-width band counts: a card or phone mockup in the middle must not colour the whole edge.
     for (let n: Element | null = el; n && n !== document.documentElement; n = n.parentElement) {
-      const bg = getComputedStyle(n).backgroundColor;
+      if (n.getBoundingClientRect().width < innerWidth * 0.9) continue;
+      const cs = getComputedStyle(n);
+      const bg = cs.backgroundColor;
       if (bg && bg !== "transparent" && !bg.endsWith(", 0)")) return bg;
+      const g = gradientColour(cs.backgroundImage, y < innerHeight / 2 ? "top" : "bottom");
+      if (g) return g;
     }
   }
   return null;
