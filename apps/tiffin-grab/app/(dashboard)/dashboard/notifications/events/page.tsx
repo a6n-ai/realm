@@ -2,11 +2,11 @@ import { Suspense } from "react";
 import { sesEventSettings } from "@relay/email";
 import { EmailEventsSettings, type EmailTypeRow, type StreamState } from "@relay/engine/ui/email-events-settings";
 import { eventLabel } from "@relay/engine/ui/template-status";
-import { appEvent } from "@/db/schema";
 import { SectionCard } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { emailStreams } from "@/lib/email/provider";
 import { CATEGORY_LABEL, eventCategory } from "@/lib/notifications/event-categories";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/event-list";
 import { emailVolumeByStream } from "@/lib/notifications/email-volume";
 import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
 import { saveStreamRouting, saveTrackedTypes } from "./actions";
@@ -44,9 +44,7 @@ async function EmailEventsData() {
   ]);
 
   const trackedSet = new Set(tracked);
-  const types: EmailTypeRow[] = appEvent.enumValues
-    .filter((e) => e !== "manual_adjustment")
-    .map((event) => {
+  const types: EmailTypeRow[] = NOTIFICATION_EVENTS.map((event) => {
       const category = eventCategory(event);
       return {
         event,

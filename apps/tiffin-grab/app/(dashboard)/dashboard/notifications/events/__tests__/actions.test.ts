@@ -19,7 +19,8 @@ describe("saveStreamRouting", () => {
   it("returns {error} and does not touch tracked_email_events when SES fails", async () => {
     setRouting.mockRejectedValueOnce(new Error("AccessDenied: ses:UpdateConfigurationSetEventDestination"));
     const res = await saveStreamRouting("marketing", { webhook: ["delivery"] });
-    expect(res.error).toContain("AccessDenied");
+    expect(res.error).toBeTruthy();
+    expect(res.error).not.toContain("AccessDenied");
     expect(setTracked).not.toHaveBeenCalled();
   });
 
@@ -45,6 +46,18 @@ describe("saveTrackedTypes", () => {
   it("strips account events", async () => {
     await saveTrackedTypes(["order_created", "signup"]);
     expect(setTracked).toHaveBeenCalledWith(["order_created"]);
+  });
+
+  it("drops events the app does not know", async () => {
+    await saveTrackedTypes(["order_created", "bogus_event"]);
+    expect(setTracked).toHaveBeenCalledWith(["order_created"]);
+  });
+
+  it("returns a safe {error} when saving throws", async () => {
+    setTracked.mockRejectedValueOnce(new Error("arn:aws:iam::123456789012:role/x"));
+    const res = await saveTrackedTypes(["order_created"]);
+    expect(res.error).toBeTruthy();
+    expect(res.error).not.toContain("123456789012");
   });
 
   it("rejects non-admins", async () => {

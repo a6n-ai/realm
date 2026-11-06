@@ -1,6 +1,7 @@
 import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { EmailEventType, EmailStream } from "@relay/email";
 import { db } from "@/db/client";
+import { sharedCache } from "@/lib/cache";
 import { notificationOutbox as o } from "@/db/schema";
 import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
 
@@ -36,8 +37,15 @@ export function rollupVolume(rows: VolumeRow[], tracked: Set<string>, streams: E
 
 const n = (cond: ReturnType<typeof isNotNull>) => sql<number>`count(*) filter (where ${cond})::int`;
 
+const cache = sharedCache("email-volume", 10 * 60 * 1000);
+
 /** Per-stream counts of email outbox rows stamped in the last 30 days, from the app DB (not SES). */
-export async function emailVolumeByStream(streams: EmailStream[], now = Date.now()): Promise<Record<string, Volume>> {
+export function emailVolumeByStream(streams: EmailStream[], now = Date.now()): Promise<Record<string, Volume>> {
+  return cache.getOrSet(streams.map((s) => `${s.id}:${s.kind}`).join(","), () => queryVolume(streams, now));
+}
+
+// ponytail: seq scan of 30 days of outbox, cached 10 min; add (channel, created_at) index in @relay/engine if it gets slow
+async function queryVolume(streams: EmailStream[], now: number): Promise<Record<string, Volume>> {
   const rows = await db
     .select({
       event: o.event,
