@@ -38,7 +38,7 @@ on:
         type: string
         default: ""
       edge-cache:
-        description: after deploy, upsert the public-pages cache rule and purge those pages (scripts/cloudflare-cache.mjs; tiffin-grab's zone)
+        description: after deploy, purge the edge-cached public pages (scripts/cloudflare-cache.mjs; tiffin-grab's zone)
         required: false
         type: boolean
         default: false
@@ -124,8 +124,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # Straight after the deploy, in the same job: edge-cached pages still point at the previous
       # build's chunks, which the new Worker no longer serves, so every second counts.
-      - name: Edge cache (rule + purge)
+      - name: Edge cache purge
         if: inputs.edge-cache
-        run: node scripts/cloudflare-cache.mjs rule && node scripts/cloudflare-cache.mjs purge
+        run: node scripts/cloudflare-cache.mjs purge
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

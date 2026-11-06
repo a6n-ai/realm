@@ -10,7 +10,7 @@ import { referCardPath } from "@/lib/referrals/share";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 
-// Personalised per code, so never cached (the zone cache rule lists /refer only, not /refer/*).
+// Personalised per code, so never cached (public-pages.json lists /refer only, not /refer/*).
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ org: string; code: string }>;

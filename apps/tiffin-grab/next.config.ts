@@ -40,9 +40,8 @@ const nextConfig: NextConfig = {
   },
   // Public pages carry no private data (the signed-in header and the popup fill in on the client).
   // Browsers revalidate every view (max-age=0 keeps the back/forward cache, which no-store broke);
-  // Cloudflare's edge keeps a copy for 60 s and serves it stale up to 5 min while refetching, so a
-  // visit skips the Worker's cold start. The zone cache rule (scripts/cloudflare-cache.mjs) makes
-  // these paths eligible on the apex only; every deploy purges them.
+  // the Worker's page cache (cloudflare/page-cache.js) keeps a copy for 60 s per data center, so a
+  // repeat visit skips rendering. Apex only; every deploy purges them.
   // Router-data responses (RSC header) for the same URLs stay private: a shared cache must never
   // hold one, since the cache key ignores the header that changed the response.
   async headers() {
