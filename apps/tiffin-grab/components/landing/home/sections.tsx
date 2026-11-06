@@ -1,10 +1,10 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
-import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, CookingPot, Salad, type LucideIcon } from "lucide-react";
+import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, Coins, CookingPot, Salad, Share2, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import type { LandingPromo } from "@/lib/landing/promo-types";
-import { ReferTicket, referHeadline } from "@/components/landing/refer/refer-content";
+import { referHeadline } from "@/components/landing/refer/refer-content";
 import type { ReferralOffer } from "@/lib/referrals/offer";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
@@ -364,18 +364,49 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
   );
 }
 
-/** Referral band: the two-part ticket beside one line and a link to /refer. Hidden while the program is off. */
+/** Referral band: the offer on a forest slab, beside the two things a referral is made of: the link your
+ *  friend gets on WhatsApp and the moment they turn Rewarded on your list. Static on purpose: no blur,
+ *  masks or scroll timelines, so it costs a phone nothing. Hidden while the program is off. */
 export function ReferBand({ offer }: { offer: ReferralOffer }) {
+  const gift = offer.friend?.big ?? null;
+  const earn = offer.referrer?.big ?? null;
+  const steps: { icon: LucideIcon; text: string }[] = [
+    { icon: Share2, text: "Share your link" },
+    { icon: UtensilsCrossed, text: "They order a plan" },
+    { icon: Coins, text: "Coins in both wallets" },
+  ];
   return (
     <section className="lp-section lp-refer" aria-labelledby="lp-refer">
-      <div className="lp-wrap lp-refer__in">
-        <div className="lp-refer__copy">
-          <span className="lp-kicker">Refer a friend</span>
-          <h2 id="lp-refer" className="lp-h2">{referHeadline(offer)}</h2>
-          <p className="lp-lede">Share your link. When a friend pays for their first plan, you both get coins for your next tiffins.</p>
-          <div><Link prefetch={false} href="/refer" className="tg-cta">How referrals work <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} /></Link></div>
+      <div className="lp-wrap">
+        <div className="lp-refer__slab">
+          <div className="lp-refer__copy">
+            <h2 id="lp-refer" className="lp-refer__h">{referHeadline(offer)}</h2>
+            <p className="lp-refer__lede">Send your link to a friend. When they pay for their first plan, you both get coins to spend on tiffins.</p>
+            <ol className="lp-refer__steps">
+              {steps.map(({ icon: Icon, text }) => (
+                <li key={text}><Icon aria-hidden className="size-4" strokeWidth={2.2} />{text}</li>
+              ))}
+            </ol>
+            <div><Link prefetch={false} href="/refer" className="tg-cta">How referrals work <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} /></Link></div>
+          </div>
+          <div className="lp-refer__art" aria-hidden>
+            <div className="lp-refer__bubble">
+              <div className="lp-refer__preview">
+                <b>Tiffin<i>Grab</i></b>
+                <strong>{gift ? `Priya gave you ${gift}` : "Priya invited you"}</strong>
+                <span>PRIYA5</span>
+              </div>
+              <small>tiffingrab.ca/r/PRIYA5</small>
+              <p>Try my tiffin place, home-style dal like mom&apos;s.</p>
+            </div>
+            <div className="lp-refer__reward">
+              <span className="lp-refer__av">A</span>
+              <span className="lp-refer__who">Aman<small>First plan paid</small></span>
+              <span className="lp-refer__pill">Rewarded</span>
+              {earn ? <span className="lp-refer__coin">+{earn}</span> : null}
+            </div>
+          </div>
         </div>
-        <ReferTicket friend={offer.friend} referrer={offer.referrer} />
       </div>
     </section>
   );

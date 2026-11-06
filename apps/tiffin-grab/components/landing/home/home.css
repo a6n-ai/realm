@@ -586,3 +586,44 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
   .lp-today__with .lp-today__label { display: none; }
   .lp-hero:has(.lp-hero__today) { padding-bottom: 96px; }
 }
+
+/* Referral band: a forest slab, the offer left, the WhatsApp link and the Rewarded moment right.
+   Gradients only (no backdrop-filter, filter or masks): it has to be free on a phone GPU. */
+.lp-refer__slab {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: grid; gap: clamp(36px, 5vw, 64px); align-items: center;
+  padding: clamp(36px, 6vw, 72px) clamp(24px, 5vw, 64px);
+  border-radius: var(--lp-radius-xl); color: #FBF4E7;
+  background: radial-gradient(70% 90% at 92% 8%, rgb(255 152 67 / 0.32), transparent 60%), radial-gradient(60% 80% at 0 100%, #1E3D2E, transparent 70%), #2A5440;
+}
+@media (min-width: 960px) { .lp-refer__slab { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); } }
+.lp-refer__copy { display: flex; flex-direction: column; gap: 20px; max-width: 560px; }
+.lp-refer__h { margin: 0; font-size: clamp(40px, 6vw, 76px); line-height: 0.98; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
+.lp-refer__lede { margin: 0; max-width: 40ch; font-size: clamp(17px, 1.5vw, 19px); line-height: 1.55; color: rgb(251 244 231 / 0.82); text-wrap: pretty; }
+.lp-refer__steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; padding: 0; list-style: none; counter-reset: rs; }
+.lp-refer__steps li { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px; border-radius: 999px; background: rgb(251 244 231 / 0.1); box-shadow: inset 0 0 0 1px rgb(251 244 231 / 0.16); font-size: 14px; font-weight: 600; counter-increment: rs; }
+.lp-refer__steps li::before { content: counter(rs); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #FF9843; color: #2E1200; font-size: 13px; font-weight: 800; }
+.lp-refer__steps svg { color: #FFB877; }
+
+/* The art: the friend's view of your link, and your list a moment later. */
+.lp-refer__art { position: relative; justify-self: center; width: min(100%, 420px); padding-bottom: 76px; }
+.lp-refer__bubble { position: relative; display: grid; gap: 8px; padding: 6px 6px 12px; border-radius: 22px 22px 6px 22px; background: #D9FDD3; color: #111B21; rotate: -2.5deg; box-shadow: 0 30px 60px -28px rgb(0 0 0 / 0.55); }
+.lp-refer__preview { display: grid; gap: 8px; padding: 20px; border-radius: 16px; background: radial-gradient(circle at 92% 0, rgb(239 122 26 / 0.34), transparent 58%), #FBF4E7; }
+.lp-refer__preview b { font-size: 14px; font-weight: 800; color: #E8650F; }
+.lp-refer__preview b i { font-style: normal; color: #185936; }
+.lp-refer__preview strong { font-size: clamp(26px, 3vw, 34px); line-height: 1.02; letter-spacing: -0.035em; color: #241F1B; text-wrap: balance; }
+.lp-refer__preview span { justify-self: start; padding: 4px 10px; border-radius: 8px; background: #fff; color: #241F1B; font: 700 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.2em; }
+.lp-refer__bubble small { padding: 0 10px; font-size: 13px; color: #027EB5; }
+.lp-refer__bubble p { margin: 0 10px; font-size: 15px; line-height: 1.4; }
+.lp-refer__reward { position: absolute; left: -18px; right: 34px; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px; background: #fff; color: #241F1B; rotate: 1.5deg; box-shadow: 0 24px 48px -22px rgb(0 0 0 / 0.55); }
+.lp-refer__av { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 999px; background: #DCEBFF; color: #1E40AF; font-weight: 700; }
+.lp-refer__who { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; }
+.lp-refer__who small { display: block; font-size: 12px; font-weight: 500; color: #6E6558; }
+.lp-refer__pill { padding: 5px 11px; border-radius: 999px; background: #DDF3E4; color: #166534; font-size: 12px; font-weight: 700; }
+.lp-refer__coin { position: absolute; right: -22px; top: -18px; padding: 7px 13px; border-radius: 999px; background: #FF9843; color: #2E1200; font-size: 15px; font-weight: 800; box-shadow: 0 10px 22px -10px rgb(46 18 0 / 0.6); }
+@media (max-width: 640px) {
+  .lp-refer__slab { border-radius: 32px; }
+  .lp-refer__art { width: calc(100% - 24px); }
+  .lp-refer__reward { left: -8px; right: 12px; }
+  .lp-refer__coin { right: -10px; }
+}
