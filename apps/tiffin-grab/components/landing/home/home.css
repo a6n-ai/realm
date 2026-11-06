@@ -199,7 +199,8 @@ video.lp-hero__video[data-playing] { opacity: 1; }
 
 /* Menu (2026-11, liquid glass): a blurred wash of real food behind light glass. A day switcher
    whose thumb slides between days, the chosen day plated as one board, the app phone beside it. */
-.lp-menu { position: relative; isolation: isolate; overflow: hidden; }
+/* Clip sideways only: a vertical clip cut the phone's drop shadow into a hard line under it. */
+.lp-menu { position: relative; isolation: isolate; overflow-x: clip; }
 .lp-menu__bg { position: absolute; inset: -60px; z-index: -1; opacity: 0.55; filter: blur(48px) saturate(1.35); }
 .lp-menu__bg img { object-fit: cover; }
 /* Phones: a 48px blur over a section-sized layer is a large offscreen texture on iOS (memory
@@ -552,7 +553,7 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
 .lp-menu__aside .ss-fit { filter: drop-shadow(0 30px 40px rgb(46 18 0 / 0.28)) drop-shadow(0 6px 10px rgb(46 18 0 / 0.12)); }
 
 /* Plan builder over the same blurred food wash as the menu; its light cards become bevelled glass. */
-.lp-build { position: relative; isolation: isolate; overflow: hidden; }
+.lp-build { position: relative; isolation: isolate; overflow-x: clip; }
 .lp-wash { position: absolute; inset: -60px; z-index: -1; opacity: 0.45; filter: blur(52px) saturate(1.35); pointer-events: none; }
 .lp-wash img { object-fit: cover; }
 .lp-build::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(to bottom, var(--background), color-mix(in srgb, var(--background) 40%, transparent) 20%, color-mix(in srgb, var(--background) 40%, transparent) 80%, var(--background)); }
