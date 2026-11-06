@@ -10,6 +10,9 @@ import { deliveryService } from "@/lib/services/delivery.service";
 const areaCache = sharedCache("landing-areas", 7 * 24 * 60 * 60 * 1000);
 
 async function areaPoint(name: string) {
+  // The build has no AWS credentials: the SDK would stall on the metadata endpoint and still
+  // return nothing. Skip it there (and don't cache that miss); the first ISR regen fills the dots.
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   return areaCache
     .getOrSet(`point:${name.toLowerCase()}`, async () => {
       const hit = await awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({ address: `${name}, Ontario, Canada`, persist: false }).catch(() => null);
