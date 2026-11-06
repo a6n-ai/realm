@@ -9,3 +9,8 @@ export const SESSION_COOKIES = [
   `${AUTH_COOKIE_PREFIX}.session_token`,
   `__Secure-${AUTH_COOKIE_PREFIX}.session_token`,
 ];
+
+// JS-readable "a session cookie exists" flag, kept in step by proxy.ts (lib/auth/session-hint.ts).
+// The session cookie is httpOnly, so without this public pages must ask the server on every view.
+// Display only: it picks "Sign in" vs the account link, never grants anything.
+export const SESSION_HINT_COOKIE = "tg_signed_in";

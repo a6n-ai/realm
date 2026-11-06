@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
-import { useSession } from "@/lib/auth/client";
+import { usePublicSession } from "@/lib/auth/public-session";
 import { SavingsReceipt } from "@/components/landing/promo/savings-receipt";
 import "@/components/landing/promo/promo.css";
 
@@ -120,7 +120,7 @@ const markSession = (id: string) => {
  *    never on a timer, once per promo; touch screens rely on the hero ticket and carousel. */
 export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fallbackImage?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = usePublicSession();
   const signedIn = !!session?.user;
 
   useEffect(() => {

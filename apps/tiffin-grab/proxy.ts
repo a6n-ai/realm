@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
+import { syncSessionHint } from "./lib/auth/session-hint";
 import { apexServes } from "./lib/routing/apex";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 
@@ -130,6 +131,7 @@ export async function proxy(request: NextRequest) {
   // With Assets run_worker_first exclusions these ideally never reach the isolate; belt-and-braces here.
   if (STATIC_PATH.test(pathname)) return NextResponse.next();
   const res = await route(request);
+  syncSessionHint(request, res);
   // A share link: remember the code until the friend signs in (attached there).
   const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "");
   if (isReferralCodeShape(ref)) res.cookies.set(REFERRAL_COOKIE, ref, REFERRAL_COOKIE_OPTIONS);

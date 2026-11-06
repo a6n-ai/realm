@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Gift, House, TicketPercent, UtensilsCrossed } from "lucide-react";
 import { WhatsAppDockLink } from "@/components/landing/whats-app-chat";
-import { useSession } from "@/lib/auth/client";
+import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
 import { pillVisible } from "./pill-visible";
@@ -44,7 +44,7 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
   const path = usePathname();
   const [mounted, setMounted] = useState(false);
   const away = useHeroInView(path, mounted);
-  const { data: session } = useSession();
+  const { data: session } = usePublicSession();
   // `turn` counts moves (any integer); `dir` is the last move's direction; `leaving` is the face sliding out.
   const [slide, setSlide] = useState<{ turn: number; dir: 1 | -1; leaving: number | null }>({ turn: 0, dir: 1, leaving: null });
   const [held, setHeld] = useState(false);

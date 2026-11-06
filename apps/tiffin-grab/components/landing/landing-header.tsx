@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
-import { useSession } from "@/lib/auth/client";
+import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
 import "./nav.css";
@@ -35,7 +35,7 @@ function Roll({ children, className }: { children: string; className?: string })
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
 /** `refer` adds Refer to the menu sheet. Build my tiffin and Refer live in the floating bar (ActionPill), not here. */
 export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; refer?: boolean }) {
-  const { data: session, refetch } = useSession();
+  const { data: session, refetch } = usePublicSession();
   // Back from app.tiffingrab.ca restores this page from the bfcache with the session it had
   // before sign-in; ask again so the header shows the account, not "Sign in".
   useEffect(() => {
