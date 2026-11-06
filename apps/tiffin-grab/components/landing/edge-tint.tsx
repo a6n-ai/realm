@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 // iOS Safari colours the strip behind its status bar and its bottom toolbar from whatever touches
 // the screen edges (fixed elements first, then the page background). The page background is cream,
@@ -22,12 +23,12 @@ function isDark(rgb: string): boolean {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
 }
 
-function colourAt(y: number): string | null {
+function colourAt(y: number, minWidth = 0.9): string | null {
   for (const el of document.elementsFromPoint(innerWidth / 2, y)) {
     if (el.closest(SKIP)) continue;
     // Only a full-width band counts: a card or phone mockup in the middle must not colour the whole edge.
     for (let n: Element | null = el; n && n !== document.documentElement; n = n.parentElement) {
-      if (n.getBoundingClientRect().width < innerWidth * 0.9) continue;
+      if (n.getBoundingClientRect().width < innerWidth * minWidth) continue;
       const cs = getComputedStyle(n);
       const bg = cs.backgroundColor;
       if (bg && bg !== "transparent" && !bg.endsWith(", 0)")) return bg;
@@ -39,6 +40,8 @@ function colourAt(y: number): string | null {
 }
 
 export function EdgeTint() {
+  // A link to another page swaps the content without a scroll: repaint on every route.
+  const path = usePathname();
   useEffect(() => {
     const root = document.documentElement;
     let last = 0;
@@ -46,11 +49,11 @@ export function EdgeTint() {
     const paint = () => {
       const top = colourAt(1), bottom = colourAt(innerHeight - 1);
       if (top) root.style.setProperty("--edge-top", top);
-      if (bottom) {
-        root.style.setProperty("--edge-bottom", bottom);
-        // The dock reads this to switch to cream labels over a dark band.
-        root.dataset.edgeBottom = isDark(bottom) ? "dark" : "light";
-      }
+      if (bottom) root.style.setProperty("--edge-bottom", bottom);
+      // The dock's label colour follows what sits right behind it (a boxed green panel counts, a
+      // small card does not), so it reads cream over green and dark over cream.
+      const behind = colourAt(innerHeight - 40, 0.3) ?? bottom;
+      if (behind) root.dataset.edgeBottom = isDark(behind) ? "dark" : "light";
     };
     // Throttled by time, plus one trailing paint where scrolling stops. (A requestAnimationFrame gate
     // could stay stuck if a frame was asked for while the tab was in the background.)
@@ -75,7 +78,7 @@ export function EdgeTint() {
       root.style.removeProperty("--edge-bottom");
       delete root.dataset.edgeBottom;
     };
-  }, []);
+  }, [path]);
   return (
     <>
       <div className="tg-edge tg-edge--top" aria-hidden />

@@ -326,8 +326,10 @@ export function Flex({ cutoff, demo }: { cutoff: string | null; demo: React.Reac
     { t: "Pause or move any day", d: `${cutoff ? `Before ${cutoff} the day before. ` : ""}A paused day is never lost: move it, or it goes to the end of your plan.` },
   ];
   return (
-    <section className="lp-section lp-flex dark" aria-labelledby="lp-flex">
-      <div className="lp-wrap lp-flex__grid">
+    <section className="lp-section lp-flex" aria-labelledby="lp-flex">
+      <div className="lp-wrap">
+      {/* Boxed, like the referral slab: a green panel inside the page width, not a full-bleed band. */}
+      <div className="lp-flex__slab lp-flex__grid dark">
         <div className="lp-flex__copy">
           <span className="lp-kicker">How it works</span>
           <h2 id="lp-flex" className="lp-h2">A week that bends, not <span className="c-accent">breaks.</span></h2>
@@ -339,6 +341,7 @@ export function Flex({ cutoff, demo }: { cutoff: string | null; demo: React.Reac
           <div><BuildTiffinLink className="lp-cta">Build my tiffin</BuildTiffinLink></div>
         </div>
         <div className="lp-flex__stage">{demo}</div>
+      </div>
       </div>
     </section>
   );

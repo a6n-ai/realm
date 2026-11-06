@@ -648,3 +648,12 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
 @keyframes lp-ref-ordered { 0%, 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
 @keyframes lp-ref-pill { from { opacity: 0; transform: translateY(6px) scale(0.9); } }
 @keyframes lp-ref-coin { from { opacity: 0; transform: translateY(14px) scale(0.6); } }
+
+/* How it works, boxed: the same forest slab as the referral band (radius, padding, saffron glow). */
+.lp .lp-flex__slab.dark:not(.lp-hero) {
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: clamp(36px, 6vw, 72px) clamp(24px, 5vw, 64px);
+  border-radius: var(--lp-radius-xl); color: #FBF4E7;
+  background: radial-gradient(60% 80% at 100% 0, rgb(255 152 67 / 0.26), transparent 60%), radial-gradient(60% 80% at 0 100%, #1E3D2E, transparent 70%), #2A5440;
+}
+@media (max-width: 640px) { .lp .lp-flex__slab.dark:not(.lp-hero) { border-radius: 32px; padding: 32px 20px; } }
