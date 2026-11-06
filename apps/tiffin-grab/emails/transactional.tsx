@@ -8,16 +8,7 @@
  * Inline styles and tables only — email clients ignore <style> and flexbox.
  */
 import type { ReactNode } from "react";
-import { Body } from "@react-email/body";
-import { Container } from "@react-email/container";
-import { Font } from "@react-email/font";
-import { Head } from "@react-email/head";
-import { Html } from "@react-email/html";
-import { Img } from "@react-email/img";
-import { Link } from "@react-email/link";
-import { Preview } from "@react-email/preview";
-import { Section } from "@react-email/section";
-import { Text } from "@react-email/text";
+import { Body, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
 
 // Links must be absolute and must never point at a dev host once seeded into prod.
 const BASE = (process.env.EMAIL_BASE_URL ?? "https://app.tiffingrab.ca").replace(/\/$/, "");

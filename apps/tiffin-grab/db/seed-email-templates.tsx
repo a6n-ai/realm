@@ -14,7 +14,7 @@
  * designed copy to the weekly menu reminder (a system campaign, not an event).
  * Links are absolute: set EMAIL_BASE_URL for a non-prod host (default https://app.tiffingrab.ca).
  */
-import { render } from "@react-email/render";
+import { render } from "react-email";
 import { db } from "./client";
 import { and, eq } from "drizzle-orm";
 import { campaign, campaignContent, notificationTemplate } from "./schema";

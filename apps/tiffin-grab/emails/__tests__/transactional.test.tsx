@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@react-email/render";
+import { render } from "react-email";
 import { TEMPLATES } from "../transactional";
 import { EVENT_ENTITY, availableVariables } from "@/lib/notifications/event-entities";
 

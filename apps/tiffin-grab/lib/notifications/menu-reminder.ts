@@ -6,6 +6,7 @@ import { menuWeeks, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { notificationTables, usersRef } from "./tables";
 import { signalOutbox } from "./outbox-signal";
+import { render } from "react-email";
 import { MENU_REMINDER } from "@/emails/transactional";
 
 export const MENU_REMINDER_KEY = "menu_reminder";
@@ -25,7 +26,6 @@ export async function ensureMenuReminder() {
 }
 
 export async function renderMenuReminder() {
-  const { render } = await import("@react-email/render");
   return {
     subject: MENU_REMINDER.subject,
     html: await render(MENU_REMINDER.element),
