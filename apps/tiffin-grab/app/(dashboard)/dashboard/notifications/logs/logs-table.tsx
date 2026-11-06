@@ -25,7 +25,34 @@ type Row = {
   createdAt: number;
   email: string | null;
   recipientEmail: string | null;
+  deliveredAt: number | null;
+  openedAt: number | null;
+  clickedAt: number | null;
+  bouncedAt: number | null;
+  complainedAt: number | null;
+  delayedAt: number | null;
+  rejectedAt: number | null;
+  renderFailedAt: number | null;
 };
+
+const STAMPS = [
+  ["delivered", "deliveredAt", "text-ok"],
+  ["opened", "openedAt", "text-ok"],
+  ["clicked", "clickedAt", "text-ok"],
+  ["delayed", "delayedAt", "text-warn"],
+  ["bounced", "bouncedAt", "text-bad"],
+  ["complained", "complainedAt", "text-bad"],
+  ["rejected", "rejectedAt", "text-bad"],
+  ["render failed", "renderFailedAt", "text-bad"],
+] as const;
+
+/** Latest SES event stamped on the row, or the queue status when SES reported nothing. */
+function latestStatus(r: Row): { label: string; style: string } {
+  const hit = STAMPS.filter(([, k]) => r[k] != null).sort((a, b) => r[b[1]]! - r[a[1]]!)[0];
+  return hit
+    ? { label: hit[0], style: hit[2] }
+    : { label: r.status, style: STATUS_STYLE[r.status] ?? "text-muted-foreground" };
+}
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
@@ -92,7 +119,7 @@ export function LogsTable({
             <TableCell className="text-muted-foreground">{r.channel}</TableCell>
             <TableCell className="text-muted-foreground">{r.email ?? r.recipientEmail ?? "—"}</TableCell>
             <TableCell>
-              <span className={STATUS_STYLE[r.status] ?? "text-muted-foreground"}>{r.status}</span>
+              <span className={latestStatus(r).style}>{latestStatus(r).label}</span>
               {r.attempts > 1 && (
                 <span className="ml-1 text-xs text-muted-foreground">×{r.attempts}</span>
               )}
@@ -115,9 +142,7 @@ export function LogsTable({
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Status">
-                <span className={STATUS_STYLE[selected.status] ?? "text-muted-foreground"}>
-                  {selected.status}
-                </span>
+                <span className={latestStatus(selected).style}>{latestStatus(selected).label}</span>
                 {selected.attempts > 1 && (
                   <span className="ml-1 text-xs text-muted-foreground">×{selected.attempts}</span>
                 )}
@@ -129,6 +154,11 @@ export function LogsTable({
               <Field label="Queued at">{fmt(selected.createdAt)}</Field>
               <Field label="Provider message ID">{selected.providerMessageId ?? "—"}</Field>
               <Field label="Attempts">{selected.attempts}</Field>
+              {STAMPS.filter(([, k]) => selected[k] != null).map(([label, k]) => (
+                <Field key={k} label={label[0]!.toUpperCase() + label.slice(1)}>
+                  {fmt(selected[k]!)}
+                </Field>
+              ))}
             </div>
             {selected.lastError && (
               <Field label="Last error">

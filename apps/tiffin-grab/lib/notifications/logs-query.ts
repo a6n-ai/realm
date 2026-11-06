@@ -82,6 +82,14 @@ export interface NotificationLogRow {
   createdAt: number;
   email: string | null;
   recipientEmail: string | null;
+  deliveredAt: number | null;
+  openedAt: number | null;
+  clickedAt: number | null;
+  bouncedAt: number | null;
+  complainedAt: number | null;
+  delayedAt: number | null;
+  rejectedAt: number | null;
+  renderFailedAt: number | null;
 }
 
 /**
@@ -142,6 +150,14 @@ export async function loadNotificationLogs(
         createdAt: notificationOutbox.createdAt,
         email: users.email,
         recipientEmail: notificationOutbox.recipientEmail,
+        deliveredAt: notificationOutbox.deliveredAt,
+        openedAt: notificationOutbox.openedAt,
+        clickedAt: notificationOutbox.clickedAt,
+        bouncedAt: notificationOutbox.bouncedAt,
+        complainedAt: notificationOutbox.complainedAt,
+        delayedAt: notificationOutbox.delayedAt,
+        rejectedAt: notificationOutbox.rejectedAt,
+        renderFailedAt: notificationOutbox.renderFailedAt,
       })
       .from(notificationOutbox)
       .leftJoin(users, eq(users.id, notificationOutbox.recipientId))
