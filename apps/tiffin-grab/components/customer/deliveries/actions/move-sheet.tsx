@@ -16,7 +16,7 @@ const weekdayLong = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateSt
 
 // Plain spans on theme tokens, so the admin (shadcn) and kit sheets both render them.
 const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
-  <li className="c-surface inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] px-3 py-1 text-[13px] font-medium">
+  <li className="c-surface inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1 text-footnote font-medium">
     <Icon aria-hidden className="size-3.5 shrink-0" />
     {children}
   </li>
@@ -80,10 +80,10 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
             <>
               {onDay > 1 && (
                 <div role="group" aria-label="How many tiffins to move" className="flex flex-col gap-2">
-                  <span className="text-[15px] font-semibold">How many tiffins to move</span>
+                  <span className="text-subhead font-semibold">How many tiffins to move</span>
                   <div className="flex gap-2">
                     {Array.from({ length: onDay }, (_, i) => i + 1).map((n) => (
-                      <OptionCard key={n} aria-label={tiffins(Math.round(perTiffin * n) || n)} selected={qty === n} onClick={() => (setReason(null), setQty(n))} className="flex min-h-11 flex-1 items-center justify-center text-[17px] font-semibold tabular-nums">
+                      <OptionCard key={n} aria-label={tiffins(Math.round(perTiffin * n) || n)} selected={qty === n} onClick={() => (setReason(null), setQty(n))} className="flex min-h-11 flex-1 items-center justify-center text-body font-semibold tabular-nums">
                         {Math.round(perTiffin * n) || n}
                       </OptionCard>
                     ))}
@@ -92,10 +92,10 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
               )}
               {end && (
                 <OptionCard selected={picked === end} onClick={toEnd} className="flex w-full items-center gap-3 px-4 py-3">
-                  <CalendarCheck aria-hidden className="size-5 shrink-0 text-[var(--primary)]" />
+                  <CalendarCheck aria-hidden className="size-5 shrink-0 text-primary" />
                   <span className="flex min-w-0 flex-col">
-                    <span className="text-[15px] font-semibold">Move to end of plan</span>
-                    <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{humanDate(end)}</span>
+                    <span className="text-subhead font-semibold">Move to end of plan</span>
+                    <span className="text-footnote text-[var(--muted-foreground,#6E6558)]">{humanDate(end)}</span>
                   </span>
                 </OptionCard>
               )}

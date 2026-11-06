@@ -10,15 +10,15 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
   return (
     <div className={`${FONT} space-y-4`}>
       <header className="mb-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">Deliveries</p>
-        <h1 className="mt-1 text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">Your <em className="text-[var(--primary)]">trips.</em></h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Deliveries</p>
+        <h1 className="mt-1 text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">Your <em className="text-primary">trips.</em></h1>
       </header>
       {waitlisted.map((s) => (
         <Card key={s.publicId} className="space-y-3 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[15px] font-semibold">{s.mealSizeName} · {s.planName}</p>
-              <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
+              <p className="text-subhead font-semibold">{s.mealSizeName} · {s.planName}</p>
+              <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">
                 {s.pay
                   ? s.pay.expired ? "This payment expired." : "Your plan is reserved. Pay by card to get it started."
                   : `${s.daysPerWeek} days a week · deliveries appear once your order is confirmed`}
@@ -37,7 +37,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
       {waitlisted.length === 0 && ended && <EndedPlanCard plan={ended} />}
       {waitlisted.length === 0 && !ended && (
         <Card className="p-6">
-          <p className="text-[17px] font-semibold">No plan running.</p>
+          <p className="text-body font-semibold">No plan running.</p>
           <p className="mb-4 mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">Start one and your trips will show up here.</p>
           <Link href="/me/renew?full=1"><Button variant="primary" size="lg">Start a plan</Button></Link>
         </Card>
@@ -52,12 +52,12 @@ function EndedPlanCard({ plan }: { plan: EndedPlan }) {
   return (
     <Card className="space-y-4 p-6">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[17px] font-semibold">{plan.mealSizeName}</p>
+        <p className="text-body font-semibold">{plan.mealSizeName}</p>
         <Pill tone="neutral" size="sm">{plan.planName}</Pill>
         <Pill tone={over ? "ok" : "neutral"} size="sm">{over ? "Plan over" : "Plan closed"}</Pill>
       </div>
       <div>
-        <p className="text-[15px] font-semibold">
+        <p className="text-subhead font-semibold">
           {over ? "Your plan is over." : "Your plan was closed."}
         </p>
         <p className="mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">
@@ -70,7 +70,7 @@ function EndedPlanCard({ plan }: { plan: EndedPlan }) {
         </p>
       </div>
       {plan.corrected && (
-        <p className="rounded-[14px] bg-[var(--muted)] p-3 text-[13px] leading-relaxed">
+        <p className="rounded-[14px] bg-muted p-3 text-footnote leading-relaxed">
           This plan moved over from our old website. Our old system kept delivering in late September,
           but those tiffins were not taken off your old balance. We have now counted them, which is why
           your plan ended sooner than the old balance showed.

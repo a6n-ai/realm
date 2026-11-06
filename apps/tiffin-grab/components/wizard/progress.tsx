@@ -20,7 +20,7 @@ export function Progress({ steps, current, planParts = 1, planAt = planParts - 1
             <li key={name} aria-current={now ? "step" : undefined} className="min-w-0">
               <span aria-hidden className="bg-muted block h-1 overflow-hidden rounded-full">
                 <span
-                  className="bg-primary block h-full origin-left rounded-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                  className="bg-primary block h-full origin-left rounded-full transition-transform duration-500 ease-soft motion-reduce:transition-none"
                   style={{ transform: `scaleX(${fill})` }}
                 />
               </span>

@@ -9,6 +9,7 @@ import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cook
 import { referCardPath } from "@/lib/referrals/share";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
+import "@/components/landing/styles/refer.css";
 
 // Personalised per code, so never cached (public-pages.json lists /refer only, not /refer/*).
 export const dynamic = "force-dynamic";

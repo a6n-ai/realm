@@ -9,6 +9,10 @@ import { oneTapClient } from "better-auth/client/plugins";
 // user in without a tap; Chrome spaces those out by 10 minutes, and signOut
 // clears it (lib/auth/client.ts) so sign-out never loops back in.
 export function promptGoogleOneTap(clientId: string, handlers: { onSignedIn: () => void; onRefused?: () => void }) {
+  // Google only accepts the client's registered origin; anywhere else (local builds, previews) every
+  // attempt fails with a 403 in the console, so don't prompt there at all.
+  const appUrl = process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  if (typeof window !== "undefined" && appUrl && new URL(appUrl).origin !== window.location.origin) return Promise.resolve();
   const client = createAuthClient({
     baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
     // maxAttempts 1: one prompt per visit, no re-prompting after a dismiss.

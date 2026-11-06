@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { CONSENT_COOKIE, CONSENT_VERSION, consentCookieDomain, parseConsent, type Consent } from "@/lib/consent";
 import { consentCardOn } from "./card-visible";
-import "./cookie-consent.css";
 
 // Cookie consent for Canadian rules (PIPEDA; Quebec Law 25 s. 8.1): anything that tracks a
 // visitor is OFF until they say yes, saying no is one tap like saying yes, and the choice
@@ -20,10 +20,28 @@ import "./cookie-consent.css";
 // Ask again after 12 months, or when CONSENT_VERSION changes.
 const MAX_AGE = 60 * 60 * 24 * 365;
 const OPEN_EVENT = "tg:consent-open";
-// With no interaction, the card still arrives this long after load.
-const SHOW_AFTER_MS = 6000;
+// Asked at a moment that means something, never on arrival: when a page signals one (MOMENT_EVENT, e.g.
+// the first tap in the pricing calculator) or once the visitor has read this many screens. Once per visit.
+const MOMENT_EVENT = "tg:consent-moment";
+const ASK_DEPTH = 1.5;
 // Matches the lid-drop + slide-out in cookie-consent.css.
 const EXIT_MS = 560;
+// Unanswered and scrolled past this share of a screen, the ask folds back into the dock. It is shown once
+// per visit whatever happens. Silence is "no": analytics stays off, and the next visit asks again.
+const SNOOZE_SCROLL = 0.75;
+const SNOOZE_KEY = "tg-consent-asked";
+
+// The question fits the page it is asked on; each one says what the visitor's yes is for.
+const QUESTIONS: Record<string, string> = {
+  "/pricing": "Help us see which plans people compare?",
+  "/menu": "Help us see which dishes people look at?",
+  "/refer": "Help us see how friends find us?",
+};
+const question = (path: string) => QUESTIONS[path] ?? "Help us see which pages help you pick a tiffin?";
+
+/** Pages call this at a meaningful moment (a first tap in a tool) to ask then instead of on scroll depth. */
+export function consentMoment() { dispatchEvent(new Event(MOMENT_EVENT)); }
+const snoozed = () => { try { return sessionStorage.getItem(SNOOZE_KEY) === "1"; } catch { return false; } };
 
 function readConsent(): Consent | null {
   const raw = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`))?.slice(CONSENT_COOKIE.length + 1);
@@ -65,6 +83,17 @@ function stopAnalytics() {
   }
 }
 
+/** Saves an answer given outside the cookie card (the customer app's prompt) with the card's own effects. */
+export function saveConsent(yes: boolean) {
+  const before = readConsent()?.analytics ?? false;
+  writeConsent(yes);
+  if (yes) loadAnalytics();
+  else if (before) stopAnalytics();
+}
+
+/** True once the visitor has answered, on this host or any tiffingrab.ca host. */
+export function hasConsentAnswer() { return readConsent() != null; }
+
 /** Hairline tiffin carrier: each tier is a kind of cookie. Two essential tiers always packed,
  *  the top (analytics) tier fills saffron only when allowed; the lid drops on the decision. */
 function TiffinFigure() {
@@ -93,7 +122,8 @@ function TiffinFigure() {
 }
 
 export function CookieConsent() {
-  const ask = consentCardOn(usePathname() ?? "/");
+  const path = usePathname() ?? "/";
+  const ask = consentCardOn(path);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [details, setDetails] = useState(false);
@@ -103,6 +133,7 @@ export function CookieConsent() {
 
   // The phone action pill steps aside while this card is up (html[data-consent="open"]).
   const shown = open && (ask || reopened);
+  const slim = !details && !reopened;
   useEffect(() => {
     const root = document.documentElement;
     if (shown) root.dataset.consent = "open";
@@ -116,28 +147,22 @@ export function CookieConsent() {
     if (c) {
       setAnalytics(c.analytics);
       if (c.analytics) loadAnalytics();
-    } else if (ask) {
-      // Off the critical path: after the page has loaded, the card waits for the visitor to do
-      // something (scroll, move, tap, type) or for a few quiet seconds, so it never competes
-      // with the hero for first/largest paint and lab runs (which never interact) skip it.
-      const events = ["scroll", "pointermove", "pointerdown", "keydown", "touchstart"] as const;
-      let fallback: ReturnType<typeof setTimeout> | undefined;
+    } else if (ask && !snoozed()) {
+      let done = false;
       const show = () => {
-        clearTimeout(fallback);
-        for (const e of events) removeEventListener(e, show);
+        if (done) return;
+        done = true;
+        disarm();
+        try { sessionStorage.setItem(SNOOZE_KEY, "1"); } catch {}
         setOpen(true);
       };
-      const arm = () => {
-        for (const e of events) addEventListener(e, show, { once: true, passive: true });
-        fallback = setTimeout(show, SHOW_AFTER_MS);
-      };
-      if (document.readyState === "complete") arm();
-      else addEventListener("load", arm, { once: true });
-      // Leaving the public site before the card shows: never let it pop up on /me or /login.
+      const onScroll = () => { if (scrollY > innerHeight * ASK_DEPTH) show(); };
+      addEventListener("scroll", onScroll, { passive: true });
+      addEventListener(MOMENT_EVENT, show);
+      // Leaving the public site before the ask shows: never let it pop up on /me or /login.
       disarm = () => {
-        clearTimeout(fallback);
-        removeEventListener("load", arm);
-        for (const e of events) removeEventListener(e, show);
+        removeEventListener("scroll", onScroll);
+        removeEventListener(MOMENT_EVENT, show);
       };
     }
     const reopen = () => {
@@ -156,21 +181,57 @@ export function CookieConsent() {
     };
   }, [ask]);
 
-  const decide = (yes: boolean) => {
-    const before = readConsent()?.analytics ?? false;
-    writeConsent(yes);
-    if (yes) loadAnalytics();
-    else if (before) stopAnalytics();
-    setAnalytics(yes);
+  // The bar leaves the screen: morphing into the dock where there is one, else the tiffin's lid drop.
+  const leave = () => {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The slim bar morphs into the dock in place: both carry one view-transition name for this one
+    // update, so the browser animates the bar's shape into the dock's capsule. Elsewhere (no dock,
+    // the full card, reduced motion, no View Transitions) it leaves the usual way.
+    const root = document.documentElement;
+    if (slim && !reduce && document.querySelector(".tg-pill") && typeof document.startViewTransition === "function") {
+      root.dataset.consentMorph = "";
+      const vt = document.startViewTransition({
+        update: () => {
+          delete root.dataset.consent;
+          flushSync(() => { setOpen(false); setDetails(false); });
+        },
+        types: ["consent-morph"],
+      });
+      void vt.finished.finally(() => { delete root.dataset.consentMorph; });
+      return;
+    }
     // The tiffin shows the answer (top tier filled or empty), the lid drops, then the card leaves.
     setClosing(true);
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     timer.current = setTimeout(() => {
       setOpen(false);
       setClosing(false);
       setDetails(false);
     }, reduce ? 0 : EXIT_MS);
   };
+
+  const decide = (yes: boolean) => {
+    const before = readConsent()?.analytics ?? false;
+    writeConsent(yes);
+    if (yes) loadAnalytics();
+    else if (before) stopAnalytics();
+    setAnalytics(yes);
+    leave();
+  };
+
+  // Reading on without answering: the first ask gets out of the way instead of riding along every screen.
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
+  useEffect(() => {
+    if (!shown || !slim || reopened) return;
+    const start = scrollY;
+    const onScroll = () => {
+      if (Math.abs(scrollY - start) < innerHeight * SNOOZE_SCROLL) return;
+      removeEventListener("scroll", onScroll);
+      leaveRef.current();
+    };
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => removeEventListener("scroll", onScroll);
+  }, [shown, slim, reopened]);
 
   // Opened unasked on the public site and then left it: it waits for the next public page.
   // Opened from "Cookie settings" it shows anywhere.
@@ -184,7 +245,21 @@ export function CookieConsent() {
       data-reopened={reopened || undefined}
       data-analytics={analytics || undefined}
       data-closing={closing || undefined}
+      data-slim={slim || undefined}
     >
+      {slim ? (
+        // First ask: a slim bar, so the hero headline and its CTA stay in view. Choose opens the full card.
+        <p className="tg-consent__text">
+          {/* Phones show the short label in the dock-sized capsule; wider screens the full sentence. */}
+          <strong className="tg-consent__q">{question(path)}</strong>{" "}
+          <span className="tg-consent__long">Analytics cookies, only if you say yes.</span>{" "}
+          <span className="tg-consent__links">
+            <button type="button" className="tg-consent__link" onClick={() => setDetails(true)}>Choose</button>
+            <span aria-hidden> · </span>
+            <Link href="/privacy#s8" className="tg-consent__link">Privacy</Link>
+          </span>
+        </p>
+      ) : (
       <div className="tg-consent__head">
         <TiffinFigure />
         <div className="tg-consent__body">
@@ -197,6 +272,7 @@ export function CookieConsent() {
           </p>
         </div>
       </div>
+      )}
       {details ? (
         <ul className="tg-consent__list">
           <li>
@@ -225,11 +301,11 @@ export function CookieConsent() {
       <div className="tg-consent__actions">
         {details ? (
           <button type="button" className="tg-consent__btn tg-consent__btn--primary" onClick={() => decide(analytics)}>Save choices</button>
-        ) : (
+        ) : slim ? null : (
           <button type="button" className="tg-consent__btn tg-consent__btn--ghost" onClick={() => setDetails(true)}>Choose</button>
         )}
-        <button type="button" className="tg-consent__btn" data-act="no" onClick={() => decide(false)}>Essential only</button>
-        <button type="button" className="tg-consent__btn" data-act="yes" onClick={() => decide(true)}>Accept all</button>
+        <button type="button" className="tg-consent__btn" data-act="no" onClick={() => decide(false)}>{slim ? "No thanks" : "Essential only"}</button>
+        <button type="button" className="tg-consent__btn" data-act="yes" onClick={() => decide(true)}>{slim ? "Yes, OK" : "Accept all"}</button>
       </div>
     </section>
   );

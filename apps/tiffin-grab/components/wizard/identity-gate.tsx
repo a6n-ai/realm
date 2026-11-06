@@ -157,7 +157,7 @@ export function IdentityGate({
       <AnimatePresence mode="wait" initial={false}>
         <m.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
           <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
-          {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-[var(--muted-foreground)]">{COPY[phase].body}</p> : null}
+          {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-muted-foreground">{COPY[phase].body}</p> : null}
         </m.div>
       </AnimatePresence>
 
@@ -189,10 +189,10 @@ export function IdentityGate({
               }
             />
             {oauthError ? <Notice tone={oauthError === "signup_disabled" ? "info" : "error"}>{oauthErrorMessage(oauthError)}</Notice> : null}
-            <div className="c-caption flex items-center gap-3 text-[var(--muted-foreground)]" aria-hidden>
-              <span className="h-px flex-1 bg-[var(--border)]" />
+            <div className="c-caption flex items-center gap-3 text-muted-foreground" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
               or
-              <span className="h-px flex-1 bg-[var(--border)]" />
+              <span className="h-px flex-1 bg-border" />
             </div>
           </div>
         ) : null}
@@ -210,10 +210,10 @@ export function IdentityGate({
             readOnly={lockedEmail}
             onChange={(e) => setEmail(e.target.value)}
             error={error?.field === "email" ? error.message : undefined}
-            className={lockedEmail ? "bg-[var(--muted)] text-[var(--muted-foreground)]" : undefined}
+            className={lockedEmail ? "bg-muted text-muted-foreground" : undefined}
           />
           {lockedEmail ? (
-            <button type="button" onClick={changeEmail} className="c-caption self-start py-1 font-semibold text-[var(--primary)] underline-offset-4 hover:underline">
+            <button type="button" onClick={changeEmail} className="c-caption self-start py-1 font-semibold text-primary underline-offset-4 hover:underline">
               Use a different email
             </button>
           ) : null}
@@ -240,7 +240,7 @@ export function IdentityGate({
                 readOnly={phase !== "name"}
                 onChange={(e) => setFullName(e.target.value)}
                 error={error?.field === "name" ? error.message : undefined}
-                className={phase !== "name" ? "bg-[var(--muted)] text-[var(--muted-foreground)]" : undefined}
+                className={phase !== "name" ? "bg-muted text-muted-foreground" : undefined}
               />
               {phase === "name" ? (
                 <div className="mt-5">
@@ -272,7 +272,7 @@ export function IdentityGate({
                   aria-invalid={error?.field === "code"}
                 />
                 {error?.field === "code" ? (
-                  <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
+                  <p role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
                 ) : (
                   <p className="c-caption">It works for 10 minutes. Not in your inbox? Check your spam folder.</p>
                 )}
@@ -294,7 +294,7 @@ export function IdentityGate({
 
         {/* Both phases can create an account: Google on "email", "Send my code" on "name". */}
         {phase === "email" || phase === "name" ? (
-          <p className="c-caption text-pretty text-[var(--muted-foreground)] [&_a]:font-semibold [&_a]:text-[var(--foreground)] [&_a]:underline [&_a]:underline-offset-4">
+          <p className="c-caption text-pretty text-muted-foreground [&_a]:font-semibold [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
             <AuthLegal />
           </p>
         ) : null}
@@ -303,7 +303,7 @@ export function IdentityGate({
       {phase === "email" || phase === "name" ? (
         // The brand's own line (PRODUCT.md voice), not a customer quote: there are no reviews to cite.
         <figure className="mt-12">
-          <blockquote className="text-[22px] leading-[1.25] font-bold tracking-[-0.02em] text-balance">
+          <blockquote className="text-title-2 leading-[1.25] font-bold tracking-[-0.02em] text-balance">
             &ldquo;A good tiffin should fit your diet, your schedule, and your budget. <em className="c-accent">Not the other way around.</em>&rdquo;
           </blockquote>
           <figcaption className="c-caption mt-3">Home-style meals, cooked in small batches.</figcaption>

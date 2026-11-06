@@ -166,7 +166,7 @@ function DeliveryCard({
 
           return (
             <div key={cat.key} className="space-y-2 px-4 py-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="text-caption-2 font-medium uppercase tracking-wider text-muted-foreground">
                 {cat.label}
               </p>
               {rows.map(({ personIndex, cells }) => {

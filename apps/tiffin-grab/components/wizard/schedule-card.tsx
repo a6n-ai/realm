@@ -40,7 +40,7 @@ export function plannedSchedule(
   }
 }
 
-const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
+const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
 
 /** The Schedule step's timeline with real dates, one calendar week at a time across the whole plan. */
 export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: boolean }) {
@@ -59,7 +59,7 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
   // Swipe weeks like the deliveries calendar; the chevrons slide the same way.
   const { ref, bind, go } = useSwipePages({ page: w.weekStart, canPrev: i > 0, canNext: !last, step: (dir) => setPage(i + dir) });
   const short = (iso: string) => formatDateOnly(iso, { mode: "short" });
-  const navBtn = "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40 disabled:hover:text-[var(--muted-foreground)]";
+  const navBtn = "grid size-11 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground";
   return (
     <section aria-labelledby="start-preview" className="c-surface bg-card rounded-[20px] p-5">
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
@@ -71,7 +71,7 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
         </p>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-[13px] font-semibold" aria-live="polite">
+        <p className="text-footnote font-semibold" aria-live="polite">
           Week {i + 1} of {weeks.length}
           <span className="text-muted-foreground font-normal"> · {formatMenuWeekRange(w.weekStart)}</span>
         </p>

@@ -156,7 +156,7 @@ export function AuthForm({
                       }
                     />
                     {oauthError ? (
-                      <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{oauthErrorMessage(oauthError)}</p>
+                      <p role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">{oauthErrorMessage(oauthError)}</p>
                     ) : null}
                   </>
                 ) : undefined
@@ -166,9 +166,9 @@ export function AuthForm({
                   <button type="button" onClick={() => setMode("password")} className={AUTH_LINK}>
                     Sign in with a password instead
                   </button>
-                  <div className="mt-3 flex w-full flex-col gap-2 border-t border-[var(--border)] pt-4">
+                  <div className="mt-3 flex w-full flex-col gap-2 border-t border-border pt-4">
                     <p className="text-muted-foreground text-center text-sm">New to Tiffin Grab?</p>
-                    <KitButton variant="outline" className="w-full" onClick={() => router.push("/subscribe")}>
+                    <KitButton variant="outline" className="w-full transition-transform duration-300 ease-soft active:scale-[0.98] hover:-translate-y-0.5" onClick={() => router.push("/subscribe")}>
                       Start a subscription
                     </KitButton>
                   </div>

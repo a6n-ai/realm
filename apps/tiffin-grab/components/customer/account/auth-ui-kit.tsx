@@ -31,7 +31,7 @@ export const kitAuthUi: AuthUi = {
             onClick={reveal.onToggle}
             aria-label={reveal.shown ? "Hide password" : "Show password"}
             aria-pressed={reveal.shown}
-            className="absolute top-8 right-1.5 grid size-10 place-items-center rounded-full text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+            className="absolute top-8 right-1.5 grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
           >
             {reveal.shown ? <EyeOff aria-hidden className="size-5" /> : <Eye aria-hidden className="size-5" />}
           </button>

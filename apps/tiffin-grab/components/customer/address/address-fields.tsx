@@ -32,14 +32,14 @@ const kitAddressUi: AddressUi = {
     </div>
   ),
   Suggestions: ({ id, items, activeIndex, optionId, onPick }) => (
-    <ul id={id} role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden c-surface rounded-[14px] bg-[var(--card)] p-1">
+    <ul id={id} role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden c-surface rounded-[14px] bg-card p-1">
       {items.map((s, i) => (
         <li
           key={s.placeId}
           id={optionId(s)}
           role="option"
           aria-selected={i === activeIndex}
-          className={cn("flex min-h-11 cursor-pointer items-center rounded-[10px] px-3 text-[15px]", i === activeIndex ? "bg-[var(--muted)]" : "active:bg-[var(--muted)]")}
+          className={cn("flex min-h-11 cursor-pointer items-center rounded-[10px] px-3 text-subhead", i === activeIndex ? "bg-muted" : "active:bg-muted")}
           // mousedown fires before the input blur closes the list
           onMouseDown={(e) => {
             e.preventDefault();

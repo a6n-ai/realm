@@ -15,7 +15,7 @@ describe("leavesHost", () => {
   it.each(["/subscribe", "/login", "/me", "/checkout?x=1"])("apex link %s is redirected to app", (p) => {
     expect(leavesHost(link(`https://tiffingrab.ca${p}`), apex)).toBe(true);
   });
-  it.each(["/", "/menu/weekly", "/plans", "/faq"])("apex page %s stays on the apex", (p) => {
+  it.each(["/", "/menu", "/pricing", "/faq"])("apex page %s stays on the apex", (p) => {
     expect(leavesHost(link(`https://tiffingrab.ca${p}`), apex)).toBe(false);
   });
   it("app to apex and apex to app leave the host", () => {

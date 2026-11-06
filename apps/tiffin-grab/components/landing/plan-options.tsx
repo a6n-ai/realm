@@ -12,22 +12,3 @@ export const publicPlans = <P extends Plan>(plans: P[]) => plans.filter((p) => p
 export const isComingSoon = (key: string) => COMING_SOON.has(key);
 
 // The kit's option cards: a sellable plan links into the wizard with it picked.
-export function PlanOptions({ plans }: { plans: Plan[] }) {
-  return (
-    <div className="tg-options">
-      {plans.map((p) =>
-        COMING_SOON.has(p.key) ? (
-          <div key={p.key} className="tg-option" aria-disabled="true">
-            <span className="tg-option__body"><strong>{p.name}</strong><span>{p.description}</span></span>
-            <span className="tg-soon">Coming soon</span>
-          </div>
-        ) : (
-          <Link prefetch={false} key={p.key} href={`/subscribe?p=${encodeURIComponent(p.key)}`} className="tg-option">
-            <span className="tg-option__body"><strong>{p.name}</strong><span>{p.description}</span></span>
-            <span className="tg-option__go" aria-hidden><ArrowRight className="size-4" strokeWidth={2} /></span>
-          </Link>
-        ),
-      )}
-    </div>
-  );
-}

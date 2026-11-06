@@ -60,8 +60,8 @@ function Choice({ name, value, checked, onChange, title, subtitle, aside, wide }
     <label
       htmlFor={id}
       className={cn(
-        "relative flex min-h-28 cursor-pointer flex-col justify-between gap-3 rounded-[20px] p-4 [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] transition-[transform,background-color,box-shadow] duration-100 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--primary)]",
-        checked ? "bg-[color-mix(in_oklch,var(--primary)_10%,transparent)] ring-2 ring-[var(--primary)]" : "c-surface bg-[var(--card)] hover:bg-[var(--muted)]",
+        "relative flex min-h-28 cursor-pointer flex-col justify-between gap-3 rounded-[20px] p-4 [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] transition-[transform,background-color,box-shadow] duration-100 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary",
+        checked ? "bg-primary/10 ring-2 ring-primary" : "c-surface bg-card hover:bg-muted",
         wide && "col-span-2 sm:col-span-1",
       )}
     >
@@ -70,12 +70,12 @@ function Choice({ name, value, checked, onChange, title, subtitle, aside, wide }
         <MethodTile id={value} />
         {aside && <span aria-hidden className="flex items-center gap-1">{aside}</span>}
       </span>
-      <span aria-hidden className={cn("absolute top-3 right-3 grid size-6 place-items-center rounded-full transition-colors", checked ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]")}>
+      <span aria-hidden className={cn("absolute top-3 right-3 grid size-6 place-items-center rounded-full transition-colors", checked ? "bg-primary text-[var(--primary-foreground,#fff)]" : "bg-foreground/10")}>
         {checked && <Check className="size-3.5" strokeWidth={3} />}
       </span>
       <span className="flex min-w-0 flex-col">
-        <span id={`${id}-title`} className="text-[15px] leading-snug font-semibold text-balance">{title}</span>
-        {subtitle && <span id={`${id}-desc`} className="text-[13px] text-[var(--muted-foreground)]">{subtitle}</span>}
+        <span id={`${id}-title`} className="text-subhead leading-snug font-semibold text-balance">{title}</span>
+        {subtitle && <span id={`${id}-desc`} className="text-footnote text-muted-foreground">{subtitle}</span>}
       </span>
     </label>
   );
@@ -110,7 +110,7 @@ export function PaymentMethodCards({ methods, value, onChange, labelledBy, feeNo
           );
         })}
       </div>
-      {hasStripe && feeNote && <p className="px-4 text-[13px] text-[var(--muted-foreground)]">{feeNote}. Debit cards have no fee.</p>}
+      {hasStripe && feeNote && <p className="px-4 text-footnote text-muted-foreground">{feeNote}. Debit cards have no fee.</p>}
     </div>
   );
 }

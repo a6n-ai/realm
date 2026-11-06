@@ -26,7 +26,7 @@ export function ThemeToggle(props: ThemeToggleProps) {
       type="button"
       aria-label={`Theme: ${current}. Switch to ${next}`}
       onClick={() => (props.onChange ?? ctx.setTheme)(next)}
-      className={cn(FOCUS, "grid size-11 place-items-center c-surface rounded-full bg-[color-mix(in_oklch,var(--foreground)_10%,transparent)] [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-[var(--primary)] hover:bg-[var(--muted)] active:scale-[.97] motion-reduce:transition-none", props.className)}
+      className={cn(FOCUS, "grid size-11 place-items-center c-surface rounded-full bg-foreground/10 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 hover:border-primary hover:bg-muted active:scale-[.97] motion-reduce:transition-none", props.className)}
     >
       <Icon aria-hidden className="size-[18px]" />
     </button>

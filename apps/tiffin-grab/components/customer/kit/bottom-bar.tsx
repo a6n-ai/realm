@@ -21,7 +21,7 @@ export function BottomBar({ children, note, className, alignEnd }: { children: R
     <div ref={ref} className={cn(FONT, "c-glass c-float-bar fixed inset-x-0 bottom-0 z-[45] px-4 pt-3", className)} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
       {/* On phones the bar fades into the page, so the note rides its own glass capsule to stay legible over content. */}
       {note && (
-        <p role="status" className={cn("c-caption mx-auto mb-2 w-fit max-w-full rounded-full px-3 py-1 text-center max-sm:bg-[color-mix(in_srgb,var(--background)_70%,transparent)] max-sm:backdrop-blur-xl max-sm:backdrop-saturate-150 sm:max-w-3xl sm:px-0 sm:py-0", alignEnd && "sm:mr-0 sm:text-right")}>
+        <p role="status" className={cn("c-caption mx-auto mb-2 w-fit max-w-full rounded-full px-3 py-1 text-center max-sm:bg-background/70 max-sm:backdrop-blur-xl max-sm:backdrop-saturate-150 sm:max-w-3xl sm:px-0 sm:py-0", alignEnd && "sm:mr-0 sm:text-right")}>
           {note}
         </p>
       )}
@@ -40,14 +40,14 @@ export interface TabBarItem {
 /** Mobile bottom nav: labelled tabs, 56px tall, saffron for current. */
 export function TabBar({ items, label = "Primary" }: { items: TabBarItem[]; label?: string }) {
   return (
-    <nav aria-label={label} className={cn(FONT, "c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)]")}>
+    <nav aria-label={label} className={cn(FONT, "c-glass fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)]")}>
       <ul className="mx-auto flex max-w-3xl">
         {items.map((it) => (
           <li key={it.href} className="flex-1">
             <Link
               href={it.href}
               aria-current={it.active ? "page" : undefined}
-              className={cn(FOCUS, "flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold", it.active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]")}
+              className={cn(FOCUS, "flex h-14 flex-col items-center justify-center gap-0.5 text-caption-2 font-semibold", it.active ? "text-primary" : "text-muted-foreground")}
             >
               <span aria-hidden>{it.icon}</span>
               {it.label}

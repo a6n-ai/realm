@@ -1,4 +1,4 @@
-import './keys.css'
+import "@/components/landing/styles/demos.css";
 
 // Keystrokes shown as keycaps (act.key): the caps for a combo, and the rows
 // the stage draws them in.

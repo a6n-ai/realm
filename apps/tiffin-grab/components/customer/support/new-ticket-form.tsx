@@ -156,13 +156,13 @@ export function NewTicketForm({
           Photos or screenshots
         </label>
         <PhotoPicker id="ticket-photos" files={files} inputRef={inputRef} onAdd={addFiles} onRemove={(i) => setFiles(files.filter((_, j) => j !== i))} disabled={pending} />
-        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Optional · up to {MAX_FILES} images, 5 MB each.</p>
+        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Optional · up to {MAX_FILES} images, 5 MB each.</p>
       </div>
 
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       {/* In the sheet, Submit stays pinned to the bottom while the form scrolls, and the sheet's ✕ is Cancel. */}
-      <div className={onCancel ? "sticky bottom-0 -mx-4 bg-[var(--card)] px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "flex flex-col gap-2 sm:flex-row sm:items-center"}>
+      <div className={onCancel ? "sticky bottom-0 -mx-4 bg-card px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "flex flex-col gap-2 sm:flex-row sm:items-center"}>
         <Button type="submit" variant="primary" size="lg" pending={pending} className={onCancel ? "w-full" : undefined}>
           {pending ? "Sending…" : "Submit ticket"}
         </Button>

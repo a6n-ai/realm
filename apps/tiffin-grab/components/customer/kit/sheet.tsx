@@ -139,7 +139,7 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "absolute flex flex-col bg-[var(--card)] text-[var(--foreground)] shadow-[0_-8px_40px_rgba(0,0,0,.18)] outline-none overscroll-contain",
+          "absolute flex flex-col bg-card text-foreground shadow-[0_-8px_40px_rgba(0,0,0,.18)] outline-none overscroll-contain",
           "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-[var(--c-radius-sheet,28px)]",
           bottom
             ? "mx-auto max-w-xl"
@@ -152,19 +152,19 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          <span aria-hidden className="h-1.5 w-10 rounded-full bg-[var(--border)]" />
+          <span aria-hidden className="h-1.5 w-10 rounded-full bg-border" />
         </div>
         <header className={cn("flex items-center justify-between gap-3 px-5 pb-2 pt-2", !bottom && "md:pt-5")}>
-          <h2 id={titleId} className="text-[22px] font-bold tracking-[-0.02em]">
+          <h2 id={titleId} className="text-title-2 font-bold tracking-[-0.02em]">
             {title}
           </h2>
-          <button type="button" aria-label="Close" onClick={onClose} className={cn(FOCUS, "grid size-11 place-items-center rounded-full bg-[var(--muted)]")}>
+          <button type="button" aria-label="Close" onClick={onClose} className={cn(FOCUS, "grid size-11 place-items-center rounded-full bg-muted")}>
             <X aria-hidden className="size-5" />
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-2">{children}</div>
         {footer && (
-          <footer className="border-t border-[var(--border)] bg-[var(--card)] px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">{footer}</footer>
+          <footer className="border-t border-border bg-card px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">{footer}</footer>
         )}
       </div>
     </div>,

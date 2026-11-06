@@ -176,7 +176,7 @@ export function StepDuration({
       </div>
       {trial ? (multiDay && <TrialLength trial={trial} picks={picks} set={set} />) : (
       <div>
-        <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
+        <p className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Commitment duration</p>
         <div className="mt-3">
           <WeeksSlider
             weeks={catalog.durations.map((d) => d.weeks)}
@@ -204,7 +204,7 @@ function TrialLength({
 }) {
   return (
     <div>
-      <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Trial days</p>
+      <p className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Trial days</p>
       <div className="mt-3">
         <TrialDayPicker sendDays={trial.weekdays} maxDays={trial.maxDays} picked={picks} onChange={(days) => set({ eatingDays: days, trialDays: days.length })} />
       </div>

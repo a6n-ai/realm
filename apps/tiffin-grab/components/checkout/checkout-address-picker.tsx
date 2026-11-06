@@ -59,13 +59,13 @@ export function CheckoutAddressPicker({
                 <span className="text-[16px] font-semibold tracking-[-0.01em]">{a.label}</span>
                 {a.isDefault && <Pill tone="soft" size="sm">Default</Pill>}
               </span>
-              <span className="text-muted-foreground mt-0.5 block text-[13px] text-pretty">{formatAddress(a)}</span>
+              <span className="text-muted-foreground mt-0.5 block text-footnote text-pretty">{formatAddress(a)}</span>
               {dropOff && value !== a.publicId && <AddressDropOffLines catalog={dropOff} value={dropOffs[a.publicId]} note={a.deliveryInstructions} />}
               {value === a.publicId && a.deliveryInstructions && (
-                <span className="text-muted-foreground line-clamp-2 block text-[13px]">Note: {a.deliveryInstructions}</span>
+                <span className="text-muted-foreground line-clamp-2 block text-footnote">Note: {a.deliveryInstructions}</span>
               )}
               {value === a.publicId && onEditSaved && (
-                <span className="text-primary mt-1 inline-flex items-center gap-1 text-[13px] font-semibold"><Pencil aria-hidden className="size-3" /> Edit</span>
+                <span className="text-primary mt-1 inline-flex items-center gap-1 text-footnote font-semibold"><Pencil aria-hidden className="size-3" /> Edit</span>
               )}
             </Row>
             {value === a.publicId && extra}
@@ -78,9 +78,9 @@ export function CheckoutAddressPicker({
                 <span className="text-[16px] font-semibold tracking-[-0.01em]">{draftFromAccount ? "Address on file" : "New address"}</span>
                 {draftFromAccount && <Pill tone="soft" size="sm">From your account</Pill>}
               </span>
-              <span className="text-muted-foreground mt-0.5 block text-[13px] text-pretty">{draft}</span>
+              <span className="text-muted-foreground mt-0.5 block text-footnote text-pretty">{draft}</span>
               {value === null && (
-                <span className="text-primary mt-1 inline-flex items-center gap-1 text-[13px] font-semibold"><Pencil aria-hidden className="size-3" /> Edit</span>
+                <span className="text-primary mt-1 inline-flex items-center gap-1 text-footnote font-semibold"><Pencil aria-hidden className="size-3" /> Edit</span>
               )}
             </Row>
           )}
@@ -90,14 +90,14 @@ export function CheckoutAddressPicker({
       {onAdd && <button
         type="button"
         onClick={onAdd}
-        className="c-surface text-foreground flex min-h-12 w-full items-center gap-3 rounded-[20px] bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-4 py-2 text-left transition-[transform,background-color] duration-100 hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)] active:scale-[.98] motion-reduce:active:scale-100"
+        className="c-surface text-foreground flex min-h-12 w-full items-center gap-3 rounded-[20px] bg-foreground/8 px-4 py-2 text-left transition-[transform,background-color] duration-100 hover:bg-foreground/13 active:scale-[.98] motion-reduce:active:scale-100"
       >
         <span aria-hidden className="bg-primary/15 text-primary flex size-8 shrink-0 items-center justify-center rounded-full">
           <Plus className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-semibold tracking-[-0.01em]">{hasOptions ? "Add new address" : "Add delivery address"}</span>
-          {!hasOptions && <span className="text-muted-foreground block text-[13px]">We&apos;ll check we deliver there.</span>}
+          {!hasOptions && <span className="text-muted-foreground block text-footnote">We&apos;ll check we deliver there.</span>}
         </span>
       </button>}
     </div>
@@ -112,7 +112,7 @@ function Row({ selected, onClick, icon, children }: { selected: boolean; onClick
       </span>
       <span className="min-w-0 flex-1">{children}</span>
       {/* Same check as the payment cards, so every pick in the form reads the same. */}
-      <span aria-hidden className={`grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-200 ${selected ? "bg-primary text-primary-foreground" : "bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]"}`}>
+      <span aria-hidden className={`grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-200 ${selected ? "bg-primary text-primary-foreground" : "bg-foreground/10"}`}>
         {selected && <Check className="size-3.5" strokeWidth={3} />}
       </span>
     </OptionCard>

@@ -46,11 +46,11 @@ export function SavedCards({ cards }: { cards: SavedCardView[] }) {
             <div className="flex min-w-0 items-center gap-3">
               <IconTile tint="indigo"><CreditCardIcon /></IconTile>
               <div className="min-w-0">
-                <p className="flex items-center gap-2 text-[15px] font-semibold">
+                <p className="flex items-center gap-2 text-subhead font-semibold">
                   <span>{brandName(c.brand)} •••• {c.last4 ?? "????"}</span>
                   {c.isDefault && <Pill tone="ok" size="sm">Default</Pill>}
                 </p>
-                <p className="text-[13px] text-[var(--muted-foreground)]">Expires {expiry(c)}</p>
+                <p className="text-footnote text-muted-foreground">Expires {expiry(c)}</p>
               </div>
             </div>
             <IconButton aria-label={`Remove ${brandName(c.brand)} ending ${c.last4 ?? ""}`} onClick={() => { setError(null); setRemoving(c); }}>

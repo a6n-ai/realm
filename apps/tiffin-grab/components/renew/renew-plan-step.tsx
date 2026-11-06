@@ -43,7 +43,7 @@ export function RenewPlanStep({ q, data, changePlanHref, onOpenAddons }: {
         <div className="flex items-start justify-between gap-3">
           <p className="c-h2 min-w-0">{q.meal?.name ?? "Your plan"}</p>
           {/* iOS "Edit"-style text button: the card stays the focus, changing it is one quiet tap away. */}
-          <Link href={changePlanHref} className="text-primary -my-2 -mr-2 flex min-h-11 shrink-0 items-center rounded-full px-2 text-[15px] font-semibold">Change</Link>
+          <Link href={changePlanHref} className="text-primary -my-2 -mr-2 flex min-h-11 shrink-0 items-center rounded-full px-2 text-subhead font-semibold">Change</Link>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           {diet && (

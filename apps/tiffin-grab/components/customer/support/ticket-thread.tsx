@@ -70,7 +70,7 @@ export function TicketThread({
       {/* One meta line, like a Messages header: the topic's tile, what it's about, where it stands. */}
       <div className="flex shrink-0 items-center gap-2.5">
         <IconTile tint={topic.tint}><topic.icon /></IconTile>
-        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+        <p className="min-w-0 flex-1 truncate text-subhead font-semibold">
           {categoryLabel(ticket.category)}
           {sub ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {sub}</span> : null}
         </p>
@@ -81,9 +81,9 @@ export function TicketThread({
         <StatusBanner status={status} />
         {/* Someone on the team in this chat right now beats the posted hours; otherwise the hours say when. */}
         {closed ? null : supportOnline ? (
-          <p aria-live="polite" className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]">
-            <span aria-hidden className="size-2 rounded-full bg-[var(--s-delivered-fg)]" />
-            <span><span className="font-semibold text-[var(--foreground)]">Support is online now.</span> Replies come in here.</span>
+          <p aria-live="polite" className="flex items-center gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]">
+            <span aria-hidden className="size-2 rounded-full bg-(--s-delivered-fg)" />
+            <span><span className="font-semibold text-foreground">Support is online now.</span> Replies come in here.</span>
           </p>
         ) : hours}
       </div>
@@ -121,7 +121,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), channel, peerRole: "staff" });
 
   if (closed) {
-    return <p className="c-surface rounded-2xl bg-[var(--card)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
+    return <p className="c-surface rounded-2xl bg-card p-4 text-subhead text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
   }
 
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" shellClassName="c-liquid border mr-[calc(0.5rem+58px)] lg:mr-0" />;
@@ -130,12 +130,12 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
 const kitChatUi: Partial<ChatUi> = {
   System: ({ message: m }) =>
     m.meta ? (
-      <p className="text-center text-[11px] text-[var(--muted-foreground,#6E6558)]">
+      <p className="text-center text-caption-2 text-[var(--muted-foreground,#6E6558)]">
         {m.body} · {m.meta}
       </p>
     ) : (
       <p className="flex justify-center py-1">
-        <span className="rounded-full bg-[var(--muted)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground,#6E6558)]">{m.body}</span>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption-2 font-semibold text-[var(--muted-foreground,#6E6558)]">{m.body}</span>
       </p>
     ),
   // ReUI/shadcn Message + Bubble: the row aligns by sender, the bubble carries the colour (yours saffron,
@@ -144,7 +144,7 @@ const kitChatUi: Partial<ChatUi> = {
     <Message align={mine ? "end" : "start"}>
       <MessageContent>
         <UiBubble variant={mine ? "default" : "muted"} align={mine ? "end" : "start"} className="sm:max-w-[70%]">
-          <BubbleContent className={cn("rounded-[20px] px-3.5 py-2 text-[15px] leading-snug", mine ? "rounded-br-md" : "rounded-bl-md")}>
+          <BubbleContent className={cn("rounded-[20px] px-3.5 py-2 text-subhead leading-snug", mine ? "rounded-br-md" : "rounded-bl-md")}>
             <p className="whitespace-pre-wrap text-pretty">
               {m.body}
               <span className={cn("float-right mt-1.5 ml-2 text-[10px] leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground,#6E6558)]")}>{m.meta}</span>
@@ -176,11 +176,11 @@ export function TicketThreadSkeleton() {
         <Skeleton className="ml-auto h-7 w-16 rounded-full" />
       </div>
       <div className="shrink-0 space-y-2">
-        <div className="flex items-start gap-3 rounded-2xl bg-[var(--muted)] px-4 py-3">
-          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-full bg-[var(--border)]" />
+        <div className="flex items-start gap-3 rounded-2xl bg-muted px-4 py-3">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-full bg-border" />
           <div className="flex-1 space-y-1">
-            <Skeleton className="h-[22px] w-40 bg-[var(--border)]" />
-            <Skeleton className="h-[18px] w-3/4 bg-[var(--border)]" />
+            <Skeleton className="h-[22px] w-40 bg-border" />
+            <Skeleton className="h-[18px] w-3/4 bg-border" />
           </div>
         </div>
         <Skeleton className="h-[18px] w-64 max-w-full" />

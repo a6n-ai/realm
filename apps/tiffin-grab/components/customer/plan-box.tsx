@@ -76,7 +76,7 @@ export function PlanHeadingRow({
   );
 }
 
-const CHIP = "rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]";
+const CHIP = "rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground";
 
 /** What's in the tiffin — chips, not a comma sentence. Meal size is the heading, not repeated here. */
 export function MealInfoChips({

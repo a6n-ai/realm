@@ -95,10 +95,10 @@ export function TripTimeline({
               </span>
               <div className="min-w-0 pt-0.5">
                 <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="text-[17px] leading-tight font-semibold tracking-[-0.02em]">{FULL[t.day]}{weekStart ? `, ${dateOf(t.day)}` : ""}</span>
-                  <span className="text-primary text-[15px] font-semibold tabular-nums">{plural(t.units, "tiffin", "tiffins")}</span>
+                  <span className="text-body leading-tight font-semibold tracking-[-0.02em]">{FULL[t.day]}{weekStart ? `, ${dateOf(t.day)}` : ""}</span>
+                  <span className="text-primary text-subhead font-semibold tabular-nums">{plural(t.units, "tiffin", "tiffins")}</span>
                 </p>
-                <p className="text-muted-foreground mt-1 text-[13px]">
+                <p className="text-muted-foreground mt-1 text-footnote">
                   {t.units === 1 && t.days[0] === t.day ? "Eaten the same day" : `For ${t.days.map((d) => FULL[d]).join(", ").replace(/, ([^,]*)$/, " and $1")}`}
                 </p>
               </div>
@@ -122,13 +122,13 @@ export function TripTimeline({
             const off = pick?.disabled?.(d) ?? false;
             const head = pick ? (
               <>
-                <span className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
+                <span className={`text-caption-2 font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
                 <span className={`grid size-8 place-items-center rounded-full text-[16px] font-bold tabular-nums ${pick.today === d && !sel ? "border-primary border-2" : ""}`}>{Number(dateIso(d).slice(8))}</span>
               </>
             ) : (
               <>
-                <span className={`text-[13px] font-semibold ${eats ? "text-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
-                {weekStart && <span className={`text-[11px] tabular-nums ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{dateOf(d)}</span>}
+                <span className={`text-footnote font-semibold ${eats ? "text-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
+                {weekStart && <span className={`text-caption-2 tabular-nums ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{dateOf(d)}</span>}
               </>
             );
             const body = (
@@ -158,7 +158,7 @@ export function TripTimeline({
                     <span className="bg-border relative z-10 size-2 rounded-full" />
                   )}
                 </div>
-                <span className="mt-2 h-5 text-[13px] font-semibold tabular-nums" style={{ color: tint }}>
+                <span className="mt-2 h-5 text-footnote font-semibold tabular-nums" style={{ color: tint }}>
                   {delivery ? (pick ? delivery.units : plural(delivery.units, "tiffin", "tiffins")) : ""}
                 </span>
               </>
@@ -181,7 +181,7 @@ export function TripTimeline({
           })}
         </div>
         {legend !== undefined ? legend : (
-        <p className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
+        <p className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption">
           <span className="inline-flex items-center gap-1.5">
             <span className="bg-primary text-primary-foreground grid size-4 place-items-center rounded-full"><Truck className="size-2.5" /></span>
             Delivery day

@@ -57,10 +57,9 @@ export const auth = betterAuth({
   advanced: {
     database: { generateId: false },
     cookiePrefix: AUTH_COOKIE_PREFIX,
-    // Trust ONLY the one header this runtime's edge sets: x-real-ip behind Caddy
-    // (`header_up X-Real-IP {remote_host}`), cf-connecting-ip on Workers. The default is x-forwarded-for,
-    // whose leftmost token better-auth takes verbatim — and Caddy *appends* to
-    // that header, so a client can prepend any value and pick its own bucket.
+    // Trust ONLY the one header the edge sets: cf-connecting-ip, which Cloudflare overwrites on every
+    // request. The default is x-forwarded-for, whose leftmost token better-auth takes verbatim, and
+    // proxies append to that header, so a client can prepend any value and pick its own bucket.
     // Every rate limit (sign-in 3/10s, OTP 3/60s) keys off this, so a spoofable
     // IP silently disables all of them. Also keys session.ipAddress, which the
     // new-device sign-in alert compares against.

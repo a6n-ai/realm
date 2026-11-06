@@ -11,7 +11,7 @@ export function BrandMark({ className }: { className?: string }) {
 export function BrandWordmark({ className, grabClassName = "text-[#185936] dark:text-[#72A94B]" }: { className?: string; grabClassName?: string }) {
   return (
     <span className={cn("font-bold leading-none tracking-[-0.02em] whitespace-nowrap", className)}>
-      <span className="text-[var(--brand)]">Tiffin</span>
+      <span className="text-(--brand)">Tiffin</span>
       <span className={grabClassName}>Grab</span>
     </span>
   );

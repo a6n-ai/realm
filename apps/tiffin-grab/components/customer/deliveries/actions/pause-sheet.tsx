@@ -140,14 +140,14 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
       }
     >
       <div className="space-y-5 pb-2">
-        <p className={`text-[15px] ${MUTED}`}>
+        <p className={`text-subhead ${MUTED}`}>
           {`Tap days to pause or resume${cut ? `, by ${cut} the day before` : " before the cutoff"}.`}
         </p>
         {autoMove != null && (
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
-              <p className="text-[15px] font-semibold">{AUTO_MOVE_LABEL}</p>
-              <p className={`text-[13px] ${MUTED}`}>{autoMove ? "Moves after its cutoff, to the end of your plan." : "Stays paused. You move it."}</p>
+              <p className="text-subhead font-semibold">{AUTO_MOVE_LABEL}</p>
+              <p className={`text-footnote ${MUTED}`}>{autoMove ? "Moves after its cutoff, to the end of your plan." : "Stays paused. You move it."}</p>
             </div>
             <Switch label={AUTO_MOVE_LABEL} checked={autoMove} disabled={pending} onChange={flip} />
           </div>

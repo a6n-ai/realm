@@ -93,7 +93,7 @@ export function StepBundle({
                 aria-pressed={on}
                 aria-label={l === "all" ? "All prices" : TIER_MARK[l].label}
                 onClick={() => setLevel(l)}
-                className={`min-h-9 min-w-12 rounded-full px-3.5 text-[13px] font-bold tracking-[0.04em] [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none ${on ? "bg-[var(--foreground)] text-[var(--background)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"}`}
+                className={`min-h-9 min-w-12 rounded-full px-3.5 text-footnote font-bold tracking-[0.04em] [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none ${on ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {l === "all" ? "All" : TIER_MARK[l].mark}
               </button>
@@ -103,7 +103,7 @@ export function StepBundle({
       )}
       {top.filter(inLevel).length > 0 && (
         <section>
-          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Best sellers</h3>
+          <h3 className="text-muted-foreground mb-3 text-footnote font-semibold tracking-[0.02em]">Best sellers</h3>
           {/* One per row on phones (room for name, price and what's in it), two across from sm up. */}
           <div className={top.filter(inLevel).length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
             {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
@@ -115,7 +115,7 @@ export function StepBundle({
       )}
       {trials.length > 0 && trial && level === "all" && (
         <section>
-          <h3 className="mb-3 text-[13px] font-semibold tracking-[0.02em] text-[var(--muted-foreground)]">New here? Try a tiffin first</h3>
+          <h3 className="mb-3 text-footnote font-semibold tracking-[0.02em] text-muted-foreground">New here? Try a tiffin first</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {trials.map((m) => (
               <MealOption
@@ -133,7 +133,7 @@ export function StepBundle({
       {/* No tier headings: every size in one grid, highest price first; each card carries its $ / $$ / $$$ mark. */}
       {weekly.length > 0 && (
         <section>
-        <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">All plans</h3>
+        <h3 className="text-muted-foreground mb-3 text-footnote font-semibold tracking-[0.02em]">All plans</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {weekly.map((m) => (
             <Fragment key={m.publicId}>
@@ -159,7 +159,7 @@ export function StepBundle({
           type="button"
           aria-expanded={!folded}
           onClick={() => setShowAll(folded)}
-          className="c-surface text-foreground mx-auto flex min-h-11 items-center gap-2 rounded-full bg-[var(--card)] px-5 text-[15px] font-semibold transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100"
+          className="c-surface text-foreground mx-auto flex min-h-11 items-center gap-2 rounded-full bg-card px-5 text-subhead font-semibold transition-transform duration-100 active:scale-[.97] motion-reduce:active:scale-100"
         >
           {folded ? `See all sizes · ${weeklyAll.length - weekly.length} more` : "Show fewer"}
           <ChevronDown aria-hidden className={`size-4 transition-transform duration-200 motion-reduce:transition-none ${folded ? "" : "rotate-180"}`} />
@@ -189,7 +189,7 @@ function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; classNam
 function TierMark({ meal }: { meal: ClientMealSizeView }) {
   const t = TIER_MARK[meal.tier];
   return (
-    <span aria-label={t.label} className="shrink-0 text-[13px] font-bold tracking-[0.08em] text-[var(--s-delivered-fg,#059669)]">
+    <span aria-label={t.label} className="shrink-0 text-footnote font-bold tracking-[0.08em] text-[var(--s-delivered-fg,#059669)]">
       {t.mark}
     </span>
   );
@@ -205,9 +205,9 @@ function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientM
       <Pill tone="up" size="sm" className="w-fit">Best seller</Pill>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
-          <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
+          <span className="text-title-3 leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
           <span className="flex flex-wrap items-center gap-1">
-                {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit !text-[color-mix(in_srgb,var(--foreground)_80%,transparent)]">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+                {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="w-fit !text-foreground/80">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
             <MealDays meal={meal} />
           </span>
         </span>
@@ -247,7 +247,7 @@ function MealOption({
           <Pill tone="vac" size="sm" className="w-fit">Try first</Pill>
           {/* Name and price on one row, the price top-right, as on every other meal card. */}
           <div className="flex items-start justify-between gap-3">
-            <span className="min-w-0 text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
+            <span className="min-w-0 text-title-3 leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
             <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
           </div>
           <p className="text-muted-foreground text-sm text-pretty">{meal.description || "Taste it before you commit to a plan."}</p>
@@ -261,11 +261,11 @@ function MealOption({
     <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
-          <span className="text-[20px] leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
+          <span className="text-title-3 leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
           {/* Always on its own line under the name, on every card, so long names and short ones line up; the days a
               limited size is made on follow the kcal. */}
           <span className="flex flex-wrap items-center gap-1">
-                {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="!text-[color-mix(in_srgb,var(--foreground)_80%,transparent)]">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
+                {meal.kcalMax > 0 && <Pill tone="soft" size="sm" className="!text-foreground/80">{meal.kcalMin}–{meal.kcalMax} kcal</Pill>}
             <MealDays meal={meal} />
           </span>
         </span>

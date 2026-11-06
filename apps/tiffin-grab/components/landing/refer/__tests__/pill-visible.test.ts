@@ -3,7 +3,7 @@ import { pillVisible } from "../pill-visible";
 
 describe("pillVisible", () => {
   it("shows on every public page, the refer pages included", () => {
-    for (const p of ["/", "/menu/weekly", "/refer", "/refer/K7M2QX", "/plans", "/subscribers"]) expect(pillVisible(p)).toBe(true);
+    for (const p of ["/", "/menu", "/refer", "/refer/K7M2QX", "/pricing", "/subscribers"]) expect(pillVisible(p)).toBe(true);
   });
   it("hides in the order flow, which has its own bottom bar", () => {
     for (const p of ["/subscribe", "/subscribe/checkout"]) expect(pillVisible(p)).toBe(false);

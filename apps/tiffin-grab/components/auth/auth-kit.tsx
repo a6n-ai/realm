@@ -12,16 +12,16 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized
 // controls (50px targets, 14px corners, 17px type) the customer app uses.
-export const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-[17px] tracking-[-0.011em]";
+export const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-body tracking-[-0.011em]";
 // @foundry/ui PhoneInput is a country button + input at h-8; same lift as IOS_INPUT, on a wrapper.
-export const IOS_PHONE = "[&_input]:!h-[50px] [&_input]:!text-[17px] [&_input]:!rounded-e-[14px] [&_button]:!h-[50px] [&_button]:!rounded-s-[14px]";
+export const IOS_PHONE = "[&_input]:!h-[50px] [&_input]:!text-body [&_input]:!rounded-e-[14px] [&_button]:!h-[50px] [&_button]:!rounded-s-[14px]";
 
 const VARIANT = { primary: "default", outline: "outline", quiet: "ghost", danger: "destructive" } as const;
 // The shadcn primary fades to 80% on hover, which reads as disabled; darken it and lift
 // 1px instead, the same answer the customer kit's primary gives.
 const HOVER: Partial<Record<keyof typeof VARIANT, string>> = {
-  primary: "transition-[background-color,translate] hover:!bg-[color-mix(in_oklch,var(--primary)_86%,black)] [@media(hover:hover)]:hover:-translate-y-px",
-  outline: "transition-[background-color,border-color] hover:!border-[var(--primary)]",
+  primary: "transition-[background-color,translate] hover:!bg-[color-mix(in_oklch,var(--primary)_86%,black)] hover:-translate-y-px",
+  outline: "transition-[background-color,border-color] hover:!border-primary",
 };
 
 function KitButton({ variant = "primary", pending, pendingLabel, disabled, type = "button", className, onClick, children }: AuthButtonProps) {
@@ -54,7 +54,7 @@ function KitField({ label, error, trailing, id, ref, className, ...input }: Auth
   );
   return (
     <div className="grid gap-2">
-      <Label htmlFor={fieldId} className="text-[15px]">{label}</Label>
+      <Label htmlFor={fieldId} className="text-subhead">{label}</Label>
       {trailing ? <div className="relative">{control}{trailing}</div> : control}
       {error ? <p id={`${fieldId}-error`} className="text-destructive text-sm">{error}</p> : null}
     </div>
@@ -66,8 +66,8 @@ export const tiffinAuthUi: Partial<AuthUi> = { Button: KitButton, Field: KitFiel
 /** The live logo, shown once per auth screen at the top of its AuthPanel. */
 export function AuthLogo() {
   return (
-    <Link href="/" aria-label="TiffinGrab home" className="flex items-center gap-2.5">
-      <BrandMark className="size-12" />
+    <Link href="/" aria-label="TiffinGrab home" style={{ ["--brand" as string]: "#C2580B" }} className="group flex items-center gap-2.5 rounded-xl transition-transform duration-300 ease-soft active:scale-[0.98] hover:-translate-y-0.5">
+      <BrandMark className="size-12 transition-transform duration-500 ease-spring group-hover:-rotate-8" />
       <BrandWordmark className="text-[26px]" />
     </Link>
   );
@@ -76,7 +76,7 @@ export function AuthLogo() {
 export function AuthLegal() {
   return (
     <>
-      By continuing, you agree to our <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.
+      By continuing, you agree to our <Link href="/terms" className="inline-flex min-h-6 items-center underline underline-offset-4 decoration-current/40 transition-[text-decoration-color,color] duration-200 hover:decoration-current hover:text-foreground">Terms of Service</Link> and <Link href="/privacy" className="inline-flex min-h-6 items-center underline underline-offset-4 decoration-current/40 transition-[text-decoration-color,color] duration-200 hover:decoration-current hover:text-foreground">Privacy Policy</Link>.
     </>
   );
 }

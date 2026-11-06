@@ -2,11 +2,11 @@ import type { PricingResult } from "@/lib/pricing";
 import { Divider } from "@/components/customer/kit";
 
 export function Invoice({ result }: { result: PricingResult | null }) {
-  if (!result) return <p className="rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)] p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;
+  if (!result) return <p className="rounded-2xl bg-foreground/6 p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;
   return (
     <div className="c-surface bg-card rounded-[20px] p-5 text-sm">
       <div className="border-border mb-3 flex items-baseline justify-between border-b pb-2.5">
-        <span className="text-[13px] font-semibold">Your tiffin receipt</span>
+        <span className="text-footnote font-semibold">Your tiffin receipt</span>
         <span className="text-base">🧾</span>
       </div>
       <ul className="space-y-1.5">

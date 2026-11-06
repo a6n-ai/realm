@@ -108,10 +108,10 @@ function ReceiptActions({ orderPublicId }: { orderPublicId: string }) {
   return (
     // Icon-only, under the bill's price on the card's right side; the labels stay as their names and hover tips.
     <span className="-mr-2 flex">
-      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "ghost", className: "!size-10 !min-h-10 !px-0 text-[var(--muted-foreground)] hover:!bg-transparent hover:text-[var(--foreground)]" })}>
+      <a href={`/api/receipts/${encodeURIComponent(orderPublicId)}`} download aria-label="Download receipt" title="Download receipt" className={buttonClass({ variant: "ghost", className: "!size-10 !min-h-10 !px-0 text-muted-foreground hover:!bg-transparent hover:text-foreground" })}>
         <Download aria-hidden className="size-[18px]" />
       </a>
-      <Button type="button" variant="ghost" aria-label="Email receipt" title="Email receipt" className="!size-10 !min-h-10 !px-0 text-[var(--muted-foreground)] hover:!bg-transparent hover:text-[var(--foreground)]" pending={sending} onClick={email}>
+      <Button type="button" variant="ghost" aria-label="Email receipt" title="Email receipt" className="!size-10 !min-h-10 !px-0 text-muted-foreground hover:!bg-transparent hover:text-foreground" pending={sending} onClick={email}>
         <Mail aria-hidden className="size-[18px]" />
       </Button>
     </span>
@@ -139,11 +139,11 @@ function BillRow({
     <div className="flex items-start gap-3 px-4 py-3">
       <IconTile tint={billTint(bill)}><FileText /></IconTile>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="truncate text-[15px] font-semibold">
+        <p className="truncate text-subhead font-semibold">
           {bill.planName} · {bill.mealSizeName}
         </p>
-        <p className="text-[13px] tabular-nums">{planRange(bill.startDate, bill.lastDeliveryDate)}</p>
-        <p className="truncate text-[13px] tabular-nums text-[var(--muted-foreground)]">
+        <p className="text-footnote tabular-nums">{planRange(bill.startDate, bill.lastDeliveryDate)}</p>
+        <p className="truncate text-footnote tabular-nums text-muted-foreground">
           {bill.deploymentId}
           {" · "}
           {formatEpoch(bill.createdAt, { mode: "date", timeZone: tz })}
@@ -188,7 +188,7 @@ function BillRow({
         ))}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
-        <span className="text-[15px] font-semibold tabular-nums">{formatDollars(bill.total, currency)}</span>
+        <span className="text-subhead font-semibold tabular-nums">{formatDollars(bill.total, currency)}</span>
         <ReceiptActions orderPublicId={bill.publicId} />
       </div>
     </div>

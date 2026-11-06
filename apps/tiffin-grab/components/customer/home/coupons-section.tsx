@@ -40,7 +40,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
     }
   };
   return (
-    <div className="flex flex-col gap-3 c-surface rounded-2xl bg-[var(--primary-wash)] p-4">
+    <div className="flex flex-col gap-3 c-surface rounded-2xl bg-(--primary-wash) p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[14px] font-semibold tracking-[0.04em]">{coupon.code}</p>
@@ -61,7 +61,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
       )}
       <div className="flex flex-wrap items-center gap-x-4">
         <Button variant="outline" className="min-h-11" onClick={copy}>Copy code</Button>
-        <Link href="/me/renew" className="text-primary inline-flex min-h-11 items-center text-[15px] font-semibold underline underline-offset-2">
+        <Link href="/me/renew" className="text-primary inline-flex min-h-11 items-center text-subhead font-semibold underline underline-offset-2">
           Use at checkout
         </Link>
       </div>

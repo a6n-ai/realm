@@ -9,15 +9,15 @@ export function AddressDropOffLines({ catalog, value, note }: { catalog: DropOff
   const summary = dropOffSummary(catalog, value);
   return (
     <>
-      {summary && <span className="block text-[13px] text-[var(--muted-foreground)]">{summary}</span>}
-      {note && <span className="line-clamp-2 block text-[13px] text-[var(--muted-foreground)]">Note: {note}</span>}
+      {summary && <span className="block text-footnote text-muted-foreground">{summary}</span>}
+      {note && <span className="line-clamp-2 block text-footnote text-muted-foreground">Note: {note}</span>}
     </>
   );
 }
 
 /** The picked address's drop-off, attached under its card: it belongs to that address, and is saved back to it. */
 export function AddressDropOffPanel({ children }: { children: ReactNode }) {
-  return <div className="ml-3 border-l-2 border-[var(--border)] pl-4">{children}</div>;
+  return <div className="ml-3 border-l-2 border-border pl-4">{children}</div>;
 }
 
 /**
@@ -26,7 +26,7 @@ export function AddressDropOffPanel({ children }: { children: ReactNode }) {
  */
 const PILL =
   // `!`: the kit cn only joins classes, so PillToggle's own h-12 would win over a plain h-8.
-  "relative !h-8 flex-none gap-1.5 whitespace-nowrap px-3 text-[13px] font-medium sm:px-3 sm:text-[13px] before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
+  "relative !h-8 flex-none gap-1.5 whitespace-nowrap px-3 text-footnote font-medium sm:px-3 sm:text-footnote before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
 
 /** Name, then its fee as a quieter tag; a waived fee is struck through with the saving in green. */
 function StrategyLabel({ o, on }: { o: DropOffOption; on: boolean }) {
@@ -38,11 +38,11 @@ function StrategyLabel({ o, on }: { o: DropOffOption; on: boolean }) {
       <span>{o.name}</span>
       {fee && o.waivedPct > 0 ? (
         <>
-          {" "}<s className="text-[12px] tabular-nums opacity-60">{fee}</s>
-          {" "}<span className={`text-[12px] font-semibold ${green}`}>{o.waivedPct >= 100 ? "Free" : `−${o.waivedPct}%`}</span>
+          {" "}<s className="text-caption tabular-nums opacity-60">{fee}</s>
+          {" "}<span className={`text-caption font-semibold ${green}`}>{o.waivedPct >= 100 ? "Free" : `−${o.waivedPct}%`}</span>
         </>
       ) : fee ? (
-        <>{" "}<span className="text-[12px] tabular-nums opacity-70">{fee}</span></>
+        <>{" "}<span className="text-caption tabular-nums opacity-70">{fee}</span></>
       ) : null}
     </>
   );
@@ -76,7 +76,7 @@ export function DropOffPicker({
   return (
     <div className="grid gap-3">
       <div className="grid gap-2">
-        <p className="text-[15px] font-semibold">Place</p>
+        <p className="text-subhead font-semibold">Place</p>
         <div role="radiogroup" aria-label="Place" className="flex flex-wrap gap-2">
           {tags.map((g) => (
             <Pill
@@ -93,7 +93,7 @@ export function DropOffPicker({
             </Pill>
           ))}
         </div>
-        {tag?.description && <p className="text-[13px] text-[var(--muted-foreground)]">{tag.description}</p>}
+        {tag?.description && <p className="text-footnote text-muted-foreground">{tag.description}</p>}
       </div>
 
       {sets.map((c) => {
@@ -101,7 +101,7 @@ export function DropOffPicker({
         return (
           <div key={c.publicId} className="grid gap-2">
             {/* Sets are made by connecting strategies in admin, so they have no name to show. */}
-            <p className="text-[15px] font-semibold">{c.name || "Choose one"}</p>
+            <p className="text-subhead font-semibold">{c.name || "Choose one"}</p>
             <div role="radiogroup" aria-label={c.name || "Choose one"} className="flex flex-wrap gap-1.5">
               {options.filter((o) => o.connectionId === c.publicId).map((o) => (
                 <Pill
@@ -124,7 +124,7 @@ export function DropOffPicker({
 
       {loose.length > 0 && (
         <div className="grid gap-2">
-          <p className="text-[15px] font-semibold">{sets.length > 0 ? "Also" : "Drop-off"}</p>
+          <p className="text-subhead font-semibold">{sets.length > 0 ? "Also" : "Drop-off"}</p>
           <div className="flex flex-wrap gap-1.5">
             {loose.map((o) => (
               <Pill
@@ -153,25 +153,25 @@ function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffC
   return (
     <div className="grid gap-2">
       {catalog.offers.map((offer) => (
-        <p key={offer.name} className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 px-3 py-2 text-[13px] text-pretty">
+        <p key={offer.name} className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 px-3 py-2 text-footnote text-pretty">
           <SparklesIcon aria-hidden className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>
             <span className="font-semibold text-emerald-700 dark:text-emerald-400">{offer.name}</span>
-            <span className="text-[var(--muted-foreground)]"> · {offer.percent >= 100 ? "delivery fees waived" : `${offer.percent}% off delivery fees`}</span>
+            <span className="text-muted-foreground"> · {offer.percent >= 100 ? "delivery fees waived" : `${offer.percent}% off delivery fees`}</span>
           </span>
         </p>
       ))}
       {cheaper && (
-        <div className="flex items-center gap-2 rounded-2xl bg-[var(--primary)]/10 py-1.5 pr-1.5 pl-3">
-          <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty">
+        <div className="flex items-center gap-2 rounded-2xl bg-primary/10 py-1.5 pr-1.5 pl-3">
+          <p className="min-w-0 flex-1 text-footnote leading-snug text-pretty">
             <span className="font-semibold">{cheaper.alt.name}</span>
-            <span className="text-[var(--muted-foreground)]"> saves ${cheaper.saves.toFixed(2)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>
+            <span className="text-muted-foreground"> saves ${cheaper.saves.toFixed(2)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>
           </p>
           <button
             type="button"
             disabled={disabled}
             onClick={() => onChange(pickInConnection(catalog, value, cheaper.picked.connectionId!, cheaper.alt.publicId))}
-            className="relative h-8 shrink-0 cursor-pointer rounded-full bg-[var(--primary)] px-3.5 text-[13px] font-semibold text-[var(--primary-foreground,#fff)] transition-transform duration-100 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] active:scale-[0.97] disabled:opacity-40 motion-reduce:active:scale-100"
+            className="relative h-8 shrink-0 cursor-pointer rounded-full bg-primary px-3.5 text-footnote font-semibold text-[var(--primary-foreground,#fff)] transition-transform duration-100 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] active:scale-[0.97] disabled:opacity-40 motion-reduce:active:scale-100"
           >
             Switch
           </button>

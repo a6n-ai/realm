@@ -37,8 +37,8 @@ export function OptionCard({ selected, tone, badge, className, children, type = 
             ? "ring-2 ring-[var(--s-vac,#d98a00)] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_16%,transparent)]"
             : "c-surface bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_8%,var(--card))]"
           : selected
-            ? "ring-2 ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
-            : "c-surface bg-[var(--card)] hover:bg-[var(--muted)]",
+            ? "ring-2 ring-primary bg-primary/10"
+            : "c-surface bg-card hover:bg-muted",
         badge && "relative",
         className,
       )}
@@ -51,7 +51,7 @@ export function OptionCard({ selected, tone, badge, className, children, type = 
           initial={reduced ? false : { scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-          className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_2px_6px_rgb(0_0_0/0.25)]"
+          className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-primary text-[var(--primary-foreground,#fff)] shadow-[0_2px_6px_rgb(0_0_0/0.25)]"
         >
           <Check className="size-3.5" strokeWidth={3} />
         </m.span>
@@ -75,7 +75,7 @@ export function SelectableCard({ selected, title, description, trailing, indicat
     <OptionCard {...rest} selected={selected} className={cn("flex min-h-24 w-full items-center justify-between gap-4 p-4", className)}>
       <span className="flex min-w-0 flex-col gap-1.5">
         <span className="c-h2 leading-tight">{title}</span>
-        {description && <span className="text-sm text-[var(--muted-foreground)]">{description}</span>}
+        {description && <span className="text-sm text-muted-foreground">{description}</span>}
         {children}
       </span>
       {trailing}
@@ -85,7 +85,7 @@ export function SelectableCard({ selected, title, description, trailing, indicat
           aria-hidden
           className={cn(
             "grid size-7 shrink-0 place-items-center rounded-full transition-colors",
-            selected ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]",
+            selected ? "bg-primary text-[var(--primary-foreground,#fff)]" : "bg-foreground/10",
           )}
         >
           {selected && <Check className="size-4" strokeWidth={3} />}
@@ -105,9 +105,9 @@ export function PillToggle({ on, className, children, type = "button", ...rest }
       className={cn(
         FONT,
         FOCUS,
-        "c-surface flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-[15px]",
+        "c-surface flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-subhead",
         SPRING,
-        on ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]",
+        on ? "bg-primary text-[var(--primary-foreground,#fff)]" : "bg-foreground/8",
         className,
       )}
     >
@@ -147,8 +147,8 @@ export function Choice({ value, className, children, ...rest }: Omit<ButtonHTMLA
   return (
     <OptionCard {...rest} role="radio" selected={on} tabIndex={on ? 0 : -1} onClick={() => ctx.onChange(value)} className={cn("flex items-center justify-between gap-2", className)}>
       {children}
-      <span aria-hidden className={cn("grid size-4 shrink-0 place-items-center rounded-full border", on ? "border-[var(--primary)]" : "border-[var(--border)]")}>
-        {on && <span className="size-2 rounded-full bg-[var(--primary)]" />}
+      <span aria-hidden className={cn("grid size-4 shrink-0 place-items-center rounded-full border", on ? "border-primary" : "border-border")}>
+        {on && <span className="size-2 rounded-full bg-primary" />}
       </span>
     </OptionCard>
   );

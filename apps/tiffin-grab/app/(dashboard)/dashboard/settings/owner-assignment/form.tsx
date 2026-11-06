@@ -78,7 +78,7 @@ const TABS: { value: OwnerEntity; label: string }[] = [
 
 const DEFAULT_OVERRIDE = "__default__";
 const DEFAULT_POOL = "";
-const EASE = "duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]";
+const EASE = "duration-200 ease-soft";
 
 export type Source = { key: string; label: string };
 export type StaffOption = { userId: string; publicId: string; name: string | null };

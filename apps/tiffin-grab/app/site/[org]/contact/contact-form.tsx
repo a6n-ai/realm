@@ -1,4 +1,5 @@
 "use client";
+import "react-phone-number-input/style.css";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Send } from "lucide-react";

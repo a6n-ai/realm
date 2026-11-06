@@ -55,7 +55,7 @@ interface Props {
 
 /** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)] ring-[1.5px] ring-[var(--primary)]" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-[var(--foreground)]", className)} />;
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground ring-[1.5px] ring-primary" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-foreground", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -222,7 +222,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
               {cardAvailable ? (
                 <>
                   <p className="text-sm">Your plan is reserved. Pay by card to get it started.</p>
-                  <Link href={`/me/pay/${claimPayment.paymentPublicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
+                  <Link href={`/me/pay/${claimPayment.paymentPublicId}`} className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
                     Pay by card
                   </Link>
                 </>
@@ -257,10 +257,10 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
             onWeek={(m) => goWeek(m)}
           />
 
-          {menuOut && <p className="mt-3 text-sm text-[var(--muted-foreground,#6E6558)]" data-testid="menu-not-released"><span className="font-semibold text-[var(--foreground)]">Menu not released yet.</span> You can still move a day.</p>}
+          {menuOut && <p className="mt-3 text-sm text-[var(--muted-foreground,#6E6558)]" data-testid="menu-not-released"><span className="font-semibold text-foreground">Menu not released yet.</span> You can still move a day.</p>}
           {shown.length === 0 && (
             <div className="mt-4 space-y-3">
-              <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
+              <p className="text-subhead font-semibold">Nothing to eat this week.</p>
               {next ? <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button> : <p className="text-sm text-[var(--muted-foreground,#6E6558)]">Nothing else is scheduled.</p>}
             </div>
           )}
@@ -285,13 +285,13 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
               </div>
             </EatingCard>
           ) : emptyDay ? (
-            <p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p>
+            <p className="text-subhead font-semibold">Nothing planned on {humanDate(emptyDay)}.</p>
           ) : null}
         </div>
       </div>
 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
-        <div className={`${FONT} fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none flex h-[58px] items-center gap-2 lg:hidden`}>
+        <div className={`${FONT} fixed left-3 right-[calc(1.25rem+58px)] bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-30 transition-[bottom] duration-300 ease-soft motion-reduce:transition-none flex h-[58px] items-center gap-2 lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}

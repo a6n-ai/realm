@@ -12,7 +12,7 @@ import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
 import { CrossHostSplash } from "@/components/cross-host-splash";
 import { CookieConsent } from "@/components/consent/cookie-consent";
-import "./globals.css";
+import { AreaBoundary } from "@/components/area-boundary";
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
 // specifically so headers, dish names, and the wallet balance read as a warm consumer food
@@ -64,6 +64,7 @@ export default function RootLayout({
           <BrowserChrome />
           <CrossHostSplash />
           <CookieConsent />
+          <AreaBoundary />
         </ThemeProvider>
         <MetaPixelPageViews />
       </body>

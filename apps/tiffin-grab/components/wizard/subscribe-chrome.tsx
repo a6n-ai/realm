@@ -31,23 +31,24 @@ export function SubscribeChrome({
   return (
     // Full-bleed out of whatever centered column renders it, like the app header (html clips the overflow-x).
     // A scroll edge, not a hairline: content fades as it passes under the glass bar.
-    <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] pt-[env(safe-area-inset-top)] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-[var(--background)] after:to-transparent after:content-['']">
+    <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] pt-[env(safe-area-inset-top)] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-background after:to-transparent after:content-['']">
       <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <Brand href={closeHref} />
+          {/* The logo answers a pointer like every other link here: a small lift. */}
+          <span className="inline-flex transition-transform duration-300 ease-soft active:scale-[0.98] hover:-translate-y-0.5"><Brand href={closeHref} /></span>
           <Button
             variant="ghost"
-            className="!hidden gap-1 !px-2 !text-[13px] tracking-tight sm:!inline-flex"
+            className="group !hidden gap-1 !px-2 !text-footnote tracking-tight sm:!inline-flex transition-transform duration-300 ease-soft active:scale-[0.97] hover:-translate-y-0.5"
             onClick={() => (onBack ? onBack() : router.back())}
           >
-            <ArrowLeftIcon aria-hidden className="size-3.5" />
+            <ArrowLeftIcon aria-hidden className="size-3.5 transition-transform duration-300 ease-soft group-hover:-translate-x-0.5" />
             {backLabel}
           </Button>
         </div>
-        <span className="text-[15px] font-semibold tracking-[-0.01em] max-sm:invisible">{stepTag}</span>
+        <span className="text-subhead font-semibold tracking-[-0.01em] max-sm:invisible">{stepTag}</span>
         <div className="flex items-center justify-end gap-2">
           {trailing}
-          <IconButton href={closeHref} aria-label="Close" className="!size-11">
+          <IconButton href={closeHref} aria-label="Close" className="!size-11 transition-transform duration-300 ease-soft active:scale-[0.97] hover:-translate-y-0.5 [&_svg]:transition-transform [&_svg]:duration-300 hover:[&_svg]:rotate-90">
             <XIcon aria-hidden className="size-4" />
           </IconButton>
         </div>

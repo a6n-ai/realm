@@ -123,7 +123,7 @@ export default function PrivacyPage() {
         <p className="m-0">
           You may request access, correction, deletion (subject to legal holds), and withdrawal of consent for
           non-essential uses. You may complain to the <strong>Office of the Privacy Commissioner of Canada</strong> at{" "}
-          <a href="https://www.priv.gc.ca" target="_blank" rel="noreferrer" className="underline underline-offset-4">priv.gc.ca</a>.
+          <a href="https://www.priv.gc.ca" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">priv.gc.ca</a>.
         </p>
         <p className="m-0">
           Email <Mail /> with subject <strong>“Privacy Request”</strong>. We aim to respond within <strong>30 days</strong>.

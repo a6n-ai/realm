@@ -12,11 +12,11 @@ export function NavPill({ href, active, children, className }: { href: string; a
       className={cn(
         FONT,
         FOCUS,
-        "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 [touch-action:manipulation] active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transition-none motion-reduce:transform-none",
+        "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 [touch-action:manipulation] active:scale-[.97] hover:-translate-y-px motion-reduce:transition-none motion-reduce:transform-none",
         // The bar under the current item is a cue that doesn't rely on colour alone.
         active
           ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] after:absolute after:bottom-1.5 after:left-1/2 after:h-0.5 after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-current dark:text-[#FFB877]"
-          : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
         className,
       )}
     >
@@ -36,13 +36,13 @@ export function CoinChip({ href, balance, value, active }: { href: string; balan
       className={cn(
         FONT,
         FOCUS,
-        "inline-flex h-11 items-center gap-1.5 rounded-full border border-transparent px-3.5 text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-[background-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none",
+        "inline-flex h-11 items-center gap-1.5 rounded-full border border-transparent px-3.5 text-subhead font-semibold tabular-nums [touch-action:manipulation] transition-[background-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none",
         active ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] dark:text-[#FFB877]" : "c-liquid",
       )}
     >
-      <Wallet aria-hidden className="size-5 text-[var(--primary)]" />
+      <Wallet aria-hidden className="size-5 text-primary" />
       {balance}
-      {money ? <span className="hidden text-[13px] font-medium text-[var(--muted-foreground)] sm:inline">{money}</span> : null}
+      {money ? <span className="hidden text-footnote font-medium text-muted-foreground sm:inline">{money}</span> : null}
     </Link>
   );
 }

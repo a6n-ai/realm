@@ -43,7 +43,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
     <header className="mb-4 lg:mb-6">
       <div className="flex items-start justify-between gap-3">
         <h1 className="text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">
-          {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
+          {first ? <>Hi, <em className="text-primary">{first}.</em></> : <>Your <em className="text-primary">trips.</em></>}
         </h1>
       </div>
       {plans}
@@ -54,12 +54,12 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
         data-testid="plan-card"
       >
         {/* A custom meal's name is its whole composition — too long for the title on a phone. */}
-        <p className="text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
+        <p className="text-title-2 font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
         {sub.mealSizeCustom && (
-          <p className="mt-1 text-[15px] leading-snug text-pretty text-[var(--muted-foreground,#6E6558)]" data-testid="plan-composition">{sub.mealSizeName}</p>
+          <p className="mt-1 text-subhead leading-snug text-pretty text-[var(--muted-foreground,#6E6558)]" data-testid="plan-composition">{sub.mealSizeName}</p>
         )}
         {/* One quiet line instead of a row of pills: status, diet, what's left; renew under it. */}
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[15px] tabular-nums" data-testid="plan-summary">
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-subhead tabular-nums" data-testid="plan-summary">
           <span aria-hidden className="size-2 rounded-full" style={{ background: DOT[TONE[sub.displayStatus] ?? ""] ?? "var(--muted-foreground)" }} />
           <span className="font-semibold">{ORDER_STATUS_LABEL[sub.displayStatus] ?? sub.displayStatus}</span>
           {[
@@ -73,7 +73,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
         </p>
         {/* Same line, same place on every plan: when it renews, or that it already has. */}
         {(renewal || renew != null) && (
-          <p className={cn("mt-0.5 text-[13px]", MUTED)} data-testid="plan-renewal">
+          <p className={cn("mt-0.5 text-footnote", MUTED)} data-testid="plan-renewal">
             {renewal ?? (renew === 0 ? "Last tiffin today" : renew === 1 ? "Last tiffin tomorrow" : `Last tiffin in ${renew} days`)}
           </p>
         )}

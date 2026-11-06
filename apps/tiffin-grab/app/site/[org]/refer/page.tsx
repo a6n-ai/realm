@@ -3,6 +3,7 @@ import { ReferContent, referHeadline } from "@/components/landing/refer/refer-co
 import { pageMeta } from "@/lib/landing/meta";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { siteOrgId } from "@/lib/tenant/site-org";
+import "@/components/landing/styles/refer.css";
 
 // Reward settings change rarely; five minutes keeps the figures close to live without a DB read per view.
 export const revalidate = 300;

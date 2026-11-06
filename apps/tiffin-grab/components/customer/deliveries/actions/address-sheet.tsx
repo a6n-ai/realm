@@ -76,7 +76,7 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
         ) : (
           step === "new" ? (
             <div className="grid gap-4">
-              <button type="button" onClick={back} className="inline-flex min-h-11 items-center gap-1 justify-self-start text-sm font-semibold text-[var(--muted-foreground)] [touch-action:manipulation]">
+              <button type="button" onClick={back} className="inline-flex min-h-11 items-center gap-1 justify-self-start text-sm font-semibold text-muted-foreground [touch-action:manipulation]">
                 <ChevronLeft aria-hidden className="size-4" />
                 Back to addresses
               </button>
@@ -97,12 +97,12 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
                 onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
               />
               <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
-              <p className="text-sm text-[var(--muted-foreground)]">Saved to your addresses. Used for this delivery only.</p>
+              <p className="text-sm text-muted-foreground">Saved to your addresses. Used for this delivery only.</p>
             </div>
           ) : (
           <>
             <div role="radiogroup" aria-label="Delivery address" className="grid gap-2">
-              <span className="text-sm font-semibold text-[var(--foreground)]">Address</span>
+              <span className="text-sm font-semibold text-foreground">Address</span>
               {addresses.map((a: SavedAddress) => (
                 <Fragment key={a.publicId}>
                   <OptionCard role="radio" selected={picked === a.publicId} onClick={() => {
@@ -114,7 +114,7 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
                       {a.label}
                       {a.isDefault ? " · Default" : ""}
                     </span>
-                    <span className="block text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</span>
+                    <span className="block text-sm text-muted-foreground">{formatAddress(a)}</span>
                     {picked !== a.publicId && (
                       <AddressDropOffLines catalog={plan.dropOff} value={plan.addressDropOffs?.[a.publicId]} note={a.deliveryInstructions} />
                     )}
@@ -122,7 +122,7 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
                   {picked === a.publicId && (
                     <AddressDropOffPanel>
                       <div className="grid gap-2">
-                        {a.deliveryInstructions && <p className="text-[13px] text-[var(--muted-foreground)]">Note: {a.deliveryInstructions}</p>}
+                        {a.deliveryInstructions && <p className="text-footnote text-muted-foreground">Note: {a.deliveryInstructions}</p>}
                         <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
                       </div>
                     </AddressDropOffPanel>
@@ -131,11 +131,11 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
               ))}
               <OptionCard onClick={toNew} className="flex items-center justify-between p-4" selected={false}>
                 <span className="font-medium">+ New address</span>
-                <ChevronRight aria-hidden className="size-4 text-[var(--muted-foreground)]" />
+                <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
               </OptionCard>
             </div>
 
-            <p className="text-sm text-[var(--muted-foreground)]">This delivery only. Drop-off notes save to the address.</p>
+            <p className="text-sm text-muted-foreground">This delivery only. Drop-off notes save to the address.</p>
           </>
           )
         )}

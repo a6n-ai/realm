@@ -1,3 +1,4 @@
+import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";

@@ -3,7 +3,6 @@ import type { OfferFigure } from "@/lib/referrals/offer";
 import type { PromoSavings } from "@/lib/landing/promo-types";
 import { friendGiftLine, friendHeadline } from "./friend-copy";
 import { ReferTicket } from "./refer-content";
-import "./refer.css";
 
 const STEPS = [
   ["Build your plan", "Pick your diet, meal size, days and weeks."],

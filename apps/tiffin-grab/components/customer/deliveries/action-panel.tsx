@@ -36,7 +36,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
   const secondary = others.filter((r) => r.key === "move");
   const overflow = others.filter((r) => r.key !== "move" && !hide.includes(r.key));
   const [menu, setMenu] = useState(false);
-  const item = cn(FOCUS, "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-[var(--muted)] [touch-action:manipulation]");
+  const item = cn(FOCUS, "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-subhead font-medium hover:bg-muted [touch-action:manipulation]");
   const more = overflow.length > 0 && (
     <Popover.Root open={menu} onOpenChange={setMenu}>
       <Popover.Trigger asChild>
@@ -45,7 +45,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-[var(--foreground)] shadow-lg")}>
+        <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-foreground shadow-lg")}>
           {overflow.map((r) => (
             <button key={r.key} type="button" aria-disabled={!r.av.ok || undefined} className={cn(item, !r.av.ok && "opacity-45")} onClick={() => (setMenu(false), fire(r.key, r.av))}>
               <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />

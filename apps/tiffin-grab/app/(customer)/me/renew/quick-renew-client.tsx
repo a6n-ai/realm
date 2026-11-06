@@ -39,7 +39,7 @@ export function RenewCheckout({ data, checkout }: { data: QuickRenewData; checko
         title="Add to every tiffin?"
         footer={<Button variant="primary" size="lg" className="w-full" onClick={() => setAddonsOpen(false)}>{q.addonCount > 0 ? "Done" : "Skip extras"}</Button>}
       >
-        <p className="text-muted-foreground -mt-1 mb-3 text-[13px]">Optional extras for your {q.meal?.name ?? "meal"}, billed per tiffin.</p>
+        <p className="text-muted-foreground -mt-1 mb-3 text-footnote">Optional extras for your {q.meal?.name ?? "meal"}, billed per tiffin.</p>
         <AddonsPanel bare addons={q.addons} categoryLabels={q.catalog.categoryLabels} categoryIcons={q.catalog.categoryIcons} selections={q.sel} set={q.set} className="pb-2" />
       </Sheet>
     </>

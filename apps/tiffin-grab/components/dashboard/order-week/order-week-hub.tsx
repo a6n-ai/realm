@@ -347,7 +347,7 @@ function DeliveryMore({ orderId, deliveryId, route }: { orderId: string; deliver
       <CollapsibleTrigger asChild>
         <Button variant="ghost" size="sm" className="group -ml-2">
           More
-          <ChevronDown data-icon="inline-end" className="transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+          <ChevronDown data-icon="inline-end" className="transition-transform duration-200 ease-soft group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-3 pt-2">

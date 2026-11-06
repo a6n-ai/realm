@@ -160,7 +160,7 @@ export function AddressBook({
           >
             <IconTile tint="orange"><MapPinIcon /></IconTile>
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="flex items-center gap-2 text-[15px] font-semibold">
+              <p className="flex items-center gap-2 text-subhead font-semibold">
                 <span>{a.label}</span>
                 <AnimatePresence initial={false}>
                   {a.isDefault && (
@@ -176,7 +176,7 @@ export function AddressBook({
                   )}
                 </AnimatePresence>
               </p>
-              <p className="truncate text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</p>
+              <p className="truncate text-sm text-muted-foreground">{formatAddress(a)}</p>
               <AddressDropOffLines catalog={dropOff} value={dropOffs[a.publicId]} note={a.deliveryInstructions} />
             </div>
             <div className="flex shrink-0 gap-1">

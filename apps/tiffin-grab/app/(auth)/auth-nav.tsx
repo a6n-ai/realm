@@ -12,7 +12,7 @@ export function AuthNav() {
   // the nav carries only the way home.
   return (
     <nav className="absolute inset-x-0 top-0 flex items-center justify-end p-4 md:p-6">
-      <Button asChild variant="ghost" size="sm" className="gap-1.5">
+      <Button asChild variant="ghost" size="sm" className="gap-1.5 transition-transform duration-200 ease-soft hover:-translate-y-0.5 active:scale-[0.97]">
         <Link href="/">
           <HomeIcon className="size-4" />
           Home

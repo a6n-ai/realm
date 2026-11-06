@@ -43,8 +43,8 @@ const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
 
 // app_settings is a single global row read on hot paths (cutoff calc, every
 // inbound inquiry's owner resolution) and written only by admins. Cache it; the
-// concrete service below evicts on every write. 60s TTL bounds cross-instance
-// staleness until a Redis tier broadcasts eviction.
+// concrete service below evicts on every write. 60s TTL bounds cross-isolate
+// staleness (each Worker isolate holds its own L1 copy).
 const settingsCache = configCache("app-settings");
 
 // Concrete service owns the cache eviction — NOT the drizzle base. Override each

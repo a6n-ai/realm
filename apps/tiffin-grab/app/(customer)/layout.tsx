@@ -1,3 +1,4 @@
+import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { NotFoundError } from "@foundry/commons";
@@ -11,6 +12,7 @@ import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { Suspense } from "react";
 import { ReviewNudge } from "./me/review-nudge";
+import { ConsentNudge } from "@/components/customer/consent-nudge";
 import { mintRealtimeTokens } from "@/lib/realtime/mint";
 import { notifyChannel } from "@/lib/realtime/notify";
 
@@ -51,6 +53,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
         <MotionProvider>
           {/* Top-bar review request on every customer page; streams in, never blocks the shell. */}
           <Suspense fallback={null}><ReviewNudge /></Suspense>
+          <ConsentNudge />
           <CustomerShell
             coinBalance={coinBalance}
             coinValue={coinValue}

@@ -14,7 +14,7 @@ export function ReferSkeleton() {
             <Skeleton className="h-[18px] w-28" />
           </div>
         </div>
-        <div className="flex flex-col items-center rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] px-4 py-4">
+        <div className="flex flex-col items-center rounded-2xl bg-foreground/7 px-4 py-4">
           <Skeleton className="h-8 w-56 max-w-full" />
           <Skeleton className="mt-3 h-9 w-28 rounded-full" />
         </div>

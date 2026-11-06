@@ -26,7 +26,7 @@ export function PageHeader({ eyebrow, title, accent, subtitle, action, className
             </>
           )}
         </h1>
-        {subtitle && <p className="c-body mt-2 text-[var(--muted-foreground)]">{subtitle}</p>}
+        {subtitle && <p className="c-body mt-2 text-muted-foreground">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </header>

@@ -19,10 +19,11 @@ function area(pathname: string) {
  * Route-level page transition. Keyed by pathname so a route change is an exit + enter
  * (never an in-place update), which keeps ?tab= switches, refreshes and form actions still.
  */
-export function PageTransition({ children }: { children: ReactNode }) {
+export function PageTransition({ children, fade }: { children: ReactNode; fade?: string }) {
   const pathname = usePathname();
+  const by = fade ? { ...BY_TYPE, default: fade } : BY_TYPE;
   return (
-    <ViewTransition key={pathname} enter={BY_TYPE} exit={BY_TYPE} default="none">
+    <ViewTransition key={pathname} enter={by} exit={by} default="none">
       <div>{children}</div>
     </ViewTransition>
   );

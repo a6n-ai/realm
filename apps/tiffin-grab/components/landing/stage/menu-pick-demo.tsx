@@ -1,9 +1,9 @@
 "use client";
+import "@/components/landing/styles/demos.css";
 
 import { CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, Clock, Ellipsis, Gift, House, Info, LifeBuoy, MapPin, Pencil, Truck, User, UtensilsCrossed, Wallet, X } from "lucide-react";
 import { useEffect } from "react";
 import { Phone, Stage, type Act } from "./kit";
-import "./menu-pick-demo.css";
 
 // The customer Deliveries screen with the Edit meal sheet over it, light theme.
 // Tap Edit meal, open the choice row, tap the second dish (the button turns

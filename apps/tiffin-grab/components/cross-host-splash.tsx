@@ -84,7 +84,7 @@ export function CrossHostSplash() {
           </g>
         </g>
       </svg>
-      <BrandWordmark className="tg-splash__word text-[28px]" />
+      <BrandWordmark className="tg-splash__word text-title-1" />
       <span className="tg-splash__line">Packing your tiffin</span>
     </div>
   );

@@ -1,0 +1,26 @@
+@import "tailwindcss" source(none);
+@import "../globals.css";
+@import "../../components/landing/styles/core.css";
+
+@source "../../app/layout.tsx";
+@source "../../app/not-found.tsx";
+@source "../../app/error.tsx";
+@source "../../app/site";
+@source "../../components/landing";
+@source "../../components/marketing";
+@source "../../components/consent";
+@source "../../components/motion";
+@source "../../components/maps";
+@source "../../components/meta";
+@source "../../components/brand-logo.tsx";
+@source "../../components/browser-chrome.tsx";
+@source "../../components/cross-host-splash.tsx";
+@source "../../components/inline-script.tsx";
+@source "../../components/stale-deploy-reloader.tsx";
+@source "../../../../node_modules/@foundry/ui/src/{avatar,badge,button,form,label,input,textarea,select,phone-input,command,popover,scroll-area,dialog,sonner,tooltip}.tsx";
+@source "../../../../node_modules/@foundry/design-system/src/{location-picker,responsive-dialog}.tsx";
+@source "../../components/customer/kit/button-class.ts";
+@source "../../components/customer/kit/icon-tile.tsx";
+@source "../../components/customer/kit/cn.ts";
+@source "../../components/customer/meals/category-look.ts";
+@source "../../components/wizard/meal-size-price.tsx";

@@ -1,20 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "react-phone-number-input/style.css";
-
-/* Tailwind v4 skips node_modules for auto-scan. Git-hosted @foundry/* ship raw
-   source — @source those trees or classes (rounded-*, sidebar, nav) vanish. */
-@source "../../../node_modules/@foundry/ui/src";
-@source "../../../node_modules/@relay/engine/src/ui";
-@source "../../../node_modules/@foundry/auth-ui/src";
-@source "../../../node_modules/@foundry/design-system/src";
-@source "../../../node_modules/@foundry/crm/src";
-@source "../../../node_modules/@foundry/delivery/src/ui";
-@source "../../../node_modules/@foundry/address/src/ui";
-
+@import "@foundry/themes/tokens.css";
 @custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -68,7 +53,7 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
-  /* ReUI extended semantic tokens (map onto existing status palette). */
+
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -79,631 +64,114 @@
   --duration-fast: 150ms;
   --duration-base: 250ms;
   --duration-slow: 400ms;
-  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-:root, .tg-light-root, .tg-promo-scope {
-  /* Brand: matched off the live tiffingrab.ca marketing site's computed styles —
-     orange (#F06B1A, its "Order now" button / active nav pill / headline accent)
-     is the real, dominant brand color, so it's primary here too: nav, headers,
-     active states, primary buttons, "confirmed" status. Forest green is demoted to
-     a secondary accent (--accent-badge below) — matching how the live site itself
-     only uses green sparingly, for its discount banner. Everything else in the
-     palette is cream or neutral grey, except the chart series below: those
-     stay saturated so a legend can tell one series from another. */
-  /* Logo orange (docs/Tiffin Grab Logos). --primary stays deeper: white text on
-     #FB801C is 2.6:1, too low for button labels. */
-  --brand: #FB801C;
-  --brand-foreground: #FFFFFF;
-  --background: #FBF4E7;
-  --foreground: #241F1B;
-  --card: #FFFFFF;
-  --card-foreground: #241F1B;
-  --popover: #FFFFFF;
-  --popover-foreground: #241F1B;
-  --primary: #F06B1A;
-  --primary-foreground: #FFFFFF;
-  --primary-hover: #D85F14;
-  --secondary: #F1EEE5;
-  --secondary-foreground: #241F1B;
-  --muted: #F1EEE5;
-  --muted-foreground: #6E6558;
-  --accent: #F1EEE5;
-  --accent-foreground: #241F1B;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #E3DFD1;
-  --input: #E3DFD1;
-  --ring: #FB801C;
-  --chart-1: #f06b1a;
-  --chart-2: #2a78d6;
-  --chart-3: #c2549b;
-  --chart-4: #7c5cd6;
-  --chart-5: #0e9aa7;
-  --chart-good: #10a36b;
-  --chart-warn: #b87800;
-  --chart-bad: #dc3d3d;
-  --radius: 0.625rem;
-  /* Sidebar: cream panel; the active nav item is a soft orange wash — orange means
-     "where I am," matching the brand swap above. */
-  --sidebar: #F5EEDD;
-  --sidebar-foreground: #241F1B;
-  --sidebar-primary: #F06B1A;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FBE3D2;
-  --sidebar-accent-foreground: #B5430B;
-  --sidebar-border: #E3DFD1;
-  --sidebar-ring: #FB801C;
-  /* Pre-existing app-wide status semantics (OrderStatusBadge etc.) — deliberately
-     LEFT UNCHANGED by the brand swap above: ok/success stays green, warn/warning
-     stays orange, bad stays red. These back badges already shipped elsewhere in
-     the app (order/subscription status), independent of which color is "brand
-     primary" this week — flipping them would silently recolor status badges no
-     one asked to change. */
-  --ok: #105030;
-  --warn: #F58220;
-  --warn-hover: #F06B1A;
-  --bad: oklch(0.60 0.16 25);
-  /* ReUI defaults: -foreground is the dark text on a pale -light tint (like warning
-     already was), not the text on a solid fill. Solid fills take text-white. Only ReUI
-     badges read these; the app's own status colors stay on --ok / --bad. */
-  --success: var(--color-emerald-500);
-  --success-foreground: var(--color-emerald-900);
-  --warning: var(--warn);
-  --warning-foreground: #5A2E00;
-  --info: oklch(0.62 0.12 240);
-  --info-foreground: oklch(0.42 0.12 240);
-  --destructive-foreground: var(--color-red-800);
-  /* Decorative secondary accent — forest green, matching the live site's own
-     --tg-theme (#1D5C32) and its discount-banner gradient. Used for small
-     "attention" badges (e.g. Menu page's "This week" pill) that need to read
-     as distinct from the new orange primary — deliberately its own token
-     rather than reusing --ok/--warn above, so it never collides with the
-     unrelated status-badge system. */
-  --accent-badge: #185936;
-  --accent-badge-hover: #1F6B42;
-  --accent-badge-foreground: #F7FBF5;
-  /* Customer status palette: always paired with a label + shape, never color alone. */
-  --primary-wash: #FBE3D2;
-  --s-delivered: #10B981;
-  --s-delivered-fg: #10B981;
-  --s-delivered-bg: #D1FAE5;
-  --s-upcoming: #0EA5E9;
-  --s-upcoming-fg: #0369A1;
-  --s-upcoming-bg: #E0F2FE;
-  --s-hold: #F43F5E;
-  --s-hold-fg: #BE123C;
-  --s-hold-bg: #FFE4E6;
-  --s-vac: #F59E0B;
-  --s-vac-fg: #8A5A00;
-  --s-vac-bg: #FCEBC8;
-  --s-combined: #6E6558;
-  --s-combined-fg: #6E6558;
-  --s-combined-bg: #F1EEE5;
-  --s-locked: #3F3A33;
-  --s-locked-fg: #3F3A33;
-  --s-locked-bg: #E9E4D6;
-  --s-holiday: #475569;
-  --dur-press: 150ms;
-  --dur-toggle: 250ms;
-  --dur-toast: 250ms;
-  --dur-sheet: 400ms;
-
-}
-
-.dark {
-  --brand: #FF9843;
-  --brand-foreground: #2E1200;
-  --background: #14201A;
-  --foreground: #F3EFE4;
-  --card: #1B2921;
-  --card-foreground: #F3EFE4;
-  --popover: #1B2921;
-  --popover-foreground: #F3EFE4;
-  --primary: #FF9843;
-  --primary-foreground: #2E1200;
-  --primary-hover: #FFA75E;
-  --secondary: #223229;
-  --secondary-foreground: #F3EFE4;
-  --muted: #223229;
-  --muted-foreground: #A9AFA3;
-  --accent: #223229;
-  --accent-foreground: #F3EFE4;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #FF9843;
-  --chart-1: #dd7226;
-  --chart-2: #4a8fe0;
-  --chart-3: #d9649f;
-  --chart-4: #8f7ae8;
-  --chart-5: #009a92;
-  --chart-good: #10b077;
-  --chart-warn: #c08412;
-  --chart-bad: #e5534b;
-  --sidebar: #18261F;
-  --sidebar-foreground: #F3EFE4;
-  --sidebar-primary: #FF9843;
-  --sidebar-primary-foreground: #2E1200;
-  --sidebar-accent: #3A2A1C;
-  --sidebar-accent-foreground: #FFB877;
-  --sidebar-border: oklch(0.8 0.03 60 / 12%);
-  --sidebar-ring: #FF9843;
-  /* Same "leave the pre-existing status system alone" rule as light mode. */
-  --ok: #2E8B57;
-  --warn: #FF9843;
-  --warn-hover: #FFA75E;
-  --bad: oklch(0.68 0.17 25);
-  --success: var(--color-emerald-500);
-  --success-foreground: var(--color-emerald-600);
-  --warning: var(--warn);
-  --warning-foreground: #2E1200;
-  --info: oklch(0.72 0.12 240);
-  --info-foreground: oklch(0.18 0.02 240);
-  --destructive-foreground: var(--color-red-600);
-  --accent-badge: #2E8B57;
-  --accent-badge-hover: #3AA168;
-  --accent-badge-foreground: #0E1712;
-  /* Customer status palette: always paired with a label + shape, never color alone. */
-  --primary-wash: #3A2A1C;
-  --s-delivered: #6EE7B7;
-  --s-delivered-fg: #6EE7B7;
-  --s-delivered-bg: #12382C;
-  --s-upcoming: #7DD3FC;
-  --s-upcoming-fg: #7DD3FC;
-  --s-upcoming-bg: #132F44;
-  --s-hold: #FDA4AF;
-  --s-hold-fg: #FDA4AF;
-  --s-hold-bg: #43202A;
-  --s-vac: #F5B942;
-  --s-vac-fg: #F5B942;
-  --s-vac-bg: #3F3016;
-  --s-combined: #A9AFA3;
-  --s-combined-fg: #A9AFA3;
-  --s-combined-bg: #223229;
-  --s-locked: #C9CDBF;
-  --s-locked-fg: #C9CDBF;
-  --s-locked-bg: #2A382F;
-  --s-holiday: #94A3B8;
-  --dur-press: 150ms;
-  --dur-toggle: 250ms;
-  --dur-toast: 250ms;
-  --dur-sheet: 400ms;
-
-}
-
+:root, .tg-light-root, .tg-promo-scope { --brand: #FB801C; --brand-foreground: #FFFFFF; --background: #FBF4E7; --foreground: #241F1B; --card: #FFFFFF; --card-foreground: #241F1B; --popover: #FFFFFF; --popover-foreground: #241F1B; --primary: #F06B1A; --primary-foreground: #FFFFFF; --primary-hover: #D85F14; --secondary: #F1EEE5; --secondary-foreground: #241F1B; --muted: #F1EEE5; --muted-foreground: #6E6558; --accent: #F1EEE5; --accent-foreground: #241F1B; --destructive: oklch(0.577 0.245 27.325); --border: #E3DFD1; --input: #E3DFD1; --ring: #FB801C; --chart-1: #f06b1a; --chart-2: #2a78d6; --chart-3: #c2549b; --chart-4: #7c5cd6; --chart-5: #0e9aa7; --chart-good: #10a36b; --chart-warn: #b87800; --chart-bad: #dc3d3d; --radius: 0.625rem; --sidebar: #F5EEDD; --sidebar-foreground: #241F1B; --sidebar-primary: #F06B1A; --sidebar-primary-foreground: #FFFFFF; --sidebar-accent: #FBE3D2; --sidebar-accent-foreground: #B5430B; --sidebar-border: #E3DFD1; --sidebar-ring: #FB801C; --ok: #105030; --warn: #F58220; --warn-hover: #F06B1A; --bad: oklch(0.60 0.16 25); --success: var(--color-emerald-500); --success-foreground: var(--color-emerald-900); --warning: var(--warn); --warning-foreground: #5A2E00; --info: oklch(0.62 0.12 240); --info-foreground: oklch(0.42 0.12 240); --destructive-foreground: var(--color-red-800); --accent-badge: #185936; --accent-badge-hover: #1F6B42; --accent-badge-foreground: #F7FBF5; --primary-wash: #FBE3D2; --s-delivered: #10B981; --s-delivered-fg: #10B981; --s-delivered-bg: #D1FAE5; --s-upcoming: #0EA5E9; --s-upcoming-fg: #0369A1; --s-upcoming-bg: #E0F2FE; --s-hold: #F43F5E; --s-hold-fg: #BE123C; --s-hold-bg: #FFE4E6; --s-vac: #F59E0B; --s-vac-fg: #8A5A00; --s-vac-bg: #FCEBC8; --s-combined: #6E6558; --s-combined-fg: #6E6558; --s-combined-bg: #F1EEE5; --s-locked: #3F3A33; --s-locked-fg: #3F3A33; --s-locked-bg: #E9E4D6; --s-holiday: #475569; --dur-press: 150ms; --dur-toggle: 250ms; --dur-toast: 250ms; --dur-sheet: 400ms; }
+.dark { --brand: #FF9843; --brand-foreground: #2E1200; --background: #14201A; --foreground: #F3EFE4; --card: #1B2921; --card-foreground: #F3EFE4; --popover: #1B2921; --popover-foreground: #F3EFE4; --primary: #FF9843; --primary-foreground: #2E1200; --primary-hover: #FFA75E; --secondary: #223229; --secondary-foreground: #F3EFE4; --muted: #223229; --muted-foreground: #A9AFA3; --accent: #223229; --accent-foreground: #F3EFE4; --destructive: oklch(0.704 0.191 22.216); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%); --ring: #FF9843; --chart-1: #dd7226; --chart-2: #4a8fe0; --chart-3: #d9649f; --chart-4: #8f7ae8; --chart-5: #009a92; --chart-good: #10b077; --chart-warn: #c08412; --chart-bad: #e5534b; --sidebar: #18261F; --sidebar-foreground: #F3EFE4; --sidebar-primary: #FF9843; --sidebar-primary-foreground: #2E1200; --sidebar-accent: #3A2A1C; --sidebar-accent-foreground: #FFB877; --sidebar-border: oklch(0.8 0.03 60 / 12%); --sidebar-ring: #FF9843; --ok: #2E8B57; --warn: #FF9843; --warn-hover: #FFA75E; --bad: oklch(0.68 0.17 25); --success: var(--color-emerald-500); --success-foreground: var(--color-emerald-600); --warning: var(--warn); --warning-foreground: #2E1200; --info: oklch(0.72 0.12 240); --info-foreground: oklch(0.18 0.02 240); --destructive-foreground: var(--color-red-600); --accent-badge: #2E8B57; --accent-badge-hover: #3AA168; --accent-badge-foreground: #0E1712; --primary-wash: #3A2A1C; --s-delivered: #6EE7B7; --s-delivered-fg: #6EE7B7; --s-delivered-bg: #12382C; --s-upcoming: #7DD3FC; --s-upcoming-fg: #7DD3FC; --s-upcoming-bg: #132F44; --s-hold: #FDA4AF; --s-hold-fg: #FDA4AF; --s-hold-bg: #43202A; --s-vac: #F5B942; --s-vac-fg: #F5B942; --s-vac-bg: #3F3016; --s-combined: #A9AFA3; --s-combined-fg: #A9AFA3; --s-combined-bg: #223229; --s-locked: #C9CDBF; --s-locked-fg: #C9CDBF; --s-locked-bg: #2A382F; --s-holiday: #94A3B8; --dur-press: 150ms; --dur-toggle: 250ms; --dur-toast: 250ms; --dur-sheet: 400ms; }
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+  html { @apply font-sans; }
 }
+.crm-app, body:has(.crm-app) { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+body:has(.crm-app) .font-sans, body:has(.crm-app) .font-heading { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+.customer-app, body:has(.customer-app) { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; }
+body:has(.customer-app) .font-sans, body:has(.customer-app) .font-heading { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; }
+.crm-app .font-pixel-circle, body:has(.crm-app) .font-pixel-circle { font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace; }
 
-/* Dashboard/CRM shell and the customer (/me) shell — Geist Sans, not the public
-   Poppins used on marketing/public pages. `@theme inline` bakes --font-poppins
-   directly into the compiled font-sans utility, so this overrides via plain
-   inheritance instead of trying to override --font-sans. */
-.crm-app,
-body:has(.crm-app) {
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-}
 
-/* Plain inheritance above doesn't reach an element with its OWN explicit
-   font-sans/font-heading utility (a Dialog/Drawer title, most visibly) —
-   Tailwind bakes that utility to a literal Poppins value at build time, and a
-   directly-applied declaration always wins over an inherited one. Nor does it
-   reach a Radix Dialog/Drawer/Popover/Tooltip portal at all: Portal appends to
-   document.body, landing as a *sibling* of this div, not a descendant.
-   `body:has(.crm-app)` (same trick puchkaman's crm.css already uses for its
-   color tokens) reaches both: it re-declares the font on <body> itself
-   whenever a `.crm-app` shell is mounted anywhere inside it, and a portaled
-   node — appended as a child of body — is a genuine descendant of body either
-   way. The nested selector's specificity (0-2-0) also beats the bare
-   one-class utility (0-1-0), so no !important is needed. */
-body:has(.crm-app) .font-sans,
-body:has(.crm-app) .font-heading {
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Customer (/me) shell keeps the public Poppins face; dashboard/auth stay Geist.
-   Declared after the .crm-app rules so equal specificity resolves here. */
-.customer-app,
-body:has(.customer-app) {
-  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-}
-body:has(.customer-app) .font-sans,
-body:has(.customer-app) .font-heading {
-  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* StatCard/StatBar hero numbers — Geist Pixel's circle-dot digit shapes.
-   StatCard is also used on public marketing pages, which stay on Poppins,
-   so this rule is scoped to .crm-app rather than global. */
-.crm-app .font-pixel-circle,
-body:has(.crm-app) .font-pixel-circle {
-  font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace;
-}
-
-/* ── Visual flare ─────────────────────────────────────────────
-   Motion + depth within the monochrome system. Respects
-   prefers-reduced-motion (all keyframe animations disabled below). */
-@keyframes flare-shimmer {
-  0% { background-position: -150% 0; }
-  100% { background-position: 250% 0; }
-}
-@keyframes flare-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-@keyframes flare-pulse-ring {
-  0% { box-shadow: 0 0 0 0 var(--ring); opacity: 0.5; }
-  70% { box-shadow: 0 0 0 8px transparent; opacity: 0; }
-  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
-}
 
 @layer utilities {
-  /* Lift + shadow on hover — the workhorse for cards, rows, tiles. */
-  .hover-lift {
-    @apply transition-[transform,box-shadow] duration-300 ease-out;
-  }
-  .hover-lift:hover {
-    @apply -translate-y-0.5 shadow-lg;
-  }
-
-  /* Soft ring glow, intensifies on hover. */
-  .card-glow {
-    @apply transition-shadow duration-300;
-    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent);
-  }
-  .card-glow:hover {
-    box-shadow:
+  .hover-lift { @apply transition-[transform,box-shadow] duration-300 ease-out; }
+  .hover-lift:hover { @apply -translate-y-0.5 shadow-lg; }
+  .card-glow { @apply transition-shadow duration-300; box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .card-glow:hover { box-shadow:
       0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent),
-      0 8px 30px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
-  }
-
-  /* Moving sheen overlay — use on a child element. */
-  .shimmer {
-    background: linear-gradient(
-      100deg,
-      transparent 30%,
-      color-mix(in oklch, var(--foreground) 8%, transparent) 50%,
-      transparent 70%
-    );
-    background-size: 200% 100%;
-    animation: flare-shimmer 2.5s linear infinite;
-  }
-
-  .animate-float { animation: flare-float 4s ease-in-out infinite; }
-  .animate-pulse-ring { animation: flare-pulse-ring 2s ease-out infinite; }
-
-  /* Icon micro-motion — pair on a `group` parent. */
+      0 8px 30px -12px color-mix(in oklch, var(--foreground) 25%, transparent); }
   .icon-pop { @apply transition-transform duration-300 ease-out; }
   .group:hover .icon-pop { @apply scale-110; }
-  .icon-spin { @apply transition-transform duration-500 ease-out; }
   .group:hover .icon-spin { @apply rotate-12; }
-
   .nums { font-variant-numeric: tabular-nums; }
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  .shimmer, .animate-float, .animate-pulse-ring {
-    animation: none;
-  }
-  .hover-lift, .card-glow, .icon-pop, .icon-spin { transition: none; }
+  .hover-lift, .card-glow, .icon-pop { transition: none; }
 }
-/* Email editor — paper canvas surface (emails render light; frame stays themed). */
-.tg-email-canvas .tiptap.ProseMirror {
-  min-height: 440px !important;
-  padding: 32px 36px !important;
-  outline: none;
-  color: #1c1c1c;
-  font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
-}
-.tg-email-canvas .tiptap.ProseMirror:focus { outline: none; }
-.tg-email-canvas .tiptap.ProseMirror > * + * { margin-top: 0.75em; }
-.tg-email-canvas .tiptap.ProseMirror h1 { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
-.tg-email-canvas .tiptap.ProseMirror h2 { font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
-.tg-email-canvas .tiptap.ProseMirror p { line-height: 1.6; }
-.tg-email-canvas .tiptap.ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  color: #9ca3af;
-  float: left;
-  height: 0;
-  pointer-events: none;
-}
-
 @media print {
   body:has(#invoice-doc) * { visibility: hidden; }
-  body:has(#invoice-doc) #invoice-doc,
-  body:has(#invoice-doc) #invoice-doc * { visibility: visible; }
+  body:has(#invoice-doc) #invoice-doc, body:has(#invoice-doc) #invoice-doc * { visibility: visible; }
   #invoice-doc { position: absolute; inset: 0; margin: 1rem; }
 }
-
-/* Page transitions (components/motion/page-transition.tsx). Live root so chrome
-   (header / bottom bar) does not cross-fade with the page — only content fades. */
-::view-transition {
-  pointer-events: none;
-}
-::view-transition-old(root) {
-  display: none;
-}
-::view-transition-new(root) {
-  animation: none;
-}
-
-/* The menu button too: unnamed, it sat in page order and the incoming page's action bar drew over it mid-transition. */
-::view-transition-group(customer-header),
-::view-transition-group(customer-bottom-nav),
-::view-transition-group(customer-menu-fab) {
-  animation: none;
-  z-index: 100;
-}
-::view-transition-old(customer-header),
-::view-transition-new(customer-header),
-::view-transition-old(customer-bottom-nav),
-::view-transition-new(customer-bottom-nav),
-::view-transition-old(customer-menu-fab),
-::view-transition-new(customer-menu-fab) {
-  animation: none;
-}
-
-::view-transition-old(.nav-forward),
-::view-transition-old(.nav-back) {
-  animation: 160ms ease-in both vt-fade-out, 400ms var(--ease-soft) both vt-slide-out;
-}
-::view-transition-new(.nav-forward),
-::view-transition-new(.nav-back) {
-  animation: 240ms ease-out 80ms both vt-fade-in, 400ms var(--ease-soft) both vt-slide-in;
-}
+::view-transition { pointer-events: none; }
+::view-transition-old(root) { display: none; }
+::view-transition-new(root) { animation: none; }
+::view-transition-group(customer-header), ::view-transition-group(customer-bottom-nav), ::view-transition-group(customer-menu-fab) { animation: none; z-index: 100; }
+::view-transition-old(customer-header), ::view-transition-new(customer-header), ::view-transition-old(customer-bottom-nav), ::view-transition-new(customer-bottom-nav), ::view-transition-old(customer-menu-fab), ::view-transition-new(customer-menu-fab) { animation: none; }
+::view-transition-old(.nav-forward), ::view-transition-old(.nav-back) { animation: 160ms ease-in both vt-fade-out, 400ms var(--ease-soft) both vt-slide-out; }
+::view-transition-new(.nav-forward), ::view-transition-new(.nav-back) { animation: 240ms ease-out 80ms both vt-fade-in, 400ms var(--ease-soft) both vt-slide-in; }
 ::view-transition-old(.nav-forward) { --vt-offset: -24px; }
 ::view-transition-new(.nav-forward) { --vt-offset: 24px; }
 ::view-transition-old(.nav-back) { --vt-offset: 24px; }
 ::view-transition-new(.nav-back) { --vt-offset: -24px; }
-/* Peer switches (tab bar, nav pills): the old page leaves at once, like an iOS tab switch.
-   Cross-fading it kept the old page and its fixed action bar on top of the new one on phones. */
-::view-transition-old(.page-fade) {
-  display: none;
-}
-::view-transition-new(.page-fade) {
-  animation: 200ms var(--ease-soft) both vt-fade-in, 200ms var(--ease-soft) both vt-rise;
-}
+::view-transition-old(.page-fade) { display: none; }
+::view-transition-new(.page-fade) { animation: 200ms var(--ease-soft) both vt-fade-in, 200ms var(--ease-soft) both vt-rise; }
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }
 @keyframes vt-slide-in { from { translate: var(--vt-offset) 0; } }
 @keyframes vt-slide-out { to { translate: var(--vt-offset) 0; } }
 @keyframes vt-rise { from { translate: 0 6px; } }
-
-/* One global brake: kill motion for users who ask for it. Primitives ALSO guard
-   in JS (useReducedMotion) — this covers CSS-only animation and view transitions. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*),
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
+  *, ::view-transition-old(*), ::view-transition-new(*), ::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
-
-.wizard-bar {
-  background: color-mix(in srgb, var(--background) 72%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-}
-@media (prefers-reduced-transparency: reduce) {
-  .wizard-bar { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
-}
-
-/* Mobile-native basics: no grey tap flash (controls carry their own :active state), no double-tap-zoom delay,
-   and 16px inputs so iOS Safari doesn't zoom the page on focus. */
 html { -webkit-tap-highlight-color: transparent; overflow-x: clip; }
 button, a, [role="button"], summary { touch-action: manipulation; }
 @media (pointer: coarse) {
   input, textarea, select { font-size: 16px; }
 }
-
-/* ── Customer design system (see DESIGN.md) ───────────────────
-   Values are lifted from the /subscribe wizard. Scoped to .customer-app so the
-   admin app is untouched. Portaled overlays reach these via body:has().
-   .tg-promo-scope: the Settings → Promotions preview, light tokens without touching <body>. */
-.customer-app,
-.tg-promo-scope,
-body:has(.customer-app) {
-  /* Dark ink on saffron in both themes: white on #F06B1A is 3.07:1, this is 5.6:1. */
-  --primary-foreground: #2E1200;
-  /* Saffron as text (eyebrows, accent words): #F06B1A on cream is 2.8:1, this is 5:1. */
-  --primary-text: #B4470F;
-  --c-radius-chip: 10px;
-  --c-radius-input: 16px;
-  --c-radius-select: 20px;
-  --c-radius-card: 24px;
-  --c-radius-sheet: 28px;
-  --c-shadow-cta: 0 12px 30px -8px color-mix(in oklch, var(--primary) 70%, transparent);
-  --c-shadow-sheet: 0 -8px 40px rgb(0 0 0 / 0.18);
-  --c-scrim: rgb(20 16 12 / 0.45);
-  --c-h-tap: 44px;
-  --c-h-cta: 52px;
-  --c-h-pill: 48px;
-  --c-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --c-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --c-dur-press: 100ms;
-  --c-dur-sheet: 300ms;
-}
-
+.customer-app, .tg-promo-scope, body:has(.customer-app) { --primary-foreground: #2E1200; --primary-text: #B4470F; --c-radius-chip: 10px; --c-radius-input: 16px; --c-radius-select: 20px; --c-radius-card: 24px; --c-radius-sheet: 28px; --c-shadow-cta: 0 12px 30px -8px color-mix(in oklch, var(--primary) 70%, transparent); --c-shadow-sheet: 0 -8px 40px rgb(0 0 0 / 0.18); --c-scrim: rgb(20 16 12 / 0.45); --c-h-tap: 44px; --c-h-cta: 52px; --c-h-pill: 48px; --c-ease-soft: var(--ease-soft); --c-ease-spring: var(--ease-spring); --c-dur-press: 100ms; --c-dur-sheet: 300ms; }
 @layer utilities {
-  .c-title { font-size: clamp(34px, 6vw, 40px); line-height: 1.06; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
-  .c-title-page { font-size: clamp(28px, 5vw, 40px); line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
   .c-accent { font-style: italic; color: var(--primary-text, var(--primary)); }
   .c-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--primary-text, var(--primary)); }
-  .c-h2 { font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.03em; }
-  .c-label { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
   .c-body { font-size: 16px; line-height: 1.5; }
   .c-caption { font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
-  .c-stat { font-size: 28px; line-height: 1; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-  .c-glass { background: color-mix(in srgb, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
-  /* Surfaces in place of outlines: no border, no shadow, just a faint wash of the text colour over the fill,
-     the same quiet step the tab bar uses — lighter on the dark green ground, a touch darker on cream. */
   .c-surface { background-image: linear-gradient(color-mix(in srgb, var(--foreground) 4%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
-  /* Liquid glass for floating controls (tab bar, its action buttons): clearer than c-glass so the page shows
-     through, and a soft drop. No edge highlight: it read as a white line. Never put one inside another. */
-  .c-liquid {
-    background: color-mix(in srgb, var(--background) 30%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(190%);
-    backdrop-filter: blur(18px) saturate(190%);
-    border-width: 0;
-    box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.35);
-  }
-  /* Prominent: the same glass tinted with the brand colour, for the one main action. */
-  .c-liquid-tint {
-    background: color-mix(in oklab, var(--primary) 82%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(190%);
-    backdrop-filter: blur(18px) saturate(190%);
-    border-width: 0;
-    box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
-  }
+  .c-liquid { background: color-mix(in srgb, var(--background) 30%, transparent); -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%); border-width: 0; box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.35); }
+  .c-liquid-tint { background: color-mix(in oklab, var(--primary) 82%, transparent); -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%); border-width: 0; box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent); }
   .dark .c-liquid, .dark .c-liquid-tint { box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.6); }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .c-glass { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .c-liquid { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .c-liquid-tint { background: var(--primary); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-contrast: more) {
   .c-liquid, .c-liquid-tint { border: 1px solid var(--foreground); }
 }
-
-/* Weeks slider (components/wizard/weeks-slider.tsx): a timeline track, saffron up to the thumb (--fill),
-   and a 28px white thumb like iOS. */
-.c-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; cursor: pointer; touch-action: pan-y; }
-.c-range:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 9999px; }
-.c-range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: linear-gradient(to right, var(--primary) var(--fill, 0%), color-mix(in srgb, var(--foreground) 14%, transparent) var(--fill, 0%)); }
-.c-range::-moz-range-track { height: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--foreground) 14%, transparent); }
-.c-range::-moz-range-progress { height: 6px; border-radius: 9999px; background: var(--primary); }
-.c-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); transition: transform 150ms; }
-.c-range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 9999px; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.3); }
-.c-range:active::-webkit-slider-thumb { transform: scale(1.1); }
-@media (prefers-reduced-motion: reduce) { .c-range::-webkit-slider-thumb { transition: none; } }
-
-/* Phones: the order flow's bottom bar drops its strip and its buttons float as liquid-glass capsules, like the
-   ones over the tab bar: translucent, blurred and saturated so the page shows through. The bar itself is only
-   a fade from the page (a scroll edge, not a line) that turns solid under its lowest row. No edge highlight
-   and no border on the capsules: on iOS Safari either one drew a white line along the top.
-   Unlayered on purpose so it beats the buttons' own variant utilities. */
 @media (max-width: 639.98px) {
-  .c-float-bar {
-    background: linear-gradient(to top, var(--background) 30%, color-mix(in srgb, var(--background) 0%, transparent));
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  .c-float-bar [data-variant] {
-    background: color-mix(in srgb, color-mix(in srgb, var(--foreground) 8%, var(--background)) 60%, transparent);
-    -webkit-backdrop-filter: blur(24px) saturate(190%);
-    backdrop-filter: blur(24px) saturate(190%);
-    border-width: 0;
-    color: var(--foreground);
-    box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.35);
-    border-radius: 9999px;
-  }
-  .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] {
-    background: color-mix(in oklab, var(--primary) 85%, transparent);
-    color: var(--primary-foreground, #fff);
-    box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--primary) 70%, transparent);
-  }
   .dark .c-float-bar [data-variant] { box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.6); }
 }
-@media (max-width: 639.98px) and (prefers-reduced-transparency: reduce) {
-  .c-float-bar { background: var(--background); }
-  .c-float-bar [data-variant] { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .c-float-bar [data-variant="primary"], .c-float-bar [data-variant="hero"] { background: var(--primary); }
-}
-
-/* Dark ground: the bright saffron already reads as text.
-   The public site has ONE look whatever the visitor's theme (.tg-light-root re-declares the
-   light tokens): a cream page with chosen dark-green bands, each marked with .dark. */
 body:has(.tg-light-root) { background: #FBF4E7; color-scheme: light; }
-.dark .customer-app:not(.tg-land),
-.dark body:has(.customer-app):not(:has(.tg-light-root)),
-.tg-land .dark {
-  --primary-text: var(--primary);
-  /* A lighter forest ground for public + customer surfaces (2026-11); admin keeps the deeper .dark set. */
-  --background: #1F2E26;
-  --card: #283A30;
-  --popover: #283A30;
-  --secondary: #2F4237;
-  --muted: #2F4237;
-  --accent: #2F4237;
-  --sidebar: #24352C;
-  --border: oklch(1 0 0 / 12%);
-}
-
-/* Landing bands only (2026-11): a fresher forest than the customer app's dark mode.
-   Cream text on #2A5440 is ~7.6:1; muted text is lifted so it still clears 4.5:1. */
-.tg-land .dark {
-  --background: #2A5440;
-  --card: #33634B;
-  --popover: #33634B;
-  --secondary: #3A6C53;
-  --muted: #3A6C53;
-  --accent: #3A6C53;
-  --sidebar: #2E5A45;
-  --muted-foreground: #D3DCCB;
-}
-
-/* Turnstile's checkbox slot, once Cloudflare shows it: keyboard focus inside the
-   widget's iframe shows as a ring around the slot (lib/auth/captcha-client.ts). */
-.captcha-host { border-radius: 8px; }
-.captcha-host:focus-within { outline: 2px solid var(--primary); outline-offset: 3px; }
-
-/* Navigation answers on press in every area: a thin primary bar across the top while the
-   next page renders (NavPending sets data-nav). */
-html[data-nav="pending"] body::before {
-  content: ""; position: fixed; inset: 0 0 auto; z-index: 1000; height: 2px; pointer-events: none;
-  background: var(--primary); transform-origin: left;
-  animation: app-navbar 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
+.dark .customer-app:not(.tg-land), .dark body:has(.customer-app):not(:has(.tg-light-root)), .tg-land .dark { --primary-text: var(--primary); --background: #1F2E26; --card: #283A30; --popover: #283A30; --secondary: #2F4237; --muted: #2F4237; --accent: #2F4237; --sidebar: #24352C; --border: oklch(1 0 0 / 12%); }
+.tg-land .dark { --background: #2A5440; --card: #33634B; --popover: #33634B; --secondary: #3A6C53; --muted: #3A6C53; --accent: #3A6C53; --sidebar: #2E5A45; --muted-foreground: #D3DCCB; }
+html[data-nav="pending"] body::before { content: ""; position: fixed; inset: 0 0 auto; z-index: 1000; height: 2px; pointer-events: none; background: var(--primary); transform-origin: left; animation: app-navbar 1.6s var(--ease-soft) forwards; }
 @keyframes app-navbar { from { transform: scaleX(0.08); } to { transform: scaleX(0.85); } }
 @media (prefers-reduced-motion: reduce) {
   html[data-nav="pending"] body::before { animation: none; transform: scaleX(0.6); }
 }
-
-/* Cross-host splash (components/cross-host-splash.tsx): covers the blank between
-   tiffingrab.ca and app.tiffingrab.ca with a dabba being packed. Tiers fall and land with a
-   small settle (they were dropped, so a little overshoot is earned), the lid follows, the
-   spoon is set down, then steam loops until the next page paints. Transform and opacity only. */
-.tg-splash {
-  --s-ink: var(--foreground);
-  position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-  /* White up top, the brand orange through the middle, a breath of kitchen green at the foot. */
-  background:
+.tg-splash { --s-ink: var(--foreground); position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); background:
     radial-gradient(70% 38% at 50% 52%, color-mix(in oklch, var(--brand) 22%, transparent), transparent 72%),
-    linear-gradient(to bottom, color-mix(in oklch, white 70%, var(--background)) 0%, var(--background) 38%, color-mix(in oklch, var(--brand) 12%, var(--background)) 72%, color-mix(in oklch, #2f7d4f 12%, var(--background)) 100%);
-  color: var(--s-ink);
-  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  animation: tg-splash-in 140ms ease-out both;
-}
+    linear-gradient(to bottom, color-mix(in oklch, white 70%, var(--background)) 0%, var(--background) 38%, color-mix(in oklch, var(--brand) 12%, var(--background)) 72%, color-mix(in oklch, #2f7d4f 12%, var(--background)) 100%); color: var(--s-ink); font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; animation: tg-splash-in 140ms ease-out both; }
 .tg-splash__tiffin { width: 120px; height: 160px; margin-bottom: 10px; overflow: visible; }
 .tg-splash__tiffin * { transform-box: fill-box; }
 .tg-splash__tier { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) calc(80ms + var(--i) * 110ms) both; }
 .tg-splash__lid { transform-origin: 50% 100%; animation: tg-splash-drop 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 540ms both; }
-.tg-splash__spoon { transform-origin: 30% 50%; animation: tg-splash-spoon 420ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both; }
-.tg-splash__shadow { fill: color-mix(in oklch, var(--s-ink) 14%, transparent); transform-origin: 50% 50%; animation: tg-splash-shadow 560ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both; }
+.tg-splash__spoon { transform-origin: 30% 50%; animation: tg-splash-spoon 420ms var(--ease-soft) 760ms both; }
+.tg-splash__shadow { fill: color-mix(in oklch, var(--s-ink) 14%, transparent); transform-origin: 50% 50%; animation: tg-splash-shadow 560ms var(--ease-soft) 80ms both; }
 .tg-splash__steam path { stroke: color-mix(in oklch, var(--s-ink) 30%, transparent); stroke-dasharray: 22; animation: tg-splash-steam 1.8s ease-in-out infinite both; }
 .tg-splash__steam path:nth-child(1) { animation-delay: 1000ms; }
 .tg-splash__steam path:nth-child(2) { animation-delay: 1300ms; }
 .tg-splash__steam path:nth-child(3) { animation-delay: 1600ms; }
-.tg-splash__word { animation: tg-splash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both; }
-.tg-splash__line { font-size: 14px; letter-spacing: 0.01em; color: color-mix(in oklch, var(--s-ink) 62%, transparent); animation: tg-splash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both; }
+.tg-splash__word { animation: tg-splash-rise 420ms var(--ease-soft) 200ms both; }
+.tg-splash__line { font-size: 14px; letter-spacing: 0.01em; color: color-mix(in oklch, var(--s-ink) 62%, transparent); animation: tg-splash-rise 420ms var(--ease-soft) 320ms both; }
 @keyframes tg-splash-in { from { opacity: 0; } }
 @keyframes tg-splash-drop { from { opacity: 0; transform: translateY(-28px); } 40% { opacity: 1; } }
 @keyframes tg-splash-spoon { from { opacity: 0; transform: translateX(-14px) rotate(-4deg); } }
@@ -714,13 +182,117 @@ html[data-nav="pending"] body::before {
   35% { opacity: 1; }
   100% { opacity: 0; stroke-dashoffset: -22; transform: translateY(-6px); }
 }
-:root.dark .tg-splash {
-  background:
+:root.dark .tg-splash { background:
     radial-gradient(70% 38% at 50% 52%, color-mix(in oklch, var(--brand) 18%, transparent), transparent 72%),
-    linear-gradient(to bottom, var(--background) 45%, color-mix(in oklch, #2f7d4f 14%, var(--background)) 100%);
-}
-/* Reduced motion: the packed dabba appears whole, with still steam. */
+    linear-gradient(to bottom, var(--background) 45%, color-mix(in oklch, #2f7d4f 14%, var(--background)) 100%); }
 @media (prefers-reduced-motion: reduce) {
   .tg-splash__tier, .tg-splash__lid, .tg-splash__spoon, .tg-splash__shadow, .tg-splash__word, .tg-splash__line { animation: tg-splash-in 160ms ease-out both; }
   .tg-splash__steam path { animation: none; stroke-dasharray: none; opacity: 0.6; }
 }
+.customer-app input::placeholder, .customer-app textarea::placeholder { color: color-mix(in oklch, var(--foreground) 58%, transparent); }
+.tg-consent { --c-ink: #241F1B; --c-cream: #FBF4E7; --c-green: #2A5440; --c-saffron: #F06B1A; --c-rust: #B4470F; --c-ease: var(--ease-soft); --c-spring: var(--ease-spring); position: fixed; z-index: 60; left: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 16px; padding: 18px 18px 16px; border-radius: 28px; color: var(--c-ink); font-family: var(--font-poppins), system-ui, sans-serif; background: rgb(251 244 231 / 0.88); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 0 0 1px rgb(36 31 27 / 0.06),
+    0 1px 2px rgb(20 16 12 / 0.08), 0 28px 60px -22px rgb(20 16 12 / 0.55); animation: tg-consent-in 620ms var(--c-ease) 200ms both; }
+.tg-consent[data-reopened] { animation-delay: 0s; }
+.tg-consent[data-closing] { animation: tg-consent-out 300ms var(--c-ease) 260ms both; pointer-events: none; }
+@keyframes tg-consent-in { from { opacity: 0; translate: 0 24px; scale: 0.97; } }
+@keyframes tg-consent-out { to { opacity: 0; translate: 0 24px; scale: 0.98; } }
+.tg-consent__head { display: flex; align-items: flex-start; gap: 14px; }
+.tg-consent__body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tg-consent__eyebrow { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-rust); }
+.tg-consent__title { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; text-wrap: balance; }
+.tg-consent__text { margin: 0; font-size: 13.5px; line-height: 1.5; color: rgb(36 31 27 / 0.78); text-wrap: pretty; }
+.tg-consent__text a { color: var(--c-rust); font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; }
+.tg-consent__tiffin { flex: none; width: 64px; height: 80px; overflow: visible; margin-top: 2px; }
+.tg-consent__tiffin :is(path, ellipse) { fill: var(--c-cream); stroke: var(--c-ink); stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.tg-consent__handle { fill: none !important; stroke-width: 1.5 !important; }
+.tg-consent__tier--2 path, .tg-consent__tier--3 path { fill: var(--c-green); }
+.tg-consent__tier--2 ellipse, .tg-consent__tier--3 ellipse { fill: #3D7358; }
+.tg-consent__tier--opt :is(path, ellipse) { transition: fill 320ms var(--c-ease); }
+.tg-consent__steam { fill: none !important; stroke: var(--c-rust) !important; opacity: 0; transition: opacity 320ms var(--c-ease); }
+.tg-consent__tier, .tg-consent__lid { transform-box: view-box; transform-origin: 40px 60px; }
+.tg-consent__tier--opt { transition: translate 420ms var(--c-spring), opacity 300ms var(--c-ease); }
+.tg-consent__lid { transform-origin: 13px 38px; rotate: -24deg; translate: 0 -6px; transition: rotate 420ms var(--c-spring), translate 420ms var(--c-spring); }
+.tg-consent__tier { animation: tg-tier-in 520ms var(--c-spring) both; }
+.tg-consent__tier--3 { animation-delay: 360ms; }
+.tg-consent__tier--2 { animation-delay: 460ms; }
+.tg-consent__tier--opt { animation-delay: 560ms; }
+.tg-consent[data-reopened] .tg-consent__tier { animation-delay: 0ms; animation-duration: 0ms; }
+@keyframes tg-tier-in { from { opacity: 0; translate: 0 -14px; } }
+.tg-consent[data-analytics] .tg-consent__tier--opt :is(path, ellipse), .tg-consent:has([data-act="yes"]:is(:hover, :focus-visible)) .tg-consent__tier--opt :is(path, ellipse) { fill: var(--c-saffron); }
+.tg-consent[data-analytics] .tg-consent__tier--opt ellipse, .tg-consent:has([data-act="yes"]:is(:hover, :focus-visible)) .tg-consent__tier--opt ellipse { fill: #FF8A3D; }
+.tg-consent[data-analytics] .tg-consent__steam, .tg-consent:has([data-act="yes"]:is(:hover, :focus-visible)) .tg-consent__steam { opacity: 1; animation: tg-steam 1.8s ease-in-out infinite; }
+.tg-consent:has([data-act="no"]:is(:hover, :focus-visible)):not([data-closing]) .tg-consent__tier--opt { translate: 10px -10px; opacity: 0.35; }
+@keyframes tg-steam { 50% { translate: 0 -2px; opacity: 0.55; } }
+.tg-consent[data-closing] .tg-consent__lid { rotate: 0deg; translate: 0 0; }
+.tg-consent[data-closing]:not([data-analytics]) .tg-consent__tier--opt { opacity: 0; translate: 0 -6px; }
+.tg-consent[data-closing]:not([data-analytics]) .tg-consent__lid { translate: 0 18px; }
+.tg-consent__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; animation: tg-consent-list 360ms var(--c-ease) both; }
+@keyframes tg-consent-list { from { opacity: 0; translate: 0 -6px; } }
+.tg-consent__list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid rgb(36 31 27 / 0.1); }
+.tg-consent__list li > :first-child { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; color: rgb(36 31 27 / 0.72); cursor: default; }
+.tg-consent__list label { cursor: pointer; }
+.tg-consent__list strong { font-size: 14px; color: var(--c-ink); }
+.tg-consent__always { flex: none; font-size: 12px; font-weight: 700; color: var(--c-green); }
+.tg-consent__switch { flex: none; appearance: none; width: 44px; height: 26px; margin: 0; border-radius: 999px; cursor: pointer; position: relative; background: rgb(36 31 27 / 0.2); transition: background-color 200ms ease; }
+.tg-consent__switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); transition: translate 260ms var(--c-ease); }
+.tg-consent__switch:checked { background: var(--c-saffron); }
+.tg-consent__switch:checked::after { translate: 18px 0; }
+.tg-consent__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tg-consent__btn { flex: 1 1 auto; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; color: var(--c-cream); background: var(--c-green); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 6px 14px -8px rgb(20 16 12 / 0.6); transition: background-color 150ms ease, transform 150ms ease; }
+.tg-consent__btn:hover { background: #33634B; }
+.tg-consent__btn:active { transform: scale(0.97); }
+.tg-consent__btn:focus-visible, .tg-consent__switch:focus-visible, .tg-consent__text a:focus-visible { outline: 2px solid var(--c-rust); outline-offset: 2px; }
+.tg-consent__btn--ghost { flex: 0 1 auto; color: var(--c-ink); background: rgb(36 31 27 / 0.08); box-shadow: none; }
+.tg-consent__btn--ghost:hover { background: rgb(36 31 27 / 0.14); }
+.tg-consent__btn--primary { flex-basis: 100%; background: var(--c-saffron); color: #2E1200; }
+.tg-consent__btn--primary:hover { background: #FF8A3D; }
+@media (max-width: 520px) {
+  .tg-consent { left: 8px; right: 8px; bottom: 8px; width: auto; padding: 16px 14px 14px; border-radius: 26px; }
+  .tg-consent__tiffin { width: 48px; height: 60px; }
+  .tg-consent__title { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-consent, .tg-consent[data-closing], .tg-consent__tier, .tg-consent__list, .tg-consent__steam { animation: none !important; }
+  .tg-consent__switch::after, .tg-consent__btn, .tg-consent__tier--opt, .tg-consent__lid, .tg-consent__tier--opt :is(path, ellipse) { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tg-consent { background: var(--c-cream); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .tg-consent { background: var(--c-cream); outline: 1px solid var(--c-ink); }
+}
+.tg-consent[data-slim] { width: min(680px, calc(100vw - 32px)); left: 0; right: 0; margin-inline: auto; flex-direction: row; align-items: center; gap: 12px; padding: 8px 8px 8px 20px; border-radius: 999px; }
+.tg-consent[data-slim] .tg-consent__text { flex: 1; min-width: 0; font-size: 13px; line-height: 1.35; }
+.tg-consent[data-slim] .tg-consent__actions { flex: none; flex-wrap: nowrap; gap: 6px; }
+.tg-consent[data-slim] .tg-consent__btn { flex: 0 0 auto; min-height: 40px; padding: 0 14px; font-size: 13px; }
+.tg-consent__link { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--c-rust); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
+.tg-consent__link:focus-visible { outline: 2px solid var(--c-rust); outline-offset: 2px; border-radius: 4px; }
+.tg-consent__q { font-weight: 700; color: var(--c-ink); }
+@media (max-width: 640px) {
+  .tg-consent[data-slim] { left: 10px; right: 10px; bottom: max(14px, env(safe-area-inset-bottom)); width: auto; margin-inline: 0; min-height: 56px; gap: 8px; padding: 6px 6px 6px 18px; border-radius: 999px; flex-direction: row; align-items: center; background: rgb(255 255 255 / 0.55); -webkit-backdrop-filter: blur(22px) saturate(190%); backdrop-filter: blur(22px) saturate(190%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 0 0 1px rgb(255 255 255 / 0.3), 0 16px 32px -14px rgb(20 12 4 / 0.5); }
+  .tg-consent[data-slim] .tg-consent__long { display: none; }
+  .tg-consent[data-slim] .tg-consent__q { display: block; font-size: 13px; line-height: 1.2; text-wrap: balance; }
+  .tg-consent[data-slim] .tg-consent__text { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+  .tg-consent[data-slim] .tg-consent__links { display: inline-flex; align-items: center; gap: 2px; }
+  .tg-consent[data-slim] .tg-consent__actions { flex-direction: row; gap: 4px; }
+  .tg-consent[data-slim] .tg-consent__btn { min-height: 44px; padding: 0 12px; font-size: 12.5px; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tg-consent__btn:hover { transform: translateY(-1px); }
+}
+html[data-consent-morph] .tg-consent[data-slim], html[data-consent-morph] .tg-pill { view-transition-name: tg-consent-morph; }
+::view-transition-group(tg-consent-morph) { animation-duration: 560ms; animation-timing-function: cubic-bezier(0.32, 1.15, 0.5, 1); z-index: 102; }
+::view-transition-old(tg-consent-morph), ::view-transition-new(tg-consent-morph) { height: 100%; object-fit: fill; animation-duration: 360ms; }
+html:active-view-transition-type(consent-morph)::view-transition-old(root), html:active-view-transition-type(consent-morph)::view-transition-new(root) { animation: none; }
+.tg-consent__link { display: inline-flex; align-items: center; min-height: 24px; text-decoration-thickness: 1px; transition: text-decoration-thickness 160ms ease, text-underline-offset 200ms var(--ease-soft); }
+@media (hover: hover) {
+  .tg-consent__link:hover { text-decoration-thickness: 2px; text-underline-offset: 0.32em; }
+}
+.tg-consent__text a.tg-consent__link { color: var(--c-rust); font-weight: 600; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tg-consent__link { transition: translate 200ms var(--ease-soft), text-decoration-thickness 160ms ease; }
+  .tg-consent__link:hover { translate: 0 -1px; color: #8F3708; }
+}
+
+/* The dock never hides: the cookie question floats just above it. */
+html:has(.tg-pill) .tg-consent[data-slim] { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px); }

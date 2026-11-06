@@ -90,7 +90,7 @@ export function StatCards({
                   >
                     {value}
                   </span>
-                  <span className="text-muted-foreground text-[11px] leading-tight whitespace-nowrap">{label}</span>
+                  <span className="text-muted-foreground text-caption-2 leading-tight whitespace-nowrap">{label}</span>
                 </div>
               );
               const shell = "flex min-w-fit flex-1";

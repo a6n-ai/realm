@@ -1,5 +1,6 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
+import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, Coins, CookingPot, Salad, Share2, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
@@ -303,7 +304,7 @@ export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { da
             <span className="lp-kicker">{range}</span>
             <h2 id="lp-menu" className="lp-h2">On the menu this <span className="c-accent">week.</span></h2>
           </div>
-          <Link href="/menu/weekly" className="lp-textlink">Full menu and PDF <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></Link>
+          <Link href="/menu" className="lp-textlink">Full menu and PDF <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></Link>
         </header>
         <MenuBoard days={days} rows={rows} weekend={weekend} cutoffTime={cutoffTime} />
       </div>
@@ -347,14 +348,7 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
           <h2 id="lp-faq" className="lp-h2">Before you <span className="c-accent">order.</span></h2>
           <Link href="/faq" className="lp-textlink">Every question we get <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></Link>
         </header>
-        <div className="lp-faq__list">
-          {items.map((f) => (
-            <details key={f.q}>
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
-        </div>
+        <FaqAccordion items={items} name="lp-faq" />
       </div>
     </section>
   );

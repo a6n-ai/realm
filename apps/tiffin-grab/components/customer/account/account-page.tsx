@@ -64,20 +64,20 @@ const TILE: Record<string, IconTint> = {
   finances: "mint",
 };
 
-const CURRENT = "lg:bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)]";
+const CURRENT = "lg:bg-foreground/8";
 
-const rowBase = "flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left text-[15px] transition-colors active:bg-[var(--muted)]";
+const rowBase = "flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left text-subhead transition-colors active:bg-muted";
 
 function Tile({ k, children }: { k: string; children: ReactNode }) {
   return <IconTile tint={TILE[k]}>{children}</IconTile>;
 }
 
 function GroupHeader({ children }: { children: ReactNode }) {
-  return <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{children}</p>;
+  return <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>;
 }
 
 function GroupFooter({ children }: { children: ReactNode }) {
-  return <p className="px-4 pt-2 text-[13px] text-[var(--muted-foreground)]">{children}</p>;
+  return <p className="px-4 pt-2 text-footnote text-muted-foreground">{children}</p>;
 }
 
 function SectionRow({ s, current }: { s: AccountSection; current: boolean }) {
@@ -91,9 +91,9 @@ function SectionRow({ s, current }: { s: AccountSection; current: boolean }) {
       <Tile k={s.key}><s.icon className="size-[18px]" /></Tile>
       <span className="min-w-0 flex-1">
         <span className="block">{s.label}</span>
-        <span className="block text-[13px] font-normal text-[var(--muted-foreground)] lg:hidden">{s.hint}</span>
+        <span className="block text-footnote font-normal text-muted-foreground lg:hidden">{s.hint}</span>
       </span>
-      <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+      <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
     </Link>
   );
 }
@@ -103,10 +103,10 @@ function AccountRow({ user, profile, current }: { user: AccountUser; profile: Ac
     <>
       <Avatar name={user.name} image={user.image} className="size-14 text-xl" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-semibold">{user.name?.trim() || "Your account"}</span>
-        <span className="block truncate text-[13px] font-normal text-[var(--muted-foreground)]">{user.email}</span>
+        <span className="block truncate text-body font-semibold">{user.name?.trim() || "Your account"}</span>
+        <span className="block truncate text-footnote font-normal text-muted-foreground">{user.email}</span>
       </span>
-      {profile && <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />}
+      {profile && <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
     </>
   );
   const cls = cn(FONT, rowBase, "min-h-[4.5rem] py-3", current && CURRENT);
@@ -182,9 +182,9 @@ export function AccountPage({
                 <Tile k="finances"><Wallet className="size-[18px]" /></Tile>
                 <span className="min-w-0 flex-1">
                   <span className="block">Finances</span>
-                  <span className="block text-[13px] font-normal text-[var(--muted-foreground)] lg:hidden">Coins, coupons, bills</span>
+                  <span className="block text-footnote font-normal text-muted-foreground lg:hidden">Coins, coupons, bills</span>
                 </span>
-                <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
               </Link>
             </ListGroup>
           </div>
@@ -195,9 +195,9 @@ export function AccountPage({
                 <Tile k="support"><LifeBuoy className="size-[18px]" /></Tile>
                 <span className="min-w-0 flex-1">
                   <span className="block">Need help? Support</span>
-                  <span className="block text-[13px] font-normal text-[var(--muted-foreground)] lg:hidden">Ask us anything</span>
+                  <span className="block text-footnote font-normal text-muted-foreground lg:hidden">Ask us anything</span>
                 </span>
-                <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
               </Link>
             </ListGroup>
           </div>
@@ -208,15 +208,15 @@ export function AccountPage({
 
         <section
           aria-label={shown.label}
-          className={cn("min-w-0 max-w-2xl", !active && "hidden lg:block", active && "animate-in fade-in slide-in-from-right-6 duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:animate-none lg:animate-none")}
+          className={cn("min-w-0 max-w-2xl", !active && "hidden lg:block", active && "animate-in fade-in slide-in-from-right-6 duration-200 ease-soft motion-reduce:animate-none lg:animate-none")}
         >
           {active && (
             <div className="relative mb-4 flex min-h-11 items-center justify-center lg:hidden">
-              <Link href="/me/account" scroll={false} className={cn(FONT, FOCUS, "absolute left-0 inline-flex min-h-11 items-center gap-0.5 text-[15px] font-semibold text-[var(--primary)]")}>
+              <Link href="/me/account" scroll={false} className={cn(FONT, FOCUS, "absolute left-0 inline-flex min-h-11 items-center gap-0.5 text-subhead font-semibold text-primary")}>
                 <ChevronLeft aria-hidden className="size-5" />
                 Account
               </Link>
-              <p aria-hidden className="text-[15px] font-semibold">{shown.label}</p>
+              <p aria-hidden className="text-subhead font-semibold">{shown.label}</p>
             </div>
           )}
           <SectionBody k={shown.key} user={user} role={role} addresses={addresses} cards={cards} dropOff={dropOff} dropOffs={dropOffs} google={google} />

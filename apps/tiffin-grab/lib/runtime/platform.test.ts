@@ -17,8 +17,8 @@ describe("isWorkers", () => {
 describe("trustedIpHeaders", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("trusts only Caddy's x-real-ip on Node", () => {
-    expect(trustedIpHeaders()).toEqual(["x-real-ip"]);
+  it("trusts only cf-connecting-ip on Node, never a client-set x-real-ip", () => {
+    expect(trustedIpHeaders()).toEqual(["cf-connecting-ip"]);
   });
 
   it("trusts only cf-connecting-ip on Workers", () => {

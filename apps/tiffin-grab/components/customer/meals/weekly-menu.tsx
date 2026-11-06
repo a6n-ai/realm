@@ -39,9 +39,9 @@ const LIGHT_DAY = [
 /** Fills the space under a one- or two-dish day, so the page doesn't end in a blank screen. */
 function LightDay({ date }: { date: string }) {
   return (
-    <figure className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-[var(--border)] px-6 py-10 text-center">
+    <figure className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border px-6 py-10 text-center">
       <IconTile tint="orange" size="lg"><CookingPot /></IconTile>
-      <blockquote className="max-w-xs text-[17px] font-semibold leading-snug tracking-[-0.01em] text-balance">{LIGHT_DAY[at(date).getUTCDate() % LIGHT_DAY.length]}</blockquote>
+      <blockquote className="max-w-xs text-body font-semibold leading-snug tracking-[-0.01em] text-balance">{LIGHT_DAY[at(date).getUTCDate() % LIGHT_DAY.length]}</blockquote>
       <figcaption className="c-caption">From the TiffinGrab kitchen</figcaption>
     </figure>
   );
@@ -71,7 +71,7 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
       <div role="group" aria-label="Day" onKeyDown={onKey} className="relative grid grid-cols-7">
         <span
           aria-hidden
-          className="absolute inset-y-0 left-0 w-[calc(100%/7)] rounded-[22px] bg-[var(--primary)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          className="absolute inset-y-0 left-0 w-[calc(100%/7)] rounded-[22px] bg-primary transition-transform duration-300 ease-soft motion-reduce:transition-none"
           style={{ transform: `translateX(${value * 100}%)` }}
         />
         {days.map((d, i) => {
@@ -92,13 +92,13 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
               className={cn(
                 FOCUS,
                 "relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[22px] [touch-action:manipulation] transition-[color,transform] duration-150 active:scale-[.94] motion-reduce:transform-none",
-                on ? "text-[var(--primary-foreground,#fff)]" : d.date === today ? "text-[var(--primary-text,var(--primary))]" : "text-[var(--foreground)]",
+                on ? "text-[var(--primary-foreground,#fff)]" : d.date === today ? "text-[var(--primary-text,var(--primary))]" : "text-foreground",
               )}
             >
               <span aria-hidden className={cn("text-xs font-semibold", !on && "opacity-70")}>{SHORT.format(at(d.date)).slice(0, 3)}</span>
-              <b aria-hidden className="text-[17px] leading-none tabular-nums">{at(d.date).getUTCDate()}</b>
+              <b aria-hidden className="text-body leading-none tabular-nums">{at(d.date).getUTCDate()}</b>
               <span aria-hidden className="flex h-1.5 items-center">
-                {delivery ? <span className={cn("size-1.5 rounded-full", on ? "bg-current" : "bg-[var(--primary)]")} /> : status ? <StatusDot decorative status={status} className="size-1.5" /> : null}
+                {delivery ? <span className={cn("size-1.5 rounded-full", on ? "bg-current" : "bg-primary")} /> : status ? <StatusDot decorative status={status} className="size-1.5" /> : null}
               </span>
             </button>
           );
@@ -128,7 +128,7 @@ function PopularWeek({ days, today, onPick }: { days: MenuDay[]; today: string; 
       <header className="flex items-center gap-3 px-1">
         <IconTile tint="pink"><Heart className="fill-current" /></IconTile>
         <div className="min-w-0 flex-1">
-          <h2 id="menu-popular" className="text-[20px] font-bold leading-tight tracking-[-0.02em]">Popular this week</h2>
+          <h2 id="menu-popular" className="text-title-3 font-bold leading-tight tracking-[-0.02em]">Popular this week</h2>
           <p className="c-caption">What customers pick most, and when it&apos;s on</p>
         </div>
       </header>
@@ -141,13 +141,13 @@ function PopularWeek({ days, today, onPick }: { days: MenuDay[]; today: string; 
               aria-label={`${r.name}, on ${r.dates.map((d) => WEEKDAY.format(at(d))).join(", ")}${r.yours.length ? ", in your delivery" : ""}. Show ${WEEKDAY.format(at(r.date))}`}
               className={cn(
                 FOCUS,
-                "c-liquid flex w-full flex-col items-start gap-3 rounded-[26px] p-4 text-left [touch-action:manipulation] transition-transform duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[.96] motion-reduce:transition-none motion-reduce:active:scale-100",
+                "c-liquid flex w-full flex-col items-start gap-3 rounded-[26px] p-4 text-left [touch-action:manipulation] transition-transform duration-150 ease-soft active:scale-[.96] motion-reduce:transition-none motion-reduce:active:scale-100",
               )}
             >
               <span className="c-label tabular-nums">{r.dates.map((d) => (d === today ? "Today" : SHORT.format(at(d)).slice(0, 3))).join(" · ")}</span>
               <span className="flex min-w-0 items-start gap-2.5">
                 <span className="mt-1"><DietMark color={r.color} /></span>
-                <span className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{r.name}</span>
+                <span className="line-clamp-2 text-body font-semibold leading-snug tracking-[-0.01em]">{r.name}</span>
               </span>
               <span className="mt-auto flex w-full flex-wrap items-center justify-between gap-2">
                 <span className="c-caption tabular-nums">{r.dates.length === 1 ? DATE.format(at(r.date)) : `${r.dates.length} days this week`}</span>
@@ -197,7 +197,7 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
           {legend.length > 0 && (
             <ul aria-label="Diet marks" className="flex items-center gap-4 px-1">
               {legend.map((l) => (
-                <li key={l.label} className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: l.color }}>
+                <li key={l.label} className="flex items-center gap-1.5 text-footnote font-semibold" style={{ color: l.color }}>
                   <DietMark color={l.color} />
                   {l.label}
                 </li>
@@ -214,17 +214,17 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
             <header className="flex flex-col gap-1 px-1">
               <p className="c-label">{DATE.format(at(current.date))}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em]">{WEEKDAY.format(at(current.date))}</h2>
+                <h2 className="text-title-1 font-bold leading-tight tracking-[-0.03em]">{WEEKDAY.format(at(current.date))}</h2>
                 {current.date === today && <Pill tone="brand" size="sm">Today</Pill>}
               </div>
               {!mine && <p className="c-caption">No delivery this day</p>}
             </header>
 
             {mine && (
-              <div className="c-surface flex flex-wrap items-center gap-3 rounded-3xl bg-[var(--card)] p-4">
+              <div className="c-surface flex flex-wrap items-center gap-3 rounded-3xl bg-card p-4">
                 <IconTile tint={mine.tint} size="lg"><mine.icon /></IconTile>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold">{mine.label}</p>
+                  <p className="text-subhead font-semibold">{mine.label}</p>
                   <p className="c-caption">{current.cutoffAt ? `Changes until ${until(current.cutoffAt)}` : mine.note}</p>
                 </div>
                 {mine.action && (
@@ -244,7 +244,7 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
               // A heading per category (tile, name, count), then that category's dishes as cards that grow to fill each row, so a lone dish leaves no gap.
               <div
                 key={view}
-                className="flex flex-col gap-6 transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
+                className="flex flex-col gap-6 transition-[opacity,translate] duration-200 ease-soft starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
               >
                 {current.groups.map((g) => {
                   const { icon: Icon, tint } = look(g.key, g.icon);
@@ -252,16 +252,16 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
                     <section key={g.key} aria-labelledby={`menu-cat-${g.key}`} className="flex flex-col gap-3">
                       <header className="flex items-center gap-3 px-1">
                         <IconTile tint={tint}><Icon /></IconTile>
-                        <h3 id={`menu-cat-${g.key}`} className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">{g.label}</h3>
+                        <h3 id={`menu-cat-${g.key}`} className="min-w-0 flex-1 text-body font-semibold tracking-[-0.01em]">{g.label}</h3>
                         <span className="c-caption tabular-nums">{g.dishes.length === 1 ? "1 dish" : `${g.dishes.length} dishes`}</span>
                       </header>
                       <ul className="flex flex-wrap gap-3">
                         {g.dishes.map((d) => (
                           // The tag sits under the name, never beside it: side by side, a long name ran under it on phones.
-                          <li key={d.name} className="c-surface flex min-h-16 flex-[1_1_10rem] items-center gap-3 rounded-2xl bg-[var(--card)] px-4 py-3">
+                          <li key={d.name} className="c-surface flex min-h-16 flex-[1_1_10rem] items-center gap-3 rounded-2xl bg-card px-4 py-3">
                             <DietMark color={d.color} />
                             <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
-                              <span className="break-words text-[15px] font-semibold leading-snug">
+                              <span className="break-words text-subhead font-semibold leading-snug">
                                 {d.name}
                                 <span className="sr-only">, {diet(d)}</span>
                               </span>

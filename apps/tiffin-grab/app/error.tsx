@@ -1,4 +1,5 @@
 "use client";
+import "@/app/styles/public.css";
 import { AlertTriangleIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 

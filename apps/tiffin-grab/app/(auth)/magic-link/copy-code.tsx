@@ -45,7 +45,7 @@ export function CopyCode({ code }: { code: string | null }) {
             {code ? (
               // Thumb-sized and full width on phones; a compact centered pill on desktop.
               <Button
-                className={`${IOS_BUTTON} sm:h-10 sm:min-h-10 sm:w-auto sm:self-center sm:px-5 sm:!text-[15px]`}
+                className={`${IOS_BUTTON} sm:h-10 sm:min-h-10 sm:w-auto sm:self-center sm:px-5 sm:!text-subhead`}
                 onClick={copy}
               >
                 {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}

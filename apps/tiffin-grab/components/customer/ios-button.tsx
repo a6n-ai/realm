@@ -6,7 +6,7 @@ export const IOS_PRESS =
 
 /** iOS large control: 50pt tap, 14pt corner, 17pt semibold, size-specific tracking. */
 export const IOS_BUTTON =
-  "h-[50px] min-h-[50px] w-full !rounded-[14px] px-4 !text-[17px] font-semibold tracking-[-0.022em] justify-center shadow-none active:!translate-y-0 " +
+  "h-[50px] min-h-[50px] w-full !rounded-[14px] px-4 !text-body font-semibold tracking-[-0.022em] justify-center shadow-none active:!translate-y-0 " +
   IOS_PRESS;
 
 /**

@@ -200,7 +200,7 @@ function TaxEditor({ taxes, onChange }: { taxes: TaxLine[]; onChange: (t: TaxLin
 
   return (
     <div className="space-y-2">
-      <p className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+      <p className="text-muted-foreground text-caption-2 font-medium tracking-wider uppercase">
         Taxes
       </p>
       {taxes.length === 0 && <p className="text-muted-foreground text-sm">No taxes on this method.</p>}

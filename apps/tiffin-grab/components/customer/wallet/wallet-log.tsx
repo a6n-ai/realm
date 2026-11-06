@@ -22,7 +22,7 @@ function WalletLogRow({ tx }: { tx: WalletTx }) {
       label={walletEntryLabel(tx.sourceType, tx.eventType ? eventLabel(tx.eventType) : null)}
       sublabel={formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
       value={
-        <span className={credit ? "text-ok" : "text-[var(--foreground)]"}>
+        <span className={credit ? "text-ok" : "text-foreground"}>
           {credit ? "+" : "−"}
           {tx.coins}
         </span>

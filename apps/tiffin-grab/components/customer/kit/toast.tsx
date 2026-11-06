@@ -22,7 +22,7 @@ export function Toast({ open, onClose, children, duration = 2600 }: ToastProps) 
       aria-live="polite"
       className={cn(
         FONT,
-        "pointer-events-none fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 rounded-full bg-[var(--foreground)] px-[18px] py-3 text-sm font-medium text-[var(--background)] transition-[opacity,transform] duration-[250ms] motion-reduce:transition-none motion-reduce:duration-[1ms]",
+        "pointer-events-none fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 rounded-full bg-foreground px-[18px] py-3 text-sm font-medium text-background transition-[opacity,transform] duration-[250ms] motion-reduce:transition-none motion-reduce:duration-[1ms]",
         SPRING,
         open ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0",
       )}

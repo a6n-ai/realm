@@ -170,12 +170,12 @@ function AvatarEditor({ image, name }: { image: string | null; name: string | nu
       >
         {src && (
           <div className="space-y-4">
-            <div className="relative h-72 w-full overflow-hidden rounded-3xl bg-[var(--muted)]">
+            <div className="relative h-72 w-full overflow-hidden rounded-3xl bg-muted">
               <Cropper image={src} crop={crop} zoom={zoom} aspect={1} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onComplete} />
             </div>
             <label className="block text-sm font-semibold">
               Zoom
-              <input type="range" min={1} max={3} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="mt-2 w-full accent-[var(--primary)]" />
+              <input type="range" min={1} max={3} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="mt-2 w-full accent-primary" />
             </label>
             {error && <Notice tone="error">{error}</Notice>}
           </div>
@@ -261,7 +261,7 @@ export function DietaryForm({ allergens, dietaryNotes }: { allergens: string[]; 
                     FONT,
                     FOCUS,
                     "c-surface min-h-11 rounded-full px-4 text-sm font-semibold [touch-action:manipulation] active:scale-[.97]",
-                    on ? "ring-[1.5px] ring-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "bg-[var(--card)]",
+                    on ? "ring-[1.5px] ring-primary bg-primary/10" : "bg-card",
                   )}
                 >
                   {a}
@@ -302,8 +302,8 @@ function SecurityItem({ tint, icon, tile, title, footer, children }: { tint?: Ic
       <div className="flex items-center gap-3">
         {tile ?? <IconTile tint={tint ?? "gray"}>{icon}</IconTile>}
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold">{title}</h2>
-          <p className="text-[13px] text-[var(--muted-foreground)]">{footer}</p>
+          <h2 className="text-subhead font-semibold">{title}</h2>
+          <p className="text-footnote text-muted-foreground">{footer}</p>
         </div>
       </div>
       {children}

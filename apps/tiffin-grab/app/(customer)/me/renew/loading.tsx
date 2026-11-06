@@ -32,7 +32,7 @@ function PlanBuilderSkeleton() {
         <Hint className="h-[70px] sm:h-10" />
         <div className="grid gap-3 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="c-surface flex min-h-24 items-center justify-between gap-4 rounded-[20px] bg-[var(--card)] p-4">
+            <div key={i} className="c-surface flex min-h-24 items-center justify-between gap-4 rounded-[20px] bg-card p-4">
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-[22px] w-48 max-w-full" />
                 <Skeleton className="h-4 w-full max-w-64" />
@@ -88,7 +88,7 @@ function QuickRenewSkeleton() {
                   <Skeleton className="h-4 w-32" />
                 </div>
               </div>
-              <div className="c-surface rounded-[20px] bg-[var(--card)] p-5">
+              <div className="c-surface rounded-[20px] bg-card p-5">
                 <div className="flex items-end justify-between gap-3">
                   <Skeleton className="h-4 w-36" />
                   <Skeleton className="h-4 w-28" />

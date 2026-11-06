@@ -11,7 +11,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       {...rest}
       ref={ref}
       aria-invalid={invalid ? true : rest["aria-invalid"]}
-      className={cn(FONT, FOCUS, "border bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]", dense ? "min-h-11 rounded-xl px-2.5 md:text-sm" : "min-h-[52px] rounded-2xl px-4", invalid ? "border-[#be123c]" : "border-transparent", className)}
+      className={cn(FONT, FOCUS, "border bg-foreground/7 text-base text-foreground placeholder:text-muted-foreground", dense ? "min-h-11 rounded-xl px-2.5 md:text-sm" : "min-h-[52px] rounded-2xl px-4", invalid ? "border-[#be123c]" : "border-transparent", className)}
     />
   );
 });
@@ -45,12 +45,12 @@ export function Field({ label, hint, error, className, labelClassName, wrapperCl
       </label>
       <Input {...rest} id={inputId} invalid={Boolean(error)} aria-describedby={describedBy} className={className} />
       {hint && (
-        <p id={hintId} className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        <p id={hintId} className="text-footnote text-[var(--muted-foreground,#6E6558)]">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errId} role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">
+        <p id={errId} role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">
           {error}
         </p>
       )}
@@ -82,18 +82,18 @@ export function Textarea({ label, hint, error, className, id, ...rest }: Textare
         aria-describedby={describedBy}
         className={cn(
           FOCUS,
-          "min-h-28 rounded-2xl border bg-[var(--card)] px-4 py-3 text-base text-[var(--foreground)]",
-          error ? "border-[#be123c]" : "border-[var(--border)]",
+          "min-h-28 rounded-2xl border bg-card px-4 py-3 text-base text-foreground",
+          error ? "border-[#be123c]" : "border-border",
           className,
         )}
       />
       {hint && (
-        <p id={hintId} className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        <p id={hintId} className="text-footnote text-[var(--muted-foreground,#6E6558)]">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errId} role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">
+        <p id={errId} role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">
           {error}
         </p>
       )}
@@ -120,7 +120,7 @@ export function Toggle({ label, checked, onChange, disabled }: ToggleProps) {
       className={cn(
         FOCUS,
         "relative h-8 w-[52px] shrink-0 rounded-2xl transition-colors duration-[250ms] motion-reduce:transition-none [touch-action:manipulation]",
-        checked ? "bg-[var(--primary)]" : "bg-[var(--border)]",
+        checked ? "bg-primary" : "bg-border",
         disabled && "opacity-45",
       )}
     >
@@ -149,9 +149,9 @@ export function Stepper({ label, value, onChange, min = 0, max = Infinity }: Ste
     const next = Math.min(max, Math.max(min, value + d));
     if (next !== value) onChange(next);
   };
-  const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-[var(--muted)]");
+  const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-muted");
   return (
-    <div className={cn(FONT, "c-surface inline-flex items-center rounded-full bg-[var(--card)]")}>
+    <div className={cn(FONT, "c-surface inline-flex items-center rounded-full bg-card")}>
       <button type="button" className={btn} aria-label={`Decrease ${label}`} aria-disabled={value <= min || undefined} onClick={() => step(-1)}>
         <Minus aria-hidden className="size-4" />
       </button>

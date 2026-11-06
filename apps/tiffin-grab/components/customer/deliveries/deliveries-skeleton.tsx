@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 
 // Inside a card the plain skeleton fill matches the card in dark mode; a wash of the text colour always shows.
-const ON_CARD = "bg-[color-mix(in_oklch,var(--foreground)_12%,transparent)]!";
+const ON_CARD = "bg-foreground/12!";
 const Bone = ({ className }: { className?: string }) => <Skeleton className={cn(ON_CARD, className)} />;
 
 /** Mirrors DeliveriesView: greeting, plan chips, plan card, then the week card (left) beside the day's trip (right),
@@ -17,7 +17,7 @@ export function DeliveriesSkeleton() {
           <Skeleton className="h-10 w-32 shrink-0 rounded-full" />
           <Skeleton className="h-10 w-32 shrink-0 rounded-full" />
         </div>
-        <div className="c-surface mt-3 rounded-3xl border-l-4 border-[var(--border)] bg-[var(--card,#fff)] px-5 py-4">
+        <div className="c-surface mt-3 rounded-3xl border-l-4 border-border bg-[var(--card,#fff)] px-5 py-4">
           <Bone className="h-7 w-56 max-w-full" />
           <Bone className="mt-2 h-5 w-64 max-w-full" />
           <Bone className="mt-1.5 h-4 w-48" />
@@ -58,7 +58,7 @@ export function DeliveriesSkeleton() {
           </div>
           {/* Trip progress: three steps on a line. */}
           <div className="relative flex justify-between px-6">
-            <div aria-hidden className="absolute inset-x-10 top-4 h-0.5 bg-[var(--border)]" />
+            <div aria-hidden className="absolute inset-x-10 top-4 h-0.5 bg-border" />
             {Array.from({ length: 3 }, (_, i) => (
               <div key={i} className="relative flex flex-col items-center gap-2">
                 <Skeleton className="size-8 rounded-full" />

@@ -14,7 +14,7 @@ export function SignOutRow() {
         await signOut();
         router.push("/login");
       }}
-      className={cn(FONT, FOCUS, "flex min-h-12 w-full items-center justify-center gap-2 px-4 text-[15px] font-semibold text-[var(--destructive,#C0392B)] transition-colors [touch-action:manipulation] active:bg-[var(--muted)]")}
+      className={cn(FONT, FOCUS, "flex min-h-12 w-full items-center justify-center gap-2 px-4 text-subhead font-semibold text-[var(--destructive,#C0392B)] transition-colors [touch-action:manipulation] active:bg-muted")}
     >
       <LogOut aria-hidden className="size-[18px]" />
       Sign out

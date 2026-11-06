@@ -129,7 +129,7 @@ export function MealTypesFormSkeleton() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="text-caption-2 font-medium uppercase tracking-wider text-muted-foreground">
               Dish categories
             </p>
           </div>

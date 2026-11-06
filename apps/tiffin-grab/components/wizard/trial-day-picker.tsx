@@ -36,7 +36,7 @@ export function TrialDayPicker({
           );
         })}
       </div>
-      <p className="text-muted-foreground mt-3 text-[13px] tabular-nums" aria-live="polite">
+      <p className="text-muted-foreground mt-3 text-footnote tabular-nums" aria-live="polite">
         <span className="text-foreground font-semibold">{picked.length}</span> of {maxDays} days
       </p>
     </div>

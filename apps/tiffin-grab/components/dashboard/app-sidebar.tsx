@@ -188,7 +188,7 @@ export function AppSidebar({
           <BrandMark className="size-10 group-data-[collapsible=icon]:size-8" />
           <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
             <BrandWordmark className="text-xl" />
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">Operations</span>
+            <span className="text-muted-foreground text-caption-2 font-medium tracking-wide uppercase">Operations</span>
           </div>
         </Link>
       </SidebarHeader>

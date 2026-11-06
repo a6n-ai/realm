@@ -9,6 +9,7 @@ import { DeliverySection } from "@/components/landing/delivery-section";
 import { LocationCard } from "./location-card";
 import { pageMeta } from "@/lib/landing/meta";
 import { publicPagesCache } from "@/lib/landing/public-cache";
+import "@/components/landing/styles/locations.css";
 
 export const metadata: Metadata = pageMeta("Delivery areas | Tiffin Grab", "Check your postal code on the map, and see every GTA area Tiffin Grab delivers to with its delivery window.", "/locations");
 export const revalidate = 3600;

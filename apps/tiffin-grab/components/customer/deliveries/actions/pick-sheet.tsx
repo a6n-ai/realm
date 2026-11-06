@@ -68,7 +68,7 @@ function MealRuleNotes({
 }) {
   if (rules.length === 0) return null;
   return (
-    <section className="rounded-2xl bg-[var(--muted)]/50 p-3">
+    <section className="rounded-2xl bg-muted/50 p-3">
       <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
         Good to know
       </h3>
@@ -577,12 +577,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
             )}
             <div role="tabpanel" id={panelId(PREFIX, activeDay)} className="flex flex-col gap-5">
               <div>
-                <h3 className="text-[17px] font-semibold">{humanDate(activeDay)}</h3>
+                <h3 className="text-body font-semibold">{humanDate(activeDay)}</h3>
                 {tiffinsThisDay > 1 && (
-                  <p className={`text-[13px] ${muted}`}>{tiffinsThisDay} tiffins this day — same meal for each.</p>
+                  <p className={`text-footnote ${muted}`}>{tiffinsThisDay} tiffins this day — same meal for each.</p>
                 )}
-                {lockNote && <p className={`text-[13px] ${muted}`}>{lockNote}</p>}
-                {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
+                {lockNote && <p className={`text-footnote ${muted}`}>{lockNote}</p>}
+                {dayLocked && <p className={`text-footnote ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
               {/* One grouped list: each category a row, dividers between, one open at a time. */}
@@ -733,7 +733,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                   const title = views[n]!.title;
                   return (
                     <div key={n} className="grid gap-2">
-                      <p className={`text-[12px] font-semibold uppercase tracking-[0.1em] ${muted}`}>
+                      <p className={`text-caption font-semibold uppercase tracking-[0.1em] ${muted}`}>
                         {title.startsWith(`${group.label} · `) ? title.slice(group.label.length + 3) : title}
                       </p>
                       {renderItem(item)}
@@ -745,7 +745,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
                 // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
-                <div className="c-surface overflow-hidden rounded-2xl bg-[var(--card,#fff)] ring-[1.5px] ring-[var(--primary)]/40">
+                <div className="c-surface overflow-hidden rounded-2xl bg-[var(--card,#fff)] ring-[1.5px] ring-primary/40">
                 <U.CategorySection
                   label="Add-ons"
                   summary={addonSummary.map((b) => b.lines.join(", ")).join(" · ")}
@@ -753,7 +753,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                   open={openCat === ADDONS}
                   onToggle={() => toggle(ADDONS)}
                 >
-                  <p className={`-mt-2 text-[13px] ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
+                  <p className={`-mt-2 text-footnote ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                     return group.items

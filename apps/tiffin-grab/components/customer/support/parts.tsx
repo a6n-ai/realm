@@ -25,7 +25,7 @@ export const STATUS_TONE: Record<TicketStatus, Tone> = {
 
 export function BackLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className={cn(FONT, FOCUS, "mb-2 inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-[var(--muted-foreground)] lg:hidden")}>
+    <Link href={href} className={cn(FONT, FOCUS, "mb-2 inline-flex min-h-11 items-center gap-2 text-subhead font-semibold text-muted-foreground lg:hidden")}>
       <ArrowLeft aria-hidden className="size-4" />
       {label}
     </Link>
@@ -103,9 +103,9 @@ export function PhotoPicker({
       {files.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {files.map((f, i) => (
-            <li key={`${f.name}-${i}`} className={cn(FONT, "flex min-h-11 max-w-full items-center gap-1 rounded-full bg-[var(--muted)] pl-4 pr-1 text-[13px] font-medium")}>
+            <li key={`${f.name}-${i}`} className={cn(FONT, "flex min-h-11 max-w-full items-center gap-1 rounded-full bg-muted pl-4 pr-1 text-footnote font-medium")}>
               <span className="truncate">{f.name}</span>
-              <button type="button" aria-label={`Remove ${f.name}`} disabled={disabled} onClick={() => onRemove(i)} className={cn(FOCUS, "grid size-9 shrink-0 place-items-center rounded-full text-[var(--muted-foreground)] [touch-action:manipulation] active:bg-[var(--muted)]")}>
+              <button type="button" aria-label={`Remove ${f.name}`} disabled={disabled} onClick={() => onRemove(i)} className={cn(FOCUS, "grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground [touch-action:manipulation] active:bg-muted")}>
                 <X aria-hidden className="size-4" />
               </button>
             </li>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
-import { Suspense, ViewTransition, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { PageTransition } from "@/components/motion/page-transition";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { NavRating, reviewsConnected } from "@/components/landing/landing-reviews";
 import { CookieSettingsButton } from "@/components/consent/cookie-consent";
@@ -11,7 +12,6 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { referHeadline } from "@/components/landing/refer/refer-content";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
-import "@/components/landing/landing.css";
 
 // One shell for every public page: the landing header, the ink close band and
 // the location picker. .customer-app opts in to the customer design system.
@@ -26,8 +26,10 @@ export async function PublicShell({ children }: { children: ReactNode }) {
     <div className="tg-light-root">
     <div className="tg-land customer-app">
       <LandingHeader refer={offer?.on ?? false} rating={<Suspense fallback={null}><NavRating /></Suspense>} />
-      {/* Route changes cross-fade the page under a header that stays put (see landing.css). */}
-      <main id="main"><ViewTransition default="tg-page">{children}</ViewTransition></main>
+      {/* Route changes cross-fade the page under a header that stays put (see landing.css). Keyed by
+          path: an unkeyed default also ran on every streamed Suspense reveal, so the first visit
+          faded the whole page out and back in, and swallowed taps while it played. */}
+      <main id="main"><PageTransition fade="tg-page">{children}</PageTransition></main>
       <PublicFooter />
       <LocationPicker />
       <ActionPill label={offer?.pillLabel ?? null} refer={offer?.on ? referHeadline(offer).replace(/\.$/, "") : null} promo={dockPromo} />
@@ -57,8 +59,7 @@ async function PublicFooter() {
         <div className="tg-close__cols">
           <nav aria-label="Site">
             <strong>Tiffin Grab</strong>
-            <Link href="/menu/weekly">Menu</Link>
-            <Link href="/plans">Plans</Link>
+            <Link href="/menu">Menu</Link>
             <Link href="/pricing">Pricing</Link>
             {showReviews ? <Link href="/reviews">Reviews</Link> : null}
             <Link href="/faq">FAQ</Link>
@@ -79,11 +80,18 @@ async function PublicFooter() {
         </div>
       </div>
       <div className="tg-wrap tg-close__meta">
-        {zones.length > 0 ? <p>Delivering to {zones.join(", ")}.</p> : null}
+        {zones.length > 0 ? (
+          <>
+            <p className="tg-close__zones">Delivering to {zones.join(", ")}.</p>
+            {/* Phones: the count and a way to the list, not an eleven-name sentence. */}
+            <p className="tg-close__zones-short">Delivering to {zones.length} areas across the GTA. <Link href="/locations">See the areas</Link></p>
+          </>
+        ) : null}
         <p>© {new Date().getFullYear()} Tiffin Grab · <CookieSettingsButton className="tg-close__cookie" /></p>
       </div>
       <div className="tg-close__base">
-        <div className="tg-close__mark" aria-hidden>tiffin grab</div>
+        {/* Drawn by CSS (content: attr) so the decorative watermark is not read as low-contrast text. */}
+        <div className="tg-close__mark" aria-hidden data-mark="tiffin grab" />
         <svg className="tg-sticker tg-sticker--round" viewBox="0 0 200 200" aria-hidden>
           <defs><path id="tg-sticker-ring" d="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" /></defs>
           <circle cx="100" cy="100" r="96" fill="#FBF4E7" />
@@ -96,13 +104,19 @@ async function PublicFooter() {
   );
 }
 
-// Inner-page title block: eyebrow, one h1 with its saffron accent word, a lede.
+// The loading state of an inner page: only its title block (eyebrow, two-line h1, lede), in the same
+// wrapper and widths as PageIntro so nothing shifts when the page lands. The dock's line carries progress.
+// Catalogue names use dashes ("Sabzi Only — Regular"); the public site reads them as "Sabzi Only · Regular", as home does.
+export const dashless = (name: string) => name.replace(/\s+[—–]\s+/g, " · ");
+
+// Inner-page title block, the home hero's type at page scale: kicker, a display h1 with its italic
+// saffron accent word, a lede.
 export function PageIntro({ eyebrow, title, lede }: { eyebrow?: string; title: ReactNode; lede?: ReactNode }) {
   return (
-    <div className="tg-stack mb-10 max-w-[720px]">
-      {eyebrow ? <span className="c-eyebrow !mb-0">{eyebrow}</span> : null}
-      <h1 className="tg-h2">{title}</h1>
-      {lede ? <p className="tg-lede">{lede}</p> : null}
-    </div>
+    <header className="lp-intro">
+      {eyebrow ? <span className="lp-kicker">{eyebrow}</span> : null}
+      <h1 className="lp-display lp-display--page">{title}</h1>
+      {lede ? <p className="lp-lede">{lede}</p> : null}
+    </header>
   );
 }

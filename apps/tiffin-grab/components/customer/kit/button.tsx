@@ -62,7 +62,7 @@ export function Button({
         </span>
       )}
       {disabledReason && showReason && (
-        <p role="status" className={cn(FONT, "mt-2 text-[13px] text-[var(--muted-foreground,#6E6558)]")}>
+        <p role="status" className={cn(FONT, "mt-2 text-footnote text-[var(--muted-foreground,#6E6558)]")}>
           {disabledReason}
         </p>
       )}

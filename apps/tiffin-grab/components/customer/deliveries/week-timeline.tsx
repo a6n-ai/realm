@@ -13,7 +13,7 @@ const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", t
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
 /** Bare chevron, 44px hit area, no circle or outline. */
-export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-[var(--foreground)] disabled:opacity-30 [touch-action:manipulation]");
+export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-foreground disabled:opacity-30 [touch-action:manipulation]");
 const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "paused", "holiday"];
 
 interface Props {
@@ -88,16 +88,16 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
 export function Legend() {
   return (
     <Popover.Root>
-      <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-[var(--foreground)] [touch-action:manipulation]")}>
+      <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-foreground [touch-action:manipulation]")}>
         <Info aria-hidden className="size-4" />
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-3 text-[13px] text-[var(--foreground)] shadow-lg">
+        <Popover.Content align="end" sideOffset={6} className="z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-3 text-footnote text-foreground shadow-lg">
           <p className="flex items-center gap-2 pb-2">
             <Truck aria-hidden className="size-4 shrink-0" />
             Delivery day; the number is how many tiffins arrive.
           </p>
-          <ul className="space-y-1.5 border-t border-[var(--border)] pt-2">
+          <ul className="space-y-1.5 border-t border-border pt-2">
             {LEGEND.map((s) => (
               <li key={s} className="flex items-center gap-2">
                 <span aria-hidden className="size-2.5 rounded-full" style={{ background: STATUS_COLOR[s] }} />

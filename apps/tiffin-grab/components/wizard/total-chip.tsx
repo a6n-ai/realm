@@ -9,8 +9,8 @@ export function TotalChip({ tiffinCount, total, open, onOpen }: { tiffinCount: n
       onClick={onOpen}
       className="bg-primary/15 text-foreground focus-visible:ring-ring flex h-11 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-1.5 whitespace-nowrap tabular-nums transition-transform duration-100 outline-none focus-visible:ring-2 active:scale-[0.97] motion-reduce:active:scale-100"
     >
-      <span aria-hidden className="bg-primary text-primary-foreground grid h-8 min-w-8 place-items-center rounded-full px-1.5 text-[13px] font-bold">{tiffinCount}</span>
-      <span aria-hidden className="text-[15px] font-semibold">${total.toFixed(2)}</span>
+      <span aria-hidden className="bg-primary text-primary-foreground grid h-8 min-w-8 place-items-center rounded-full px-1.5 text-footnote font-bold">{tiffinCount}</span>
+      <span aria-hidden className="text-subhead font-semibold">${total.toFixed(2)}</span>
     </button>
   );
 }

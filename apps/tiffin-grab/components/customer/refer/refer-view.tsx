@@ -54,7 +54,7 @@ export function ReferView({ summary, wallet, rate = null }: { summary: ReferralS
       {paused(settings) ? (
         <Card className="flex items-center gap-3 p-5">
           <IconTile tint="gray" size="lg"><Gift /></IconTile>
-          <p className="c-caption text-[15px] text-pretty">Referral rewards are paused right now. Your code still works for when they&apos;re back.</p>
+          <p className="c-caption text-subhead text-pretty">Referral rewards are paused right now. Your code still works for when they&apos;re back.</p>
         </Card>
       ) : (
         <StatGroup>

@@ -11,7 +11,7 @@ export interface KvLike {
   list(opts: { prefix: string; cursor?: string }): Promise<{ keys: { name: string }[]; list_complete: boolean; cursor?: string }>;
 }
 
-// Same bigint tagging as RedisTier so L2 round-trips what L1 holds.
+// Bigints are tagged on the way in so L2 round-trips exactly what L1 holds.
 const BIGINT_TAG = "$bigint";
 const replacer = (_k: string, v: unknown) => (typeof v === "bigint" ? { [BIGINT_TAG]: v.toString() } : v);
 const reviver = (_k: string, v: unknown) => {
@@ -31,7 +31,7 @@ async function cacheBinding(): Promise<KvLike> {
 /**
  * L2 tier on Workers KV. Keys arrive already prefixed `${prefix}:` by TieredCache.
  * KV is eventually consistent (up to ~60s across locations) and rejects TTLs under 60s.
- * Failures degrade to a miss, like RedisTier.
+ * Failures degrade to a miss, never an error.
  */
 export class KvTier implements CacheTier {
   constructor(

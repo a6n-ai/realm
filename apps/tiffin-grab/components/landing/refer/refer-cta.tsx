@@ -11,7 +11,7 @@ export function ReferCta() {
   const { data: session } = usePublicSession();
   const signedIn = !!session?.user;
   return (
-    <Link prefetch={false} href={signedIn ? REFER_TAB : `/login?callbackUrl=${encodeURIComponent(REFER_TAB)}`} className="tg-cta tg-refer__cta">
+    <Link prefetch={false} href={signedIn ? REFER_TAB : `/login?callbackUrl=${encodeURIComponent(REFER_TAB)}`} className="lp-cta tg-refer__cta">
       {signedIn ? "Get my link" : "Sign in to get your link"}
     </Link>
   );

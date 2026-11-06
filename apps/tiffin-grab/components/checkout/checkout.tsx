@@ -65,12 +65,12 @@ import { discountLine } from "@/components/customer/home/coupons-section";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
-const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
+const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
 // @foundry/ui PhoneInput is one joined field (country button + number). Make its wrapper the kit's 52px flat field
 // (one fill, no outline, focus ring around the whole thing) and let both halves sit transparent inside it.
 const PHONE = [
-  "[&>div]:h-[52px] [&>div]:overflow-hidden [&>div]:rounded-2xl [&>div]:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)]",
-  "[&>div]:transition-shadow [&>div:has(input:focus-visible)]:ring-2 [&>div:has(input:focus-visible)]:ring-[var(--primary)]",
+  "[&>div]:h-[52px] [&>div]:overflow-hidden [&>div]:rounded-2xl [&>div]:bg-foreground/7",
+  "[&>div]:transition-shadow [&>div:has(input:focus-visible)]:ring-2 [&>div:has(input:focus-visible)]:ring-primary",
   "[&>div>button]:!h-full [&>div>button]:pl-4",
   "[&_input]:!h-full [&_input]:!rounded-none [&_input]:!border-0 [&_input]:!bg-transparent [&_input]:!shadow-none [&_input]:!ring-0 [&_input]:!text-base [&_input]:pl-1",
 ].join(" ");
@@ -910,14 +910,14 @@ export function Checkout({
     <div className="grid grid-cols-1 gap-5" data-testid="delivery-charge-options">
       {catalog.deliveryCharges.addressTags.length > 0 && (
         <div className="grid grid-cols-1 gap-2">
-          <p className="text-[15px] font-semibold">Address type</p>
+          <p className="text-subhead font-semibold">Address type</p>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Address type">
             {catalog.deliveryCharges.addressTags.map((tag) => {
               const on = selections.addressTagId === tag.id;
               return (
                 <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-[14px] sm:text-[14px]">
                   {tag.name}
-                  <span className="text-[12px] font-medium opacity-75">{formatChargeHint(tag)}</span>
+                  <span className="text-caption font-medium opacity-75">{formatChargeHint(tag)}</span>
                 </PillToggle>
               );
             })}
@@ -947,18 +947,18 @@ export function Checkout({
   const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
-        <div className="c-surface bg-card mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-3xl">
+        <div className="c-surface bg-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
           <AnimatePresence initial={false}>
             {applied.map((c) => (
               <m.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
                 <RowIcon tone="save"><Tag aria-hidden className="size-[18px]" /></RowIcon>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-semibold tracking-[0.04em] uppercase">{c.code}</p>
-                  <p className="text-muted-foreground truncate text-[13px]">{c.auto ? "Applied automatically" : c.name}</p>
+                  <p className="truncate text-subhead font-semibold tracking-[0.04em] uppercase">{c.code}</p>
+                  <p className="text-muted-foreground truncate text-footnote">{c.auto ? "Applied automatically" : c.name}</p>
                 </div>
-                <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
+                <span className="nums shrink-0 text-subhead font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
                 {!c.auto && (
-                  <button type="button" onClick={() => void removeCoupon(c.code)} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                  <button type="button" onClick={() => void removeCoupon(c.code)} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted active:scale-[0.94] motion-reduce:active:scale-100">
                     <X aria-hidden className="size-[18px]" />
                   </button>
                 )}
@@ -968,11 +968,11 @@ export function Checkout({
               <m.div key="coins" {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
                 <RowIcon tone="save"><Coins aria-hidden className="size-[18px]" /></RowIcon>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-semibold">Coins</p>
-                  <p className="nums text-muted-foreground truncate text-[13px]">{coinsApplied.coins} coins used</p>
+                  <p className="truncate text-subhead font-semibold">Coins</p>
+                  <p className="nums text-muted-foreground truncate text-footnote">{coinsApplied.coins} coins used</p>
                 </div>
-                <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(coinsApplied.amount)}</span>
-                <button type="button" onClick={() => void removeCoins()} aria-label="Remove coins" className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                <span className="nums shrink-0 text-subhead font-semibold text-emerald-700 dark:text-emerald-400">−{money(coinsApplied.amount)}</span>
+                <button type="button" onClick={() => void removeCoins()} aria-label="Remove coins" className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted active:scale-[0.94] motion-reduce:active:scale-100">
                   <X aria-hidden className="size-[18px]" />
                 </button>
               </m.div>
@@ -997,8 +997,8 @@ export function Checkout({
               <div className="flex items-center gap-3">
                 <RowIcon tone="wash"><Coins aria-hidden className="size-[18px]" /></RowIcon>
                 <div className="min-w-0 flex-1">
-                  <Label htmlFor="coins" className="text-[15px] !font-semibold">Use coins</Label>
-                  <p className="text-muted-foreground mt-1 text-[13px] text-pretty">
+                  <Label htmlFor="coins" className="text-subhead !font-semibold">Use coins</Label>
+                  <p className="text-muted-foreground mt-1 text-footnote text-pretty">
                     <span className="nums">{`${coinBalance} available`}</span>
                     {coinCap && coinBalance > 0 && (coinCap.maxCoins > 0 ? <> · up to <span className="nums">{coinCap.maxCoins}</span> on this order</> : " · can't be used on this order")}
                   </p>
@@ -1019,7 +1019,7 @@ export function Checkout({
                   <button
                     type="button"
                     onClick={() => { setCoinsInput(String(Math.min(coinBalance, coinCap.maxCoins))); setCoinsState({ status: "idle" }); }}
-                    className="text-primary h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
+                    className="text-primary h-9 shrink-0 rounded-full px-3 text-footnote font-semibold transition-colors hover:bg-(--primary-wash)"
                   >
                     Max
                   </button>
@@ -1074,21 +1074,21 @@ export function Checkout({
         {/* Footnotes sit under the group at its row inset, like iOS section footers. The Stripe one lives here, by
             the choice it reassures, instead of adding a row to the bottom bar. */}
         {payWithCard && (
-          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-footnote text-pretty">
             <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
             Card and wallet payments are processed securely by Stripe.
           </p>
         )}
         {selectedMethod && !payWithCard && (
-          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-footnote text-pretty">
             <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
             Your plan is reserved now. Deliveries start once we confirm payment{selectedMethod.id === "etransfer" ? ", usually within a business day" : ""}.
           </p>
         )}
         {coinsToEarn ? (
-          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-[13px] text-pretty">
+          <p className="text-muted-foreground mt-2 flex items-start gap-2 px-4 text-footnote text-pretty">
             <Coins aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--primary-text,var(--primary))]" />
-            <span>You&apos;ll earn ~<span className="nums font-semibold text-[var(--foreground)]">{coinsToEarn}</span> coins when this order is paid</span>
+            <span>You&apos;ll earn ~<span className="nums font-semibold text-foreground">{coinsToEarn}</span> coins when this order is paid</span>
           </p>
         ) : null}
       </section>
@@ -1121,7 +1121,7 @@ export function Checkout({
               exit={{ opacity: 0, x: -slide * sign }}
               transition={spring}
             >
-              <h1 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
+              <h1 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
 
               {/* Payment only: on Delivery the header's total chip opens the same summary, and the card would push
                   the phone row below the fold. */}
@@ -1134,7 +1134,7 @@ export function Checkout({
                 saved={result?.adjustments.reduce((n, a) => n + a.amount, 0)}
                 onOpen={() => setSummaryOpen(true)}
               />}
-              {step === 2 && startNote && <p className="text-muted-foreground -mt-3 mb-6 px-4 text-[13px] text-pretty">{startNote}</p>}
+              {step === 2 && startNote && <p className="text-muted-foreground -mt-3 mb-6 px-4 text-footnote text-pretty">{startNote}</p>}
 
               {step === 0 ? plan?.body : step === 1 ? (
                 <div className="space-y-8">
@@ -1157,7 +1157,7 @@ export function Checkout({
                       <div aria-live="polite" className="grid gap-2 empty:hidden">
                         {zone?.served && !waitlisted && (
                           // A footnote under the cards, not a banner box: it confirms, it doesn't need a block of its own.
-                          <m.p key="served" {...reveal} className="flex items-start gap-2 px-4 text-[13px] text-[var(--s-delivered-fg,#059669)]">
+                          <m.p key="served" {...reveal} className="flex items-start gap-2 px-4 text-footnote text-[var(--s-delivered-fg,#059669)]">
                             <MapPin aria-hidden className="mt-0.5 size-4 shrink-0" />
                             <span><span className="font-semibold">We deliver here.</span> {zone.name}{zone.slotWindow ? `, ${zone.slotWindow}` : ""}</span>
                           </m.p>
@@ -1180,14 +1180,14 @@ export function Checkout({
                   <section aria-labelledby="co-contact">
                     <h2 id="co-contact" className={H}>Contact</h2>
                     {/* One grouped card, like iOS Settings: who you are, then the phone row under a hairline. */}
-                    <div className="c-surface bg-card mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-3xl">
+                    <div className="c-surface bg-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
                       <div className="flex items-center gap-3.5 px-4 py-3">
-                        <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold">
+                        <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-subhead font-bold">
                           {(contact.fullName.trim()[0] ?? "?").toUpperCase()}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[16px] font-semibold tracking-[-0.01em]">{contact.fullName || "Name not set"}</span>
-                          <span className="text-muted-foreground block truncate text-[13px]">{contact.email}</span>
+                          <span className="text-muted-foreground block truncate text-footnote">{contact.email}</span>
                         </span>
                       </div>
                       <div className="px-3 py-3">
@@ -1198,8 +1198,8 @@ export function Checkout({
                       </div>
                     </div>
                     {contact.phone.trim() && !phoneValid
-                      ? <p role="alert" className="text-destructive mt-2 px-4 text-[13px]">Enter a valid phone number</p>
-                      : <p id="phone-hint" className="text-muted-foreground mt-2 px-4 text-[13px]">Phone for delivery updates. Saved to your account.</p>}
+                      ? <p role="alert" className="text-destructive mt-2 px-4 text-footnote">Enter a valid phone number</p>
+                      : <p id="phone-hint" className="text-muted-foreground mt-2 px-4 text-footnote">Phone for delivery updates. Saved to your account.</p>}
                   </section>
                 </div>
               ) : payStepBody}
@@ -1400,15 +1400,15 @@ function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: {
     >
       <span className="min-w-0 flex-1">
         <span className="text-muted-foreground block text-xs font-semibold tracking-[0.02em]">Your order</span>
-        <span className="mt-0.5 line-clamp-2 block text-[17px] leading-snug font-semibold tracking-[-0.02em] text-balance">
+        <span className="mt-0.5 line-clamp-2 block text-body leading-snug font-semibold tracking-[-0.02em] text-balance">
           {baseline ? `${title} · ${baseline}` : title}
         </span>
-        {meta && <span className="text-muted-foreground block truncate text-[13px]">{meta}</span>}
-        {address && <span className="text-muted-foreground block truncate text-[13px]">To {address}</span>}
+        {meta && <span className="text-muted-foreground block truncate text-footnote">{meta}</span>}
+        {address && <span className="text-muted-foreground block truncate text-footnote">To {address}</span>}
       </span>
       {total != null && (
         <span className="flex shrink-0 flex-col items-end gap-1">
-          <span className="nums text-[17px] font-bold">{money(total)}</span>
+          <span className="nums text-body font-bold">{money(total)}</span>
           {saved ? <span className="nums rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">Saved {money(saved)}</span> : null}
         </span>
       )}
@@ -1421,8 +1421,8 @@ type ApplyState = { status: "idle" | "checking" | "applied" | "error"; message?:
 
 function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save"; children: ReactNode }) {
   const toneCls = tone === "save" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
-    : tone === "wash" ? "bg-[var(--primary-wash)] text-[var(--primary)]"
-    : "bg-[var(--muted)] text-[var(--muted-foreground)]";
+    : tone === "wash" ? "bg-(--primary-wash) text-primary"
+    : "bg-muted text-muted-foreground";
   return <span aria-hidden className={`grid size-9 shrink-0 place-items-center rounded-full ${toneCls}`}>{children}</span>;
 }
 
@@ -1464,10 +1464,10 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
         aria-expanded={open}
         aria-controls="coupon-entry"
         onClick={() => { setFocusField(!open); setOpen((o) => !o); }}
-        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-[var(--muted)]"
+        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted"
       >
         <RowIcon tone="wash"><Tag aria-hidden className="size-[18px]" /></RowIcon>
-        <span className="flex-1 text-[15px] font-semibold">Add a coupon code</span>
+        <span className="flex-1 text-subhead font-semibold">Add a coupon code</span>
         <Plus aria-hidden className={`text-muted-foreground size-5 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-45" : ""}`} />
       </button>
       <AnimatePresence initial={false}>
@@ -1476,7 +1476,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
             <Label htmlFor="coupon" className="sr-only">Coupon code</Label>
             <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus={focusField} applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={gated ? { status: "idle" } : errorMessage ? { status: "error", message: errorMessage } : state} />
             {gated && gatedMethod && (
-              <p role="alert" className="text-destructive mt-2 text-[13px] font-medium">
+              <p role="alert" className="text-destructive mt-2 text-footnote font-medium">
                 {gated.code} works with {methodName(gatedMethod)} only.{" "}
                 <button type="button" onClick={() => onSwitchMethod(gatedMethod, gated.code)} className="text-primary -my-3 min-h-11 font-semibold underline underline-offset-2">Pay with {methodName(gatedMethod)}</button>
               </p>
@@ -1487,13 +1487,13 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
       {suggestions.length > 0 && (
         <div className="pb-4">
           <div className="flex items-center justify-between gap-3 px-4">
-            <p id="coupon-suggestions" className="text-muted-foreground text-[13px] font-semibold">Available for you</p>
+            <p id="coupon-suggestions" className="text-muted-foreground text-footnote font-semibold">Available for you</p>
             {suggestions.length > 1 && (
               <button
                 type="button"
                 onClick={() => onApplyAll(suggestions.map((c) => c.code))}
                 disabled={state.status === "checking"}
-                className="text-primary -mr-2 min-h-11 rounded-full px-2 text-[13px] font-semibold transition-transform active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
+                className="text-primary -mr-2 min-h-11 rounded-full px-2 text-footnote font-semibold transition-transform active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
               >
                 Apply all applicable
               </button>
@@ -1508,15 +1508,15 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                   onClick={() => onPick(c.code)}
                   disabled={state.status === "checking"}
                   aria-label={`Apply ${c.code}, ${discountLine(c)}: ${c.name}`}
-                  className="flex min-h-14 max-w-[15rem] items-center gap-2.5 c-surface rounded-2xl bg-[var(--primary-wash)] py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
+                  className="flex min-h-14 max-w-[15rem] items-center gap-2.5 c-surface rounded-2xl bg-(--primary-wash) py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
                 >
                   <span className="min-w-0">
                     <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
-                    <span className="text-muted-foreground block truncate text-[12px]">
+                    <span className="text-muted-foreground block truncate text-caption">
                       {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.minSubtotal != null ? `On orders ${money(Number(c.minSubtotal)).replace(/\.00$/, "")}+` : c.name}
                     </span>
                   </span>
-                  <span className="text-primary shrink-0 text-[13px] font-semibold">{discountLine(c)}</span>
+                  <span className="text-primary shrink-0 text-footnote font-semibold">{discountLine(c)}</span>
                 </button>
               </li>
             ))}
@@ -1545,7 +1545,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
   const checking = state.status === "checking";
   return (
     <div className={className}>
-      <div className={`flex min-h-12 items-center gap-1 rounded-2xl border bg-[var(--background)] py-1 pr-1 pl-3.5 transition-colors focus-within:border-[var(--primary)] ${state.status === "error" ? "border-destructive" : "border-[var(--border)]"}`}>
+      <div className={`flex min-h-12 items-center gap-1 rounded-2xl border bg-background py-1 pr-1 pl-3.5 transition-colors focus-within:border-primary ${state.status === "error" ? "border-destructive" : "border-border"}`}>
         <input
           id={id}
           value={value}
@@ -1559,7 +1559,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
           aria-describedby={state.status === "applied" || state.status === "error" ? `${id}-msg` : undefined}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }}
-          className={`nums min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[var(--muted-foreground)] ${uppercase ? "uppercase placeholder:normal-case" : ""}`}
+          className={`nums min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground ${uppercase ? "uppercase placeholder:normal-case" : ""}`}
         />
         {extra}
         <button
@@ -1572,8 +1572,8 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
           {checking ? "Checking…" : "Apply"}
         </button>
       </div>
-      {state.status === "applied" && <p id={`${id}-msg`} role="status" className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400"><Check aria-hidden className="size-4" />{state.message}</p>}
-      {state.status === "error" && <p id={`${id}-msg`} role="alert" className="text-destructive mt-2 text-[13px] font-medium">{state.message}</p>}
+      {state.status === "applied" && <p id={`${id}-msg`} role="status" className="mt-2 flex items-center gap-1.5 text-footnote font-medium text-emerald-700 dark:text-emerald-400"><Check aria-hidden className="size-4" />{state.message}</p>}
+      {state.status === "error" && <p id={`${id}-msg`} role="alert" className="text-destructive mt-2 text-footnote font-medium">{state.message}</p>}
     </div>
   );
 }

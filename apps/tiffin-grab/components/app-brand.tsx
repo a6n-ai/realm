@@ -19,7 +19,7 @@ export function AppBrand({
       <div className="flex min-w-0 flex-col leading-none">
         <BrandWordmark className="truncate text-base" />
         {subtitle ? (
-          <span className="text-muted-foreground mt-0.5 truncate text-[11px] font-medium tracking-wide uppercase">
+          <span className="text-muted-foreground mt-0.5 truncate text-caption-2 font-medium tracking-wide uppercase">
             {subtitle}
           </span>
         ) : null}

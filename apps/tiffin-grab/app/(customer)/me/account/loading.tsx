@@ -38,7 +38,7 @@ export default function Loading() {
         </div>
         <section className="hidden max-w-2xl space-y-2 lg:block">
           <div className="px-4"><Skeleton className="h-4 w-16" /></div>
-          <div className="c-surface space-y-5 rounded-3xl bg-[var(--card)] p-5">
+          <div className="c-surface space-y-5 rounded-3xl bg-card p-5">
             <div className="flex items-center gap-4">
               <Skeleton className="size-20 shrink-0 rounded-full" />
               <Skeleton className="h-11 w-32 rounded-full" />

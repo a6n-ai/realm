@@ -18,7 +18,7 @@ export function MealSizePrice({
   /** Price on its own line, right-aligned, with any was-price above and "/tiffin" under it (plan cards). */
   stacked?: boolean;
 }) {
-  const unit = perTiffin ? <span className="text-muted-foreground text-[13px] font-medium">/tiffin</span> : null;
+  const unit = perTiffin ? <span className="text-muted-foreground text-footnote font-medium">/tiffin</span> : null;
   if (stacked) {
     return (
       <span className="nums flex shrink-0 flex-col items-end leading-none">

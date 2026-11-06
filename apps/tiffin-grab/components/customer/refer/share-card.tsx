@@ -38,10 +38,10 @@ function Target({ tint, icon, label, href, onClick, download }: { tint: IconTint
   const body = (
     <>
       <IconTile tint={tint} size="lg">{icon}</IconTile>
-      <span className="c-caption w-full text-center text-[12px] leading-tight text-balance">{label}</span>
+      <span className="c-caption w-full text-center text-caption leading-tight text-balance">{label}</span>
     </>
   );
-  const cls = "flex min-w-0 flex-col items-center gap-1.5 rounded-xl py-1 transition-colors hover:bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)]";
+  const cls = "flex min-w-0 flex-col items-center gap-1.5 rounded-xl py-1 transition-colors hover:bg-foreground/6";
   return href ? (
     <a href={href} download={download} target={download ? undefined : "_blank"} rel="noopener noreferrer" className={cls}>{body}</a>
   ) : (
@@ -106,13 +106,13 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
       <div className="flex items-center gap-3">
         <IconTile tint="purple" size="lg"><Ticket /></IconTile>
         <div className="min-w-0">
-          <p className="text-[15px] font-semibold">Your referral code</p>
+          <p className="text-subhead font-semibold">Your referral code</p>
           <p className="c-caption">Share it with friends</p>
         </div>
       </div>
-      <div className="rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] px-4 py-4 text-center">
+      <div className="rounded-2xl bg-foreground/7 px-4 py-4 text-center">
         <p className="font-mono text-[32px] leading-none font-bold tracking-[0.3em] [padding-left:0.3em]">{code}</p>
-        <Button variant="quiet" size="md" className="mt-3 !min-h-9 !px-3.5 !text-[13px]" onClick={() => copy("code")} aria-label={`Copy code ${code}`}>
+        <Button variant="quiet" size="md" className="mt-3 !min-h-9 !px-3.5 !text-footnote" onClick={() => copy("code")} aria-label={`Copy code ${code}`}>
           {copied === "code" ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
           <span role="status">{copied === "code" ? "Code copied" : "Copy code"}</span>
         </Button>
@@ -120,7 +120,7 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
 
       {/* What the WhatsApp share sends; the /r link previews as the landscape version of this card. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- generated per code; next/image's localPatterns fence /api/files only */}
-      <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1080} height={1350} loading="lazy" className="mx-auto aspect-[4/5] h-auto w-full max-w-[280px] rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_7%,transparent)] shadow-sm" />
+      <img src={image} alt={`TiffinGrab promo card with code ${code}`} width={1080} height={1350} loading="lazy" className="mx-auto aspect-[4/5] h-auto w-full max-w-[280px] rounded-2xl bg-foreground/7 shadow-sm" />
 
       {file ? (
         <Button variant="primary" className={`w-full ${WHATSAPP}`} onClick={shareWithImage}>

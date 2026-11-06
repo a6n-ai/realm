@@ -103,10 +103,10 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
             aria-expanded={jump}
             aria-live="polite"
             onClick={() => setJump(!jump)}
-            className="flex min-h-11 items-center gap-1 rounded-full px-3 text-[15px] font-semibold transition-colors hover:bg-[var(--muted)]"
+            className="flex min-h-11 items-center gap-1 rounded-full px-3 text-subhead font-semibold transition-colors hover:bg-muted"
           >
             {TITLE.format(new Date(`${month}-01T00:00:00Z`))}
-            <ChevronDown aria-hidden className={cn("size-4 text-[var(--muted-foreground)] transition-transform duration-200", jump && "rotate-180")} />
+            <ChevronDown aria-hidden className={cn("size-4 text-muted-foreground transition-transform duration-200", jump && "rotate-180")} />
           </button>
           <IconButton
             bare
@@ -144,8 +144,8 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
                   aria-pressed={on}
                   onClick={() => (setMonth(key), setJump(false))}
                   className={cn(
-                    "rounded-2xl text-[15px] font-semibold transition-colors disabled:opacity-35",
-                    on ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "bg-[var(--muted)] text-[var(--foreground)]",
+                    "rounded-2xl text-subhead font-semibold transition-colors disabled:opacity-35",
+                    on ? "bg-primary text-[var(--primary-foreground,#fff)]" : "bg-muted text-foreground",
                   )}
                 >
                   {name}
@@ -174,7 +174,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
     <div ref={box} className={cn(FONT, "relative space-y-1.5")}>
       <Label htmlFor={id}>
         {label}
-        {hint ? <span className="font-normal text-[var(--muted-foreground)]">{hint}</span> : null}
+        {hint ? <span className="font-normal text-muted-foreground">{hint}</span> : null}
       </Label>
       <Button
         id={id}
@@ -194,7 +194,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
       </Button>
       {wide ? (
         open && (
-          <div role="dialog" aria-label={label} className={cn("c-surface absolute left-0 z-50 w-[325px] rounded-2xl bg-[var(--card)] p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]", above ? "bottom-[calc(100%-20px)]" : "top-full mt-2")}>
+          <div role="dialog" aria-label={label} className={cn("c-surface absolute left-0 z-50 w-[325px] rounded-2xl bg-card p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]", above ? "bottom-[calc(100%-20px)]" : "top-full mt-2")}>
             {picker}
           </div>
         )

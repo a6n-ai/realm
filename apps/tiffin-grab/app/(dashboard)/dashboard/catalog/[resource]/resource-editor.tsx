@@ -302,7 +302,7 @@ function CompositionRow({
           <Trash2Icon className="size-4" />
         </Button>
       </div>
-      <div className="text-muted-foreground grid gap-0.5 text-[11px] leading-snug sm:pr-12">
+      <div className="text-muted-foreground grid gap-0.5 text-caption-2 leading-snug sm:pr-12">
         <p><span className="font-medium text-foreground/80">TU / pick</span> — amount of this category included in each pick.</p>
         <p><span className="font-medium text-foreground/80">Max TU</span> — maximum this category can reach after swaps (leave blank for uncapped).</p>
         <p><span className="font-medium text-foreground/80">Role</span> — Main is the category&apos;s main pick; a Side takes the day&apos;s side dish set on the menu (e.g. the day&apos;s dal).</p>

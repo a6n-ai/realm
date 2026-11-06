@@ -49,19 +49,19 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
         SPRING,
         compact ? "size-11" : delivery !== undefined ? "h-[62px] min-w-11" : "h-[52px] min-w-11",
         selected
-          ? "c-surface bg-[var(--primary)] text-[var(--primary-foreground,#fff)]"
-          : "c-surface bg-[var(--card)] hover:ring-[1.5px] hover:ring-[var(--primary)] [@media(hover:hover)]:hover:-translate-y-0.5 motion-reduce:transform-none",
+          ? "c-surface bg-primary text-[var(--primary-foreground,#fff)]"
+          : "c-surface bg-card hover:ring-[1.5px] hover:ring-primary hover:-translate-y-0.5 motion-reduce:transform-none",
         disabledReason && "opacity-35",
         className,
       )}
     >
       {!compact && <span aria-hidden>{WD.format(d)}</span>}
       <StatusRing status={status === "delivered" ? "delivered" : undefined} className={compact ? "size-8" : undefined}>
-        <b aria-hidden className="text-[17px] tabular-nums">{d.getUTCDate()}</b>
+        <b aria-hidden className="text-body tabular-nums">{d.getUTCDate()}</b>
       </StatusRing>
       {((status && status !== "delivered") || delivery) && (
         <span aria-hidden className="absolute bottom-1 flex items-center gap-0.5">
-          {delivery && <Truck className={cn("size-3", selected ? "text-current" : "text-[var(--primary)]")} />}
+          {delivery && <Truck className={cn("size-3", selected ? "text-current" : "text-primary")} />}
           {status && status !== "delivered" && <StatusDot decorative status={status} />}
         </span>
       )}

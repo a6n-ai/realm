@@ -30,11 +30,11 @@ export function useDeliveryArea(postalCode: string | null | undefined): Delivery
 export function DeliveryAreaNote({ area }: { area: DeliveryArea | null }) {
   if (!area) return null;
   return area.served ? (
-    <p role="status" className="text-[13px] font-medium text-[var(--success,#1F7A4D)]">
+    <p role="status" className="text-footnote font-medium text-[var(--success,#1F7A4D)]">
       We deliver here{area.zone ? ` — ${area.zone}` : ""}.
     </p>
   ) : (
-    <p role="status" className="text-destructive text-[13px] font-medium">
+    <p role="status" className="text-destructive text-footnote font-medium">
       We don&apos;t deliver to {`${area.code.slice(0, 3)} ${area.code.slice(3)}`.trim()} yet.
     </p>
   );

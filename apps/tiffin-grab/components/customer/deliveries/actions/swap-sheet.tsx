@@ -13,7 +13,7 @@ import type { ActionSheetProps } from "./types";
 const PREFIX = "swap";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const pairKey = (from: string, to: string) => `${from}>${to}`;
-const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Steps through backend `validBundles` by index — never invents intermediate quantities. */
 function BundleStepper({
@@ -33,9 +33,9 @@ function BundleStepper({
   const label = option.fromCategory;
   const atMin = index <= 0;
   const atMax = index >= bundles.length - 1;
-  const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-[var(--muted)]");
+  const btn = cn(FOCUS, "grid size-11 place-items-center rounded-full aria-disabled:opacity-35 active:bg-muted");
   return (
-    <div className="c-surface inline-flex items-center rounded-full bg-[var(--card)]">
+    <div className="c-surface inline-flex items-center rounded-full bg-card">
       <button
         type="button"
         className={btn}
@@ -66,13 +66,13 @@ function BundleStepper({
 function MealSummary({ meal, portions }: { meal: ResolvedCategory[] | null | undefined; portions: Record<string, string> }) {
   if (!meal?.length) return null;
   return (
-    <section aria-label="Your meal" className="c-surface flex flex-col gap-2 rounded-3xl bg-[var(--muted)]/40 p-3">
+    <section aria-label="Your meal" className="c-surface flex flex-col gap-2 rounded-3xl bg-muted/40 p-3">
       <h3 className="text-sm font-semibold">Your meal</h3>
       <ul className="flex flex-col gap-2">
         {meal.map((cat) => (
           <li key={cat.category}>
-            <p className="text-[13px] font-semibold text-[var(--muted-foreground,#6E6558)]">{cat.label}</p>
-            <ul className="mt-0.5 list-disc pl-4 text-[15px]">
+            <p className="text-footnote font-semibold text-[var(--muted-foreground,#6E6558)]">{cat.label}</p>
+            <ul className="mt-0.5 list-disc pl-4 text-subhead">
               {!cat.selectable && portions[cat.category]
                 ? <li>{portions[cat.category]}</li>
                 : cat.picks.length > 0
@@ -225,7 +225,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
           />
         )}
         <div role={days.length > 1 ? "tabpanel" : undefined} id={panelId(PREFIX, day)} className="flex flex-col gap-4">
-          <p className="text-[15px] font-semibold">Swap for {humanDate(day)}</p>
+          <p className="text-subhead font-semibold">Swap for {humanDate(day)}</p>
           {lockLine && <Reason>Locks with {humanDate(lockLine)}&apos;s delivery.</Reason>}
           {lockReason ? (
             <Notice>{lockReason}</Notice>
@@ -238,7 +238,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                   {applied.map((s) => {
                     const text = swapLabel(s, label, cats);
                     return (
-                      <div key={s.publicId} className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--muted)] py-1 pl-4 pr-1">
+                      <div key={s.publicId} className="flex items-center justify-between gap-2 rounded-2xl bg-muted py-1 pl-4 pr-1">
                         <Chip tone="swap">{text}</Chip>
                         <Button
                           variant="quiet"
@@ -261,7 +261,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 <h3 className="text-sm font-semibold">Swap options</h3>
                 {options === null && !loadError && (
                   <div className="flex flex-col gap-2" aria-busy="true" aria-label="Finding available swaps">
-                    <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Finding available swaps...</p>
+                    <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Finding available swaps...</p>
                     <Skeleton className="h-16 w-full rounded-3xl" />
                     <Skeleton className="h-16 w-full rounded-3xl" />
                   </div>
@@ -288,7 +288,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                       key={key}
                       className={cn(
                         "rounded-3xl p-3",
-                        on ? "ring-[1.5px] ring-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40" : "c-surface bg-[var(--card)]",
+                        on ? "ring-[1.5px] ring-primary bg-[var(--primary-wash,#FBE3D2)]/40" : "c-surface bg-card",
                       )}
                     >
                       <button
@@ -299,17 +299,17 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         onClick={() => !pending && selectPair(key)}
                         className="flex min-h-11 w-full items-center gap-3 text-left [touch-action:manipulation] disabled:opacity-50"
                       >
-                        <ArrowLeftRight aria-hidden className="size-5 shrink-0 text-[var(--primary)]" />
+                        <ArrowLeftRight aria-hidden className="size-5 shrink-0 text-primary" />
                         <span className="flex flex-1 flex-col gap-0.5">
-                          <span className="text-[15px] font-semibold">{name}</span>
+                          <span className="text-subhead font-semibold">{name}</span>
                           {preview && (
-                            <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{preview}</span>
+                            <span className="text-footnote text-[var(--muted-foreground,#6E6558)]">{preview}</span>
                           )}
                         </span>
-                        <span className="text-[13px] font-medium text-[var(--primary)]">{on ? "Selected" : "Select"}</span>
+                        <span className="text-footnote font-medium text-primary">{on ? "Selected" : "Select"}</span>
                       </button>
                       {on && bundle && (
-                        <div className="mt-2 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
+                        <div className="mt-2 flex items-center justify-between gap-3 border-t border-border pt-3">
                           <p className="text-sm">
                             Give up <b>{bundle.giveNatural ?? `${bundle.fromPicks} ${label(o.fromCategory)}`}</b>
                             {", get "}

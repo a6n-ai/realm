@@ -180,7 +180,7 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
             {ready && (
               <ul
                 role="status"
-                className="grid gap-2 text-sm duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] animate-in fade-in motion-reduce:animate-none"
+                className="grid gap-2 text-sm duration-200 ease-soft animate-in fade-in motion-reduce:animate-none"
               >
                 <CheckRow ok={ready.settingsActive} label="Stripe Tax is active on the account" />
                 <CheckRow

@@ -1,6 +1,7 @@
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { preload } from "react-dom";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
 import { FAQS } from "@/components/landing/faqs";
@@ -21,9 +22,8 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { pageMeta } from "@/lib/landing/meta";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
-import "@/components/landing/home/home.css";
-import "@/components/landing/home/motion.css";
 import { loadReferralOffer } from "@/lib/referrals/offer";
+import "@/components/landing/styles/home.css";
 // Stock photos of dishes on our menu (Pixabay licence) until the kitchen's own shots arrive.
 import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
@@ -46,6 +46,9 @@ function weekRange(weekStart: string) {
 
 export default async function LandingPage({ params }: { params: Promise<{ org: string }> }) {
   const orgId = await siteOrgId((await params).org);
+  // The hero poster is the phone LCP: fetch the right WebP from the head, ahead of CSS and scripts.
+  preload("/landing/stock/hero-poster-mobile.webp", { as: "image", type: "image/webp", media: "(max-width: 767px)", fetchPriority: "high" });
+  preload("/landing/stock/hero-poster.webp", { as: "image", type: "image/webp", media: "(min-width: 768px)", fetchPriority: "high" });
   const [pub, catalog, { timezone }, promos, referral] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null)]);
 
   const plans = publicPlans(catalog.plans);

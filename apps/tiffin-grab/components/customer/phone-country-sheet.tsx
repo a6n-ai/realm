@@ -11,7 +11,7 @@ type Option = { label: string; value?: Country };
 
 function Flag({ country, name }: { country: Country; name: string }) {
   const F = flags[country];
-  return <span className="flex h-4 w-6 shrink-0 overflow-hidden rounded-sm bg-[color-mix(in_srgb,var(--foreground)_15%,transparent)] [&_svg]:size-full">{F ? <F title={name} /> : null}</span>;
+  return <span className="flex h-4 w-6 shrink-0 overflow-hidden rounded-sm bg-foreground/15 [&_svg]:size-full">{F ? <F title={name} /> : null}</span>;
 }
 
 /**
@@ -53,7 +53,7 @@ export function PhoneCountrySheet({ disabled, value, onChange, options }: {
         className="flex shrink-0 items-center gap-1.5 pr-1 [-webkit-tap-highlight-color:transparent] disabled:opacity-50"
       >
         {value && <Flag country={value} name={picked?.label ?? value} />}
-        <ChevronDown aria-hidden className="size-4 text-[var(--muted-foreground)]" />
+        <ChevronDown aria-hidden className="size-4 text-muted-foreground" />
       </button>
       <Sheet bottom open={open} onClose={close} title="Country">
         {/* Fixed height: the sheet must not shrink and jump as the search narrows the list. */}
@@ -62,8 +62,8 @@ export function PhoneCountrySheet({ disabled, value, onChange, options }: {
             lives in its own bottom padding, so at rest it sits over empty space (the first row stays crisp) and only
             rows scrolled under it fade out. */}
         <div className="sticky -top-2 z-[1] -mx-5 -mt-2 bg-[linear-gradient(to_bottom,var(--card)_calc(100%-1rem),transparent)] px-5 pt-2 pb-4">
-          <label className="flex h-12 items-center gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] px-4 focus-within:ring-2 focus-within:ring-[var(--primary)]">
-            <Search aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+          <label className="flex h-12 items-center gap-2 rounded-2xl bg-foreground/7 px-4 focus-within:ring-2 focus-within:ring-primary">
+            <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
             <span className="sr-only">Search country</span>
             <input
               type="search"
@@ -71,14 +71,14 @@ export function PhoneCountrySheet({ disabled, value, onChange, options }: {
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search country or code"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[var(--muted-foreground)]"
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             />
           </label>
         </div>
         {shown.length === 0 ? (
-          <p className="py-8 text-center text-[15px] text-[var(--muted-foreground)]">No country matches &ldquo;{q.trim()}&rdquo;.</p>
+          <p className="py-8 text-center text-subhead text-muted-foreground">No country matches &ldquo;{q.trim()}&rdquo;.</p>
         ) : (
-          <ul role="listbox" aria-label="Country" className="c-surface mb-2 divide-y divide-[var(--border)] overflow-hidden rounded-3xl bg-[var(--card)]">
+          <ul role="listbox" aria-label="Country" className="c-surface mb-2 divide-y divide-border overflow-hidden rounded-3xl bg-card">
             {shown.map((o) => {
               const on = o.value === value;
               return (
@@ -86,12 +86,12 @@ export function PhoneCountrySheet({ disabled, value, onChange, options }: {
                   <button
                     type="button"
                     onClick={() => { onChange(o.value); close(); }}
-                    className={cn("flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-[var(--muted)]", on && "bg-[var(--primary-wash)]")}
+                    className={cn("flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-muted", on && "bg-(--primary-wash)")}
                   >
                     <Flag country={o.value} name={o.label} />
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{o.label}</span>
-                    <span className="nums text-[13px] text-[var(--muted-foreground)]">+{getCountryCallingCode(o.value)}</span>
-                    <span aria-hidden className={cn("grid size-6 shrink-0 place-items-center rounded-full", on ? "bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "invisible")}>
+                    <span className="min-w-0 flex-1 truncate text-subhead font-medium">{o.label}</span>
+                    <span className="nums text-footnote text-muted-foreground">+{getCountryCallingCode(o.value)}</span>
+                    <span aria-hidden className={cn("grid size-6 shrink-0 place-items-center rounded-full", on ? "bg-primary text-[var(--primary-foreground,#fff)]" : "invisible")}>
                       <Check className="size-3.5" strokeWidth={3} />
                     </span>
                   </button>

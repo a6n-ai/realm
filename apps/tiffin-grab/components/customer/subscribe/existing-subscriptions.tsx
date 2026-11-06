@@ -40,7 +40,7 @@ function Group({ title, subs }: { title: string; subs: SubSummary[] }) {
           Manage →
         </Link>
       </div>
-      <Reveal.Group className="c-surface divide-y rounded-3xl bg-[var(--card)] px-4">
+      <Reveal.Group className="c-surface divide-y rounded-3xl bg-card px-4">
         {subs.map((s) => (
           <Reveal key={s.publicId} className="flex items-center justify-between gap-3 py-2.5">
             <div className="min-w-0">

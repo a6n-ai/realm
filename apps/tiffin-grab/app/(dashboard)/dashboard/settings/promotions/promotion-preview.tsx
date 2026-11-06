@@ -3,6 +3,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import { PromoPanel } from "@/components/landing/promo-popup";
+// The cards are the public site's; their styles come with it (scoped to tg-/lp- classes, nothing leaks into admin).
+import "@/components/landing/styles/core.css";
+import "@/components/landing/styles/home.css";
 import type { LandingPromo } from "@/lib/landing/promo-types";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";

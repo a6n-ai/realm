@@ -33,6 +33,9 @@ export default async function LoginPage() {
         googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null}
         lastUser={lastUser}
       />
+      <p className="mt-6 text-center text-sm text-pretty text-muted-foreground">
+        Signed in, you can pause a day, change your meals and follow every delivery.
+      </p>
     </Suspense>
   );
 }

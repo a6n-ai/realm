@@ -1,3 +1,4 @@
+import "@/app/styles/public.css";
 import type { ReactNode } from "react";
 import { PublicShell } from "@/components/landing/public-shell";
 import { siteOrgId } from "@/lib/tenant/site-org";

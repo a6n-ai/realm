@@ -1,0 +1,9 @@
+.tg-board__tab:active { transform: scale(0.96); }
+.tg-board__with li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tg-board__with li > span:last-child { display: flex; flex-direction: column; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.25; }
+.tg-board__with small { font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+.lp-menu-photo { margin: 0 0 clamp(24px, 4vw, 40px); border-radius: 22px; overflow: hidden; aspect-ratio: 16 / 9; background: var(--muted); }
+.lp-menu-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (min-width: 768px) {
+  .lp-menu-photo { aspect-ratio: 21 / 8; border-radius: var(--lp-radius-lg, 28px); }
+}

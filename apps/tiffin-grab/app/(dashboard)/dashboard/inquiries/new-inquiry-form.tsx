@@ -371,7 +371,7 @@ export function AddInquirySheet({
                   <CollapsibleTrigger asChild>
                     <Button type="button" variant="ghost" size="sm" className="group -ml-2">
                       More details
-                      <ChevronDownIcon data-icon="inline-end" className="transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                      <ChevronDownIcon data-icon="inline-end" className="transition-transform duration-200 ease-soft group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="flex flex-col gap-4 pt-3">

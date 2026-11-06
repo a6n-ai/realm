@@ -78,9 +78,9 @@ async function orgs(): Promise<OrgSnapshot> {
   return orgSnapshot;
 }
 
-// Front door, ported from the Caddyfile apex block. The app host comes from BETTER_AUTH_URL;
+// Front door: the apex and www rules, in the app itself, with Cloudflare in front. The app host comes from BETTER_AUTH_URL;
 // the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
-// Caddy matches paths case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
+// Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
 const SITE_PAGES = new Set([
   "/", "/menu", "/menu/weekly", "/plans", "/pricing", "/locations", "/reviews", "/faq", "/contact",
@@ -122,7 +122,7 @@ export async function proxy(request: NextRequest) {
   // Cheap rejects before front-door redirects / org snapshot / Next — scanners were a large
   // share of Worker invocations (and would otherwise 302 to app. from the apex).
   if (PROBE_PATH.test(pathname)) return new NextResponse(null, { status: 404 });
-  // Caddy never set the referral cookie on these redirects.
+  // The old edge never set the referral cookie on these redirects; the app does now.
   const door = frontDoor(request);
   if (door) return door;
   // /site/<org>/... is reachable only through the rewrite below (which never re-enters the proxy).
@@ -224,7 +224,7 @@ async function route(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   // The first entry skips static-looking paths. On the public hosts the second entry runs the proxy for
-  // those too, so frontDoor can 302 non-allowlisted ones (/wp-content/x.jpg, /manifest.json) like Caddy.
+  // those too, so frontDoor can 302 non-allowlisted ones (/wp-content/x.jpg, /manifest.json).
   // A matcher must be a static literal, so the hosts are spelled out; keep in step with BETTER_AUTH_URL.
   // Was scoped to /dashboard, /me, /api only. Broadened to everything (minus
   // static assets) so the URL-segment org resolver above also runs on public

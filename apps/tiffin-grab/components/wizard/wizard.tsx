@@ -228,15 +228,15 @@ export function Wizard({
 
       {quote && quoteChanged(quote.picks, selections) && (
         // Same shape as the BestDeal banner, so it reads as an offer to undo, not an error.
-        <div className="mb-5 flex items-center gap-2 c-surface rounded-2xl bg-[var(--primary-wash)] py-2 pr-1 pl-3" role="status">
-          <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty sm:text-sm">
+        <div className="mb-5 flex items-center gap-2 c-surface rounded-2xl bg-(--primary-wash) py-2 pr-1 pl-3" role="status">
+          <p className="min-w-0 flex-1 text-footnote leading-snug text-pretty sm:text-sm">
             <span className="text-foreground font-semibold">Changed from your estimate</span>
             <span className="text-muted-foreground"> · price will differ</span>
           </p>
           <button
             type="button"
             onClick={() => set({ ...quote.picks, startDate: selections.startDate })}
-            className={buttonClass({ variant: "primary", className: "relative !min-h-9 h-9 shrink-0 !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
+            className={buttonClass({ variant: "primary", className: "relative !min-h-9 h-9 shrink-0 !px-4 !text-footnote before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
           >
             Use my estimate
           </button>
@@ -254,7 +254,7 @@ export function Wizard({
           exit={{ opacity: 0, x: -slide * sign }}
           transition={spring}
         >
-          <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
+          <h2 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
 
           {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
           {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} popular={popular[selections.planKey ?? ""] ?? []} />}
@@ -313,7 +313,7 @@ export function Wizard({
           </Button>
         }
       >
-        <p className="text-muted-foreground -mt-1 mb-3 text-[13px]">Optional extras for your {catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name ?? "meal"}, billed per tiffin.</p>
+        <p className="text-muted-foreground -mt-1 mb-3 text-footnote">Optional extras for your {catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name ?? "meal"}, billed per tiffin.</p>
         <AddonsPanel bare addons={offered} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="pb-2" />
       </Sheet>
 

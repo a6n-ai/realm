@@ -44,7 +44,7 @@ export const movedFact = (row: EatingRow): string => `${weekdayShort(row.date)}'
 export type PlanTagInfo = { color: string; label: string };
 export function PlanTag({ plan }: { plan: PlanTagInfo }) {
   return (
-    <span data-testid="plan-tag" className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
+    <span data-testid="plan-tag" className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-foreground/8 px-2 py-0.5 text-xs font-semibold text-foreground">
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />
       <span className="truncate">{plan.label}</span>
     </span>
@@ -73,15 +73,15 @@ export function TripRow({ trip, tz, selected, onSelect, plan }: { trip: Trip; tz
       className={cn(
         FONT, FOCUS,
         "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
-        selected ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/60",
+        selected ? "bg-muted" : "hover:bg-muted/60",
       )}
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{humanDate(trip.date)}</span>
-        <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}{trip.complimentaryNote ? " · Complimentary" : ""}</span>
+        <span className="block text-subhead font-semibold">{humanDate(trip.date)}</span>
+        <span className="block text-footnote text-[var(--muted-foreground,#6E6558)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}{trip.complimentaryNote ? " · Complimentary" : ""}</span>
         {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
       </span>
-      <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+      <span className="flex shrink-0 items-center gap-1.5 text-footnote text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
         {m.label}
       </span>
@@ -107,17 +107,17 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
         {m.label}
         {plan && <PlanTag plan={plan} />}
       </p>
-      <h2 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(trip.date)}</h2>
-      <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">
+      <h2 className="mt-1 text-title-1 font-bold leading-tight tracking-[-0.03em] lg:text-large-title">{humanDate(trip.date)}</h2>
+      <p className="mt-1 text-subhead text-[var(--muted-foreground,#6E6558)]">
         {[trip.coversLabel, trip.status === "upcoming" ? null : reason].filter(Boolean).join(" · ") || tiffins(trip.units)}
       </p>
       {trip.status !== "combined-into" && (
-        <ul className="mt-5 space-y-3 border-t border-[var(--border)] pt-5">
+        <ul className="mt-5 space-y-3 border-t border-border pt-5">
           {trip.eatingDays.map((e) => {
             const dishes = dedupeDishes(e.dishSummary);
             return (
-              <li key={e.date} className="text-[15px]">
-                {multi && <span className="mb-0.5 block text-[13px] font-semibold text-[var(--muted-foreground,#6E6558)]">{humanDate(e.date)}</span>}
+              <li key={e.date} className="text-subhead">
+                {multi && <span className="mb-0.5 block text-footnote font-semibold text-[var(--muted-foreground,#6E6558)]">{humanDate(e.date)}</span>}
                 <span className="block">{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</span>
               </li>
             );
@@ -153,7 +153,7 @@ export function Journey({ status, pushed, caption }: { status: Trip["status"]; p
     <div role="img" aria-label={`${STOPS[at]!.label} delivery`} data-testid="journey">
       <ol aria-hidden className="relative grid grid-cols-3">
         {/* Track runs centre-to-centre of the first and last stop; the filled part ends at the current stop. */}
-        <span className="absolute left-[16.667%] right-[16.667%] top-5 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
+        <span className="absolute left-[16.667%] right-[16.667%] top-5 h-[3px] -translate-y-1/2 rounded-full bg-border" />
         <span className="absolute left-[16.667%] top-5 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${at * 33.333}%`, background: tone }} />
         {STOPS.map(({ label, Icon }, i) => {
           const now = i === at;
@@ -161,17 +161,17 @@ export function Journey({ status, pushed, caption }: { status: Trip["status"]; p
           return (
             <li key={label} className="relative flex flex-col items-center gap-1.5">
               <span
-                className={cn("grid place-items-center rounded-full transition-colors", now ? "size-10 text-white shadow-md" : "mt-1 size-8 ring-[1.5px]", !now && !past && "bg-[var(--card)] text-[var(--muted-foreground,#6E6558)] ring-[var(--border)]")}
+                className={cn("grid place-items-center rounded-full transition-colors", now ? "size-10 text-white shadow-md" : "mt-1 size-8 ring-[1.5px]", !now && !past && "bg-card text-[var(--muted-foreground,#6E6558)] ring-border")}
                 style={now ? { background: tone } : past ? { background: "var(--card)", color: tone, ["--tw-ring-color" as string]: tone } : undefined}
               >
                 {past ? <Check className="size-4" /> : <Icon className={now ? "size-5" : "size-4"} />}
               </span>
-              <span className={cn("text-center text-[12px] leading-tight", now ? "font-bold" : "font-medium text-[var(--muted-foreground,#6E6558)]")} style={now ? { color: tone } : undefined}>{label}</span>
+              <span className={cn("text-center text-caption leading-tight", now ? "font-bold" : "font-medium text-[var(--muted-foreground,#6E6558)]")} style={now ? { color: tone } : undefined}>{label}</span>
             </li>
           );
         })}
       </ol>
-      {caption && <p className="mt-2 text-center text-[13px] text-[var(--muted-foreground,#6E6558)]">{caption}</p>}
+      {caption && <p className="mt-2 text-center text-footnote text-[var(--muted-foreground,#6E6558)]">{caption}</p>}
     </div>
   );
 }
@@ -210,19 +210,19 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
     trip.date !== row.date ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
     trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ") || null : null;
-  const label = (text: string, color: string) => <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;
+  const label = (text: string, color: string) => <h3 className="mb-3 text-caption-2 font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;
   const MUTED = "var(--muted-foreground,#6E6558)";
   return (
     <section aria-live="polite" data-testid="delivery-block" className="space-y-9">
       {/* One question per block: delivery (blue), meal (warm), destination (neutral). Spacing separates them, not cards. */}
       <div>
         {label("Delivery", "var(--s-upcoming,#0ea5e9)")}
-        <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(row.date)}</h2>
+        <h2 className="text-title-1 font-bold leading-tight tracking-[-0.03em] lg:text-large-title">{humanDate(row.date)}</h2>
         {meta && <p className="mt-1 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
         {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
         {trip.complimentaryNote && (
           <p className="mt-2 text-[14px]" data-testid="complimentary-note">
-            <Pill tone="brand" className="mr-2 h-7 px-2.5 text-[12px]">Complimentary</Pill>
+            <Pill tone="brand" className="mr-2 h-7 px-2.5 text-caption">Complimentary</Pill>
             <span className="text-[var(--muted-foreground,#6E6558)]">{trip.complimentaryNote}</span>
           </p>
         )}
@@ -242,7 +242,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             {moves.map((f) => {
               const Icon = f.kind === "in" ? ArrowDownLeft : ArrowUpRight;
               return (
-                <Pill key={f.text} tone={f.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-4 shrink-0" />} className="h-9 px-3.5 text-[13px]">
+                <Pill key={f.text} tone={f.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-4 shrink-0" />} className="h-9 px-3.5 text-footnote">
                   {f.text}
                 </Pill>
               );
@@ -259,19 +259,19 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
       {!row.movedTo && !trip.holidayName && (
         <div>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Your meal</h3>
+            <h3 className="text-caption-2 font-semibold uppercase tracking-[0.18em] text-primary">Your meal</h3>
             {onDetails && (
               <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "-my-3 grid size-11 place-items-center rounded-full text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
                 <Info aria-hidden className="size-4" />
               </button>
             )}
           </div>
-          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? (
+          {menuOut ? <p className="text-subhead text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? (
             <>
               <MealTiles cats={meal} />
               {addonTiles && addonTiles.length > 0 && (
                 <>
-                  <h4 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">Add-ons</h4>
+                  <h4 className="mb-2 mt-4 text-caption-2 font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">Add-ons</h4>
                   <MealTiles cats={addonTiles} />
                 </>
               )}
@@ -280,8 +280,8 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             <>
               {/* One dish per line: the main dish leads, the rest follow quieter. */}
               <ul className="space-y-0.5">
-                <li className="text-[17px] font-semibold leading-snug">{first ?? "Default menu"}</li>
-                {rest.map((d) => <li key={d} className="text-[15px] text-[var(--muted-foreground,#6E6558)]">{d}</li>)}
+                <li className="text-body font-semibold leading-snug">{first ?? "Default menu"}</li>
+                {rest.map((d) => <li key={d} className="text-subhead text-[var(--muted-foreground,#6E6558)]">{d}</li>)}
               </ul>
             </>
           )}
@@ -292,11 +292,11 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
       {address && !row.movedTo && !trip.holidayName && GOES_OUT.has(trip.status) && (
         <div>
           {label("Destination", MUTED)}
-          <p className="flex items-center gap-2 text-[15px]" data-testid="delivery-address">
+          <p className="flex items-center gap-2 text-subhead" data-testid="delivery-address">
             <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
             <span className="min-w-0 flex-1 truncate">{address.text}{address.changed ? " (this delivery only)" : ""}</span>
             {onEditAddress && (
-              <button type="button" onClick={onEditAddress} aria-label="Change address" className={cn(FOCUS, "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-semibold text-[var(--primary)] [touch-action:manipulation]")}>
+              <button type="button" onClick={onEditAddress} aria-label="Change address" className={cn(FOCUS, "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-semibold text-primary [touch-action:manipulation]")}>
                 <Pencil aria-hidden className="size-3.5" />
                 Edit
               </button>
@@ -358,8 +358,8 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
   return (
     <ul aria-label="Meal" className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="meal-tiles">
       {tiles.map((t) => (
-        <li key={t.key} className="min-w-0 rounded-xl bg-[var(--muted)]/60 px-3 py-2">
-          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground,#6E6558)]">
+        <li key={t.key} className="min-w-0 rounded-xl bg-muted/60 px-3 py-2">
+          <p className="truncate text-caption-2 font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground,#6E6558)]">
             {t.label}{t.portion ? ` · ${t.portion}` : ""}
           </p>
           <p className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-snug">{t.name}</p>
@@ -379,12 +379,12 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
   ].filter(Boolean).join(" · ");
   return (
     <Sheet open={open} onClose={onClose} title={`${humanDate(row.date)} · your meal`}>
-      <div className="space-y-4 pb-2 text-[15px]">
+      <div className="space-y-4 pb-2 text-subhead">
         {cats.length > 0 ? (
-          <ul className="divide-y divide-[var(--border)] c-surface overflow-hidden rounded-2xl bg-[var(--card)]" aria-label="Meal">
+          <ul className="divide-y divide-border c-surface overflow-hidden rounded-2xl bg-card" aria-label="Meal">
             {cats.map((c) => (
               <li key={c.category} className="px-4 py-3">
-                <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
+                <span className="text-footnote font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
                 {c.items.map((p, i) => (
                   <span key={`${p.name}-${i}`} className="mt-0.5 block font-semibold">
                     {p.name}
@@ -397,7 +397,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
         ) : (
           <p>{dedupeDishes(row.dish).join(", ") || "Default menu. Dishes show once the menu is out."}</p>
         )}
-        <p className="flex items-start gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]" data-testid="info-delivery">
+        <p className="flex items-start gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]" data-testid="info-delivery">
           <Truck aria-hidden className="mt-0.5 size-4 shrink-0" />
           <span>{delivery}</span>
         </p>

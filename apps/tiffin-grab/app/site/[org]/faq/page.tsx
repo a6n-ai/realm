@@ -1,6 +1,8 @@
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { FAQS } from "@/components/landing/faqs";
 import { PageIntro } from "@/components/landing/public-shell";
 import { listPublicFaqs } from "@/lib/services/faqs.service";
@@ -30,18 +32,13 @@ export default async function FaqPage({ params }: { params: Promise<{ org: strin
   const faqs = saved.length > 0 ? saved.map((f) => ({ question: f.question, answer: f.answer })) : FAQS.map((f) => ({ question: f.q, answer: f.a }));
 
   return (
-    <div className="tg-wrap tg-section">
+    <div className="lp-wrap lp-section">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }} />
       <PageIntro eyebrow="FAQ" title={<>Before you <span className="c-accent">order.</span></>} />
-      <div className="tg-card tg-faq max-w-[820px]">
-        {faqs.map((f) => (
-          <details key={f.question}>
-            <summary>{f.question}</summary>
-            <p className="whitespace-pre-line">{f.answer}</p>
-          </details>
-        ))}
+      <div className="max-w-[820px]">
+        <FaqAccordion items={faqs.map((f) => ({ q: f.question, a: f.answer }))} name="faq" />
       </div>
-      <p className="mt-6">Something else? <Link href="/contact" className="tg-link tg-link--tap">Ask us</Link></p>
+      <div className="lp-actions lp-actions--start mt-6"><Link href="/contact" className="lp-textlink">Something else? Ask us<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link></div>
     </div>
   );
 }

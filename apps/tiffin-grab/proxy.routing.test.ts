@@ -52,7 +52,7 @@ describe("apex/www front door", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
-  it("matches case-insensitively like Caddy", async () => {
+  it("matches paths case-insensitively", async () => {
     expect((await get("https://tiffingrab.ca/PRICING")).headers.get("location")).toBeNull();
     expect((await get("https://tiffingrab.ca/ME")).status).toBe(302);
   });

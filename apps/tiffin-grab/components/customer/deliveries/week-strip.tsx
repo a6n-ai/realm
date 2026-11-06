@@ -82,11 +82,11 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
               className={cn(
                 FOCUS,
                 "flex cursor-pointer flex-col items-center gap-1 rounded-2xl py-2 transition-colors [touch-action:manipulation]",
-                selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : cn("hover:bg-[var(--muted)]", iso < today && "opacity-45"),
+                selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground" : cn("hover:bg-muted", iso < today && "opacity-45"),
               )}
             >
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-foreground,#6E6558)]">{WD.format(at(iso)).slice(0, 3)}</span>
-              <span className={cn("grid size-8 place-items-center rounded-full text-[15px] font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-[var(--primary)]")}>{at(iso).getUTCDate()}</span>
+              <span className="text-caption-2 font-semibold uppercase tracking-wide text-[var(--muted-foreground,#6E6558)]">{WD.format(at(iso)).slice(0, 3)}</span>
+              <span className={cn("grid size-8 place-items-center rounded-full text-subhead font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-primary")}>{at(iso).getUTCDate()}</span>
               <span aria-hidden className="size-1.5 rounded-full" style={{ background: s ? STATUS_COLOR[s] : "transparent" }} />
               {/* Fixed height so weeks with and without a truck line up. */}
               <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--muted-foreground,#6E6558)]">

@@ -1,8 +1,8 @@
 "use client";
+import "@/components/landing/styles/demos.css";
 
 import { CalendarCheck, ChevronLeft, ChevronRight, Clock, Ellipsis, Gift, House, Info, LifeBuoy, Truck, User, UtensilsCrossed, Wallet } from "lucide-react";
 import { Phone, Stage, type Act } from "./kit";
-import "./pause-demo.css";
 
 // The customer Deliveries screen (/me), light theme: tap Wed in the week,
 // tap Pause (one tap, no sheet), a toast confirms and the dot turns orange.

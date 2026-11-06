@@ -47,7 +47,7 @@ export function LegalToc({ items }: { items: Item[] }) {
   return (
     <>
       <details className="group bg-muted/60 rounded-2xl lg:hidden">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-[15px] font-medium">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-subhead font-medium">
           On this page
           <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
         </summary>

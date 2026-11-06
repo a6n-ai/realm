@@ -49,7 +49,7 @@ export function Brand({ href = "/me", compact = false, markOnlyNarrow = false }:
   return (
     <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full")}>
       <BrandMark className={compact ? "size-8" : "size-9"} />
-      <BrandWordmark className={cn(compact ? "text-[20px]" : "text-[22px]", markOnlyNarrow && "max-[429px]:hidden")} />
+      <BrandWordmark className={cn(compact ? "text-title-3" : "text-title-2", markOnlyNarrow && "max-[429px]:hidden")} />
     </Link>
   );
 }
@@ -66,18 +66,18 @@ function MenuButton({ active, onClick, className, children }: { active: boolean;
 const TAB_ORDER = ["deliveries", "support", "refer", "account", "menu"] as const;
 const tabCls = (on: boolean, compact = false) =>
   cn(
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-[height,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
+    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-caption-2 font-semibold transition-[height,color] duration-300 ease-soft [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
     compact ? "h-10" : "h-14",
     // The lit pill itself is one shared highlight that slides between tabs (see TAB_ORDER).
     "relative z-[1]",
-    on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]",
+    on ? "text-primary" : "text-muted-foreground",
   );
 
 /** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
 function UnreadBadge({ count, className }: { count: number; className?: string }) {
   if (!count) return null;
   return (
-    <span className={cn("grid min-w-[18px] place-items-center rounded-full bg-[var(--primary)] px-1 text-[11px] font-bold leading-[18px] text-[var(--primary-foreground,#fff)] tabular-nums", className)}>
+    <span className={cn("grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-caption-2 font-bold leading-[18px] text-[var(--primary-foreground,#fff)] tabular-nums", className)}>
       {count}
       <span className="sr-only">{count === 1 ? " new reply" : " new replies"}</span>
     </span>
@@ -94,7 +94,7 @@ function AccountAvatar({ name, image, active }: { name: string | null; image: st
       href="/me/account"
       aria-label="Account"
       aria-current={active ? "page" : undefined}
-      className={cn(FOCUS, "c-liquid grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-transparent text-[15px] font-semibold transition-transform active:scale-[.96] motion-reduce:transform-none", active && "ring-[1.5px] ring-[var(--primary)]")}
+      className={cn(FOCUS, "c-liquid grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-transparent text-subhead font-semibold transition-transform active:scale-[.96] motion-reduce:transform-none", active && "ring-[1.5px] ring-primary")}
     >
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -140,21 +140,21 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         data-urgent={urgent || undefined}
         className={cn(
           FOCUS,
-          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none [@media(hover:hover)]:hover:-translate-y-px",
+          "inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-left sm:gap-2 [touch-action:manipulation] transition-[background-color,border-color,transform] duration-150 active:scale-[.97] motion-reduce:transform-none hover:-translate-y-px",
           urgent ? "border-transparent bg-[var(--primary-wash,#FBE3D2)]" : "c-liquid border-transparent",
         )}
       >
         {urgent ? (
           <span aria-hidden className="relative grid size-4 shrink-0 place-items-center">
-            <span className="absolute size-2.5 animate-ping rounded-full bg-[var(--primary)] opacity-60 motion-reduce:hidden" />
-            <span className="size-2 rounded-full bg-[var(--primary)]" />
+            <span className="absolute size-2.5 animate-ping rounded-full bg-primary opacity-60 motion-reduce:hidden" />
+            <span className="size-2 rounded-full bg-primary" />
           </span>
         ) : (
-          <Clock aria-hidden className="size-4 shrink-0 text-[var(--primary)]" />
+          <Clock aria-hidden className="size-4 shrink-0 text-primary" />
         )}
         <span className="flex flex-col leading-none">
-          <span className="hidden text-[11px] font-semibold text-[var(--muted-foreground)] sm:block">Cutoff in</span>
-          <span className={cn("text-[13px] sm:mt-0.5 font-bold tabular-nums", urgent && "text-[#B5430B] dark:text-[#FFB877]")}>
+          <span className="hidden text-caption-2 font-semibold text-muted-foreground sm:block">Cutoff in</span>
+          <span className={cn("text-footnote sm:mt-0.5 font-bold tabular-nums", urgent && "text-[#B5430B] dark:text-[#FFB877]")}>
             {next ? formatCountdown(next.ms) : "--"}
           </span>
         </span>
@@ -164,11 +164,11 @@ function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
         id="cutoff-info"
         popover="auto"
         onBeforeToggle={place}
-        className={cn(FONT, "fixed inset-auto m-0 w-[min(17rem,calc(100vw-2rem))] overflow-visible rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-[var(--foreground)] shadow-lg transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] starting:-translate-y-1 starting:opacity-0 motion-reduce:transition-none")}
+        className={cn(FONT, "fixed inset-auto m-0 w-[min(17rem,calc(100vw-2rem))] overflow-visible rounded-2xl border border-border bg-card p-4 text-foreground shadow-lg transition-[opacity,translate] duration-200 ease-soft starting:-translate-y-1 starting:opacity-0 motion-reduce:transition-none")}
       >
-        <span aria-hidden className="absolute -top-1.5 right-[var(--caret,24px)] size-3 rotate-45 border-l border-t border-[var(--border)] bg-[var(--card)]" />
-        <p className="text-[15px] font-semibold">Next cutoff {cutoffTime(cutoffHour)} {next && !next.today ? "tomorrow" : "today"}</p>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+        <span aria-hidden className="absolute -top-1.5 right-[var(--caret,24px)] size-3 rotate-45 border-l border-t border-border bg-card" />
+        <p className="text-subhead font-semibold">Next cutoff {cutoffTime(cutoffHour)} {next && !next.today ? "tomorrow" : "today"}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
           Pick meals, swap, hold or move a delivery until {cutoffTime(cutoffHour)} the day before. After that, the day is locked.
         </p>
       </div>
@@ -248,17 +248,17 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
   }, [userPublicId, router, notifyBootstrap?.url, notifyBootstrap?.token]);
 
   const morePill = cn(
-    "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 active:scale-[.97] [@media(hover:hover)]:hover:-translate-y-px motion-reduce:transform-none",
+    "relative inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-[background-color,color,transform] duration-150 active:scale-[.97] hover:-translate-y-px motion-reduce:transform-none",
     tab === "menu"
       ? "bg-[var(--primary-wash,#FBE3D2)] text-[#B5430B] after:absolute after:bottom-1.5 after:left-1/2 after:h-0.5 after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-current dark:text-[#FFB877]"
-      : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
+      : "text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 
   return (
-    <div className={cn(FONT, "min-h-dvh bg-[var(--background)] text-[var(--foreground)]")}>
-      <a href="#main" className={cn(FOCUS, "sr-only z-50 rounded-full border border-[var(--primary)] bg-[var(--card)] px-4 py-3 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-[calc(env(safe-area-inset-top)+4.5rem)]")}>Skip to content</a>
+    <div className={cn(FONT, "min-h-dvh bg-background text-foreground")}>
+      <a href="#main" className={cn(FOCUS, "sr-only z-50 rounded-full border border-primary bg-card px-4 py-3 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-[calc(env(safe-area-inset-top)+4.5rem)]")}>Skip to content</a>
       {!flow && <header
-        className={cn("sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-200", scrolled ? "c-glass border-[var(--border)]" : "border-transparent bg-transparent")}
+        className={cn("sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-200", scrolled ? "c-glass border-border" : "border-transparent bg-transparent")}
         style={{ viewTransitionName: "customer-header" }}
       >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
@@ -295,7 +295,7 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           <span
             ref={pill}
             aria-hidden
-            className={cn("absolute inset-y-0 left-0 w-1/5 origin-left rounded-full bg-[color-mix(in_oklab,var(--primary)_16%,transparent)]", litAt < 0 && "opacity-0")}
+            className={cn("absolute inset-y-0 left-0 w-1/5 origin-left rounded-full bg-primary/16", litAt < 0 && "opacity-0")}
             style={{ transform: `translateX(${Math.max(litAt, 0) * 100}%)` }}
           />
           <Link href="/me" onClick={() => setTapped("deliveries")} aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(lit === "deliveries", compact))}>
@@ -332,12 +332,12 @@ export function CustomerShell({ coinBalance, coinValue = null, cutoffHour, userP
           aria-current={tab === "menu" ? "page" : undefined}
           className={cn(
             FOCUS,
-            "c-liquid-tint fixed right-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-40 inline-flex size-[58px] items-center justify-center gap-2 rounded-full text-[var(--primary-foreground,#fff)] transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[.94] motion-reduce:transition-none motion-reduce:transform-none lg:bottom-6 lg:right-6 lg:size-auto lg:h-12 lg:px-5 [@media(hover:hover)]:hover:-translate-y-px",
+            "c-liquid-tint fixed right-3 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom))+0.5rem)] z-40 inline-flex size-[58px] items-center justify-center gap-2 rounded-full text-[var(--primary-foreground,#fff)] transition-[bottom,transform] duration-300 ease-soft active:scale-[.94] motion-reduce:transition-none motion-reduce:transform-none lg:bottom-6 lg:right-6 lg:size-auto lg:h-12 lg:px-5 hover:-translate-y-px",
           )}
           style={{ viewTransitionName: "customer-menu-fab" }}
         >
           <UtensilsCrossed aria-hidden className="size-6 lg:size-5" />
-          <span aria-hidden className="hidden text-[15px] font-semibold lg:inline">This week&apos;s menu</span>
+          <span aria-hidden className="hidden text-subhead font-semibold lg:inline">This week&apos;s menu</span>
         </Link>
       )}
 
@@ -368,15 +368,15 @@ function MenuTile({ href, icon, tint, label, sublabel, primary = false }: { href
       href={href}
       className={cn(
         FONT, FOCUS,
-        "c-surface flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-[var(--muted)]",
+        "c-surface flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition-colors active:bg-muted",
         primary
           ? "bg-[color-mix(in_oklch,var(--primary)_12%,var(--card))]"
-          : "bg-[var(--card)] hover:bg-[var(--muted)]",
+          : "bg-card hover:bg-muted",
       )}
     >
       <IconTile tint={tint} size="lg">{icon}</IconTile>
-      <span className="text-[15px] leading-tight font-semibold">{label}</span>
-      <span className="text-[13px] leading-tight text-[var(--muted-foreground)]">{sublabel}</span>
+      <span className="text-subhead leading-tight font-semibold">{label}</span>
+      <span className="text-footnote leading-tight text-muted-foreground">{sublabel}</span>
     </Link>
   );
 }

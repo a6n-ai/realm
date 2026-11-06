@@ -65,15 +65,15 @@ export function OrderSummary({
   return (
     <section aria-label="Your order" className={plain ? undefined : "c-surface bg-card rounded-[24px] p-5"}>
       <div className="flex items-center justify-between gap-2">
-        {plain ? <span /> : <h2 className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Your order</h2>}
+        {plain ? <span /> : <h2 className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Your order</h2>}
         {onEdit ? (
-          <button type="button" onClick={onEdit} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-[13px] font-semibold">Edit</button>
+          <button type="button" onClick={onEdit} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-footnote font-semibold">Edit</button>
         ) : (
-          <Link href={editHref!} transitionTypes={["nav-back"]} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-[13px] font-semibold">Edit</Link>
+          <Link href={editHref!} transitionTypes={["nav-back"]} className="text-primary -my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-footnote font-semibold">Edit</Link>
         )}
       </div>
-      <div className="mt-1 space-y-2 text-[13px]">
-        {(mealName || diet) && <p className="text-[22px] leading-tight font-bold tracking-[-0.03em]">{mealName ?? diet}</p>}
+      <div className="mt-1 space-y-2 text-footnote">
+        {(mealName || diet) && <p className="text-title-2 leading-tight font-bold tracking-[-0.03em]">{mealName ?? diet}</p>}
         {baseline && <p className="text-muted-foreground">{baseline}</p>}
         {addons && addons.length > 0 && (
           <p aria-label="Add-ons">
@@ -85,7 +85,7 @@ export function OrderSummary({
         {perWeek > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Eating days">
             {days.map((d) => (
-              <Pill key={d} tone="save" size="sm" className="!text-[var(--foreground)]">{DAY_LABEL[d] ?? d}</Pill>
+              <Pill key={d} tone="save" size="sm" className="!text-foreground">{DAY_LABEL[d] ?? d}</Pill>
             ))}
           </div>
         )}
@@ -97,7 +97,7 @@ export function OrderSummary({
           </p>
         ) : null}
         {start && <p className="text-muted-foreground">Starts {start}</p>}
-        {start && startNote && <p className="text-muted-foreground text-[13px] text-pretty">{startNote}</p>}
+        {start && startNote && <p className="text-muted-foreground text-footnote text-pretty">{startNote}</p>}
         {deliverTo && (
           <div className="flex items-start justify-between gap-3 pt-1">
             <div className="min-w-0 space-y-0.5">
@@ -105,7 +105,7 @@ export function OrderSummary({
               {deliverTo.window && <p className="text-muted-foreground">Arrives {deliverTo.window}</p>}
               {deliverTo.phone && <p className="text-muted-foreground nums">{deliverTo.phone}</p>}
             </div>
-            <button type="button" onClick={deliverTo.onChange} className="text-primary -my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-[13px] font-semibold">Change</button>
+            <button type="button" onClick={deliverTo.onChange} className="text-primary -my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-footnote font-semibold">Change</button>
           </div>
         )}
       </div>
@@ -138,8 +138,8 @@ export function OrderSummary({
             </div>
           ))}
           <div className="mt-3 flex items-baseline justify-between gap-2">
-            <span className="text-[15px] font-semibold">Total</span>
-            <span className="nums text-primary text-[28px] leading-none font-bold tracking-[-0.03em]">{money(result.total)}</span>
+            <span className="text-subhead font-semibold">Total</span>
+            <span className="nums text-primary text-title-1 leading-none font-bold tracking-[-0.03em]">{money(result.total)}</span>
           </div>
         </div>
       ) : (

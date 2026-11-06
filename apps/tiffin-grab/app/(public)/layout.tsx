@@ -1,3 +1,4 @@
+import "@/app/styles/app.css";
 import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion/motion-provider";
 

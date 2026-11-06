@@ -1,9 +1,9 @@
 "use client";
+import "@/components/landing/styles/demos.css";
 
 import { CalendarDays, Check, Clock, ChevronLeft, Coins, Copy, Download, Ellipsis, Gift, LifeBuoy, Link2, Mail, MessageSquare, Phone as PhoneIcon, Send, Share, Share2, Ticket, User, Users, UtensilsCrossed, Video, Wallet } from "lucide-react";
 import { WhatsAppGlyph } from "@/components/landing/whats-app-chat";
 import { Phone, Stage, type Act } from "./kit";
-import "./refer-demo.css";
 
 // A referral told from the referrer's own app, the same three screens as the section below:
 //   1. Me > Refer: the offer and the share card. Tap Share on WhatsApp.

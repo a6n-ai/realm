@@ -2,7 +2,6 @@
 
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { hasAnalyticsConsent } from "@/lib/consent";
-import "./whats-app-chat.css";
 
 // Floating “Chat with us” control on every public website page. Opens WhatsApp
 // to the support number already published on the delivery policy.

@@ -71,7 +71,7 @@ const WEEKS: { id: WeekScope; label: string; href: string }[] = [
 // Shown only once next week is released. Links, not a client toggle: each week is its own server render.
 function WeekSwitch({ value }: { value: WeekScope }) {
   return (
-    <nav aria-label="Menu week" className={cn(FONT, "flex gap-1 rounded-full bg-[var(--muted)] p-1")}>
+    <nav aria-label="Menu week" className={cn(FONT, "flex gap-1 rounded-full bg-muted p-1")}>
       {WEEKS.map((w) => (
         <Link
           key={w.id}
@@ -83,8 +83,8 @@ function WeekSwitch({ value }: { value: WeekScope }) {
             FOCUS,
             "inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-semibold whitespace-nowrap [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none",
             w.id === value
-              ? "bg-[var(--foreground)] text-[var(--background)]"
-              : "text-[var(--muted-foreground,#6E6558)] hover:bg-[var(--card)] hover:text-[var(--foreground)]",
+              ? "bg-foreground text-background"
+              : "text-[var(--muted-foreground,#6E6558)] hover:bg-card hover:text-foreground",
           )}
         >
           {w.label}

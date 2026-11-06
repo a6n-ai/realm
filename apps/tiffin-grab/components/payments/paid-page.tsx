@@ -28,10 +28,10 @@ export function PaidPage({ kind, subtitle, receipt, ready, primary, secondary, b
     <>
       <div className="flex flex-col items-center gap-6 py-4 text-center" data-testid="paid-page">
         <div>
-          <h1 className="text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">
+          <h1 className="text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">
             {lead} <em className="c-accent">{accent}</em>
           </h1>
-          <p className="text-muted-foreground mt-2 text-[15px] text-pretty">{subtitle}</p>
+          <p className="text-muted-foreground mt-2 text-subhead text-pretty">{subtitle}</p>
         </div>
         <div className="flex w-full justify-center">{receipt}</div>
       </div>

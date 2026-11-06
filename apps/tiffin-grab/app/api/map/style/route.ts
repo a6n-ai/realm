@@ -41,7 +41,7 @@ export async function GET(): Promise<Response> {
       glyphs?: string;
     };
 
-    // Absolute, and NOT from request.url: behind Caddy the app only sees its
+    // Absolute, and NOT from request.url: behind a proxy the app can see its
     // internal bind address (that produced https://0.0.0.0:3000/...). Relative
     // URLs don't work either — MapLibre parses tile templates with `new URL()`,
     // which throws without a base, so the source silently never loads and no

@@ -14,7 +14,6 @@ import { RetryButton } from "./retry-button";
 const PUBLIC_SPOTS = [
   { href: "/", label: "Home: rating under the hero and the reviews section" },
   { href: "/reviews", label: "Reviews page" },
-  { href: "/plans", label: "Plans" },
   { href: "/pricing", label: "Pricing" },
   { href: "/locations", label: "Locations" },
 ];

@@ -21,8 +21,8 @@ export function PlanSummary({ baseline, mealName, deliveryName, eatingDays, week
   const perWeek = eatingDays.length;
   return (
     <section aria-label="What you're getting" className="c-surface bg-card mb-3 rounded-[20px] p-4 text-sm">
-      <h3 className="text-muted-foreground mb-2 text-[13px] font-semibold tracking-[0.02em]">What you&apos;re getting</h3>
-      <p className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{mealName ?? "Your meal"}</p>
+      <h3 className="text-muted-foreground mb-2 text-footnote font-semibold tracking-[0.02em]">What you&apos;re getting</h3>
+      <p className="text-body leading-snug font-semibold tracking-[-0.02em]">{mealName ?? "Your meal"}</p>
       {baseline ? <p className="text-muted-foreground">{baseline}</p> : null}
       {addons.length > 0 ? (
         <p className="mt-1" aria-label="Add-ons">
@@ -37,7 +37,7 @@ export function PlanSummary({ baseline, mealName, deliveryName, eatingDays, week
       ) : null}
       <div className="mt-2 flex flex-wrap gap-1" aria-label="Eating days">
         {eatingDays.map((d) => (
-          <span key={d} className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold">{DAY[d] ?? d}</span>
+          <span key={d} className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-caption-2 font-semibold">{DAY[d] ?? d}</span>
         ))}
       </div>
       <p className="mt-3 font-medium tabular-nums">

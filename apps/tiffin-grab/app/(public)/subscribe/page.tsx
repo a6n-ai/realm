@@ -64,13 +64,15 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const referralCode = isReferralCodeShape(linkRef) ? linkRef : (jar.get(REFERRAL_COOKIE)?.value ?? "");
 
   return (
-    <main className="customer-app mx-auto w-full max-w-3xl px-4 pb-4 sm:pb-10">
+    <>
+    <a href="#main" className="sr-only z-50 rounded-full bg-foreground px-4 py-3 text-sm font-semibold text-background focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
+    <main id="main" tabIndex={-1} className="customer-app mx-auto w-full max-w-3xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] outline-none sm:pb-10">
       <SubscribeChrome closeHref="/" stepTag="Your account" />
       <header className="space-y-1 pb-2">
         <h1 className="c-title-page">
           Hi! Let&apos;s build your <em className="c-accent">tiffin.</em>
         </h1>
-        <p className="c-body text-pretty text-[var(--muted-foreground)]">
+        <p className="c-body text-pretty text-muted-foreground">
           Sign in with your email, then four quick steps to your weekly plan.
         </p>
       </header>
@@ -82,5 +84,6 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         <IdentityGate googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null} oauthError={error ?? null} defaultReferralCode={referralCode} />
       </div>
     </main>
+    </>
   );
 }

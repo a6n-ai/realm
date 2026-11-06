@@ -9,8 +9,8 @@ import { rateTicket } from "@/app/(customer)/me/support/actions";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 
 const BANNER: Record<TicketStatus, { icon: typeof Clock; title: string; body: string; tone: string }> = {
-  open: { icon: Clock, title: "We got your message", body: "Our team will reply here soon.", tone: "bg-[var(--muted)]" },
-  in_progress: { icon: Wrench, title: "We're on it", body: "Someone from our team is working on this.", tone: "bg-[var(--muted)]" },
+  open: { icon: Clock, title: "We got your message", body: "Our team will reply here soon.", tone: "bg-muted" },
+  in_progress: { icon: Wrench, title: "We're on it", body: "Someone from our team is working on this.", tone: "bg-muted" },
   waiting_on_customer: {
     icon: MessageCircleReply,
     title: "Your reply needed",
@@ -23,7 +23,7 @@ const BANNER: Record<TicketStatus, { icon: typeof Clock; title: string; body: st
     body: "We've marked this chat as done. Still need help? Start a new ticket.",
     tone: "bg-[color-mix(in_oklch,var(--s-delivered-fg,#10b981)_16%,transparent)]",
   },
-  closed: { icon: CheckCircle2, title: "Closed", body: "This chat is closed. Start a new ticket if you need anything.", tone: "bg-[var(--muted)]" },
+  closed: { icon: CheckCircle2, title: "Closed", body: "This chat is closed. Start a new ticket if you need anything.", tone: "bg-muted" },
 };
 
 /** What the chat's status means for the customer, in plain words. */
@@ -33,8 +33,8 @@ export function StatusBanner({ status }: { status: TicketStatus }) {
     <div role="status" className={cn(FONT, "flex items-start gap-3 rounded-2xl px-4 py-3", b.tone)}>
       <b.icon aria-hidden className="mt-0.5 size-5 shrink-0" />
       <div>
-        <p className="text-[15px] font-semibold">{b.title}</p>
-        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{b.body}</p>
+        <p className="text-subhead font-semibold">{b.title}</p>
+        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">{b.body}</p>
       </div>
     </div>
   );
@@ -56,12 +56,12 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
   if (!editing && rating != null) {
     return (
       <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[15px] font-semibold">Thanks for rating this chat</p>
+        <p className="text-subhead font-semibold">Thanks for rating this chat</p>
         <p className="flex items-center gap-1" aria-label={`${rating} out of 5 stars`}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <Star key={n} aria-hidden className={cn("size-5", n <= rating ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[var(--border)]")} />
+            <Star key={n} aria-hidden className={cn("size-5", n <= rating ? "fill-[#f59e0b] text-[#f59e0b]" : "text-border")} />
           ))}
-          <span className="ml-2 text-[13px] text-[var(--muted-foreground,#6E6558)]">{WORDS[rating]}</span>
+          <span className="ml-2 text-footnote text-[var(--muted-foreground,#6E6558)]">{WORDS[rating]}</span>
         </p>
         {note ? <p className="text-[14px] text-[var(--muted-foreground,#6E6558)]">“{note}”</p> : null}
         <div>
@@ -85,8 +85,8 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div>
-        <p className="text-[15px] font-semibold">How did we do?</p>
-        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Rate this chat. It helps us get better.</p>
+        <p className="text-subhead font-semibold">How did we do?</p>
+        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Rate this chat. It helps us get better.</p>
       </div>
       <div role="radiogroup" aria-label="Rating" className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -112,7 +112,7 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
         onChange={(e) => setText(e.target.value)}
         placeholder="What went well, or what we could do better"
       />
-      {error ? <p role="alert" className="text-[13px] text-[#be123c] dark:text-[#fda4af]">{error}</p> : null}
+      {error ? <p role="alert" className="text-footnote text-[#be123c] dark:text-[#fda4af]">{error}</p> : null}
       <div className="flex gap-2">
         <Button variant="primary" pending={pending} onClick={submit}>Send rating</Button>
         {rating != null ? <Button variant="quiet" onClick={() => setEditing(false)}>Cancel</Button> : null}

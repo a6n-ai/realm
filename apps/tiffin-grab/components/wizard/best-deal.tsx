@@ -73,13 +73,13 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 className="flex min-w-0 flex-1 items-center gap-2"
               >
                 <p className="min-w-0 flex-1 leading-snug text-pretty">
-                  <span className="block text-[15px] font-semibold tracking-[-0.01em]">{applied ? copy.appliedTitle : copy.title}</span>
-                  <span className="text-muted-foreground block text-[13px]">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</span>
+                  <span className="block text-subhead font-semibold tracking-[-0.01em]">{applied ? copy.appliedTitle : copy.title}</span>
+                  <span className="text-muted-foreground block text-footnote">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</span>
                 </p>
                 <button
                   type="button"
                   onClick={applied ? revert : apply}
-                  className={buttonClass({ variant: applied ? "quiet" : "primary", className: "relative !min-h-9 h-9 shrink-0 !rounded-full !px-4 !text-[13px] before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
+                  className={buttonClass({ variant: applied ? "quiet" : "primary", className: "relative !min-h-9 h-9 shrink-0 !rounded-full !px-4 !text-footnote before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']" })}
                 >
                   {applied ? "Undo" : "Use this"}
                 </button>

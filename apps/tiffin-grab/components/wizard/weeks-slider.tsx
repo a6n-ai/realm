@@ -48,20 +48,20 @@ export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { week
       />
       <div aria-hidden className="relative mx-3.5 h-4">
         {stops.map((w, i) => (
-          <span key={w} className={cn("absolute top-0 text-xs font-semibold whitespace-nowrap tabular-nums", i === 0 ? "" : i === stops.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i === at ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]")} style={{ left: pos(i) }}>
+          <span key={w} className={cn("absolute top-0 text-xs font-semibold whitespace-nowrap tabular-nums", i === 0 ? "" : i === stops.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i === at ? "text-foreground" : "text-muted-foreground")} style={{ left: pos(i) }}>
             {w} wk
           </span>
         ))}
       </div>
       <p className="flex flex-wrap items-baseline gap-x-2 pt-1" aria-live="polite">
-        <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{value} {value === 1 ? "week" : "weeks"}</span>
-        {tiffins != null && <span className="text-[15px] font-semibold text-[var(--muted-foreground)] tabular-nums">· {tiffins} {tiffins === 1 ? "tiffin" : "tiffins"}</span>}
+        <span className="text-title-2 leading-none font-bold tracking-[-0.03em]">{value} {value === 1 ? "week" : "weeks"}</span>
+        {tiffins != null && <span className="text-subhead font-semibold text-muted-foreground tabular-nums">· {tiffins} {tiffins === 1 ? "tiffin" : "tiffins"}</span>}
         {save > 0 && (
           <span className="font-bold leading-none text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200" style={{ fontSize: Math.max(15, saveSize(save, best) + 2) }}>
             Save {save}%
           </span>
         )}
-        {better && <span className="text-[13px] text-[var(--muted-foreground)]">{better} weeks saves {savings[better]}%</span>}
+        {better && <span className="text-footnote text-muted-foreground">{better} weeks saves {savings[better]}%</span>}
       </p>
     </div>
   );

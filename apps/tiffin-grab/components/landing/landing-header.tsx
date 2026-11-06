@@ -8,11 +8,9 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
-import "./nav.css";
 
 const LINKS = [
-  { href: "/menu/weekly", label: "Menu" },
-  { href: "/plans", label: "Plans" },
+  { href: "/menu", label: "Menu" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -33,7 +31,7 @@ function Roll({ children, className }: { children: string; className?: string })
 // the capsule tucks away; any scroll up or focus brings it back. On phones the links fold
 // into a sheet that grows out of the menu button.
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
-/** `refer` adds Refer to the menu sheet. Build my tiffin and Refer live in the floating bar (ActionPill), not here. */
+/** `refer` adds Refer to the header links and the menu sheet. Build my tiffin lives in the floating bar (ActionPill), not here. */
 export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; refer?: boolean }) {
   const { data: session, refetch } = usePublicSession();
   // Back from app.tiffingrab.ca restores this page from the bfcache with the session it had
@@ -52,7 +50,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
   const path = usePathname();
   const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
-  const [tucked, setTucked] = useState(false);
   // null until the observer reports: nav.css then picks the first-paint tone from the page
   // itself, so a phone that hydrates late never shows a cream bar over the dark hero.
   const [tone, setTone] = useState<"light" | "dark" | null>(null);
@@ -96,23 +93,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
     };
   }, [open]);
 
-  // Tuck while reading down, return on any scroll up.
-  useEffect(() => {
-    let last = scrollY;
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const y = scrollY;
-        if (Math.abs(y - last) < 8) return;
-        setTucked(y > last && y > 240);
-        last = y;
-      });
-    };
-    addEventListener("scroll", onScroll, { passive: true });
-    return () => { removeEventListener("scroll", onScroll); cancelAnimationFrame(frame); };
-  }, []);
 
   // Tone: dark while any .dark band (hero, green sections) sits under the capsule. The
   // observer's root is a thin strip where the capsule floats, so no scroll math is needed.
@@ -128,31 +108,15 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
     return () => io.disconnect();
   }, [path]);
 
-  // Specular sheen follows a fine pointer across the glass.
-  useEffect(() => {
-    const bar = barRef.current;
-    if (!bar || !matchMedia("(pointer: fine)").matches) return;
-    let frame = 0;
-    const onMove = (e: PointerEvent) => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const r = bar.getBoundingClientRect();
-        bar.style.setProperty("--mx", `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}%`);
-      });
-    };
-    bar.addEventListener("pointermove", onMove);
-    return () => { bar.removeEventListener("pointermove", onMove); cancelAnimationFrame(frame); };
-  }, []);
-
-  const navLinks = [...LINKS, account];
+  // Refer sits in the menu on every width while the referral programme runs.
+  const navLinks = refer ? [...LINKS, { href: "/refer", label: "Refer" }, account] : [...LINKS, account];
   const sheetLinks = refer ? [...LINKS, { href: "/refer", label: "Refer a friend" }, account] : navLinks;
 
   return (
     <>
       <a href="#main" className="tg-skip">Skip to content</a>
       {open ? <div className="tg-bar-scrim" aria-hidden onClick={close} /> : null}
-      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone ?? undefined} data-open={open} data-tucked={tucked && !open} style={{ viewTransitionName: "site-header" }}>
+      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone ?? undefined} data-open={open} style={{ viewTransitionName: "site-header" }}>
         <div className="tg-bar__in">
           <Link href="/" className="tg-bar__brand" aria-label="TiffinGrab home" onClick={close}>
             <BrandMark className="tg-bar__mark" />

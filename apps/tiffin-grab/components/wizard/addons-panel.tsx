@@ -43,18 +43,18 @@ export function AddonsPanel({
   const addedPerTiffin = addons.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
 
   const rows = (items: CatalogAddon[]) => (
-    <ul className="divide-y divide-[var(--border)]">
+    <ul className="divide-y divide-border">
       {items.map((addon) => {
         const qty = qtyFor(addon.key);
         const active = qty > 0;
         return (
-          <li key={addon.key} className={`flex min-h-14 items-center justify-between gap-3 px-4 py-2 transition-colors ${active ? "bg-[var(--primary-wash)]" : ""}`}>
+          <li key={addon.key} className={`flex min-h-14 items-center justify-between gap-3 px-4 py-2 transition-colors ${active ? "bg-(--primary-wash)" : ""}`}>
             <div className="flex min-w-0 flex-col">
-              <span className="text-[15px] font-medium">
+              <span className="text-subhead font-medium">
                 {addon.name}
                 {addon.portion ? <span className="text-muted-foreground font-normal"> · {addon.portion}</span> : null}
               </span>
-              <span className="nums text-muted-foreground text-[13px]">+${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
+              <span className="nums text-muted-foreground text-footnote">+${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
             </div>
             {active ? (
               <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
@@ -63,7 +63,7 @@ export function AddonsPanel({
                 type="button"
                 aria-label={`Add ${addon.name}`}
                 onClick={() => setQty(addon.key, 1)}
-                className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground,#fff)] transition-transform active:scale-95 motion-reduce:transform-none"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-[var(--primary-foreground,#fff)] transition-transform active:scale-95 motion-reduce:transform-none"
               >
                 <PlusIcon aria-hidden className="size-5" />
               </button>
@@ -78,7 +78,7 @@ export function AddonsPanel({
     <div className={bare ? "space-y-3" : "mt-3 space-y-3"}>
       {/* The running total rides at the top of the drawer as a glass capsule, so it stays in view while you scroll. */}
       {bare && addedCount > 0 && (
-        <p role="status" className="c-liquid sticky top-0 z-[1] mx-auto w-fit rounded-full border px-4 py-1.5 text-[13px] font-semibold tabular-nums">
+        <p role="status" className="c-liquid sticky top-0 z-[1] mx-auto w-fit rounded-full border px-4 py-1.5 text-footnote font-semibold tabular-nums">
           {addedCount} add-on{addedCount === 1 ? "" : "s"} · +${addedPerTiffin.toFixed(2)} per tiffin
         </p>
       )}
@@ -87,16 +87,16 @@ export function AddonsPanel({
         const total = items.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
         const { icon: Icon, tint } = look(category);
         return (
-          <details key={category} open={count > 0 || groups.size === 1} className="group c-surface overflow-hidden rounded-3xl bg-[var(--card)]">
+          <details key={category} open={count > 0 || groups.size === 1} className="group c-surface overflow-hidden rounded-3xl bg-card">
             <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden">
               <IconTile tint={tint}><Icon /></IconTile>
-              <span className="min-w-0 flex-1 text-[15px] font-semibold">{categoryLabels?.[category] ?? category}</span>
-              <span className="text-muted-foreground flex items-center gap-2 text-[13px]">
+              <span className="min-w-0 flex-1 text-subhead font-semibold">{categoryLabels?.[category] ?? category}</span>
+              <span className="text-muted-foreground flex items-center gap-2 text-footnote">
                 {count > 0 ? <span className="nums text-primary font-medium">{count} added · +${total.toFixed(2)}/tiffin</span> : `${items.length} option${items.length === 1 ? "" : "s"}`}
                 <ChevronDownIcon aria-hidden className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
               </span>
             </summary>
-            <div className="border-t border-[var(--border)]">{rows(items)}</div>
+            <div className="border-t border-border">{rows(items)}</div>
           </details>
         );
       })}
@@ -106,8 +106,8 @@ export function AddonsPanel({
   if (bare) return <section aria-label="Add-ons" className={className}>{list}</section>;
   return (
     <section aria-label="Add-ons" className={`c-surface bg-card rounded-3xl p-4 ${className}`}>
-      <h4 className="text-[15px] font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
-      <p className="text-muted-foreground mt-0.5 text-[13px]">Optional extras, billed per tiffin.</p>
+      <h4 className="text-subhead font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
+      <p className="text-muted-foreground mt-0.5 text-footnote">Optional extras, billed per tiffin.</p>
       {list}
     </section>
   );

@@ -95,7 +95,7 @@ export default function RefundPolicyPage() {
         <Sub title="4.3 Review">
           <p className="m-0">
             We aim to respond within <strong>three business days</strong>. Remedies may include replacement meal, credit for
-            one service day, or—where safety is implicated—written follow-up plus credit.
+            one service day, or, where safety is implicated, written follow-up plus credit.
           </p>
         </Sub>
         <Sub title="4.4 Storage">
@@ -136,7 +136,7 @@ export default function RefundPolicyPage() {
           approved card refund will go back to that card, and your bank sets how long it takes to appear.
         </p>
         <p className="m-0">
-          Review may take up to <strong>3–4 weeks</strong> from your written request. No refund is started without email
+          Review may take up to <strong>3 to 4 weeks</strong> from your written request. No refund is started without email
           confirmation from us.
         </p>
       </Clause>

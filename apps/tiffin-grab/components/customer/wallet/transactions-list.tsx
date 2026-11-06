@@ -57,7 +57,7 @@ function CopyValue({ label, value }: { label: string; value: string }) {
   return (
     <span className="flex min-w-0 items-center gap-1">
       <span className="truncate font-mono text-xs select-all">{value}</span>
-      <button type="button" onClick={copy} aria-label={`Copy ${label.toLowerCase()}`} className="grid size-9 shrink-0 place-items-center rounded-full text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]">
+      <button type="button" onClick={copy} aria-label={`Copy ${label.toLowerCase()}`} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted">
         <Copy aria-hidden className="size-3.5" />
       </button>
     </span>
@@ -85,24 +85,24 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <IconTile tint={tint}><Icon /></IconTile>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold">
+            <p className="truncate text-subhead font-semibold">
               {typeLabel(tx.type)}
-              {method ? <span className="font-normal text-[var(--muted-foreground)]"> · {method}</span> : null}
+              {method ? <span className="font-normal text-muted-foreground"> · {method}</span> : null}
             </p>
-            <p className="text-[13px] tabular-nums text-[var(--muted-foreground)]">
+            <p className="text-footnote tabular-nums text-muted-foreground">
               {formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}
               {tx.orderDeploymentId ? ` · ${tx.orderDeploymentId}` : ""}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1">
-            <span className={`text-[15px] font-semibold tabular-nums ${toCustomer ? "text-ok" : "text-[var(--foreground)]"}`}>
+            <span className={`text-subhead font-semibold tabular-nums ${toCustomer ? "text-ok" : "text-foreground"}`}>
               {toCustomer ? "+" : "−"}
               {formatDollars(tx.amount, currency)}
             </span>
             <ChevronDown aria-hidden className="text-muted-foreground size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
           </span>
         </summary>
-        <dl className="mx-4 mb-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)] px-3 py-2 text-sm">
+        <dl className="mx-4 mb-3 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-2xl bg-foreground/6 px-3 py-2 text-sm">
           {details.map((d) => (
             <div key={d.label} className="contents">
               <dt className="text-muted-foreground text-xs">{d.label}</dt>

@@ -58,16 +58,16 @@ export function ChoiceRow({
     <div className={nested ? "ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3" : "grid gap-2"}>
       {caption === undefined ? (
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className={nested ? `text-[13px] font-semibold ${muted}` : "text-[15px] font-semibold"}>{label}</p>
-          {hint && <p className={`text-[13px] ${muted}`}>{hint}</p>}
+          <p className={nested ? `text-footnote font-semibold ${muted}` : "text-subhead font-semibold"}>{label}</p>
+          {hint && <p className={`text-footnote ${muted}`}>{hint}</p>}
         </div>
       ) : caption ? (
-        <p className={`text-[13px] font-semibold ${muted}`}>{caption}</p>
+        <p className={`text-footnote font-semibold ${muted}`}>{caption}</p>
       ) : null}
       <ChoiceGroup label={label} value={value} onChange={onChange} className="grid grid-cols-2 gap-2">
         {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c) => (
           <div key={c.value} className="relative">
-            <Choice value={c.value} disabled={c.disabled} className="h-full min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
+            <Choice value={c.value} disabled={c.disabled} className="h-full min-h-12 w-full px-3.5 py-3 text-subhead font-semibold">
               <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left leading-snug">
                 {c.label}
                 {!c.swap && popular.has(c.label) && (
@@ -92,7 +92,7 @@ export function ChoiceRow({
         ))}
       </ChoiceGroup>
       {shown && (
-        <p role="status" className="text-destructive text-[13px] font-medium text-pretty">
+        <p role="status" className="text-destructive text-footnote font-medium text-pretty">
           {shown.label}: {shown.reason}
         </p>
       )}
@@ -118,7 +118,7 @@ export function CategorySection({ label, children, summary, status, open, onTogg
   if (!onToggle) {
     return (
       <section aria-label={label} className="grid gap-4">
-        <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{label}</h4>
+        <h4 className={`text-footnote font-semibold uppercase tracking-wide ${muted}`}>{label}</h4>
         <div className="grid gap-5">{children}</div>
       </section>
     );
@@ -128,10 +128,10 @@ export function CategorySection({ label, children, summary, status, open, onTogg
     <section aria-label={label}>
       <button type="button" aria-expanded={!!open} onClick={onToggle} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left [touch-action:manipulation]">
         <span className="min-w-0 flex-1">
-          <span className={`block text-[11px] font-semibold uppercase tracking-wide ${muted}`}>{label}</span>
+          <span className={`block text-caption-2 font-semibold uppercase tracking-wide ${muted}`}>{label}</span>
           {summary && <span className="block truncate text-[14px] font-semibold">{summary}</span>}
         </span>
-        {status && <span className={`shrink-0 text-[12px] ${muted}`}>{status}</span>}
+        {status && <span className={`shrink-0 text-caption ${muted}`}>{status}</span>}
         <ChevronDown aria-hidden className={`size-4 shrink-0 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""} ${muted}`} />
       </button>
       {open && <div className="grid gap-4 px-4 pb-4 pt-1">{children}</div>}

@@ -233,7 +233,7 @@ export function ExpressPay({ height = 48 }: { height?: number } = {}) {
         {wallets === "loading" && <Skeleton aria-hidden className="absolute inset-0 rounded-full" />}
         <div
           inert={disabled || wallets !== "ready"}
-          className={`transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${wallets !== "ready" ? "opacity-0" : disabled ? "opacity-50" : ""}`}
+          className={`transition-opacity duration-200 ease-soft ${wallets !== "ready" ? "opacity-0" : disabled ? "opacity-50" : ""}`}
         >
           <ExpressCheckoutElement
             options={{ buttonHeight: height }}

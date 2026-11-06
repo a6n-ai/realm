@@ -34,7 +34,7 @@ function months(dates: string[]): { key: string; label: string; cells: (string |
   });
 }
 
-const DOT = "relative flex size-11 items-center justify-center rounded-full border-[1.5px] border-transparent text-[15px] font-semibold tabular-nums [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]";
+const DOT = "relative flex size-11 items-center justify-center rounded-full border-[1.5px] border-transparent text-subhead font-semibold tabular-nums [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 /**
  * The pause drawer's days as round buttons on a month grid, so a long plan reads at a glance
@@ -72,42 +72,42 @@ export function PauseCalendar({ days, picked, resuming, canPick, atCap, pending,
       <div ref={ref} {...bind} className="[touch-action:pan-y] motion-reduce:!transform-none">
         <div>
           <div role="group" aria-label={m.label} className="grid grid-cols-7 justify-items-center gap-y-1.5">
-            {WEEK.map((w) => <span key={w} aria-hidden className="text-xs font-semibold text-[var(--muted-foreground)]">{w}</span>)}
+            {WEEK.map((w) => <span key={w} aria-hidden className="text-xs font-semibold text-muted-foreground">{w}</span>)}
             {m.cells.map((date, i) => {
               if (!date) return <span key={`b${i}`} aria-hidden />;
               const day = byDate.get(date);
               const n = parseIsoDateUtc(date).getUTCDate();
-              if (!day) return <span key={date} aria-hidden className="flex size-11 items-center justify-center text-[13px] text-[var(--muted-foreground)] opacity-50">{n}</span>;
+              if (!day) return <span key={date} aria-hidden className="flex size-11 items-center justify-center text-footnote text-muted-foreground opacity-50">{n}</span>;
               const name = humanDate(date);
               if (day.paused && day.lapsed) {
                 return (
                   <button key={date} type="button" aria-label={`${name}, paused past cutoff. Move`} disabled={!onMove || pending} onClick={() => onMove?.(date)}
-                    className={`${DOT} !border-dashed border-[var(--muted-foreground)] text-[var(--muted-foreground)] disabled:opacity-40`}>{n}</button>
+                    className={`${DOT} !border-dashed border-muted-foreground text-muted-foreground disabled:opacity-40`}>{n}</button>
                 );
               }
               if (day.paused) {
                 const back = resuming.includes(date);
                 return (
                   <button key={date} type="button" aria-label={`${name}, paused`} aria-pressed={back} disabled={pending} onClick={() => onResume(date)}
-                    className={`${DOT} ${back ? "bg-[var(--card)] text-[var(--foreground)] ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--card)]" : "!border-dashed border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_14%,transparent)] text-[var(--foreground)]"}`}>{n}</button>
+                    className={`${DOT} ${back ? "bg-card text-foreground ring-2 ring-primary ring-offset-2 ring-offset-card" : "!border-dashed border-primary bg-primary/14 text-foreground"}`}>{n}</button>
                 );
               }
               const on = picked.includes(date);
               const blocked = !canPick || (!on && atCap);
               return (
                 <button key={date} type="button" aria-label={name} aria-pressed={on} aria-disabled={blocked || undefined} onClick={() => !blocked && onPick(date)}
-                  className={`${DOT} ${on ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "c-surface bg-[var(--card)] hover:bg-[var(--primary-wash,var(--muted))]"} ${blocked ? "opacity-40" : ""}`}>{n}</button>
+                  className={`${DOT} ${on ? "bg-primary text-primary-foreground" : "c-surface bg-card hover:bg-[var(--primary-wash,var(--muted))]"} ${blocked ? "opacity-40" : ""}`}>{n}</button>
               );
             })}
           </div>
         </div>
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]" aria-label="Legend">
-        <li className="flex items-center gap-1.5"><span aria-hidden className="c-surface size-3 rounded-full bg-[var(--card)]" />Delivery</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full bg-[var(--primary)]" />To pause</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-dashed border-[var(--primary)]" />Paused</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-[var(--primary)] ring-1 ring-[var(--primary)] ring-offset-1" />To resume</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-dashed border-[var(--muted-foreground)]" />Past cutoff (tap to move)</li>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Legend">
+        <li className="flex items-center gap-1.5"><span aria-hidden className="c-surface size-3 rounded-full bg-card" />Delivery</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full bg-primary" />To pause</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-dashed border-primary" />Paused</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-primary ring-1 ring-primary ring-offset-1" />To resume</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="size-3 rounded-full border-[1.5px] border-dashed border-muted-foreground" />Past cutoff (tap to move)</li>
       </ul>
     </div>
   );

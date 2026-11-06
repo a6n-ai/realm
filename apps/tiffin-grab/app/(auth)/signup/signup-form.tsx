@@ -73,7 +73,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
           tagline="Open the link we sent to finish setting up your account and sign in."
         >
           <div className="flex flex-1 flex-col gap-5">
-            <p className="text-[15px]">
+            <p className="text-subhead">
               We sent a verification link to <span className="font-medium [overflow-wrap:anywhere]">{sent}</span>.
             </p>
             <p className="text-muted-foreground text-sm">No email after a few minutes? Sign in and we&apos;ll send a fresh link.</p>

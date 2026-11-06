@@ -11,7 +11,7 @@ export type CurrentPlanSummary = Pick<
 export function CurrentPlanHint({ children }: { children: ReactNode }) {
   return (
     // A quiet footnote, not a tinted block: it's context, not a warning.
-    <p className="text-muted-foreground flex items-start gap-2 text-[13px] text-pretty">
+    <p className="text-muted-foreground flex items-start gap-2 text-footnote text-pretty">
       <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
       <span>{children}</span>
     </p>

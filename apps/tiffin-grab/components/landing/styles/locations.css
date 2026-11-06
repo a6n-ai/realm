@@ -1,0 +1,6 @@
+.tg-areas__name strong { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.tg-areas__name span { font-size: 13px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.tg-areas__codes li { height: 28px; display: inline-flex; align-items: center; background: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .tg-areas > li { grid-template-columns: minmax(0, 1fr); }
+}

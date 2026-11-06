@@ -1,8 +1,11 @@
-import { Check, ChevronLeft, Coins, Copy, Download, Link2, Mail, MessageSquare, Send, ShieldCheck, Ticket, UserPlus, Users } from "lucide-react";
+import { Check, ChevronLeft, Coins, Copy, Download, Gift, Link2, Mail, MessageSquare, Send, Ticket, UserPlus, Users, Wallet } from "lucide-react";
+import Link from "next/link";
+import { SwipeRow } from "@/components/landing/home/swipe-row";
+import { FaqAccordion } from "@/components/landing/faq-accordion";
+import { ArrowRight } from "lucide-react";
 import { WhatsAppGlyph } from "@/components/landing/whats-app-chat";
 import type { ReferralOffer } from "@/lib/referrals/offer";
 import { ReferCta } from "./refer-cta";
-import "./refer-flow.css";
 
 // Illustrative only: the screens show a made-up customer, never a real code or person.
 const DEMO_CODE = "PRIYA5";
@@ -128,30 +131,52 @@ export function ReferFlow({ offer }: { offer: ReferralOffer }) {
       body: `Once their first plan is paid, they turn Rewarded on your list${offer.referrer ? ` and ${offer.referrer.small}` : ""}.`,
     },
   ];
+  const friendGets = offer.friend ? `They get ${offer.friend.big}: ${offer.friend.small.replace("your wallet", "their wallet")}` : null;
+  // Only what this page already promises: the terms beside the ticket and the three steps.
+  const faqs: { q: string; a: string; icon: typeof Link2 }[] = [
+    { icon: Link2, q: "Where do I find my link?", a: "Open Refer in your Tiffin Grab account. Your code and link are there, one tap to WhatsApp, Messages or a copied link." },
+    ...(friendGets ? [{ icon: Gift, q: "What does my friend get?", a: `${friendGets}, on their first plan.` }] : []),
+    { icon: Coins, q: "When do the coins arrive?", a: "Once your friend's first plan is paid. They turn Rewarded on your list and the coins land in both wallets." },
+    { icon: UserPlus, q: "Who counts as a new customer?", a: "Someone who has not ordered a plan from us before." },
+    ...(offer.maxPerReferrer ? [{ icon: Users, q: "How many friends can I refer?", a: `Up to ${offer.maxPerReferrer}. Each one pays out once, when their first plan is paid.` }] : []),
+    { icon: Wallet, q: "Can I cash the coins out?", a: "No. Coins come off the price of your next plan; they never turn into cash." },
+  ];
   return (
     <section className="rf tg-section" aria-labelledby="rf-title">
-      <div className="tg-wrap">
-        <div className="rf-head">
-          <h2 id="rf-title" className="tg-h2">Three screens, <span className="c-accent">two</span> wallets.</h2>
-          <p className="tg-lede">This is the whole thing, exactly as it looks in your TiffinGrab account.</p>
+      <div className="lp-wrap">
+        <div className="lp-head">
+          <h2 id="rf-title" className="lp-h2">Three screens, <span className="c-accent">two</span> wallets.</h2>
+          <p className="lp-lede lp-lede--center">This is the whole thing, exactly as it looks in your TiffinGrab account.</p>
         </div>
-        <ol className="rf-track">
+        {/* One full-colour tile per step, equal height: number, title and line on top, the real screen
+            bleeding off the tile's foot. A real sequence, so the numbers carry information. */}
+        <SwipeRow className="rf-bento" label="How referring works" names={steps.map((st) => st.title)}>
           {steps.map((s, i) => (
-            <li key={s.title} className={`rf-step-col rf-step-col--${i + 1}`}>
-              <div className="rf-frame" aria-hidden>{s.screen}</div>
-              <div className="rf-caption">
+            <div key={s.title} className={`rf-stepcard rf-stepcard--${i + 1}`}>
+              <div className="rf-stepcard__copy">
+                <span className="rf-num" aria-hidden>{i + 1}</span>
                 <strong>{s.title}</strong>
                 <p>{s.body}</p>
               </div>
-            </li>
+              <div className="rf-frame rf-stepcard__screen" aria-hidden>{s.screen}</div>
+            </div>
           ))}
-        </ol>
-        <div className="rf-foot">
-          <ul className="rf-facts">
-            <li><UserPlus aria-hidden />New customers only</li>
-            {offer.maxPerReferrer ? <li><Users aria-hidden />Up to {offer.maxPerReferrer} friends each</li> : null}
-            <li><ShieldCheck aria-hidden />Coins spend on tiffins, never cashed out</li>
-          </ul>
+        </SwipeRow>
+
+        <div className="rf-faq" aria-labelledby="rf-faq-title">
+          <div className="rf-faq__head">
+            <h2 id="rf-faq-title" className="lp-h2 lp-h2--sm">Before you <span className="c-accent">share.</span></h2>
+            <p className="lp-lede">The rules in plain words. Anything else, ask us.</p>
+            <Link href="/contact" className="lp-textlink">Contact us<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link>
+          </div>
+          <FaqAccordion items={faqs} name="rf-faq" />
+        </div>
+
+        <div className="rf-close">
+          <div>
+            <h2 className="rf-close__h">Your link is waiting.</h2>
+            <p>It lives in your account, ready to send the moment you sign in.</p>
+          </div>
           <ReferCta />
         </div>
       </div>

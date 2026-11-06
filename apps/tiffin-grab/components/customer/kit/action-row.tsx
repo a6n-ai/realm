@@ -25,16 +25,16 @@ export function ActionRow({ label, sublabel, icon, trailing, disabledReason, onC
       className={cn(
         FONT,
         FOCUS,
-        "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left [touch-action:manipulation] active:bg-[var(--muted)]",
+        "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left [touch-action:manipulation] active:bg-muted",
         disabledReason && "opacity-60",
         className,
       )}
     >
-      {icon && <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--muted)]">{icon}</span>}
+      {icon && <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">{icon}</span>}
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{label}</span>
+        <span className="block text-subhead font-semibold">{label}</span>
         {sub && (
-          <span id={subId} className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">
+          <span id={subId} className="block text-footnote text-[var(--muted-foreground,#6E6558)]">
             {sub}
           </span>
         )}

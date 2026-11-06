@@ -21,17 +21,17 @@ const base = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
 export function ListRow({ label, sublabel, icon, tint, value, href, className }: ListRowProps) {
   const body = (
     <>
-      {icon && (tint ? <IconTile tint={tint}>{icon}</IconTile> : <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--muted)]">{icon}</span>)}
+      {icon && (tint ? <IconTile tint={tint}>{icon}</IconTile> : <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">{icon}</span>)}
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{label}</span>
-        {sublabel && <span className="block text-[13px] text-[var(--muted-foreground)]">{sublabel}</span>}
+        <span className="block text-subhead font-semibold">{label}</span>
+        {sublabel && <span className="block text-footnote text-muted-foreground">{sublabel}</span>}
       </span>
-      {value && <span className="text-[15px] font-semibold tabular-nums">{value}</span>}
-      {href && <ChevronRight aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />}
+      {value && <span className="text-subhead font-semibold tabular-nums">{value}</span>}
+      {href && <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
     </>
   );
   return href ? (
-    <Link href={href} className={cn(FONT, FOCUS, base, "rounded-2xl active:bg-[var(--muted)]", className)}>
+    <Link href={href} className={cn(FONT, FOCUS, base, "rounded-2xl active:bg-muted", className)}>
       {body}
     </Link>
   ) : (
@@ -42,7 +42,7 @@ export function ListRow({ label, sublabel, icon, tint, value, href, className }:
 /** Rounded card holding ListRows, hairline dividers between them. */
 export function ListGroup({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("c-surface divide-y divide-[var(--border)] overflow-hidden rounded-3xl bg-[var(--card)]", className)}>
+    <div className={cn("c-surface divide-y divide-border overflow-hidden rounded-3xl bg-card", className)}>
       {children}
     </div>
   );

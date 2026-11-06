@@ -4,17 +4,17 @@ import { cn, FOCUS, FONT, SPRING } from "./cn";
 export type ButtonVariant = "primary" | "outline" | "quiet" | "ghost" | "danger" | "hero" | "glass" | "glass-prominent";
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: "c-surface border-transparent bg-[var(--primary)] text-[var(--primary-foreground,#fff)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
+  primary: "c-surface border-transparent bg-primary text-[var(--primary-foreground,#fff)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
   hero:
-    "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
+    "border-primary bg-primary text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:bg-[color-mix(in_oklch,var(--primary)_86%,black)]",
   // No outlines: secondary buttons are filled and bevelled (Apple style).
   // No outlines: secondary buttons are filled and bevelled (Apple style). The fill is a wash of the text colour,
   // so it always reads a step off whatever it sits on: lighter on the dark green ground, darker on cream.
-  outline: "c-surface border-transparent bg-[color-mix(in_oklch,var(--foreground)_11%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_16%,transparent)]",
-  quiet: "c-surface border-transparent bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)]",
-  ghost: "border-transparent bg-transparent text-[var(--foreground)] hover:bg-[var(--muted)]",
+  outline: "c-surface border-transparent bg-foreground/11 text-foreground hover:bg-foreground/16",
+  quiet: "c-surface border-transparent bg-foreground/8 text-foreground hover:bg-foreground/13",
+  ghost: "border-transparent bg-transparent text-foreground hover:bg-muted",
   // Floating controls over content (above the tab bar): liquid glass, see .c-liquid in globals.css.
-  glass: "c-liquid text-[var(--foreground)]",
+  glass: "c-liquid text-foreground",
   "glass-prominent": "c-liquid-tint text-[var(--primary-foreground,#fff)]",
   danger: "border-[#be123c] bg-transparent text-[#be123c] hover:bg-[#be123c1a] dark:border-[#fda4af] dark:text-[#fda4af] dark:hover:bg-[#fda4af1a]",
 };
@@ -28,13 +28,13 @@ export function buttonClass({ variant = "outline", size = "md", pill, blocked, c
     SPRING,
     // Every customer button is a capsule, the same shape as the tab bar.
     "rounded-full",
-    variant === "hero" && "px-[22px] text-[15px]",
+    variant === "hero" && "px-[22px] text-subhead",
     size === "lg"
-      ? cn("min-h-[50px] px-4 text-[17px] tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-[15px] tracking-normal")
-      : cn("min-h-[44px] px-4 text-[15px]", variant === "hero" && "px-[22px]"),
+      ? cn("min-h-[50px] px-4 text-body tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-subhead tracking-normal")
+      : cn("min-h-[44px] px-4 text-subhead", variant === "hero" && "px-[22px]"),
     VARIANT[variant],
     // Primary actions answer the pointer with a 1px lift as well as the darker fill.
-    !blocked && (variant === "primary" || variant === "hero") && "[@media(hover:hover)]:hover:-translate-y-px",
+    !blocked && (variant === "primary" || variant === "hero") && "hover:-translate-y-px",
     blocked && "opacity-45 shadow-none",
     className,
   );

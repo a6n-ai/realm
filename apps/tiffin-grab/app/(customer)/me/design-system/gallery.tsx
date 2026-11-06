@@ -13,7 +13,7 @@ const S: DeliveryStatus[] = ["delivered", "upcoming", "paused", "hold", "combine
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">{title}</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">{title}</h2>
       {children}
     </section>
   );
@@ -65,7 +65,7 @@ export function KitGallery() {
       </Block>
       <Block title="Menu sheet content and bar">
         <MenuSection title="Appearance"><Segmented label="Theme" idPrefix="th" value={seg} onChange={setSeg} items={[{ id: "a", label: "Light" }, { id: "b", label: "System" }, { id: "c", label: "Dark" }]} /></MenuSection>
-        <div className="relative h-40 overflow-hidden rounded-3xl border border-[var(--border)] [transform:translateZ(0)]">
+        <div className="relative h-40 overflow-hidden rounded-3xl border border-border [transform:translateZ(0)]">
           <BottomBar note="Pick a meal size to continue."><Button className="w-24">Back</Button><Button variant="primary" size="lg" className="flex-1" disabledReason="Pick a meal size">Next</Button></BottomBar>
           <TabBar items={[{ href: "#", label: "Home", icon: <Home className="size-5" />, active: true }, { href: "#", label: "Menu", icon: <UtensilsCrossed className="size-5" /> }]} />
         </div>

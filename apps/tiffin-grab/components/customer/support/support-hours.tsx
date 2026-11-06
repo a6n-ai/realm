@@ -14,10 +14,10 @@ export async function loadSupportHoursView(): Promise<SupportHoursView | null> {
 export function SupportHoursNote({ view, compact = false }: { view: SupportHoursView; compact?: boolean }) {
   if (compact) {
     return (
-      <p className={cn(FONT, "flex items-start gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]")}>
-        <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", view.open ? "bg-[var(--s-delivered-fg)]" : "bg-[var(--border)]")} />
+      <p className={cn(FONT, "flex items-start gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]")}>
+        <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", view.open ? "bg-(--s-delivered-fg)" : "bg-border")} />
         <span className="text-pretty">
-          <span className="font-semibold text-[var(--foreground)]">{view.status}.</span>
+          <span className="font-semibold text-foreground">{view.status}.</span>
           {view.reply ? ` ${view.reply}.` : null}
         </span>
       </p>
@@ -30,7 +30,7 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
       <div className="flex items-center gap-3">
         <IconTile tint={view.open ? "green" : "gray"} size="lg"><Headset /></IconTile>
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] leading-tight font-semibold">{view.open ? "We're open now" : "We're closed now"}</p>
+          <p className="text-body leading-tight font-semibold">{view.open ? "We're open now" : "We're closed now"}</p>
           <p className="text-[14px] text-[var(--muted-foreground,#6E6558)]">{view.detail}</p>
         </div>
         <Pill tone={view.open ? "ok" : "soft"} size="sm">{view.open ? "Open" : "Closed"}</Pill>
@@ -40,12 +40,12 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
       <div aria-hidden className="grid grid-cols-7 gap-1">
         {view.week.map((d) => (
           <div key={d.day} className={cn("flex flex-col items-center gap-1 rounded-2xl py-2", d.today && "bg-[var(--primary-wash,#FBE3D2)]")}>
-            <span className="text-[11px] font-semibold tracking-wide text-[var(--muted-foreground,#6E6558)] uppercase">{d.day.slice(0, 3)}</span>
+            <span className="text-caption-2 font-semibold tracking-wide text-[var(--muted-foreground,#6E6558)] uppercase">{d.day.slice(0, 3)}</span>
             <span
               className={cn(
-                "grid size-8 place-items-center rounded-full text-[15px] font-semibold",
-                d.open ? "bg-[color-mix(in_oklch,var(--primary)_16%,transparent)] text-[var(--primary)]" : "text-[var(--muted-foreground,#6E6558)] opacity-50",
-                d.today && "ring-[1.5px] ring-[var(--primary)]",
+                "grid size-8 place-items-center rounded-full text-subhead font-semibold",
+                d.open ? "bg-primary/16 text-primary" : "text-[var(--muted-foreground,#6E6558)] opacity-50",
+                d.today && "ring-[1.5px] ring-primary",
               )}
             >
               {d.day[0]}
@@ -67,7 +67,7 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
       </ul>
 
       {view.reply ? (
-        <p className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        <p className="flex items-center gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]">
           <Clock aria-hidden className="size-4 shrink-0" />
           {view.reply}.
         </p>

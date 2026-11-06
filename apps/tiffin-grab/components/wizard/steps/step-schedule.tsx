@@ -10,7 +10,7 @@ import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/
 import { TripTimeline } from "../trip-timeline";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
+const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
 
 export function StepSchedule({
   catalog,
@@ -88,12 +88,12 @@ export function StepSchedule({
         </div>
         <p className="mt-4 flex items-baseline justify-between gap-3" aria-live="polite">
           <span className="leading-none">
-            <span className="text-primary text-[28px] font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
+            <span className="text-primary text-title-1 font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
             <span className="text-muted-foreground ml-1 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
           </span>
-          <span className={`text-[13px] ${eating.length < min ? "text-destructive font-medium" : "text-muted-foreground"}`}>{min === max ? `Pick ${min} days` : `Pick ${min} to ${max} days`}</span>
+          <span className={`text-footnote ${eating.length < min ? "text-destructive font-medium" : "text-muted-foreground"}`}>{min === max ? `Pick ${min} days` : `Pick ${min} to ${max} days`}</span>
         </p>
-        {closedNote ? <p className="text-muted-foreground mt-2 text-[13px] text-pretty">{closedNote}</p> : null}
+        {closedNote ? <p className="text-muted-foreground mt-2 text-footnote text-pretty">{closedNote}</p> : null}
         {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
       </section>
 
@@ -108,7 +108,7 @@ export function StepSchedule({
             <TooltipContent>You cannot change your delivery days until your plan is completed</TooltipContent>
           </Tooltip>
         </h2>
-        <p className="text-muted-foreground mt-1 text-[13px] text-pretty">Fewer deliveries means some tiffins arrive a day or two before you eat them.</p>
+        <p className="text-muted-foreground mt-1 text-footnote text-pretty">Fewer deliveries means some tiffins arrive a day or two before you eat them.</p>
         {frequencies.length === 0 ? <p role="alert" className="text-destructive mt-3 text-sm text-pretty">No delivery plan fits this meal&apos;s days.</p> : null}
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
@@ -124,14 +124,14 @@ export function StepSchedule({
               >
                 <span className="flex w-full items-start justify-between gap-2">
                   <span className="leading-none">
-                    <span className="text-[28px] font-bold tracking-[-0.03em]">{f.weekdays?.length}</span>
-                    <span className="text-muted-foreground ml-1.5 text-[15px] font-medium">deliveries a week</span>
+                    <span className="text-title-1 font-bold tracking-[-0.03em]">{f.weekdays?.length}</span>
+                    <span className="text-muted-foreground ml-1.5 text-subhead font-medium">deliveries a week</span>
                   </span>
                   <span className="sr-only">{f.name}</span>
                   {/* Green like the bundle step's price marks: savings read as money, the saffron stays for selection. */}
                   {save > 0 && <Pill tone="ok" size="sm" aria-label={`Save ${save}%`}>{save === bestSave ? `Best value · Save ${save}%` : `Save ${save}%`}</Pill>}
                 </span>
-                <span className={`text-[15px] font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-subhead font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
                   {(f.weekdays as DayOfWeek[]).map((d) => LABEL[d]).join(" · ")}
                 </span>
               </OptionCard>

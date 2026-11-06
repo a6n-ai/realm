@@ -7,7 +7,6 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { CopyCode, PromoHtml } from "@/components/landing/promo-popup";
 import type { LandingPromo } from "@/lib/landing/promo-types";
 import { SavingsReceipt } from "./savings-receipt";
-import "./promo.css";
 
 /** One promotion as a die-cut coupon (main + tear-off code stub) beside its photo tile. */
 export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: StaticImageData | null }) {

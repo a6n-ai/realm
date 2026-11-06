@@ -5,7 +5,7 @@ import { StepList } from "@/components/customer/kit";
 export function HowSupportWorks() {
   return (
     <section aria-labelledby="support-how" className="space-y-3">
-      <h2 id="support-how" className="text-[17px] font-semibold">How support works</h2>
+      <h2 id="support-how" className="text-body font-semibold">How support works</h2>
       <StepList
         steps={[
           { icon: <MessageSquarePlus />, tint: "cyan", title: "Pick a topic", body: "Choose what it's about, or tap New ticket." },

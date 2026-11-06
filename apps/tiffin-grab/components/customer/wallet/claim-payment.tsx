@@ -193,7 +193,7 @@ export function ClaimPayment({
             type="button"
             disabled={pending}
             onClick={() => inputRef.current?.click()}
-            className="c-surface text-muted-foreground flex flex-col items-center gap-2 rounded-2xl bg-[color-mix(in_oklch,var(--foreground)_8%,transparent)] p-4 text-sm transition-colors hover:bg-[color-mix(in_oklch,var(--foreground)_13%,transparent)]"
+            className="c-surface text-muted-foreground flex flex-col items-center gap-2 rounded-2xl bg-foreground/8 p-4 text-sm transition-colors hover:bg-foreground/13"
           >
             <UploadIcon className="size-5" />
             <span>Upload payment screenshot</span>

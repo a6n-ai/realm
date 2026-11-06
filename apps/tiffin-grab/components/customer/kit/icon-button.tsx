@@ -17,7 +17,7 @@ function Tip({ text }: { text: string }) {
   return (
     <span
       role="tooltip"
-      className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-[var(--foreground)] px-2.5 py-1 text-[12px] font-medium text-[var(--background)] opacity-0 shadow-md transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100 motion-reduce:transition-none"
+      className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1 text-caption font-medium text-background opacity-0 shadow-md transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100 motion-reduce:transition-none"
     >
       {text}
     </span>
@@ -31,10 +31,10 @@ export function IconButton({ href, className, children, type = "button", tip, ba
     FOCUS,
     "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full [touch-action:manipulation] transition-[background-color,color,transform] duration-150 active:scale-[.96] motion-reduce:transition-none",
     bare
-      ? "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+      ? "text-muted-foreground hover:text-foreground"
       // One fill, not c-surface's wash over a second fill: two stacked translucent layers anti-alias their round
       // edges separately and read as a faint ring on retina screens.
-      : "bg-[color-mix(in_oklch,var(--foreground)_14%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--foreground)_19%,transparent)]",
+      : "bg-foreground/14 text-foreground hover:bg-foreground/19",
     tip && "group relative",
     className,
   );
@@ -55,5 +55,5 @@ export function IconButton({ href, className, children, type = "button", tip, ba
 
 /** 1px hairline rule. */
 export function Divider({ className }: { className?: string }) {
-  return <hr className={cn("border-0 border-t border-[var(--border)]", className)} />;
+  return <hr className={cn("border-0 border-t border-border", className)} />;
 }

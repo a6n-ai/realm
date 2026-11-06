@@ -19,7 +19,7 @@ const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
 
 function Row({ label, amount, strong }: { label: string; amount: number; strong?: boolean }) {
   return (
-    <div className={cn("flex items-baseline justify-between gap-3 py-1.5 text-sm", strong && "border-t border-[var(--border)] pt-3 text-base font-semibold")}>
+    <div className={cn("flex items-baseline justify-between gap-3 py-1.5 text-sm", strong && "border-t border-border pt-3 text-base font-semibold")}>
       <span>{label}</span>
       <span className="tabular-nums">{money(amount)}</span>
     </div>

@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
     // maplibre (1.2 MB) is only loaded inside map effects; keep it out of the server bundle.
     resolveAlias: { "maplibre-gl": { browser: "maplibre-gl", default: "./lib/browser-only-stub.ts" } },
   },
+  // Dev only: the default bottom-left badge sat on the public dock's Home orb and ate its taps.
+  devIndicators: { position: "top-left" },
   allowedDevOrigins: ["127.0.0.1", "*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a
@@ -59,6 +61,11 @@ const nextConfig: NextConfig = {
       // Delivery notes moved onto each saved address.
       { source: "/me/delivery-notes", destination: "/me/account?section=address", permanent: true },
       { source: "/me/usage", destination: "/me/wallet", permanent: true },
+      // The dishes page moved from /menu/weekly to /menu (meal sizes folded into /pricing). Exact match:
+      // the PDF at /menu/weekly/pdf keeps its path.
+      { source: "/menu/weekly", destination: "/menu", permanent: true },
+      // Plans folded into Pricing: each diet card there carries its description, rates and "Start with this plan".
+      { source: "/plans", destination: "/pricing", permanent: true },
       // The old WordPress site's legal URLs, still linked from emails and search results.
       { source: "/terms-and-conditions", destination: "/terms", permanent: true },
       { source: "/privacy-policy", destination: "/privacy", permanent: true },
@@ -68,9 +75,11 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/holidays/:id", destination: "/dashboard/settings/holidays/:id", permanent: true },
     ];
   },
-  // Caddy compresses (encode zstd gzip) and skips already-encoded bodies, so Next
-  // gzipping on the single Node event loop was pure CPU cost.
-  compress: false,
+  // Cloudflare compresses at the edge (Brotli, checked on tiffingrab.ca) and caches static CSS/JS, so
+  // Next gzipping on the single Node event loop is pure CPU cost.
+  // NEXT_COMPRESS=1 turns it on for local production runs with no Cloudflare in front (audits,
+  // Lighthouse), so they measure compressed bytes the way visitors receive them.
+  compress: process.env.NEXT_COMPRESS === "1",
   experimental: {
     // Barrel packages: without this, one named import from @relay/engine/ui pulled
     // the whole email editor (react-email + TipTap + Tailwind compiler, ~2 MB) into

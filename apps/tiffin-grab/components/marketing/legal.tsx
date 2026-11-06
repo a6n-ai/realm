@@ -43,14 +43,14 @@ export function LegalPage({
   return (
     <Section className="max-w-6xl">
       <nav aria-label="Breadcrumb" className="text-muted-foreground mb-6 text-sm">
-        <Link href="/legal" className="hover:text-foreground underline-offset-4 hover:underline">Policies</Link>
+        <Link href="/legal" className="inline-flex min-h-6 items-center hover:text-foreground underline-offset-4 hover:underline">Policies</Link>
         <span aria-hidden className="px-2">/</span>
         <span className="text-foreground">{title}</span>
       </nav>
 
       <header className="mb-10 max-w-[68ch]">
         <h1 className="m-0 mb-3 text-balance text-[clamp(32px,5vw,48px)] font-bold leading-[1.05] tracking-[-0.03em]">{title}</h1>
-        <p className="text-muted-foreground m-0 text-[17px] leading-relaxed">{intro}</p>
+        <p className="text-muted-foreground m-0 text-body leading-relaxed">{intro}</p>
         <p className="text-muted-foreground mt-3 mb-0 text-sm">Updated {updated} · TiffinGrab, Ontario, Canada</p>
       </header>
 
@@ -65,7 +65,7 @@ export function LegalPage({
             </p>
             <ul className="m-0 list-none space-y-3 p-0">
               {keyPoints.map((k, i) => (
-                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
+                <li key={i} className="flex gap-3 text-subhead leading-relaxed">
                   <span aria-hidden className="bg-primary mt-[9px] size-1.5 shrink-0 rounded-full" />
                   <span>
                     {k.text}{" "}
@@ -78,17 +78,17 @@ export function LegalPage({
             </ul>
           </aside>
 
-          <div className="space-y-12 text-[17px] leading-[1.65] [&_strong]:font-semibold">{children}</div>
+          <div className="space-y-12 text-body leading-[1.65] [&_strong]:font-semibold">{children}</div>
 
           <footer className="mt-16 border-t pt-8">
-            <p className="m-0 mb-6 text-[15px]">
+            <p className="m-0 mb-6 text-subhead">
               Questions about this policy? Email <Mail />. We&apos;re happy to explain anything here.
             </p>
             <p className="text-muted-foreground m-0 mb-3 text-sm font-medium">Other policies</p>
             <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-3">
               {LEGAL_DOCS.filter((d) => d.href !== current).map((d) => (
                 <li key={d.href}>
-                  <Link href={d.href} className="group hover:bg-muted flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-[15px]">
+                  <Link href={d.href} className="group hover:bg-muted flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-subhead">
                     {d.title}
                     <ArrowRight aria-hidden className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
@@ -106,7 +106,7 @@ export function LegalPage({
 export function Clause({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
     <section id={`s${n}`} aria-labelledby={`s${n}-h`} className="scroll-mt-28 space-y-4">
-      <h2 id={`s${n}-h`} className="m-0 text-[22px] font-semibold leading-snug tracking-[-0.015em]">
+      <h2 id={`s${n}-h`} className="m-0 text-title-2 font-semibold leading-snug tracking-[-0.015em]">
         <span className="text-muted-foreground mr-2 tabular-nums">{n}.</span>
         {title}
       </h2>
@@ -118,7 +118,7 @@ export function Clause({ n, title, children }: { n: number; title: string; child
 export function Sub({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <h3 className="m-0 text-[17px] font-semibold">{title}</h3>
+      <h3 className="m-0 text-body font-semibold">{title}</h3>
       {children}
     </div>
   );
@@ -130,7 +130,7 @@ export function Callout({ tone = "info", children }: { tone?: "info" | "warn"; c
   return (
     <div
       role="note"
-      className={`flex gap-3 rounded-2xl px-4 py-4 text-[15px] leading-relaxed sm:px-5 ${
+      className={`flex gap-3 rounded-2xl px-4 py-4 text-subhead leading-relaxed sm:px-5 ${
         tone === "warn" ? "bg-destructive/10" : "bg-muted"
       }`}
     >
