@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CONSENT_COOKIE, CONSENT_VERSION, consentCookieDomain, parseConsent, type Consent } from "@/lib/consent";
+import { consentCardOn } from "./card-visible";
 import "./cookie-consent.css";
 
 // Cookie consent for Canadian rules (PIPEDA; Quebec Law 25 s. 8.1): anything that tracks a
@@ -91,6 +93,7 @@ function TiffinFigure() {
 }
 
 export function CookieConsent() {
+  const ask = consentCardOn(usePathname() ?? "/");
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [details, setDetails] = useState(false);
@@ -99,19 +102,21 @@ export function CookieConsent() {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // The phone action pill steps aside while this card is up (html[data-consent="open"]).
+  const shown = open && (ask || reopened);
   useEffect(() => {
     const root = document.documentElement;
-    if (open) root.dataset.consent = "open";
+    if (shown) root.dataset.consent = "open";
     else delete root.dataset.consent;
     return () => { delete root.dataset.consent; };
-  }, [open]);
+  }, [shown]);
 
   useEffect(() => {
     const c = readConsent();
+    let disarm = () => {};
     if (c) {
       setAnalytics(c.analytics);
       if (c.analytics) loadAnalytics();
-    } else {
+    } else if (ask) {
       // Off the critical path: after the page has loaded, the card waits for the visitor to do
       // something (scroll, move, tap, type) or for a few quiet seconds, so it never competes
       // with the hero for first/largest paint and lab runs (which never interact) skip it.
@@ -128,6 +133,12 @@ export function CookieConsent() {
       };
       if (document.readyState === "complete") arm();
       else addEventListener("load", arm, { once: true });
+      // Leaving the public site before the card shows: never let it pop up on /me or /login.
+      disarm = () => {
+        clearTimeout(fallback);
+        removeEventListener("load", arm);
+        for (const e of events) removeEventListener(e, show);
+      };
     }
     const reopen = () => {
       clearTimeout(timer.current);
@@ -139,10 +150,11 @@ export function CookieConsent() {
     };
     addEventListener(OPEN_EVENT, reopen);
     return () => {
+      disarm();
       removeEventListener(OPEN_EVENT, reopen);
       clearTimeout(timer.current);
     };
-  }, []);
+  }, [ask]);
 
   const decide = (yes: boolean) => {
     const before = readConsent()?.analytics ?? false;
@@ -160,7 +172,9 @@ export function CookieConsent() {
     }, reduce ? 0 : EXIT_MS);
   };
 
-  if (!open) return null;
+  // Opened unasked on the public site and then left it: it waits for the next public page.
+  // Opened from "Cookie settings" it shows anywhere.
+  if (!shown) return null;
 
   return (
     <section
