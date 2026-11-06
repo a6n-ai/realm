@@ -627,3 +627,22 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
   .lp-refer__reward { left: -8px; right: 12px; }
   .lp-refer__coin { right: -10px; }
 }
+
+/* The band's one moment, played once in view: the link lands, Aman orders, turns Rewarded, your coins pop.
+   Transform and opacity only. Finished state is the default; [data-anim] exists only when JS armed it. */
+.lp-refer__pills { display: grid; }
+.lp-refer__pills > * { grid-area: 1 / 1; justify-self: end; }
+.lp-refer__pill--ordered { background: #FBE3D2; color: #9A3F08; opacity: 0; }
+.lp-refer__art[data-anim="ready"] .lp-refer__bubble,
+.lp-refer__art[data-anim="ready"] .lp-refer__reward,
+.lp-refer__art[data-anim="ready"] .lp-refer__coin { opacity: 0; }
+.lp-refer__art[data-anim="play"] .lp-refer__bubble { animation: lp-ref-send 700ms var(--lp-ease) both; }
+.lp-refer__art[data-anim="play"] .lp-refer__reward { animation: lp-ref-rise 600ms var(--lp-ease) both 900ms; }
+.lp-refer__art[data-anim="play"] .lp-refer__pill--ordered { animation: lp-ref-ordered 1500ms linear both 900ms; }
+.lp-refer__art[data-anim="play"] .lp-refer__pill:not(.lp-refer__pill--ordered) { animation: lp-ref-pill 320ms var(--lp-ease) both 2250ms; }
+.lp-refer__art[data-anim="play"] .lp-refer__coin { animation: lp-ref-coin 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both 2450ms; }
+@keyframes lp-ref-send { from { opacity: 0; transform: translate(40px, 28px) scale(0.94); } }
+@keyframes lp-ref-rise { from { opacity: 0; transform: translateY(36px); } }
+@keyframes lp-ref-ordered { 0%, 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes lp-ref-pill { from { opacity: 0; transform: translateY(6px) scale(0.9); } }
+@keyframes lp-ref-coin { from { opacity: 0; transform: translateY(14px) scale(0.6); } }

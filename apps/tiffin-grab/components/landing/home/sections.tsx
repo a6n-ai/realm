@@ -9,6 +9,7 @@ import type { ReferralOffer } from "@/lib/referrals/offer";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
 import { HeroVideo } from "@/components/landing/home/hero-video";
+import { PlayOnView } from "@/components/landing/home/play-on-view";
 import { SwipeRow } from "@/components/landing/home/swipe-row";
 import { MenuBoard } from "@/components/landing/home/menu-board";
 import { TodayPicks } from "@/components/landing/home/today-picks";
@@ -389,7 +390,7 @@ export function ReferBand({ offer }: { offer: ReferralOffer }) {
             </ol>
             <div><Link prefetch={false} href="/refer" className="tg-cta">How referrals work <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} /></Link></div>
           </div>
-          <div className="lp-refer__art" aria-hidden>
+          <PlayOnView className="lp-refer__art">
             <div className="lp-refer__bubble">
               <div className="lp-refer__preview">
                 <b>Tiffin<i>Grab</i></b>
@@ -402,10 +403,13 @@ export function ReferBand({ offer }: { offer: ReferralOffer }) {
             <div className="lp-refer__reward">
               <span className="lp-refer__av">A</span>
               <span className="lp-refer__who">Aman<small>First plan paid</small></span>
-              <span className="lp-refer__pill">Rewarded</span>
+              <span className="lp-refer__pills">
+                <span className="lp-refer__pill lp-refer__pill--ordered">Ordered</span>
+                <span className="lp-refer__pill">Rewarded</span>
+              </span>
               {earn ? <span className="lp-refer__coin">+{earn}</span> : null}
             </div>
-          </div>
+          </PlayOnView>
         </div>
       </div>
     </section>
