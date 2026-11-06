@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { sesEventSettings } from "@relay/email";
-import { EmailEventsSettings, type EmailTypeRow, type StreamState } from "@relay/engine/ui/email-events-settings";
+import { InfoIcon } from "lucide-react";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { SectionCard } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -9,15 +10,32 @@ import { CATEGORY_LABEL, eventCategory } from "@/lib/notifications/event-categor
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/event-list";
 import { emailVolumeByStream } from "@/lib/notifications/email-volume";
 import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
+import { Alert, AlertDescription } from "@/components/reui/alert";
 import { saveStreamRouting, saveTrackedTypes } from "./actions";
+import { EmailTrackingSection, type EmailTypeRow } from "./email-tracking-section";
+import { SesRoutingSection, type StreamState } from "./ses-routing-section";
 
 export default function EmailEventsPage() {
   return (
-    <SectionCard title="Email events" subtitle="Choose which emails are tracked and which SES events reach the app.">
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading email event settings…</p>}>
-        <EmailEventsData />
-      </Suspense>
-    </SectionCard>
+    <Suspense fallback={<EmailEventsSkeleton />}>
+      <EmailEventsData />
+    </Suspense>
+  );
+}
+
+function EmailEventsSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" role="status" aria-label="Loading email event settings">
+      <Skeleton className="h-12 w-full" />
+      <SectionCard title="Email tracking" subtitle="Choose which emails track opens and clicks.">
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      </SectionCard>
+      <Skeleton className="h-12 w-full" />
+    </div>
   );
 }
 
@@ -56,12 +74,29 @@ async function EmailEventsData() {
       };
     });
 
+  const streamStates: StreamState[] = states.map((s) => ({ ...s, volume: volume[s.stream.id] ?? {} }));
+  const hasTracked = streams.some((s) => s.kind === "tracked");
+
   return (
-    <EmailEventsSettings
-      types={types}
-      streams={states.map((s) => ({ ...s, volume: volume[s.stream.id] ?? {} }))}
-      onSaveTypes={saveTrackedTypes}
-      onSaveStream={saveStreamRouting}
-    />
+    <div className="flex flex-col gap-6">
+      <Alert variant="info">
+        <InfoIcon />
+        <AlertDescription>
+          Every email records Sent, Delivered, Bounced and Marked as spam. Turn on tracking to also see Opened and Clicked in Logs.
+        </AlertDescription>
+      </Alert>
+      <SectionCard title="Email tracking" subtitle="Choose which emails track opens and clicks.">
+        {hasTracked ? (
+          <EmailTrackingSection types={types} onSave={saveTrackedTypes} />
+        ) : (
+          <Alert variant="info">
+            <AlertDescription>SES streams aren&apos;t configured for this app.</AlertDescription>
+          </Alert>
+        )}
+      </SectionCard>
+      <SectionCard title="Advanced" subtitle="For developers and support.">
+        <SesRoutingSection streams={streamStates} onSave={saveStreamRouting} />
+      </SectionCard>
+    </div>
   );
 }
