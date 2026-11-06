@@ -98,6 +98,14 @@ export function CookieConsent() {
   const [reopened, setReopened] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // The phone action pill steps aside while this card is up (html[data-consent="open"]).
+  useEffect(() => {
+    const root = document.documentElement;
+    if (open) root.dataset.consent = "open";
+    else delete root.dataset.consent;
+    return () => { delete root.dataset.consent; };
+  }, [open]);
+
   useEffect(() => {
     const c = readConsent();
     if (c) {

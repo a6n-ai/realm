@@ -8,6 +8,7 @@ import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadReferralOffer } from "@/lib/referrals/offer";
+import { ActionPill } from "@/components/landing/refer/action-pill";
 import "@/components/landing/landing.css";
 
 // One shell for every public page: the landing header, the ink close band and
@@ -25,6 +26,7 @@ export async function PublicShell({ children }: { children: ReactNode }) {
       <PublicFooter />
       <LocationPicker />
       <WhatsAppChat />
+      <ActionPill label={offer?.pillLabel ?? null} />
     </div>
     </div>
   );
