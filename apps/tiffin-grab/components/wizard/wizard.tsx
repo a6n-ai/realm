@@ -48,12 +48,15 @@ export function Wizard({
   holidayDates = [],
   popular = {},
   quote = null,
+  promoCodes = [],
   checkout,
 }: {
   /** Present: the last step opens Delivery and Payment in place instead of navigating to /checkout. */
   checkout?: CheckoutProps;
   /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
   quote?: { picks: WizardSelections; codes: string[]; coins?: number } | null;
+  /** Coupon codes from a promo link (/subscribe?c=CODE) with no quoted plan: checkout tries them with the first price. */
+  promoCodes?: string[];
   catalog: ClientCatalogSnapshot;
   closeHref: string;
   existingStartDates?: string[];
@@ -146,7 +149,8 @@ export function Wizard({
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
     sessionStorage.setItem(WIZARD_PLAN_STEPS_KEY, JSON.stringify(stepLabels));
-    if (quote?.codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(quote.codes));
+    const codes = quote?.codes.length ? quote.codes : promoCodes;
+    if (codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(codes));
     if (quote?.coins) sessionStorage.setItem(QUOTE_COINS_KEY, String(quote.coins));
     const meal = catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId);
     const contentIds = [selections.planKey, meal?.key].filter((x): x is string => !!x);

@@ -15,6 +15,8 @@ import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 import { referCardPath } from "@/lib/referrals/share";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { loadReferralOffer } from "@/lib/referrals/offer";
+import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
 
 const TITLE = "Build your tiffin plan | Tiffin Grab";
 const DESCRIPTION = "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.";
@@ -62,6 +64,9 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   // response, so the request itself doesn't carry it yet.
   const linkRef = normalizeReferralCode(params.ref ?? "");
   const referralCode = isReferralCodeShape(linkRef) ? linkRef : (jar.get(REFERRAL_COOKIE)?.value ?? "");
+  // A share link's gift, said here so it never looks lost between the friend page and payment.
+  const [referrer, offer] = referralCode ? await Promise.all([findReferrerByCode(referralCode), loadReferralOffer().catch(() => null)]) : [null, null];
+  const gift = referrer && offer?.friend ? { from: referrer.firstName, figure: offer.friend.big } : null;
 
   return (
     <>
@@ -77,6 +82,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         </p>
       </header>
 
+      {gift ? <div className="mt-5"><ReferralGift from={gift.from} figure={gift.figure} /></div> : null}
       <div className="mt-5">
         <SubscribeCouponsPreview coupons={coupons} />
       </div>

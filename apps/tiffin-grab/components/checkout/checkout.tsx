@@ -62,6 +62,7 @@ import { gtagEvent } from "@foundry/google-analytics/client";
 import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
+import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
@@ -191,6 +192,7 @@ export function Checkout({
   savedAddresses = [],
   addressDropOffs = {},
   suggestedCoupons = [],
+  referralGift = null,
   lastTiffin = null,
   cardContext = null,
   plan,
@@ -209,6 +211,8 @@ export function Checkout({
   addressDropOffs?: Record<string, DropOffValue>;
   /** Live coupons a customer has to type in (auto-apply ones are excluded); shown as tap-to-apply chips. */
   suggestedCoupons?: AvailableCoupon[];
+  /** A referred customer's friend reward, still to come: shown beside the coupons so it never looks lost. */
+  referralGift?: { from: string | null; figure: string } | null;
   /** Last tiffin of the customer's running plan(s), so a later start date explains itself. */
   lastTiffin?: string | null;
   /** Stripe card context for the Pay step; null when Stripe isn't set up. */
@@ -461,7 +465,7 @@ export function Checkout({
       if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
       if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
       setPlanSteps(parsePlanSteps(sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY)));
-      // Codes from a staff estimate link go in with the first price; a code that doesn't land (expired,
+      // Codes from a staff estimate or promo link go in with the first price; a code that doesn't land (expired,
       // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
       try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
       quotedCoins = Math.max(0, Math.floor(Number(sessionStorage.getItem(QUOTE_COINS_KEY)) || 0));
@@ -487,9 +491,11 @@ export function Checkout({
         if (kept.length !== quoted.length || coins !== quotedCoins) await refreshPrice(s, kept, null, coins || undefined).catch(() => undefined);
         setAppliedCodes(kept);
         const dropped = quoted.filter((c) => !kept.includes(c));
+        // Name why, not just that: "Add $40.00 more…" tells the customer how to still get the code.
+        const why = (c: string) => r.couponErrors?.find((e) => e.code.toUpperCase() === c)?.error ?? r.couponsNotApplied?.find((n) => n.code.toUpperCase() === c)?.reason;
         setCouponState(dropped.length
-          ? { status: "error", message: `${dropped.join(", ")} couldn't be applied to this plan` }
-          : { status: "applied", message: kept.length > 1 ? "Your estimate's coupons are applied" : "Your estimate's coupon is applied" });
+          ? { status: "error", message: dropped.map((c) => (why(c) ? `${c}: ${why(c)}` : `${c} couldn't be applied to this plan`)).join(" ") }
+          : { status: "applied", message: `${kept.join(", ")} ${kept.length > 1 ? "are" : "is"} applied` });
       },
       (err) => {
         if (err instanceof UnpriceableCart) { sessionStorage.removeItem(PRICE_RELOAD_KEY); setResult(null); return; }
@@ -991,6 +997,7 @@ export function Checkout({
             onSwitchMethod={async (id, code) => { await selectMethod(id); await applyCoupon(code, id); }}
             methodName={(id) => (id === "stripe" ? "Card" : paymentMethods.find((m) => m.id === id)?.label ?? id)}
           />
+          {referralGift ? <ReferralGift from={referralGift.from} figure={referralGift.figure} /> : null}
           {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
           {coinBalance == null || coinBalance === 0 ? null : (
             <div className="px-4 py-3.5">

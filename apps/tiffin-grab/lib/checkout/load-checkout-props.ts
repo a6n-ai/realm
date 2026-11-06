@@ -11,6 +11,8 @@ import { couponsService } from "@/lib/services/coupons.service";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { resolveProvince } from "@/lib/tax/canada";
 import { myRenewalWindow } from "@/lib/services/customer-deliveries.service";
+import { pendingFriendGift } from "@/lib/services/referrals.service";
+import { loadReferralOffer } from "@/lib/referrals/offer";
 import type { Checkout } from "@/components/checkout/checkout";
 
 export type CheckoutProps = Omit<ComponentProps<typeof Checkout>, "plan" | "closeHref">;
@@ -19,14 +21,17 @@ export type CheckoutProps = Omit<ComponentProps<typeof Checkout>, "plan" | "clos
 export async function loadCheckoutProps(userId: bigint, sessionUserId: string, orgId: string | null): Promise<CheckoutProps | null> {
   // Pre-fill from the account. Name and email come back read-only and are re-taken from the
   // session server-side; phone and address are editable for this order only.
-  const [{ defaultCountry }, snapshot, contact, savedAddresses, coupons, { lastTiffin }] = await Promise.all([
+  const [{ defaultCountry }, snapshot, contact, savedAddresses, coupons, { lastTiffin }, pendingGift, offer] = await Promise.all([
     getAppSettings(),
     loadCatalogSnapshot(orgId),
     getContactOnFile(userId),
     addressService.list({ userId, orgId }),
     couponsService.listAvailable(userId),
     myRenewalWindow(userId),
+    pendingFriendGift(userId).catch(() => null),
+    loadReferralOffer().catch(() => null),
   ]);
+  const referralGift = pendingGift && offer?.friend ? { from: pendingGift.from, figure: offer.friend.big } : null;
   const catalog = toClientCatalog(snapshot);
   const prefill = contact ?? undefined;
   // Auto-apply coupons land on their own; only codes a customer must type are worth suggesting.
@@ -42,5 +47,5 @@ export async function loadCheckoutProps(userId: bigint, sessionUserId: string, o
   // Simulated payment is local-only; prod with no rail enabled can't take an order.
   if (process.env.NODE_ENV === "production" && (await listCheckoutPaymentMethods()).length === 0) return null;
 
-  return { defaultCountry, prefill, catalog, savedAddresses, addressDropOffs, suggestedCoupons, lastTiffin, cardContext };
+  return { defaultCountry, prefill, catalog, savedAddresses, addressDropOffs, suggestedCoupons, lastTiffin, cardContext, referralGift };
 }

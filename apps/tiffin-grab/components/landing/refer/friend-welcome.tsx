@@ -18,7 +18,8 @@ export function FriendWelcome({ code, firstName, friend, promo }: {
   friend: OfferFigure;
   promo: { code: string; savings: PromoSavings } | null;
 }) {
-  const subscribe = `/subscribe?ref=${encodeURIComponent(code)}`;
+  // The advertised promo code rides along (?c=), so checkout applies it without retyping.
+  const subscribe = `/subscribe?ref=${encodeURIComponent(code)}${promo ? `&c=${encodeURIComponent(promo.code)}` : ""}`;
   return (
     <section className="tg-wrap tg-section tg-refer" aria-labelledby="tg-friend-title">
       <div className="tg-refer__hero">

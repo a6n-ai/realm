@@ -598,7 +598,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     const w = this.windowError(coupon);
     if (w) return w;
     if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
-      return `Minimum spend of $${num(coupon.minSubtotal).toFixed(2)} not met`;
+      // Say how far off the plan is, not just "not met": a longer plan or more days gets there.
+      const short = num(coupon.minSubtotal) - ctx.subtotal;
+      return `Add $${short.toFixed(2)} more to use this code (plans of $${num(coupon.minSubtotal).toFixed(2)} or more). More weeks or days gets you there.`;
     }
     if (coupon.planTypes.length && (!ctx.planType || !coupon.planTypes.includes(ctx.planType))) {
       return "This coupon is not valid for the selected plan";

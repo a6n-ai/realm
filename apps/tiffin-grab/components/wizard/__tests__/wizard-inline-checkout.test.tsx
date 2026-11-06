@@ -65,4 +65,10 @@ describe("Wizard with an inline checkout", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue to checkout/i }));
     expect(mockRouter.push).toHaveBeenCalledWith("/checkout", expect.anything());
   });
+
+  it("hands a promo link's code (/subscribe?c=) to checkout", () => {
+    render(<Wizard catalog={catalog} closeHref="/me" origin="renew" quote={{ picks, codes: [] }} promoCodes={["WELCOME10"]} />);
+    fireEvent.click(screen.getByRole("button", { name: /continue to checkout/i }));
+    expect(sessionStorage.getItem("tiffin.quote.codes")).toBe('["WELCOME10"]');
+  });
 });

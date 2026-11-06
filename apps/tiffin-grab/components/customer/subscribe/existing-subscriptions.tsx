@@ -84,7 +84,7 @@ export function SubscribeCouponsPreview({ coupons }: { coupons: AvailableCoupon[
           >
             <TicketPercentIcon className="text-primary size-4 shrink-0" aria-hidden />
             <span className="font-medium tracking-wide">{c.code}</span>
-            <span className="text-muted-foreground truncate text-xs">{c.name}</span>
+            <span className="text-muted-foreground truncate text-xs">{c.autoApply ? "Applies itself at checkout" : c.name}</span>
             <Badge variant="secondary" className="ml-auto shrink-0 text-[0.65rem]">
               {discountLine(c)}
             </Badge>
@@ -92,7 +92,8 @@ export function SubscribeCouponsPreview({ coupons }: { coupons: AvailableCoupon[
           </li>
         ))}
       </ul>
-      <p className="text-muted-foreground text-xs">Enter a code on the checkout step to apply it.</p>
+      {/* Auto-apply coupons need no typing; only say "enter a code" when one does. */}
+      {coupons.some((c) => !c.autoApply) ? <p className="text-muted-foreground text-xs">Enter a code on the checkout step to apply it.</p> : null}
     </section>
   );
 }

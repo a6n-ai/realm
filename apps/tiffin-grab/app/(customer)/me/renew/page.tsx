@@ -129,6 +129,8 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           initial={initial}
           checkout={checkout ?? undefined}
           quote={quoted ? { picks: initial, codes: quoteCodes(params), coins: quoteCoins(params) } : null}
+          // Promo links carry only ?c=CODE (lib/landing/promos.ts subscribeHref); without this the code was lost at sign-in.
+          promoCodes={quoted ? [] : quoteCodes(params)}
           currentPlan={current}
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}

@@ -53,6 +53,18 @@ export async function findReferrerByCode(raw: string): Promise<{ id: bigint; pub
   return row ? { id: row.id, publicId: row.publicId, firstName: publicFirstName(row.name) } : null;
 }
 
+/** A referred customer whose friend reward has not been paid yet: who referred them (first name
+ *  only), so checkout can say the gift is still on its way. Null once rewarded, reversed, or never referred. */
+export async function pendingFriendGift(userId: bigint): Promise<{ from: string | null } | null> {
+  const [row] = await db
+    .select({ name: users.name })
+    .from(referrals)
+    .innerJoin(users, eq(users.id, referrals.referrerUserId))
+    .where(and(eq(referrals.referredUserId, userId), inArray(referrals.status, ["joined", "ordered"])))
+    .limit(1);
+  return row ? { from: publicFirstName(row.name) } : null;
+}
+
 /** First name only: it goes on the public share card and link preview. */
 function publicFirstName(name: string | null): string | null {
   const first = (name ?? "").trim().split(/\s+/)[0] ?? "";
