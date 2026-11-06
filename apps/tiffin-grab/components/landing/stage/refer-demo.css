@@ -136,3 +136,18 @@
 .rd .rd-again__btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; background: #25d366; color: #0b141a; font-size: 12px; font-weight: 700; transition: transform 150ms var(--rd-spring); }
 .rd .rd-again__btn[data-pressed] { transform: scale(0.96); }
 .rd .rd-wa__mine { align-self: flex-end; max-width: 80%; margin: 0; padding: 8px 10px; border-radius: 14px 4px 14px 14px; background: #d9fdd3; font-size: 14px; line-height: 1.35; box-shadow: 0 1px 1px rgb(0 0 0 / 0.08); }
+
+/* App header, as the customer shell draws it on a phone: mark left, glass chips and avatar right. */
+.rd .rd-app { padding-top: 54px; gap: 10px; }
+.rd .rd-top { display: flex; align-items: center; gap: 6px; height: 44px; }
+.rd .rd-top img { width: 30px; height: 30px; margin-right: auto; }
+.rd .rd-chip, .rd .rd-me { display: inline-flex; align-items: center; height: 34px; border-radius: 999px;
+  background: color-mix(in srgb, var(--rd-cream) 30%, transparent); -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%);
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.35), inset 0 0 0 1px rgb(255 255 255 / 0.6); }
+.rd .rd-chip { gap: 5px; padding: 0 10px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rd .rd-chip svg { color: var(--rd-deep); }
+.rd .rd-chip--coins { font-size: 13px; }
+.rd .rd-me { justify-content: center; width: 34px; font-size: 12px; font-weight: 600; }
+.rd .rd-title small { display: block; margin-bottom: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--rd-deep); }
+.rd .rd-title h4 { margin: 0; font-size: 22px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; }
+.rd .rd-title em { color: var(--rd-deep); }

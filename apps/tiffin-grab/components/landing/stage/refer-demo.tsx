@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Check, ChevronLeft, Coins, Copy, Download, Ellipsis, Gift, LifeBuoy, Link2, Mail, MessageSquare, Phone as PhoneIcon, Send, Share, Share2, Ticket, User, Users, UtensilsCrossed, Video, Wallet } from "lucide-react";
+import { CalendarDays, Check, Clock, ChevronLeft, Coins, Copy, Download, Ellipsis, Gift, LifeBuoy, Link2, Mail, MessageSquare, Phone as PhoneIcon, Send, Share, Share2, Ticket, User, Users, UtensilsCrossed, Video, Wallet } from "lucide-react";
 import { WhatsAppGlyph } from "@/components/landing/whats-app-chat";
 import { Phone, Stage, type Act } from "./kit";
 import "./refer-demo.css";
@@ -54,6 +54,28 @@ const script = (total: number) => async (a: Act<S>) => {
   await a.wait(300);
 };
 
+/** The customer app's header on a phone: brand mark, cutoff countdown, coin balance, avatar;
+ *  then the Refer page's own title. `coins` keeps the balance chip live as the reward lands. */
+function AppTop({ coins, title = true }: { coins: number; title?: boolean }) {
+  return (
+    <>
+      <header className="rd-top">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a static brand asset inside an illustration */}
+        <img src="/brand/mark.svg" alt="" width={30} height={30} />
+        <span className="rd-chip"><Clock size={13} />5h 12m</span>
+        <span className="rd-chip rd-chip--coins"><Wallet size={15} />{coins}</span>
+        <span className="rd-me">PS</span>
+      </header>
+      {title ? (
+        <div className="rd-title">
+          <small>Refer</small>
+          <h4>Share TiffinGrab, <em>earn coins.</em></h4>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 /** The customer app's floating glass tab bar, Refer lit. */
 function TabBar() {
   return (
@@ -87,7 +109,7 @@ export function ReferDemo({ gift, earn, coins, className }: { gift: string | nul
           <div className="rd-track" style={{ transform: `translateX(${-100 * s.screen}%)` }}>
             {/* 1. Me > Refer */}
             <section className="rd-screen rd-app" aria-hidden={s.screen !== 0}>
-              <header className="rd-app__bar"><span>Refer</span></header>
+              <AppTop coins={120} />
               <div className="rd-tiles">
                 <div className="rd-tile">
                   <span className="rd-ic rd-ic--orange"><Gift size={16} /></span>
@@ -158,17 +180,11 @@ export function ReferDemo({ gift, earn, coins, className }: { gift: string | nul
 
             {/* 3. Me > Refer, Your friends */}
             <section className="rd-screen rd-app" aria-hidden={s.screen !== 2}>
-              <header className="rd-app__bar">
-                <span>Refer</span>
-              </header>
+<AppTop coins={120 + s.coins} />
               <div className="rd-card rd-stat" data-landed={s.status === "rewarded" || undefined}>
                 <span className="rd-ic rd-ic--brown"><Coins size={16} /></span>
                 <span><small>From referrals</small><b>{s.coins}<em> coins</em></b></span>
                 <span className="rd-stat__plus" aria-hidden>+{earn}</span>
-              </div>
-              <div className="rd-card rd-wallet">
-                <span className="rd-ic rd-ic--indigo"><Wallet size={16} /></span>
-                <span><small>In your wallet</small><b>{120 + s.coins}<em> coins</em></b></span>
               </div>
               <p className="rd-label">Your friends</p>
               <ul className="rd-list">
