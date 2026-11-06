@@ -77,6 +77,12 @@ Resources:
             Effect: Allow
             Action: cloudwatch:GetMetricData
             Resource: "*"
+          # Account-wide send quota shown on the campaigns page before a large send.
+          # GetAccount has no resource-level scoping.
+          - Sid: SesQuotaRead
+            Effect: Allow
+            Action: ses:GetAccount
+            Resource: "*"
           - !If
             - AwsLocation
             - Sid: GeoMaps
