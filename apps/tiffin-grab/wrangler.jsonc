@@ -3,7 +3,7 @@
 // Hyperdrive), GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, INTEGRATIONS_ENCRYPTION_KEY,
 // OPTIMOROUTE_API_KEY, REALTIME_SECRET, UNSUBSCRIBE_SECRET, TURNSTILE_SECRET_KEY,
 // GOOGLE_PLACES_API_KEY, CLOVER_APP_SECRET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
-// FILES_S3_ACCESS_KEY_ID, FILES_S3_SECRET_ACCESS_KEY.
+// FILES_S3_ACCESS_KEY_ID, FILES_S3_SECRET_ACCESS_KEY, FILES_URL_SIGNING_SECRET.
 // Remaining non-secret vars (FILES_S3_BUCKET, NOTIFY_FROM_EMAIL, SES_*_CONFIGURATION_SET, SITE_URL,
 // GA_MEASUREMENT_ID, TURNSTILE_SITE_KEY, CAMPAIGN_*) are copied from SSM /tiffin-grab/prod/* in
 // Task 12. Every id marked PLACEHOLDER is created in Task 12. Runbook: deployment/cloudflare/README.md.
@@ -63,7 +63,11 @@
     "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
     "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-dlq" }]
   },
-  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" }],
+  "r2_buckets": [
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" },
+    // User files; served via files.tiffingrab.ca behind a WAF HMAC rule. Inert until FILES_URL_SIGNING_SECRET is set.
+    { "binding": "FILES", "bucket_name": "tiffin-grab-files" }
+  ],
   "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "tiffin-grab-tag-cache", "database_id": "e7e348b9-d61d-434d-9b58-bd4f306aefc5" }],
   "workflows": [
     { "name": "tiffin-campaign-wake", "binding": "CAMPAIGN_WAKE", "class_name": "CampaignWake" },

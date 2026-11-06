@@ -33,3 +33,42 @@ describe("makeStorage", () => {
     expect(makeStorage().name).toBe("local");
   });
 });
+
+describe("makeStorage R2 binding selection", () => {
+  const bucket = {};
+  const withBinding = (env: unknown) => {
+    vi.resetModules();
+    vi.doMock("@opennextjs/cloudflare", () => ({
+      getCloudflareContext: () => {
+        if (env === undefined) throw new Error("outside a request");
+        return { env };
+      },
+    }));
+    return import("./index");
+  };
+
+  afterEach(() => {
+    vi.doUnmock("@opennextjs/cloudflare");
+  });
+
+  it("uses the R2 binding when FILES and the signing secret are both present", async () => {
+    vi.stubEnv("FILES_URL_SIGNING_SECRET", "s3cret");
+    vi.stubEnv("FILES_S3_BUCKET", "b");
+    const { makeStorage: make } = await withBinding({ FILES: bucket });
+    expect(make().name).toBe("r2-binding");
+  });
+
+  it("falls back to S3 without the secret", async () => {
+    vi.stubEnv("FILES_URL_SIGNING_SECRET", "");
+    vi.stubEnv("FILES_S3_BUCKET", "b");
+    const { makeStorage: make } = await withBinding({ FILES: bucket });
+    expect(make().name).toBe("s3");
+  });
+
+  it("falls back to S3 without the binding, or outside a Worker request", async () => {
+    vi.stubEnv("FILES_URL_SIGNING_SECRET", "s3cret");
+    vi.stubEnv("FILES_S3_BUCKET", "b");
+    expect((await withBinding({})).makeStorage().name).toBe("s3");
+    expect((await withBinding(undefined)).makeStorage().name).toBe("s3");
+  });
+});
