@@ -60,49 +60,13 @@ Resources:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
 
-  EventDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    # Topic policy must exist before SES starts publishing.
-    DependsOn: FeedbackTopicPolicy
-    Properties:
-      ConfigurationSetName: !Ref ConfigSet
-      EventDestination:
-        Name: sns-bounce-complaint
-        Enabled: true
-        # Only what the app acts on: each SNS event wakes the Worker. A campaign
-        # produced ~20k Delivery/Open/Click events; those go to CloudWatch below.
-        MatchingEventTypes:
-          - BOUNCE
-          - COMPLAINT
-        SnsDestination:
-          TopicARN: !Ref FeedbackTopic
-
-  # Campaign Delivered/Opened/Clicked: SES counts them per `campaign` message tag
-  # (set on every campaign send) and the campaign page's Refresh results reads the
-  # totals with GetMetricData. No per-recipient delivered/opened stamps for campaigns.
-  MetricsEventDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      ConfigurationSetName: !Ref ConfigSet
-      EventDestination:
-        Name: cloudwatch-campaign-counts
-        Enabled: true
-        MatchingEventTypes:
-          - DELIVERY
-          - OPEN
-          - CLICK
-          - DELIVERY_DELAY
-          - REJECT
-          - RENDERING_FAILURE
-        CloudWatchDestination:
-          DimensionConfigurations:
-            - DimensionName: campaign
-              DimensionValueSource: messageTag
-              DefaultDimensionValue: none
+  # Event destinations are owned by the app (Notifications > Email events) via
+  # SESv2, which manages MatchingEventTypes. They were removed from this stack
+  # with DeletionPolicy Retain, so they still exist in SES. To re-import, use
+  # AWS::SES::ConfigurationSetEventDestination with these names:
+  #   tiffin-grab-prod: sns-bounce-complaint, cloudwatch-campaign-counts
+  #   tiffin-grab-transactional: sns-bounce-complaint, cloudwatch-transactional-counts
+  #   tiffin-grab-transactional-tracked: sns-tracked-events, cloudwatch-tracked-counts
 
   # Creating this triggers a SubscriptionConfirmation POST to WebhookEndpoint,
   # which the live route auto-confirms (after verifying the SNS signature).
@@ -122,92 +86,14 @@ Resources:
     Properties:
       Name: !Ref TransactionalConfigurationSetName
 
-  TransactionalEventDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    DependsOn: FeedbackTopicPolicy
-    Properties:
-      ConfigurationSetName: !Ref TransactionalConfigSet
-      EventDestination:
-        Name: sns-bounce-complaint
-        Enabled: true
-        # DELIVERY stays: invite, payment-reminder and renewal history show it per
-        # message (~45/day). Delay/reject/rendering were webhook no-ops; see VDM.
-        MatchingEventTypes:
-          - BOUNCE
-          - COMPLAINT
-          - DELIVERY
-        SnsDestination:
-          TopicARN: !Ref FeedbackTopic
-
   # Event destinations on these sets are owned by the app from here on (it edits
   # them via the Worker); Retain keeps CloudFormation from deleting or replacing them.
-  TransactionalCountsDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      ConfigurationSetName: !Ref TransactionalConfigSet
-      EventDestination:
-        Name: cloudwatch-transactional-counts
-        Enabled: true
-        MatchingEventTypes:
-          - DELIVERY
-        CloudWatchDestination:
-          DimensionConfigurations:
-            - DimensionName: campaign
-              DimensionValueSource: messageTag
-              DefaultDimensionValue: none
-
   TrackedConfigSet:
     Type: AWS::SES::ConfigurationSet
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref TrackedConfigurationSetName
-
-  TrackedWebhookDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    DependsOn: FeedbackTopicPolicy
-    Properties:
-      ConfigurationSetName: !Ref TrackedConfigSet
-      EventDestination:
-        Name: sns-tracked-events
-        Enabled: true
-        MatchingEventTypes:
-          - SEND
-          - DELIVERY
-          - DELIVERY_DELAY
-          - OPEN
-          - CLICK
-          - BOUNCE
-          - COMPLAINT
-          - REJECT
-          - RENDERING_FAILURE
-        SnsDestination:
-          TopicARN: !Ref FeedbackTopic
-
-  TrackedCountsDestination:
-    Type: AWS::SES::ConfigurationSetEventDestination
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      ConfigurationSetName: !Ref TrackedConfigSet
-      EventDestination:
-        Name: cloudwatch-tracked-counts
-        Enabled: true
-        MatchingEventTypes:
-          - DELIVERY
-          - OPEN
-          - CLICK
-        CloudWatchDestination:
-          DimensionConfigurations:
-            - DimensionName: campaign
-              DimensionValueSource: messageTag
-              DefaultDimensionValue: none
 
   AlertTopic:
     Type: AWS::SNS::Topic
