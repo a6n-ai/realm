@@ -1,29 +1,13 @@
-import { GeoMapsClient } from "@aws-sdk/client-geo-maps";
+import { awsMapProvider, type MapTileProvider } from "@foundry/maps";
 import { createLogger } from "@foundry/commons/logger";
 
 export const mapsLog = createLogger("geo-maps-proxy");
 
-/** Amazon Location's Standard basemap, light scheme — matches the CRM surface. */
-export const MAP_STYLE = "Standard" as const;
-export const MAP_COLOR_SCHEME = "Light" as const;
-export const MAP_TILESET = "vector.basemap";
+let provider: MapTileProvider | null = null;
 
-let client: GeoMapsClient | null = null;
-
-/**
- * Memoised per process. Credentials come from the default provider chain (the
- * instance role in prod), the same as SESv2Client and the places provider — no
- * key is ever constructed here, and none reaches the browser.
- */
-export function geoMapsClient(): GeoMapsClient {
-  if (!client) {
-    client = new GeoMapsClient({
-      region: process.env.AWS_REGION,
-      maxAttempts: 2,
-      requestHandler: { connectionTimeout: 2_000, requestTimeout: 6_000 },
-    });
-  }
-  return client;
+/** Memoised per process; credentials come from static AWS_* env keys, never the browser. */
+export function mapProvider(): MapTileProvider {
+  return (provider ??= awsMapProvider({ region: process.env.AWS_REGION }));
 }
 
 /**
@@ -44,4 +28,10 @@ export function bodyToResponse(
       "cache-control": MAP_CACHE_CONTROL,
     },
   });
+}
+
+/** AwsError carries a stable `code`; fall back to the error name for anything else. */
+export function errorName(e: unknown): string | undefined {
+  const err = e as { code?: string; name?: string } | null;
+  return err?.code ?? err?.name;
 }

@@ -1,10 +1,4 @@
-import { GetStyleDescriptorCommand } from "@aws-sdk/client-geo-maps";
-import {
-  MAP_COLOR_SCHEME,
-  MAP_STYLE,
-  geoMapsClient,
-  mapsLog,
-} from "@/lib/maps/geo-maps";
+import { errorName, mapProvider, mapsLog } from "@/lib/maps/geo-maps";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +32,8 @@ const OSM_FALLBACK = {
  */
 export async function GET(): Promise<Response> {
   try {
-    const out = await geoMapsClient().send(
-      new GetStyleDescriptorCommand({ Style: MAP_STYLE, ColorScheme: MAP_COLOR_SCHEME }),
-    );
-    const bytes = out.Blob;
-    if (!bytes) throw new Error("empty style descriptor");
+    const { bytes } = await mapProvider().style();
+    if (!bytes.length) throw new Error("empty style descriptor");
 
     const style = JSON.parse(new TextDecoder().decode(bytes)) as {
       sources?: Record<string, { tiles?: string[] }>;
@@ -75,7 +66,7 @@ export async function GET(): Promise<Response> {
     // Logged, not thrown: the fallback keeps maps working, so an unnoticed
     // permission problem would otherwise only show as a different-looking map.
     mapsLog.error(
-      { errorName: (e as { name?: string })?.name, err: (e as Error)?.message },
+      { errorName: errorName(e), err: (e as Error)?.message },
       "style descriptor failed — serving OpenStreetMap fallback",
     );
     return Response.json(OSM_FALLBACK, { headers: { "cache-control": "public, max-age=300" } });

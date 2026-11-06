@@ -1,11 +1,4 @@
-import { GetSpritesCommand } from "@aws-sdk/client-geo-maps";
-import {
-  MAP_COLOR_SCHEME,
-  MAP_STYLE,
-  bodyToResponse,
-  geoMapsClient,
-  mapsLog,
-} from "@/lib/maps/geo-maps";
+import { bodyToResponse, errorName, mapProvider, mapsLog } from "@/lib/maps/geo-maps";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +14,8 @@ export async function GET(
   if (!ALLOWED.has(file)) return new Response("Unknown sprite", { status: 404 });
 
   try {
-    const out = await geoMapsClient().send(
-      new GetSpritesCommand({
-        FileName: file,
-        Style: MAP_STYLE,
-        ColorScheme: MAP_COLOR_SCHEME,
-        Variant: "Default",
-      }),
-    );
-    const bytes = out.Blob;
-    if (!bytes) return new Response("Empty sprite", { status: 502 });
+    const { bytes } = await mapProvider().sprite(file);
+    if (!bytes.length) return new Response("Empty sprite", { status: 502 });
     // Derive the type from the filename rather than trusting upstream: AWS
     // returns binary/octet-stream even for sprites.json, and MapLibre needs
     // that served as JSON to parse the sprite index.
@@ -40,7 +25,7 @@ export async function GET(
       "application/octet-stream",
     );
   } catch (e) {
-    mapsLog.error({ errorName: (e as { name?: string })?.name, file }, "sprite request failed");
+    mapsLog.error({ errorName: errorName(e), file }, "sprite request failed");
     return new Response("Sprite unavailable", { status: 502 });
   }
 }

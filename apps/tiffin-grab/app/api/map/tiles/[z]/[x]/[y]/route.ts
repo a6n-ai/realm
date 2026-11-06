@@ -1,5 +1,4 @@
-import { GetTileCommand } from "@aws-sdk/client-geo-maps";
-import { MAP_TILESET, bodyToResponse, geoMapsClient, mapsLog } from "@/lib/maps/geo-maps";
+import { bodyToResponse, errorName, mapProvider, mapsLog } from "@/lib/maps/geo-maps";
 import { isValidTile } from "@/lib/maps/tile-bounds";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +13,12 @@ export async function GET(
   }
 
   try {
-    const out = await geoMapsClient().send(
-      new GetTileCommand({ Tileset: MAP_TILESET, Z: z, X: x, Y: y }),
-    );
-    const bytes = out.Blob;
-    if (!bytes) return new Response("Empty tile", { status: 502 });
-    return bodyToResponse(bytes, out.ContentType, "application/vnd.mapbox-vector-tile");
+    const { bytes, contentType } = await mapProvider().tile(z, x, y);
+    if (!bytes.length) return new Response("Empty tile", { status: 502 });
+    return bodyToResponse(bytes, contentType, "application/vnd.mapbox-vector-tile");
   } catch (e) {
     mapsLog.error(
-      { errorName: (e as { name?: string })?.name, z, x, y },
+      { errorName: errorName(e), z, x, y },
       "tile request failed",
     );
     return new Response("Tile unavailable", { status: 502 });

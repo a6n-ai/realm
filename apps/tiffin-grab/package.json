@@ -29,11 +29,10 @@
     "audit:skeletons": "playwright test skeleton-audit/capture.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.1161.0",
-    "@aws-sdk/client-geo-maps": "^3.1155.0",
     "@base-ui/react": "^1.9.0",
     "@date-fns/tz": "^1.5.0",
     "@foundry/address": "github:a6n-ai/foundry#path:packages/address",
+    "@foundry/aws": "github:a6n-ai/foundry#path:packages/aws",
     "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/auth-ui": "github:a6n-ai/foundry#path:packages/auth-ui",
     "@foundry/clover": "github:a6n-ai/foundry#path:packages/clover",
@@ -46,6 +45,7 @@
     "@foundry/discounts": "github:a6n-ai/foundry#path:packages/discounts",
     "@foundry/google-analytics": "github:a6n-ai/foundry#path:packages/google-analytics",
     "@foundry/google-reviews": "github:a6n-ai/foundry#path:packages/google-reviews",
+    "@foundry/maps": "github:a6n-ai/foundry#path:packages/maps",
     "@foundry/meta-pixel": "github:a6n-ai/foundry#path:packages/meta-pixel",
     "@foundry/payments": "github:a6n-ai/foundry#path:packages/payments",
     "@foundry/places": "github:a6n-ai/foundry#path:packages/places",
@@ -83,7 +83,6 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-easy-crop": "^6.2.4",
-    "react-email": "^6.11.3",
     "react-hook-form": "^7.90.0",
     "react-phone-number-input": "^3.4.18",
     "recharts": "^3.10.1",

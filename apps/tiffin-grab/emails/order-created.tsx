@@ -1,4 +1,4 @@
-import { Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text } from "react-email";
+import { Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text } from "@react-email/components";
 
 // Canonical source for the order_created email. Rendered to HTML by the seed
 // (db/seed-notification-templates.ts) and stored in the template's `html` column.

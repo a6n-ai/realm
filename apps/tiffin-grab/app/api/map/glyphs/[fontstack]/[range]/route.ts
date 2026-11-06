@@ -1,5 +1,4 @@
-import { GetGlyphsCommand } from "@aws-sdk/client-geo-maps";
-import { bodyToResponse, geoMapsClient, mapsLog } from "@/lib/maps/geo-maps";
+import { bodyToResponse, errorName, mapProvider, mapsLog } from "@/lib/maps/geo-maps";
 
 export const dynamic = "force-dynamic";
 
@@ -15,20 +14,14 @@ export async function GET(
   if (!RANGE.test(range)) return new Response("Bad glyph range", { status: 400 });
 
   try {
-    const out = await geoMapsClient().send(
-      new GetGlyphsCommand({
-        // Next has already decoded the segment; AWS wants the raw stack name
-        // ("Amazon Ember Regular"), which arrives percent-encoded from MapLibre.
-        FontStack: decodeURIComponent(fontstack),
-        FontUnicodeRange: range,
-      }),
-    );
-    const bytes = out.Blob;
-    if (!bytes) return new Response("Empty glyph range", { status: 502 });
-    return bodyToResponse(bytes, out.ContentType, "application/octet-stream");
+    // Next has already decoded the segment once; the stack name arrives
+    // percent-encoded from MapLibre, and the provider wants it decoded.
+    const { bytes, contentType } = await mapProvider().glyphs(decodeURIComponent(fontstack), range);
+    if (!bytes.length) return new Response("Empty glyph range", { status: 502 });
+    return bodyToResponse(bytes, contentType, "application/octet-stream");
   } catch (e) {
     mapsLog.error(
-      { errorName: (e as { name?: string })?.name, fontstack, range },
+      { errorName: errorName(e), fontstack, range },
       "glyph request failed",
     );
     return new Response("Glyphs unavailable", { status: 502 });
