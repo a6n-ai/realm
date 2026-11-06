@@ -102,3 +102,10 @@ html:not([data-consent="open"]) .tg-land:has(.tg-pill:not([data-away])) .tg-wa {
 @keyframes tg-slide-in-l { from { transform: translateX(-100%); opacity: 0.3; } }
 @keyframes tg-slide-out-l { to { transform: translateX(-100%); opacity: 0; } }
 @keyframes tg-slide-out-r { to { transform: translateX(100%); opacity: 0; } }
+
+/* Over a dark band (green sections, the footer stays light) the dock's labels and icons turn cream. */
+html[data-edge-bottom="dark"] .tg-pill :is(.tg-drum__face, .tg-drum__nav, .tg-pill__home) { color: #FBF4E7; }
+html[data-edge-bottom="dark"] .tg-pill .tg-drum__face > svg { color: #FFB877; }
+html[data-edge-bottom="dark"] .tg-pill .tg-pill__wa { color: #7BE3A4; }
+html[data-edge-bottom="dark"] .tg-pill .tg-drum__face em { background: rgb(251 244 231 / 0.16); color: #FBF4E7; }
+.tg-drum__face, .tg-drum__nav, .tg-pill__orb { transition-property: color, transform, background-color; transition-duration: 260ms; }

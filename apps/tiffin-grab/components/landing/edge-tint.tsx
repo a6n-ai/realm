@@ -17,6 +17,11 @@ function gradientColour(image: string, edge: "top" | "bottom"): string | null {
   return (edge === "top" ? stops[0] : stops.at(-1)) ?? null;
 }
 
+function isDark(rgb: string): boolean {
+  const [r = 255, g = 255, b = 255] = (rgb.match(/[\d.]+/g) ?? []).map(Number);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
+}
+
 function colourAt(y: number): string | null {
   for (const el of document.elementsFromPoint(innerWidth / 2, y)) {
     if (el.closest(SKIP)) continue;
@@ -36,14 +41,25 @@ function colourAt(y: number): string | null {
 export function EdgeTint() {
   useEffect(() => {
     const root = document.documentElement;
-    let frame = 0;
+    let last = 0;
+    let trail: ReturnType<typeof setTimeout> | undefined;
     const paint = () => {
-      frame = 0;
       const top = colourAt(1), bottom = colourAt(innerHeight - 1);
       if (top) root.style.setProperty("--edge-top", top);
-      if (bottom) root.style.setProperty("--edge-bottom", bottom);
+      if (bottom) {
+        root.style.setProperty("--edge-bottom", bottom);
+        // The dock reads this to switch to cream labels over a dark band.
+        root.dataset.edgeBottom = isDark(bottom) ? "dark" : "light";
+      }
     };
-    const queue = () => { if (!frame) frame = requestAnimationFrame(paint); };
+    // Throttled by time, plus one trailing paint where scrolling stops. (A requestAnimationFrame gate
+    // could stay stuck if a frame was asked for while the tab was in the background.)
+    const queue = () => {
+      clearTimeout(trail);
+      const now = performance.now();
+      if (now - last > 120) { last = now; paint(); }
+      trail = setTimeout(paint, 160);
+    };
     // The first paint can land before layout settles (page transition, restored scroll): repaint on load.
     paint();
     const late = setTimeout(queue, 600);
@@ -51,12 +67,13 @@ export function EdgeTint() {
     addEventListener("scroll", queue, { passive: true });
     addEventListener("resize", queue);
     return () => {
-      cancelAnimationFrame(frame);
+      clearTimeout(trail);
       clearTimeout(late);
       removeEventListener("scroll", queue);
       removeEventListener("resize", queue);
       root.style.removeProperty("--edge-top");
       root.style.removeProperty("--edge-bottom");
+      delete root.dataset.edgeBottom;
     };
   }, []);
   return (
