@@ -4,7 +4,7 @@ import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
-import { apexServes } from "./lib/routing/apex";
+import { AREA_PAGE, apexServes } from "./lib/routing/apex";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -133,7 +133,8 @@ export async function proxy(request: NextRequest) {
   const res = await route(request);
   syncSessionHint(request, res);
   // A share link: remember the code until the friend signs in (attached there).
-  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? "");
+  // ...or the friend page itself (/refer/<code>): its header and footer links carry no ?ref=.
+  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? /^\/refer\/([^/]+)$/.exec(pathname)?.[1] ?? "");
   if (isReferralCodeShape(ref)) res.cookies.set(REFERRAL_COOKIE, ref, REFERRAL_COOKIE_OPTIONS);
   return res;
 }
@@ -177,7 +178,7 @@ async function route(request: NextRequest): Promise<NextResponse> {
   const forwardedRequest = { request: { headers: request.headers } };
 
   // Every method: server actions POST to the page URL, which now exists only under /site/<org>.
-  const friendPath = siteFriendPath(pathname);
+  const friendPath = siteFriendPath(pathname) ?? (AREA_PAGE.test(pathname) ? pathname : null);
   if (SITE_PAGES.has(pathname) || friendPath) {
     const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : friendPath ?? pathname}`;
     return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);

@@ -16,7 +16,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("This week's menu | Tiffin Grab", "This week's home-style tiffin dishes, day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish.", "/menu");
+export const metadata: Metadata = pageMeta("This Week's Tiffin Menu: Dal, Sabzi, Roti | Tiffin Grab", "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
 export const revalidate = 300;
 export const dynamic = "error";
 

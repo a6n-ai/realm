@@ -12,7 +12,8 @@ export const dynamic = "error";
 export async function generateMetadata(): Promise<Metadata> {
   const offer = await loadReferralOffer();
   const description = offer.on ? `${referHeadline(offer)} Share your TiffinGrab link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
-  return pageMeta("Refer a friend | Tiffin Grab", description, "/refer");
+  const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | Tiffin Grab` : "Refer a Friend | Tiffin Grab";
+  return pageMeta(title, description, "/refer");
 }
 
 export default async function ReferPage({ params }: { params: Promise<{ org: string }> }) {

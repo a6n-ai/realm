@@ -5,7 +5,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ContactForm } from "./contact-form";
 import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Contact | Tiffin Grab", "Ask us about a plan, your area or an order. Add your postal code and we tell you whether we deliver to you.", "/contact");
+export const metadata: Metadata = pageMeta("Contact Tiffin Grab: Plans, Delivery & Orders", "Ask about a tiffin plan, your delivery area or an order. Add your postal code and we tell you whether we deliver to you in the Greater Toronto Area.", "/contact");
 export const revalidate = 3600;
 export const dynamic = "error";
 

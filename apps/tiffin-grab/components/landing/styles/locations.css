@@ -4,3 +4,7 @@
 @media (max-width: 640px) {
   .tg-areas > li { grid-template-columns: minmax(0, 1fr); }
 }
+.tg-areas__link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--foreground); text-decoration: none; }
+.tg-areas__link svg { color: var(--primary-text, var(--primary)); transition: translate 300ms var(--lp-ease); }
+.tg-areas__link:hover strong { text-decoration: underline; text-underline-offset: 0.25em; }
+.tg-areas__link:hover svg, .tg-areas__link:focus-visible svg { translate: 4px 0; }

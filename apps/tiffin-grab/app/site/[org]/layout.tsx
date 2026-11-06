@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import "@/app/styles/public.css";
 import type { ReactNode } from "react";
 import { PublicShell } from "@/components/landing/public-shell";
+import { publicOrigin } from "@/lib/routing/apex";
 import { siteOrgId } from "@/lib/tenant/site-org";
+
+// These pages are also reachable on app.; canonical and share URLs must name the apex, or
+// Google indexes the app host as the brand site.
+export function generateMetadata(): Metadata {
+  return { metadataBase: new URL(publicOrigin()) };
+}
 
 // Nothing renders at build time (CI has no DB); each org/path is rendered on first visit, then cached.
 export function generateStaticParams() {

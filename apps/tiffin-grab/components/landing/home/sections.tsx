@@ -7,6 +7,7 @@ import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
 import type { LandingPromo } from "@/lib/landing/promo-types";
 import { referHeadline } from "@/components/landing/refer/refer-content";
 import type { ReferralOffer } from "@/lib/referrals/offer";
+import { trialLength, type TrialOffer } from "@/lib/landing/live-figures";
 import type { BoardDay } from "@/components/landing/week-board";
 import type { BoardWeekend } from "@/lib/landing/week-board";
 import { HeroVideo } from "@/components/landing/home/hero-video";
@@ -171,8 +172,8 @@ function Mark({ icon: Icon }: { icon: LucideIcon }) {
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, cutoff, fromRate, photo }: {
-  plans: Plan[]; sizes: Size[]; sizePlanKey: string | null; sides: Side[]; frequencies: Frequency[]; lengths: Length[]; cutoff: string | null; fromRate: number | null; photo: StaticImageData;
+export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, cutoff, fromRate, trial, photo }: {
+  plans: Plan[]; sizes: Size[]; sizePlanKey: string | null; sides: Side[]; frequencies: Frequency[]; lengths: Length[]; cutoff: string | null; fromRate: number | null; trial: TrialOffer | null; photo: StaticImageData;
 }) {
   const maxOff = Math.max(0, ...lengths.map((l) => l.off));
   const names = ["Diet", "Size", ...(sides.length > 0 ? ["Sides"] : []), "Days", "Weeks", "Price", "Photo"];
@@ -281,6 +282,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
               <Link prefetch={false} href="/subscribe" className="lp-cta lp-cta--sm">See my price</Link>
               <Link href="/pricing" className="lp-textlink">Pricing table <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></Link>
             </div>
+            {trial ? <p className="lp-note">Not ready for weeks? <Link prefetch={false} href={trial.href} className="lp-textlink">Try {trialLength(trial)} first</Link></p> : null}
           </article>
 
           {/* Last: the four picks and the price come first in the phone swipe row. */}

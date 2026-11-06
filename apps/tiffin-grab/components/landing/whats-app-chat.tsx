@@ -2,10 +2,11 @@
 
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { hasAnalyticsConsent } from "@/lib/consent";
+import { SUPPORT_E164 } from "@/lib/landing/contact";
 
 // Floating “Chat with us” control on every public website page. Opens WhatsApp
 // to the support number already published on the delivery policy.
-const WHATSAPP_E164 = "16472449813";
+const WHATSAPP_E164 = SUPPORT_E164;
 // Opens the chat with a first message already typed, so the visitor only has to press send.
 const WHATSAPP_GREETING = "Hi Tiffin Grab! I'd like to know more about your tiffin plans.";
 const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_E164}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;

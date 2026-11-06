@@ -4,7 +4,7 @@ import { LandingReviews } from "@/components/landing/landing-reviews";
 import Link from "next/link";
 import { MealSizePrice } from "@/components/wizard/meal-size-price";
 import { PageIntro, dashless } from "@/components/landing/public-shell";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";
 import { PriceMath, type MathFrequency, type MathLength, type MathPlan } from "@/components/landing/price-math";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -15,22 +15,37 @@ import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
 import { pageMeta } from "@/lib/landing/meta";
 import "@/components/landing/styles/pricing.css";
+import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 
-export const metadata: Metadata = pageMeta("Plans and pricing | Tiffin Grab", "The vegetarian and non-veg plans, every meal size with what is in it, its calories and per-tiffin rate, and what longer plans take off each tiffin.", "/pricing");
+// Plans live on this page too (/plans redirects here), so the copy names both.
+export async function generateMetadata(): Promise<Metadata> {
+  const [catalog, { currency }] = await Promise.all([loadCatalogSnapshot(), getAppSettings()]);
+  const rate = lowestRate(catalog);
+  const off = biggestDurationOff(catalog);
+  const title = rate != null ? `Tiffin Plans & Prices in Toronto, from ${shortMoney(rate, currency)} | Tiffin Grab` : "Tiffin Plans & Prices in Toronto & GTA | Tiffin Grab";
+  const saving = off != null ? `, up to ${off}% off longer plans` : "";
+  const delivery = deliveryIsFree(catalog) ? ", and free GTA delivery" : "";
+  return pageMeta(title, `Veg and non-veg plans with every meal size, what's in it and its calories. One rate per tiffin${saving}${delivery}.`, "/pricing");
+}
 export const revalidate = 300;
 export const dynamic = "error";
 
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const DIET_LABEL: Record<string, string> = { veg: "Veg", "non-veg": "Non-veg" };
+// Rows per plan before "Show N more sizes": the trial plus the cheapest few cover most choices.
+const VISIBLE_SIZES = 5;
 
 export default async function PricingPage() {
-  const catalog = await loadCatalogSnapshot();
+  const [catalog, trialSettings] = await Promise.all([loadCatalogSnapshot(), getTrialSettings()]);
+  const trial = trialOffer(catalog, trialSettings);
   const sizes = listableMealSizes(catalog.mealSizes);
   const plans = publicPlans(catalog.plans)
     .filter((p) => !isComingSoon(p.key))
-    // Trial sizes lead each plan's list: the cheapest way in comes first.
-    .map((p) => ({ ...p, sizes: sizes.filter((m) => m.planKey === p.key).sort((a, b) => Number(b.trial) - Number(a.trial)) }))
+    // Trial sizes lead each plan's list (the way in), then the rest cheapest first, so it reads as a ladder.
+    .map((p) => ({ ...p, sizes: sizes.filter((m) => m.planKey === p.key).sort((a, b) => Number(b.trial) - Number(a.trial) || effectivePrice(a.basePrice, a) - effectivePrice(b.basePrice, b)) }))
     .filter((p) => p.sizes.length > 0);
   // A duration discount names either a floor (minWeeks) or one duration row.
   const weeksOff = (catalog.discounts ?? [])
@@ -119,9 +134,10 @@ export default async function PricingPage() {
                   <div className="lp-plan__go">
                     <Link prefetch={false} href={`/subscribe?plan=${p.key}`} className="lp-cta">Start with this plan<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
                   </div>
-                  <ul className="lp-list">
-                    {p.sizes.map((m) => (
-                      // Every meal size lives here now: what is in it, its calories and its rate.
+                  {(() => {
+                    // Every meal size lives here: what is in it, its calories and its rate. Ten-odd rows read
+                    // as a wall, so the first few show and the rest open in place (still in the HTML).
+                    const row = (m: (typeof p.sizes)[number]) => (
                       <li key={m.publicId} className="lp-list__row lp-size-row">
                         <span>
                           <strong className="flex flex-wrap items-center gap-2">{dashless(m.name)}{m.trial ? <span className="lp-trial">Trial</span> : null}</strong>
@@ -130,8 +146,24 @@ export default async function PricingPage() {
                         </span>
                         <MealSizePrice meal={m} perTiffin priceClassName="text-base font-semibold text-foreground tabular-nums" />
                       </li>
-                    ))}
-                  </ul>
+                    );
+                    const shown = p.sizes.slice(0, VISIBLE_SIZES), more = p.sizes.slice(VISIBLE_SIZES);
+                    return (
+                      <>
+                        <ul className="lp-list">{shown.map(row)}</ul>
+                        {more.length > 0 ? (
+                          <details className="group">
+                            <summary className="lp-textlink cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                              <span className="group-open:hidden">Show {more.length} more {more.length === 1 ? "size" : "sizes"}</span>
+                              <span className="hidden group-open:inline">Show fewer sizes</span>
+                              <ChevronDown aria-hidden className="size-4 transition-[rotate] duration-200 group-open:rotate-180 motion-reduce:transition-none" strokeWidth={2} />
+                            </summary>
+                            <ul className="lp-list mt-2">{more.map(row)}</ul>
+                          </details>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -159,6 +191,7 @@ export default async function PricingPage() {
 
       <div className="lp-actions lp-actions--start">
         <Link prefetch={false} href="/subscribe" className="lp-cta">See my price<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
+        {trial ? <Link prefetch={false} href={trial.href} className="lp-textlink">Try {trialLength(trial)} first<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link> : null}
         <Link href="/menu" className="lp-textlink">This week&apos;s menu<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link>
       </div>
     </div>

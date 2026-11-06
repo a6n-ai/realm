@@ -9,9 +9,12 @@ import { DeliverySection } from "@/components/landing/delivery-section";
 import { LocationCard } from "./location-card";
 import { pageMeta } from "@/lib/landing/meta";
 import { publicPagesCache } from "@/lib/landing/public-cache";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { areaSlug, areaZones } from "@/lib/landing/areas";
 import "@/components/landing/styles/locations.css";
 
-export const metadata: Metadata = pageMeta("Delivery areas | Tiffin Grab", "Check your postal code on the map, and see every GTA area Tiffin Grab delivers to with its delivery window.", "/locations");
+export const metadata: Metadata = pageMeta("Tiffin Delivery Areas: Brampton to Durham | Tiffin Grab", "Check your postal code for tiffin delivery in Toronto, Brampton, Mississauga, Markham, Vaughan, Scarborough, Oakville and more, with each area's window.", "/locations");
 export const revalidate = 3600;
 export const dynamic = "error";
 
@@ -21,6 +24,7 @@ export default async function LocationsPage({ params }: { params: Promise<{ org:
   // kitchens stay below for the picker proxy.ts sends visitors to when no org resolves.
   const [{ zones }, locations] = await Promise.all([loadCatalogSnapshot(), publicPagesCache.getOrSet("locations", listFranchiseLocations)]);
   const areas = zones.filter((z) => z.active).sort((a, b) => a.name.localeCompare(b.name));
+  const paged = new Set(areaZones(zones).map((z) => z.name));
 
   return (
     <>
@@ -38,7 +42,9 @@ export default async function LocationsPage({ params }: { params: Promise<{ org:
             {areas.map((zone) => (
               <li key={zone.id}>
                 <div className="tg-areas__name">
-                  <strong>{zone.name}</strong>
+                  {paged.has(zone.name) ? (
+                    <Link href={`/locations/${areaSlug(zone.name)}`} className="tg-areas__link"><strong>{zone.name}</strong><ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link>
+                  ) : <strong>{zone.name}</strong>}
                   {zone.slotWindow ? <span>Delivered {zone.slotWindow}</span> : null}
                 </div>
                 {zone.postalPrefixes.length > 0 ? (

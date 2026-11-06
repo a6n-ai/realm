@@ -10,8 +10,20 @@ const APEX_PUBLIC_EXACT = new Set([
   // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
   "/api/auth/get-session",
 ]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
+const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 const APEX_SVG = /^\/[^/]*\.svg$/;
+
+/** Origin search engines should index the public pages under: the apex (tiffingrab.ca), derived
+ *  from BETTER_AUTH_URL the same way the proxy's front door does. Hosts without "app." (localhost,
+ *  previews) keep their own origin. */
+export function publicOrigin(): string {
+  const app = new URL(process.env.BETTER_AUTH_URL || "https://app.tiffingrab.ca");
+  return app.hostname.startsWith("app.") ? `${app.protocol}//${app.host.slice(4)}` : app.origin;
+}
+
+/** A delivery-area page, /locations/<slug>. Shared by the proxy rewrite, the edge page cache and the
+ *  cache headers, so all three agree on which paths are area pages. */
+export const AREA_PAGE = /^\/locations\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function apexServes(pathname: string): boolean {
   const p = pathname.toLowerCase();

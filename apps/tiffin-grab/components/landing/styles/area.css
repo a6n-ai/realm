@@ -1,0 +1,80 @@
+/* Delivery-area pages (/locations/<area>). Built on core.css tokens; one authored motion (the day
+   ribbon filling), plus the word reveal. Both default to their finished state and only animate
+   where a scroll timeline exists and motion is allowed. */
+
+.lp-area { display: flex; flex-direction: column; gap: clamp(64px, 9vw, 120px); }
+.lp-area__hero { display: flex; flex-direction: column; align-items: flex-start; gap: 24px; max-width: 880px; }
+.lp-area__hero .lp-lede { max-width: 52ch; }
+.lp-area__block { display: flex; flex-direction: column; gap: clamp(24px, 3vw, 40px); }
+.lp-area__head { display: flex; flex-direction: column; gap: 12px; }
+
+.lp-crumbs { display: flex; align-items: center; gap: 8px; margin-bottom: calc(-1 * clamp(32px, 6vw, 80px)); font-size: 14px; color: var(--muted-foreground); }
+.lp-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 0.25em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: color 200ms var(--lp-ease); }
+.lp-crumbs a:hover { color: var(--foreground); }
+.lp-crumbs [aria-current] { color: var(--foreground); font-weight: 600; }
+
+/* Day ribbon: one line from the night before to the delivery window. */
+.lp-ribbon__track { position: relative; height: 72px; margin-inline: 24px; }
+.lp-ribbon__line, .lp-ribbon__night, .lp-ribbon__band { position: absolute; top: 50%; height: 6px; translate: 0 -50%; border-radius: 999px; }
+.lp-ribbon__line { inset-inline: 0; background: var(--border); }
+/* The night between the cutoff and morning reads darker: the kitchen's quiet hours. */
+.lp-ribbon__night { left: var(--cut); right: calc(100% - var(--cook)); background: color-mix(in srgb, var(--foreground) 18%, var(--border)); }
+.lp-ribbon__band { left: var(--from); right: calc(100% - var(--to)); height: 20px; background: var(--primary); box-shadow: var(--c-shadow-cta); }
+.lp-ribbon__dot { position: absolute; top: 50%; width: 16px; height: 16px; translate: -50% -50%; border-radius: 999px; background: var(--card); border: 3px solid var(--foreground); }
+.lp-ribbon__dot--cut { left: var(--cut); }
+.lp-ribbon__dot--cook { left: var(--cook); border-color: var(--primary); }
+.lp-ribbon__tick { position: absolute; top: calc(50% + 18px); translate: -50% 0; font-size: 13px; font-weight: 600; color: var(--muted-foreground); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lp-ribbon__tick--win { color: var(--primary-text, var(--primary)); }
+
+.lp-ribbon__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.lp-ribbon__steps li { display: flex; flex-direction: column; gap: 6px; }
+.lp-ribbon__steps strong { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.lp-ribbon__steps span { font-size: 16px; line-height: 1.5; color: var(--muted-foreground); text-wrap: pretty; }
+.lp-ribbon__step--win strong { color: var(--primary-text, var(--primary)); }
+
+/* Postal codes: code first, then the neighbourhoods it covers, then any honest overlap note. */
+.lp-codes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 0 32px; }
+.lp-codes li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.lp-codes strong { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+.lp-codes span { font-size: 15px; line-height: 1.45; color: var(--foreground); text-wrap: pretty; }
+.lp-codes small { grid-column: 2; font-size: 13px; line-height: 1.45; color: var(--primary-text, var(--primary)); }
+
+.lp-dishes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-dishes li { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--primary-wash, var(--muted)); font-size: 16px; font-weight: 600; }
+
+.lp-rates-short { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-width: 560px; }
+.lp-rates-short li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); font-size: 18px; }
+.lp-rates-short strong { font-weight: 700; }
+
+.lp-near { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px; }
+.lp-near a { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 20px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground); text-decoration: none; transition: background-color 200ms var(--lp-ease), translate 300ms var(--lp-ease); }
+.lp-near a span { font-size: 14px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.lp-near a svg { color: var(--primary-text, var(--primary)); transition: translate 300ms var(--lp-ease); }
+.lp-near a:hover { background: var(--muted); translate: 0 -2px; }
+.lp-near a:hover svg, .lp-near a:focus-visible svg { translate: 4px 0; }
+.lp-near a:active { scale: 0.98; }
+.lp-near a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+/* Tagline: words brighten in reading order as the line scrolls through the middle of the screen. */
+.lp-reveal { max-width: 20ch; }
+.lp-reveal__line { display: block; text-wrap: balance; }
+
+@media (max-width: 720px) {
+  .lp-ribbon__steps { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .lp-crumbs { margin-bottom: -24px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .lp-ribbon { view-timeline: --lp-ribbon block; }
+    .lp-ribbon__band, .lp-ribbon__night { transform-origin: left center; animation: lp-ribbon-draw linear both; animation-timeline: --lp-ribbon; animation-range: entry 40% cover 45%; }
+    .lp-ribbon__dot { animation: lp-ribbon-dot linear both; animation-timeline: --lp-ribbon; animation-range: entry 40% cover 35%; }
+
+    .lp-reveal { view-timeline: --lp-reveal block; }
+    .lp-reveal__word { animation: lp-word linear both; animation-timeline: --lp-reveal; animation-range: cover calc(18% + var(--i) * 2.6%) cover calc(24% + var(--i) * 2.6%); }
+  }
+}
+
+@keyframes lp-ribbon-draw { from { scale: 0 1; } to { scale: 1 1; } }
+@keyframes lp-ribbon-dot { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
+@keyframes lp-word { from { opacity: 0.3; } to { opacity: 1; } }

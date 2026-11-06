@@ -7,8 +7,9 @@ import { FAQS } from "@/components/landing/faqs";
 import { PageIntro } from "@/components/landing/public-shell";
 import { listPublicFaqs } from "@/lib/services/faqs.service";
 import { pageMeta } from "@/lib/landing/meta";
+import { jsonLdScript } from "@/lib/landing/business-jsonld";
 
-export const metadata: Metadata = pageMeta("FAQ | Tiffin Grab", "Answers on plans, delivery, meal sizes, pausing and billing: Tiffin Grab's most-asked questions.", "/faq");
+export const metadata: Metadata = pageMeta("Tiffin Service FAQ: Delivery, Changes, Pricing | Tiffin Grab", "How Tiffin Grab works: where we deliver in the GTA, changing what comes on a given day, how pricing works, and how to pay for your plan.", "/faq");
 export const revalidate = 3600;
 export const dynamic = "error";
 
@@ -33,7 +34,7 @@ export default async function FaqPage({ params }: { params: Promise<{ org: strin
 
   return (
     <div className="lp-wrap lp-section">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd(faqs)) }} />
       <PageIntro eyebrow="FAQ" title={<>Before you <span className="c-accent">order.</span></>} />
       <div className="max-w-[820px]">
         <FaqAccordion items={faqs.map((f) => ({ q: f.question, a: f.answer }))} name="faq" />

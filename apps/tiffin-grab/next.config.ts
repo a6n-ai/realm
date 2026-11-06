@@ -51,7 +51,8 @@ const nextConfig: NextConfig = {
   // Router-data responses (RSC header) for the same URLs stay private: a shared cache must never
   // hold one, since the cache key ignores the header that changed the response.
   async headers() {
-    return publicPages.flatMap((source) => [
+    // Area pages share one pattern (AREA_PAGE in lib/routing/apex.ts); the edge cache matches the same paths.
+    return [...publicPages, "/locations/:area"].flatMap((source) => [
       { source, missing: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] },
       { source, has: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "private, no-cache" }] },
     ]);

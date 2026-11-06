@@ -13,13 +13,16 @@ import { LazyPauseDemo as PauseDemo } from "@/components/landing/stage/lazy";
 import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, ReferBand, Story } from "@/components/landing/home/sections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
-import { effectivePrice } from "@/lib/pricing";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadLandingPromos } from "@/lib/landing/promos";
 import { pageMeta } from "@/lib/landing/meta";
+import { deliveryIsFree, hourLabel, lowestRate, trialOffer } from "@/lib/landing/live-figures";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { businessJsonLd, jsonLdScript } from "@/lib/landing/business-jsonld";
+import { publicOrigin } from "@/lib/routing/apex";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
@@ -29,14 +32,20 @@ import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
 
-export const metadata: Metadata = pageMeta("Tiffin Grab: home-style Indian tiffins delivered across the GTA", "Home-style Indian tiffin meals delivered across the Greater Toronto Area. Choose the diet, the size, the sides, the days and how many weeks.", "/");
+export async function generateMetadata(): Promise<Metadata> {
+  const catalog = await loadCatalogSnapshot();
+  const free = deliveryIsFree(catalog) ? " free" : "";
+  const pause = catalog.cutoffHour != null ? `Pause by ${hourLabel(catalog.cutoffHour)} the night before` : "Pause any day you're away";
+  return pageMeta(
+    "Home-Style Tiffin Service in Toronto & GTA | Tiffin Grab",
+    `Home-style veg and non-veg tiffins, cooked in small batches and delivered${free} across the GTA. Pick your size, days and weeks. ${pause}.`,
+    "/",
+  );
+}
 export const revalidate = 300;
 export const dynamic = "error";
 
 const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
-const hourLabel = (h: number) =>
-  dateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();
 
 function weekRange(weekStart: string) {
   const end = parseIsoDateUtc(weekStart);
@@ -49,7 +58,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
   // The hero poster is the phone LCP: fetch the right WebP from the head, ahead of CSS and scripts.
   preload("/landing/stock/hero-poster-mobile.webp", { as: "image", type: "image/webp", media: "(max-width: 767px)", fetchPriority: "high" });
   preload("/landing/stock/hero-poster.webp", { as: "image", type: "image/webp", media: "(min-width: 768px)", fetchPriority: "high" });
-  const [pub, catalog, { timezone }, promos, referral] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null)]);
+  const [pub, catalog, { timezone }, promos, referral, trialSettings] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null), getTrialSettings(orgId)]);
 
   const plans = publicPlans(catalog.plans);
   const firstPlan = plans.find((p) => !isComingSoon(p.key));
@@ -63,9 +72,8 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
         .filter((x) => x.kind === "duration" && (x.targetPublicId === d.publicId || (x.targetPublicId == null && (x.minWeeks ?? 0) <= d.weeks)))
         .map((x) => x.percent)),
     }));
-  // Lowest live per-tiffin rate across orderable plans, the same figure the Plans page shows as "from".
-  const rates = listableMealSizes(catalog.mealSizes).filter((m) => plans.some((p) => p.key === m.planKey && !isComingSoon(p.key))).map((m) => effectivePrice(m.basePrice, m));
-  const fromRate = rates.length ? Math.min(...rates) : null;
+  // Same figure the Plans page shows as "from", and the one the meta tags quote.
+  const fromRate = lowestRate(catalog);
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
   // The demos say "Changes until Mon 11:00 PM": the real cutoff, never a hard-coded hour.
   const cutoffTime = catalog.cutoffHour != null
@@ -81,6 +89,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
 
   return (
     <div className="lp">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(businessJsonLd(catalog, publicOrigin())) }} />
       <Hero
         video="/landing/stock/hero.mp4"
         poster="/landing/stock/hero-poster.jpg"
@@ -103,6 +112,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
         sizes={sizes.map((m) => ({ id: m.publicId, name: m.name.replace(/\s+[—–]\s+/g, " · "), note: m.components.length > 0 ? m.components.join(" + ") : `${m.kcalMin} to ${m.kcalMax} kcal` }))}
         sizePlanKey={firstPlan?.key ?? null}
         fromRate={fromRate}
+        trial={trialOffer(catalog, trialSettings)}
         sides={sides.map((a) => ({ key: a.key, name: a.name, note: a.portion ?? null }))}
         frequencies={catalog.frequencies.map((f) => ({ id: f.publicId, name: f.name, days: f.weekdays ?? WEEK.slice(0, f.daysPerWeek) }))}
         lengths={lengths}

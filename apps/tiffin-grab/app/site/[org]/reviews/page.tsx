@@ -8,7 +8,7 @@ import { integrationsConfigReadStore } from "@/lib/services/app-settings.service
 import { pageMeta } from "@/lib/landing/meta";
 import { buttonClass } from "@/components/customer/kit/button-class";
 
-export const metadata: Metadata = pageMeta("Reviews | Tiffin Grab", "Real Google reviews from Tiffin Grab customers across the Greater Toronto Area.", "/reviews");
+export const metadata: Metadata = pageMeta("Tiffin Grab Reviews: What GTA Customers Say on Google", "Read real Google reviews of Tiffin Grab's home-style tiffins from customers across the Greater Toronto Area.", "/reviews");
 export const revalidate = 3600;
 export const dynamic = "error";
 
