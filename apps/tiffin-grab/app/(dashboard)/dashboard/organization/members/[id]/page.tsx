@@ -1,12 +1,9 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { NotFoundError, Role } from "@foundry/commons";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";
-import { db } from "@/db/client";
-import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
@@ -14,9 +11,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import {
   RoleSelect,
   StatusSelect,
-  FlagToggles,
   ResetPasswordButton,
-  type FlagState,
 } from "../user-row";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { MemberManagement } from "../../settings/member-management";
@@ -50,20 +45,11 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [{ timezone }, defs, overrides, memberships, allOrgs] = await Promise.all([
+  const [{ timezone }, memberships, allOrgs] = await Promise.all([
     getAppSettings(),
-    db.select().from(featureFlags),
-    db.select().from(userFeatureFlags).where(eq(userFeatureFlags.userId, user.id)),
     listMembershipsForUser(user.publicId),
     listOrganizations(),
   ]);
-  const ov = new Map(overrides.map((o) => [o.flagId, Boolean(o.enabled)]));
-  const flags: FlagState[] = defs.map((f) => ({
-    id: f.publicId,
-    key: f.key,
-    label: f.label,
-    enabled: ov.has(f.id) ? (ov.get(f.id) as boolean) : f.defaultEnabled,
-  }));
 
   const isStaff = user.role === Role.ADMIN || user.role === Role.MEMBER;
   const contact = [user.email, user.phone].filter(Boolean).join(" · ");
@@ -116,7 +102,7 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </SectionCard>
 
-      <SectionCard title="Access" subtitle="Role, account status and feature flags.">
+      <SectionCard title="Access" subtitle="Role and account status.">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
@@ -128,12 +114,6 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
               <StatusSelect id={user.publicId} status={user.status} />
             </label>
           </div>
-          {flags.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-muted-foreground text-sm">Feature flags</span>
-              <FlagToggles id={user.publicId} flags={flags} />
-            </div>
-          )}
         </div>
       </SectionCard>
 

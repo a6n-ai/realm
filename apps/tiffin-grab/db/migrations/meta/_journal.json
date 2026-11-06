@@ -372,6 +372,13 @@
       "when": 1794002932994,
       "tag": "0052_military_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794174344834,
+      "tag": "0053_drop_feature_flags",
+      "breakpoints": true
     }
   ]
 }

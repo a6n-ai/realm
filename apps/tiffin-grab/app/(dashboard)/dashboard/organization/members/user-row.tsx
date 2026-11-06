@@ -7,11 +7,10 @@ import { KeyRound, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
-import { sendStaffAccessEmail, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
+import { sendStaffAccessEmail, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -62,24 +61,6 @@ export function RoleSelect({ id, role }: { id: string; role: RoleValue }) {
   );
 }
 
-export function FlagToggles({ id, flags }: { id: string; flags: FlagState[] }) {
-  const [pending, start] = useTransition();
-  return (
-    <div className="flex flex-wrap gap-3">
-      {flags.map((f) => (
-        <label key={f.id} className="flex items-center gap-2 text-sm">
-          <Switch
-            checked={f.enabled}
-            onCheckedChange={(c) => start(() => setUserFlag(id, f.id, c))}
-            disabled={pending}
-          />
-          {f.label}
-        </label>
-      ))}
-    </div>
-  );
-}
-
 // Staff rows only. With a password: mails a reset code. Without one: re-sends
 // the invite email (sign in with an email code, then choose a password) — see
 // sendStaffAccessEmail. "icon": tooltip icon button for a table row. "button":
@@ -126,12 +107,8 @@ export function ResetPasswordButton({
   );
 }
 
-export type FlagState = { id: string; key: string; label: string; enabled: boolean };
-
 // Returns only the <TableCell> children — DataTable supplies the wrapping
-// <TableRow>. Interactive role/flag controls stay client-side here.
-// Feature flags live on the user detail page only (this list row stays lean as
-// the flag set grows) — see [id]/page.tsx's own FlagToggles usage.
+// <TableRow>. Interactive role controls stay client-side here.
 export function UserRow({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
   return (
     <>

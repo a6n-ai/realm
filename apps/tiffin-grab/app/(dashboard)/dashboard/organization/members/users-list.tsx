@@ -22,8 +22,7 @@ export type UserListRow = {
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
-// two can never drift. Feature flags live on the user detail page, not here —
-// keeps this row lean as the flag set grows.
+// two can never drift.
 const COLUMNS: readonly Column<"name" | "email" | "role" | "status" | "actions">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Contact", sortable: true },

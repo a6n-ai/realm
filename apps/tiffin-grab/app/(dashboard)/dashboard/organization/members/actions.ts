@@ -13,7 +13,6 @@ import { requireAdmin, requirePermission } from "@/lib/auth/guards";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
 import { getSession } from "@/lib/auth/session";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
-import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
 import { ContactTakenError, usersService } from "@/lib/services/users.service";
 import { inviteUser } from "@/lib/services/users-invite";
 
@@ -63,12 +62,6 @@ export async function adminUpdateContact(
   revalidatePath(`/dashboard/customers/${userId}`, "layout");
   revalidatePath("/dashboard/organization/members");
   return {};
-}
-
-export async function setUserFlag(userId: string, flagId: string, enabled: boolean) {
-  await requireAdmin();
-  await userFeatureFlagsService.setFlag(userId, flagId, enabled);
-  revalidatePath("/dashboard/organization/members");
 }
 
 // Members-row access mail. With a password: the normal 6-digit OTP reset code —

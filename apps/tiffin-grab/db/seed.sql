@@ -1,5 +1,5 @@
 -- Catalog seed: lead sources, plans, meal sizes, delivery frequencies/zones,
--- pricing, feature flags, app settings, wallet, dish categories, dishes and the
+-- pricing, app settings, wallet, dish categories, dishes and the
 -- first menu week. No notification templates (authored via UI).
 --
 -- Contains NO logins, so it is safe to run against production. The first admin comes
@@ -310,18 +310,6 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
        ('zon_east_york', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'East York', ARRAY ['M4B','M4C','M4G','M4H','M4J','M4K'], '10:00 AM – 1:00 PM')
 ON CONFLICT (public_id) DO NOTHING;
-
--- ============ FEATURE FLAGS ============
-INSERT INTO feature_flags (public_id, created_at, updated_at, key, label, description, default_enabled)
-VALUES ('flg_subscription_wizard', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'subscription_wizard', 'Subscription Wizard',
-        'Access the plan builder', TRUE),
-       ('flg_admin_console', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'admin_console', 'Admin Console', 'User & flag administration', FALSE),
-       ('flg_reassign_records', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'reassign_records', 'Reassign records',
-        'Reassign orders, inquiries, and tickets to other staff', FALSE)
-ON CONFLICT (key) DO NOTHING;
 
 -- ============ APP SETTINGS ============ seeded at the top (tenant singleton).
 
@@ -702,7 +690,6 @@ COMMIT;
 -- select 'delivery_frequencies', count(*) from delivery_frequencies union all
 -- select 'duration_packages', count(*) from duration_packages union all
 -- select 'delivery_zones', count(*) from delivery_zones union all
--- select 'feature_flags', count(*) from feature_flags union all
 -- select 'app', count(*) from app union all
 -- select 'event_payout', count(*) from event_payout union all
 -- select 'coin_rate', count(*) from coin_rate union all
