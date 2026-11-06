@@ -30,7 +30,7 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
           <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
             <BellIcon className="size-4" />
             {unread > 0 ? (
-              <span className="bg-[var(--xl-pink-600)] text-white absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold">
+              <span className="bg-(--xl-pink-600) text-white absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold">
                 {unread > 9 ? "9+" : unread}
               </span>
             ) : null}

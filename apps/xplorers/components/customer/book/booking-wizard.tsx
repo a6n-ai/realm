@@ -42,7 +42,7 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
       aria-pressed={on}
       onClick={onClick}
       className={`min-h-11 rounded-full border px-4 text-sm font-medium transition-colors ${
-        on ? "border-[var(--xl-pink-600)] bg-[var(--xl-pink-100)] text-[var(--xl-navy-900)] dark:bg-accent dark:text-foreground" : "bg-card"
+        on ? "border-(--xl-pink-600) bg-(--xl-pink-100) text-(--xl-navy-900) dark:bg-accent dark:text-foreground" : "bg-card"
       }`}
     >
       {children}

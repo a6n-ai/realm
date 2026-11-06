@@ -81,7 +81,7 @@ export function QuestionScreen({ question, edit = false }: { question: CustomerQ
         </p>
         <div className="bg-muted h-1.5 overflow-hidden rounded-full">
           <div
-            className="h-full rounded-full bg-[var(--xl-pink-600)] transition-[width] duration-300"
+            className="h-full rounded-full bg-(--xl-pink-600) transition-[width] duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -114,7 +114,7 @@ export function QuestionScreen({ question, edit = false }: { question: CustomerQ
                   className={cn(
                     "w-full rounded-2xl border px-4 py-3.5 text-left text-base font-medium transition-colors",
                     on
-                      ? "border-[var(--xl-pink-600)] bg-[var(--xl-pink-100)] text-[var(--xl-navy-900)]"
+                      ? "border-(--xl-pink-600) bg-(--xl-pink-100) text-(--xl-navy-900)"
                       : "border-border bg-card hover:bg-secondary/50",
                   )}
                 >
@@ -140,7 +140,7 @@ export function QuestionScreen({ question, edit = false }: { question: CustomerQ
                   className={cn(
                     "w-full rounded-2xl border px-4 py-3.5 text-left text-base font-medium transition-colors",
                     on
-                      ? "border-[var(--xl-pink-600)] bg-[var(--xl-pink-100)] text-[var(--xl-navy-900)]"
+                      ? "border-(--xl-pink-600) bg-(--xl-pink-100) text-(--xl-navy-900)"
                       : "border-border bg-card hover:bg-secondary/50",
                   )}
                 >

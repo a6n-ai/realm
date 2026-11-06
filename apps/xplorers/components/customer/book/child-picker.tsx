@@ -56,11 +56,11 @@ export function ChildPicker({
                 aria-pressed={on}
                 onClick={() => onToggle(kid.publicId)}
                 className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors disabled:opacity-50 ${
-                  on ? "border-[var(--xl-pink-600)] bg-[var(--xl-pink-100)] dark:bg-accent" : "bg-card"
+                  on ? "border-(--xl-pink-600) bg-(--xl-pink-100) dark:bg-accent" : "bg-card"
                 }`}
               >
                 <span
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full border ${on ? "border-[var(--xl-pink-600)] bg-[var(--xl-pink-600)] text-white" : ""}`}
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full border ${on ? "border-(--xl-pink-600) bg-(--xl-pink-600) text-white" : ""}`}
                 >
                   {on ? <CheckIcon className="size-4" /> : null}
                 </span>

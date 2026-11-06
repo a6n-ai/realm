@@ -15,7 +15,7 @@ export function NextUpCard({
   if (!booking) {
     return (
       <div className="xl-next-up sm:p-6">
-        <p className="text-[var(--xl-pink-600)] text-xs font-bold tracking-[0.08em] uppercase">Next up</p>
+        <p className="text-(--xl-pink-600) text-xs font-bold tracking-[0.08em] uppercase">Next up</p>
         <h2 className="mt-2 text-xl font-extrabold tracking-tight sm:text-2xl">Nothing on the calendar yet</h2>
         <p className="text-muted-foreground mt-1.5 max-w-md text-sm leading-relaxed">
           Pick a session and we&apos;ll show it here first — day, time, and a one-tap pay if it&apos;s still pending.
@@ -34,7 +34,7 @@ export function NextUpCard({
     <div className={cn("xl-next-up xl-next-up-live sm:p-6")}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[var(--xl-pink-600)] text-xs font-bold tracking-[0.08em] uppercase">Next up</p>
+          <p className="text-(--xl-pink-600) text-xs font-bold tracking-[0.08em] uppercase">Next up</p>
           <h2 className="mt-2 truncate text-xl font-extrabold tracking-tight sm:text-2xl">{booking.sessionTitle}</h2>
           <p className="text-muted-foreground mt-1.5 flex items-center gap-1.5 text-sm">
             <CalendarDaysIcon className="size-3.5 shrink-0" aria-hidden />
@@ -42,7 +42,7 @@ export function NextUpCard({
             {booking.seats} {booking.seats === 1 ? "seat" : "seats"}
           </p>
         </div>
-        <span className="bg-card/80 text-[var(--xl-navy-800)] shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold capitalize">
+        <span className="bg-card/80 text-(--xl-navy-800) shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold capitalize">
           {booking.status}
         </span>
       </div>

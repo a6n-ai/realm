@@ -109,7 +109,7 @@ const kitChatUi: Partial<ChatUi> = {
     <div className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[88%] rounded-[20px] px-4 py-2.5 text-[15px] leading-snug sm:max-w-[75%]",
+          "max-w-[88%] rounded-[20px] px-4 py-2.5 text-subhead leading-snug sm:max-w-[75%]",
           mine
             ? "bg-primary text-primary-foreground rounded-br-md"
             : "bg-card rounded-bl-md border",

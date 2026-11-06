@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@foundry/themes/tokens.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

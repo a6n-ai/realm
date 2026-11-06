@@ -27,7 +27,7 @@ export function BookHeader({ step, back }: { step: 1 | 2 | 3 | 4 | 5; back: stri
       </div>
       <div className="flex gap-1" aria-hidden>
         {STEPS.map((label, i) => (
-          <span key={label} className={`h-1 flex-1 rounded-full ${i < step ? "bg-[var(--xl-pink-600)]" : "bg-border"}`} />
+          <span key={label} className={`h-1 flex-1 rounded-full ${i < step ? "bg-(--xl-pink-600)" : "bg-border"}`} />
         ))}
       </div>
     </header>

@@ -24,7 +24,7 @@ export function PulseStrip({ items }: { items: PulseItem[] }) {
         const Icon = item.icon;
         const body = (
           <>
-            <span className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase sm:text-xs">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-caption-2 font-bold tracking-wide uppercase sm:text-xs">
               <Icon className="size-3.5 shrink-0 opacity-80" aria-hidden />
               {item.label}
             </span>

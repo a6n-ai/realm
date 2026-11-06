@@ -132,7 +132,7 @@ export default async function CustomerHomePage() {
                       {formatSessionDay(card.startsAt, publicSessions.timeZone)} ·{" "}
                       {formatSessionTime(card.startsAt, publicSessions.timeZone)}
                     </p>
-                    <p className="text-[var(--xl-navy-800)] mt-2 text-xs font-bold">{card.spots}</p>
+                    <p className="text-(--xl-navy-800) mt-2 text-xs font-bold">{card.spots}</p>
                   </div>
                   <span className="bg-primary text-primary-foreground border-border inline-flex h-9 w-fit items-center rounded-[var(--radius)] border px-3 text-sm font-bold">
                     Book
