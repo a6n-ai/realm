@@ -15,7 +15,8 @@ Parameters:
     Description: Region of the files bucket and SES identity, for example ap-southeast-1
   FilesBucketName:
     Type: String
-    Description: Name of the app's files bucket
+    Default: ""
+    Description: Name of the app's AWS S3 files bucket; leave empty when files live in R2 (Worker binding, no AWS access needed)
   SesIdentity:
     Type: String
     Description: Verified SES domain identity, for example xplorers.a6n.ai
@@ -40,6 +41,7 @@ Conditions:
   AwsLocation: !Equals [!Ref EnableAwsLocation, "true"]
   ExtraConfigSet: !Not [!Equals [!Ref SesExtraConfigurationSet, ""]]
   ExtraIdentity: !Not [!Equals [!Ref SesExtraIdentity, ""]]
+  S3Files: !Not [!Equals [!Ref FilesBucketName, ""]]
 
 Resources:
   WorkerAccessPolicy:
@@ -49,14 +51,20 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Sid: S3FilesObjects
-            Effect: Allow
-            Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
-            Resource: !Sub "arn:aws:s3:::${FilesBucketName}/*"
-          - Sid: S3FilesList
-            Effect: Allow
-            Action: s3:ListBucket
-            Resource: !Sub "arn:aws:s3:::${FilesBucketName}"
+          - !If
+            - S3Files
+            - Sid: S3FilesObjects
+              Effect: Allow
+              Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+              Resource: !Sub "arn:aws:s3:::${FilesBucketName}/*"
+            - !Ref AWS::NoValue
+          - !If
+            - S3Files
+            - Sid: S3FilesList
+              Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub "arn:aws:s3:::${FilesBucketName}"
+            - !Ref AWS::NoValue
           - Sid: SesSend
             Effect: Allow
             Action: [ses:SendEmail, ses:SendRawEmail]
