@@ -50,7 +50,7 @@ export function ReferContent({ offer }: { offer: ReferralOffer }) {
   }
   return (
     <>
-    <section className="tg-refer-stage" aria-labelledby="tg-refer-title">
+    <section className="tg-refer-stage dark" aria-labelledby="tg-refer-title">
       <div className="tg-wrap tg-refer-stage__in">
         <div className="tg-refer__intro">
           <span className="tg-refer-stage__eyebrow">Refer a friend</span>

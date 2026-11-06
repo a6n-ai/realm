@@ -34,7 +34,7 @@
 }
 /* No data-tone yet (before hydration): a page that opens on the dark hero starts dark. */
 .tg-bar[data-tone="dark"],
-.tg-land:has(.lp-hero.dark) .tg-bar:not([data-tone]) {
+.tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) {
   --bar-fill: rgb(22 30 25 / 0.42);
   --bar-ink: #FBF4E7;
   --bar-ink-soft: rgb(251 244 231 / 0.78);
@@ -202,9 +202,9 @@
 }
 @media (prefers-reduced-transparency: reduce) {
   .tg-bar { --bar-fill: #FBF4E7; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .tg-bar[data-tone="dark"], .tg-land:has(.lp-hero.dark) .tg-bar:not([data-tone]) { --bar-fill: #1F2E26; }
+  .tg-bar[data-tone="dark"], .tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) { --bar-fill: #1F2E26; }
 }
 @media (prefers-contrast: more) {
   .tg-bar { --bar-fill: #FBF4E7; --bar-ink-soft: #241F1B; outline: 1px solid #241F1B; }
-  .tg-bar[data-tone="dark"], .tg-land:has(.lp-hero.dark) .tg-bar:not([data-tone]) { --bar-fill: #14201A; --bar-ink-soft: #FBF4E7; outline-color: #FBF4E7; }
+  .tg-bar[data-tone="dark"], .tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) { --bar-fill: #14201A; --bar-ink-soft: #FBF4E7; outline-color: #FBF4E7; }
 }

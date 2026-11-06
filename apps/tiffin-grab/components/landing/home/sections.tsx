@@ -379,7 +379,7 @@ export function ReferBand({ offer }: { offer: ReferralOffer }) {
   return (
     <section className="lp-section lp-refer" aria-labelledby="lp-refer">
       <div className="lp-wrap">
-        <div className="lp-refer__slab">
+        <div className="lp-refer__slab dark">
           <div className="lp-refer__copy">
             <h2 id="lp-refer" className="lp-refer__h">{referHeadline(offer)}</h2>
             <p className="lp-refer__lede">Send your link to a friend. When they pay for their first plan, you both get coins to spend on tiffins.</p>
