@@ -86,7 +86,7 @@ export interface CatalogSnapshot {
   mealSizes: MealSizeView[];
   frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; weekdays: string[] | null }[];
   durations: { id: bigint; publicId: string; weeks: number }[];
-  zones: { id: bigint; publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
+  zones: { id: bigint; publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean; lat?: number | null; lng?: number | null }[];
   // category key -> display label. Same source the customer day view threads into
   // day-detail.tsx (dishCategoriesService), so a swap's category reads the same
   // whether it's on the calendar or in the subscribe wizard. Optional so existing

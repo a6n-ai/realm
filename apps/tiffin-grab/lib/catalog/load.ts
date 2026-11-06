@@ -180,7 +180,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     }),
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, weekdays: f.weekdays })),
     durations: durRows.map((d) => ({ id: d.id, publicId: d.publicId, weeks: d.weeks })),
-    zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm), postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),
+    zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm), postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active, lat: z.lat == null ? null : Number(z.lat), lng: z.lng == null ? null : Number(z.lng) })),
     categoryLabels,
     categoryIcons,
     // Same human portion as meal items ("2 roti", "8oz"), so qty 2 reads as what's actually added.

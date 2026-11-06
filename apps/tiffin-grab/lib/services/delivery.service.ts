@@ -1,5 +1,6 @@
 import { arrayContains, eq, or } from "drizzle-orm";
 import { createDeliveryService } from "@foundry/delivery/service";
+import { awsPlaceProvider } from "@foundry/places";
 import { db } from "@/db/client";
 import { addressTags, deliveryChargeConfigs, deliveryChargeType, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, deliveryTypes, deliveryZoneTypes, deliveryZones, orders, users, deliveries, customerAddresses } from "@/db/schema";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
@@ -43,6 +44,11 @@ export const deliveryService = createDeliveryService({
       db.select({ id: orders.id }).from(orders).where(eq(orders.addressTagId, id)).limit(1),
       db.select({ id: users.id }).from(users).where(eq(users.addressTagId, id)).limit(1),
     ]),
+  // The map point on the public delivery map, stored with the zone so no page geocodes at render.
+  geocodeZone: async (name) => {
+    const hit = await awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({ address: `${name}, Ontario, Canada`, persist: false });
+    return hit ? { lat: hit.lat, lng: hit.lng } : null;
+  },
   currentUserId,
   audit: async (e) => recordAudit({ ...e, createdBy: await currentUserId() }),
 });
