@@ -15,8 +15,8 @@ import { db } from "@/db/client";
 //   FILES_S3_REGION             default "auto"
 //   FILES_S3_ENDPOINT           set for R2/MinIO/Backblaze; omit for AWS S3
 //   FILES_S3_FORCE_PATH_STYLE   "true" for MinIO / most non-AWS endpoints
-//   FILES_S3_ACCESS_KEY_ID      omit on AWS to use the instance role
-//   FILES_S3_SECRET_ACCESS_KEY  omit on AWS to use the instance role
+//   FILES_S3_ACCESS_KEY_ID      required (no instance-role fallback)
+//   FILES_S3_SECRET_ACCESS_KEY  required (no instance-role fallback)
 //   FILES_LOCAL_DIR             local-disk base dir (default ".files-storage")
 //   FILES_PUBLIC_BASE_URL       public base for static file URLs
 function required(name: string): string {
