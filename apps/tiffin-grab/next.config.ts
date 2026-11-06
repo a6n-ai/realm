@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   // Docker: emit .next/standalone (self-contained server.js + traced node_modules).
   // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
   output: "standalone",
+  // CI prerenders against the remote DB; a slow first query sat right at the 60 s default.
+  staticPageGenerationTimeout: 180,
   outputFileTracingRoot: monorepoRoot,
   // Read with fs at request time, so the tracer can't see them.
   outputFileTracingIncludes: { "/api/refer-card/[code]": ["./public/refer-card/**"] },
@@ -66,6 +68,8 @@ const nextConfig: NextConfig = {
       { source: "/menu/weekly", destination: "/menu", permanent: true },
       // Plans folded into Pricing: each diet card there carries its description, rates and "Start with this plan".
       { source: "/plans", destination: "/pricing", permanent: true },
+      // A config redirect, not a page: nothing to prerender, so the build never waits on it.
+      { source: "/trial", destination: "/me/trial", permanent: false },
       // The old WordPress site's legal URLs, still linked from emails and search results.
       { source: "/terms-and-conditions", destination: "/terms", permanent: true },
       { source: "/privacy-policy", destination: "/privacy", permanent: true },
