@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Gift, House, TicketPercent, UtensilsCrossed } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Gift, House, TicketPercent, UtensilsCrossed } from "lucide-react";
 import { WhatsAppDockLink } from "@/components/landing/whats-app-chat";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
@@ -31,7 +31,9 @@ export type DockPromo = { text: string; code: string | null; href: string };
 type Face = { key: string; href: string; tone: "promo" | "refer" | "order"; icon: typeof Gift; text: string; chip?: string | null; prefetch?: boolean };
 
 const TURN_MS = 3500;
-const FACE_H = 48;
+// A manual turn (arrow or swipe) holds the auto-turn this long.
+const MANUAL_HOLD_MS = 6000;
+const SWIPE_PX = 28;
 
 /** The public site's floating dock, at every width: a Home orb, a drum in the middle and a WhatsApp
  *  orb. The drum is a cylinder that turns between the live promotion, the referral bonus and Order
@@ -45,7 +47,19 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
   const { data: session } = useSession();
   const [turn, setTurn] = useState(0);
   const [held, setHeld] = useState(false);
+  const [faceW, setFaceW] = useState(200);
+  const ring = useRef<HTMLDivElement>(null);
+  const manual = useRef(0);
+  const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => setMounted(true), []);
+  // Faces are as wide as the ring; the radius follows (CSS sets the width per breakpoint).
+  useEffect(() => {
+    const el = ring.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setFaceW(Math.round(e!.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mounted]);
 
   const role = (session?.user as { role?: RoleValue } | undefined)?.role;
   // Same rule as the header: signed in goes home (running plan, renewals), else a new order.
@@ -59,17 +73,20 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
 
   useEffect(() => {
     if (!mounted || n < 2 || held || away || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => { if (!document.hidden) setTurn((v) => v + 1); }, TURN_MS);
+    const t = setInterval(() => { if (!document.hidden && Date.now() - manual.current > MANUAL_HOLD_MS) setTurn((v) => v + 1); }, TURN_MS);
     return () => clearInterval(t);
   }, [mounted, n, held, away]);
 
   if (!mounted || !pillVisible(path)) return null;
   const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const front = reduce ? n - 1 : ((turn % n) + n) % n;
+  // Arrows and swipes always work; with reduced motion the drum rests on Order now until one is used.
+  const base = reduce && manual.current === 0 ? n - 1 : 0;
+  const front = (((turn + base) % n) + n) % n;
   const step = 360 / n;
-  // Distance from the axis to each face, so n faces of FACE_H close into a ring.
-  const r = n === 1 ? 0 : n === 2 ? FACE_H / 2 : FACE_H / 2 / Math.tan(Math.PI / n);
-  const spin = reduce ? front * step : turn * step;
+  // Distance from the vertical axis to each face, so n faces of faceW close into a ring.
+  const r = n === 1 ? 0 : n === 2 ? faceW / 2 : faceW / 2 / Math.tan(Math.PI / n);
+  const spin = (turn + base) * step;
+  const go = (d: number) => { manual.current = Date.now(); setTurn((v) => v + d); };
   return (
     <nav className="tg-pill" aria-label="Quick actions" data-away={away || undefined} inert={away || undefined}>
       <Link href="/" className="tg-pill__orb tg-pill__home" aria-label="Home" aria-current={path === "/" ? "page" : undefined}>
@@ -82,7 +99,20 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
         onFocus={() => setHeld(true)}
         onBlur={() => setHeld(false)}
       >
-        <div className="tg-drum__in" style={{ transform: `translateZ(${-r}px) rotateX(${spin}deg)` }}>
+        {n > 1 ? <button type="button" className="tg-drum__nav tg-drum__nav--prev" aria-label="Previous" onClick={() => go(-1)}><ChevronLeft aria-hidden className="size-4" strokeWidth={2.6} /></button> : null}
+        <div
+          ref={ring}
+          className="tg-drum__ring"
+          onPointerDown={(e) => { swipe.current = { x: e.clientX, y: e.clientY, moved: false }; }}
+          onPointerUp={(e) => {
+            const s0 = swipe.current;
+            if (!s0 || n < 2) return;
+            const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+            if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > Math.abs(dy)) { s0.moved = true; go(dx < 0 ? 1 : -1); }
+          }}
+          onClickCapture={(e) => { if (swipe.current?.moved) { e.preventDefault(); e.stopPropagation(); } swipe.current = null; }}
+        >
+        <div className="tg-drum__in" style={{ transform: `translateZ(${-r}px) rotateY(${-spin}deg)` }}>
           {faces.map((f, i) => {
             const Icon = f.icon;
             const on = i === front;
@@ -92,7 +122,8 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
                 href={f.href}
                 prefetch={f.prefetch}
                 className={`tg-drum__face tg-drum__face--${f.tone}`}
-                style={{ transform: `rotateX(${-i * step}deg) translateZ(${r}px)` }}
+                style={{ transform: `rotateY(${i * step}deg) translateZ(${r}px)` }}
+                draggable={false}
                 aria-hidden={!on || undefined}
                 tabIndex={on ? undefined : -1}
                 data-front={on || undefined}
@@ -104,6 +135,8 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
             );
           })}
         </div>
+        </div>
+        {n > 1 ? <button type="button" className="tg-drum__nav tg-drum__nav--next" aria-label="Next" onClick={() => go(1)}><ChevronRight aria-hidden className="size-4" strokeWidth={2.6} /></button> : null}
       </div>
       <WhatsAppDockLink className="tg-pill__orb tg-pill__wa" />
     </nav>
