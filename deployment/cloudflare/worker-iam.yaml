@@ -31,6 +31,10 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional second SES configuration set (for example a transactional one)
+  SesEventConfigSets:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Optional. Exactly three SES configuration set names whose event destinations the app may read and edit (empty = no access)
   EnableAwsLocation:
     Type: String
     AllowedValues: ["true", "false"]
@@ -41,6 +45,7 @@ Conditions:
   AwsLocation: !Equals [!Ref EnableAwsLocation, "true"]
   ExtraConfigSet: !Not [!Equals [!Ref SesExtraConfigurationSet, ""]]
   ExtraIdentity: !Not [!Equals [!Ref SesExtraIdentity, ""]]
+  SesEventSettings: !Not [!Equals [!Join ["", !Ref SesEventConfigSets], ""]]
   S3Files: !Not [!Equals [!Ref FilesBucketName, ""]]
 
 Resources:
@@ -91,6 +96,22 @@ Resources:
             Effect: Allow
             Action: ses:GetAccount
             Resource: "*"
+          - !If
+            - SesEventSettings
+            - Sid: SesEventSettings
+              Effect: Allow
+              Action: [ses:GetConfigurationSetEventDestinations, ses:UpdateConfigurationSetEventDestination]
+              Resource:
+                - !Sub
+                  - "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${Name}"
+                  - Name: !Select [0, !Ref SesEventConfigSets]
+                - !Sub
+                  - "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${Name}"
+                  - Name: !Select [1, !Ref SesEventConfigSets]
+                - !Sub
+                  - "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${Name}"
+                  - Name: !Select [2, !Ref SesEventConfigSets]
+            - !Ref AWS::NoValue
           - !If
             - AwsLocation
             - Sid: GeoMaps
