@@ -1,7 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const monorepoRoot = path.join(import.meta.dirname, "..", "..");
+const sharedPackages = Object.keys(pkg.dependencies).filter((d) => /^@(foundry|relay)\//.test(d));
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -34,15 +36,7 @@ const nextConfig: NextConfig = {
   experimental: {
     // Barrel packages: tree-shake their re-exports instead of pulling whole
     // packages into every page that imports one symbol.
-    optimizePackageImports: [
-      "radix-ui",
-      "@foundry/commons",
-      "@foundry/design-system",
-      "@foundry/crm",
-      "@foundry/auth-ui",
-      "@foundry/ui",
-      "@relay/engine",
-    ],
+    optimizePackageImports: ["radix-ui", ...sharedPackages],
     // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
     // instead of a fresh server round trip. Server actions still invalidate it.
     staleTimes: { dynamic: 30 },

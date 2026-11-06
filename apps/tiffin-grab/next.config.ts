@@ -1,8 +1,10 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 import publicPages from "./lib/routing/public-pages.json";
+import pkg from "./package.json";
 
 const monorepoRoot = path.join(import.meta.dirname, "..", "..");
+const sharedPackages = Object.keys(pkg.dependencies).filter((d) => /^@(foundry|relay)\//.test(d));
 
 const nextConfig: NextConfig = {
   // Docker: emit .next/standalone (self-contained server.js + traced node_modules).
@@ -20,7 +22,7 @@ const nextConfig: NextConfig = {
     // maplibre (1.2 MB) is only loaded inside map effects; keep it out of the server bundle.
     resolveAlias: { "maplibre-gl": { browser: "maplibre-gl", default: "./lib/browser-only-stub.ts" } },
   },
-  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
+  allowedDevOrigins: ["127.0.0.1", "*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io", ...(process.env.DEV_TUNNEL_HOST ? [process.env.DEV_TUNNEL_HOST] : [])],
   images: {
     // Default is 14400 (4h), which would re-optimize the same dish photo ~6x/day on a
     // t3.small. Blobs are immutable — a changed photo is a new key, not a new body.
@@ -73,15 +75,7 @@ const nextConfig: NextConfig = {
     // Barrel packages: without this, one named import from @relay/engine/ui pulled
     // the whole email editor (react-email + TipTap + Tailwind compiler, ~2 MB) into
     // every dashboard page via the notification bell.
-    optimizePackageImports: [
-      "radix-ui",
-      "@relay/engine",
-      "@foundry/commons",
-      "@foundry/design-system",
-      "@foundry/crm",
-      "@foundry/auth-ui",
-      "@foundry/ui",
-    ],
+    optimizePackageImports: ["radix-ui", ...sharedPackages],
     // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
     // instead of a fresh server round trip. Server actions still invalidate it.
     staleTimes: { dynamic: 30 },

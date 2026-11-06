@@ -1,7 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const monorepoRoot = path.join(import.meta.dirname, "..", "..");
+const sharedPackages = Object.keys(pkg.dependencies).filter((d) => /^@(foundry|relay)\//.test(d));
 
 const nextConfig: NextConfig = {
   // Docker: emit .next/standalone (self-contained server.js + traced node_modules).
@@ -41,17 +43,7 @@ const nextConfig: NextConfig = {
     // Barrel packages: one named import from @relay/engine/ui otherwise pulls the
     // whole email editor (react-email + TipTap + Tailwind compiler, ~2 MB) into
     // every dashboard page via the notification bell.
-    optimizePackageImports: [
-      "radix-ui",
-      "cmdk",
-      "@relay/engine",
-      "@foundry/commons",
-      "@foundry/design-system",
-      "@foundry/crm",
-      "@foundry/auth-ui",
-      "@foundry/ui",
-      "@foundry/clover",
-    ],
+    optimizePackageImports: ["radix-ui", "cmdk", ...sharedPackages],
     // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
     // instead of a fresh server round trip. Server actions still invalidate it.
     staleTimes: { dynamic: 30 },
