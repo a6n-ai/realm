@@ -1,17 +1,19 @@
 import { buildHandlers, type ChannelProvider } from "@relay/engine";
+import type { EmailProvider } from "@relay/email";
 import { getEmailProvider, getMarketingEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { campaignConfig } from "./campaign-config";
 import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
+import { emailProviderFor } from "./email-provider-for";
 
 /** Adapt @relay/email's EmailProvider to the package's ChannelProvider shape. */
-function emailChannelProvider(): ChannelProvider {
+function emailChannelProvider(pick: (msg: { from?: unknown }) => EmailProvider): ChannelProvider {
   return {
     // The engine sets `from` only for marketing mail (the campaign sender);
     // everything else leaves from the transactional sender and config set.
     send: (msg) =>
-      (msg.from ? getMarketingEmailProvider() : getEmailProvider()).send({
+      pick(msg).send({
         to: { email: msg.to.email! },
         from: msg.from,
         // Sent from noreply@, so replies need somewhere a person reads.
@@ -31,7 +33,13 @@ export async function buildAppHandlers() {
     db,
     tables: notificationTables,
     users: usersRef,
-    providers: { email: emailChannelProvider() },
+    providers: {
+      email: emailChannelProvider((msg) => (msg.from ? getMarketingEmailProvider() : getEmailProvider())),
+    },
+    emailProviderFor: async (event) => {
+      const tracked = await emailProviderFor(event);
+      return tracked && emailChannelProvider(() => tracked);
+    },
     broadcast,
     campaigns: await campaignConfig(),
   });

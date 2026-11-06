@@ -35,12 +35,15 @@ export async function processSesEvent(messageJson: string): Promise<void> {
   // on the outbox row, so no tracking pixel of our own is needed. A
   // transactional send has no campaign and falls through as a no-op.
   const messageId = event.mail?.messageId;
-  const counted: Record<string, string> = {
+  const counted: Record<string, Parameters<typeof recordCampaignEvent>[2]> = {
     Delivery: "delivered",
     Open: "opened",
     Click: "clicked",
     Bounce: "bounced",
     Complaint: "complained",
+    DeliveryDelay: "delayed",
+    Reject: "rejected",
+    "Rendering Failure": "render_failed",
   };
   const counter = type ? counted[type] : undefined;
   if (messageId && counter) await recordCampaignEvent({ db, tables: notificationTables }, messageId, counter);

@@ -64,6 +64,22 @@ describe("processSesEvent", () => {
   });
 });
 
+describe("per-message status mapping", () => {
+  it.each([
+    ["Delivery", "delivered"],
+    ["Open", "opened"],
+    ["Click", "clicked"],
+    ["Bounce", "bounced"],
+    ["Complaint", "complained"],
+    ["DeliveryDelay", "delayed"],
+    ["Reject", "rejected"],
+    ["Rendering Failure", "render_failed"],
+  ])("%s stamps %s", async (eventType, expected) => {
+    await processSesEvent(msg({ eventType, mail: { messageId: "pid-9" } }));
+    expect(recordEvent).toHaveBeenCalledExactlyOnceWith("pid-9", expected);
+  });
+});
+
 describe("POST topic check", () => {
   const post = () =>
     POST(new Request("https://x.test/api/webhooks/ses", { method: "POST", body: JSON.stringify({ Type: "Notification", TopicArn: "arn:t", Message: "{}" }) }));

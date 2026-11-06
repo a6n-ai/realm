@@ -17,6 +17,7 @@ import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
+import { eventCategory } from "@/lib/notifications/event-categories";
 import type { LeadAssignmentConfig, Strategy } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
@@ -187,6 +188,20 @@ export async function setLeadAssignment(cfg: LeadAssignmentConfig): Promise<void
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { leadAssignment: cfg });
   else await appSettingsEntity.create({ ...DEFAULTS, leadAssignment: cfg });
+}
+
+export async function getTrackedEmailEvents(): Promise<string[]> {
+  return settingsCache.getOrSet("trackedEmailEvents", async () => {
+    const [row] = await db.select({ v: app.trackedEmailEvents }).from(app).limit(1);
+    return row?.v ?? [];
+  });
+}
+
+export async function setTrackedEmailEvents(events: string[]): Promise<void> {
+  const cleaned = [...new Set(events.filter((e) => e && eventCategory(e) !== "account"))];
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { trackedEmailEvents: cleaned });
+  else await appSettingsEntity.create({ ...DEFAULTS, trackedEmailEvents: cleaned });
 }
 
 export async function getSupportHours(): Promise<SupportHours> {

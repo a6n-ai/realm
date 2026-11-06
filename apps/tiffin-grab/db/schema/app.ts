@@ -26,6 +26,8 @@ export const app = pgTable("app", {
   // from timezone (tzToDefaultCountry) so existing rows keep their current behavior.
   defaultCountry: text("default_country"),
   leadAssignment: jsonb("lead_assignment"),
+  // Notification events routed through the tracked SES stream (open/click). NULL = none.
+  trackedEmailEvents: jsonb("tracked_email_events").$type<string[]>(),
   mealTypes: jsonb("meal_types"),
   discountPolicy: jsonb("discount_policy").$type<DiscountPolicy>(),
   // Enabled payment methods + per-method tax lines. NULL/empty → simulated mode.
