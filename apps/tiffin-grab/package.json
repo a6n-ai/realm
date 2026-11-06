@@ -34,7 +34,7 @@
     "@foundry/address": "github:a6n-ai/foundry#path:packages/address",
     "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/auth-ui": "github:a6n-ai/foundry#path:packages/auth-ui",
-    "@foundry/aws": "github:a6n-ai/foundry#path:packages/aws",
+    "@foundry/cloud": "github:a6n-ai/foundry#path:packages/cloud",
     "@foundry/clover": "github:a6n-ai/foundry#path:packages/clover",
     "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons",
     "@foundry/coupons": "github:a6n-ai/foundry#path:packages/coupons",
