@@ -5,20 +5,23 @@
 .tg-land {
   --gutter: clamp(16px, 4vw, 48px);
   --c-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  /* Liquid light: saffron, honey, peach and leaf glows drifting down the cream, one 1400px tile repeated so a
+  /* Liquid light: saffron, honey, peach, rose and leaf glows drifting down the cream, one 1400px tile repeated so a
      long page keeps its rhythm. Plain gradients that scroll with the page (no fixed attachment, no
      blur filter), so a phone paints them once. Each glow fades out inside its tile: no seams. */
   background-color: var(--background);
   background-image:
-    radial-gradient(60vw 520px at 92% 200px, rgb(255 152 67 / 0.42), transparent 70%),
-    radial-gradient(44vw 420px at 30% 120px, rgb(255 205 120 / 0.34), transparent 70%),
-    radial-gradient(52vw 500px at 2% 640px, rgb(255 160 130 / 0.38), transparent 70%),
-    radial-gradient(48vw 460px at 64% 700px, rgb(130 190 95 / 0.26), transparent 70%),
-    radial-gradient(56vw 480px at 98% 1100px, rgb(240 107 26 / 0.30), transparent 70%),
-    radial-gradient(42vw 380px at 22% 1180px, rgb(255 214 140 / 0.32), transparent 70%),
+    /* Each glow fades out (70% of its height) inside its 1400px tile, so a tile edge never cuts one:
+       a cut glow was the hard line that showed on the right. */
+    radial-gradient(60vw 520px at 92% 380px, rgb(255 152 67 / 0.5), transparent 70%),
+    radial-gradient(44vw 420px at 30% 310px, rgb(255 205 120 / 0.42), transparent 70%),
+    radial-gradient(52vw 500px at 2% 660px, rgb(255 150 125 / 0.44), transparent 70%),
+    radial-gradient(40vw 400px at 82% 760px, rgb(255 140 160 / 0.28), transparent 70%),
+    radial-gradient(48vw 460px at 50% 720px, rgb(130 190 95 / 0.3), transparent 70%),
+    radial-gradient(56vw 480px at 96% 1030px, rgb(240 107 26 / 0.36), transparent 70%),
+    radial-gradient(42vw 380px at 20% 1110px, rgb(255 214 140 / 0.4), transparent 70%),
     linear-gradient(180deg, rgb(255 230 205 / 0.6), transparent 900px);
-  background-size: 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 100%;
-  background-repeat: repeat-y, repeat-y, repeat-y, repeat-y, repeat-y, repeat-y, no-repeat;
+  background-size: 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 1400px, 100% 100%;
+  background-repeat: repeat-y, repeat-y, repeat-y, repeat-y, repeat-y, repeat-y, repeat-y, no-repeat;
   color: var(--foreground);
   min-height: 100svh;
 }
