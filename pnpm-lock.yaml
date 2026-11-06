@@ -629,6 +629,9 @@ importers:
       '@foundry/auth-ui':
         specifier: github:a6n-ai/foundry#path:packages/auth-ui
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/cda1f2660947c03772f2cb28885402d5b1c9262e#path:packages/auth-ui(@standard-schema/spec@1.1.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@foundry/aws':
+        specifier: github:a6n-ai/foundry#path:packages/aws
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/95b9828a2f1f051e7904ee38d7a85285e82656b0#path:packages/aws
       '@foundry/commons':
         specifier: github:a6n-ai/foundry#path:packages/commons
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/cda1f2660947c03772f2cb28885402d5b1c9262e#path:packages/commons
@@ -676,7 +679,7 @@ importers:
         version: 1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(supports-color@10.2.2)(wrangler@4.152.0(@types/node@26.6.5))
       '@relay/email':
         specifier: github:a6n-ai/relay#path:packages/email
-        version: https://codeload.github.com/a6n-ai/relay/tar.gz/b01aacdb3553d3bc137a14d9cf87141fb515f3c1#path:packages/email(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: https://codeload.github.com/a6n-ai/relay/tar.gz/718598110debbdf63ce72dc6f5952f87cb010e84#path:packages/email(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@relay/engine':
         specifier: github:a6n-ai/relay#path:packages/engine
         version: https://codeload.github.com/a6n-ai/relay/tar.gz/b01aacdb3553d3bc137a14d9cf87141fb515f3c1#path:packages/engine(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-is@17.0.2)(react@19.3.1)(supports-color@10.2.2)
@@ -16794,16 +16797,6 @@ snapshots:
       nodemailer: 7.0.13
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zod: 4.6.7
-
-  '@relay/email@https://codeload.github.com/a6n-ai/relay/tar.gz/b01aacdb3553d3bc137a14d9cf87141fb515f3c1#path:packages/email(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
-    dependencies:
-      '@aws-sdk/client-sesv2': 3.1132.0
-      '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/95b9828a2f1f051e7904ee38d7a85285e82656b0#path:packages/commons
-      '@react-email/components': 1.0.12(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nodemailer: 7.0.13
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
       zod: 4.6.7
 
   '@relay/engine@https://codeload.github.com/a6n-ai/relay/tar.gz/718598110debbdf63ce72dc6f5952f87cb010e84#path:packages/engine(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)':
