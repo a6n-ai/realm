@@ -31,6 +31,8 @@ Parameters:
 Resources:
   ConfigSet:
     Type: AWS::SES::ConfigurationSet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref ConfigurationSetName
 
@@ -115,6 +117,8 @@ Resources:
   # rewrites every link through awstrack.me for those, a spam signal on OTPs.
   TransactionalConfigSet:
     Type: AWS::SES::ConfigurationSet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref TransactionalConfigurationSetName
 
@@ -158,6 +162,8 @@ Resources:
 
   TrackedConfigSet:
     Type: AWS::SES::ConfigurationSet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref TrackedConfigurationSetName
 
