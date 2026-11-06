@@ -1,6 +1,7 @@
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import type { OfferFigure, ReferralOffer } from "@/lib/referrals/offer";
 import { ReferCta } from "./refer-cta";
+import { ReferFlow } from "./refer-flow";
 import { ReferStage } from "./refer-stage";
 import "./refer.css";
 
@@ -35,12 +36,6 @@ export function ReferTicket({ friend, referrer, friendLabel }: { friend: OfferFi
   );
 }
 
-const STEPS = [
-  ["Share your link", "Send it on WhatsApp or anywhere. It carries your code."],
-  ["Your friend orders", "They build a plan and pay for it, like any new customer."],
-  ["You both get coins", "Coins land in both wallets once that first plan is paid."],
-] as const;
-
 export function ReferContent({ offer }: { offer: ReferralOffer }) {
   if (!offer.on) {
     return (
@@ -66,21 +61,7 @@ export function ReferContent({ offer }: { offer: ReferralOffer }) {
         <ReferStage gift={offer.friend?.big ?? null} coins={offer.friendCoins} />
       </div>
     </section>
-    <section className="tg-wrap tg-section tg-refer" aria-label="How it works">
-      <ReferTicket friend={offer.friend} referrer={offer.referrer} />
-      <ol className="tg-refer__steps">
-        {STEPS.map(([title, body], i) => (
-          <li key={title}>
-            <span className="tg-refer__n" aria-hidden>{i + 1}</span>
-            <strong>{title}</strong>
-            <p>{body}</p>
-          </li>
-        ))}
-      </ol>
-      <p className="tg-refer__fine">
-        New customers only.{offer.maxPerReferrer ? ` Up to ${offer.maxPerReferrer} friends each.` : ""} Coins are spent on your orders and can't be cashed out.
-      </p>
-    </section>
+    <ReferFlow offer={offer} />
     </>
   );
 }

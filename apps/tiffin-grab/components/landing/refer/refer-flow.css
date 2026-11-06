@@ -1,0 +1,123 @@
+/* How it works, told with the app's own screens. Three cropped screens step down the page like
+   the money does: your share card, your friend's chat, your friends list. The one moment: as the
+   track scrolls through, Aman's pill walks Joined → Ordered → Rewarded and your coins land.
+   Without scroll timelines (or with reduced motion) it shows the finished state. */
+.rf { --rf-ink: #241F1B; --rf-muted: #6E6558; --rf-line: #E3DFD1; --rf-screen: #F6EEE0; }
+.rf-head { display: grid; gap: 14px; max-width: 640px; margin-bottom: clamp(40px, 6vw, 72px); }
+.rf-track { display: grid; gap: 48px; margin: 0; padding: 0; list-style: none; view-timeline: --rf block; }
+@media (min-width: 960px) {
+  .rf-track { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+  /* Steps descend: the coin travels from your phone, through the chat, down into the wallet. */
+  .rf-step-col--2 { margin-top: 64px; }
+  .rf-step-col--3 { margin-top: 128px; }
+}
+.rf-step-col { display: grid; gap: 22px; align-content: start; }
+.rf-frame {
+  height: 384px; overflow: hidden; border-radius: 32px; background: var(--rf-screen); color: var(--rf-ink);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 34px 60px -34px rgb(72 40 10 / 0.45);
+  /* Fade the foot over filler, so the screen reads as continuing below the crop. */
+  -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent);
+}
+
+.rf-caption { display: grid; gap: 6px; max-width: 34ch; }
+.rf-caption strong { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.rf-caption p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--muted-foreground); }
+
+/* ---- Screen parts (sizes match the customer kit at roughly 85%) ---- */
+.rf-screen { height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 0 14px; font-size: 13px; }
+.rf-bar { display: flex; align-items: center; gap: 8px; height: 52px; flex: none; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.rf-bar svg { width: 18px; height: 18px; color: #F06B1A; }
+.rf-card { background: #fff; border-radius: 20px; padding: 14px; display: grid; gap: 12px; }
+.rf-card__head { display: flex; align-items: center; gap: 10px; }
+.rf-card__head strong { display: block; font-size: 14px; }
+.rf-card__head small, .rf-stat small { display: block; font-size: 12px; color: var(--rf-muted); }
+.rf-tile { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; flex: none; }
+.rf-tile svg { width: 18px; height: 18px; }
+.rf-tile--purple { background: #EDE7FB; color: #6941C6; }
+.rf-tile--blue { background: #E3EEFD; color: #2563EB; }
+.rf-tile--green { background: #E2F5E9; color: #15803D; }
+.rf-tile--orange { background: #FDEBDD; color: #C2560F; }
+.rf-tile--cyan { background: #DFF4F8; color: #0E7490; }
+.rf-tile--gray { background: #EEECE7; color: #57534E; }
+.rf-tile--brown { background: #F3E8DC; color: #8A5A2B; }
+.rf-code { display: grid; justify-items: center; gap: 8px; padding: 14px 8px; border-radius: 16px; background: #F1EEE5; }
+.rf-code span { font: 700 24px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.3em; padding-left: 0.3em; }
+.rf-code em { display: inline-flex; align-items: center; gap: 5px; font-style: normal; font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: #fff; }
+.rf-code em svg { width: 12px; height: 12px; }
+.rf-wa { display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border-radius: 999px; background: #25D366; color: #0B141A; font-weight: 700; font-size: 13px; }
+.rf-targets { display: flex; justify-content: space-between; }
+
+.rf-screen--chat { padding: 0; gap: 0; background: #EFE7DD; }
+.rf-bar--wa { padding: 0 14px; background: #075E54; color: #fff; }
+.rf-bar--wa svg { color: #fff; }
+.rf-ava { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #FF9843; color: #2E1200; font-size: 12px; font-weight: 800; flex: none; }
+.rf-chat { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.rf-bubble { align-self: flex-end; max-width: 88%; padding: 4px 4px 6px; border-radius: 14px 14px 4px 14px; background: #D9FDD3; display: grid; gap: 6px; box-shadow: 0 1px 1px rgb(0 0 0 / 0.08); }
+.rf-bubble p { margin: 0 6px; font-size: 13px; line-height: 1.4; }
+.rf-bubble time { justify-self: end; display: inline-flex; align-items: center; margin: 0 6px; font-size: 10px; color: #667781; }
+.rf-bubble time svg { width: 12px; height: 12px; color: #53BDEB; }
+.rf-bubble time svg + svg { margin-left: -8px; }
+.rf-bubble--in { align-self: flex-start; display: flex; align-items: flex-end; gap: 8px; padding: 7px 8px; border-radius: 14px 14px 14px 4px; background: #fff; font-size: 13px; }
+.rf-preview { border-radius: 10px; overflow: hidden; background: #fff; }
+.rf-preview__art { display: grid; gap: 6px; padding: 14px; background: radial-gradient(circle at 90% 0, rgb(239 122 26 / 0.3), transparent 55%), #FBF4E7; }
+.rf-preview__art b { font-size: 12px; font-weight: 800; color: #E8650F; }
+.rf-preview__art b i { font-style: normal; color: #185936; }
+.rf-preview__art strong { font-size: 19px; line-height: 1.1; letter-spacing: -0.03em; text-wrap: balance; }
+.rf-preview__code { justify-self: start; padding: 3px 8px; border-radius: 6px; background: #fff; font: 700 11px/1.4 ui-monospace, Menlo, monospace; letter-spacing: 0.18em; }
+.rf-preview small { display: block; padding: 6px 10px; font-size: 11px; color: #667781; }
+
+.rf-stat { grid-template-columns: auto 1fr; align-items: center; }
+.rf-stat__value, .rf-pills { display: grid; }
+.rf-stat__value > *, .rf-pills > * { grid-area: 1 / 1; }
+.rf-stat__value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rf-label { margin: 6px 2px 0; font-size: 12px; font-weight: 600; color: var(--rf-muted); }
+.rf-list { margin: 0; padding: 0; list-style: none; border-radius: 20px; background: #fff; }
+.rf-list li { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+.rf-list li + li { border-top: 1px solid var(--rf-line); }
+.rf-row__name { flex: 1; font-weight: 600; font-size: 14px; }
+.rf-row__name small { display: block; font-weight: 400; font-size: 11px; color: var(--rf-muted); }
+.rf-ava--a { background: #DCEBFF; color: #1E40AF; }
+.rf-ava--n { background: #FDE2EC; color: #9D174D; }
+.rf-ava--r { background: #E2F5E9; color: #166534; }
+.rf-pill { justify-self: end; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.rf-pill--up { background: #E0EDFF; color: #1D4ED8; }
+.rf-pill--brand { background: #FBE3D2; color: #9A3F08; }
+.rf-pill--ok { background: #DDF3E4; color: #166534; }
+.rf-row--live { background: linear-gradient(90deg, rgb(255 152 67 / 0.08), transparent); border-radius: 20px 20px 0 0; }
+
+/* Finished state by default: Rewarded, coins in. */
+.rf-step--1, .rf-step--2, .rf-step--before { opacity: 0; }
+
+.rf-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px; margin-top: clamp(48px, 7vw, 88px); padding-top: 28px; border-top: 1px solid var(--border); }
+.rf-facts { display: flex; flex-wrap: wrap; gap: 10px 28px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted-foreground); }
+.rf-facts li { display: inline-flex; align-items: center; gap: 8px; }
+.rf-facts svg { width: 18px; height: 18px; color: #F06B1A; }
+
+/* ---- The moment, scrubbed by the track's own scroll position ---- */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .rf-frame { animation: rf-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
+    .rf-step { animation: linear both; animation-timeline: --rf; animation-range: cover 30% cover 62%; }
+    .rf-step--1 { animation-name: rf-s1; }
+    .rf-step--2 { animation-name: rf-s2; }
+    .rf-step--3, .rf-step--after { animation-name: rf-s3; }
+    .rf-step--before { animation-name: rf-s0; }
+  }
+}
+@keyframes rf-rise { from { opacity: 0.2; transform: translateY(48px) scale(0.97); } }
+@keyframes rf-s1 { 0%, 30% { opacity: 1; transform: none; } 40%, 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes rf-s2 { 0%, 30% { opacity: 0; transform: translateY(6px); } 40%, 62% { opacity: 1; transform: none; } 72%, 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes rf-s3 { 0%, 62% { opacity: 0; transform: translateY(6px); } 72%, 100% { opacity: 1; transform: none; } }
+@keyframes rf-s0 { 0%, 62% { opacity: 1; } 72%, 100% { opacity: 0; } }
+
+/* Phones: the three screens become a swipe row with the next one peeking in. */
+@media (max-width: 959px) {
+  .rf-track {
+    grid-auto-flow: column; grid-auto-columns: min(82%, 340px); gap: 16px;
+    margin-inline: calc(-1 * var(--gutter)); padding: 4px var(--gutter) 8px; scroll-padding-inline: var(--gutter);
+    overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+  }
+  .rf-track::-webkit-scrollbar { display: none; }
+  .rf-step-col { scroll-snap-align: start; }
+  .rf-frame { height: 360px; }
+}
