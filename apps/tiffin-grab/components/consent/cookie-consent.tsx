@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { CONSENT_COOKIE, CONSENT_VERSION, consentCookieDomain, parseConsent, type Consent } from "@/lib/consent";
 import { consentCardOn } from "./card-visible";
 
@@ -181,25 +180,9 @@ export function CookieConsent() {
     };
   }, [ask]);
 
-  // The bar leaves the screen: morphing into the dock where there is one, else the tiffin's lid drop.
+  // The bar leaves the screen: the tiffin's lid drops, then it slides out (the dock stays put underneath).
   const leave = () => {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // The slim bar morphs into the dock in place: both carry one view-transition name for this one
-    // update, so the browser animates the bar's shape into the dock's capsule. Elsewhere (no dock,
-    // the full card, reduced motion, no View Transitions) it leaves the usual way.
-    const root = document.documentElement;
-    if (slim && !reduce && document.querySelector(".tg-pill") && typeof document.startViewTransition === "function") {
-      root.dataset.consentMorph = "";
-      const vt = document.startViewTransition({
-        update: () => {
-          delete root.dataset.consent;
-          flushSync(() => { setOpen(false); setDetails(false); });
-        },
-        types: ["consent-morph"],
-      });
-      void vt.finished.finally(() => { delete root.dataset.consentMorph; });
-      return;
-    }
     // The tiffin shows the answer (top tier filled or empty), the lid drops, then the card leaves.
     setClosing(true);
     timer.current = setTimeout(() => {

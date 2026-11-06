@@ -128,7 +128,7 @@ button, a, [role="button"], summary { touch-action: manipulation; }
 @media (pointer: coarse) {
   input, textarea, select { font-size: 16px; }
 }
-.customer-app, .tg-promo-scope, body:has(.customer-app) { --primary-foreground: #2E1200; --primary-text: #B4470F; --c-radius-chip: 10px; --c-radius-input: 16px; --c-radius-select: 20px; --c-radius-card: 24px; --c-radius-sheet: 28px; --c-shadow-cta: 0 12px 30px -8px color-mix(in oklch, var(--primary) 70%, transparent); --c-shadow-sheet: 0 -8px 40px rgb(0 0 0 / 0.18); --c-scrim: rgb(20 16 12 / 0.45); --c-h-tap: 44px; --c-h-cta: 52px; --c-h-pill: 48px; --c-ease-soft: var(--ease-soft); --c-ease-spring: var(--ease-spring); --c-dur-press: 100ms; --c-dur-sheet: 300ms; }
+.customer-app, .tg-promo-scope, body:has(.customer-app) { --primary-foreground: #2E1200; --primary-text: #9A3A0B; --c-radius-chip: 10px; --c-radius-input: 16px; --c-radius-select: 20px; --c-radius-card: 24px; --c-radius-sheet: 28px; --c-shadow-cta: 0 12px 30px -8px color-mix(in oklch, var(--primary) 70%, transparent); --c-shadow-sheet: 0 -8px 40px rgb(0 0 0 / 0.18); --c-scrim: rgb(20 16 12 / 0.45); --c-h-tap: 44px; --c-h-cta: 52px; --c-h-pill: 48px; --c-ease-soft: var(--ease-soft); --c-ease-spring: var(--ease-spring); --c-dur-press: 100ms; --c-dur-sheet: 300ms; }
 @layer utilities {
   .c-accent { font-style: italic; color: var(--primary-text, var(--primary)); }
   .c-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--primary-text, var(--primary)); }
@@ -151,7 +151,7 @@ button, a, [role="button"], summary { touch-action: manipulation; }
 }
 body:has(.tg-light-root) { background: #FBF4E7; color-scheme: light; }
 .dark .customer-app:not(.tg-land), .dark body:has(.customer-app):not(:has(.tg-light-root)), .tg-land .dark { --primary-text: var(--primary); --background: #1F2E26; --card: #283A30; --popover: #283A30; --secondary: #2F4237; --muted: #2F4237; --accent: #2F4237; --sidebar: #24352C; --border: oklch(1 0 0 / 12%); }
-.tg-land .dark { --background: #2A5440; --card: #33634B; --popover: #33634B; --secondary: #3A6C53; --muted: #3A6C53; --accent: #3A6C53; --sidebar: #2E5A45; --muted-foreground: #D3DCCB; }
+.tg-land .dark { --primary-text: var(--tg-peach, #FFB877); --background: #2A5440; --card: #33634B; --popover: #33634B; --secondary: #3A6C53; --muted: #3A6C53; --accent: #3A6C53; --sidebar: #2E5A45; --muted-foreground: #D3DCCB; }
 html[data-nav="pending"] body::before { content: ""; position: fixed; inset: 0 0 auto; z-index: 1000; height: 2px; pointer-events: none; background: var(--primary); transform-origin: left; animation: app-navbar 1.6s var(--ease-soft) forwards; }
 @keyframes app-navbar { from { transform: scaleX(0.08); } to { transform: scaleX(0.85); } }
 @media (prefers-reduced-motion: reduce) {
@@ -280,10 +280,6 @@ html[data-nav="pending"] body::before { content: ""; position: fixed; inset: 0 0
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .tg-consent__btn:hover { transform: translateY(-1px); }
 }
-html[data-consent-morph] .tg-consent[data-slim], html[data-consent-morph] .tg-pill { view-transition-name: tg-consent-morph; }
-::view-transition-group(tg-consent-morph) { animation-duration: 560ms; animation-timing-function: cubic-bezier(0.32, 1.15, 0.5, 1); z-index: 102; }
-::view-transition-old(tg-consent-morph), ::view-transition-new(tg-consent-morph) { height: 100%; object-fit: fill; animation-duration: 360ms; }
-html:active-view-transition-type(consent-morph)::view-transition-old(root), html:active-view-transition-type(consent-morph)::view-transition-new(root) { animation: none; }
 .tg-consent__link { display: inline-flex; align-items: center; min-height: 24px; text-decoration-thickness: 1px; transition: text-decoration-thickness 160ms ease, text-underline-offset 200ms var(--ease-soft); }
 @media (hover: hover) {
   .tg-consent__link:hover { text-decoration-thickness: 2px; text-underline-offset: 0.32em; }

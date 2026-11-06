@@ -49,8 +49,12 @@ export function EdgeTint() {
     let last = 0;
     let trail: ReturnType<typeof setTimeout> | undefined;
     const paint = () => {
-      const top = colourAt(1), bottom = colourAt(innerHeight - 1);
-      if (top) root.style.backgroundColor = top;
+      const top = colourAt(1, 0.97), bottom = colourAt(innerHeight - 1, 0.97);
+      // Safari paints the html background in the top status-bar strip and in the bottom overscroll: near the
+      // end of the page the bottom one is what shows (the footer), so follow that edge there.
+      const nearEnd = scrollY + innerHeight > root.scrollHeight - innerHeight * 0.5;
+      const edge = nearEnd ? bottom ?? top : top;
+      if (edge) root.style.backgroundColor = edge;
       // The dock's label colour follows what sits right behind it (a boxed green panel counts, a
       // small card does not), so it reads cream over green and dark over cream.
       const behind = colourAt(innerHeight - 40, 0.3) ?? bottom;
