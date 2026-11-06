@@ -8,6 +8,8 @@ import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadReferralOffer } from "@/lib/referrals/offer";
+import { loadLandingPromos } from "@/lib/landing/promos";
+import { referHeadline } from "@/components/landing/refer/refer-content";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
 import "@/components/landing/landing.css";
@@ -17,7 +19,10 @@ import "@/components/landing/landing.css";
 // The public site has one look whatever the visitor's theme: .tg-light-root pins the cream
 // tokens and chosen bands opt into dark green with .dark (the toggle lives in /me and the dashboard).
 export async function PublicShell({ children }: { children: ReactNode }) {
-  const offer = await loadReferralOffer().catch(() => null);
+  const [offer, promos] = await Promise.all([loadReferralOffer().catch(() => null), loadLandingPromos().catch(() => null)]);
+  const sticker = promos?.sticker ?? null;
+  // The dock's promotion face: the computed saving when there is one, else the promo's own badge.
+  const dockPromo = sticker ? { text: sticker.savings?.headline ?? sticker.badge ?? sticker.title, code: sticker.code, href: sticker.href } : null;
   return (
     <div className="tg-light-root">
     <div className="tg-land customer-app">
@@ -27,7 +32,7 @@ export async function PublicShell({ children }: { children: ReactNode }) {
       <PublicFooter />
       <LocationPicker />
       <WhatsAppChat />
-      <ActionPill label={offer?.pillLabel ?? null} />
+      <ActionPill label={offer?.pillLabel ?? null} refer={offer?.on ? referHeadline(offer).replace(/\.$/, "") : null} promo={dockPromo} />
       <EdgeTint />
     </div>
     </div>

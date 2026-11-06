@@ -41,12 +41,11 @@ function trackContact() {
   beaconContact(eventId);
 }
 
-/** WhatsApp inside the floating dock (desktop); the round float covers phones. */
+/** WhatsApp as the dock's right orb, icon only; the round float stands in while the dock is away. */
 export function WhatsAppDockLink({ className }: { className?: string }) {
   return (
     <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" onClick={trackContact} className={className}>
-      <WhatsAppGlyph className="size-5" />
-      <span>Chat</span>
+      <WhatsAppGlyph className="size-6" />
     </a>
   );
 }
