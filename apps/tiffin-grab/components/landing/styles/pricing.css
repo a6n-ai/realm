@@ -55,12 +55,6 @@
 @media (min-width: 768px) {
   .lp-diet { display: none; }
 }
-@keyframes lp-nudge {
-  0% { box-shadow: 0 0 0 0 rgb(42 84 64 / 0.45); scale: 1; }
-  30% { scale: 0.96; }
-  60% { scale: 1; }
-  100% { box-shadow: 0 0 0 10px rgb(42 84 64 / 0); scale: 1; }
-}
 @keyframes lp-tap { 0%, 100% { translate: 0 0; } 35% { translate: 0 2px; rotate: -8deg; } 60% { translate: 0 0; rotate: 0deg; } }
 #estimate { scroll-margin-top: calc(var(--lp-nav-h, 56px) + 16px); }
 .lp-price-hero .lp-intro { gap: 10px; margin-bottom: 10px; }
@@ -98,7 +92,8 @@
 .lp-math__foot small { display: block; font-size: 12px; line-height: 16px; text-align: center; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lp-math__foot .lp-cta { width: 100%; min-height: 48px; }
 .lp-math[data-hint] .lp-math__label > span svg { animation: lp-tap 1.4s var(--ease-soft) infinite; transform-origin: 50% 90%; }
-.lp-math[data-hint] .lp-math__chip--wk[aria-checked="true"] + .lp-math__chip--wk { animation: lp-nudge 1.4s var(--ease-soft) infinite; }
+.lp-math[data-hint] .lp-math__chip--wk[aria-checked="true"] + .lp-math__chip--wk { position: relative; isolation: isolate; animation: lp-nudge 1.4s var(--ease-soft) infinite; }
+.lp-math[data-hint] .lp-math__chip--wk[aria-checked="true"] + .lp-math__chip--wk::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px rgb(42 84 64 / 0.45); pointer-events: none; animation: lp-nudge-ring 1.4s var(--ease-soft) infinite; }
 @media (min-width: 641px) {
   #estimate { scroll-margin-top: calc(var(--lp-nav-h, 56px) + 28px); }
   .lp-price-hero .lp-intro { gap: 18px; margin-bottom: 28px; }
@@ -136,3 +131,5 @@
   .lp-math__chip:not([aria-checked="true"]):hover, .lp-math__day:not([aria-pressed="true"]):not(:disabled):hover { background: color-mix(in oklch, var(--tg-green) 14%, var(--muted)); translate: 0 -1px; }
   .lp-math__chip[aria-checked="true"]:hover, .lp-math__day[aria-pressed="true"]:hover { background: color-mix(in oklch, var(--tg-green) 86%, black); translate: 0 -1px; }
 }
+@keyframes lp-nudge { 0%, 60%, 100% { scale: 1; } 30% { scale: 0.96; } }
+@keyframes lp-nudge-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.18); opacity: 0; } }

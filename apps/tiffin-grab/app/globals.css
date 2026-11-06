@@ -295,4 +295,4 @@ html:active-view-transition-type(consent-morph)::view-transition-old(root), html
 }
 
 /* The dock never hides: the cookie question floats just above it. */
-html:has(.tg-pill) .tg-consent[data-slim] { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px); }
+html[data-dock] .tg-consent[data-slim] { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px); }

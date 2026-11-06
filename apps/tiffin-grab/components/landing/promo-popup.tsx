@@ -129,6 +129,7 @@ export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fall
       if (!d || d.open || seenThisSession(promo.id)) return;
       markSession(promo.id);
       d.showModal();
+      document.documentElement.dataset.popup = "";
     }, 3000);
     // Someone already tapping, typing or scrolling has somewhere to be: never interrupt them
     // (and never land on top of the cross-host splash a tap just raised).
@@ -148,6 +149,7 @@ export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fall
       if (!armed || e.relatedTarget || e.clientY > 0 || !d || d.open || seen(promo.id)) return;
       markSeen(promo.id);
       d.showModal();
+      document.documentElement.dataset.popup = "";
     };
     document.addEventListener("mouseout", onLeave);
     return () => { clearTimeout(arm); document.removeEventListener("mouseout", onLeave); };
@@ -156,7 +158,7 @@ export function PromoPopup({ promo, fallbackImage }: { promo: LandingPromo; fall
   const close = () => ref.current?.close();
 
   return (
-    <dialog ref={ref} className="tg-popup" aria-labelledby="tg-popup-title" onClick={(e) => e.target === e.currentTarget && close()}>
+    <dialog ref={ref} className="tg-popup" onClose={() => { delete document.documentElement.dataset.popup; }} aria-labelledby="tg-popup-title" onClick={(e) => e.target === e.currentTarget && close()}>
       <PromoPanel promo={promo} fallbackImage={fallbackImage} onClose={close} />
     </dialog>
   );

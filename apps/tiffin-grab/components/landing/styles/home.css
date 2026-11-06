@@ -42,7 +42,7 @@ video.lp-hero__video { opacity: 0; }
 }
 .tg-popup { background: var(--card); overflow: auto; }
 .tg-popup::backdrop { background: rgb(20 16 12 / 0.7); }
-html:has(.tg-popup[open]) { overflow: hidden; }
+html[data-popup] { overflow: hidden; }
 .tg-popup { position: fixed; inset: auto 0 0; margin: 0; height: fit-content; width: 100%; max-height: calc(100svh - 48px); padding: 0; border: 0; border-radius: 28px 28px 0 0; color: var(--foreground); box-shadow: var(--c-shadow-sheet, 0 -8px 40px rgb(0 0 0 / 0.18)); overscroll-behavior: contain; }
 .tg-popup[open] { animation: tg-sheet-in 300ms var(--ease-soft); }
 .tg-popup__panel { position: relative; background: var(--card); color: var(--foreground); }

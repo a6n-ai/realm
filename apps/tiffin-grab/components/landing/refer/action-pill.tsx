@@ -109,6 +109,14 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
   const moved = useRef(false);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => setMounted(true), []);
+  // Page-level styles that make room for the dock (scroll padding, cookie question, nav progress) key off this
+  // attribute instead of a page-wide :has(.tg-pill) the browser would re-check on every DOM change.
+  useEffect(() => {
+    if (!mounted || !pillVisible(path)) return;
+    const root = document.documentElement;
+    root.dataset.dock = "";
+    return () => { delete root.dataset.dock; };
+  }, [mounted, path]);
 
   const user = session?.user as { role?: RoleValue; name?: string | null; image?: string | null } | undefined;
   const role = user?.role;
