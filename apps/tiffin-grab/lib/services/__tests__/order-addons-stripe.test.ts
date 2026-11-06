@@ -64,7 +64,7 @@ const { listOrdersPage } = await import("../orders.service");
 const { orderPaymentLocked } = await import("../customer-deliveries.service");
 const { payByCard, settleStripePayment } = await import("../payment-stripe");
 const { nextCutoffMs } = await import("@/lib/orders/paid-start");
-const { toCents } = await import("@/lib/payments/stripe");
+const { toCents } = await import("@/lib/money");
 const fx = await import("./stripe-fixture");
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

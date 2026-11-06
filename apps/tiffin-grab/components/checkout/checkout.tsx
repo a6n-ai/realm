@@ -1,5 +1,6 @@
 "use client";
 
+import { toCents } from "@/lib/money";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -774,14 +775,14 @@ export function Checkout({
         return;
       }
       if (paymentMethodId === "etransfer" && result) {
-        const total = Math.round(result.total * 100);
+        const total = toCents(result.total);
         setEtransfer({
           paymentPublicId: res.paymentPublicId,
           deploymentId: res.deploymentId,
           receipt: {
             title: meal?.name ?? "Your plan",
             subtitle: baseline ?? null,
-            lines: receiptLines({ totalCents: total, taxCents: Math.round(result.taxTotal * 100), feeCents: 0 }),
+            lines: receiptLines({ totalCents: total, taxCents: toCents(result.taxTotal), feeCents: 0 }),
             total,
             orderRef: res.deploymentId,
             paidWith: "e-Transfer",
@@ -812,7 +813,7 @@ export function Checkout({
       couponCodes: appliedCodes,
       coins: appliedCoins || undefined,
       paymentMethodId: "stripe",
-      expectedAmountCents: Math.round(result!.total * 100),
+      expectedAmountCents: toCents(result!.total),
       paymentPublicId: placed.current?.paymentPublicId ?? null,
       source,
       acceptSurcharge,
@@ -827,14 +828,14 @@ export function Checkout({
     return res.result;
   };
   const cardReceipt = (info: PaidInfo): ReceiptView => {
-    const total = info.totalCents ?? Math.round((result?.total ?? 0) * 100);
+    const total = info.totalCents ?? toCents(result?.total ?? 0);
     paidTotalRef.current = total / 100;
     const id = placed.current?.deploymentId ?? "";
     return {
       receipt: {
         title: meal?.name ?? "Your plan",
         subtitle: baseline ?? null,
-        lines: receiptLines({ totalCents: total, taxCents: Math.round((result?.taxTotal ?? 0) * 100), feeCents: info.feeCents }),
+        lines: receiptLines({ totalCents: total, taxCents: toCents(result?.taxTotal ?? 0), feeCents: info.feeCents }),
         total,
         orderRef: id,
         paidWith: info.paidWith,
@@ -1346,7 +1347,7 @@ export function Checkout({
     <CardPayProvider
       // Step 1's phone and address are this order's, so they are the card's billing details too.
       ctx={{ ...cardContext!, prefill: { ...cardContext!.prefill, phone: e164(contact.phone, cardContext!.prefill.address.country) ?? cardContext!.prefill.phone, address: billingAddress(contact, cardContext!.prefill.address.country) } }}
-      amountCents={result ? Math.round(result.total * 100) : 50}
+      amountCents={result ? toCents(result.total) : 50}
       disabled={repricing > 0 || result == null}
       onPay={payByCard}
       customerSession={newCustomerSession}

@@ -7,7 +7,8 @@ import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMinor } from "@/lib/format/money";
+import { toCents } from "@/lib/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { customerWalletStats } from "@/lib/services/wallet-balances.service";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
@@ -43,11 +44,11 @@ async function WalletStats({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await loadCustomer(id);
   const [s, { currency, timezone }] = await Promise.all([customerWalletStats(data.profile.id), getAppSettings()]);
-  const usd = (coins: number) => (s.rate == null ? null : formatMoney(Math.round(coins * s.rate * 100), currency));
+  const usd = (coins: number) => (s.rate == null ? null : formatMinor(toCents(coins * s.rate), currency));
   const cards: StatCardItem[] = [
     { label: "Balance", value: s.balance.toLocaleString(), icon: CoinsIcon, hint: usd(s.balance) ? `≈ ${usd(s.balance)}` : "coins held now" },
     { label: "Coins redeemed", value: s.redeemed.toLocaleString(), icon: TrendingDownIcon, hint: usd(s.redeemed) ? `${usd(s.redeemed)} redeemed` : "lifetime" },
-    { label: "Value", value: s.value == null ? "—" : formatMoney(Math.round(s.value * 100), currency), icon: BanknoteIcon, hint: "balance at the current coin rate" },
+    { label: "Value", value: s.value == null ? "—" : formatMinor(toCents(s.value), currency), icon: BanknoteIcon, hint: "balance at the current coin rate" },
     { label: "Coins earned", value: s.earned.toLocaleString(), icon: TrendingUpIcon, hint: usd(s.earned) ? `${usd(s.earned)} earned` : "lifetime" },
     // The wallet has no coin expiry (reserved_until only releases checkout holds), so this card shows recency instead.
     { label: "Last activity", value: s.last ? formatEpoch(s.last, { mode: "date", timeZone: timezone }) : "—", icon: CalendarClockIcon, hint: "most recent ledger entry" },

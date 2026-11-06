@@ -6,6 +6,8 @@
  * Trials still inside the window come back as `open` and stay out of the rate.
  * Whether a trial converted is decided in SQL by the same "later plan" rule the Renewals desk uses.
  */
+import { ratePct } from "@/lib/money";
+
 
 export const TRIAL_CONVERT_WINDOW_DAYS = 14;
 
@@ -57,7 +59,7 @@ export function summarizeTrialConversion(input: {
     eligible,
     converted,
     open,
-    conversionRatePct: eligible > 0 ? Math.round((converted / eligible) * 1000) / 10 : null,
+    conversionRatePct: eligible > 0 ? ratePct(converted, eligible) : null,
     windowDays,
   };
 }

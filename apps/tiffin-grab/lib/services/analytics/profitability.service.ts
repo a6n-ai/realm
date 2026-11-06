@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
@@ -8,7 +9,6 @@ import {
   eachDateInclusive,
   isoDateInZone,
   kpis,
-  round2,
   rollup,
   type CostPart,
   type Grain,

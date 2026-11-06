@@ -1,5 +1,6 @@
 "use client";
 
+import { round2 } from "@foundry/discounts";
 import { useState } from "react";
 import { CalendarDaysIcon, ChevronDownIcon, CopyIcon, MinusIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +28,7 @@ import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayO
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { CheckoutPaymentMethod } from "@/app/(public)/subscribe/actions";
 import type { useOrderDraft } from "../../inquiries/[id]/order/use-order-draft";
-import { dayBeforeIso, round2, type Catalog } from "../../inquiries/[id]/order/order-draft";
+import { dayBeforeIso, type Catalog } from "../../inquiries/[id]/order/order-draft";
 import { CustomerCodeField } from "../../discounts/customer-code-field";
 import { CoinsField } from "../../discounts/coins-field";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";

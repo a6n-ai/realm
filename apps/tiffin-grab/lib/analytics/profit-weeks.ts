@@ -1,5 +1,6 @@
+import { round2 } from "@foundry/discounts";
 import { mondayIndex } from "./calendar";
-import { round2, type ProfitRow } from "./profitability";
+import { type ProfitRow } from "./profitability";
 
 export type ProfitWeek = { start: string; end: string; row: ProfitRow };
 

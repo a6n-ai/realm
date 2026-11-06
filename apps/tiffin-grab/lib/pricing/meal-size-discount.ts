@@ -1,9 +1,9 @@
+import { round2 } from "@foundry/discounts";
 export type MealSizeDiscount = { discountType: "none" | "percent" | "flat"; discountValue: number };
 
 /** A `meal_size` row from the central discounts table. targetId null = every meal size. */
 export type MealSizeDiscountRow = { targetId: bigint | null; percent: number; amount: number | null };
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // The one place "list price -> effective price" is computed. Both the pricing engine (via
 // buildPricingCatalog) and every customer-facing meal-size card import this — never duplicate

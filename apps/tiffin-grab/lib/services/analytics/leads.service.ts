@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, mealSizes } from "@/db/schema";
@@ -46,7 +47,7 @@ export async function getLeadStats(
     total,
     converted,
     lost,
-    conversionRatePct: total > 0 ? Math.round((converted / total) * 1000) / 10 : 0,
+    conversionRatePct: total > 0 ? ratePct(converted, total) : 0,
   };
 }
 
@@ -111,6 +112,6 @@ export async function getSourcePerformance(
     .orderBy(sql`count(*) desc`);
   return rows.map((r) => ({
     ...r,
-    conversionRatePct: r.total > 0 ? Math.round((r.converted / r.total) * 1000) / 10 : 0,
+    conversionRatePct: r.total > 0 ? ratePct(r.converted, r.total) : 0,
   }));
 }

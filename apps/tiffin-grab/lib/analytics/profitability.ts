@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 /**
  * Daily profitability math. Cash (payments captured that day) is deliberately
  * a different number from revenue (plan total allocated onto delivered tiffins).
@@ -41,10 +42,6 @@ export function parseAssumptions(raw: unknown): ProfitabilityAssumptions {
 }
 
 export type Grain = "daily" | "weekly" | "monthly";
-
-export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
 
 /** Calendar days in a 1-indexed month. */
 export function daysInMonth(year: number, month: number): number {

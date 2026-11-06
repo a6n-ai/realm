@@ -53,7 +53,7 @@ const { sharedCache } = await import("@/lib/cache");
 const { createOrder } = await import("../orders.service");
 const { addOrderAddons, quoteOrderAddons } = await import("../order-addons.service");
 const { reconcileStripe, settleStripePayment } = await import("../payment-stripe");
-const { toCents } = await import("@/lib/payments/stripe");
+const { toCents } = await import("@/lib/money");
 const fx = await import("./stripe-fixture");
 
 const intent = (pay: { publicId: string; amount: string }, piId: string) => ({

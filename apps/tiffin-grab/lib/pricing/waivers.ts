@@ -1,4 +1,5 @@
-import type { TaxLine } from "@foundry/payments";
+import { round2 } from "@foundry/discounts";
+import { computeTax, type TaxLine } from "@foundry/payments";
 import type { DeliveryChargeCalculationResult } from "@foundry/delivery";
 import type { WaiverKind } from "@/lib/catalog/types";
 import type { PricingLine } from "./types";
@@ -13,7 +14,6 @@ export interface PricingWaiver {
   percent: number;
 }
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 const pctOf = (w: PricingWaiver) => Math.min(100, Math.max(0, w.percent));
 const withPct = (label: string, pct: number) => (pct < 100 ? `${label} (${pct}%)` : label);
 
@@ -55,7 +55,7 @@ export function deliveryWaiverLines(calc: DeliveryChargeCalculationResult | unde
   }));
 }
 
-const taxOn = (base: number, taxes: TaxLine[]) => taxes.reduce((s, t) => s + round2(base * (t.ratePct / 100)), 0);
+const taxOn = (base: number, taxes: TaxLine[]) => computeTax(base, taxes).taxTotal;
 
 // "We pay the tax": tax can't be dropped from a taxable sale, so the price is lowered instead
 // until price + tax lands at (or a cent under) what the customer would pay without the waived

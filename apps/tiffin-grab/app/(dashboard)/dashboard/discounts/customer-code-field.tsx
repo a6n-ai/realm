@@ -1,5 +1,6 @@
 "use client";
 
+import { round2 } from "@foundry/discounts";
 import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -10,8 +11,6 @@ import { Label } from "@foundry/ui/label";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "./rep-code-actions";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // Issues a one-off code on the rep's own allowance, capped against this order, and applies it to
 // the estimate so the total shown is what the customer pays after entering it at checkout.

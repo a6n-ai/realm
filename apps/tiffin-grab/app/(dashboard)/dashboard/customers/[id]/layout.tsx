@@ -8,7 +8,7 @@ import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/da
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
-import { formatMoney as formatMoneyIn } from "@/lib/format/money";
+import { formatMinor as formatMoneyIn } from "@/lib/format/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentRate } from "@/lib/services/wallet-balances.service";
 import { Skeleton } from "@foundry/ui/skeleton";

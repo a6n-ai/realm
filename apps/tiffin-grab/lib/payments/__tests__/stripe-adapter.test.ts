@@ -15,7 +15,8 @@ vi.mock("@/lib/services/app-settings.service", () => {
 });
 
 const settings = (await import("@/lib/services/app-settings.service")) as unknown as { __set: (b: Record<string, unknown>) => void };
-const { stripeRuntime, stripeDeps, toCents, fromCents } = await import("../stripe");
+const { stripeRuntime, stripeDeps } = await import("../stripe");
+const { toCents, fromCents } = await import("@/lib/money");
 
 describe("stripe adapter", () => {
   beforeEach(() => settings.__set({}));

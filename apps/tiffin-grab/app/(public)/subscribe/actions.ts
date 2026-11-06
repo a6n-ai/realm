@@ -1,5 +1,6 @@
 "use server";
 
+import { round2 } from "@foundry/discounts";
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { enabledMethods, findMethod } from "@foundry/payments";
@@ -207,7 +208,7 @@ async function quote(
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
-    const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
+    const remaining = Math.max(0, round2(postCatalog - priorDiscount));
     const { currency } = await getAppSettings();
     const [activeRate, maxPct, maxRedeemPctOfBalance] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
     rate = activeRate;
@@ -228,7 +229,7 @@ async function quote(
         // quote would show more coins than createOrder spends (it refuses over that limit).
         coinsError = `You can use up to ${maxRedeemPctOfBalance}% of your coins at once — up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
-        const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+        const pctCap = maxPct == null ? Infinity : round2(postCatalog * (maxPct / 100));
         const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
         if (redemption.currencyValue > 0) {
           coinsSpent = redemption.coinsSpent;

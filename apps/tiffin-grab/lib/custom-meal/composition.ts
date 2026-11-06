@@ -1,10 +1,10 @@
+import { round2 } from "@foundry/discounts";
 import { formatTuHuman, tuToNatural } from "@/lib/menu/format-tu";
 
 export type CustomMealItem = { category: string; planKey: string; tuAmount: number };
 export type CategoryUnit = { key: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string; weekend?: boolean };
 
 // EPSILON: 14.625 * 100 is 1462.4999… in float, so plain Math.round rounds cents down.
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const cmp = (a: CustomMealItem, b: CustomMealItem) =>
   a.category.localeCompare(b.category) || a.planKey.localeCompare(b.planKey) || b.tuAmount - a.tuAmount;
 

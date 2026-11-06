@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { resolveCompositionRows } from "./catalog.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot, MealSizeView } from "@/lib/catalog/types";
 import { compositionName, mealPlanKey, normalizeItems, planLabel, sizeCompositionKey, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
-import { computeCustomPerTiffin, round2 } from "@/lib/custom-meal/pricing";
+import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
 import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 

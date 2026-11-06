@@ -1,5 +1,6 @@
 "use server";
 
+import { toCents } from "@/lib/money";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
@@ -126,7 +127,7 @@ export async function payCheckout(
         await stampInputsFingerprint(paymentPublicId, order);
       }
       // The wallet/card sheet was priced client-side; never charge a different number than it showed.
-      if (Math.round(Number(await paymentAmount(paymentPublicId)) * 100) !== expectedAmountCents) {
+      if (toCents(await paymentAmount(paymentPublicId)) !== expectedAmountCents) {
         throw new ValidationError(TOTAL_CHANGED);
       }
       const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/services/payment-stripe"), import("@/lib/payments/stripe")]);

@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
 import { isoDateInZone } from "@/lib/analytics/profitability";
@@ -104,7 +105,7 @@ export async function getComplaintKpis(scope: AnalyticsScope): Promise<Complaint
     total,
     open: row?.open ?? 0,
     resolved,
-    resolutionRatePct: total > 0 ? Math.round((resolved / total) * 1000) / 10 : null,
+    resolutionRatePct: total > 0 ? ratePct(resolved, total) : null,
     avgResolutionHours: avgMs != null ? Math.round((Number(avgMs) / 3_600_000) * 10) / 10 : null,
     // Per 100 delivered tiffins. null (not 0) when nothing was delivered: a rate
     // with no denominator is unknown, and printing 0 would read as "no problems".

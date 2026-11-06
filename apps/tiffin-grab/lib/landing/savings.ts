@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -7,7 +8,6 @@ import type { PromoSavings } from "@/lib/landing/promo-types";
 
 type CouponLike = { code: string; valuePct: string | null; valueAmount: string | null; minSubtotal: string | null };
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 // "3 Days/Wk Alternate (MWF)" reads as "Mon, Wed, Fri" on a receipt line.

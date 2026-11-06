@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatMoney } from "../money";
+import { formatMinor } from "../money";
 
-describe("formatMoney", () => {
+describe("formatMinor", () => {
   it("formats INR minor units", () => {
-    expect(formatMoney(450000, "INR")).toBe("₹4,500.00");
+    expect(formatMinor(450000, "INR")).toBe("₹4,500.00");
   });
   it("formats USD minor units", () => {
-    expect(formatMoney(1299, "USD")).toBe("$12.99");
+    expect(formatMinor(1299, "USD")).toBe("$12.99");
   });
 });

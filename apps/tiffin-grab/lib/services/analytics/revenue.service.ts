@@ -1,7 +1,8 @@
+import { round2 } from "@foundry/discounts";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";
-import { eachDateInclusive, isoDateInZone, periodKey, round2 } from "@/lib/analytics/profitability";
+import { eachDateInclusive, isoDateInZone, periodKey } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
 import {

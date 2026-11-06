@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -287,7 +288,7 @@ async function PlanLengthDonut({ scope }: { scope: AnalyticsScope }) {
 
 const money = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
-const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => Math.round(rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
+const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => round2(rows.reduce((t, r) => t + r[k], 0));
 
 async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
   const all = await productSales(scope);

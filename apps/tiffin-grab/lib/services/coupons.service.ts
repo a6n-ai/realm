@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
@@ -14,7 +15,6 @@ import { SessionUpdatableService } from "./session-service";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Coupon = typeof coupons.$inferSelect;
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 const num = (v: string | null): number => (v == null ? 0 : Number(v));
 
 // No 0/O or 1/I: these codes are read out over the phone.

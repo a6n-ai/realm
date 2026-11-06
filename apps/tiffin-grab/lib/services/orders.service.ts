@@ -59,7 +59,7 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
-import { round2 } from "@/lib/custom-meal/pricing";
+import { round2 } from "@foundry/discounts";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
@@ -565,7 +565,7 @@ export async function createOrder(
 
     // Re-distribute every kept line against the running remaining subtotal so the
     // summed redemption amounts can never exceed the order subtotal.
-    const remainingAfter = () => Math.max(0, Math.round((postCatalog - adjustments.reduce((sum, a) => sum + a.amount, 0) + Number.EPSILON) * 100) / 100);
+    const remainingAfter = () => Math.max(0, round2(postCatalog - adjustments.reduce((sum, a) => sum + a.amount, 0)));
     for (const r of best.redemptions) {
       const amount = Math.min(r.amount, remainingAfter());
       if (amount <= 0) continue;
@@ -605,7 +605,7 @@ export async function createOrder(
     let coinRedemption: { coinsSpent: number; currencyValue: number } | null = null;
     if (input.coins && input.coins > 0 && userId != null) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
-      const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
+      const remaining = Math.max(0, round2(postCatalog - priorDiscount));
       if (remaining > 0) {
         const rate = await walletService.activeRate(currency);
         // Admin limit on the share of the PRE-TAX subtotal coins may cover
@@ -615,7 +615,7 @@ export async function createOrder(
         const maxPct = await getMaxCoinPctOfSubtotal();
         const pctCap = maxPct == null
           ? Infinity
-          : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+          : round2(postCatalog * (maxPct / 100));
 
         // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
         // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
@@ -1231,7 +1231,7 @@ export async function refundPaymentInTx(
       .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
     const [{ amount, surcharge }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount }).from(payments).where(eq(payments.id, i.paymentId));
     // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
-    const remainder = Math.round((Number(amount) + Number(surcharge) - Number(already)) * 100) / 100;
+    const remainder = round2(Number(amount) + Number(surcharge) - Number(already));
     if (remainder > 0) {
       await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
     }

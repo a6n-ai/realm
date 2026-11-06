@@ -6,7 +6,8 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMinor } from "@/lib/format/money";
+import { toCents } from "@/lib/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   listWalletBalances,
@@ -58,7 +59,7 @@ async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
   const held = `held on ${formatEpoch(Math.min(range.to, Date.now()), { mode: "date", timeZone: timezone })}`;
   const cards: StatCardItem[] = [
     { label: "Coins outstanding", value: stats.outstanding.toLocaleString(), icon: CoinsIcon, hint: held },
-    { label: "Money value", value: stats.value == null ? "—" : formatMoney(Math.round(stats.value * 100), currency), icon: BanknoteIcon, hint: `${held}, at the current rate` },
+    { label: "Money value", value: stats.value == null ? "—" : formatMinor(toCents(stats.value), currency), icon: BanknoteIcon, hint: `${held}, at the current rate` },
     {
       label: "Wallets with a balance",
       value: stats.walletsWithBalance.toLocaleString(),
@@ -88,7 +89,7 @@ async function BalancesData({ searchParams }: { searchParams: SearchParams }) {
     listWalletBalances({ q: sp.q?.trim(), filter, sort, page, range }),
     getAppSettings(),
   ]);
-  const money = (v: number | null) => (v == null ? "—" : formatMoney(Math.round(v * 100), currency));
+  const money = (v: number | null) => (v == null ? "—" : formatMinor(toCents(v), currency));
 
   return (
       <BalancesTable

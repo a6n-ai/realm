@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { parseIsoDateUtc } from "@foundry/commons";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -6,7 +7,6 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { OrderFormValues } from "../order-schema";
 import type { RepCouponInfo } from "./actions";
 
-export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export type Catalog = {
   plans: { key: string; name: string }[];

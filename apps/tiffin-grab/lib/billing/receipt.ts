@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
@@ -47,8 +48,6 @@ const PAID: PayStatus[] = ["paid", "simulated_paid"];
 const RECEIVED: PayStatus[] = [...PAID, "refunded"];
 // Not money received or owed yet: an unpaid card link, a rejected claim.
 const SKIP: PayStatus[] = ["awaiting_payment", "rejected"];
-
-const round = (n: number) => Math.round(n * 100) / 100;
 
 /** The order's receipt, or null when it doesn't exist. Callers do the access check. */
 export async function loadReceipt(orderPublicId: string, now = Date.now()): Promise<Receipt | null> {
@@ -120,7 +119,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
   const kept = pays.filter((p) => !SKIP.includes(p.status));
   const receiptPayments: ReceiptPayment[] = kept.map((p) => {
     const cardFee = p.method === "stripe" ? Number(p.surcharge) : 0;
-    const amount = round(Number(p.amount) + cardFee);
+    const amount = round2(Number(p.amount) + cardFee);
     const refunded = ledgerRefund.get(p.id) ?? (p.status === "refunded" ? amount : 0);
     return {
       date: p.capturedAt ?? p.createdAt,
@@ -128,7 +127,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
       reference: p.method === "stripe" ? p.providerRef : p.reference,
       amount,
       cardFee,
-      refunded: round(refunded),
+      refunded: round2(refunded),
       status: PAID.includes(p.status) ? "paid" : p.status === "refunded" ? "refunded" : "pending",
     };
   });
@@ -137,7 +136,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
   }
 
-  const sum = (xs: number[]) => round(xs.reduce((a, b) => a + b, 0));
+  const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
   const received = receiptPayments.filter((p) => p.status !== "pending");
   const covered = sum(received.map((p) => p.amount - p.cardFee));
 
@@ -163,6 +162,6 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     paid: sum(received.map((p) => p.amount)),
     refunded: sum(receiptPayments.map((p) => p.refunded)),
     // A cancelled order owes nothing, whatever was or wasn't paid.
-    balanceDue: o.status === "cancelled" ? 0 : Math.max(0, round(order.total - covered)),
+    balanceDue: o.status === "cancelled" ? 0 : Math.max(0, round2(order.total - covered)),
   };
 }

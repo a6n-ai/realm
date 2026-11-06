@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 /**
  * Pure revenue helpers: status/method labels, chart grain and discount lines.
  * Revenue totals themselves come from SQL (lib/services/analytics/metrics/money.ts).
@@ -5,7 +6,7 @@
  * share of the order a payment covers and capped at the list price.
  */
 
-import { eachDateInclusive, isoDateInZone, round2, type Grain } from "./profitability";
+import { eachDateInclusive, isoDateInZone, type Grain } from "./profitability";
 
 export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
 // A full refund flips the payment to 'refunded' and also writes a ledger refund row. Revenue counts

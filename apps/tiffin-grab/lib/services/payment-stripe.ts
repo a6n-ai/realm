@@ -9,7 +9,8 @@ import {
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
-import { clearStripeCustomer, customerStore, stripeRuntime, toCents, fromCents } from "@/lib/payments/stripe";
+import { clearStripeCustomer, customerStore, stripeRuntime } from "@/lib/payments/stripe";
+import { fromCents, toCents } from "@/lib/money";
 import { cardPayClosed } from "@/lib/orders/display-status";
 import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { toCents } from "@/lib/money";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { trackMeta } from "@foundry/meta-pixel/client";
@@ -154,8 +155,6 @@ function LivePayForm(p: {
     </CardPayProvider>
   );
 }
-
-const toCents = (n: number) => Math.round(n * 100);
 
 function receiptFor(p: { deploymentId: string; planTitle: string; planSubtitle: string | null; lines: Line[]; amountCents: number }, info: PaidInfo): ReceiptView {
   const total = info.totalCents ?? p.amountCents;

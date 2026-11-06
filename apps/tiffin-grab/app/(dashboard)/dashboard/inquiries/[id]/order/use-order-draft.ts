@@ -1,5 +1,6 @@
 "use client";
 
+import { round2 } from "@foundry/discounts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -22,7 +23,7 @@ import { earliestTrialIso, nextTrialStart, trialSendDays, type TrialSettings } f
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCoinPreview, type StaffCouponPreview } from "./actions";
 import { plannedSchedule } from "@/components/wizard/schedule-card";
 import {
-  buildOrderInput, firstWeekdayOnOrAfter, missingFields, multiDayTrialPicks, round2,
+  buildOrderInput, firstWeekdayOnOrAfter, missingFields, multiDayTrialPicks,
   type Catalog,
 } from "./order-draft";
 

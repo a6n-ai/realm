@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import "server-only";
 import { cache } from "react";
 import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
@@ -26,7 +27,7 @@ export type OverviewSeries = {
   renewal: { rate: number | null; prevRate: number | null; renewed: number; ended: number };
 };
 
-const rate = (r: { ended: number; renewed: number }) => (r.ended > 0 ? Math.round((r.renewed / r.ended) * 1000) / 10 : null);
+const rate = (r: { ended: number; renewed: number }) => (r.ended > 0 ? ratePct(r.renewed, r.ended) : null);
 
 /**
  * Everything the tiles and the pace chart need. Revenue and orders come from the analytics daily

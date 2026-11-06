@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { Suspense } from "react";
 import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
@@ -97,7 +98,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         },
         {
           label: "Lead conversion",
-          value: worked > 0 ? `${Math.round((converted / worked) * 1000) / 10}%` : "—",
+          value: worked > 0 ? `${ratePct(converted, worked)}%` : "—",
           hint: `${converted} converted of ${worked} worked · ${DATE_BASIS_LABEL.leads}`,
           href: inquiriesHref(scope),
           badge: "Leads",

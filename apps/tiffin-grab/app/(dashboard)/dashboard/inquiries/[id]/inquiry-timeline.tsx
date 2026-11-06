@@ -11,7 +11,7 @@ import { cn } from "@foundry/ui/cn";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMinor } from "@/lib/format/money";
 import { stageLabel } from "@/components/ds";
 import { statusLabel, type SubStatus } from "@/lib/inquiries/status";
 import { look } from "../_leads/status-dialog";
@@ -76,9 +76,9 @@ export function describe(a: TimelineActivity, currency: string): string {
     case "note":
       return "Note";
     case "quote_sent":
-      return `Quote sent${a.amount != null ? ` — ${formatMoney(a.amount, currency)}` : ""}`;
+      return `Quote sent${a.amount != null ? ` — ${formatMinor(a.amount, currency)}` : ""}`;
     case "payment_link_sent":
-      return `Payment link sent${a.amount != null ? ` — ${formatMoney(a.amount, currency)}` : ""}`;
+      return `Payment link sent${a.amount != null ? ` — ${formatMinor(a.amount, currency)}` : ""}`;
     case "sample_sent":
       return "Sample sent";
     case "visit":

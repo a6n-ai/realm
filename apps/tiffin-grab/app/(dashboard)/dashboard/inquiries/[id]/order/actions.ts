@@ -1,5 +1,6 @@
 "use server";
 
+import { round2 } from "@foundry/discounts";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
@@ -296,7 +297,7 @@ async function quotePrice(
     const rate = await walletService.activeRate(currency);
     const cap = quoteCoinCap({ subtotal: postCatalog, remaining, balance, rate, maxPct, maxRedeemPctOfBalance });
     const want = Math.max(0, Math.min(coins === "max" ? cap.maxCoins : Math.floor(coins), cap.maxCoins));
-    const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+    const pctCap = maxPct == null ? Infinity : round2(postCatalog * (maxPct / 100));
     const redemption = want > 0 ? capRedemption(want, rate, Math.min(remaining, pctCap)) : { coinsSpent: 0, currencyValue: 0 };
     if (redemption.currencyValue > 0) lines.push({ label: `Coins (${redemption.coinsSpent})`, amount: redemption.currencyValue });
     coinPreview = {

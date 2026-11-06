@@ -5,7 +5,8 @@ import { AlertTriangleIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
-import { formatMoney } from "@/lib/format/money";
+import { formatMinor } from "@/lib/format/money";
+import { toCents } from "@/lib/money";
 import { displayName } from "@/lib/inquiries/display";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";
@@ -24,14 +25,14 @@ type EnabledSlot = { key: string; label: string };
 // The lead's stated interest that OrderForm couldn't auto-match to a catalog
 // option arrives as `"<Label>: <value>"` strings from `interestToPrefill`. Split
 // them back into label/value; the quoted price is a legacy major-unit number, so
-// re-render it through `formatMoney` with the app currency (never a bare ₹).
+// re-render it through `formatMinor` with the app currency (never a bare ₹).
 function interestChip(entry: string, currency: string): { label: string; value: string } {
   const idx = entry.indexOf(": ");
   const label = idx >= 0 ? entry.slice(0, idx) : entry;
   let value = idx >= 0 ? entry.slice(idx + 2) : "";
   if (label === "Quoted price" && value) {
     const n = Number(value);
-    if (!Number.isNaN(n)) value = formatMoney(Math.round(n * 100), currency);
+    if (!Number.isNaN(n)) value = formatMinor(toCents(n), currency);
   }
   return { label, value };
 }

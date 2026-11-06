@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/discounts";
 /* eslint-disable react-hooks/purity */
 import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -340,7 +341,7 @@ async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
   const head = free.byReason.length <= 9 ? free.byReason : free.byReason.slice(0, 8);
   const rest = free.byReason.length <= 9 ? [] : free.byReason.slice(8);
   const rows = rest.length
-    ? [...head, { reason: "Other", count: rest.reduce((s, r) => s + r.count, 0), amount: Math.round(rest.reduce((s, r) => s + r.amount, 0) * 100) / 100 }]
+    ? [...head, { reason: "Other", count: rest.reduce((s, r) => s + r.count, 0), amount: round2(rest.reduce((s, r) => s + r.amount, 0)) }]
     : head;
   const valued = free.amount > 0;
   return (

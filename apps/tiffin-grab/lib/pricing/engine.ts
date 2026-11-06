@@ -1,10 +1,9 @@
-import type { TaxLine } from "@foundry/payments";
-import { resolveCatalogDiscounts } from "@foundry/discounts";
+import { computeTax, type TaxLine } from "@foundry/payments";
+import { resolveCatalogDiscounts, round2 } from "@foundry/discounts";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "@foundry/delivery";
 import { deliveryWaiverLines, taxWaiverLine } from "./waivers";
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export function priceSubscription(
   selections: PricingSelections,
@@ -71,16 +70,8 @@ export function priceSubscription(
     taxableBase = round2(taxableBase - taxWaiver.amount);
   }
 
-  // Per-method taxes apply to the discounted base; taxTotal is summed from per-line rounding so
-  // it always matches the printed receipt. No taxes ⇒ taxTotal 0 ⇒ total == taxableBase. This
-  // mirrors @foundry/payments `computeTax` (the canonical server-side implementation); kept inline
-  // here so the client-bundled pricing engine takes no runtime dependency on that package.
-  const taxLines = taxes.map((t) => ({
-    name: t.name,
-    ratePct: t.ratePct,
-    amount: round2(taxableBase * (t.ratePct / 100)),
-  }));
-  const taxTotal = round2(taxLines.reduce((s, l) => s + l.amount, 0));
+  // No taxes => taxTotal 0 => total == taxableBase.
+  const { lines: taxLines, taxTotal } = computeTax(taxableBase, taxes);
   const total = round2(taxableBase + taxTotal);
 
   return {

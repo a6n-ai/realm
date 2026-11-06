@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
@@ -36,7 +37,7 @@ export async function getOperationsStats(scope: AnalyticsScope): Promise<Operati
     totalDeliveries,
     skipped,
     cancelled,
-    skipRatePct: totalDeliveries > 0 ? Math.round((skipped / totalDeliveries) * 1000) / 10 : 0,
+    skipRatePct: totalDeliveries > 0 ? ratePct(skipped, totalDeliveries) : 0,
   };
 }
 

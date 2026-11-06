@@ -13,7 +13,8 @@ import { calendarDaysBetween } from "@/lib/format/datetime";
 import { formatPhone, zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { displayName } from "@/lib/inquiries/display";
-import { formatMoney } from "@/lib/format/money";
+import { formatMinor } from "@/lib/format/money";
+import { toCents } from "@/lib/money";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
@@ -185,7 +186,7 @@ export function InquiryDetailClient({
   if (interest.quotedPrice) {
     interestChips.push({
       label: "Quoted",
-      value: formatMoney(Math.round(Number(interest.quotedPrice) * 100), currency),
+      value: formatMinor(toCents(Number(interest.quotedPrice)), currency),
     });
   }
 

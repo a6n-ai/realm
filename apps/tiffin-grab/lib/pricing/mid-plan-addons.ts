@@ -1,6 +1,7 @@
+import { round2 } from "@foundry/discounts";
+import { computeTax } from "@foundry/payments";
 import type { OrderPricingSnapshot } from "./types";
 
-export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export type MidPlanAddon = { name: string; pricePerTiffin: number; qty: number };
 
@@ -36,7 +37,7 @@ export function addAddonsToSnapshot(
   const taxLines = snapshot.taxLines.map((t) => ({ ...t }));
   let taxTotal = 0;
   for (const t of taxes) {
-    const amount = t.amount ?? round2(addonSubtotal * (t.ratePct / 100));
+    const amount = t.amount ?? computeTax(addonSubtotal, [t]).taxTotal;
     taxTotal = round2(taxTotal + amount);
     const existing = taxLines.find((l) => l.name === t.name && l.ratePct === t.ratePct);
     if (existing) existing.amount = round2(existing.amount + amount);

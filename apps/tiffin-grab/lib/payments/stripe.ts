@@ -95,5 +95,3 @@ export async function webhookUrl(): Promise<string> {
   return `${appBaseUrl()}/api/webhooks/stripe`;
 }
 
-export const toCents = (d: number | string): number => Math.round(Number(d) * 100);
-export const fromCents = (c: number): string => (c / 100).toFixed(2);

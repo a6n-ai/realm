@@ -3,8 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const calc = vi.fn();
 vi.mock("@/lib/payments/stripe", () => ({
   stripeRuntime: vi.fn(),
-  toCents: (d: number) => Math.round(d * 100),
-  fromCents: (c: number) => (c / 100).toFixed(2),
 }));
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), calculateTax: (...a: unknown[]) => calc(...a) }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getProvinceTaxes: async () => ({}) }));

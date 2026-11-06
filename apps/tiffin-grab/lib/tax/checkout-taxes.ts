@@ -5,7 +5,8 @@ import { createLogger } from "@foundry/commons/logger";
 import { sharedCache } from "@/lib/cache";
 import { priceSubscription } from "@/lib/pricing/engine";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "@/lib/pricing/types";
-import { stripeRuntime, toCents } from "@/lib/payments/stripe";
+import { stripeRuntime } from "@/lib/payments/stripe";
+import { toCents } from "@/lib/money";
 import { resolveProvince, resolveTaxLines, type Province } from "./canada";
 
 const log = createLogger("checkout-taxes");

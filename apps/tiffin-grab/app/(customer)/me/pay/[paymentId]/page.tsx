@@ -1,3 +1,4 @@
+import { toCents } from "@/lib/money";
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -44,7 +45,7 @@ export default async function PayPage({
       status={row.pay.status}
       method={row.pay.method}
       ctx={ctx}
-      amountCents={Math.round(Number(row.pay.amount) * 100)}
+      amountCents={toCents(row.pay.amount)}
       lines={[...pl.lines, ...pl.taxLines]}
       total={pl.total}
       isReturn={isReturn}

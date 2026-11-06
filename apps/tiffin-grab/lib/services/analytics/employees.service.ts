@@ -1,3 +1,4 @@
+import { ratePct } from "@/lib/money";
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets, users } from "@/db/schema";
@@ -147,7 +148,7 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
     const row = ensure(r.owner);
     row.leadsWorked = r.worked;
     row.leadsConverted = r.converted;
-    row.conversionRatePct = r.worked > 0 ? Math.round((r.converted / r.worked) * 1000) / 10 : 0;
+    row.conversionRatePct = r.worked > 0 ? ratePct(r.converted, r.worked) : 0;
   }
   for (const r of ticketRows) {
     if (!r.owner) continue;
@@ -165,7 +166,7 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
     if (!r.owner) continue;
     const row = ensure(r.owner);
     row.ordersOwned = r.n;
-    row.renewalRatePct = r.n > 0 ? Math.round((r.renewed / r.n) * 1000) / 10 : null;
+    row.renewalRatePct = r.n > 0 ? ratePct(r.renewed, r.n) : null;
   }
   let unassignedRevenue = 0;
   for (const r of revenueRows) {
