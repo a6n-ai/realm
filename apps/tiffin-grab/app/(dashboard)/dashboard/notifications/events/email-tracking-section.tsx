@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Switch } from "@foundry/ui/switch";
-import { Alert, AlertDescription } from "@/components/reui/alert";
+import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { trackedChanges } from "./event-names";
 
@@ -51,6 +51,7 @@ export function EmailTrackingSection({
 
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-right text-xs font-medium text-muted-foreground">Track opens and clicks</p>
       {[...groups].map(([group, rows]) => (
         <div key={group} className="flex flex-col gap-3">
           <p className="text-xs font-medium text-muted-foreground">{group}</p>
@@ -62,11 +63,8 @@ export function EmailTrackingSection({
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {r.locked && <Badge variant="secondary">Always off</Badge>}
-                <label htmlFor={`track-${r.event}`} className="text-xs text-muted-foreground">
-                  Track opens and clicks
-                </label>
                 <Switch
-                  id={`track-${r.event}`}
+                  aria-label={`Track opens and clicks for ${r.label}`}
                   checked={draft.includes(r.event)}
                   disabled={r.locked || pending}
                   onCheckedChange={(on) => setDraft((d) => (on ? [...d, r.event] : d.filter((e) => e !== r.event)))}
@@ -113,5 +111,20 @@ export function EmailTrackingSection({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export function LoadErrorAlert({ message }: { message: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Alert variant="destructive">
+      <AlertDescription>{message}</AlertDescription>
+      <AlertAction>
+        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => start(() => router.refresh())}>
+          Retry
+        </Button>
+      </AlertAction>
+    </Alert>
   );
 }

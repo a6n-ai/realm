@@ -28,7 +28,7 @@ const toggle = (list: EmailEventType[], t: EmailEventType) => (list.includes(t) 
 export function SesRoutingSection({ streams, onSave }: { streams: StreamState[]; onSave: Save }) {
   return (
     <Collapsible className="flex flex-col gap-4">
-      <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 text-left">
+      <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <span className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">Advanced: SES routing</span>
           <span className="text-xs text-muted-foreground">Where each email event is sent. Most teams never change this.</span>
@@ -36,13 +36,9 @@ export function SesRoutingSection({ streams, onSave }: { streams: StreamState[];
         <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground group-data-[state=open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-6">
-        {streams.length === 0 ? (
-          <Alert variant="info">
-            <AlertDescription>SES streams aren&apos;t configured for this app.</AlertDescription>
-          </Alert>
-        ) : (
-          streams.map((s) => <StreamBlock key={s.stream.id} state={s} onSave={onSave} />)
-        )}
+        {streams.map((s) => (
+          <StreamBlock key={s.stream.id} state={s} onSave={onSave} />
+        ))}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -87,7 +83,7 @@ function StreamBlock({ state, onSave }: { state: StreamState; onSave: Save }) {
                 <div key={t} className="contents">
                   <div className="flex flex-col">
                     <span className="text-sm">{EVENT_NAME[t]}</span>
-                    <span className="text-xs tabular-nums text-muted-foreground">
+                    <span className="min-h-4 text-xs tabular-nums text-muted-foreground">
                       {forced ? FORCED_NOTE : volume[t] !== undefined ? `Last 30 days: ${volume[t]?.toLocaleString()}` : " "}
                     </span>
                   </div>

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { createLogger } from "@foundry/commons/logger";
 import { sesEventSettings } from "@relay/email";
 import { InfoIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -12,8 +13,10 @@ import { emailVolumeByStream } from "@/lib/notifications/email-volume";
 import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { saveStreamRouting, saveTrackedTypes } from "./actions";
-import { EmailTrackingSection, type EmailTypeRow } from "./email-tracking-section";
+import { EmailTrackingSection, LoadErrorAlert, type EmailTypeRow } from "./email-tracking-section";
 import { SesRoutingSection, type StreamState } from "./ses-routing-section";
+
+const log = createLogger("email-events-page");
 
 export default function EmailEventsPage() {
   return (
@@ -44,24 +47,31 @@ async function EmailEventsData() {
   const streams = emailStreams();
   const provider = sesEventSettings();
   const [tracked, volume, states] = await Promise.all([
-    getTrackedEmailEvents(),
-    emailVolumeByStream(streams),
+    getTrackedEmailEvents().catch((e) => {
+      log.error({ err: e }, "getTrackedEmailEvents failed");
+      return null;
+    }),
+    emailVolumeByStream(streams).catch((e) => {
+      log.error({ err: e }, "emailVolumeByStream failed");
+      return {} as Awaited<ReturnType<typeof emailVolumeByStream>>;
+    }),
     Promise.all(
       streams.map(async (stream): Promise<Omit<StreamState, "volume">> => {
         try {
           return { stream, routing: await provider.getRouting(stream) };
         } catch (e) {
+          log.error({ err: e, stream: stream.id }, "getRouting failed");
           return {
             stream,
             routing: { webhook: [], counts: null },
-            error: e instanceof Error && e.message ? e.message : "Could not read this stream from SES.",
+            error: "Couldn't load this stream's settings.",
           };
         }
       }),
     ),
   ]);
 
-  const trackedSet = new Set(tracked);
+  const trackedSet = new Set(tracked ?? []);
   const types: EmailTypeRow[] = NOTIFICATION_EVENTS.map((event) => {
       const category = eventCategory(event);
       return {
@@ -82,21 +92,27 @@ async function EmailEventsData() {
       <Alert variant="info">
         <InfoIcon />
         <AlertDescription>
-          Every email records Sent, Delivered, Bounced and Marked as spam. Turn on tracking to also see Opened and Clicked in Logs.
+          {hasTracked
+            ? "Every email records Sent, Delivered, Bounced and Marked as spam. Turn on tracking to also see Opened and Clicked in Logs."
+            : "Every email records Sent, Delivered, Bounced and Marked as spam."}
         </AlertDescription>
       </Alert>
       <SectionCard title="Email tracking" subtitle="Choose which emails track opens and clicks.">
-        {hasTracked ? (
-          <EmailTrackingSection types={types} onSave={saveTrackedTypes} />
-        ) : (
+        {!hasTracked ? (
           <Alert variant="info">
-            <AlertDescription>SES streams aren&apos;t configured for this app.</AlertDescription>
+            <AlertDescription>Open and click tracking isn&apos;t set up for this app yet. Ask your developer to enable it.</AlertDescription>
           </Alert>
+        ) : tracked === null ? (
+          <LoadErrorAlert message="Couldn't load your email settings." />
+        ) : (
+          <EmailTrackingSection types={types} onSave={saveTrackedTypes} />
         )}
       </SectionCard>
-      <SectionCard title="Advanced" subtitle="For developers and support.">
-        <SesRoutingSection streams={streamStates} onSave={saveStreamRouting} />
-      </SectionCard>
+      {streams.length > 0 && (
+        <SectionCard title="Developer options" subtitle="For developers and support.">
+          <SesRoutingSection streams={streamStates} onSave={saveStreamRouting} />
+        </SectionCard>
+      )}
     </div>
   );
 }
