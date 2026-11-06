@@ -35,31 +35,24 @@ const TURN_MS = 3500;
 const MANUAL_HOLD_MS = 6000;
 const SWIPE_PX = 28;
 
-/** The public site's floating dock, at every width: a Home orb, a drum in the middle and a WhatsApp
- *  orb. The drum is a cylinder that turns between the live promotion, the referral bonus and Order
- *  now; the face in front is the button. It pauses under the pointer or focus, and holds still on
- *  Order now with reduced motion. Renders nothing on the server (no hydration mismatch) and in the
- *  order flow. It replaces the header's Build my tiffin. */
+/** The public site's floating dock, at every width: a Home orb, a slider in the middle and a WhatsApp
+ *  orb. The slider moves sideways between the live promotion, the referral bonus and Order now; the
+ *  face showing is the button. Arrows and a sideways swipe move it; it pauses under the pointer or
+ *  focus and rests on Order now with reduced motion. Renders nothing on the server (no hydration
+ *  mismatch) and in the order flow. It replaces the header's Build my tiffin. */
 export function ActionPill({ label, refer, promo }: { label: string | null; refer?: string | null; promo?: DockPromo | null }) {
   const path = usePathname();
   const [mounted, setMounted] = useState(false);
   const away = useHeroInView(path, mounted);
   const { data: session } = useSession();
-  const [turn, setTurn] = useState(0);
+  // `turn` counts moves (any integer); `dir` is the last move's direction; `leaving` is the face sliding out.
+  const [slide, setSlide] = useState<{ turn: number; dir: 1 | -1; leaving: number | null }>({ turn: 0, dir: 1, leaving: null });
   const [held, setHeld] = useState(false);
-  const [faceW, setFaceW] = useState(200);
-  const ring = useRef<HTMLDivElement>(null);
   const manual = useRef(0);
+  // Nothing slides in on first paint; every move after that animates, a return to the first face too.
+  const moved = useRef(false);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => setMounted(true), []);
-  // Faces are as wide as the ring; the radius follows (CSS sets the width per breakpoint).
-  useEffect(() => {
-    const el = ring.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setFaceW(Math.round(e!.contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [mounted]);
 
   const role = (session?.user as { role?: RoleValue } | undefined)?.role;
   // Same rule as the header: signed in goes home (running plan, renewals), else a new order.
@@ -70,23 +63,29 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
     { key: "order", href: orderHref, tone: "order" as const, icon: UtensilsCrossed, text: "Order now", prefetch: false },
   ];
   const n = faces.length;
+  const reduce = mounted && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // With reduced motion it rests on Order now until an arrow or swipe moves it.
+  const base = reduce && manual.current === 0 ? n - 1 : 0;
+  const at = (t: number) => (((t + base) % n) + n) % n;
+  const front = at(slide.turn);
+  const move = (d: 1 | -1) => { moved.current = true; setSlide((s0) => ({ turn: s0.turn + d, dir: d, leaving: at(s0.turn) })); };
 
   useEffect(() => {
-    if (!mounted || n < 2 || held || away || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => { if (!document.hidden && Date.now() - manual.current > MANUAL_HOLD_MS) setTurn((v) => v + 1); }, TURN_MS);
+    if (!mounted || n < 2 || held || away || reduce) return;
+    const t = setInterval(() => { if (!document.hidden && Date.now() - manual.current > MANUAL_HOLD_MS) move(1); }, TURN_MS);
     return () => clearInterval(t);
-  }, [mounted, n, held, away]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, n, held, away, reduce]);
+  // The leaving face is dropped once its slide-out has played.
+  useEffect(() => {
+    if (slide.leaving == null) return;
+    const t = setTimeout(() => setSlide((s0) => ({ ...s0, leaving: null })), 460);
+    return () => clearTimeout(t);
+  }, [slide.leaving, slide.turn]);
 
   if (!mounted || !pillVisible(path)) return null;
-  const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Arrows and swipes always work; with reduced motion the drum rests on Order now until one is used.
-  const base = reduce && manual.current === 0 ? n - 1 : 0;
-  const front = (((turn + base) % n) + n) % n;
-  const step = 360 / n;
-  // Distance from the vertical axis to each face, so n faces of faceW close into a ring.
-  const r = n === 1 ? 0 : n === 2 ? faceW / 2 : faceW / 2 / Math.tan(Math.PI / n);
-  const spin = (turn + base) * step;
-  const go = (d: number) => { manual.current = Date.now(); setTurn((v) => v + d); };
+  const go = (d: 1 | -1) => { manual.current = Date.now(); move(d); };
+  const shown = [...(slide.leaving != null && slide.leaving !== front ? [{ i: slide.leaving, role: "out" as const }] : []), { i: front, role: "in" as const }];
   return (
     <nav className="tg-pill" aria-label="Quick actions" data-away={away || undefined} inert={away || undefined}>
       <Link href="/" className="tg-pill__orb tg-pill__home" aria-label="Home" aria-current={path === "/" ? "page" : undefined}>
@@ -101,8 +100,8 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
       >
         {n > 1 ? <button type="button" className="tg-drum__nav tg-drum__nav--prev" aria-label="Previous" onClick={() => go(-1)}><ChevronLeft aria-hidden className="size-4" strokeWidth={2.6} /></button> : null}
         <div
-          ref={ring}
           className="tg-drum__ring"
+          data-dir={slide.dir}
           onPointerDown={(e) => { swipe.current = { x: e.clientX, y: e.clientY, moved: false }; }}
           onPointerUp={(e) => {
             const s0 = swipe.current;
@@ -112,17 +111,18 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
           }}
           onClickCapture={(e) => { if (swipe.current?.moved) { e.preventDefault(); e.stopPropagation(); } swipe.current = null; }}
         >
-        <div className="tg-drum__in" style={{ transform: `translateZ(${-r}px) rotateY(${-spin}deg)` }}>
-          {faces.map((f, i) => {
+          {shown.map(({ i, role }) => {
+            const f = faces[i]!;
             const Icon = f.icon;
-            const on = i === front;
+            const on = role === "in";
             return (
               <Link
-                key={f.key}
+                // A new key per move replays the slide-in.
+                key={on ? `${f.key}-${slide.turn}` : `${f.key}-out`}
                 href={f.href}
                 prefetch={f.prefetch}
                 className={`tg-drum__face tg-drum__face--${f.tone}`}
-                style={{ transform: `rotateY(${i * step}deg) translateZ(${r}px)` }}
+                data-slide={on && !moved.current ? undefined : role}
                 draggable={false}
                 aria-hidden={!on || undefined}
                 tabIndex={on ? undefined : -1}
@@ -134,7 +134,6 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
               </Link>
             );
           })}
-        </div>
         </div>
         {n > 1 ? <button type="button" className="tg-drum__nav tg-drum__nav--next" aria-label="Next" onClick={() => go(1)}><ChevronRight aria-hidden className="size-4" strokeWidth={2.6} /></button> : null}
       </div>
