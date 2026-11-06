@@ -163,7 +163,6 @@ a.tg-option:hover .tg-option__go { background: var(--primary); color: var(--prim
 .tg-deliver__head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px clamp(24px, 4vw, 64px); align-items: end; margin-bottom: 32px; }
 .tg-deliver__head .tg-lede { justify-self: end; max-width: 40ch; }
 .tg-deliver { position: relative; overflow: hidden; height: clamp(520px, 44vw, 600px); padding: 0; }
-/* Beats maplibre's own .maplibregl-map { position: relative }. */
 .tg-deliver .tg-deliver__map { position: absolute; inset: 0; background: var(--muted); }
 .tg-deliver__panel {
   position: absolute; top: 20px; left: 20px; max-height: calc(100% - 40px); width: min(380px, calc(100% - 40px)); z-index: 2;
@@ -210,6 +209,17 @@ a.tg-option:hover .tg-option__go { background: var(--primary); color: var(--prim
   .tg-deliver__panel { order: -1; position: static; width: auto; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; background: var(--card); padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .tg-area::before { animation: none; opacity: 0; } }
+
+/* The static map: OSM tiles washed grey over cream (what the MapLibre style did), rings and dots on top. */
+.tg-smap { overflow: hidden; background: #FBF4E7; user-select: none; }
+.tg-smap__tiles { position: absolute; inset: 0; opacity: 0.55; filter: grayscale(1) contrast(0.8) brightness(1.08); }
+.tg-smap__tiles img { position: absolute; width: 256px; height: 256px; max-width: none; }
+.tg-smap__rings { position: absolute; inset: 0; pointer-events: none; }
+.tg-smap__rings polygon { fill: color-mix(in oklch, var(--primary) 7%, transparent); stroke: var(--primary); stroke-width: 1.5; }
+.tg-smap__mark { position: absolute; translate: -50% -50%; }
+.tg-smap__mark.tg-pin { z-index: 1; }
+.tg-smap__credit { position: absolute; right: 8px; bottom: 6px; padding: 2px 6px; border-radius: 6px; background: rgb(251 244 231 / 0.85); font-size: 11px; color: var(--muted-foreground); }
+.tg-smap__credit a { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; }
 
 /* /plans: the plans side by side. */
 .tg-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
@@ -290,7 +300,6 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-weeks strong { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .tg-weeks span { font-size: 12px; font-weight: 600; color: var(--muted-foreground); margin-top: 4px; }
 .tg-weeks em { font-style: normal; margin-top: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--primary-text); background: color-mix(in oklch, var(--primary) 12%, transparent); }
-.tg-deliver .maplibregl-ctrl-attrib a { text-decoration: underline; text-underline-offset: 0.15em; }
 
 /* 404: the copy on the left, the packed tiffin on the right. */
 .tg-lost { align-items: center; }
