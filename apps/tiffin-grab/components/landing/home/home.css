@@ -596,6 +596,8 @@ a.lp-size { transition: transform 200ms var(--lp-ease); }
   border-radius: var(--lp-radius-xl); color: #FBF4E7;
   background: radial-gradient(70% 90% at 92% 8%, rgb(255 152 67 / 0.32), transparent 60%), radial-gradient(60% 80% at 0 100%, #1E3D2E, transparent 70%), #2A5440;
 }
+/* .dark (so the header reads it as a green band) must not flatten the slab: .lp .dark resets backgrounds. */
+.lp .lp-refer__slab.dark:not(.lp-hero) { background: radial-gradient(70% 90% at 92% 8%, rgb(255 152 67 / 0.32), transparent 60%), radial-gradient(60% 80% at 0 100%, #1E3D2E, transparent 70%), #2A5440; color: #FBF4E7; }
 @media (min-width: 960px) { .lp-refer__slab { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); } }
 .lp-refer__copy { display: flex; flex-direction: column; gap: 20px; max-width: 560px; }
 .lp-refer__h { margin: 0; font-size: clamp(40px, 6vw, 76px); line-height: 0.98; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
