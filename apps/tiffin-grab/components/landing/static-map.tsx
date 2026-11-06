@@ -50,6 +50,38 @@ export function fit(pts: Point[], w: number, h: number, wide = w > 900) {
   return { z, at: (p: Point) => { const q = world(p); return { x: q.x * k + ox, y: q.y * k + oy }; }, ox, oy };
 }
 
+type Box = { l: number; r: number; t: number; b: number };
+const GAP = 10; // dot centre to label edge
+// Chip sizes: 12px names on desktop, 11px compact chips on phones (see .tg-smap--compact).
+const CHIP = { regular: { charW: 7.4, pad: 22, h: 27 }, compact: { charW: 6.8, pad: 18, h: 25 } };
+type Chip = (typeof CHIP)["regular"];
+const labelBox = (p: { name: string; x: number; y: number }, side: "top" | "bottom", c: Chip): Box => {
+  const w = p.name.length * c.charW + c.pad;
+  const t = side === "top" ? p.y - GAP - c.h : p.y + GAP;
+  return { l: p.x - w / 2, r: p.x + w / 2, t, b: t + c.h };
+};
+const hits = (a: Box, b: Box) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+
+/** Each name sits above its dot unless that would overlap a name already placed (or another dot);
+ *  then below; with no room on either side it hides (its area chip still lights it). Top-down, so the
+ *  higher dot keeps the top spot. */
+export function placeLabels(points: { name: string; x: number; y: number }[], compact = false): ("top" | "bottom" | "none")[] {
+  const chip = compact ? CHIP.compact : CHIP.regular;
+  const order = points.map((p, i) => ({ p, i })).sort((a, b) => a.p.y - b.p.y || a.p.x - b.p.x);
+  const placed: Box[] = [];
+  const dots: Box[] = points.map((p) => ({ l: p.x - 9, r: p.x + 9, t: p.y - 9, b: p.y + 9 }));
+  const out: ("top" | "bottom" | "none")[] = new Array(points.length);
+  for (const { p, i } of order) {
+    const clear = (box: Box) => !placed.some((q) => hits(box, q)) && !dots.some((d, j) => j !== i && hits(box, d));
+    const top = labelBox(p, "top", chip);
+    const bottom = labelBox(p, "bottom", chip);
+    const side = clear(top) ? "top" : clear(bottom) ? "bottom" : "none";
+    out[i] = side;
+    if (side !== "none") placed.push(side === "top" ? top : bottom);
+  }
+  return out;
+}
+
 export function StaticMap({ origin, rings, places, focus, pin }: {
   origin: Point | null;
   rings: Ring[];
@@ -88,7 +120,7 @@ export function StaticMap({ origin, rings, places, focus, pin }: {
   }
 
   return (
-    <div ref={box} className="tg-deliver__map tg-smap" role="img" aria-label={`Map of the areas we deliver to: ${places.map((p) => p.name).join(", ")}`}>
+    <div ref={box} className={`tg-deliver__map tg-smap${size && !size.wide ? " tg-smap--compact" : ""}`} role="img" aria-label={`Map of the areas we deliver to: ${places.map((p) => p.name).join(", ")}`}>
       {cam && size ? (
         <>
           <div className="tg-smap__tiles" aria-hidden>
@@ -104,14 +136,18 @@ export function StaticMap({ origin, rings, places, focus, pin }: {
               ))}
             </svg>
           ) : null}
-          {places.map((p) => {
-            const q = cam.at(p.point);
+          {(() => {
+            const pts = places.map((p) => ({ name: p.name, ...cam.at(p.point) }));
+            const sides = placeLabels(pts, !size.wide);
+            return places.map((p, i) => {
+            const q = pts[i]!;
             return (
-              <span key={p.name} className="tg-area tg-smap__mark" data-on={String(p.name === focus)} title={p.name} style={{ left: q.x, top: q.y }}>
+              <span key={p.name} className="tg-area tg-smap__mark" data-on={String(p.name === focus)} data-side={sides[i]} title={p.name} style={{ left: q.x, top: q.y }}>
                 <i /><b>{p.name}</b>
               </span>
             );
-          })}
+            });
+          })()}
           {pin ? (() => { const q = cam.at(pin); return <span className="tg-pin tg-smap__mark" data-served={String(pin.served)} style={{ left: q.x, top: q.y }} aria-hidden />; })() : null}
           <small className="tg-smap__credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors</small>
         </>

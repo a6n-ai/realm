@@ -134,12 +134,15 @@
 
 /* Cream page: warm glows instead of flat cream (saffron light top-left and low-left,
    a breath of green on the right), so glass panels always have colour to refract. */
-.lp {
+.lp { background: linear-gradient(180deg, #FBF4E7 0%, #F8EBD8 50%, #FBF4E7 100%); }
+/* Every light section carries the same glow set (the look "On the menu this week" and "Your tiffin,
+   your way" used to get by chance from page-wide glows), scaled to the section, so each one reads
+   the same: the ones that hold a green panel and the Google reviews (.tg-section) included. */
+.lp :is(.lp-section, .tg-section):not(.dark) {
   background:
-    radial-gradient(55% 30% at 0% 18%, rgb(255 152 67 / 0.12), transparent 70%),
-    radial-gradient(45% 28% at 100% 48%, rgb(42 84 64 / 0.08), transparent 70%),
-    radial-gradient(60% 30% at 15% 82%, rgb(255 152 67 / 0.09), transparent 70%),
-    linear-gradient(180deg, #FBF4E7 0%, #F8EBD8 50%, #FBF4E7 100%);
+    radial-gradient(55% 60% at 0% 22%, rgb(255 152 67 / 0.13), transparent 70%),
+    radial-gradient(45% 55% at 100% 50%, rgb(42 84 64 / 0.08), transparent 70%),
+    radial-gradient(60% 55% at 18% 100%, rgb(255 152 67 / 0.09), transparent 70%);
 }
 /* Green bands (and the dark price card): the top edge is exactly the token the hero fades
    into, so there is no seam; the gradient only deepens downward, with a soft glow mid-band. */

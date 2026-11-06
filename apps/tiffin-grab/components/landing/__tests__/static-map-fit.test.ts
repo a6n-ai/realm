@@ -26,3 +26,24 @@ describe("fit", () => {
     expect(Number.isInteger(fit([toronto, markham], 800, 500, false).z)).toBe(true);
   });
 });
+
+import { placeLabels } from "../static-map";
+
+describe("placeLabels", () => {
+  it("puts every name above its dot when nothing collides", () => {
+    expect(placeLabels([{ name: "Brampton", x: 100, y: 100 }, { name: "Markham", x: 400, y: 100 }])).toEqual(["top", "top"]);
+  });
+  it("drops a crowded name below its dot", () => {
+    // Two dots 20px apart: East York sits higher and keeps the top; Toronto drops below.
+    expect(placeLabels([{ name: "Toronto", x: 200, y: 200 }, { name: "East York", x: 220, y: 196 }])).toEqual(["bottom", "top"]);
+  });
+  it("keeps a name above when the one below is far enough away", () => {
+    expect(placeLabels([{ name: "Vaughan", x: 200, y: 100 }, { name: "Etobicoke", x: 200, y: 200 }])).toEqual(["top", "top"]);
+  });
+  it("hides a name with no room above or below; its chip still lights it", () => {
+    // A tight stack: Vaughan's name hits Markham's dot above and North York's dot below; North York's
+    // hits Vaughan's dot above and Etobicoke's below. Both middle names hide; the ends keep theirs.
+    const tight = [{ name: "Markham", x: 200, y: 100 }, { name: "Vaughan", x: 200, y: 130 }, { name: "North York", x: 200, y: 160 }, { name: "Etobicoke", x: 200, y: 185 }];
+    expect(placeLabels(tight)).toEqual(["top", "none", "none", "bottom"]);
+  });
+});
