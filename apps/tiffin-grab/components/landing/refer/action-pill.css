@@ -29,3 +29,37 @@ html[data-consent="open"] .tg-pill { display: none; }
 .tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
 html[data-consent="open"] .tg-land:has(.tg-pill) .tg-wa { bottom: max(14px, env(safe-area-inset-bottom)); }
 @keyframes tg-pill-in { from { opacity: 0; translate: -50% 16px; } }
+
+/* WhatsApp lives in the dock on desktop; phones keep the round float above it. */
+.tg-pill__wa { display: none !important; background: #0B7A3E; color: #fff; }
+.tg-pill__wa:hover { background: #096A35; }
+@media (min-width: 641px) {
+  .tg-pill__wa { display: inline-flex !important; }
+  html:not([data-consent="open"]) .tg-land:has(.tg-pill) .tg-wa { display: none; }
+}
+
+/* Icon gestures, the customer tab bar's set in CSS (no motion library on the public site):
+   played on the current page's button when it mounts, and on hover or press. */
+.tg-pill a > svg:first-child { transform-origin: 50% 60%; }
+@media (prefers-reduced-motion: no-preference) {
+  .tg-pill__home[aria-current="page"] > svg, .tg-pill__home:is(:hover, :active) > svg { animation: tg-g-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .tg-pill__refer[aria-current="page"] > svg, .tg-pill__refer:is(:hover, :active) > svg { animation: tg-g-wiggle 500ms ease-in-out; }
+  .tg-pill__order:is(:hover, :active) > svg:first-child { animation: tg-g-bounce 450ms ease-out; }
+  .tg-pill__order:is(:hover, :focus-visible) > svg:last-child { translate: 3px 0; }
+  .tg-pill__order > svg:last-child { transition: translate 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .tg-pill__wa:is(:hover, :active) > svg { animation: tg-g-spin 560ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .tg-pill a:hover { transform: translateY(-1px); }
+}
+@keyframes tg-g-pop { from { transform: scale(0.55) rotate(-18deg); } }
+@keyframes tg-g-wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 50% { transform: rotate(12deg); } 75% { transform: rotate(-6deg); } }
+@keyframes tg-g-bounce { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } 60% { transform: translateY(0); } 80% { transform: translateY(-2px); } }
+@keyframes tg-g-spin { from { transform: rotate(-180deg) scale(0.8); } }
+
+/* Away while a hero fills the screen: slides down out of sight, back when the hero is scrolled past. */
+.tg-pill { transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease; }
+.tg-pill[data-away] { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }
+/* While the dock is away on desktop, the WhatsApp float comes back. */
+@media (min-width: 641px) {
+  html:not([data-consent="open"]) .tg-land:has(.tg-pill[data-away]) .tg-wa { display: inline-flex; }
+}
+.tg-land:has(.tg-pill[data-away]) .tg-wa { bottom: max(14px, env(safe-area-inset-bottom)); }

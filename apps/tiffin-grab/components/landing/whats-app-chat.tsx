@@ -33,6 +33,24 @@ function beaconContact(eventId: string) {
   void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => undefined);
 }
 
+// The Meta "Contact" event, only with analytics consent. Shared by the float and the dock button.
+function trackContact() {
+  if (!hasAnalyticsConsent()) return;
+  const eventId = crypto.randomUUID();
+  trackMeta("Contact", {}, eventId);
+  beaconContact(eventId);
+}
+
+/** WhatsApp inside the floating dock (desktop); the round float covers phones. */
+export function WhatsAppDockLink({ className }: { className?: string }) {
+  return (
+    <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" onClick={trackContact} className={className}>
+      <WhatsAppGlyph className="size-5" />
+      <span>Chat</span>
+    </a>
+  );
+}
+
 export function WhatsAppChat() {
   return (
     <a
@@ -40,12 +58,7 @@ export function WhatsAppChat() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
-      onClick={() => {
-        if (!hasAnalyticsConsent()) return;
-        const eventId = crypto.randomUUID();
-        trackMeta("Contact", {}, eventId);
-        beaconContact(eventId);
-      }}
+      onClick={trackContact}
       className="tg-wa fixed right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#0B7A3E] px-4 py-3 text-sm max-md:size-14 max-md:justify-center max-md:p-0 font-semibold text-white shadow-lg transition-[transform,box-shadow] duration-150 hover:bg-[#096A35] hover:shadow-xl active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B7A3E] max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] md:right-6 md:bottom-6"
     >
       <WhatsAppGlyph className="tg-wa__icon size-5 shrink-0 max-md:size-7" />

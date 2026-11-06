@@ -398,3 +398,8 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 .tg-close__cookie:hover { text-decoration-color: currentColor; }
 /* The round sticker hangs over the meta line; the line's links must stay clickable above it. */
 .tg-close__meta { position: relative; z-index: 1; }
+
+/* See edge-tint.tsx: hairlines on the screen edges that Safari reads for its bar colours. */
+.tg-edge { position: fixed; left: 0; right: 0; height: 1px; z-index: 1; pointer-events: none; }
+.tg-edge--top { top: 0; background: var(--edge-top, #FBF4E7); }
+.tg-edge--bottom { bottom: 0; background: var(--edge-bottom, #FBF4E7); }
