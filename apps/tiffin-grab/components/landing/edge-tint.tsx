@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-// iOS Safari colours the strip behind its status bar and its bottom toolbar from whatever touches
-// the screen edges (fixed elements first, then the page background). The page background is cream,
-// so a green hero or the orange footer showed a cream bar above or below. Two fixed hairlines sit on
-// those edges and take the colour of the section under them, updated as the page scrolls.
-const SKIP = ".tg-bar, .tg-pill, .tg-wa, .tg-edge, .tg-consent";
+// Reads the colour of the section under the screen edges as the page scrolls:
+// - the html background follows the top edge, so overscroll and the strip behind Safari's status
+//   bar match a green hero instead of showing cream;
+// - data-edge-bottom tells the dock whether it sits over a dark band (cream labels) or a light one.
+// No elements are drawn: fixed 1px edge lines showed as thin bars once Safari (iOS 26) started
+// drawing the page under its own bars.
+const SKIP = ".tg-bar, .tg-pill, .tg-consent";
 
 // A band painted only with gradients has a transparent background-color: take its base layer's colour
 // (the last gradient), its first stop for the top edge and its last stop for the bottom edge.
@@ -48,8 +50,7 @@ export function EdgeTint() {
     let trail: ReturnType<typeof setTimeout> | undefined;
     const paint = () => {
       const top = colourAt(1), bottom = colourAt(innerHeight - 1);
-      if (top) root.style.setProperty("--edge-top", top);
-      if (bottom) root.style.setProperty("--edge-bottom", bottom);
+      if (top) root.style.backgroundColor = top;
       // The dock's label colour follows what sits right behind it (a boxed green panel counts, a
       // small card does not), so it reads cream over green and dark over cream.
       const behind = colourAt(innerHeight - 40, 0.3) ?? bottom;
@@ -74,15 +75,9 @@ export function EdgeTint() {
       clearTimeout(late);
       removeEventListener("scroll", queue);
       removeEventListener("resize", queue);
-      root.style.removeProperty("--edge-top");
-      root.style.removeProperty("--edge-bottom");
+      root.style.removeProperty("background-color");
       delete root.dataset.edgeBottom;
     };
   }, [path]);
-  return (
-    <>
-      <div className="tg-edge tg-edge--top" aria-hidden />
-      <div className="tg-edge tg-edge--bottom" aria-hidden />
-    </>
-  );
+  return null;
 }

@@ -415,10 +415,6 @@ html[data-nav="pending"] .tg-land main { opacity: 0.45; transform: translateY(-6
 /* The round sticker hangs over the meta line; the line's links must stay clickable above it. */
 .tg-close__meta { position: relative; z-index: 1; }
 
-/* See edge-tint.tsx: hairlines on the screen edges that Safari reads for its bar colours. */
-.tg-edge { position: fixed; left: 0; right: 0; height: 1px; z-index: 1; pointer-events: none; }
-.tg-edge--top { top: 0; background: var(--edge-top, #FBF4E7); }
-.tg-edge--bottom { bottom: 0; background: var(--edge-bottom, #FBF4E7); }
 
 /* Map names: always shown, above the dot; a crowded one drops below (placeLabels). The lit one is ink. */
 .tg-smap__mark b { opacity: 1; translate: -50% 0; padding: 3px 9px; font-size: 12px; background: rgb(255 255 255 / 0.92); color: var(--foreground); box-shadow: 0 2px 8px rgb(0 0 0 / 0.14); }
