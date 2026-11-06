@@ -24,8 +24,8 @@
 .tg-pill__order:hover { background: #D85F14; }
 @media (min-width: 641px) { .tg-pill a { height: 50px; padding: 0 24px; } .tg-pill__home { width: 50px; } }
 html[data-consent="open"] .tg-pill { display: none; }
-/* Room at the end of every page so the bar never sits on the footer's last line. */
-.tg-land:has(.tg-pill) { padding-bottom: 88px; }
+/* Room inside the footer (not under it, which showed a cream strip) so the bar never sits on its last line. */
+.tg-land:has(.tg-pill) .tg-close { padding-bottom: 88px; }
 .tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
 html[data-consent="open"] .tg-land:has(.tg-pill) .tg-wa { bottom: max(14px, env(safe-area-inset-bottom)); }
 @keyframes tg-pill-in { from { opacity: 0; translate: -50% 16px; } }
