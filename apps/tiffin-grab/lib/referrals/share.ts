@@ -17,11 +17,11 @@ export function siteFigure(big: string): string {
   return big.replace(/^(\$\d+)\.00$/, "$1");
 }
 
-/** The phone pill holds a short dollar figure ("🎁 Give $15"); anything longer reads "🎁 Refer". */
+/** The floating bar holds a short dollar figure ("Give $15"); anything longer reads "Refer". The gift icon is drawn beside it. */
 export function referralPillLabel(friend: { big: string } | null): string | null {
   if (!friend) return null;
   const figure = siteFigure(friend.big);
-  return figure.startsWith("$") && figure.length <= 4 ? `🎁 Give ${figure}` : "🎁 Refer";
+  return figure.startsWith("$") && figure.length <= 4 ? `Give ${figure}` : "Refer";
 }
 
 function offerParts(v: number, settings: ReferralSettings, rate: CoinRate): { big: string; small: string } | null {

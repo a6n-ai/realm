@@ -1,6 +1,4 @@
-const HIDDEN = ["/subscribe", "/refer"];
-
-/** The phone pill (Refer + Order) stays off pages that are already ordering or referring. */
+/** The floating bar (Home, Refer, Order) is on every public page except the order flow, which draws its own bottom bar. */
 export function pillVisible(pathname: string): boolean {
-  return !HIDDEN.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return !(pathname === "/subscribe" || pathname.startsWith("/subscribe/"));
 }

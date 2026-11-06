@@ -57,10 +57,10 @@ describe("public site figures", () => {
   });
 
   it("labels the phone pill with a short dollar figure, else plain Refer", () => {
-    expect(referralPillLabel({ big: "$15.00" })).toBe("🎁 Give $15");
-    expect(referralPillLabel({ big: "$112.50" })).toBe("🎁 Refer");
-    expect(referralPillLabel({ big: "5%" })).toBe("🎁 Refer");
-    expect(referralPillLabel({ big: "60 coins" })).toBe("🎁 Refer");
+    expect(referralPillLabel({ big: "$15.00" })).toBe("Give $15");
+    expect(referralPillLabel({ big: "$112.50" })).toBe("Refer");
+    expect(referralPillLabel({ big: "5%" })).toBe("Refer");
+    expect(referralPillLabel({ big: "60 coins" })).toBe("Refer");
     expect(referralPillLabel(null)).toBeNull();
   });
 });

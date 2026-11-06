@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
@@ -33,7 +33,7 @@ function Roll({ children, className }: { children: string; className?: string })
 // the capsule tucks away; any scroll up or focus brings it back. On phones the links fold
 // into a sheet that grows out of the menu button.
 /** `rating` is a server-rendered slot (NavRating): the header itself stays a client component. */
-/** `refer` is on when the referral program pays someone; the phone pill carries it below 640px. */
+/** `refer` adds Refer to the menu sheet. Build my tiffin and Refer live in the floating bar (ActionPill), not here. */
 export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; refer?: boolean }) {
   const { data: session, refetch } = useSession();
   // Back from app.tiffingrab.ca restores this page from the bfcache with the session it had
@@ -178,16 +178,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
           </div>
           <div className="tg-bar__end">
             {rating}
-            {refer ? (
-              <Link href="/refer" className="tg-bar__refer" aria-current={isCurrent("/refer") ? "page" : undefined} tabIndex={open ? -1 : undefined}>
-                <span aria-hidden>🎁</span> <Roll>Refer</Roll>
-              </Link>
-            ) : null}
-            <Link prefetch={false} href={orderHref} className="tg-cta tg-bar__cta" tabIndex={open ? -1 : undefined}>
-              <Roll className="tg-bar__cta-long">Build my tiffin</Roll>
-              <Roll className="tg-bar__cta-short">Order</Roll>
-              <ArrowRight aria-hidden className="tg-bar__arrow size-4" strokeWidth={2.4} />
-            </Link>
             <button ref={menuRef} type="button" className="tg-bar__menu" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="tg-sheet" onClick={() => setOpen((v) => !v)}>
               <span className="tg-burger" aria-hidden><span /><span /></span>
             </button>

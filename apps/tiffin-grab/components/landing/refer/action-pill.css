@@ -1,28 +1,31 @@
-/* Phone action pill: liquid glass over whatever scrolls beneath, two actions, thumb height.
-   Below 640px it replaces the header's Order button; the WhatsApp float rises above it. */
-.tg-pill { display: none; }
-@media (max-width: 640px) {
-  .tg-pill {
-    position: fixed; z-index: 45; left: 50%; bottom: max(14px, env(safe-area-inset-bottom));
-    display: flex; gap: 6px; padding: 6px; border-radius: 999px; transform: translateX(-50%);
-    background: rgb(251 244 231 / 0.72); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 -1px 0 rgb(46 18 0 / 0.06), 0 14px 34px -12px rgb(20 12 4 / 0.5);
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .tg-pill { animation: tg-pill-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both 300ms; }
-  }
-  .tg-pill a {
-    display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 20px; border-radius: 999px;
-    font-size: 15px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform 120ms ease;
-  }
-  .tg-pill a:active { transform: scale(0.96); }
-  .tg-pill__refer { background: #2A5440; color: #FBF4E7; }
-  .tg-pill__order { background: #F06B1A; color: #2E1200; }
-  html[data-consent="open"] .tg-pill { display: none; }
-  /* Order lives in the pill on phones; the header keeps the menu button only. */
-  /* While the cookie card hides the pill, Order goes back to the header and WhatsApp drops back down. */
-  html:not([data-consent="open"]) .tg-land:has(.tg-pill) .tg-bar__cta { display: none; }
-  html:not([data-consent="open"]) .tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
+/* The public site's floating bar at every width: Home, Refer, Order. It replaces the header's
+   Build my tiffin. Solid cream, no backdrop-filter: a fixed blur layer over the hero video is the
+   kind of GPU load iOS Safari drops tabs over. The WhatsApp float rises above it. */
+.tg-pill {
+  position: fixed; z-index: 45; left: 50%; bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 999px; translate: -50% 0;
+  background: #FBF4E7; box-shadow: inset 0 0 0 1px rgb(46 18 0 / 0.08), 0 14px 34px -12px rgb(20 12 4 / 0.45);
 }
-@keyframes tg-pill-in { from { opacity: 0; transform: translate(-50%, 16px); } }
-@media (prefers-reduced-transparency: reduce) { .tg-pill { background: #FBF4E7; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .tg-pill { animation: tg-pill-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both 300ms; }
+}
+.tg-pill a {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 0 20px; border-radius: 999px;
+  font-size: 15px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform 120ms ease, background-color 150ms ease;
+}
+.tg-pill a:active { transform: scale(0.96); }
+.tg-pill a:focus-visible { outline: 2px solid #F06B1A; outline-offset: 2px; }
+.tg-pill__home { width: 48px; padding: 0 !important; color: #2A5440; }
+.tg-pill__home:hover { background: rgb(42 84 64 / 0.08); }
+.tg-pill__home[aria-current="page"] { background: rgb(42 84 64 / 0.12); }
+.tg-pill__refer { background: #2A5440; color: #FBF4E7; }
+.tg-pill__refer:hover { background: #224634; }
+.tg-pill__order { background: #F06B1A; color: #2E1200; }
+.tg-pill__order:hover { background: #D85F14; }
+@media (min-width: 641px) { .tg-pill a { height: 50px; padding: 0 24px; } .tg-pill__home { width: 50px; } }
+html[data-consent="open"] .tg-pill { display: none; }
+/* Room at the end of every page so the bar never sits on the footer's last line. */
+.tg-land:has(.tg-pill) { padding-bottom: 88px; }
+.tg-land:has(.tg-pill) .tg-wa { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); }
+html[data-consent="open"] .tg-land:has(.tg-pill) .tg-wa { bottom: max(14px, env(safe-area-inset-bottom)); }
+@keyframes tg-pill-in { from { opacity: 0; translate: -50% 16px; } }
