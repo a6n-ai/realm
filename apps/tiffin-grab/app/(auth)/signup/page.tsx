@@ -1,16 +1,8 @@
-import { Suspense } from "react";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { SignupForm } from "./signup-form";
+import { permanentRedirect } from "next/navigation";
 
-// Reads runtime app-settings (defaultCountry) from the DB — must not be
-// statically prerendered at build time (no DB in the build container).
-export const dynamic = "force-dynamic";
-
-export default async function SignupPage() {
-  const { defaultCountry } = await getAppSettings();
-  return (
-    <Suspense>
-      <SignupForm defaultCountry={defaultCountry} />
-    </Suspense>
-  );
+// Accounts are created on /subscribe's email step (email + 6-digit code, then the plan builder).
+// The old phone + password form here was a slower second path; old links and bookmarks land there.
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ ref?: string }> }) {
+  const { ref } = await searchParams;
+  permanentRedirect(ref ? `/subscribe?ref=${encodeURIComponent(ref)}` : "/subscribe");
 }

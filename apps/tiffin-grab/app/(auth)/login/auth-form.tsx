@@ -330,7 +330,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
                 </button>
               ) : null}
               <p className="text-muted-foreground min-h-11 content-center text-sm">
-                New here? <Link href="/signup" className="text-foreground font-medium underline-offset-4 hover:underline">Create an account</Link>
+                New here? <Link href="/subscribe" className="text-foreground font-medium underline-offset-4 hover:underline">Build your first plan</Link>
               </p>
             </div>
           </div>

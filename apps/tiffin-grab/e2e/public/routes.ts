@@ -10,7 +10,7 @@ export type PublicRoute = {
 export const PUBLIC_ROUTES: PublicRoute[] = [
   { id: "home", path: "/", heading: /tiffin|home|fresh|meal|grab/i },
   { id: "login", path: "/login", heading: /sign in|log in|welcome|email/i },
-  { id: "signup", path: "/signup", heading: /sign up|create|register|email/i },
+  { id: "signup", path: "/signup", heading: /subscribe|plan|order|wizard|meal|tiffin/i },
   { id: "forgot-password", path: "/forgot-password", heading: /forgot|reset|password|email/i },
   { id: "subscribe", path: "/subscribe", heading: /subscribe|plan|order|wizard|meal|tiffin/i },
   { id: "checkout", path: "/checkout", heading: /checkout|order|address|pay|subscribe|meal/i },

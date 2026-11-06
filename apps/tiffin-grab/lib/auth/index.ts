@@ -93,8 +93,8 @@ export const auth = betterAuth({
     // this cannot lock out an existing account with a shorter password.
     minPasswordLength: 12,
     maxPasswordLength: 256,
-    // Signup goes through signUpCustomer (app/(auth)/signup/actions.ts), which
-    // enforces phone uniqueness and writes the users + account rows itself.
+    // Accounts are provisioned by /subscribe's email step (provisionCustomerByEmail)
+    // or by an admin, never by better-auth's own sign-up route.
     // better-auth still mounts /sign-up/email whenever email+password is
     // enabled, and nothing in this app calls it — leaving it open is a second,
     // unvalidated way to create an account that skips every one of those rules.
