@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { InfoIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
+import { useIsMobile } from "@foundry/ui/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { SectionCard } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -34,11 +35,12 @@ export function EmailTrackingSettings({
   onSaveRouting: typeof saveStreamRouting;
 }) {
   const [tab, setTab] = useState("how");
+  const isMobile = useIsMobile();
   const count = types.filter((t) => t.tracked).length;
 
   return (
-    <Tabs value={tab} onValueChange={setTab} orientation="vertical" className="flex-col gap-6 md:flex-row">
-      <TabsList variant="line" className="max-md:w-full max-md:flex-row! md:w-48 md:shrink-0" aria-label="Email tracking sections">
+    <Tabs value={tab} onValueChange={setTab} orientation={isMobile ? "horizontal" : "vertical"} className="gap-6 md:flex-row">
+      <TabsList variant="line" className="max-md:w-full md:w-48 md:shrink-0" aria-label="Email tracking sections">
         <TabsTrigger value="how">How it works</TabsTrigger>
         <TabsTrigger value="tracked">Tracked emails</TabsTrigger>
         <TabsTrigger value="advanced">Advanced</TabsTrigger>
@@ -52,17 +54,19 @@ export function EmailTrackingSettings({
                   <li key={s}>{s}</li>
                 ))}
               </ol>
-              <Alert variant="info">
-                <InfoIcon />
-                <AlertDescription>
-                  {trackedStatus(count)}
-                  {count > 0 && (
-                    <Button variant="link" className="ml-1" onClick={() => setTab("tracked")}>
-                      Change
-                    </Button>
-                  )}
-                </AlertDescription>
-              </Alert>
+              {!loadFailed && (
+                <Alert variant="info">
+                  <InfoIcon />
+                  <AlertDescription>
+                    {trackedStatus(count)}
+                    {count > 0 && (
+                      <Button variant="link" size="sm" onClick={() => setTab("tracked")}>
+                        Change
+                      </Button>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </SectionCard>
         </TabsContent>

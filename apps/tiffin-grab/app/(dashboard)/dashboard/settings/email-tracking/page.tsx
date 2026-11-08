@@ -32,13 +32,18 @@ export default function EmailTrackingPage() {
 function EmailTrackingSkeleton() {
   return (
     <div className="flex flex-col gap-6 md:flex-row" role="status" aria-label="Loading email tracking settings">
-      <Skeleton className="h-24 w-full md:w-48" />
+      <div className="flex gap-2 md:w-48 md:shrink-0 md:flex-col">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-8 w-28 md:w-full" />
+        ))}
+      </div>
       <div className="min-w-0 flex-1">
         <SectionCard title="Email tracking">
           <div className="flex flex-col gap-3">
-            {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} className="h-6 w-full" />
-            ))}
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-11/12" />
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
         </SectionCard>
       </div>
