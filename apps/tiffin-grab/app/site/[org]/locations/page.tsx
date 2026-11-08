@@ -1,3 +1,4 @@
+import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -17,7 +18,7 @@ import "@/components/landing/styles/menu.css";
 // Stock photo of dishes on our menu (Pixabay licence), the one the menu page uses.
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
 
-export const metadata: Metadata = pageMeta("Tiffin Delivery Areas: Brampton to Durham | Tiffin Grab", "Check your postal code for tiffin delivery in Toronto, Brampton, Mississauga, Markham, Vaughan, Scarborough, Oakville and more, with each area's window.", "/locations");
+export const metadata: Metadata = pageMeta("Tiffin Delivery Areas: Brampton to Durham | Tiffin Grab", "Tiffin delivery across the GTA: Toronto, Brampton, Mississauga, Markham, Vaughan, Scarborough, Oakville and more. Tap your area on the map for its delivery window.", "/locations");
 export const revalidate = 3600;
 export const dynamic = "error";
 
@@ -32,6 +33,7 @@ export default async function LocationsPage({ params }: { params: Promise<{ org:
 
   return (
     <>
+      <BreadcrumbSchema name="Delivery areas" path="/locations" />
       <section className="tg-section" aria-labelledby="tg-deliver">
         <DeliverySection heading="h1" orgId={orgId} />
       </section>

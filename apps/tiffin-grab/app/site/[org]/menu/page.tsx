@@ -18,6 +18,8 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import { pageMeta } from "@/lib/landing/meta";
+import { breadcrumbJsonLd, jsonLdScript, menuJsonLd } from "@/lib/landing/business-jsonld";
+import { publicOrigin } from "@/lib/routing/apex";
 
 export const metadata: Metadata = pageMeta("This Week's Tiffin Menu: Dal, Sabzi, Roti | Tiffin Grab", "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
 export const revalidate = 300;
@@ -38,8 +40,12 @@ export default async function MenuPage({ params }: { params: Promise<{ org: stri
     ]),
   ];
 
+  const origin = publicOrigin();
+  const schemas = [breadcrumbJsonLd(origin, "Menu", "/menu"), pub ? menuJsonLd(days, origin) : null];
+
   return (
     <div className="lp-wrap lp-section">
+      {schemas.map((d, i) => d && <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(d) }} />)}
       <MetaViewContent contentIds={dishNames.length ? dishNames : ["weekly-menu"]} contentName="Weekly menu" />
       <PageIntro
         eyebrow={pub ? `${dateOf(pub.weekStart, 0)} to ${dateOf(pub.weekStart, 6)}` : "This week"}

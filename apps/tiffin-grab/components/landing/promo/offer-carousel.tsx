@@ -37,10 +37,10 @@ export function CouponSlide({ promo, photo }: { promo: LandingPromo; photo?: Sta
       <div className={["lp-offers__photo", promo.imageUrl ? "lp-offers__photo--own" : "", promo.savings ? "lp-offers__photo--receipt" : ""].filter(Boolean).join(" ")}>
         {promo.imageUrl && /^\/landing\/[^?]*$/.test(promo.imageUrl) ? (
           // Same-origin file: let the optimizer serve WebP/AVIF at the tile's width.
-          <Image src={promo.imageUrl} alt="" fill sizes="(max-width: 900px) 100vw, 740px" />
+          <Image src={promo.imageUrl} alt={promo.title} fill sizes="(max-width: 900px) 100vw, 740px" />
         ) : promo.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- staff-supplied URL from any host
-          <img src={promo.imageUrl} alt="" loading="lazy" />
+          <img src={promo.imageUrl} alt={promo.title} loading="lazy" />
         ) : photo ? (
           <Image src={photo} alt="Paneer butter masala in a copper pan" placeholder="blur" sizes="(max-width: 900px) 100vw, 400px" />
         ) : null}

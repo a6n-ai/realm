@@ -15,6 +15,8 @@ import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
 import { savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
+import { breadcrumbJsonLd, jsonLdScript, pricingJsonLd } from "@/lib/landing/business-jsonld";
+import { publicOrigin } from "@/lib/routing/apex";
 import "@/components/landing/styles/pricing.css";
 import { PlanPicks } from "@/components/landing/pricing/plan-picks";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
@@ -42,7 +44,9 @@ const DIET_LABEL: Record<string, string> = { veg: "Veg", "non-veg": "Non-veg" };
 const VISIBLE_SIZES = 5;
 
 export default async function PricingPage() {
-  const [catalog, trialSettings] = await Promise.all([loadCatalogSnapshot(), getTrialSettings()]);
+  const [catalog, trialSettings, { currency }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
+  const origin = publicOrigin();
+  const offers = pricingJsonLd(catalog, origin, currency);
   const trial = trialOffer(catalog, trialSettings);
   const sizes = listableMealSizes(catalog.mealSizes);
   const plans = publicPlans(catalog.plans)
@@ -63,10 +67,12 @@ export default async function PricingPage() {
   // Live calculator data: each size's real rate and the days it can be eaten (its allowed days; no
   // weekend for sizes without a weekend dish), and each plan length's best duration discount (Home's rule).
   const ALL_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  // The calculator prices a plan, as the plan builder does: the trial has its own card (and its own
+  // day rules, Mon to Fri), so it stays out, and the calculator opens on a size that serves every day.
   const mathPlans: MathPlan[] = plans.map((p) => ({
     key: p.key,
     label: DIET_LABEL[p.key] ?? p.name,
-    sizes: p.sizes.map((m) => ({
+    sizes: p.sizes.filter((m) => !m.trial).map((m) => ({
       id: m.publicId,
       name: dashless(m.name),
       rate: effectivePrice(m.basePrice, m),
@@ -101,6 +107,7 @@ export default async function PricingPage() {
 
   return (
     <>
+    {[breadcrumbJsonLd(origin, "Plans and pricing", "/pricing"), offers].map((d, i) => d && <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(d) }} />)}
     <div className="lp-wrap lp-section flex flex-col gap-[clamp(56px,8vw,96px)]">
       <div className="pr-hero">
       <PageIntro

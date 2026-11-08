@@ -4,7 +4,7 @@ import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
-import { AREA_PAGE, apexServes } from "./lib/routing/apex";
+import { AREA_PAGE, apexServes, appServes } from "./lib/routing/apex";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -106,7 +106,10 @@ function frontDoor(request: NextRequest): NextResponse | null {
   if (hostname === `www.${apex}`) return NextResponse.redirect(`https://${apex}${pathname}${search}`, 308);
   if (hostname !== apex) return null;
   if (apexServes(pathname)) return null;
-  return NextResponse.redirect(`https://${appHost}${pathname}${search}`, 302);
+  if (appServes(pathname)) return NextResponse.redirect(`https://${appHost}${pathname}${search}`, 308);
+  // An address no route matches: Next renders app/not-found.tsx with a 404, the same on Node and Workers
+  // (the internal /_not-found route is not a documented rewrite target). Never add a route by this name.
+  return NextResponse.rewrite(new URL("/__apex-not-found", request.url), { status: 404 });
 }
 
 function unauthorized(): NextResponse {

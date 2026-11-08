@@ -38,12 +38,22 @@ describe("apex/www front door", () => {
     ["/me", "https://app.tiffingrab.ca/me"],
     ["/dashboard?x=1", "https://app.tiffingrab.ca/dashboard?x=1"],
     ["/login", "https://app.tiffingrab.ca/login"],
-    ["/menus", "https://app.tiffingrab.ca/menus"],
-    ["/product/thali", "https://app.tiffingrab.ca/product/thali"],
-  ])("302s %s on the apex to app", async (p, to) => {
+    ["/subscribe?c=WELCOME10", "https://app.tiffingrab.ca/subscribe?c=WELCOME10"],
+    ["/api/plans", "https://app.tiffingrab.ca/api/plans"],
+  ])("308s %s on the apex to app", async (p, to) => {
     const res = await get(`https://tiffingrab.ca${p}`);
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(308);
     expect(res.headers.get("location")).toBe(to);
+  });
+
+  it.each(["/nonexistent-page", "/menus", "/product/thali"])("404s unknown apex path %s with no redirect", async (p) => {
+    const res = await get(`https://tiffingrab.ca${p}`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("serves /menu and /pricing.md on the apex", async () => {
+    for (const p of ["/menu", "/pricing.md", "/llms.txt"]) expect((await get(`https://tiffingrab.ca${p}`)).status).not.toBe(404);
   });
 
   it("404s retired WordPress paths instead of bouncing them to app", async () => {
@@ -52,14 +62,14 @@ describe("apex/www front door", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
-  it("matches paths case-insensitively", async () => {
+  it("matches apex pages case-insensitively; app routes are case-sensitive", async () => {
     expect((await get("https://tiffingrab.ca/PRICING")).headers.get("location")).toBeNull();
-    expect((await get("https://tiffingrab.ca/ME")).status).toBe(302);
+    expect((await get("https://tiffingrab.ca/ME")).status).toBe(404);
   });
 
-  it("302s extension paths that are not allowlisted, serves allowlisted ones", async () => {
-    expect((await get("https://tiffingrab.ca/wp-content/uploads/x.jpg")).status).toBe(302);
-    expect((await get("https://tiffingrab.ca/manifest.json")).status).toBe(302);
+  it("404s extension paths that are not allowlisted, serves allowlisted ones", async () => {
+    expect((await get("https://tiffingrab.ca/wp-content/uploads/x.jpg")).status).toBe(404);
+    expect((await get("https://tiffingrab.ca/manifest.json")).status).toBe(404);
     for (const p of ["/logo.svg", "/robots.txt", "/sitemap.xml", "/_next/static/a.js", "/favicon.ico"]) {
       expect((await get(`https://tiffingrab.ca${p}`)).headers.get("location")).toBeNull();
     }

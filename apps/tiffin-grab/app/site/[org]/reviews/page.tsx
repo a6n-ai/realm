@@ -1,3 +1,4 @@
+import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getGoogleReviewsConfig, getReviewsSummary, writeReviewUrl } from "@foundry/google-reviews";
@@ -23,6 +24,7 @@ export default async function ReviewsPage() {
 
   return (
     <div className="tg-reviews">
+      <BreadcrumbSchema name="Reviews" path="/reviews" />
       {/* Soft saffron and green light for the glass to refract; decoration only. */}
       <div aria-hidden className="tg-reviews__glow" />
       <div className="tg-wrap tg-section relative">

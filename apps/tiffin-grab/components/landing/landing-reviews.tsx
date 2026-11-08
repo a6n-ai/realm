@@ -127,7 +127,7 @@ export async function ReviewPhotos({ limit = 8 }: { limit?: number }) {
           <li key={p.url}>
             <figure className="m-0 flex flex-col gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element -- key-free googleusercontent URL, not in remotePatterns */}
-              <img src={p.url} alt="" width={p.width} height={p.height} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full rounded-2xl object-cover" />
+              <img src={p.url} alt={`Customer photo of Tiffin Grab food, shared by ${p.author}`} width={p.width} height={p.height} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full rounded-2xl object-cover" />
               <figcaption className="c-caption truncate">
                 Photo:{" "}
                 {p.authorUrl ? <a href={p.authorUrl} target="_blank" rel="noreferrer" className="tg-link">{p.author}</a> : p.author}

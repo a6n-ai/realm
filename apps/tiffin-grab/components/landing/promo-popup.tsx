@@ -174,7 +174,7 @@ export function PromoPanel({ promo, fallbackImage, onClose, className }: { promo
       </button>
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element -- staff-supplied URL from any host
-        <img className="tg-popup__img" src={image} alt="" width={1040} height={585} loading="lazy" />
+        <img className="tg-popup__img" src={image} alt={promo.title} width={1040} height={585} loading="lazy" />
       ) : null}
       <div className="tg-popup__body">
         <span className="tg-popup__eyebrow">Offer running now</span>

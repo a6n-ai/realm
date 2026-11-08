@@ -26,7 +26,7 @@ export async function DeliverySection({ heading = "h2", orgId }: { heading?: "h1
       <div className="tg-deliver__head">
         <H id="tg-deliver" className="tg-h2">Do we deliver to <span className="c-accent">you?</span></H>
         <p className="tg-lede">
-          {areas.length > 0 ? `${areas.length} areas across the GTA, and growing. ` : ""}Check your postal code against the areas we serve today.
+          {areas.length > 0 ? `${areas.length} areas across the GTA, and growing. ` : ""}Tap your area on the map to see when your tiffin arrives.
         </p>
       </div>
       <DeliveryCheck origin={origin ? { lat: origin.lat, lng: origin.lng } : null} rings={rings} areas={areas} region={region} districts={districts} runs={runs.map((r) => r.label)} />

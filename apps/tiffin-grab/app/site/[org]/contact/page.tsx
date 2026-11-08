@@ -1,3 +1,4 @@
+import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageIntro } from "@/components/landing/public-shell";
@@ -14,6 +15,7 @@ export default async function ContactPage() {
 
   return (
     <div className="tg-wrap tg-section tg-split">
+      <BreadcrumbSchema name="Contact" path="/contact" />
       <div className="tg-stack">
         <PageIntro
           eyebrow="Contact"

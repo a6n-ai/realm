@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!referrer || !offer.friend) return meta;
   const title = `${friendHeadline(referrer.firstName, offer.friend)} | Tiffin Grab`;
   const description = "Build your tiffin plan. Your gift lands in your wallet after your first paid order.";
-  const image = { url: referCardPath(code, { size: "og" }), width: 1200, height: 630, alt: `TiffinGrab referral code ${code}` };
+  const image = { url: referCardPath(code, { size: "og" }), width: 1200, height: 630, alt: `Tiffin Grab referral code ${code}` };
   return {
     ...meta,
     title,

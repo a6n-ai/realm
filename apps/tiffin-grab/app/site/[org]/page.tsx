@@ -23,7 +23,8 @@ import { deliveryIsFree, hourLabel, lowestRate, trialOffer } from "@/lib/landing
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { businessJsonLd, jsonLdScript } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getReviewsSummary } from "@foundry/google-reviews";
+import { getAppSettings, integrationsConfigReadStore } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import "@/components/landing/styles/home.css";
@@ -53,12 +54,19 @@ function weekRange(weekStart: string) {
   return `${formatDateOnly(weekStart, { mode: "short" })} to ${formatDateOnly(end.toISOString().slice(0, 10), { mode: "short" })}`;
 }
 
+// Google's rating streams in like the hero line, so the schema waits in Suspense instead of holding the page.
+async function BusinessSchema({ catalog, currency }: { catalog: Awaited<ReturnType<typeof loadCatalogSnapshot>>; currency: string }) {
+  const s = await getReviewsSummary(integrationsConfigReadStore).catch(() => null);
+  const rating = s ? { rating: s.rating, total: s.total, url: s.attributionUrl || undefined } : null;
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(businessJsonLd(catalog, publicOrigin(), { currency, rating })) }} />;
+}
+
 export default async function LandingPage({ params }: { params: Promise<{ org: string }> }) {
   const orgId = await siteOrgId((await params).org);
   // The hero poster is the phone LCP: fetch the right WebP from the head, ahead of CSS and scripts.
   preload("/landing/stock/hero-poster-mobile.webp", { as: "image", type: "image/webp", media: "(max-width: 767px)", fetchPriority: "high" });
   preload("/landing/stock/hero-poster.webp", { as: "image", type: "image/webp", media: "(min-width: 768px)", fetchPriority: "high" });
-  const [pub, catalog, { timezone }, promos, referral, trialSettings] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null), getTrialSettings(orgId)]);
+  const [pub, catalog, { timezone, currency }, promos, referral, trialSettings] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null), getTrialSettings(orgId)]);
 
   const plans = publicPlans(catalog.plans);
   const firstPlan = plans.find((p) => !isComingSoon(p.key));
@@ -89,7 +97,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
 
   return (
     <div className="lp">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(businessJsonLd(catalog, publicOrigin())) }} />
+      <Suspense fallback={null}><BusinessSchema catalog={catalog} currency={currency} /></Suspense>
       <Hero
         video="/landing/stock/hero.mp4"
         poster="/landing/stock/hero-poster.jpg"

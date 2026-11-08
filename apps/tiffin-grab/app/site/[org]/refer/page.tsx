@@ -1,3 +1,4 @@
+import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import { ReferContent, referHeadline, type ReferExtras } from "@/components/landing/refer/refer-content";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -17,7 +18,7 @@ export const dynamic = "error";
 
 export async function generateMetadata(): Promise<Metadata> {
   const offer = await loadReferralOffer();
-  const description = offer.on ? `${referHeadline(offer)} Share your TiffinGrab link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
+  const description = offer.on ? `${referHeadline(offer)} Share your Tiffin Grab link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
   const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | Tiffin Grab` : "Refer a Friend | Tiffin Grab";
   return pageMeta(title, description, "/refer");
 }
@@ -44,5 +45,10 @@ async function loadExtras(organizationId: string | null): Promise<ReferExtras> {
 export default async function ReferPage({ params }: { params: Promise<{ org: string }> }) {
   const organizationId = await siteOrgId((await params).org);
   const [offer, extras] = await Promise.all([loadReferralOffer(), loadExtras(organizationId)]);
-  return <ReferContent offer={offer} extras={extras} />;
+  return (
+    <>
+      <BreadcrumbSchema name="Refer a friend" path="/refer" />
+      <ReferContent offer={offer} extras={extras} />
+    </>
+  );
 }

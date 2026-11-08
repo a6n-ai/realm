@@ -77,7 +77,7 @@ export function Hero({
         <div className="lp-hero__copy">
           {rating}
           <h1 id="lp-hero-title" className="lp-display">
-            Home‑style tiffins.<br />Delivered <span className="c-accent">fresh.</span>
+            <span className="whitespace-nowrap">Home-style</span> tiffins.<br />Delivered <span className="c-accent">fresh.</span>
           </h1>
           <p className="lp-lede">Dal, sabzi, rice and rotis, cooked in small batches across the GTA.</p>
           <div className="lp-actions lp-actions--start">
@@ -120,7 +120,7 @@ export function Story() {
       <div className="lp-wrap">
         <svg className="lp-story__mark" width="28" height="28" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M12 0c.6 6.4 5.6 11.4 12 12-6.4.6-11.4 5.6-12 12-.6-6.4-5.6-11.4-12-12C6.4 11.4 11.4 6.4 12 0Z" /></svg>
         <p className="lp-story__text">
-          <strong>Home‑style food, cooked the way a home kitchen does it.</strong>{" "}
+          <strong>Home-style food, cooked the way a home kitchen does it.</strong>{" "}
           Small batches of dal, rice, sabzi and fresh rotis, packed into a tiffin and brought to your door across the GTA. You choose the diet, the size, the days and how many weeks. Away for a day? Pause it, and it waits for you.
         </p>
         <p className="lp-story__quote">Your tiffin, your way.</p>
@@ -186,7 +186,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
           <article className="lp-tile lp-tile--diet">
             <Mark icon={Salad} />
             <span className="lp-step"><Salad aria-hidden className="size-4" strokeWidth={2} />1 · Diet</span>
-            <h3 className="lp-tile__title">{plans.length > 2 ? "Veg, non‑veg or something lighter." : "Veg or non‑veg. Your call."}</h3>
+            <h3 className="lp-tile__title">{plans.length > 2 ? "Veg, non-veg or something lighter." : "Veg or non-veg. Your call."}</h3>
             <ul className="lp-list">
               {plans.map((p) => (
                 <li key={p.key}>
@@ -311,7 +311,7 @@ export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { da
 
 export function Flex({ cutoff, demo }: { cutoff: string | null; demo: React.ReactNode }) {
   const steps = [
-    { t: "Build your plan", d: "Diet, size, days and weeks. Pay by card or Interac e‑Transfer." },
+    { t: "Build your plan", d: "Diet, size, days and weeks. Pay by card or Interac e-Transfer." },
     { t: "We cook it fresh", d: "Pick dishes from each released week's menu. Small batches, the way a home kitchen does it." },
     { t: "Pause or move any day", d: `${cutoff ? `Before ${cutoff} the day before. ` : ""}A paused day is never lost: move it, or it goes to the end of your plan.` },
   ];
