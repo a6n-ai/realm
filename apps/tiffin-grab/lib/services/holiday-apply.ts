@@ -1,4 +1,4 @@
-import { ValidationError, cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
+import { ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
@@ -7,12 +7,11 @@ import { nextDeliveryDateAfter, orderDeliveryDaySet, type OptimoSyncedRow, type 
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { datesInsideOtherPlans } from "./order-window";
 import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
+import { addDaysIso, isRealDate, isWeekendDay } from "@/lib/dates";
 
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
 type Cutoff = { cutoffHour: number; timezone: string };
-
-const WEEKEND = new Set(["sat", "sun"]);
 
 export type HolidayApplied = {
   deliveryPublicId: string;
@@ -33,7 +32,7 @@ export type HolidayUndone = { restored: string[]; left: string[]; owed: string[]
 /** Trucks never run on weekends; a trial delivers on its own send days. */
 async function planWeekdays(tx: Tx, order: Order): Promise<Set<string>> {
   const pattern = order.trialLength != null ? new Set<string>(order.trialWeekdays ?? []) : await orderDeliveryDaySet(tx, order);
-  return new Set([...pattern].filter((d) => !WEEKEND.has(d)));
+  return new Set([...pattern].filter((d) => !isWeekendDay(d)));
 }
 
 /**
@@ -137,11 +136,6 @@ export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint
 /** Every per-delivery address / drop-off override on a delivery row; any of them set means the customer or staff changed this day. */
 const ADDRESS_OVERRIDES = ["addressId", "fullName", "addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions", "deliveryStrategyId", "deliveryTagId", "addressTagId", "zoneId"] as const;
 
-const isRealDate = (iso: string): boolean => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
-};
-
 /** An added day is "as the holiday left it" only while nothing about it changed: any doubt keeps it. */
 async function extrasUntouched(tx: Tx, extras: Delivery[], per: number, now: number): Promise<boolean> {
   if (extras.length === 0) return true;
@@ -218,7 +212,7 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
 export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint, fromDate: string, actorId: bigint | null): Promise<string[]> {
   const cut = await getAppSettings();
   const today = zonedDateIso(Date.now(), cut.timezone);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !isRealDate(fromDate)) throw new ValidationError("Pick a valid date");
+  if (!isRealDate(fromDate)) throw new ValidationError("Pick a valid date");
   if (fromDate < today) throw new ValidationError("Pick today or a later date");
   if (order.status !== "active" && order.status !== "paused") throw new ValidationError(`Cannot add a delivery to an order that is ${order.status}`);
   const [source] = await tx.select().from(deliveries).where(and(
@@ -233,10 +227,8 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
   const per = Math.max(1, order.persons);
   if (source.tiffinUnits % per !== 0) throw new ValidationError("This trip's tiffin count does not divide by persons, so it cannot be placed automatically");
 
-  const dayBefore = parseIsoDateUtc(fromDate);
-  dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
   const holidays = await upcomingHolidays(tx, order.organizationId, today);
-  const dates = await freePlanDays(tx, order, dayBefore.toISOString().slice(0, 10), source.tiffinUnits / per, holidays, cut);
+  const dates = await freePlanDays(tx, order, addDaysIso(fromDate, -1), source.tiffinUnits / per, holidays, cut);
   if (!dates) throw new ValidationError("No free delivery day found from that date");
 
   await insertExtras(tx, order, source.id, dates, cut);

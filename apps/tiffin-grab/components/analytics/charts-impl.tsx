@@ -77,6 +77,7 @@ import {
   type Part,
   type Tone,
 } from "@/components/analytics/chart-math";
+import { isoToUtcDate } from "@/lib/dates";
 
 // A string, not a formatter function: these charts are rendered from server
 // components, and functions cannot cross that boundary as props.
@@ -992,7 +993,7 @@ export function HeatmapGrid({
 const CAL_DAY = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const CAL_WEEK = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const calDate = (fmt: Intl.DateTimeFormat, iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`));
+const calDate = (fmt: Intl.DateTimeFormat, iso: string) => fmt.format(isoToUtcDate(iso));
 
 /** Mon-Sun columns, one row per week. One hue, darker = more; each cell prints its value. */
 export function CalendarHeatmap({

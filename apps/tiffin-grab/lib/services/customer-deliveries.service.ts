@@ -5,7 +5,6 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql }
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
@@ -34,6 +33,7 @@ import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
+import { isWeekendDay, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
 // Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
 // only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
@@ -540,7 +540,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     weekdays: order.weekdays as DayOfWeek[] | null,
     includeSaturday: !order.eatingDays?.length && order.includeSaturday,
     includeSunday: !order.eatingDays?.length && order.includeSunday,
-  }).filter((d) => d !== "sat" && d !== "sun");
+  }).filter((d) => !isWeekendDay(d));
 
   const total = order.tiffinCount + order.complimentaryTiffins;
   return {
@@ -825,7 +825,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
-  const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
+  const dayOfWeek = weekdayKey(isoToUtcDate(d.deliveryDate));
   return resolveDeliveryMeal({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
 }
 
@@ -1038,7 +1038,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     const { resolved: weekResolved, items: weekItems } = byWeek.get(week.id)!;
     // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
     // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
-    const dayOfWeek = weekdayKey(new Date(`${row.deliveryDate}T00:00:00Z`));
+    const dayOfWeek = weekdayKey(isoToUtcDate(row.deliveryDate));
     const meal = weekResolved.get(resolvedMealsWeekKey(dayOfWeek, 1)) ?? null;
 
     const dayItems = weekItems.filter((i) => i.dayOfWeek === dayOfWeek);

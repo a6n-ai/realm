@@ -15,6 +15,7 @@ import { dropOffsFor } from "./address-drop-off.service";
 import { checkoutHolidayDates } from "./holidays.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
 import { appToday, earliestPlanStart, planStartDays } from "./start-date";
+import { utcIso } from "@/lib/dates";
 
 export type { QuickRenewData };
 
@@ -79,7 +80,7 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
   const [holidayDates, addressDropOffs] = await Promise.all([
-    checkoutHolidayDates(today.toISOString().slice(0, 10)),
+    checkoutHolidayDates(utcIso(today)),
     dropOffsFor(savedAddresses.map((a) => a.publicId)),
   ]);
   const plan = client.plans.find((p) => p.key === src.planKey);

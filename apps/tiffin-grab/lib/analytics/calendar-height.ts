@@ -1,7 +1,7 @@
 import { calendarWeeks } from "./calendar";
 import { clampToToday } from "./clamp";
-import { isoDateInZone } from "./profitability";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { isoDateInZone } from "@/lib/dates";
 
 /** Header, one row per week and the legend; skeletons use it so the card does not resize on load. */
 export const calendarHeight = (from: string, to: string) => 60 + calendarWeeks(from, to).length * 42;

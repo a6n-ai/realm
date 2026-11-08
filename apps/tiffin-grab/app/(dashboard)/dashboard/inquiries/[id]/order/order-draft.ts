@@ -1,11 +1,12 @@
 import { round2 } from "@foundry/discounts";
-import { parseIsoDateUtc } from "@foundry/commons";
+import { isWeekend, parseIsoDateUtc } from "@foundry/commons";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { OrderFormValues } from "../order-schema";
 import type { RepCouponInfo } from "./actions";
+import { utcIso } from "@/lib/dates";
 
 
 export type Catalog = {
@@ -22,14 +23,8 @@ export type Catalog = {
 
 export function firstWeekdayOnOrAfter(iso: string): string {
   const d = parseIsoDateUtc(iso);
-  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
-export function dayBeforeIso(iso: string): string {
-  const d = parseIsoDateUtc(iso);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
+  while (isWeekend(d)) d.setUTCDate(d.getUTCDate() + 1);
+  return utcIso(d);
 }
 
 export const multiDayTrialPicks = (picked: readonly string[], weekdays: readonly string[], max: number) => (max > 1 && picked.length ? picked : weekdays);

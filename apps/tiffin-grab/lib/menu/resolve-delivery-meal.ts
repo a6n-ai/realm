@@ -17,6 +17,7 @@ import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
 import { loadSideRules, rolesAfterSwaps, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
+import { addDaysIso } from "@/lib/dates";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -31,9 +32,7 @@ type Week = Pick<typeof menuWeeks.$inferSelect, "id" | "weekStart">;
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 
 function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
-  const d = new Date(`${weekStartIso}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + DAY_OFFSET[dayOfWeek]);
-  return d.toISOString().slice(0, 10);
+  return addDaysIso(weekStartIso, DAY_OFFSET[dayOfWeek]);
 }
 
 // Re-exported: existing server callers import the fold from here.

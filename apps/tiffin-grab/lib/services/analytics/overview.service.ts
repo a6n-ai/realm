@@ -2,7 +2,6 @@ import { and, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { clampToToday } from "@/lib/analytics/clamp";
-import { eachDateInclusive, isoDateInZone } from "@/lib/analytics/profitability";
 import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
 import {
   summarizeTrialConversion,
@@ -17,6 +16,7 @@ import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
 import { getDeliveriesDaily } from "./operations.service";
 import { localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { eachDate, isoDateInZone } from "@/lib/dates";
 
 export type { TrialConversionStats };
 export { TRIAL_CONVERT_WINDOW_DAYS };
@@ -86,7 +86,7 @@ export async function getDailyScorecard(
 ): Promise<ScorecardRow[] | null> {
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
-  if (eachDateInclusive(from, to).length > SCORECARD_MAX_DAYS) return null;
+  if (eachDate(from, to).length > SCORECARD_MAX_DAYS) return null;
   const [revenue, orderDays, deliveryDays, signups, complaints, profitReport] = await Promise.all([
     revenueBy(scope, "day"),
     getOrdersDaily(scope),
@@ -103,7 +103,7 @@ export async function getDailyScorecard(
   const signupsBy = new Map(signups.map((r) => [r.iso, r.n]));
   const complaintsBy = new Map(complaints.map((r) => [r.iso, r.n]));
   const shown = clampToToday({ from, to }, scope.tz, now);
-  return (shown ? eachDateInclusive(shown.from, shown.to) : [])
+  return (shown ? eachDate(shown.from, shown.to) : [])
     .reverse()
     .map((date) => {
       const d = deliveriesBy.get(date);

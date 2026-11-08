@@ -10,6 +10,7 @@ import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "../kind-labels";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
+import { requestNow } from "@/lib/dates/request-now";
 
 // Same Search + Filter bar as the other lists.
 const SPEC: FacetDef[] = [
@@ -98,8 +99,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   // Hand-made coupons are a small set: the cards count the date/kind set; status, auto-apply
   // and expiring narrow the table only, so a card still matches its own drill.
   const { page } = parseFilterState(SPEC, sp);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const weekOut = now + 7 * 86_400_000;
   const isLive = (c: (typeof couponRows)[number]) => c.active && (c.expiresAt == null || c.expiresAt > now);
   const isExpiring = (c: (typeof couponRows)[number]) => c.active && c.expiresAt != null && c.expiresAt > now && c.expiresAt <= weekOut;

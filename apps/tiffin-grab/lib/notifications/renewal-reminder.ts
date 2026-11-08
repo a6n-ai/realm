@@ -6,11 +6,11 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/services/orders.service";
 import { enqueueNotification } from "./enqueue";
+import { addDaysIso } from "@/lib/dates";
 
 /** Days before the last tiffin that a reminder goes out. */
 export const RENEWAL_REMINDER_DAYS = [5, 1] as const;
 
-const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 export type RenewalCandidate = {
   orderPublicId: string;
@@ -72,7 +72,7 @@ export async function sendRenewalReminders(now = Date.now()) {
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const summary: Record<string, number> = {};
   for (const daysLeft of RENEWAL_REMINDER_DAYS) {
-    const plans = await candidates(addDays(today, daysLeft));
+    const plans = await candidates(addDaysIso(today, daysLeft));
     for (const c of plans) {
       const m = renewalReminderMessage(c, daysLeft);
       await db.transaction((tx) =>

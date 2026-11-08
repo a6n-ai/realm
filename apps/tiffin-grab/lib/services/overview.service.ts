@@ -5,7 +5,6 @@ import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-
 import { db } from "@/db/client";
 import { deliveries, orders, plans, users } from "@/db/schema";
 import { countBy, dailyLabelSheet, type KitchenCount } from "@/lib/services/daily-labels.service";
-import { addDays } from "@/lib/deliveries-view/week";
 import { buildKitchenWeek, type KitchenWeekRow } from "@/lib/overview/kitchen-week";
 import { getDailyScorecard } from "./analytics/overview.service";
 import { getDeliveriesDaily } from "./analytics/operations.service";
@@ -14,6 +13,7 @@ import { buildAnalyticsScope } from "./analytics/metrics/scope";
 import { getOrdersOverview } from "./orders-stats.service";
 import { getAppSettings } from "./app-settings.service";
 import { dayStartMs } from "./today.service";
+import { addDaysIso } from "@/lib/dates";
 
 type Visible = "all" | string[];
 const DAY = 864e5;
@@ -37,7 +37,7 @@ const rate = (r: { ended: number; renewed: number }) => (r.ended > 0 ? ratePct(r
  */
 export const getOverviewSeries = cache(async (visible: Visible, today: string, now: number): Promise<OverviewSeries> => {
   const { timezone: tz } = await getAppSettings();
-  const from14 = addDays(today, -13);
+  const from14 = addDaysIso(today, -13);
   const monthStart = `${today.slice(0, 8)}01`;
   const from = monthStart < from14 ? monthStart : from14;
   const scope = { ...buildAnalyticsScope({}, visible, tz, now), fromMs: dayStartMs(from, tz), toMs: now };
@@ -51,7 +51,7 @@ export const getOverviewSeries = cache(async (visible: Visible, today: string, n
   const byDate = new Map((rows ?? []).map((r) => [r.date, r]));
   const sched = new Map(deliveryDays.map((d) => [d.iso, d.scheduled]));
   const days = Array.from({ length: 14 }, (_, i) => {
-    const date = addDays(today, i - 13);
+    const date = addDaysIso(today, i - 13);
     const r = byDate.get(date);
     return { date, revenue: r?.revenue ?? 0, orders: r?.orders ?? 0, tiffins: sched.get(date) ?? 0 };
   });
@@ -106,13 +106,13 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
       and(
         eq(deliveries.status, "scheduled"),
         isNull(deliveries.mergedIntoDeliveryId),
-        gte(deliveries.deliveryDate, addDays(monday, -7)),
-        lte(deliveries.deliveryDate, addDays(monday, 6)),
+        gte(deliveries.deliveryDate, addDaysIso(monday, -7)),
+        lte(deliveries.deliveryDate, addDaysIso(monday, 6)),
         visible === "all" ? undefined : inArray(orders.organizationId, visible),
       ),
     )
     .groupBy(plans.name, deliveries.deliveryDate);
-  return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDays);
+  return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDaysIso);
 }
 
 /**
@@ -121,7 +121,7 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
  * label sheet is not), so the page shows it to all-scope users only.
  */
 export async function getKitchenWeekDishes(monday: string): Promise<{ date: string; counts: KitchenCount[] }[]> {
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const dates = Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i));
   const sheets = await Promise.all(dates.map((d) => dailyLabelSheet(d)));
   return sheets.map((sheet, i) => ({ date: dates[i]!, counts: countBy(sheet.labels) }));
 }

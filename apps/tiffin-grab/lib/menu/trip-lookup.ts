@@ -2,15 +2,9 @@ import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { coveredDates } from "./coverage";
-import { parseIsoDateUtc } from "@foundry/commons";
+import { addDaysIso } from "@/lib/dates";
 
 export type Trip = typeof deliveries.$inferSelect;
-
-function shift(iso: string, n: number): string {
-  const d = parseIsoDateUtc(iso);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Eating date -> the scheduled trip that carries it, for eating dates in [from, until]. A trip's
@@ -22,8 +16,8 @@ export async function carryingTrips(orderId: bigint, from: string, until: string
     eq(deliveries.orderId, orderId),
     eq(deliveries.status, "scheduled"),
     isNull(deliveries.mergedIntoDeliveryId),
-    gte(deliveries.deliveryDate, shift(from, -7)),
-    lte(deliveries.deliveryDate, shift(until, 7)),
+    gte(deliveries.deliveryDate, addDaysIso(from, -7)),
+    lte(deliveries.deliveryDate, addDaysIso(until, 7)),
   )).orderBy(asc(deliveries.deliveryDate));
   const out = new Map<string, Trip>();
   for (const trip of rows) {

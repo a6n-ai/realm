@@ -3,21 +3,17 @@ import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTif
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { NO_WEEKEND_DISH, dayAllowed, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
+import { daysBetween, isWeekendDay, utcIso } from "@/lib/dates";
 
-const weekdayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
-
-function daysBetween(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
-}
 
 /** First plan delivery weekday after the plan's last delivery: where "Move to end" sends a tiffin. */
 export function planEndDate(ctx: Pick<PlanContext, "lastDeliveryDate" | "deliveryWeekdays">): string | null {
   if (!ctx.lastDeliveryDate) return null;
-  const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun");
+  const weekdays = ctx.deliveryWeekdays.filter((k) => !isWeekendDay(k));
   const cursor = parseIsoDateUtc(ctx.lastDeliveryDate);
   for (let i = 0; i < 7; i++) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
-    if (weekdays.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+    if (weekdays.includes(weekdayKey(cursor))) return utcIso(cursor);
   }
   return null;
 }
@@ -55,7 +51,7 @@ export function tripCounts(trip: Pick<Trip, "coversDates" | "extraDates">): Map<
 export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras" | "emptied">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date, qty = 1): MoveOption[] {
   // An emptied row (all its tiffins moved away) is a free day again: the server revives it.
   const byDate = new Map(days.filter((d) => !d.emptied).map((d) => [d.date, d]));
-  const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
+  const weekdays = ctx.deliveryWeekdays.filter((k) => !isWeekendDay(k)) as DayOfWeek[];
   const out: MoveOption[] = [];
   // A plan that hasn't started yet offers dates from its own start; an active plan starts from today.
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
@@ -64,7 +60,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const counts = tripCounts(trip);
   const perTiffin = trip.units / Math.max(1, tiffinTotal(counts));
   for (let i = 0; i < span; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
-    const date = cursor.toISOString().slice(0, 10);
+    const date = utcIso(cursor);
     const carriedOn = carryTripDateIso(date, weekdays);
     if (!carriedOn) continue;
     const target = byDate.get(carriedOn);

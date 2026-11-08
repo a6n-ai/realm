@@ -9,7 +9,7 @@ import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/
 import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildTrips, type Trip } from "@/lib/deliveries-view";
-import { addDays, defaultWeek, mondayOf, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
+import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   makeupSourceIdsForOrder,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/services/customer-deliveries.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
 
 export type OrderWeek = {
   plan: PlanView;
@@ -46,14 +47,14 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
   const window = (await mySubscriptionWindows(userId, today))[sub.publicId];
   if (!window) return null;
 
-  const firstWeek = mondayOf(window.first);
-  const lastWeek = mondayOf(window.last);
-  const all = await myAgendaDots(userId, addDays(firstWeek, -3), addDays(lastWeek, 13));
+  const firstWeek = mondayOfIso(window.first);
+  const lastWeek = mondayOfIso(window.last);
+  const all = await myAgendaDots(userId, addDaysIso(firstWeek, -3), addDaysIso(lastWeek, 13));
   const { agenda, otherPlanDays } = splitAgenda(all, sub.publicId, window.first);
   const requested = parseWeekParam(weekParam) ?? defaultWeek(today, window.first);
   const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
-  const from = addDays(weekStart, -3);
-  const until = addDays(weekStart, 6);
+  const from = addDaysIso(weekStart, -3);
+  const until = addDaysIso(weekStart, 6);
 
   const [rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
     myDeliveries(userId, from, until),

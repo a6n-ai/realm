@@ -3,6 +3,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders } from "@/db/schema";
 import type { Tx } from "./deliveries.service";
+import { utcIso } from "@/lib/dates";
 
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
 
@@ -65,7 +66,6 @@ export async function reservedEndDatesExclusive(
   return result;
 }
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /** The customer's day-reserving orders with their reserved bands, minus `excludeOrderId`. */
 async function reservedBands(tx: Tx | typeof db, userId: bigint, excludeOrderId?: bigint) {
@@ -117,7 +117,7 @@ export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<
   return live.map(({ id, durationWeeks: _weeks, ...plan }) => {
     const lastDay = new Date(ends.get(id.toString())!);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-    return { ...plan, lastDay: iso(lastDay), lastDelivery: lastById.get(id.toString()) ?? null };
+    return { ...plan, lastDay: utcIso(lastDay), lastDelivery: lastById.get(id.toString()) ?? null };
   });
 }
 
@@ -134,7 +134,7 @@ export async function earliestNewPlanStart(
 ): Promise<string | null> {
   const bands = await reservedBands(tx, userId, excludeOrderId);
   if (bands.length === 0) return null;
-  return iso(bands.reduce((max, b) => (b.endExclusive > max ? b.endExclusive : max), bands[0]!.endExclusive));
+  return utcIso(bands.reduce((max, b) => (b.endExclusive > max ? b.endExclusive : max), bands[0]!.endExclusive));
 }
 
 /** The last tiffin date across the customer's running (active/paused) plans, or null when none is scheduled. */
@@ -177,7 +177,7 @@ export async function assertNoPlanOverlap(
       const lastDay = new Date(b.endExclusive);
       lastDay.setUTCDate(lastDay.getUTCDate() - 1);
       throw new ValidationError(
-        `You already have a plan running through ${iso(lastDay)} — choose a start date on or after ${iso(b.endExclusive)}`,
+        `You already have a plan running through ${utcIso(lastDay)} — choose a start date on or after ${utcIso(b.endExclusive)}`,
       );
     }
   }

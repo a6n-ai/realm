@@ -6,7 +6,8 @@ import { round2 } from "@foundry/discounts";
  * share of the order a payment covers and capped at the list price.
  */
 
-import { eachDateInclusive, isoDateInZone, type Grain } from "./profitability";
+import { type Grain } from "./profitability";
+import { eachDate, isoDateInZone } from "@/lib/dates";
 
 export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
 // A full refund flips the payment to 'refunded' and also writes a ledger refund row. Revenue counts
@@ -137,7 +138,7 @@ export function parseSnapshot(raw: unknown): Snapshot {
 
 /** Wide ranges read better as weeks or months than as hundreds of daily points. */
 export function grainForRange(from: string, to: string): Grain {
-  const days = eachDateInclusive(from, to).length;
+  const days = eachDate(from, to).length;
   if (days <= 45) return "daily";
   if (days <= 180) return "weekly";
   return "monthly";

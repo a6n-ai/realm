@@ -172,4 +172,4 @@ export function trailingAverage(values: number[], window = 7): number[] {
   });
 }
 
-export { calendarWeeks, mondayIndex } from "@/lib/analytics/calendar";
+export { calendarWeeks } from "@/lib/analytics/calendar";

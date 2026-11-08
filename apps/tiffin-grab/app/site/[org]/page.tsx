@@ -2,7 +2,6 @@ import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { preload } from "react-dom";
-import { parseIsoDateUtc } from "@foundry/commons";
 import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
 import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
@@ -32,6 +31,7 @@ import "@/components/landing/styles/home.css";
 import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
+import { addDaysIso } from "@/lib/dates";
 
 export async function generateMetadata(): Promise<Metadata> {
   const catalog = await loadCatalogSnapshot();
@@ -49,9 +49,7 @@ export const dynamic = "error";
 const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 function weekRange(weekStart: string) {
-  const end = parseIsoDateUtc(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  return `${formatDateOnly(weekStart, { mode: "short" })} to ${formatDateOnly(end.toISOString().slice(0, 10), { mode: "short" })}`;
+  return `${formatDateOnly(weekStart, { mode: "short" })} to ${formatDateOnly(addDaysIso(weekStart, 6), { mode: "short" })}`;
 }
 
 // Google's rating streams in like the hero line, so the schema waits in Suspense instead of holding the page.

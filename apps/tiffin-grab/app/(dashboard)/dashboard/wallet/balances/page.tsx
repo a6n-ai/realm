@@ -16,6 +16,7 @@ import {
   type BalanceSortColumn,
 } from "@/lib/services/wallet-balances.service";
 import { BalancesTable, BalancesTableSkeleton } from "./balances-table";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -56,7 +57,7 @@ async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withDefaultMonth(await searchParams);
   const [stats, { currency, timezone }] = await Promise.all([walletBalanceStats(epochRange(sp)), getAppSettings()]);
   const range = epochRange(sp);
-  const held = `held on ${formatEpoch(Math.min(range.to, Date.now()), { mode: "date", timeZone: timezone })}`;
+  const held = `held on ${formatEpoch(Math.min(range.to, requestNow()), { mode: "date", timeZone: timezone })}`;
   const cards: StatCardItem[] = [
     { label: "Coins outstanding", value: stats.outstanding.toLocaleString(), icon: CoinsIcon, hint: held },
     { label: "Money value", value: stats.value == null ? "—" : formatMinor(toCents(stats.value), currency), icon: BanknoteIcon, hint: `${held}, at the current rate` },

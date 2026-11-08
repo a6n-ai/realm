@@ -3,6 +3,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteConfig, optimoRouteApiKey } from "./config";
 import { pushDay, type PushResult } from "./push";
 import { pullRoutes, type PullResult } from "./pull";
+import { addDaysIso } from "@/lib/dates";
 
 export type SyncMode = "push" | "pull" | "both";
 
@@ -23,13 +24,7 @@ export type SyncSummary = {
 
 /** Dates to sync: today + 1..daysAhead, in the app's timezone. */
 export function syncDates(todayIso: string, daysAhead: number): string[] {
-  const out: string[] = [];
-  for (let offset = 1; offset <= daysAhead; offset++) {
-    const d = new Date(`${todayIso}T00:00:00.000Z`);
-    d.setUTCDate(d.getUTCDate() + offset);
-    out.push(d.toISOString().slice(0, 10));
-  }
-  return out;
+  return Array.from({ length: Math.max(daysAhead, 0) }, (_, i) => addDaysIso(todayIso, i + 1));
 }
 
 export const MAX_DAYS_AHEAD = 14;

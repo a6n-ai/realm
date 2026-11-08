@@ -2,10 +2,10 @@ import "server-only";
 import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { currentMonthEpochRange, epoch, list } from "../shared-filter-params";
+import { isoDateInZone } from "@/lib/dates";
 
 export type AnalyticsScope = {
   orgIds: "all" | string[];

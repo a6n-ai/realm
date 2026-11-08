@@ -7,7 +7,7 @@
  * Whether a trial converted is decided in SQL by the same "later plan" rule the Renewals desk uses.
  */
 import { ratePct } from "@/lib/money";
-
+import { addDaysIso } from "@/lib/dates";
 
 export const TRIAL_CONVERT_WINDOW_DAYS = 14;
 
@@ -26,11 +26,6 @@ export type TrialConversionStats = {
   conversionRatePct: number | null;
   windowDays: number;
 };
-
-function addDaysIso(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
 
 /** Last calendar day on which a trial can still convert. */
 export function conversionDeadline(endDate: string, windowDays: number): string {

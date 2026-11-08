@@ -5,13 +5,13 @@ import { humanDate } from "@/lib/deliveries-view";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
+import { requestNow } from "@/lib/dates/request-now";
 
 /** Top-bar note: has the next delivery day gone to OptimoRoute? Links to Dispatch. */
 export async function RoutePushBadge() {
   const [{ installed }, { timezone }] = await Promise.all([getOptimoRouteStatus(), getAppSettings()]);
   if (!installed) return null;
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const status = await nextRoutePushStatus(zonedDateIso(Date.now(), timezone));
+  const status = await nextRoutePushStatus(zonedDateIso(requestNow(), timezone));
   if (!status) return null;
 
   const { date, total, pushed } = status;

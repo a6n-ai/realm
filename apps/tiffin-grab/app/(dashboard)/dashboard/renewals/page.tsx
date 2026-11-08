@@ -20,14 +20,14 @@ import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, statu
 import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsExportButton } from "./renewals-export-button";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 async function scope() {
   await requirePermission({ order: ["read"] });
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(await getSession()), getAppSettings()]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  return { visible, timezone, today: zonedDateIso(Date.now(), timezone) };
+  return { visible, timezone, today: zonedDateIso(requestNow(), timezone) };
 }
 
 /** The top range on its chosen date: ISO days in the app timezone for tiffin dates, epoch ms for the order date. */

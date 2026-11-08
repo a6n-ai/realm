@@ -3,7 +3,7 @@ import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
-import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
+import { thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { allowedDishIdsForMealSize, rowPlansForOrder } from "./selections.service";
 import { itemsForRow, rowDietLabel, type RowPlans } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
@@ -13,6 +13,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { carryingTrips } from "./trip-lookup";
 import { fullDayName } from "./coverage";
 import { isContainerCategory } from "./format-tu";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
 
 export type GridCell = {
   day: DayOfWeek;
@@ -35,13 +36,6 @@ export type GridCell = {
 export type GridDish = { id: string; name: string; image: FileDetail | null; ruleId?: string; planId?: string };
 
 export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean; carriedBy?: string | null; lockNote?: string | null };
-
-/** ISO date `days` after `iso` (UTC date math, no timezone). */
-function addDaysIso(iso: string, days: number): string {
-  const d = parseIsoDateUtc(iso);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 export type MealOrder = {
   id: bigint;

@@ -3,9 +3,10 @@
 // the swaps that belong to the day into categoryCounts and pass deliveryId null instead.
 import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
 import { menuService } from "@/lib/services/menu.service";
-import { mondayOfIso, type DayOfWeek } from "@/lib/menu/delivery-dates";
+import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal, type MealResolveCache, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
+import { mondayOfIso } from "@/lib/dates";
 
 /** Swaps of one trip that apply to one eating day; NULL for_date means the trip's own date. */
 export function swapsForDay<T extends { deliveryId: bigint; forDate: string | null }>(

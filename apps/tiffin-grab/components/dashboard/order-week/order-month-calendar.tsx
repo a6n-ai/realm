@@ -7,7 +7,8 @@ import { EventCalendarContent } from "@/components/reui/event-calendar/event-cal
 import { EventCalendarNav } from "@/components/reui/event-calendar/event-calendar-nav";
 import type { CalendarEvent } from "@/components/reui/event-calendar/event-calendar-types";
 import { STATUS_COLOR, type DeliveryStatus } from "@/components/customer/kit";
-import { addDays, dotStatus, type Agenda, type AgendaDot } from "@/lib/deliveries-view/week";
+import { dotStatus, type Agenda, type AgendaDot } from "@/lib/deliveries-view/week";
+import { addDaysIso, isoToLocalDate, localIso } from "@/lib/dates";
 
 // The statuses staff set in the delivery status dropdown, which splits two the customer strip merges:
 // past the cutoff an unconfirmed day is awaiting confirmation, and a driver-failed drop is not an admin hold.
@@ -33,9 +34,6 @@ export function boxStatus(d: AgendaDot, now: number): BoxStatus {
   return s === "upcoming" && d.cutoffAt <= now ? "awaiting" : s;
 }
 
-const local = (iso: string) => new Date(`${iso}T00:00:00`);
-const pad = (n: number) => String(n).padStart(2, "0");
-const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /**
  * The whole plan as a month calendar, the Deliveries tab's only navigator. Read-only on purpose:
@@ -58,8 +56,8 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
           return {
             id: `${date}-${i}`,
             title: CHIP_LABEL[s] ?? BOX_LABEL[s],
-            start: local(date),
-            end: local(addDays(date, 1)),
+            start: isoToLocalDate(date),
+            end: isoToLocalDate(addDaysIso(date, 1)),
             allDay: true,
             color: BOX_COLOR[s],
             readOnly: true,
@@ -79,19 +77,19 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
     <EventCalendar
       events={events}
       selection={selection}
-      defaultDate={local(focus)}
+      defaultDate={isoToLocalDate(focus)}
       views={["month"]}
       weekStartsOn={1}
       defaultInteractions={{ drag: false, resize: false, selectSlot: false }}
       showDayAddButton={false}
-      dayClassName={(day) => (isoOf(day) === selectedDay ? "bg-primary/10 ring-2 ring-inset ring-primary" : undefined)}
+      dayClassName={(day) => (localIso(day) === selectedDay ? "bg-primary/10 ring-2 ring-inset ring-primary" : undefined)}
       onEventClick={(occ) => onPickDay(occ.event.data!.date)}
       // Any day is selectable; one with nothing planned opens the panel's empty state.
-      onSlotClick={(slot) => onPickDay(isoOf(slot.date))}
+      onSlotClick={(slot) => onPickDay(localIso(slot.date))}
       classNames={{ monthCell: "cursor-pointer" }}
       // The chip is the status; the cell's free space under it says whether a truck comes and with how many tiffins.
       renderMonthCell={({ day, defaultContent }) => {
-        const units = (agenda[isoOf(day)] ?? []).filter((d) => d.truck).reduce((n, d) => n + d.units, 0);
+        const units = (agenda[localIso(day)] ?? []).filter((d) => d.truck).reduce((n, d) => n + d.units, 0);
         return units > 0 ? (
           <>
             {defaultContent}

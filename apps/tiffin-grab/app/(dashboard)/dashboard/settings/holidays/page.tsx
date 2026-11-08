@@ -9,6 +9,7 @@ import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/l
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { HolidayDialog } from "./holiday-dialog";
 import { HolidaysTable, HolidaysTableSkeleton, NeedsPlacingTable } from "./holidays-table";
+import { requestNow } from "@/lib/dates/request-now";
 
 export default async function HolidaysPage() {
   await requirePermission({ holiday: ["read"] });
@@ -16,8 +17,7 @@ export default async function HolidaysPage() {
   const [{ timezone }, rows, waiting, organizations] = await Promise.all([
     getAppSettings(), listHolidays(visible), listNeedsPlacing(visible), listDeclarableOrganizations(visible),
   ]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const waitingBy = new Map<string, number>();
   for (const w of waiting) waitingBy.set(w.holidayPublicId, (waitingBy.get(w.holidayPublicId) ?? 0) + 1);
 

@@ -1,7 +1,6 @@
 import { ratePct } from "@/lib/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";

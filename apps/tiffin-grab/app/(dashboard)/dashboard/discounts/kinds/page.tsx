@@ -8,6 +8,7 @@ import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
 import { DiscountStats, DiscountStatsSkeleton, usd } from "../discount-stats";
 import { KindsForm, KindsFormSkeleton } from "./form";
+import { requestNow } from "@/lib/dates/request-now";
 
 const SPEC: FacetDef[] = [
   { kind: "select", field: "status", label: "Status", options: [{ value: "on", label: "Enabled" }, { value: "off", label: "Disabled" }] },
@@ -33,8 +34,7 @@ export default function KindsPage({ searchParams }: { searchParams: SearchParams
 
 async function KindsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withDefaultMonth(await searchParams);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
 
   const [policy, liveByKind, byKind] = await Promise.all([
     getDiscountPolicy(),

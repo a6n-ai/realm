@@ -10,8 +10,9 @@ import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { makeCategoryLook } from "./category-look";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
+import { isoToUtcDate } from "@/lib/dates";
 
-const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
+const at = (iso: string) => isoToUtcDate(iso);
 const WEEKDAY = new Intl.DateTimeFormat("en-CA", { weekday: "long", timeZone: "UTC" });
 const SHORT = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const DATE = new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric", timeZone: "UTC" });

@@ -28,13 +28,14 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
-import { zonedDayStart } from "@/lib/analytics/drill";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
+import { dayRange } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // "none" is New (sub_status is null); the resolver maps it to `is null`.
@@ -225,9 +226,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   ];
 
   const { condition, page } = parseFilterState(spec, sp);
-  const todayIso = zonedDateIso(Date.now(), timezone);
-  const dayStart = zonedDayStart(todayIso, timezone);
-  const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
+  const todayIso = zonedDateIso(requestNow(), timezone);
+  const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
   const [result, counts] = await Promise.all([
     inquiriesService.listForPipeline(
       condition,

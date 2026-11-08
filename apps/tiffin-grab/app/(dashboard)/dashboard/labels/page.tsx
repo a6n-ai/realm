@@ -21,6 +21,7 @@ import { groupKitchenCounts } from "./kitchen-groups";
 import { KitchenCounts, LabelList } from "./labels-view";
 import { GOING_OUT } from "./label-tab";
 import { LabelsTabs } from "./labels-tabs";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -53,8 +54,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const { timezone } = await getAppSettings();
 
   // Default to today in the app timezone, the same clock the rest of the app runs on.
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
   const [sheet, packing, deliveries, closed] = await Promise.all([

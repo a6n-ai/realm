@@ -11,11 +11,12 @@ import { listPayments } from "../payment-queries";
 import { PaymentsTop } from "../payment-kpis";
 import { ReconcileButton } from "./reconcile-dialog";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // Server clock so expiry badges match on first paint (the table is a client component).
-const serverNow = () => Date.now();
+const serverNow = () => requestNow();
 
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (

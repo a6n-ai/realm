@@ -8,7 +8,7 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
-import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
+import { type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel, PAUSE_OR_RESUME_LABEL, RESUME_DAY_LABEL } from "./action-model";
@@ -22,6 +22,7 @@ import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 
@@ -79,7 +80,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, sub, today } = plan;
   const tz = ctx.timezone;
-  const weekEnd = addDays(weekStart, 6);
+  const weekEnd = addDaysIso(weekStart, 6);
 
   const shown = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
   const allRows = useMemo(() => buildEatingDays(trips), [trips]);
@@ -117,12 +118,12 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
     if (window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const goTo = (date: string) => {
-    const mon = mondayOf(date);
+    const mon = mondayOfIso(date);
     if (mon === weekStart) return select(date);
     setSel(date);
     goWeek(mon, { trip: date });
   };
-  const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? select(iso) : goTo(iso));
+  const pickDay = (iso: string) => (mondayOfIso(iso) === weekStart ? select(iso) : goTo(iso));
   // From the pause drawer: go to that paused day (any week) and open Move on it.
   const moveDay = (iso: string) => {
     setPauseOpen(false);

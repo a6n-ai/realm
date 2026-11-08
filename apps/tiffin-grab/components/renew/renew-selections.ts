@@ -1,6 +1,7 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS, FIXED_PERSONS, firstBlockedStep, reconcileSelections, type WizardSelections } from "@/components/wizard/selections";
+import { isWeekendDay } from "@/lib/dates";
 
 export type RenewSource = {
   planKey: string;
@@ -16,7 +17,7 @@ export type RenewSource = {
 function legacyEatingDays(catalog: ClientCatalogSnapshot, src: RenewSource): DayOfWeek[] {
   const weekdays = catalog.frequencies.find((f) => f.key === src.frequencyKey)?.weekdays as DayOfWeek[] | undefined;
   const weekends = catalog.mealSizes.find((m) => m.publicId === src.mealSizePublicId)?.servesWeekends ?? true;
-  const days = (weekdays ?? []).filter((d) => weekends || (d !== "sat" && d !== "sun"));
+  const days = (weekdays ?? []).filter((d) => weekends || (!isWeekendDay(d)));
   return days.length ? days : DEFAULT_EATING_DAYS;
 }
 

@@ -91,12 +91,13 @@ import {
 } from "./wallet.service";
 import { awardReferral, reverseReferral } from "./referrals.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { allowedDaysError, eatingDaysError, orderDeliveryDays, planDaysError, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, planDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { isProduction } from "@/lib/runtime/env";
+import { utcIso } from "@/lib/dates";
 
 const log = createLogger("orders.service");
 
@@ -935,7 +936,7 @@ async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, a
 
   const { timezone, cutoffHour } = await getAppSettings();
   const todayBase = appToday(timezone, cutoffHour);
-  const closed = new Set((await upcomingHolidays(tx, order.organizationId, todayBase.toISOString().slice(0, 10))).keys());
+  const closed = new Set((await upcomingHolidays(tx, order.organizationId, utcIso(todayBase))).keys());
   const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
   const startDate = paidStartDate({
     chosen: order.startDate,
@@ -2423,8 +2424,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
       const deliveryDays = orderDeliveryDays({ ...frequency, includeSaturday: false, includeSunday: false });
       const err = eatingDaysError(deliveryDays, days, { min: minTiffinsPerWeek, max: maxTiffinsPerWeek })
-        ?? weekendDaysError(days, await mealSizeServesWeekends(order.mealSizeId, tx))
-        ?? allowedDaysError(days, await mealSizeAllowedDays(order.mealSizeId, tx));
+        ?? planDaysError({ eatingDays: days, servesWeekends: await mealSizeServesWeekends(order.mealSizeId, tx), allowed: await mealSizeAllowedDays(order.mealSizeId, tx), trial: false });
       if (err) throw new ValidationError(err);
       const trips = planWeek(deliveryDays, days)!;
       const next = trips.flatMap((t) => t.days);

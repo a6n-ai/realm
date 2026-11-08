@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Button, Card, Notice, Pill } from "@/components/customer/kit";
 import { FONT } from "@/components/customer/kit/cn";
 import type { EndedPlan, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 const shortDate = (iso: string) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  formatDateOnly(iso, { mode: "weekdayMd", locale: "en-CA" });
 
 export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted: WaitlistedSubscription[]; ended: EndedPlan | null; cardAvailable?: boolean }) {
   return (

@@ -8,6 +8,7 @@ import { inviteBucket, inviteStats, type InviteBucket } from "../org-stats";
 import { InviteUserButton } from "../members/invite-user-button";
 import { InvitesList, InvitesListSkeleton } from "./invites-list";
 import { getInvitationsForOrgs } from "./invites-query";
+import { requestNow } from "@/lib/dates/request-now";
 
 const ROLES = INVITABLE_ROLES.map((r) => ({ value: r, label: r }));
 
@@ -53,8 +54,7 @@ async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
 
   // better-auth's createInvitation/cancelInvitation require a direct `member`
   // row in the invitation's org, so actions are only offered there.
-  // eslint-disable-next-line react-hooks/purity -- server component: "expired" is relative to the request clock
-  const now = Date.now();
+  const now = requestNow();
   const sp = await searchParams;
   const status = BUCKETS.find((b) => b === sp.status);
   const shown = status ? rows.filter((r) => inviteBucket(r, now) === status) : rows;

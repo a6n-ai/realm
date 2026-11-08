@@ -8,7 +8,6 @@ import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, CalendarHeatmap, GaugeChart, PartsDonut } from "@/components/analytics/charts";
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import {
   getDeliveriesDaily,
   getDeliveryStatusMix,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/services/analytics/operations.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { isoDateInZone } from "@/lib/dates";
 
 const loadStats = cache((scope: AnalyticsScope) => getOperationsStats(scope));
 

@@ -9,9 +9,9 @@ import { describe, expect, it } from "vitest";
 import { zonedDateIso, parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuItems, menuWeeks } from "@/db/schema";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
+import { mondayOfIso } from "@/lib/dates";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 

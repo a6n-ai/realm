@@ -4,14 +4,9 @@
 // Pure / DB-free — shared by client preview and server reschedule so they cannot disagree.
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { DayOfWeek } from "./delivery-days";
+import { addDaysIso } from "@/lib/dates";
 
 const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
-function isoDaysBefore(dateIso: string, n: number): string {
-  const d = parseIsoDateUtc(dateIso);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Carrying trip date for eating day `eatingDateIso`, or null if no delivery weekday
@@ -25,7 +20,7 @@ export function carryTripDateIso(
   const allowed = new Set(deliveryWeekdays);
   if (allowed.size === 0) return null;
   for (let back = 0; back < 7; back++) {
-    const candidate = back === 0 ? eatingDateIso : isoDaysBefore(eatingDateIso, back);
+    const candidate = back === 0 ? eatingDateIso : addDaysIso(eatingDateIso, -back);
     const key = weekdayKey(parseIsoDateUtc(candidate)) as DayOfWeek;
     if (allowed.has(key)) return candidate;
   }

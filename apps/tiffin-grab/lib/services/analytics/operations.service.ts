@@ -2,7 +2,6 @@ import { ratePct } from "@/lib/money";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { dateWhereCalendar, ordersScope, type AnalyticsScope } from "./metrics/scope";
 
 const intCount = sql<number>`cast(count(*) as int)`;

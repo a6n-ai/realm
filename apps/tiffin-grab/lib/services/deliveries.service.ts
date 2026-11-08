@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
-import { allowedDaysError, dayAllowed, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { allowedDaysError, dayAllowed, orderDeliveryDays, planDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
@@ -25,6 +25,7 @@ import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
+import { addDaysIso, isWeekendDay, utcIso } from "@/lib/dates";
 
 const log = createLogger("deliveries.service");
 
@@ -36,15 +37,6 @@ async function assertOrderNotTrial(tx: Tx, orderId: bigint): Promise<void> {
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
-
-const WEEKEND = new Set(["sat", "sun"]);
-
-/** ISO date `n` days before `dateIso` — UTC date math, same style as nextDeliveryDateAfter. */
-function isoDaysBefore(dateIso: string, n: number): string {
-  const d = parseIsoDateUtc(dateIso);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Carries one delivery's applied swaps onto its replacement. Used by reschedule,
@@ -142,7 +134,7 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
     // orderDeliveryDays hardcodes 3 weekdays for "mwf" and 5 otherwise, independent of the
     // frequency row. If an admin edits daysPerWeek, pricing's tiffinCount and the row count
     // silently diverge — refuse to create a subscription whose rows contradict its price.
-    const baseDays = deliveryDays.filter((d) => !WEEKEND.has(d)).length;
+    const baseDays = deliveryDays.filter((d) => !isWeekendDay(d)).length;
     if (baseDays !== freq.daysPerWeek) {
       throw new ValidationError(
         `Frequency "${freq.key}" declares ${freq.daysPerWeek} days/week but resolves to ${baseDays}`,
@@ -157,8 +149,8 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
 
     const rowByDate = new Map<string, Row>();
     for (const d of dates) {
-      if (d.dayOfWeek === "sat" || d.dayOfWeek === "sun") {
-        const fridayIso = isoDaysBefore(d.dateIso, d.dayOfWeek === "sat" ? 1 : 2);
+      if (isWeekendDay(d.dayOfWeek)) {
+        const fridayIso = addDaysIso(d.dateIso, d.dayOfWeek === "sat" ? -1 : -2);
         const friday = rowByDate.get(fridayIso);
         if (friday) {
           friday.tiffinUnits += order.persons;
@@ -602,7 +594,7 @@ export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string
   const d = parseIsoDateUtc(afterIso);
   for (let guard = 0; guard < 30; guard++) {
     d.setUTCDate(d.getUTCDate() + 1);
-    if (deliveryDays.has(weekdayKey(d))) return d.toISOString().slice(0, 10);
+    if (deliveryDays.has(weekdayKey(d))) return utcIso(d);
   }
   throw new ValidationError("Could not find a make-up slot within 30 days");
 }
@@ -896,10 +888,10 @@ export async function shiftMissedDeliveries(
   if (missed.length === 0) return [];
 
   const planDays = await planDaySet(tx, order);
-  const weekdays = new Set([...planDays].filter((d) => d !== "sat" && d !== "sun"));
+  const weekdays = new Set([...planDays].filter((d) => !isWeekendDay(d)));
   const yesterday = parseIsoDateUtc(today);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const floor = yesterday.toISOString().slice(0, 10);
+  const floor = utcIso(yesterday);
 
   const stops: OptimoSyncedRow[] = [];
   for (const row of missed) {
@@ -1004,18 +996,19 @@ export async function rescheduleDelivery(
     }));
     // Trip weekdays never include sat/sun — weekend food always rides Friday (one rule
     // for legacy weekend add-ons and eating_days orders).
-    const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
+    const deliveryWeekdays = [...deliveryDays].filter((d) => !isWeekendDay(d)) as DayOfWeek[];
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
-    const weekendErr = weekendDaysError([weekdayKey(parseIsoDateUtc(eatingDateIso)) as DayOfWeek], await mealSizeServesWeekends(order.mealSizeId, tx));
-    if (weekendErr) throw new ValidationError(weekendErr);
     // A size made only on some days: neither the eating day nor the day it rides may fall outside them (the
     // second matters for an old order whose frequency doesn't fit).
-    const allowedErr = allowedDaysError(
-      [weekdayKey(parseIsoDateUtc(eatingDateIso)), weekdayKey(parseIsoDateUtc(carriedOn))] as DayOfWeek[],
-      await mealSizeAllowedDays(order.mealSizeId, tx),
-    );
-    if (allowedErr) throw new ValidationError(allowedErr);
+    const allowed = await mealSizeAllowedDays(order.mealSizeId, tx);
+    const daysErr = planDaysError({
+      eatingDays: [weekdayKey(parseIsoDateUtc(eatingDateIso)) as DayOfWeek],
+      servesWeekends: await mealSizeServesWeekends(order.mealSizeId, tx),
+      allowed,
+      trial: false,
+    }) ?? allowedDaysError([weekdayKey(parseIsoDateUtc(carriedOn)) as DayOfWeek], allowed);
+    if (daysErr) throw new ValidationError(daysErr);
 
     const today = zonedDateIso(Date.now(), timezone);
     if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
@@ -1185,7 +1178,7 @@ export async function redeliverTrip(
       } catch {
         break;
       }
-      if (WEEKEND.has(weekdayKey(parseIsoDateUtc(cursor)))) continue;
+      if (isWeekendDay(weekdayKey(parseIsoDateUtc(cursor)))) continue;
       if (await holidayForOrderDate(tx, orderId, cursor)) continue;
       const cutoff = cutoffMsFor(cursor, cutoffHour, timezone);
       if (cursor < today || Date.now() > cutoff) continue;
@@ -1250,7 +1243,7 @@ export async function grantComplimentaryTiffin(
     const day = weekdayKey(parseIsoDateUtc(input.date));
     const allowedErr = allowedDaysError([day as DayOfWeek], await mealSizeAllowedDays(order.mealSizeId, tx));
     if (allowedErr) throw new ValidationError(allowedErr);
-    if (WEEKEND.has(day) || !(await planDaySet(tx, order)).has(day)) {
+    if (isWeekendDay(day) || !(await planDaySet(tx, order)).has(day)) {
       throw new ValidationError("Pick one of this plan's delivery days");
     }
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);

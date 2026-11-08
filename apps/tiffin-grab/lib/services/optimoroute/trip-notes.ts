@@ -6,8 +6,8 @@ import { coveredDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import type { DayDeliveryRow } from "@/lib/services/daily-labels.service";
+import { DAY_NAMES } from "@/lib/dates";
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const dayName = (iso: string) => DAY_NAMES[parseIsoDateUtc(iso).getUTCDay()]!;
 
 export type TripDetail = {

@@ -7,6 +7,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/start-date";
 import type { PricingResult } from "@/lib/pricing";
 import type { QuickRenewData } from "./types";
+import { utcIso } from "@/lib/dates";
 
 export type QuickRenewProps = QuickRenewData & {
   submitLabel: string;
@@ -30,7 +31,7 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
   const freq = catalog.frequencies.find((f) => f.key === sel.frequencyKey);
   const allowed = planStartDays(plan?.allowedStartDays, freq?.weekdays);
   const today = appToday(catalog.timezone, catalog.cutoffHour);
-  const tomorrow = nextWeekday(today).toISOString().slice(0, 10);
+  const tomorrow = utcIso(nextWeekday(today));
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
   const earliest = firstStartOnOrAfter(minDate, allowed, closed);

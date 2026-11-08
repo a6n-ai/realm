@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@foundry/ui/dialog";
 import { OrderStatusBadge } from "@/components/ds";
-import { formatEpoch } from "@/lib/format/datetime";
+import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
@@ -73,7 +73,7 @@ const isPaid = (s: PayStatus) => s === "paid" || s === "simulated_paid";
 // Date-only strings: format in UTC so the day never shifts with the viewer's zone.
 function planRange(start: string, last: string | null): string {
   const d = (v: string, year: boolean) =>
-    new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", ...(year ? { year: "numeric" } : {}) }).format(new Date(`${v}T00:00:00Z`));
+    formatDateOnly(v, { mode: year ? "long" : "short" });
   if (!last || last === start) return d(start, true);
   return `${d(start, start.slice(0, 4) !== last.slice(0, 4))} – ${d(last, true)}`;
 }

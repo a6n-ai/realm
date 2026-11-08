@@ -1,6 +1,6 @@
-import { parseIsoDateUtc } from "@foundry/commons";
 import type { MealSlot } from "./meal-types";
 import { DAYS, type PosterItem } from "./poster";
+import { addDaysIso } from "@/lib/dates";
 
 /** What this customer has on a menu day, from their own delivery rows. */
 export type MyDay = "pick" | "locked" | "delivered" | "paused" | "hold" | null;
@@ -62,11 +62,7 @@ export function nonVegDishes(items: PosterItem[]): Set<string> {
 }
 
 /** First menu week counted for Popular: the 12 weeks before `weekStart`. */
-export function popularSince(weekStart: string): string {
-  const d = parseIsoDateUtc(weekStart);
-  d.setUTCDate(d.getUTCDate() - 84);
-  return d.toISOString().slice(0, 10);
-}
+export const popularSince = (weekStart: string) => addDaysIso(weekStart, -84);
 
 /** Pick counts keyed by stored dish name, folded onto the plain name the menu shows ("Dal (Veg)" + "Dal (Non-Veg)" = "Dal"). */
 export function foldPicks(byStoredName: Record<string, number>): Record<string, number> {
@@ -88,13 +84,7 @@ export function planOf(deliveries: DeliveryRow[]): string | null {
   return plans.size === 1 ? [...plans][0]! : null;
 }
 
-const isoPlus = (weekStart: string, days: number) => {
-  const d = parseIsoDateUtc(weekStart);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-
-export const weekEnd = (weekStart: string) => isoPlus(weekStart, 6);
+export const weekEnd = (weekStart: string) => addDaysIso(weekStart, 6);
 
 function mine(rows: DeliveryRow[], date: string, today: string, nowMs: number): MyDay {
   const live = rows.filter((r) => r.status === "scheduled");
@@ -126,7 +116,7 @@ export function buildCustomerWeek(
   const popular = popularThisWeek(week.items, picks);
   const color = (name: string) => (servedBy.get(name) ?? []).find((it) => isNonVeg(it.planName) === nonVeg(name) && it.planColor)?.planColor ?? undefined;
   return DAYS.map((day, i) => {
-    const date = isoPlus(week.weekStart, i);
+    const date = addDaysIso(week.weekStart, i);
     const items = week.items
       .filter((it) => it.dayOfWeek === day && (!plan || it.planName === plan))
       .sort((a, b) => a.position - b.position);

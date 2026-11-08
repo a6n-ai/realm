@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange, calendarDaysBetween } from "../datetime";
+import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange } from "../datetime";
 
 const ms = Date.UTC(2026, 5, 22, 18, 30, 0); // 2026-06-22T18:30:00Z
 
@@ -98,13 +98,5 @@ describe("formatEpoch requires a timeZone for absolute modes", () => {
     expect(typeof noOpts).toBe("function");
     expect(typeof noTimeZone).toBe("function");
     expect(typeof noTimeZoneDefaultMode).toBe("function");
-  });
-});
-
-describe("calendarDaysBetween", () => {
-  it("counts days from today to the last tiffin date", () => {
-    expect(calendarDaysBetween("2026-08-19", "2026-09-02")).toBe(14);
-    expect(calendarDaysBetween("2026-08-19", "2026-08-19")).toBe(0);
-    expect(calendarDaysBetween("2026-08-19", "2026-08-18")).toBe(-1);
   });
 });

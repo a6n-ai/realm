@@ -6,11 +6,10 @@ import { IconButton } from "../../kit/icon-button";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { humanDate } from "@/lib/deliveries-view";
 import type { PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
+import { utcIso } from "@/lib/dates";
 
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
  * One grid per month the days span, Monday first; the leading blanks line day 1 up under its
@@ -25,7 +24,7 @@ function months(dates: string[]): { key: string; label: string; cells: (string |
     const count = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
     const lead = (first.getUTCDay() + 6) % 7;
     const cells: (string | null)[] = Array(lead).fill(null);
-    for (let i = 0; i < count; i++) cells.push(iso(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), i + 1))));
+    for (let i = 0; i < count; i++) cells.push(utcIso(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), i + 1))));
     while (cells.length % 7) cells.push(null);
     const rows = Array.from({ length: cells.length / 7 }, (_, r) => cells.slice(r * 7, r * 7 + 7));
     const used = rows.map((row) => row.some((d) => d != null && has.has(d)));

@@ -7,6 +7,8 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuWeekRow, MenuWeekRowsSkeleton } from "./menu-history-card";
 import { NewWeekButton } from "./new-week-card";
+import { addDaysIso, todayInZone } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 /**
  * Index only: pick a week, or start one. Building a week happens at
@@ -34,15 +36,6 @@ export default function MenusPage() {
   );
 }
 
-/**
- * Reading the clock is per-request server state, not render state. react-hooks/purity
- * cannot tell the difference, and this route is dynamic (requireAdmin reads headers), so
- * it renders once per request and "which week is current" is genuinely a function of now.
- */
-function todayIn(timezone: string): string {
-  return zonedDateIso(Date.now(), timezone);
-}
-
 async function MenusData() {
   await requireAdmin();
 
@@ -51,12 +44,7 @@ async function MenusData() {
     menuService.listWeekMenus(),
   ]);
 
-  const today = todayIn(appSettings.timezone);
-  const addDaysIso = (iso: string, n: number) => {
-    const d = new Date(`${iso}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
+  const today = todayInZone(appSettings.timezone, requestNow());
   const currentId = weeks.find((w) => w.weekStart <= today && today <= addDaysIso(w.weekStart, 6))?.publicId;
   const futureStarts = weeks.filter((w) => w.weekStart > today).map((w) => w.weekStart).sort();
   const upcomingId = futureStarts.length ? weeks.find((w) => w.weekStart === futureStarts[0])?.publicId : undefined;

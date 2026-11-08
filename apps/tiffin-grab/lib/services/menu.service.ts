@@ -4,13 +4,13 @@ import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
+import { mondayOfIso } from "@/lib/dates";
 
 const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id));
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));

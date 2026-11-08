@@ -12,6 +12,7 @@ import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE, MOVED_AWAY } from "./pause-state";
+import { isRealDate } from "@/lib/dates";
 
 const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");
@@ -43,10 +44,7 @@ function cleanName(raw: string): string {
 }
 
 function assertRealDate(date: string): void {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
-    throw new ValidationError("Pick a date");
-  }
+  if (!isRealDate(date)) throw new ValidationError("Pick a date");
 }
 
 async function assertOrgVisible(organizationId: string, visible: Visible): Promise<void> {

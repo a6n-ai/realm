@@ -17,6 +17,7 @@ import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { requestNow } from "@/lib/dates/request-now";
 
 const SORT_COL = {
   time: walletLedger.createdAt,
@@ -81,7 +82,7 @@ export async function walletLedgerStats(range: { from: number; to: number } = { 
     // Lapsed holds never spent anything, so they are not earned, not
     // spent, and not entries — same rule walletService.balance() applies.
     .from(walletLedger)
-    .where(and(unexpired(walletLedger, Date.now()), gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)));
+    .where(and(unexpired(walletLedger, requestNow()), gte(walletLedger.createdAt, range.from), lte(walletLedger.createdAt, range.to)));
 
   return { agg };
 }
@@ -115,7 +116,7 @@ export async function walletLedgerRows({ q, userId, sourceType, direction, range
       )
     : undefined;
   const where = and(
-    unexpired(walletLedger, Date.now()),
+    unexpired(walletLedger, requestNow()),
     search,
     userId ? eq(walletLedger.userId, userId) : undefined,
     sourceType ? eq(walletLedger.sourceType, sourceType) : undefined,

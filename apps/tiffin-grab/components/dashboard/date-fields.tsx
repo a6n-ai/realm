@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { TimePicker } from "@/components/reui/time-picker";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { isoToLocalDate, localIso } from "@/lib/dates";
 
 // Phones keep the native control: its OS sheet beats any popover at that size. Desktop
 // gets the ReUI/shadcn pickers. Every field speaks the same string the native input does
@@ -26,9 +27,7 @@ type FieldProps = {
   "aria-label"?: string;
 };
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const fromIso = (iso?: string) => (iso ? new Date(`${iso}T00:00:00`) : undefined);
+const fromIso = (iso?: string) => (iso ? isoToLocalDate(iso) : undefined);
 
 function NativeInput({ type, value, onChange, id, disabled, className, min, max, title, ...rest }: FieldProps & {
   type: "date" | "time" | "datetime-local" | "month";
@@ -75,7 +74,7 @@ export function DateInput({
           defaultMonth={selected ?? fromIso(min)}
           disabled={disabledDays}
           onSelect={(d) => {
-            if (d) onChange(toIso(d));
+            if (d) onChange(localIso(d));
             setOpen(false);
           }}
           autoFocus
@@ -166,7 +165,7 @@ export function MonthInput({ value, onChange, id, disabled, className, placehold
             <Button
               key={label} type="button" size="sm"
               variant={value && year === y && i + 1 === m ? "default" : "ghost"}
-              onClick={() => { onChange(`${year}-${pad(i + 1)}`); setOpen(false); }}
+              onClick={() => { onChange(`${year}-${String(i + 1).padStart(2, "0")}`); setOpen(false); }}
             >
               {label}
             </Button>

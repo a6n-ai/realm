@@ -10,6 +10,7 @@ import { Sheet } from "./sheet";
 import { Segmented } from "./tabs";
 import { cn, FONT } from "./cn";
 import { useSwipePages } from "./use-swipe-pages";
+import { isoToUtcDate } from "@/lib/dates";
 
 const monthOf = (iso: string) => iso.slice(0, 7);
 const shift = (month: string, n: number) => {
@@ -105,7 +106,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
             onClick={() => setJump(!jump)}
             className="flex min-h-11 items-center gap-1 rounded-full px-3 text-subhead font-semibold transition-colors hover:bg-muted"
           >
-            {TITLE.format(new Date(`${month}-01T00:00:00Z`))}
+            {TITLE.format(isoToUtcDate(`${month}-01`))}
             <ChevronDown aria-hidden className={cn("size-4 text-muted-foreground transition-transform duration-200", jump && "rotate-180")} />
           </button>
           <IconButton

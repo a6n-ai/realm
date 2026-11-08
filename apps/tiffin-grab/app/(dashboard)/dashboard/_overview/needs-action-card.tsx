@@ -7,16 +7,16 @@ import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
 import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service";
 import { menuService } from "@/lib/services/menu.service";
-import { addDays, mondayOf } from "@/lib/deliveries-view/week";
-import { dateTimeFormat } from "@/lib/intl/date-format";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 /** `bare`: show the label alone (a yes/no item, not a count). */
 type Line = { key: string; icon: LucideIcon; count: number | null; label: string; sub: string; action: React.ReactNode; bare?: boolean };
 
 const dayLabel = (iso: string) =>
-  dateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+  formatDateOnly(iso, { mode: "weekdayMd" });
 
 const go = (href: string, text: string) => (
   <Button asChild size="sm" variant="outline">
@@ -63,7 +63,7 @@ export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { vi
   }
   // Next week's menu must be released before customers can pick; menu pages are admin-only.
   if (isAdmin) {
-    const nextMonday = addDays(mondayOf(today), 7);
+    const nextMonday = addDaysIso(mondayOfIso(today), 7);
     const week = (await menuService.listWeeks()).find((w) => w.weekStart === nextMonday);
     const released = week?.status === "released";
     lines.push({

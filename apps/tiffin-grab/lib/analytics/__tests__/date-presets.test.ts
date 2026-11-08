@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activePreset, DATE_PRESETS, presetRange } from "../date-presets";
-import { zonedDayStart } from "../drill";
+import { zonedDayStart } from "@/lib/dates";
 
 const TZ = "America/Toronto";
 

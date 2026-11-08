@@ -1,3 +1,4 @@
+import { isWeekendDay } from "@/lib/dates";
 export type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 const FIVE_DAY: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
@@ -60,7 +61,7 @@ export const NO_WEEKEND_DISH = "This meal has no weekend dish, so it can't be ea
 
 /** Sat/Sun are only for meal sizes holding a weekend-dish category (Catalog → Dish categories). */
 export function weekendDaysError(days: readonly DayOfWeek[], servesWeekends: boolean): string | null {
-  return !servesWeekends && days.some((d) => d === "sat" || d === "sun") ? NO_WEEKEND_DISH : null;
+  return !servesWeekends && days.some((d) => isWeekendDay(d)) ? NO_WEEKEND_DISH : null;
 }
 
 const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };

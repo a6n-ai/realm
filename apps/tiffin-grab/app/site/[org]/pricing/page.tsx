@@ -23,6 +23,7 @@ import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { isWeekendDay } from "@/lib/dates";
 
 // Plans live on this page too (/plans redirects here), so the copy names both.
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,7 +77,7 @@ export default async function PricingPage() {
       id: m.publicId,
       name: dashless(m.name),
       rate: effectivePrice(m.basePrice, m),
-      days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (d !== "sat" && d !== "sun")),
+      days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
     })),
   }));
   const maxPct = catalog.maxDiscountPct ?? 25;
@@ -139,7 +140,7 @@ export default async function PricingPage() {
             id: m.publicId,
             name: dashless(m.name),
             rate: effectivePrice(m.basePrice, m),
-            days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (d !== "sat" && d !== "sun")),
+            days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
             parts: m.components,
             kcalMin: m.kcalMin,
             kcalMax: m.kcalMax,

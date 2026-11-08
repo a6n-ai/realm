@@ -11,6 +11,7 @@ import { getAppSettings } from "./app-settings.service";
 import { holidayForOrderDate } from "./holiday-dates";
 import { orderDeliveryDaySet, rescheduleDelivery, type Tx } from "./deliveries.service";
 import { MOVED_AWAY, isLapsedPause, lapsedPauseDates, type Reader } from "./pause-state";
+import { isWeekendDay, utcIso } from "@/lib/dates";
 
 const log = createLogger("pause-auto-move");
 
@@ -37,7 +38,7 @@ export async function nextEndOfPlanDate(
   for (let guard = 0; guard < 400; guard++) {
     d.setUTCDate(d.getUTCDate() + 1);
     if (!eatingDays.has(weekdayKey(d))) continue;
-    const eat = d.toISOString().slice(0, 10);
+    const eat = utcIso(d);
     const trip = tripFor(eat);
     if (trip && isOpen(trip) && !(await isBlocked(eat, trip))) return eat;
   }
@@ -57,7 +58,7 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
   // A legacy plan without eating_days eats on its delivery days (weekend add-ons included).
   const eating = new Set<string>(order.eatingDays?.length ? order.eatingDays : deliveryDays);
   // Weekend food rides Friday: a trip is always a weekday.
-  const trips = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
+  const trips = [...deliveryDays].filter((d) => !isWeekendDay(d)) as DayOfWeek[];
   const live = and(inArray(deliveries.status, ["scheduled", "paused"]), isNull(deliveries.mergedIntoDeliveryId));
   const own = eatDates(await db.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries).where(and(eq(deliveries.orderId, orderId), live)));

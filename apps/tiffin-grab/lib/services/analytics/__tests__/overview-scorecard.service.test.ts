@@ -7,7 +7,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, mealSizes, orders, organization, payments, plans, tickets, users } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
-const { isoDateInZone } = await import("@/lib/analytics/profitability");
+const { isoDateInZone } = await import("@/lib/dates");
 const { getDailyScorecard, SCORECARD_MAX_DAYS } = await import("../overview.service");
 const { getRevenueReport } = await import("../revenue.service");
 const { getProfitabilityReport } = await import("../profitability.service");

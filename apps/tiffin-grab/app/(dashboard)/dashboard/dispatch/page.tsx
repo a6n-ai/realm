@@ -15,6 +15,7 @@ import { DayHeader } from "./day-header";
 import { DispatchTabs } from "./dispatch-tabs";
 import { LedgerTable } from "./ledger-table";
 import { DayActions } from "./day-actions";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -43,8 +44,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   const { date: dateParam } = await searchParams;
   const [{ timezone }, status] = await Promise.all([getAppSettings(), getOptimoRouteStatus()]);
 
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
   const closed = await holidaysOn(date, await resolveSessionVisibleOrgIds(await getSession()));
 

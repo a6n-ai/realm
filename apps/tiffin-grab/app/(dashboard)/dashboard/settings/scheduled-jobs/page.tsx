@@ -6,12 +6,12 @@ import { CRON_JOBS } from "@/lib/cron/jobs";
 import { recentCronRuns } from "@/lib/cron/run";
 import { formatEpoch } from "@/lib/format/datetime";
 import { RunStatus, scheduleLabel } from "./run-parts";
+import { requestNow } from "@/lib/dates/request-now";
 
 export default async function ScheduledJobsPage() {
   const { timezone } = await getAppSettings();
   const runs = await recentCronRuns(CRON_JOBS.map((j) => j.key), 1);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
 
   return (
     <div className="grid gap-6">

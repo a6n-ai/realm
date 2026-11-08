@@ -3,16 +3,17 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
-import { addDays, mondayOf, weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
+import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { ARROW, Legend } from "./week-timeline";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const WD = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
-const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
+const at = (iso: string) => isoToUtcDate(iso);
 
 interface Props {
   firstWeek: string;
@@ -39,12 +40,12 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
   }
   const { trips, dayStatus } = weekTimeline(agenda, week, now);
   const isos = weekDays(week);
-  const thisWeek = mondayOf(today);
+  const thisWeek = mondayOfIso(today);
   const arrives = new Map(trips.map((t) => [t.day, t.units]));
   const canPrev = week > firstWeek;
   const canNext = week < lastWeek;
   const { ref: grid, bind, go: swipe } = useSwipePages({ page: week, canPrev, canNext, step: (dir) => {
-    const next = addDays(week, 7 * dir);
+    const next = addDaysIso(week, 7 * dir);
     setWeek(next);
     onWeek(next);
   } });
@@ -53,7 +54,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
     <section aria-label="Delivery week" data-testid="week-timeline" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
-          {MON.format(at(week))} – {MON.format(at(addDays(week, 6)))}{week === thisWeek ? " · This week" : ""}
+          {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
           <Legend />

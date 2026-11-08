@@ -22,6 +22,7 @@ import { renewPageMode } from "@/components/renew/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
 import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
+import { utcIso } from "@/lib/dates";
 
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
@@ -74,7 +75,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   ]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
-  const holidayDates = await checkoutHolidayDates(today.toISOString().slice(0, 10));
+  const holidayDates = await checkoutHolidayDates(utcIso(today));
   const mealSizePublicId = lastOrder
     ? catalog.mealSizes.find((m) => m.id === lastOrder.mealSizeId)?.publicId
     : undefined;

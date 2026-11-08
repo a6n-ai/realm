@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
-import { parseIsoDateUtc } from "@foundry/commons";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
@@ -17,13 +16,12 @@ import { MenuBuilder, MenuBuilderSkeleton } from "../menu-builder";
 import { MenuReminderButton } from "./menu-reminder-button";
 import { menuSidesService } from "@/lib/services/menu-sides.service";
 import type { Slot } from "../menu-grid";
+import { addDaysIso } from "@/lib/dates";
 
 type Params = Promise<{ week: string }>;
 
 function weekRange(weekStart: string): string {
-  const end = parseIsoDateUtc(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(end.toISOString().slice(0, 10), { mode: "short" })}`;
+  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(addDaysIso(weekStart, 6), { mode: "short" })}`;
 }
 
 export default function MenuWeekPage({ params }: { params: Params }) {

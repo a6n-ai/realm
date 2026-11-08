@@ -29,6 +29,7 @@ import {
 } from "@/components/dashboard/dashboard-frame";
 import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { geistSansAdmin } from "./admin-font";
+import { requestNow } from "@/lib/dates/request-now";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this just stops Next from wastefully rendering all
@@ -101,8 +102,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const hasRepAllowance = repAllowanceFor(await getDiscountPolicy(), session.user.id) != null;
   const loadRepCoupon = async (): Promise<RepCouponToday | null> => {
     if (!hasRepAllowance) return null;
-    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-    const istDate = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    const istDate = zonedDateIso(requestNow(), (await getAppSettings()).timezone);
     return couponsService.getTodayRepCoupon(session.user.id, istDate);
   };
 

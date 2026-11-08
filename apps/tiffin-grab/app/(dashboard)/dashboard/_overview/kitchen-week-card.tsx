@@ -2,12 +2,12 @@ import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { addDays } from "@/lib/deliveries-view/week";
-import { dateTimeFormat } from "@/lib/intl/date-format";
 import { getKitchenWeek, getKitchenWeekDishes } from "@/lib/services/overview.service";
 import { KitchenWeekView } from "./kitchen-week-view";
+import { addDaysIso } from "@/lib/dates";
+import { formatDateOnly } from "@/lib/format/datetime";
 
-const md = (iso: string) => dateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+const md = (iso: string) => formatDateOnly(iso, { mode: "short" });
 
 /**
  * The week at a glance for the kitchen: tiffins per meal plan, and (all-scope users) containers per
@@ -19,7 +19,7 @@ export async function KitchenWeekCard({ visible, monday, thisMonday, today, sees
   const arrows = (
     <div className="flex items-center gap-1">
       <Button asChild size="icon-sm" variant="outline">
-        <Link href={href(addDays(monday, -7))} aria-label="Previous week" scroll={false}>
+        <Link href={href(addDaysIso(monday, -7))} aria-label="Previous week" scroll={false}>
           <ChevronLeftIcon />
         </Link>
       </Button>
@@ -29,19 +29,19 @@ export async function KitchenWeekCard({ visible, monday, thisMonday, today, sees
         </Button>
       ) : null}
       <Button asChild size="icon-sm" variant="outline">
-        <Link href={href(addDays(monday, 7))} aria-label="Next week" scroll={false}>
+        <Link href={href(addDaysIso(monday, 7))} aria-label="Next week" scroll={false}>
           <ChevronRightIcon />
         </Link>
       </Button>
     </div>
   );
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const dates = Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i));
   // Open on today when it is in this week and has something to cook, else the first day that does.
   const cooking = dishes?.filter((d) => d.counts.length > 0).map((d) => d.date) ?? [];
   const defaultDay = cooking.includes(today) ? today : (cooking[0] ?? dates[0]!);
   return (
     <div id="kitchen-week">
-      <ChartCard title="Kitchen week" subtitle={`${md(monday)} to ${md(addDays(monday, 6))}, what the kitchen cooks each day`} action={arrows} fill={false}>
+      <ChartCard title="Kitchen week" subtitle={`${md(monday)} to ${md(addDaysIso(monday, 6))}, what the kitchen cooks each day`} action={arrows} fill={false}>
         <KitchenWeekView plans={plans} dishes={dishes} dates={dates} defaultDay={defaultDay} />
       </ChartCard>
     </div>

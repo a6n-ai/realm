@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
@@ -15,17 +14,13 @@ import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStat
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
-import {
-  currentMonth,
-  isoDateInZone,
-  navScope,
-  type Grain,
-  type ProfitabilityKpis,
-} from "@/lib/analytics/profitability";
+import { currentMonth, navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
 import { ManualRefresh } from "@/components/analytics/manual-refresh";
 import { AssumptionChips } from "./assumption-chips";
 import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
+import { isoDateInZone } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -135,7 +130,7 @@ async function Headline({ view }: { view: View }) {
     <HeadlineCards
       kpis={report.kpis}
       range={`${report.from} to ${report.to}`}
-      toDate={report.to > isoDateInZone(Date.now(), view.scope.tz)}
+      toDate={report.to > isoDateInZone(requestNow(), view.scope.tz)}
       cashHref={paymentsHref(view.scope, { statuses: SETTLED_STATUSES, basis: "money" })}
     />
   );

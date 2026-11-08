@@ -11,6 +11,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getHolidayDetail, listNeedsPlacing } from "@/lib/services/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { ClosedDaysTable, NeedsPlacingTable } from "../holidays-table";
+import { requestNow } from "@/lib/dates/request-now";
 
 export default async function HolidayPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ holiday: ["read"] });
@@ -25,8 +26,7 @@ export default async function HolidayPage({ params }: { params: Promise<{ id: st
     throw e;
   }
   const { holiday, rows, stats } = detail;
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const when = holiday.date > today ? "Upcoming" : holiday.date === today ? "Today" : "Past";
   const mine = waiting.filter((w) => w.holidayPublicId === holiday.publicId);
 

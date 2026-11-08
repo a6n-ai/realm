@@ -1,16 +1,16 @@
 import { ChartCard } from "@/components/analytics/chart-card";
 import { TickBar } from "@/components/analytics/tick-bar";
 import { Badge } from "@/components/reui/badge";
-import { dateTimeFormat } from "@/lib/intl/date-format";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
 import { getDriverLanes } from "@/lib/services/overview.service";
 import { PushDayButton } from "./push-day-button";
 import { FooterLink } from "./footer-link";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 const TICKS = 50;
 const dayLabel = (iso: string) =>
-  dateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T12:00:00Z`));
+  formatDateOnly(iso, { mode: "weekdayMd" });
 
 /** Next delivery day and how much of it is on OptimoRoute. Hidden when OptimoRoute is not installed. */
 export async function RouteCard({ today }: { today: string }) {

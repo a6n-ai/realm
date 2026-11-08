@@ -23,7 +23,6 @@ import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { dropOffTexts } from "@/lib/services/address-drop-off.service";
 import { menuService } from "@/lib/services/menu.service";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/services/delivery-extras";
 import { packLines } from "@/lib/menu/packing-requirement";
@@ -33,6 +32,7 @@ import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { withConcurrency } from "@/lib/concurrency";
+import { DAY_NAMES, mondayOfIso } from "@/lib/dates";
 
 // Under the pool size (10) so the other loaders on the labels page still get connections.
 const ROW_CONCURRENCY = 6;
@@ -150,8 +150,6 @@ const EMPTY = (date: string, weekStart: string): DailyLabelSheet => ({
 });
 
 const UNZONED = "Unzoned";
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export type DayDeliveryRow = {
   delivery: typeof deliveries.$inferSelect;
   order: typeof orders.$inferSelect;

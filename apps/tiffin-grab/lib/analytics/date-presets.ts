@@ -1,5 +1,6 @@
 import { zonedRangeMs } from "@/lib/analytics/drill";
-import { addMonths, currentMonth, isoDateInZone, monthBounds } from "@/lib/analytics/profitability";
+import { addMonths, currentMonth, monthBounds } from "@/lib/analytics/profitability";
+import { addDaysIso, isoDateInZone } from "@/lib/dates";
 
 export const DATE_PRESETS = [
   { key: "this-month", label: "This month" },
@@ -9,11 +10,6 @@ export const DATE_PRESETS = [
 ] as const;
 
 export type DatePresetKey = (typeof DATE_PRESETS)[number]["key"];
-
-const shiftIso = (iso: string, days: number): string => {
-  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-};
 
 /** Inclusive epoch-ms window for a preset, on calendar days of `timeZone`. */
 export function presetRange(key: DatePresetKey, timeZone: string, now = Date.now()): { from: number; to: number } {
@@ -28,9 +24,9 @@ export function presetRange(key: DatePresetKey, timeZone: string, now = Date.now
       return zonedRangeMs(b.from, b.to, timeZone);
     }
     case "last-7":
-      return zonedRangeMs(shiftIso(today, -6), today, timeZone);
+      return zonedRangeMs(addDaysIso(today, -6), today, timeZone);
     case "last-30":
-      return zonedRangeMs(shiftIso(today, -29), today, timeZone);
+      return zonedRangeMs(addDaysIso(today, -29), today, timeZone);
   }
 }
 

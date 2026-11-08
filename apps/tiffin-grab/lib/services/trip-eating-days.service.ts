@@ -15,7 +15,6 @@ import {
   plans,
 } from "@/db/schema";
 import { coveredDates } from "@/lib/menu/coverage";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
@@ -24,6 +23,7 @@ import {
 import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { menuService } from "@/lib/services/menu.service";
+import { isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
 export type TripEatingDayMeal = ResolvedCategory[];
 
@@ -138,7 +138,7 @@ export async function loadTripEatingDays(
   for (const trip of trips) {
     const eatingDays: TripEatingDay[] = [];
     for (const eatingDate of coveredDates(trip)) {
-      const weekday = weekdayKey(new Date(`${eatingDate}T00:00:00Z`)) as DayOfWeek;
+      const weekday = weekdayKey(isoToUtcDate(eatingDate)) as DayOfWeek;
       const week = weekByStart.get(mondayOfIso(eatingDate));
       const appliedSwaps = swapRows
         .filter((s) => {

@@ -2,7 +2,7 @@ import { round2 } from "@foundry/discounts";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";
-import { eachDateInclusive, isoDateInZone, periodKey } from "@/lib/analytics/profitability";
+import { periodKey } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
 import {
@@ -23,6 +23,7 @@ import {
 } from "@/lib/analytics/revenue-cohorts";
 import { SETTLED, freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { eachDate, isoDateInZone } from "@/lib/dates";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
 
@@ -79,7 +80,7 @@ export async function getRevenueReport(scope: AnalyticsScope, now = Date.now()):
 
   const buckets = new Map<string, { netSales: number; collected: number }>();
   const shown = clampToToday({ from, to }, scope.tz, now);
-  for (const day of shown ? eachDateInclusive(shown.from, shown.to) : []) buckets.set(periodKey(day, grain), { netSales: 0, collected: 0 });
+  for (const day of shown ? eachDate(shown.from, shown.to) : []) buckets.set(periodKey(day, grain), { netSales: 0, collected: 0 });
   for (const d of days) {
     const b = buckets.get(periodKey(d.key, grain));
     if (!b) continue;

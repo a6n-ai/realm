@@ -4,14 +4,15 @@ import { Popover } from "radix-ui";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { TripTimeline } from "@/components/wizard/trip-timeline";
-import { addDays, mondayOf, weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
+import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
-const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
+const at = (iso: string) => isoToUtcDate(iso);
 /** Bare chevron, 44px hit area, no circle or outline. */
 export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-foreground disabled:opacity-30 [touch-action:manipulation]");
 const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "paused", "holiday"];
@@ -37,18 +38,18 @@ interface Props {
 export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
   const { trips, dayStatus } = weekTimeline(agenda, week, now);
   const isos = weekDays(week);
-  const thisWeek = mondayOf(today);
+  const thisWeek = mondayOfIso(today);
   const dimBefore = week < thisWeek ? 7 : week > thisWeek ? 0 : isos.indexOf(today);
   const byDay = new Map(trips.map((t) => [t.day, t]));
   const canPrev = week > firstWeek;
   const canNext = week < lastWeek;
-  const { ref, bind, go } = useSwipePages({ page: week, canPrev, canNext, step: (dir) => onWeek(addDays(week, 7 * dir)) });
+  const { ref, bind, go } = useSwipePages({ page: week, canPrev, canNext, step: (dir) => onWeek(addDaysIso(week, 7 * dir)) });
 
   return (
     <section aria-label="Delivery week" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] p-4 sm:p-5" data-testid="week-timeline">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
-          {MON.format(at(week))} – {MON.format(at(addDays(week, 6)))}{week === thisWeek ? " · This week" : ""}
+          {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
           <Legend />
@@ -62,7 +63,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
         trips={trips.map((t) => ({ ...t, color: STATUS_COLOR[t.status] }))}
         dayColor={(d) => (dayStatus[d] ? STATUS_COLOR[dayStatus[d]!] : undefined)}
         pick={{
-          selected: selectedDay && mondayOf(selectedDay) === week ? DAYS[isos.indexOf(selectedDay)]! : null,
+          selected: selectedDay && mondayOfIso(selectedDay) === week ? DAYS[isos.indexOf(selectedDay)]! : null,
           today: week === thisWeek ? DAYS[isos.indexOf(today)]! : null,
           dimBefore,
           onPick: (d) => onPickDay(isos[DAYS.indexOf(d)]!),

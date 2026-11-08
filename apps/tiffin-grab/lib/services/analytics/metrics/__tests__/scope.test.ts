@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { DATE_PRESETS, presetRange } from "@/lib/analytics/date-presets";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { parseAnalyticsFilters } from "../../shared-filters";
 import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
+import { isoDateInZone } from "@/lib/dates";
 
 const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
 

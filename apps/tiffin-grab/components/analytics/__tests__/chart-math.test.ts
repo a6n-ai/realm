@@ -1,23 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  axisTicks,
-  signedTicks,
-  moneyTick,
-  tickEvery,
-  truncateLabel,
-  fitLabel,
-  LABEL_CHAR_PX,
-  foldParts,
-  heatBucket,
-  heatIsDense,
-  positionalConfig,
-  rankedHeight,
-  topWithOther,
-  trailingAverage,
-  calendarWeeks,
-  mondayIndex,
-} from "../chart-math";
-import { isoDateInZone } from "@/lib/analytics/profitability";
+import { axisTicks, signedTicks, moneyTick, tickEvery, truncateLabel, fitLabel, LABEL_CHAR_PX, foldParts, heatBucket, heatIsDense, positionalConfig, rankedHeight, topWithOther, trailingAverage, calendarWeeks } from "../chart-math";
+import { isoDateInZone, mondayIndex } from "@/lib/dates";
 
 describe("moneyTick", () => {
   it("uses a lowercase k", () => {

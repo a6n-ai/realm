@@ -10,6 +10,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { RunNowButton } from "../run-now-button";
 import { RunStatus, scheduleLabel } from "../run-parts";
 import { RunsTable, RunsTableSkeleton } from "./runs-table";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -19,8 +20,7 @@ export default async function ScheduledJobPage({ params, searchParams }: { param
   if (!job) notFound();
   const { timezone } = await getAppSettings();
   const last = (await recentCronRuns([job.key], 1)).get(job.key)?.[0];
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const next = job.cron ? nextCronRun(job.cron, now) : null;
 
   return (

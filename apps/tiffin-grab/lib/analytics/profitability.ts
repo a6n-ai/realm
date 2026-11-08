@@ -7,6 +7,7 @@ import { round2 } from "@foundry/discounts";
  * Revenue excludes tax; cash is what the customer paid, tax included.
  */
 import { zonedRangeMs } from "@/lib/analytics/drill";
+import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
 export type ProfitabilityAssumptions = {
   kitchenCostPerTiffin: number;
@@ -48,17 +49,6 @@ export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-export function eachDateInclusive(fromIso: string, toIso: string): string[] {
-  const out: string[] = [];
-  const d = new Date(`${fromIso}T00:00:00Z`);
-  const end = new Date(`${toIso}T00:00:00Z`);
-  while (d <= end) {
-    out.push(d.toISOString().slice(0, 10));
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return out;
-}
-
 export function addMonths(monthIso: string, delta: number): string {
   const [y, m] = monthIso.split("-").map(Number) as [number, number];
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));
@@ -67,16 +57,6 @@ export function addMonths(monthIso: string, delta: number): string {
 
 export function currentMonth(timeZone: string, now = Date.now()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(now);
-}
-
-/** Calendar date of an instant in `timeZone` as YYYY-MM-DD. */
-export function isoDateInZone(epochMs: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(epochMs);
 }
 
 /** Wall-clock time of an instant in `timeZone`, e.g. "1:42:07 p.m.". */
@@ -117,20 +97,12 @@ export function navScope<S extends { tz: string; fromMs: number; toMs: number }>
   return { ...scope, fromMs: from, toMs: to };
 }
 
-/** Monday of the ISO week containing `isoDate` (UTC date-only). */
-export function isoWeekMonday(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
-  return d.toISOString().slice(0, 10);
-}
-
 export function periodKey(isoDate: string, grain: Grain): string {
   switch (grain) {
     case "daily":
       return isoDate;
     case "weekly":
-      return isoWeekMonday(isoDate);
+      return mondayOfIso(isoDate);
     case "monthly":
       return isoDate.slice(0, 7);
     default: {
@@ -146,15 +118,12 @@ const DAY_LABEL = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numer
 export function periodLabel(key: string, grain: Grain): string {
   switch (grain) {
     case "daily":
-      return DAY_LABEL.format(new Date(`${key}T00:00:00Z`));
+      return DAY_LABEL.format(isoToUtcDate(key));
     case "weekly": {
-      const start = new Date(`${key}T00:00:00Z`);
-      const end = new Date(start);
-      end.setUTCDate(end.getUTCDate() + 6);
-      return `${DAY_LABEL.format(start)} – ${DAY_LABEL.format(end)}`;
+      return `${DAY_LABEL.format(isoToUtcDate(key))} – ${DAY_LABEL.format(isoToUtcDate(addDaysIso(key, 6)))}`;
     }
     case "monthly":
-      return MONTH_LABEL.format(new Date(`${key}-01T00:00:00Z`));
+      return MONTH_LABEL.format(isoToUtcDate(`${key}-01`));
     default: {
       const _exhaustive: never = grain;
       return _exhaustive;

@@ -1,5 +1,6 @@
 import { ActivityIcon, CalendarCheckIcon, CalendarClockIcon, PackageIcon, PauseIcon, ReceiptIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
 import type { StatCardItem } from "@/components/dashboard/stat-cards";
+import { daysBetween } from "@/lib/dates";
 
 export type StageInput = {
   /** orderDisplayStatus: payment_review / rejected overlay the order status. */
@@ -31,8 +32,6 @@ export type StageInput = {
   day: (iso: string) => string;
 };
 
-/** Days from `a` to `b` (ISO dates). */
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /**

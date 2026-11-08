@@ -6,6 +6,7 @@
 
 import { zonedRangeMs } from "@/lib/analytics/drill";
 import { currentMonth, monthBounds } from "@/lib/analytics/profitability";
+import { isoToUtcDate } from "@/lib/dates";
 
 export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone", "org"] as const;
 
@@ -38,7 +39,7 @@ export const epoch = (raw: string | undefined): number | undefined => {
   if (!raw) return undefined;
   // Facet dateRange writes epoch ms; revenue once wrote ISO dates — accept both.
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const n = Date.parse(`${raw}T00:00:00.000Z`);
+    const n = isoToUtcDate(raw).getTime();
     return Number.isFinite(n) ? n : undefined;
   }
   const n = Number(raw);

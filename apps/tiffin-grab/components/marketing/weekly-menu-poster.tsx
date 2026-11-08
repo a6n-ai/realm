@@ -1,23 +1,18 @@
 import Link from "next/link";
-import { parseIsoDateUtc } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { addDaysIso } from "@/lib/dates";
 
 function weekRangeLabel(weekStart: string): string {
-  const end = parseIsoDateUtc(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  const endIso = end.toISOString().slice(0, 10);
-  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(endIso, { mode: "short" })}`;
+  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(addDaysIso(weekStart, 6), { mode: "short" })}`;
 }
 
 // Ticket header date: offset the column's first real weekday from weekStart (Monday).
 function columnDateLabel(weekStart: string, days: readonly string[]): string {
   const offset = DAYS.indexOf(days[0] as (typeof DAYS)[number]);
-  const d = parseIsoDateUtc(weekStart);
-  d.setUTCDate(d.getUTCDate() + offset);
-  return formatDateOnly(d.toISOString().slice(0, 10), { mode: "short" });
+  return formatDateOnly(addDaysIso(weekStart, offset), { mode: "short" });
 }
 
 export function WeeklyMenuPoster({

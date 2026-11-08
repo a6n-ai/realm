@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
-import { zonedDayStart } from "@/lib/analytics/drill";
 import { describeActivityActor } from "@/lib/services/order-activity-describe";
 import { db } from "@/db/client";
 import { leadSources, orders, users } from "@/db/schema";
@@ -23,6 +22,8 @@ import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
+import { dayRange } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 export default function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -97,9 +98,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
   }
 
-  const todayIso = zonedDateIso(Date.now(), timezone);
-  const dayStart = zonedDayStart(todayIso, timezone);
-  const dayEnd = zonedDayStart(new Date(Date.parse(`${todayIso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10), timezone);
+  const todayIso = zonedDateIso(requestNow(), timezone);
+  const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
 
   // Status changes from the old stage model (no sub-status recorded) are noise now; notes, calls and the rest stay.
   const timeline: TimelineActivity[] = activities

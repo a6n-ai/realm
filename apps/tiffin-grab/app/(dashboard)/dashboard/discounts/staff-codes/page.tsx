@@ -10,6 +10,7 @@ import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { usd } from "../discount-stats";
 import { StaffCodes, StaffCodesSkeleton, type IssuedCode } from "./staff-codes";
+import { requestNow } from "@/lib/dates/request-now";
 
 const customer = alias(users, "customer");
 const searchUser = alias(users, "search_user");
@@ -62,8 +63,7 @@ export default function StaffCodesPage({ searchParams }: { searchParams: SearchP
 async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withListDates(await searchParams);
   const sort: SortState<StaffCodeSortColumn> = parseSort(sp, ["code", "amount", "created", "expires"], { column: "created", dir: "desc" });
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
 
   const staff = await db
     .select({ publicId: users.publicId, name: users.name, email: users.email })

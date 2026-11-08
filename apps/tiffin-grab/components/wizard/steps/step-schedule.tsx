@@ -8,6 +8,7 @@ import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { TripTimeline } from "../trip-timeline";
+import { isWeekendDay } from "@/lib/dates";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
@@ -50,8 +51,7 @@ export function StepSchedule({
   }, [row, frequencies.length]);
 
   const weekendsOff = !servesWeekends(catalog, selections);
-  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
-  const open = (d: DayOfWeek) => !(weekendsOff && isWeekend(d)) && dayAllowed(d, allowed);
+  const open = (d: DayOfWeek) => !(weekendsOff && isWeekendDay(d)) && dayAllowed(d, allowed);
   // The range a customer can actually pick: "3 to 7" is wrong when the weekend or the meal size closes days.
   const max = Math.min(bounds.max, WEEK_DAYS.filter(open).length);
   const min = Math.min(bounds.min, max);

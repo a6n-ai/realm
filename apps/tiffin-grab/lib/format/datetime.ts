@@ -1,5 +1,6 @@
 import { parseIsoDateUtc } from "@foundry/commons";
 import { dateTimeFormat } from "@/lib/intl/date-format";
+import { addDaysIso } from "@/lib/dates";
 
 export function epochToDate(ms: number): Date {
   return new Date(ms);
@@ -54,6 +55,9 @@ const DATE_ONLY_PRESETS = {
   short: { month: "short", day: "numeric" },
   weekday: { weekday: "short", year: "numeric", month: "short", day: "numeric" },
   weekdayLong: { weekday: "long" },
+  weekdayShort: { weekday: "short" },
+  weekdayMd: { weekday: "short", month: "short", day: "numeric" },
+  fullDate: { weekday: "long", month: "long", day: "numeric" },
   monthDay: { month: "long", day: "numeric" },
 } satisfies Record<string, Intl.DateTimeFormatOptions>;
 
@@ -77,17 +81,8 @@ export function formatDateOnly(
   }).format(parseIsoDateUtc(iso));
 }
 
-/** Whole calendar days from `fromIso` to `toIso` (`YYYY-MM-DD`). Positive if `toIso` is later. */
-export function calendarDaysBetween(fromIso: string, toIso: string): number {
-  return Math.round(
-    (parseIsoDateUtc(toIso).getTime() - parseIsoDateUtc(fromIso).getTime()) / 86_400_000,
-  );
-}
-
 /** Mon–Sun label for a menu week (`weekStart` is the Monday ISO date). */
 export function formatMenuWeekRange(weekStart: string, locale = "en-US"): string {
-  const end = parseIsoDateUtc(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  const endIso = end.toISOString().slice(0, 10);
+  const endIso = addDaysIso(weekStart, 6);
   return `${formatDateOnly(weekStart, { mode: "short", locale })} – ${formatDateOnly(endIso, { mode: "short", locale })}`;
 }

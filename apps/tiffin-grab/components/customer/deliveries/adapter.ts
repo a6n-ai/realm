@@ -3,6 +3,7 @@ import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import { daysBetween } from "@/lib/dates";
 
 type PauseLimits = { maxPauses: number | null; maxPauseDaysTotal: number | null; maxPauseStretchDays: number | null };
 type PauseUsage = { count: number; daysUsed: number };
@@ -92,7 +93,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
 /** Whole days from today to the last tiffin; null when nothing is scheduled. */
 export function renewDays(last: string | null, today: string): number | null {
   if (!last) return null;
-  return Math.max(Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5), 0);
+  return Math.max(daysBetween(today, last), 0);
 }
 
 /** ?trip if it names a real trip, else the next upcoming, else the next failed one to move, else the first. */

@@ -26,6 +26,7 @@ import {
   buildOrderInput, firstWeekdayOnOrAfter, missingFields, multiDayTrialPicks,
   type Catalog,
 } from "./order-draft";
+import { utcIso } from "@/lib/dates";
 
 export type EnabledSlot = { key: string; label: string };
 
@@ -211,7 +212,7 @@ export function useOrderDraft({
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const baseMinStart = isTrial && trialSettings
     ? earliestTrialIso(appToday(catalog.timezone, catalog.cutoffHour), trialWeekdays)
-    : nextWeekday(appToday(catalog.timezone, catalog.cutoffHour)).toISOString().slice(0, 10);
+    : utcIso(nextWeekday(appToday(catalog.timezone, catalog.cutoffHour)));
   const renewalBound = renewFrom != null && renewFrom > baseMinStart;
   const minStart = renewalBound ? renewFrom : baseMinStart;
   // The renewal date itself may fall on a non-start day; offer the first one on/after it.

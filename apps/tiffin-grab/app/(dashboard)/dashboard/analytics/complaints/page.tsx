@@ -12,7 +12,6 @@ import { Card, CardContent } from "@foundry/ui/card";
 import { RankCards } from "@/components/analytics/rank-cards";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import type { Tone } from "@/components/analytics/chart-math";
 import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import {
@@ -35,6 +34,8 @@ import {
   getRepeatCustomers,
   getStatusMix,
 } from "@/lib/services/analytics/complaints.service";
+import { isoDateInZone } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 const TICKETS = "/dashboard/tickets";
 
@@ -250,7 +251,7 @@ async function Trend({ scope }: { scope: AnalyticsScope }) {
     <CalendarHeatmap
       from={isoDateInZone(scope.fromMs, scope.tz)}
       to={isoDateInZone(scope.toMs, scope.tz)}
-      today={isoDateInZone(Date.now(), scope.tz)}
+      today={isoDateInZone(requestNow(), scope.tz)}
       label="Complaints"
       days={rows.map((r) => ({ date: r.iso, value: r.n }))}
     />

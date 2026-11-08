@@ -30,6 +30,7 @@ import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { customersListHref } from "@/lib/list/customers-drill";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -92,8 +93,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
 
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   // Non-cancelled only — same definition as listCustomersPage customerType filters.
   const oc = db

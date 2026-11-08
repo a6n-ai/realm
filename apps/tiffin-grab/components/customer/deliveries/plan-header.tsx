@@ -4,9 +4,10 @@ import { ORDER_STATUS_LABEL } from "@/components/ds/order-status-badge";
 import Link from "next/link";
 import { cn } from "@/components/customer/kit/cn";
 import { buttonClass } from "@/components/customer/kit/button-class";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const shortDate = (iso: string) => formatDateOnly(iso, { mode: "short" });
 
 /** "Running · to Sep 25" / "Starts Oct 26" / "Finished": tells same-sized plans apart. */
 export function windowLabel(w: SubscriptionWindow | undefined, today: string): string | null {

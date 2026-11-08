@@ -7,7 +7,6 @@ import { deliveries, deliveryCategorySwaps, deliveryFrequencies, mealSizeItems, 
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
@@ -23,6 +22,7 @@ import { rolesByCategory, type MealItemRole } from "@/lib/menu/side-rules";
 import { AppError } from "@foundry/commons";
 import { menuService } from "@/lib/services/menu.service";
 import { foldPicks, plainDishName, popularSince, popularThisWeek } from "@/lib/menu/customer-week";
+import { mondayOfIso } from "@/lib/dates";
 
 export type PickGrid = {
   cells: GridCell[];

@@ -1,5 +1,5 @@
-import { addDays } from "@/lib/deliveries-view/week";
 import type { MissedDeliveryRow, MissedKind } from "@/lib/services/missed-deliveries.service";
+import { addDaysIso } from "@/lib/dates";
 
 // Kept out of missed-list.tsx ("use client") so the server page can build the Why facet from it.
 export const MISSED_WHY: Record<MissedKind, string> = {
@@ -23,7 +23,7 @@ export type MissedFilter = { q?: string; why?: string; day?: string };
 export function filterMissedRows(rows: MissedDeliveryRow[], f: MissedFilter, today: string): MissedDeliveryRow[] {
   const q = f.q?.trim().toLowerCase();
   const back = MISSED_DAYS.some((d) => d.value === f.day) ? Number(f.day) : null;
-  const since = back != null ? addDays(today, -back) : null;
+  const since = back != null ? addDaysIso(today, -back) : null;
   return rows.filter((r) =>
     (!f.why || r.kind === f.why)
     && (!since || r.deliveryDate >= since)

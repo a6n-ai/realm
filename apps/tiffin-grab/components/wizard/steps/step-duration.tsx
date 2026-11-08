@@ -13,12 +13,7 @@ import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/sta
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";
-
-function dayBefore(iso: string): string {
-  const d = parseIsoDateUtc(iso);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
+import { addDaysIso, utcIso } from "@/lib/dates";
 
 export function StepDuration({
   catalog,
@@ -53,12 +48,12 @@ export function StepDuration({
   const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
   const allowed = trial ? (picks.length ? picks : trial.weekdays) : planStartDays(plan?.allowedStartDays, freq?.weekdays);
   const today = appToday(catalog.timezone, catalog.cutoffHour);
-  const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
+  const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : utcIso(nextWeekday(today));
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
   // The day the customer reads as "my plan ends": the real last tiffin when known.
-  const runsThrough = lastTiffin ?? (minStartDate ? dayBefore(minStartDate) : null);
+  const runsThrough = lastTiffin ?? (minStartDate ? addDaysIso(minStartDate, -1) : null);
   // First day on/after minDate that the plan actually delivers on.
   const earliest = firstStartOnOrAfter(minDate, allowed, closed);
   const schedule = plannedSchedule(

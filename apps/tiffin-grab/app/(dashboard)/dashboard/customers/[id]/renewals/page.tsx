@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import Link from "next/link";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -7,6 +6,7 @@ import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { getCustomerRenewal } from "@/lib/services/renewals.service";
 import { RenewalActions, RenewalSections } from "../../../renewals/customers/[id]/renewal-body";
 import { loadViewer } from "../data";
+import { requestNow } from "@/lib/dates/request-now";
 
 /** Renewals tab: the same view as Renewals → customer, inside the customer page. */
 export default async function CustomerRenewalsTab({ params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +26,7 @@ export default async function CustomerRenewalsTab({ params }: { params: Promise<
     <>
       {/* Adjust coins already sits in the page header, so no second coins button here. */}
       <RenewalActions data={data} isAdmin={isAdmin} giveCoins={false} />
-      <RenewalSections data={data} today={zonedDateIso(Date.now(), timezone)} timezone={timezone} />
+      <RenewalSections data={data} today={zonedDateIso(requestNow(), timezone)} timezone={timezone} />
     </>
   );
 }

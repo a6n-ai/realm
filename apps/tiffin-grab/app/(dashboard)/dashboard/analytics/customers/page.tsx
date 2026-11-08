@@ -9,7 +9,6 @@ import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/st
 import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
@@ -22,6 +21,8 @@ import {
   getSubscriptionMix,
   getTopCities,
 } from "@/lib/services/analytics/customers.service";
+import { isoDateInZone } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -124,7 +125,7 @@ async function SignupCalendar({ scope }: { scope: AnalyticsScope }) {
     <CalendarHeatmap
       from={isoDateInZone(scope.fromMs, scope.tz)}
       to={isoDateInZone(scope.toMs, scope.tz)}
-      today={isoDateInZone(Date.now(), scope.tz)}
+      today={isoDateInZone(requestNow(), scope.tz)}
       label="New accounts"
       days={rows.map((r) => ({ date: r.iso, value: r.n }))}
     />

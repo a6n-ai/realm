@@ -1,6 +1,7 @@
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { earliestPlanStart, firstStartOnOrAfter, validateStartDate } from "@/lib/services/start-date";
 import { assertTrialStart, earliestTrialIso } from "@/lib/trial/schedule";
+import { utcIso } from "@/lib/dates";
 
 /**
  * The start for a Stripe order that was paid after it was placed: the date the customer
@@ -32,7 +33,7 @@ export function nextCutoffMs(now: number, cutoffHour: number, timezone: string):
   const day = parseIsoDateUtc(zonedDateIso(now, timezone));
   for (;;) {
     day.setUTCDate(day.getUTCDate() + 1);
-    const cut = cutoffMsFor(day.toISOString().slice(0, 10), cutoffHour, timezone);
+    const cut = cutoffMsFor(utcIso(day), cutoffHour, timezone);
     if (cut > now) return cut;
   }
 }

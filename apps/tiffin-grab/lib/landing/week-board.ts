@@ -1,17 +1,12 @@
-import { parseIsoDateUtc } from "@foundry/commons";
 import type { BoardDay } from "@/components/landing/week-board";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import { popularThisWeek } from "@/lib/menu/customer-week";
+import { addDaysIso } from "@/lib/dates";
 
-const isoOf = (weekStart: string, offset: number) => {
-  const d = parseIsoDateUtc(weekStart);
-  d.setUTCDate(d.getUTCDate() + offset);
-  return d.toISOString().slice(0, 10);
-};
-export const dateOf = (weekStart: string, offset: number) => formatDateOnly(isoOf(weekStart, offset), { mode: "short" });
+export const dateOf = (weekStart: string, offset: number) => formatDateOnly(addDaysIso(weekStart, offset), { mode: "short" });
 
 // Each dish is listed once per plan; the plan suffix only doubles the list.
 const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
@@ -27,7 +22,7 @@ export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; item
   let weekend: BoardWeekend | null = null;
   const days = buildPosterColumns(pub.slots, pub.items).flatMap((col, i): BoardDay[] => {
     const keys = DAY_COLUMNS[i]!.days;
-    const today = keys.map((k) => isoOf(pub.weekStart, DAYS.indexOf(k))).includes(todayIso);
+    const today = keys.map((k) => addDaysIso(pub.weekStart, DAYS.indexOf(k))).includes(todayIso);
     if (keys.length > 1) {
       const all = [...new Set(col.groups.flatMap((g) => g.dishes.map((d) => plain(d.name))))];
       if (all.length > 0) weekend = { date: `${dateOf(pub.weekStart, 5)} and ${dateOf(pub.weekStart, 6)}`, today, dishes: all };

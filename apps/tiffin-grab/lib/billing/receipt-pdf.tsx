@@ -1,6 +1,7 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Line } from "@/app/(customer)/me/pay/[paymentId]/lines";
 import type { Receipt } from "./receipt";
+import { isoToUtcDate } from "@/lib/dates";
 
 // Built-in Helvetica only covers WinAnsi: no U+2212 minus, so negatives use "-".
 const SAFFRON = "#E8590C";
@@ -30,7 +31,7 @@ export async function renderReceiptPdf(r: Receipt): Promise<Uint8Array> {
   };
   const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: r.timezone, year: "numeric", month: "short", day: "numeric" }).format(ms);
   // Date-only strings are calendar days: format in UTC so they never shift.
-  const calendar = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" }).format(new Date(`${iso}T00:00:00Z`));
+  const calendar = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" }).format(isoToUtcDate(iso));
   const rows = (lines: Line[]) => lines.map((l, i) => (
     <View key={`${l.label}-${i}`} style={s.row}>
       <Text>{l.label}</Text>

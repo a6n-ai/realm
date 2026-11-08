@@ -39,10 +39,11 @@ import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
 import { orderStatusFilter } from "./status-pills";
 import { buildOrdersSpec, STARTS_DAYS, STARTS_FIELD } from "./orders-spec";
 import { and, between } from "@foundry/commons/model/condition";
-import { addDays } from "@/lib/deliveries-view/week";
 import { ordersListHref } from "@/lib/list/orders-drill";
 import { NewOrderSheet } from "./new-order-sheet";
 import { StartMigratedDialog } from "./start-migrated-dialog";
+import { addDaysIso } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -131,8 +132,7 @@ async function StartMigratedAction() {
  */
 async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
   const [sp, { timezone }] = await Promise.all([withDefaultMonth(raw), getAppSettings()]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const to = zonedDateIso(Number(sp.to), timezone);
   return { from: zonedDateIso(Number(sp.from), timezone), to: to < today ? to : today };
 }
@@ -190,8 +190,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   }
   if (view === "free") {
     const fr = await freeRange(await searchParams);
-    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    const today = zonedDateIso(requestNow(), (await getAppSettings()).timezone);
     const [count, f] = await Promise.all([countFreeTiffinOrders(visible, fr), getFreeTiffinStats(visible, fr, today)]);
     return (
       <StatCards
@@ -278,8 +277,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   if (raw.view === "missed") {
     const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
     const all = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));
-    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-    const today = zonedDateIso(Date.now(), timezone);
+    const today = zonedDateIso(requestNow(), timezone);
     const rows = filterMissedRows(all, raw, today);
     const spec: FacetDef[] = [
       { kind: "pills", field: "why", label: "Why", options: Object.entries(MISSED_WHY).map(([value, label]) => ({ value, label })) },
@@ -342,10 +340,9 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const missedOnly = sp.missed === "yes";
   // "starts" is relative to today in the app timezone, so it is built here rather than by parseFilterState.
   const startsDays = STARTS_DAYS.find((d) => String(d) === sp[STARTS_FIELD]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const todayIso = zonedDateIso(Date.now(), timezone);
+  const todayIso = zonedDateIso(requestNow(), timezone);
   // N calendar days inclusive of today: starts=7 → today..today+6 (Starting soon KPI).
-  const startsEnd = startsDays == null ? null : startsDays === 0 ? todayIso : addDays(todayIso, startsDays - 1);
+  const startsEnd = startsDays == null ? null : startsDays === 0 ? todayIso : addDaysIso(todayIso, startsDays - 1);
   const startsCond = startsEnd != null ? between("startDate", todayIso, startsEnd) : null;
   const { sp: filterSp, extra } = orderStatusFilter({
     ...sp,
@@ -357,8 +354,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const extras = [extra, startsCond].filter((c) => c != null);
   const finalCondition = extras.length ? and(...[condition, ...extras].filter((c) => c != null)) : condition;
 
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const missedAsOf = missedOnly ? zonedDateIso(Date.now(), (await getAppSettings()).timezone) : undefined;
+  const missedAsOf = missedOnly ? zonedDateIso(requestNow(), (await getAppSettings()).timezone) : undefined;
 
   const result = await listOrdersPage(finalCondition, page, sort, visible, {
       lookOutOnly,

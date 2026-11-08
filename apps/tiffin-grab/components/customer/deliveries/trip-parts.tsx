@@ -7,9 +7,10 @@ import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow 
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
+import { isoToUtcDate } from "@/lib/dates";
 
 const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
-const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
+const d = (iso: string) => isoToUtcDate(iso);
 export const dayNum = (iso: string) => d(iso).getUTCDate();
 export const weekday = (iso: string) => WD.format(d(iso));
 

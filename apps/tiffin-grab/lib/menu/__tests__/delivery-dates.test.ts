@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { comingWeekStartIso, mondayOfIso, subscriptionDeliveryDates, subscriptionTrips, thisWeekStartIso, tripsByWeek } from "../delivery-dates";
+import { comingWeekStartIso, subscriptionDeliveryDates, subscriptionTrips, thisWeekStartIso, tripsByWeek } from "../delivery-dates";
+import { mondayOfIso } from "@/lib/dates";
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 

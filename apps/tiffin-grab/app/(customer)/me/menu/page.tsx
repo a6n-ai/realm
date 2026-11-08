@@ -13,14 +13,14 @@ import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { WeeklyMenu } from "@/components/customer/meals/weekly-menu";
+import { requestNow } from "@/lib/dates/request-now";
 
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
   const { timezone } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   // Today is fixed here in the app timezone, so the client never reads the clock for it.
   const today = zonedDateIso(now, timezone);
   const want = (await searchParams).week === "next" ? "next" : "this";

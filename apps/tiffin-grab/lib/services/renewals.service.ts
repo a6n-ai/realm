@@ -2,10 +2,10 @@ import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, 
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
-import { addDays } from "@/lib/deliveries-view/week";
 import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
+import { addDaysIso } from "@/lib/dates";
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -40,10 +40,10 @@ const running = sql`${orders.status} in ('active', 'paused')`;
 const runningOrDone = sql`${orders.status} in ('active', 'paused', 'completed')`;
 
 /** Running plans whose last tiffin is today through `days` out. */
-const endingWhere = (today: string, days: number) => and(running, sql`${lastTiffinSql} between ${today} and ${addDays(today, days)}`);
+const endingWhere = (today: string, days: number) => and(running, sql`${lastTiffinSql} between ${today} and ${addDaysIso(today, days)}`);
 
 /** Plans whose last tiffin was in the last `days` days (over, renewed or not; Status narrows to the lapsed ones). */
-const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDays(today, -days)} and ${addDays(today, -1)}`);
+const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDaysIso(today, -days)} and ${addDaysIso(today, -1)}`);
 
 /** The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start. */
 function rangeWhere(r: RenewalRange) {

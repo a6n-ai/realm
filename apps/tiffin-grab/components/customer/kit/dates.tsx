@@ -5,10 +5,8 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 import { Reason } from "./notice";
 import { StatusDot, StatusRing, STATUS_LABEL, type DeliveryStatus } from "./status";
+import { addDaysIso, isoToUtcDate, mondayIndex } from "@/lib/dates";
 
-const parse = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
-const addDays = (iso: string, n: number) => fmt(new Date(parse(iso).getTime() + n * 864e5));
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
@@ -30,7 +28,7 @@ interface DateCellProps {
 }
 
 export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, delivery, className, onKeyDown, buttonRef }: DateCellProps) {
-  const d = parse(date);
+  const d = isoToUtcDate(date);
   const label = LONG.format(d) + (delivery ? ", delivery day" : "") + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
   return (
     <button
@@ -120,9 +118,9 @@ interface GridProps {
 
 export function MonthGrid({ month, days = {}, selected, onSelect }: GridProps) {
   const first = `${month}-01`;
-  const offset = (parse(first).getUTCDay() + 6) % 7;
+  const offset = mondayIndex(first);
   const count = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5), 0)).getUTCDate();
-  const all = Array.from({ length: count }, (_, i) => addDays(first, i));
+  const all = Array.from({ length: count }, (_, i) => addDaysIso(first, i));
   const [focus, setFocus] = useState(selected && selected.startsWith(month) ? selected : first);
   const [reason, setReason] = useState<string | null>(null);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -131,7 +129,7 @@ export function MonthGrid({ month, days = {}, selected, onSelect }: GridProps) {
     const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
     if (step === undefined) return;
     e.preventDefault();
-    const next = addDays(iso, step);
+    const next = addDaysIso(iso, step);
     if (!next.startsWith(month)) return;
     setFocus(next);
     refs.current[next]?.focus();

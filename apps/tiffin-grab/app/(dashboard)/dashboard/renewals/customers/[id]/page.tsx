@@ -9,6 +9,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { getCustomerRenewal } from "@/lib/services/renewals.service";
 import { RenewalActions, RenewalSections } from "./renewal-body";
+import { requestNow } from "@/lib/dates/request-now";
 
 /** One customer's renewals only: how often and how fast they renew, each plan and what followed it, and the reminders sent. */
 export default async function CustomerRenewalPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,8 +19,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const data = await getCustomerRenewal(visible, id);
   if (!data) notFound();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const { customer } = data;
 
   return (

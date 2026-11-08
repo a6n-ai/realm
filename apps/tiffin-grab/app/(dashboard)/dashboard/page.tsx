@@ -21,7 +21,7 @@ import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
 import { staffFirstName } from "@/lib/services/overview.service";
 import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
-import { formatEpoch } from "@/lib/format/datetime";
+import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -39,7 +39,7 @@ import {
   DataTableSkeleton,
   type FacetDef,
 } from "@/components/ds";
-import { mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
+import { parseWeekParam } from "@/lib/deliveries-view/week";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { GlanceCard } from "./_overview/glance-card";
 import { ServiceCard } from "./_overview/service-card";
@@ -49,6 +49,8 @@ import { LanesCard } from "./_overview/lanes-card";
 import { MenusCard } from "./_overview/menus-card";
 import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
+import { mondayOfIso } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -81,16 +83,15 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const today = zonedDateIso(now, timezone);
   // "Hi Vishwas" and "Saturday, October 31", both from the app timezone's today.
   const firstName = await staffFirstName(session.user.email);
   const greeting = firstName ? `Hi ${firstName}` : "Overview";
-  const todayLabel = dateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${today}T12:00:00Z`));
+  const todayLabel = formatDateOnly(today, { mode: "fullDate" });
 
   const seesAll = await coversAllOrgs(visible);
-  const weekStart = parseWeekParam(week) ?? mondayOf(today);
+  const weekStart = parseWeekParam(week) ?? mondayOfIso(today);
 
   if (visible !== "all" && visible.length === 0) {
     return (
@@ -142,7 +143,7 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       />
 
       <Suspense fallback={<ChartSkeleton height={260} />}>
-        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOf(today)} today={today} seesAll={seesAll} />
+        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOfIso(today)} today={today} seesAll={seesAll} />
       </Suspense>
 
     </PageShell>
@@ -214,7 +215,7 @@ function formatDeliveryDate(iso: string, timeZone: string): string {
 // unambiguously stamped in Canada local time, not the viewer's locale.
 function zoneAbbrev(timeZone: string): string {
   const part = dateTimeFormat("en-CA", { timeZone, timeZoneName: "short" })
-    .formatToParts(Date.now())
+    .formatToParts(requestNow())
     .find((p) => p.type === "timeZoneName");
   return part?.value ?? timeZone;
 }

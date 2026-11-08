@@ -34,6 +34,7 @@ import type { OrderPricingSnapshot } from "../lib/pricing/types";
 import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
 import { compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
 import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/services/custom-meal.service";
+import { addDaysIso, isWeekendDay } from "@/lib/dates";
 
 export const MIGRATION_TAG = "Migrated from WordPress";
 const WP_STATUSES = ["wc-processing", "wc-paused", "wc-on-hold"];
@@ -172,7 +173,6 @@ const DAY_BY_NAME: Record<string, DayOfWeek> = {
   monday: "mon", tuesday: "tue", wednesday: "wed", thursday: "thu", friday: "fri", saturday: "sat", sunday: "sun",
 };
 const FIVE: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
-const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
 
 // How the legacy plugin's "Prefered Days" text reads, verified against the
 // tiffin_count_history delivery logs (2026-09-29): two dash-joined days are an
@@ -185,7 +185,7 @@ function parsePreferredDays(raw: string | null): { frequencyKey: "5_day" | "mwf"
   let days = [...(raw ?? "").toLowerCase().matchAll(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g)]
     .map((m) => DAY_BY_NAME[m[1]]);
   // A trailing weekend on a list ("Monday - Friday - Saturday") is a suffix, not a list item.
-  if (days.length >= 3) days = days.filter((d) => !isWeekend(d));
+  if (days.length >= 3) days = days.filter((d) => !isWeekendDay(d));
   let picked: DayOfWeek[];
   if (days.length === 2) {
     const [from, to] = [WEEK_ORDER.indexOf(days[0]), WEEK_ORDER.indexOf(days[1])];
@@ -193,7 +193,7 @@ function parsePreferredDays(raw: string | null): { frequencyKey: "5_day" | "mwf"
   } else {
     picked = days;
   }
-  const weekdays = WEEK_ORDER.filter((d) => picked.includes(d) && !isWeekend(d));
+  const weekdays = WEEK_ORDER.filter((d) => picked.includes(d) && !isWeekendDay(d));
   const eatingDays = weekdays.length ? weekdays : FIVE;
   return { frequencyKey: "5_day", eatingDays, includeSaturday: false, includeSunday: false };
 }
@@ -638,12 +638,6 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
 
 // ---------- renewals of a started plan ----------
 
-function dayAfter(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 /** A started plan is never touched again, so a renewal WordPress folds into it after the
  * start would vanish. Each such renewal becomes its own plan, starting the day after the
  * running one's last delivery (sequential plans are fine; overlapping ones are not). */
@@ -672,7 +666,7 @@ export async function renewalsOfStartedPlans(
     for (const id of fresh) {
       const [r] = planSeed([rowById.get(id)!], snapshot, units).results;
       if (r?.kind !== "planned") continue;
-      r.record.sourceStartDate = last?.d ? dayAfter(last.d) : r.record.sourceStartDate;
+      r.record.sourceStartDate = last?.d ? addDaysIso(last.d, 1) : r.record.sourceStartDate;
       r.record.lastDeliveredDate = null;
       out.push(r);
     }

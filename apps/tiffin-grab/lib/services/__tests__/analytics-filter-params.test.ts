@@ -4,7 +4,7 @@ import {
   analyticsHref,
   parseAnalyticsFilters,
 } from "@/lib/services/analytics/shared-filter-params";
-import { isoDateInZone } from "@/lib/analytics/profitability";
+import { isoDateInZone } from "@/lib/dates";
 
 const TZ = "America/Toronto";
 const now = Date.parse("2035-03-10T16:00:00Z");

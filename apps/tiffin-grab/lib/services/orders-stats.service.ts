@@ -2,10 +2,11 @@ import { zonedDateIso } from "@foundry/commons";
 import { and, inArray, isNotNull, isNull, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, payments } from "@/db/schema";
-import { addDays } from "@/lib/deliveries-view/week";
 import { getAppSettings } from "./app-settings.service";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "./orders.service";
+import { addDaysIso } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 export type OrdersOverview = {
   newOrders: { count: number; prevCount: number; returning: number };
@@ -28,8 +29,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
   const inOrgs: SQL | undefined = visible === "all" ? undefined : inArray(orders.organizationId, visible.length ? visible : ["-"]);
   const between = (col: SQL | AnyColumn, r: { from: number; to: number }) => sql`${col} between ${r.from} and ${r.to}`;
 
-  // eslint-disable-next-line react-hooks/purity -- server-only: "ended so far" is relative to now
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const fromIso = zonedDateIso(range.from, timezone);
   const toIso = [zonedDateIso(range.to, timezone), today].sort()[0]!;
 
@@ -55,7 +55,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
       .from(orders)
       .where(and(
         inArray(orders.status, ["pending", "active", "waitlisted"]),
-        sql`${orders.startDate} between ${today} and ${addDays(today, 6)}`,
+        sql`${orders.startDate} between ${today} and ${addDaysIso(today, 6)}`,
         inOrgs,
       )),
     db
@@ -132,7 +132,7 @@ export type PaymentReviewStats = { owed: number; needsReview: number; overdue: n
 /** Payment review cards: same rows as the tab (review-status payments on open orders), all dates. */
 export async function getPaymentReviewStats(visible: "all" | string[]): Promise<PaymentReviewStats> {
   if (hidden(visible)) return { owed: 0, needsReview: 0, overdue: 0 };
-  const overdueBefore = Date.now() - OVERDUE_DAYS * DAY_MS;
+  const overdueBefore = requestNow() - OVERDUE_DAYS * DAY_MS;
   const [r] = await db
     .select({
       owed: sql<string>`coalesce(sum(${payments.amount}), 0)`,

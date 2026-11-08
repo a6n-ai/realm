@@ -9,6 +9,7 @@ import { promotionStatus, type PromotionStatus } from "@/lib/promotions/live";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { promotionsService } from "@/lib/services/promotions.service";
 import { PromotionRowActions } from "./promotion-row-actions";
+import { requestNow } from "@/lib/dates/request-now";
 
 const STATUS: Record<PromotionStatus, { label: string; variant: "success-light" | "info-light" | "warning-light" | "invert-light" }> = {
   live: { label: "Live", variant: "success-light" },
@@ -19,8 +20,7 @@ const STATUS: Record<PromotionStatus, { label: string; variant: "success-light" 
 
 export default async function PromotionsPage() {
   const [{ timezone }, rows] = await Promise.all([getAppSettings(), promotionsService.listAll()]);
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const day = (ms: number) => formatEpoch(ms, { mode: "date", timeZone: timezone });
   const windowOf = (s: number | null, e: number | null) =>
     s == null && e == null ? "Always" : `${s != null ? day(s) : "Now"} to ${e != null ? day(e) : "no end"}`;

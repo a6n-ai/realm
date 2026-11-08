@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { TicketPercentIcon } from "lucide-react";
 import { and, desc, eq, notInArray } from "drizzle-orm";
@@ -13,6 +12,7 @@ import { WaiversTable } from "./waivers-table";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
 import { buildRows } from "./build-rows";
 import { loadDiscountData } from "./load";
+import { requestNow } from "@/lib/dates/request-now";
 
 const COUPON_LIMIT = 25;
 
@@ -35,7 +35,7 @@ async function AllDiscounts() {
     durations: durs,
     mealSizes: sizes,
     coupons: cRows.slice(0, COUPON_LIMIT),
-    now: Date.now(),
+    now: requestNow(),
   });
   return (
     <GroupedResourceTabs
@@ -48,7 +48,7 @@ async function AllDiscounts() {
         {
           value: "waivers",
           label: "Waivers",
-          content: <WaiversTable waivers={dtos.filter((d) => d.kind.startsWith("waiver_"))} strategies={strategies} now={Date.now()} />,
+          content: <WaiversTable waivers={dtos.filter((d) => d.kind.startsWith("waiver_"))} strategies={strategies} now={requestNow()} />,
         },
       ]}
     />

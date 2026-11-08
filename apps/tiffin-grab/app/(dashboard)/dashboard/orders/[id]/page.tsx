@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import { isAdmin } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -62,6 +61,8 @@ import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "
 import { TabSkeleton } from "./tab-skeleton";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";
+import { isWeekendDay, utcIso } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
@@ -139,7 +140,7 @@ async function OrderDetail({
   after(() => expireUnpaidStripeOrders({ orderId: order.id }));
   const role = session?.user.role ?? "";
 
-  const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+  const settingsToday = zonedDateIso(requestNow(), settings.timezone);
   const fullyPaused = (order.status === "active" || order.status === "paused") && (await isOrderFullyPaused(db, order.id, settingsToday));
   const optimoRows = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
@@ -248,7 +249,7 @@ async function OrderDetail({
       blockedReason={startBlocker}
       orderId={order.publicId}
       startDate={order.startDate}
-      minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : nextWeekday(startToday).toISOString().slice(0, 10)}
+      minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : utcIso(nextWeekday(startToday))}
       otherPlanEnd={otherPlanEnd}
       allowedDays={startDays}
     />
@@ -389,8 +390,8 @@ async function OrderDetail({
         <ComplimentaryControl
           orderId={order.publicId}
           ended={order.status === "completed"}
-          minDate={nextWeekday(startToday).toISOString().slice(0, 10)}
-          allowedDays={((order.trialLength != null && order.trialWeekdays?.length ? order.trialWeekdays : counts?.deliveryWeekdays) ?? []).filter((d) => d !== "sat" && d !== "sun" && dayAllowed(d as DayOfWeek, counts?.mealDays))}
+          minDate={utcIso(nextWeekday(startToday))}
+          allowedDays={((order.trialLength != null && order.trialWeekdays?.length ? order.trialWeekdays : counts?.deliveryWeekdays) ?? []).filter((d) => !isWeekendDay(d) && dayAllowed(d as DayOfWeek, counts?.mealDays))}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
           initialForId={free ?? null}
@@ -509,7 +510,7 @@ async function OrderDetail({
                 pricingSnapshot={order.pricingSnapshot}
                 payments={order.payments}
                 payLinks={Object.fromEntries(order.payments.filter((p) => p.method === "stripe").map((p) => [p.publicId, payLink(p.publicId)]))}
-                now={Date.now()}
+                now={requestNow()}
                 claimContexts={claimContexts}
                 canCheck={roleCan(role, { finance: ["read"] })}
                 canRefund={roleCan(role, { finance: ["refund"] })}

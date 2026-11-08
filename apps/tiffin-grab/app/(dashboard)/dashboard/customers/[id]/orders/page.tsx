@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import Link from "next/link";
 import { zonedDateIso } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
@@ -6,6 +5,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { upcomingAddressChanges } from "@/lib/services/customers.service";
 import { CustomerOrdersTable } from "../customer-orders-table";
 import { loadCustomer, loadViewer } from "../data";
+import { requestNow } from "@/lib/dates/request-now";
 
 const LIVE_PLAN = new Set(["active", "paused", "pending", "waitlisted"]);
 
@@ -28,7 +28,7 @@ export default async function CustomerOrdersPage({
   const activeOnly = (await searchParams).status === "active";
   const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   const orders = activeOnly ? data.orders.filter((o) => o.status === "active") : data.orders;
-  const changes = await upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone));
+  const changes = await upcomingAddressChanges(data.profile.id, zonedDateIso(requestNow(), timezone));
   const live = data.orders.filter((o) => LIVE_PLAN.has(o.status));
 
   return (

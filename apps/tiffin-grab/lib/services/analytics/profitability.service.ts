@@ -3,26 +3,15 @@ import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { getProfitabilityAssumptions } from "@/lib/services/app-settings.service";
-import {
-  costBreakdown,
-  decorateDay,
-  eachDateInclusive,
-  isoDateInZone,
-  kpis,
-  rollup,
-  type CostPart,
-  type Grain,
-  type ProfitabilityAssumptions,
-  type ProfitabilityKpis,
-  type ProfitRow,
-} from "@/lib/analytics/profitability";
+import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { CAPTURED, moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { WP_MIGRATED } from "./metrics/migrated";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { eachDate, isoDateInZone, utcIso } from "@/lib/dates";
 
 function isoDate(v: unknown): string {
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) return utcIso(v);
   return String(v).slice(0, 10);
 }
 
@@ -161,7 +150,7 @@ export async function getProfitabilityReport(opts: {
 
   // To date: days after today carry no revenue yet and no share of the monthly costs, so every figure below comes from this one list.
   const today = isoDateInZone(now, timezone);
-  const daily = eachDateInclusive(from, to < today ? to : today).map((date) =>
+  const daily = eachDate(from, to < today ? to : today).map((date) =>
     decorateDay(
       {
         date,

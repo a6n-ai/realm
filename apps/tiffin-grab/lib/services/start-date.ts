@@ -1,4 +1,5 @@
 import { cutoffMsFor, isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
+import { utcIso } from "@/lib/dates";
 
 /**
  * The day start-date rules count from, as UTC midnight: today's calendar date in the
@@ -11,7 +12,7 @@ export function appToday(timezone = "America/Toronto", cutoffHour?: number, now 
   if (cutoffHour == null) return today;
   const tomorrow = new Date(today);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  return now >= cutoffMsFor(tomorrow.toISOString().slice(0, 10), cutoffHour, timezone) ? tomorrow : today;
+  return now >= cutoffMsFor(utcIso(tomorrow), cutoffHour, timezone) ? tomorrow : today;
 }
 
 // Validate a customer-chosen subscription start date.
@@ -45,7 +46,7 @@ export function earliestPlanStart(
   minStartDate: string | null = null,
   closed: ReadonlySet<string> = new Set(),
 ): string {
-  const tomorrow = nextWeekday(today).toISOString().slice(0, 10);
+  const tomorrow = utcIso(nextWeekday(today));
   const from = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   return firstStartOnOrAfter(from, allowedStartDays, closed);
 }
@@ -59,7 +60,7 @@ export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[],
   const d = parseIsoDateUtc(fromIso);
   const span = closed.size ? 366 : 14;
   for (let i = 0; i < span; i++, d.setUTCDate(d.getUTCDate() + 1)) {
-    const iso = d.toISOString().slice(0, 10);
+    const iso = utcIso(d);
     if (allowed.includes(weekdayKey(d)) && !closed.has(iso)) return iso;
   }
   return fromIso;

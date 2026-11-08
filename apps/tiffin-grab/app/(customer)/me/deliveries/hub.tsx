@@ -39,7 +39,9 @@ import {
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
-import { addDays, defaultWeek, mondayOf, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
+import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -59,8 +61,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
   const { timezone, cutoffHour, currency } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const now = Date.now();
+  const now = requestNow();
   const today = zonedDateIso(now, timezone);
   const [allSubs, waitlisted, windows, [userRow]] = await Promise.all([
     myActiveSubscriptions(userId),
@@ -81,16 +82,16 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   // One light query for the strip; the heavy per-trip calendar is loaded for the selected week only.
   // The strip starts at this plan's first week (a plan starting next month must not open with empty weeks to scroll past).
-  const firstWeek = mondayOf(win && win.first > today ? win.first : today);
-  const lastWeek = mondayOf(win && win.last > today ? win.last : today);
-  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 13));
+  const firstWeek = mondayOfIso(win && win.first > today ? win.first : today);
+  const lastWeek = mondayOfIso(win && win.last > today ? win.last : today);
+  const all = await myAgendaDots(userId, firstWeek, addDaysIso(lastWeek, 13));
   const { agenda, otherPlanDays } = splitAgenda(all, sub.publicId, win?.first);
 
-  const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
+  const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOfIso(tripParam) : null;
   const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, win?.first);
   const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
-  const from = addDays(weekStart, -3);
-  const until = addDays(weekStart, 6);
+  const from = addDaysIso(weekStart, -3);
+  const until = addDaysIso(weekStart, 6);
 
   const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
     orderPaymentLocked(sub.publicId),

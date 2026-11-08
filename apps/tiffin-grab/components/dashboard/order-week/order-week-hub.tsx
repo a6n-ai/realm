@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -31,6 +30,7 @@ import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -53,7 +53,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
     setSel(params.get("trip"));
   }
 
-  const weekEnd = addDays(weekStart, 6);
+  const weekEnd = addDaysIso(weekStart, 6);
   const rows = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
   const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
@@ -73,7 +73,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
     else sp.delete("trip");
     startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
   };
-  const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? setSel(iso) : goWeek(mondayOf(iso), iso));
+  const pickDay = (iso: string) => (mondayOfIso(iso) === weekStart ? setSel(iso) : goWeek(mondayOfIso(iso), iso));
   // From the pause drawer: go to that paused day (any week) and open Move on it.
   const moveDay = (iso: string) => {
     setPauseOpen(false);

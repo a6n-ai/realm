@@ -9,7 +9,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
-import { calendarDaysBetween } from "@/lib/format/datetime";
 import { formatPhone, zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { displayName } from "@/lib/inquiries/display";
@@ -27,6 +26,7 @@ import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import type { OrderFormInput } from "./order-schema";
+import { daysBetween } from "@/lib/dates";
 
 type Catalog = {
   plans: { key: string; name: string }[];
@@ -90,7 +90,7 @@ function relativeDay(days: number): string {
 /** Overdue → destructive badge, today → success badge, later → plain date plus a relative label. */
 function FollowUpValue({ next, dayStart, dayEnd, tz }: { next: number; dayStart: number; dayEnd: number; tz: string }) {
   const date = formatEpoch(next, { mode: "date", timeZone: tz });
-  const rel = relativeDay(calendarDaysBetween(zonedDateIso(dayStart, tz), zonedDateIso(next, tz)));
+  const rel = relativeDay(daysBetween(zonedDateIso(dayStart, tz), zonedDateIso(next, tz)));
   if (next < dayStart) return <Badge variant="destructive-light">Overdue · {date}</Badge>;
   if (next < dayEnd) return <Badge variant="success-light">Today · {date}</Badge>;
   return <span className="tabular-nums">{date} <span className="text-muted-foreground">({rel})</span></span>;

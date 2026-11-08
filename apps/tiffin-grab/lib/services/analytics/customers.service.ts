@@ -1,11 +1,11 @@
 import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { bucketCounts } from "@/lib/analytics/buckets";
 import { lastTiffinSql, ordersListWhere } from "@/lib/services/orders.service";
 import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { isoDateInZone } from "@/lib/dates";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;

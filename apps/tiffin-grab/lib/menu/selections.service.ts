@@ -21,6 +21,7 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 import { rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
+import { addDaysIso } from "@/lib/dates";
 
 type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;
@@ -135,9 +136,7 @@ export async function rowPlansForOrder(order: { id: bigint; mealSizeId: bigint }
 
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
 function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
-  const d = new Date(`${weekStartIso}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + DAY_OFFSET[dayOfWeek]);
-  return d.toISOString().slice(0, 10);
+  return addDaysIso(weekStartIso, DAY_OFFSET[dayOfWeek]);
 }
 
 export const selectionsService = {

@@ -4,6 +4,7 @@ import { Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { formatDateOnly } from "@/lib/format/datetime";
+import { addDaysIso } from "@/lib/dates";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
@@ -63,11 +64,7 @@ export function TripTimeline({
   trips.forEach((t, i) => t.days.forEach((d) => tripOf.set(d, i)));
   const tripAt = new Map(trips.map((t) => [t.day, t]));
   const colorOf = (i: number | undefined) => (i == null ? PRIMARY : trips[i]?.color ?? PRIMARY);
-  const dateIso = (d: DayOfWeek) => {
-    const x = new Date(`${weekStart}T00:00:00Z`);
-    x.setUTCDate(x.getUTCDate() + DAYS.indexOf(d));
-    return x.toISOString().slice(0, 10);
-  };
+  const dateIso = (d: DayOfWeek) => addDaysIso(weekStart ?? "", DAYS.indexOf(d));
   const dateOf = (d: DayOfWeek) => (weekStart ? formatDateOnly(dateIso(d), { mode: "short" }) : null);
 
   return (

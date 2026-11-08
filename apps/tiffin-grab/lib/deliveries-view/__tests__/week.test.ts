@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { defaultWeek, mondayOf, parseWeekParam, splitAgenda, type AgendaDot } from "../week";
+import { defaultWeek, parseWeekParam, splitAgenda, type AgendaDot } from "../week";
+import { mondayOfIso } from "@/lib/dates";
 
 describe("week helpers", () => {
-  it("mondayOf snaps any day to its Monday", () => {
-    expect(mondayOf("2026-09-27")).toBe("2026-09-21");
-    expect(mondayOf("2026-09-21")).toBe("2026-09-21");
+  it("mondayOfIso snaps any day to its Monday", () => {
+    expect(mondayOfIso("2026-09-27")).toBe("2026-09-21");
+    expect(mondayOfIso("2026-09-21")).toBe("2026-09-21");
   });
   it("parseWeekParam accepts a real date and snaps it, rejects junk", () => {
     expect(parseWeekParam("2026-09-23")).toBe("2026-09-21");

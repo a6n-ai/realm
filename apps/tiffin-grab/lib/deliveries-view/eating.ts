@@ -1,4 +1,5 @@
 import { humanDate, isPastPause, type Trip, type TripStatus } from "./index";
+import { DAY_NAMES, isoToUtcDate } from "@/lib/dates";
 
 /** The customer's unit of thought: one eating day, fed by the trip (delivery day) that carries it. */
 export type EatingRow = {
@@ -17,8 +18,7 @@ export type EatingRow = {
   movedOut?: string;
 };
 
-const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export const weekdayShort = (iso: string) => WD[new Date(`${iso}T00:00:00Z`).getUTCDay()]!;
+export const weekdayShort = (iso: string) => DAY_NAMES[isoToUtcDate(iso).getUTCDay()]!;
 
 /**
  * Eating days of the given trips, in date order. Merged-source trips add nothing: their day is in

@@ -1,5 +1,4 @@
 import { round2 } from "@foundry/discounts";
-/* eslint-disable react-hooks/purity */
 import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -15,11 +14,12 @@ import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { isoDateInZone } from "@/lib/analytics/profitability";
 import { slotTone, topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
+import { isoDateInZone, isoToUtcDate } from "@/lib/dates";
+import { requestNow } from "@/lib/dates/request-now";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -28,8 +28,8 @@ function money(n: number) {
 const RANGE_LABEL = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 function rangeLabel(from: string, to: string) {
-  const a = RANGE_LABEL.format(new Date(`${from}T00:00:00Z`));
-  const b = RANGE_LABEL.format(new Date(`${to}T00:00:00Z`));
+  const a = RANGE_LABEL.format(isoToUtcDate(from));
+  const b = RANGE_LABEL.format(isoToUtcDate(to));
   return a === b ? a : `${a} – ${b}`;
 }
 
@@ -270,7 +270,7 @@ async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
     <CalendarHeatmap
       from={report.from}
       to={report.to}
-      today={isoDateInZone(Date.now(), scope.tz)}
+      today={isoDateInZone(requestNow(), scope.tz)}
       label="Net revenue"
       format="currency"
       days={report.daily.map((d) => ({ date: d.iso, value: d.net }))}

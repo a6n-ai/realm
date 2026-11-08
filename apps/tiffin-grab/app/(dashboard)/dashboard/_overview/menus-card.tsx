@@ -3,10 +3,10 @@ import { CalendarDaysIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
-import { addDays, mondayOf } from "@/lib/deliveries-view/week";
-import { dateTimeFormat } from "@/lib/intl/date-format";
 import { menuService } from "@/lib/services/menu.service";
 import { FooterLink } from "./footer-link";
+import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 const STATE = {
   released: { label: "Released", variant: "success-light" },
@@ -16,15 +16,15 @@ const STATE = {
 } as const;
 
 const weekLabel = (monday: string) =>
-  dateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${monday}T12:00:00Z`));
+  formatDateOnly(monday, { mode: "short" });
 
 /** This week's and next week's menu: is each released, so customers can pick and the kitchen can plan? */
 export async function MenusCard({ today }: { today: string }) {
   const weeks = await menuService.listWeeks();
-  const thisMonday = mondayOf(today);
+  const thisMonday = mondayOfIso(today);
   const rows = [
     { key: "this", title: "This week", monday: thisMonday },
-    { key: "next", title: "Next week", monday: addDays(thisMonday, 7) },
+    { key: "next", title: "Next week", monday: addDaysIso(thisMonday, 7) },
   ].map((r) => {
     const w = weeks.find((x) => x.weekStart === r.monday);
     const state = w ? (w.status as keyof typeof STATE) : "missing";

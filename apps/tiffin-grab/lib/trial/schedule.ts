@@ -1,6 +1,7 @@
 import { dayAllowed, type AllowedDays } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
 import { validateStartDate } from "@/lib/services/start-date";
+import { addDaysIso, isWeekendDay, utcIso } from "@/lib/dates";
 
 export const TRIAL_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type TrialWeekday = (typeof TRIAL_WEEKDAYS)[number];
@@ -15,7 +16,7 @@ export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
 /** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish, and days outside the
  *  meal size's allowed days (e.g. Tue/Thu for a non-veg-only size) drop out too. */
 export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean, allowed?: AllowedDays): TrialWeekday[] {
-  return orderedTrialWeekdays(weekdays).filter((d) => (servesWeekends || (d !== "sat" && d !== "sun")) && dayAllowed(d, allowed));
+  return orderedTrialWeekdays(weekdays).filter((d) => (servesWeekends || (!isWeekendDay(d))) && dayAllowed(d, allowed));
 }
 
 /**
@@ -74,7 +75,7 @@ export function toggleTrialPick(prev: readonly string[], day: string, sendDays: 
 export function nextTrialStart(fromIso: string, days: readonly string[]): string | null {
   const cursor = parseIsoDateUtc(fromIso);
   for (let i = 0; i < 7; i++) {
-    if (days.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+    if (days.includes(weekdayKey(cursor))) return utcIso(cursor);
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return null;
@@ -89,7 +90,7 @@ export function trialDeliveryDates(startDate: string, length: number, weekdays: 
   const dates: string[] = [];
   const cursor = new Date(start);
   for (let i = 0; dates.length < length && i < 400; i++) {
-    if (allowed.has(weekdayKey(cursor))) dates.push(cursor.toISOString().slice(0, 10));
+    if (allowed.has(weekdayKey(cursor))) dates.push(utcIso(cursor));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   if (dates.length !== length) throw new ValidationError("Couldn't place every trial day on the selected weekdays");
@@ -112,7 +113,7 @@ export function assertTrialStart(startDate: string, weekdays: readonly string[],
   const start = parseIsoDateUtc(startDate);
   const wk = weekdayKey(start);
   if (!weekdays.includes(wk)) throw new ValidationError("A trial can't be sent on that day");
-  if (wk === "sat" || wk === "sun") {
+  if (isWeekendDay(wk)) {
     const tomorrow = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1));
     if (start.getTime() < tomorrow.getTime()) {
       throw new ValidationError("Start date must be on or after the next available day");
@@ -125,7 +126,7 @@ export function assertTrialStart(startDate: string, weekdays: readonly string[],
 /** First bookable start: next weekday, or tomorrow when a weekend is a send day. */
 export function earliestTrialIso(today: Date, weekdays: readonly string[]): string {
   if (weekdays.includes("sat") || weekdays.includes("sun")) {
-    return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1)).toISOString().slice(0, 10);
+    return addDaysIso(utcIso(today), 1);
   }
-  return nextWeekday(today).toISOString().slice(0, 10);
+  return utcIso(nextWeekday(today));
 }

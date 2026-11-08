@@ -1,12 +1,13 @@
-import { eachDateInclusive, periodKey, periodLabel, type Grain } from "./profitability";
+import { periodKey, periodLabel, type Grain } from "./profitability";
 import { grainForRange } from "./revenue";
+import { eachDate, isoToUtcDate } from "@/lib/dates";
 
 const TIP_DAY = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const TICK_DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 /** `period` is the x tick ("Oct 3", week start "Oct 6", month "Oct 2026"); `tip` is the tooltip heading. */
 export function chartPeriod(key: string, grain: Grain): { period: string; tip: string } {
-  const at = new Date(`${key}T00:00:00Z`);
+  const at = isoToUtcDate(key);
   switch (grain) {
     case "daily":
       return { period: TICK_DAY.format(at), tip: TIP_DAY.format(at) };
@@ -28,7 +29,7 @@ export function bucketCounts<K extends string>(
   const grain = grainForRange(from, to);
   const zero = () => Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
   const buckets = new Map<string, Record<K, number>>();
-  for (const day of eachDateInclusive(from, until < to ? until : to)) buckets.set(periodKey(day, grain), zero());
+  for (const day of eachDate(from, until < to ? until : to)) buckets.set(periodKey(day, grain), zero());
   for (const r of rows) {
     const b = buckets.get(periodKey(r.iso, grain));
     if (b) for (const k of keys) b[k] += r[k];

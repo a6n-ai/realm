@@ -1,4 +1,5 @@
 import { dateTimeFormat } from "@/lib/intl/date-format";
+import { DAY_NAMES } from "@/lib/dates";
 
 /** One weekday's support window, "HH:MM" 24h in the app timezone. */
 export type DayHours = { open: string; close: string };
@@ -12,7 +13,6 @@ export type SupportHours = {
 
 export const SUPPORT_HOURS_DEFAULT: SupportHours = { days: Array(7).fill(null), replyWithinHours: null };
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Display order: the week starts on Monday. */
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;

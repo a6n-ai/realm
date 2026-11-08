@@ -14,10 +14,9 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { useQuickRenew, type QuickRenewProps } from "./use-quick-renew";
+import { isoToLocalDate, localIso } from "@/lib/dates";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-
-const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** Staff shell of quick renew: installed @foundry/ui + ReUI parts, semantic tokens, no customer kit. */
 export function QuickRenewFormAdmin(props: QuickRenewProps & { tagLabel: string | null }) {
@@ -53,10 +52,10 @@ export function QuickRenewFormAdmin(props: QuickRenewProps & { tagLabel: string 
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={sel.startDate ? new Date(`${sel.startDate}T00:00:00`) : undefined}
-              defaultMonth={sel.startDate ? new Date(`${sel.startDate}T00:00:00`) : undefined}
-              disabled={(d) => q.dayDisabledReason(toIso(d)) !== undefined}
-              onSelect={(d) => { if (d) { q.onStartDate(toIso(d)); setDateOpen(false); } }}
+              selected={sel.startDate ? isoToLocalDate(sel.startDate) : undefined}
+              defaultMonth={sel.startDate ? isoToLocalDate(sel.startDate) : undefined}
+              disabled={(d) => q.dayDisabledReason(localIso(d)) !== undefined}
+              onSelect={(d) => { if (d) { q.onStartDate(localIso(d)); setDateOpen(false); } }}
               autoFocus
             />
           </PopoverContent>

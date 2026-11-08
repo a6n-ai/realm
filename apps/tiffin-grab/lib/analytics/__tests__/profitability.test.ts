@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  decorateDay,
-  isoDateInZone,
-  isoWeekMonday,
-  kpis,
-  navScope,
-  rangeFor,
-  parseAssumptions,
-  periodKey,
-  rollup,
-  ZERO_ASSUMPTIONS,
-} from "../profitability";
+import { decorateDay, kpis, navScope, rangeFor, parseAssumptions, periodKey, rollup, ZERO_ASSUMPTIONS } from "../profitability";
+import { isoDateInZone, mondayOfIso } from "@/lib/dates";
 
 describe("parseAssumptions", () => {
   it("treats missing or negative values as zero", () => {
@@ -54,7 +44,7 @@ describe("rollup", () => {
       { date: "2026-01-06", tiffins: 10, revenue: 100, cashCollected: 0 },
       ZERO_ASSUMPTIONS,
     );
-    expect(isoWeekMonday("2026-01-05")).toBe("2026-01-05");
+    expect(mondayOfIso("2026-01-05")).toBe("2026-01-05");
     expect(periodKey("2026-01-06", "weekly")).toBe("2026-01-05");
     const [week] = rollup([a, b], "weekly");
     expect(week?.revenue).toBe(200);

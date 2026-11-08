@@ -18,11 +18,11 @@ import {
   account, dishCategories, dishes, menuItems, menuWeeks, orders, plans, users,
 } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { createOrder } from "@/lib/services/orders.service";
 import { assertLocalDb } from "./is-local-db";
+import { mondayOfIso } from "@/lib/dates";
 
 // The password below is committed to a public repo — never seed it anywhere but local.
 assertLocalDb("seed-qa-plans");

@@ -4,15 +4,16 @@ import { useMemo, useState, type ReactNode } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
-import { mondayOf } from "@/lib/deliveries-view/week";
 import { moveOptions, planEndDate, tripCounts } from "@/lib/deliveries-view/move";
 import { WeekTimeline } from "../week-timeline";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 import { useSheetUi } from "./sheet-ui";
+import { mondayOfIso } from "@/lib/dates";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
-const weekdayLong = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+const weekdayLong = (iso: string) => formatDateOnly(iso, { mode: "weekdayLong" });
 
 // Plain spans on theme tokens, so the admin (shadcn) and kit sheets both render them.
 const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
@@ -45,7 +46,7 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
     if (!end || !endOption) return setReason("This plan has no end date to move to.");
     if (endOption.disabledReason) return setReason(endOption.disabledReason);
     setPicked(end);
-    setWeek(mondayOf(end));
+    setWeek(mondayOfIso(end));
   };
   // First day the next plan delivers inside this sheet's range: those days are greyed, so say why up front.
   const renewalFrom = options.find((o) => plan.ctx.otherPlanDays?.[o.carriedOn] === "renewal")?.carriedOn;
@@ -101,9 +102,9 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
               )}
               {renewalFrom && <Reason>Renewal starts {humanDate(renewalFrom)}. Its days are greyed out.</Reason>}
               <WeekTimeline
-                firstWeek={mondayOf(options[0]?.date ?? plan.today)}
-                lastWeek={mondayOf(options[options.length - 1]?.date ?? plan.today)}
-                week={week ?? mondayOf(options[0]?.date ?? plan.today)}
+                firstWeek={mondayOfIso(options[0]?.date ?? plan.today)}
+                lastWeek={mondayOfIso(options[options.length - 1]?.date ?? plan.today)}
+                week={week ?? mondayOfIso(options[0]?.date ?? plan.today)}
                 today={plan.today}
                 selectedDay={picked}
                 agenda={agenda ?? {}}

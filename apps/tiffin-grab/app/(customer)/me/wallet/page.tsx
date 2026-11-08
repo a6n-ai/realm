@@ -23,6 +23,7 @@ import { FinancesTabs } from "@/components/customer/wallet/finances-tabs";
 import { parseFinancesTab } from "@/components/customer/wallet/finances-tab";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { CouponHistory, CouponHistorySkeleton, CouponStats, CouponStatsSkeleton } from "@/components/customer/wallet/coupon-history";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -159,7 +160,6 @@ async function CouponsPanel({ userId, searchParams }: { userId: bigint; searchPa
 // All-time totals; usage is computed server-side from the ledger, never client input.
 async function StatsData({ userId }: { userId: bigint }) {
   const { currency } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const usage = await getCustomerUsage(userId, 0, Date.now());
+  const usage = await getCustomerUsage(userId, 0, requestNow());
   return <FinanceStats usage={usage} currency={currency} />;
 }

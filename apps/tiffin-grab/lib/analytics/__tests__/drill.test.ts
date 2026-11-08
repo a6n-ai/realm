@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isoDateInZone } from "../profitability";
 import { customersHref, inquiriesHref, ordersDrillHref, ordersHref, paymentsHref, zonedRangeMs } from "../drill";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { presentPaymentStatuses } from "../revenue";
+import { isoDateInZone } from "@/lib/dates";
 
 const TZ = "America/Toronto";
 

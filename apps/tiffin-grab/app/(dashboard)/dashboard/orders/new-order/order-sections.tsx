@@ -4,7 +4,7 @@ import { round2 } from "@foundry/discounts";
 import { useState } from "react";
 import { CalendarDaysIcon, ChevronDownIcon, CopyIcon, MinusIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
-import { weekdayKey } from "@foundry/commons";
+import { isWeekend, weekdayKey } from "@foundry/commons";
 import { appToday } from "@/lib/services/start-date";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -28,11 +28,12 @@ import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayO
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { CheckoutPaymentMethod } from "@/app/(public)/subscribe/actions";
 import type { useOrderDraft } from "../../inquiries/[id]/order/use-order-draft";
-import { dayBeforeIso, type Catalog } from "../../inquiries/[id]/order/order-draft";
+import { type Catalog } from "../../inquiries/[id]/order/order-draft";
 import { CustomerCodeField } from "../../discounts/customer-code-field";
 import { CoinsField } from "../../discounts/coins-field";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
 import { DropOffToggles } from "./drop-off-toggles";
+import { addDaysIso, daysBetween, isoToUtcDate, utcIso } from "@/lib/dates";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
@@ -89,15 +90,15 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
   // The next three days this plan can start (cutoff, renewal, trial and weekend rules all apply),
   // named Today/Tomorrow/Day after when they are, else by date. A fixed "today/tomorrow" set would be
   // all-disabled from Friday to Sunday.
-  const calendarToday = appToday(catalog.timezone).toISOString().slice(0, 10);
+  const calendarToday = utcIso(appToday(catalog.timezone));
   const relative = ["Today", "Tomorrow", "Day after"];
   const quickStarts: { iso: string; label: string }[] = [];
-  for (let n = 0, day = new Date(`${d.minStart}T00:00:00Z`); n < 21 && quickStarts.length < 3; n++, day.setUTCDate(day.getUTCDate() + 1)) {
+  for (let n = 0, day = isoToUtcDate(d.minStart); n < 21 && quickStarts.length < 3; n++, day.setUTCDate(day.getUTCDate() + 1)) {
     const weekday = weekdayKey(day) as DayOfWeek;
-    const startable = isTrial ? d.trialWeekdays.includes(weekday) : day.getUTCDay() !== 0 && day.getUTCDay() !== 6;
+    const startable = isTrial ? d.trialWeekdays.includes(weekday) : !isWeekend(day);
     if (!startable) continue;
-    const iso = day.toISOString().slice(0, 10);
-    const offset = Math.round((Date.parse(iso) - Date.parse(calendarToday)) / 86_400_000);
+    const iso = utcIso(day);
+    const offset = daysBetween(calendarToday, iso);
     const label = relative[offset] ?? day.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
     quickStarts.push({ iso, label });
   }
@@ -202,7 +203,7 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
             </div>
             {d.renewalBound && (
               <p className="text-muted-foreground text-xs text-pretty">
-                Renewal: current plan runs through {dayBeforeIso(d.renewFrom!)}. The new plan starts on or after{" "}
+                Renewal: current plan runs through {addDaysIso(d.renewFrom!, -1)}. The new plan starts on or after{" "}
                 <button type="button" className="text-primary font-medium underline-offset-2 hover:underline" onClick={() => form.setValue("startDate", d.renewalStart!, { shouldDirty: true, shouldValidate: true })}>
                   {d.renewalStart}
                 </button>.

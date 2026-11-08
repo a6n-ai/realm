@@ -8,6 +8,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { changeEatingDaysAction } from "./actions";
+import { isWeekendDay } from "@/lib/dates";
 
 const WEEK: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const cap = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
@@ -78,7 +79,7 @@ export function EatingDaysControl({
         <div className="flex flex-wrap gap-1.5">
           {WEEK.map((d) => {
             const on = value.includes(d);
-            const noDish = !servesWeekends && (d === "sat" || d === "sun");
+            const noDish = !servesWeekends && (isWeekendDay(d));
             const offDay = !on && !dayAllowed(d, mealDays);
             return (
               <button

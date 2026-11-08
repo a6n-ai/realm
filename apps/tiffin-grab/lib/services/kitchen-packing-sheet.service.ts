@@ -30,11 +30,10 @@ import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { withConcurrency } from "@/lib/concurrency";
+import { DAY_NAMES } from "@/lib/dates";
 
 // Under the pool size (10) so the other loaders on the labels page still get connections.
 const ROW_CONCURRENCY = 6;
-
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export type KitchenPackingRow = {
   deliveryPublicId: string;

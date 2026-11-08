@@ -10,8 +10,9 @@ import { Input } from "@foundry/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import type { ReconcileRow, SettleEffect } from "@/lib/services/payment-stripe";
 import { reconcileAction, settleFromReconcileAction } from "./actions";
+import { utcIso } from "@/lib/dates";
 
-const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const iso = (ms: number) => utcIso(new Date(ms));
 const DAY = 86_400_000;
 
 const LABEL: Record<ReconcileRow["kind"], string> = {

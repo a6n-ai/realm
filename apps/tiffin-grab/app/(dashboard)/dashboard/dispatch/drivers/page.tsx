@@ -9,6 +9,7 @@ import { DispatchTabs } from "../dispatch-tabs";
 import { DriverRoster } from "../driver-roster";
 import { DispatchView } from "../dispatch-view";
 import { DispatchExportButton } from "../dispatch-export-button";
+import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -17,8 +18,7 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
   await requireStaff();
   const { date: dateParam } = await searchParams;
   const { timezone } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = zonedDateIso(requestNow(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
   let dispatchRows, drivers;
