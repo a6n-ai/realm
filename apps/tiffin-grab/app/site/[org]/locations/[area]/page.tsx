@@ -282,17 +282,11 @@ function DayRibbon({ name, win, cutoffHour, cutoff }: { name: string; win: Windo
   );
 }
 
-/** Two-line statement whose words brighten in reading order as it scrolls in (CSS scroll timeline;
- *  browsers without one, and reduced motion, show it at full colour). */
+/** Two-line statement, each line set on its own. */
 function Reveal({ lines }: { lines: string[] }) {
-  let i = 0;
   return (
     <p className="lp-h2 lp-reveal">
-      {lines.map((line, l) => (
-        <span key={l} className="lp-reveal__line">
-          {line.split(" ").map((w, k) => <span key={k} className="lp-reveal__word" style={{ "--i": i++ } as CSSProperties}>{w} </span>)}
-        </span>
-      ))}
+      {lines.map((line, l) => <span key={l} className="lp-reveal__line">{line}</span>)}
     </p>
   );
 }

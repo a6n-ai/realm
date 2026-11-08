@@ -2,14 +2,11 @@
 
 import { useEffect } from "react";
 
-// Section-level blocks only, never per word or image. .lp-bento is a sideways swipe row on
-// phones, so the row reveals as one: tiles off to the side would never enter the viewport.
+// Section-level blocks only, never text: headings, ledes and copy are always there. .lp-bento is a
+// sideways swipe row on phones, so the row reveals as one: tiles off to the side would never enter the viewport.
 const TARGETS = [
-  ".lp-section .lp-h2", ".tg-deliver__head .tg-h", ".tg-reviews .tg-h",
-  ".lp-section .lp-kicker", ".lp-section .lp-lede", ".lp-story__text",
   ".lp-bento", ".lp-faq__list details", ".tg-review-glass",
-  ".lp-menu__main", ".lp-menu__aside > .ss-fit", ".lp-offers__carousel",
-  ".lp-flex .lp-points > *", ".lp-flex__grid > *", ".tg-deliver__panel", ".tg-close .tg-close__lead",
+  ".lp-menu__main", ".lp-menu__aside > .ss-fit", ".lp-offers__carousel", ".tg-deliver__panel",
 ].join(",");
 
 /**

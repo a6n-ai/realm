@@ -114,19 +114,14 @@ export function Hero({
   );
 }
 
-/** Words as separate spans so each brightens as it scrolls through the view (CSS only). */
-function Reveal({ text }: { text: string }) {
-  return <>{text.split(" ").map((w, i) => <span key={i} className="lp-story__w">{w} </span>)}</>;
-}
-
 export function Story() {
   return (
     <section className="lp-story dark" aria-label="About Tiffin Grab">
       <div className="lp-wrap">
         <svg className="lp-story__mark" width="28" height="28" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M12 0c.6 6.4 5.6 11.4 12 12-6.4.6-11.4 5.6-12 12-.6-6.4-5.6-11.4-12-12C6.4 11.4 11.4 6.4 12 0Z" /></svg>
         <p className="lp-story__text">
-          <strong><Reveal text="Home‑style food, cooked the way a home kitchen does it." /></strong>{" "}
-          <Reveal text="Small batches of dal, rice, sabzi and fresh rotis, packed into a tiffin and brought to your door across the GTA. You choose the diet, the size, the days and how many weeks. Away for a day? Pause it, and it waits for you." />
+          <strong>Home‑style food, cooked the way a home kitchen does it.</strong>{" "}
+          Small batches of dal, rice, sabzi and fresh rotis, packed into a tiffin and brought to your door across the GTA. You choose the diet, the size, the days and how many weeks. Away for a day? Pause it, and it waits for you.
         </p>
         <p className="lp-story__quote">Your tiffin, your way.</p>
       </div>

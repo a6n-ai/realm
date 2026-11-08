@@ -661,20 +661,6 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
   .PhoneInputCountry { transition: var(--tr-lift); }
   .PhoneInputCountry:hover { translate: 0 -1px; }
 }
-.lp-intro > h1, .lp-hero h1, .tg-refer-stage__h { view-transition-name: tg-title; }
-.lp-intro > .lp-kicker, .tg-refer-stage__eyebrow { view-transition-name: tg-kicker; }
-::view-transition-group(tg-title), ::view-transition-group(tg-kicker) { animation: none; }
-::view-transition-image-pair(tg-title), ::view-transition-image-pair(tg-kicker) { isolation: auto; }
-::view-transition-old(tg-title), ::view-transition-new(tg-title),
-::view-transition-old(tg-kicker), ::view-transition-new(tg-kicker) { width: auto; height: auto; inset: 0 auto auto 0; mix-blend-mode: normal; }
-::view-transition-old(tg-title), ::view-transition-old(tg-kicker) { animation: tg-title-out 120ms ease-out both; }
-::view-transition-new(tg-title) { animation: tg-title-rise 420ms var(--ease-soft) 60ms both; }
-::view-transition-new(tg-kicker) { animation: tg-title-rise 300ms var(--ease-soft) 20ms both; }
-@keyframes tg-title-out { to { opacity: 0; } }
-@keyframes tg-title-rise { from { transform: translateY(100%); clip-path: inset(0 0 100% 0); } to { transform: none; clip-path: inset(0); } }
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(tg-title), ::view-transition-new(tg-title), ::view-transition-old(tg-kicker), ::view-transition-new(tg-kicker) { animation: none; }
-}
 .lp-wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter, 24px); }
 .lp-section { padding-block: clamp(40px, 5vw, 72px); }
 .lp-display { margin: 0; font-size: clamp(44px, 7.4vw, 96px); line-height: 1; font-weight: 700; letter-spacing: -0.045em; text-wrap: balance; }
@@ -791,11 +777,9 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
     .lp-hero__video { animation: lp-hero-drift linear both; animation-timeline: scroll(root); animation-range: 0 100svh; }
-    .lp-hero__inner { animation: lp-hero-lift linear both; animation-timeline: scroll(root); animation-range: 0 60svh; }
   }
 }
 @keyframes lp-hero-drift { to { transform: translateY(18%) scale(1.06); } }
-@keyframes lp-hero-lift { to { transform: translateY(-48px); opacity: 0; } }
 .lp-story { padding-block: clamp(56px, 8vw, 112px); text-align: center; }
 .lp-story__mark { display: block; margin: 0 auto 32px; color: var(--primary); }
 .lp-story__text { margin: 0 auto; max-width: 30ch; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.3; font-weight: 500; letter-spacing: -0.02em; text-wrap: balance; }
@@ -913,7 +897,6 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 }
 .lp-plans .lp-list__row > :last-child { flex: none; text-align: right; white-space: nowrap; padding-left: 8px; }
 html[data-dock] { scroll-padding-bottom: 112px; }
-html[data-dock] body::after { content: ""; position: fixed; inset: auto 0 0; z-index: 44; height: calc(max(14px, env(safe-area-inset-bottom)) + 92px); pointer-events: none; background: linear-gradient(to top, var(--edge-behind, var(--tg-cream)) 28%, transparent); }
 .lp-plan[data-plan] .lp-tile__title { display: flex; align-items: center; gap: 10px; }
 .lp-plan[data-plan] .lp-tile__title::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 999px; background: var(--tg-green); box-shadow: 0 0 0 4px color-mix(in oklch, var(--tg-green) 16%, transparent); }
 .lp-plan[data-plan="non-veg"] .lp-tile__title::before { background: var(--tg-rust); box-shadow: 0 0 0 4px color-mix(in oklch, var(--tg-rust) 16%, transparent); }
@@ -941,19 +924,14 @@ html[data-dock] body::after { content: ""; position: fixed; inset: auto 0 0; z-i
 .lp-days__tab, .lp-faq__list summary, .tg-chip { transition: var(--tr-lift); }
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
-    .lp-section .lp-h2, .tg-deliver__head .tg-h, .tg-reviews .tg-h { animation: lp-mask-rise linear both; animation-timeline: view(); animation-range: entry 10% cover 28%; }
-    .lp-section .lp-kicker, .lp-section .lp-lede, .lp-head .lp-textlink { animation: lp-rise linear both; animation-timeline: view(); animation-range: entry 20% cover 32%; }
     .lp-bento > *, .lp-faq__list details, .tg-review-glass { animation: lp-lift linear both; animation-timeline: view(); animation-range: entry 0% cover 26%; }
     .lp-menu__main { animation: lp-lift linear both; animation-timeline: view(); animation-range: entry 0% cover 24%; }
     .lp-menu__aside > .ss-fit { animation: lp-phone-in linear both; animation-timeline: view(); animation-range: entry 6% cover 32%; }
     .lp-offers__carousel { animation: lp-slide-in linear both; animation-timeline: view(); animation-range: entry 0% cover 28%; }
     .lp-offers__photo img, .lp-tile--photo img { animation: lp-unzoom linear both; animation-timeline: view(); animation-range: entry 0% cover 55%; }
-    .lp-flex .lp-points > *, .lp-flex__grid > * { animation: lp-rise linear both; animation-timeline: view(); animation-range: entry 0% cover 30%; }
     .tg-deliver__panel { animation: lp-lift linear both; animation-timeline: view(); animation-range: entry 0% cover 28%; }
   }
 }
-@keyframes lp-mask-rise { from { clip-path: inset(-20% -10% 100% -10%); transform: translateY(0.35em); } to { clip-path: inset(-20% -10% -25% -10%); transform: none; } }
-@keyframes lp-rise { from { opacity: 0; transform: translateY(18px); } }
 @keyframes lp-lift { from { transform: translateY(36px) scale(0.98); } }
 @keyframes lp-phone-in { from { opacity: 0; transform: translateY(48px) rotate(2deg); } }
 @keyframes lp-slide-in { from { opacity: 0; transform: translateX(-40px); } }
@@ -1062,9 +1040,6 @@ html[data-dock] body::after { content: ""; position: fixed; inset: auto 0 0; z-i
   .tg-close__cols a:hover { background: rgb(46 18 0 / 0.14); transform: translateY(-1px); }
   .tg-close__cookie:hover { text-decoration-color: currentColor; }
   .tg-close .tg-cta:hover { background-color: #33634B; transform: translateY(-2px); }
-}
-@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
-  .tg-close .tg-close__lead { animation: lp-rise linear both; animation-timeline: view(); animation-range: entry 0% cover 30%; }
 }
 @keyframes tg-wa-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.67); opacity: 0; } }
 @keyframes tg-avatar-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
