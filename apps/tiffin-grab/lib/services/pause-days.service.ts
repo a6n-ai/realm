@@ -225,10 +225,18 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
       }
       const entries = await tx.select({ id: subscriptionPauses.id, deliveryDates: subscriptionPauses.deliveryDates })
         .from(subscriptionPauses).where(eq(subscriptionPauses.orderId, order.id)).orderBy(desc(subscriptionPauses.id));
-      const entry = entries.find((e) => e.deliveryDates?.some((d) => left.some((t) => t.trip === d))) ?? entries[0];
+      // Only the trip's own day-set entry; a range pause (null delivery_dates) is charged by its span and never rewritten.
+      const entry = entries.find((e) => e.deliveryDates != null && e.deliveryDates.some((d) => left.some((t) => t.trip === d)));
       if (entry) {
-        await tx.update(subscriptionPauses).set({ deliveryDates: [...(entry.deliveryDates ?? []), ...staying] }).where(eq(subscriptionPauses.id, entry.id));
+        await tx.update(subscriptionPauses).set({ deliveryDates: [...entry.deliveryDates!, ...staying] }).where(eq(subscriptionPauses.id, entry.id));
         chargedOn = entry.id;
+      } else {
+        const sorted = [...staying].sort();
+        const [row] = await tx.insert(subscriptionPauses).values({
+          orderId: order.id, fromDate: sorted[0]!, untilDate: sorted.at(-1)!, isIndefinite: false,
+          deliveryDates: sorted, releasedDates: [], resumedAt: new Date(), createdBy: actorId,
+        }).returning({ id: subscriptionPauses.id });
+        chargedOn = row!.id;
       }
     }
     return back;
