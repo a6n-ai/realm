@@ -45,14 +45,6 @@ export function routingChanges(
   ];
 }
 
-export function streamSummary(routing: { webhook: readonly EmailEventType[]; counts: readonly EmailEventType[] | null }) {
-  const names = (l: readonly EmailEventType[]) => (l.length ? l.map((t) => EVENT_NAME[t]).join(", ") : "Nothing");
-  return {
-    logs: `Shown per email in Logs: ${names(routing.webhook)}`,
-    totals: routing.counts ? `Counted in totals: ${names(routing.counts)}` : "Counted in totals: not set up",
-  };
-}
-
 export function trackedStatus(n: number, available = true): string {
   if (!available) return "Open and click tracking isn't set up for this app yet.";
   if (n === 0) return "Nothing to set up. No emails are tracked — that's the default.";
