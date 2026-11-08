@@ -396,11 +396,11 @@
 .rd .rd-app__bar svg { color: var(--rd-deep); }
 .rd .rd-app__share { margin-left: auto; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #fff; }
 .rd .rd-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; flex: none; }
-.rd .rd-ic--orange { background: #fdebdd; color: #c2560f; }
+.rd .rd-ic--orange { background: #fdebdd; color: #a33f0c; }
 .rd .rd-ic--pink { background: #fde2ec; color: #be185d; }
 .rd .rd-ic--purple { background: #ede7fb; color: #6941c6; }
 .rd .rd-ic--blue { background: #E6F0FF; color: #2563eb; }
-.rd .rd-ic--green { background: #e2f5e9; color: #15803d; }
+.rd .rd-ic--green { background: #e2f5e9; color: #116b33; }
 .rd .rd-ic--cyan { background: #dff4f8; color: #0e7490; }
 .rd .rd-ic--gray { background: #eeece7; color: #57534e; }
 .rd .rd-ic--brown { background: #f3e8dc; color: #8a5a2b; }

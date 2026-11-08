@@ -65,8 +65,9 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
     if (!box) return;
     const el = target ?? box.querySelector<HTMLElement>('[aria-current="page"]');
     if (!el) { box.style.setProperty("--lens-o", "0"); return; }
-    box.style.setProperty("--lens-x", `${el.offsetLeft}px`);
-    box.style.setProperty("--lens-w", `${el.offsetWidth}px`);
+    // The lens spans the whole row and is clipped to the link, so it slides without animating layout.
+    box.style.setProperty("--lens-l", `${el.offsetLeft}px`);
+    box.style.setProperty("--lens-r", `${box.clientWidth - el.offsetLeft - el.offsetWidth}px`);
     box.style.setProperty("--lens-o", "1");
   };
   useLayoutEffect(() => { moveLens(null); }, [path, account.label]);

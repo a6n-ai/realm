@@ -96,7 +96,7 @@ async function PublicFooter() {
           <defs><path id="tg-sticker-ring" d="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" /></defs>
           <circle cx="100" cy="100" r="96" fill="#FBF4E7" />
           <circle cx="100" cy="100" r="88" fill="#2A5440" />
-          <text className="tg-sticker__ring"><textPath href="#tg-sticker-ring" startOffset="0">SMALL BATCHES · HOME‑STYLE · ACROSS THE GTA ·</textPath></text>
+          <text className="tg-sticker__ring"><textPath href="#tg-sticker-ring" startOffset="0">SMALL BATCHES ✦ HOME‑STYLE ✦ ACROSS THE GTA ✦</textPath></text>
           <image href="/brand/mark.svg" x="62" y="62" width="76" height="76" />
         </svg>
       </div>

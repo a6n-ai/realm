@@ -79,7 +79,7 @@ export function Hero({
           <h1 id="lp-hero-title" className="lp-display">
             Home‑style tiffins.<br />Delivered <span className="c-accent">fresh.</span>
           </h1>
-          <p className="lp-lede">Dal, rice, sabzi and fresh rotis, cooked in small batches and brought to your door across the GTA.</p>
+          <p className="lp-lede">Dal, sabzi, rice and rotis, cooked in small batches across the GTA.</p>
           <div className="lp-actions lp-actions--start">
             <BuildTiffinLink href={ctaHref} className="lp-cta">Build my tiffin</BuildTiffinLink>
             {hasMenu ? <a href="#menu" className="lp-textlink lp-textlink--light">This week&apos;s menu <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></a> : null}

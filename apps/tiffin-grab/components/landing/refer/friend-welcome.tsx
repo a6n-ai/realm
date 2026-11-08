@@ -24,9 +24,9 @@ export function FriendWelcome({ code, firstName, friend, promo }: {
     <section className="tg-wrap tg-section tg-refer" aria-labelledby="tg-friend-title">
       <div className="tg-refer__hero">
         <div className="tg-refer__intro">
-          <span className="c-eyebrow !mb-0">You're invited</span>
+          <span className="c-eyebrow !mb-0">You’re invited</span>
           <h1 id="tg-friend-title" className="tg-h2">
-            {friendHeadline(firstName, friend)} <span className="c-accent">Let's build your tiffin.</span>
+            {friendHeadline(firstName, friend)} <span className="c-accent">Let’s build your tiffin.</span>
           </h1>
           <p className="tg-lede">
             {friendGiftLine(friend)}
@@ -45,7 +45,7 @@ export function FriendWelcome({ code, firstName, friend, promo }: {
           </li>
         ))}
       </ol>
-      <p className="tg-refer__fine">For new customers. Coins are spent on your orders and can't be cashed out.</p>
+      <p className="tg-refer__fine">For new customers. Coins are spent on your orders and can’t be cashed out.</p>
     </section>
   );
 }

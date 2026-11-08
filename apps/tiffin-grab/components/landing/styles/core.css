@@ -23,9 +23,8 @@
 .tg-bar__word { font-size: 17px; }
 .tg-bar__grab { color: var(--bar-grab); transition: var(--tr-color); }
 .tg-bar__links { position: relative; display: flex; align-items: center; gap: 2px; margin-inline: auto; }
-.tg-bar__lens { position: absolute; left: 0; top: 50%; height: 38px; width: var(--lens-w, 0px); translate: var(--lens-x, 0px) -50%; border-radius: 999px; pointer-events: none; background: var(--bar-lens); box-shadow: var(--sh-2); opacity: var(--lens-o, 0); transition:
-    translate 420ms var(--ease-soft),
-    width 420ms var(--ease-soft),
+.tg-bar__lens { position: absolute; inset-inline: 0; top: 50%; height: 38px; translate: 0 -50%; clip-path: inset(0 var(--lens-r, 100%) 0 var(--lens-l, 0px) round 999px); pointer-events: none; background: var(--bar-lens); opacity: var(--lens-o, 0); transition:
+    clip-path 420ms var(--ease-soft),
     opacity 200ms ease,
     background-color 420ms ease; }
 .tg-bar__link { position: relative; display: inline-flex; align-items: center; height: 40px; padding: 0 15px; border-radius: 999px; font-size: 14px; font-weight: 600; letter-spacing: -0.005em; color: var(--bar-ink-soft); text-decoration: none; transition: var(--tr-color); }
@@ -364,11 +363,11 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 .lp-offers__nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
 .lp-offers__dots { display: flex; gap: 4px; }
 .lp-offers__dot { display: grid; place-items: center; width: 28px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
-.lp-offers__dot::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 25%, transparent); transition: width 240ms var(--ease-soft), background-color 240ms ease; }
+.lp-offers__dot::before { content: ""; width: 24px; height: 8px; clip-path: inset(0 8px round 999px); background: color-mix(in oklch, var(--foreground) 25%, transparent); transition: clip-path 240ms var(--ease-soft), background-color 240ms ease; }
 @media (hover: hover) {
-  .lp-offers__dot:hover::before { width: 16px; background: color-mix(in oklch, var(--foreground) 55%, transparent); }
+  .lp-offers__dot:hover::before { clip-path: inset(0 4px round 999px); background: color-mix(in oklch, var(--foreground) 55%, transparent); }
 }
-.lp-offers__dot[aria-current="true"]::before { width: 24px; background: var(--foreground); }
+.lp-offers__dot[aria-current="true"]::before { clip-path: inset(0 round 999px); background: var(--foreground); }
 .lp-offers__arrows { display: flex; gap: 8px; }
 .lp-offers__arrow { display: grid; width: 48px; height: 48px; border-radius: 999px; border: 0; cursor: pointer; background: var(--card); }
 .lp-offers__arrow:hover:not(:disabled) { background: var(--muted); }
@@ -376,7 +375,7 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
                 radial-gradient(circle 16px at calc(100% - var(--stub)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; mask: radial-gradient(circle 16px at calc(100% - var(--stub)) 0, transparent 98%, #000) top / 100% 51% no-repeat,
                 radial-gradient(circle 16px at calc(100% - var(--stub)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; }
 .lp-coupon__main { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: clamp(24px, 4vw, 44px); }
-.lp-coupon__badge { font-size: clamp(48px, 6.5vw, 88px); line-height: 0.9; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase; overflow-wrap: anywhere; }
+.lp-coupon__badge { font-size: clamp(48px, 6.5vw, 88px); line-height: 1; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase; overflow-wrap: anywhere; }
 .lp-coupon__title { font-size: 17px; font-weight: 700; }
 .lp-coupon__blurb { margin: 0; max-width: 40ch; font-size: 16px; line-height: 1.5; color: rgb(46 18 0 / 0.8); }
 .lp-coupon__stub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; border-left: 2px dashed rgb(46 18 0 / 0.3); }
@@ -524,7 +523,7 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 .tg-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--muted); color: var(--foreground); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
 .tg-chip { min-height: 32px; padding: 0 12px; font-size: 13px; }
 .tg-chip[aria-pressed="true"] { background: var(--tg-green); color: var(--tg-cream); }
-.tg-chip:disabled { opacity: 0.75; cursor: default; }
+.tg-chip:disabled { opacity: 0.75; cursor: not-allowed; box-shadow: none; }
 .tg-chip:active { transform: scale(0.96); }
 .tg-area { position: relative; display: block; width: 14px; height: 14px; cursor: default; }
 .tg-area i { position: absolute; inset: 0; border-radius: 999px; background: var(--primary); border: 2.5px solid var(--card); box-shadow: var(--sh-2); }
@@ -619,7 +618,7 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
   .tg-review-glass { background: var(--card); border: 1px solid var(--foreground); }
 }
 .tg-sticker { filter: drop-shadow(0 8px 14px rgb(46 18 0 / 0.28)); }
-.tg-sticker--tag { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 18px 12px; background: var(--tg-green); color: var(--tg-saffron); border: 4px solid var(--tg-cream); border-radius: 18px; transform: rotate(-7deg); font-weight: 800; text-transform: uppercase; text-align: center; line-height: 0.95; letter-spacing: -0.01em; }
+.tg-sticker--tag { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 18px 12px; background: var(--tg-green); color: var(--tg-peach); border: 4px solid var(--tg-cream); border-radius: 18px; transform: rotate(-7deg); font-weight: 800; text-transform: uppercase; text-align: center; line-height: 0.95; letter-spacing: -0.01em; }
 .tg-sticker--tag > span { font-size: 28px; }
 .tg-sticker--tag small { font-size: 11px; letter-spacing: 0.18em; color: var(--tg-cream); font-weight: 700; }
 .tg-sticker--tag:hover { transform: rotate(-3deg) scale(1.04); }
@@ -744,8 +743,8 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 .lp-pills small { font-weight: 500; color: var(--muted-foreground); font-size: 13px; }
 .lp-swipe-dots { display: flex; justify-content: center; gap: 2px; }
 .lp-swipe-dots button { width: 32px; height: 32px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; }
-.lp-swipe-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 22%, transparent); transition: width 240ms var(--lp-ease), background-color 240ms ease; }
-.lp-swipe-dots button[aria-current="true"]::before { width: 22px; background: var(--tg-rust); }
+.lp-swipe-dots button::before { content: ""; width: 22px; height: 8px; clip-path: inset(0 7px round 999px); background: color-mix(in oklch, var(--foreground) 22%, transparent); transition: clip-path 240ms var(--lp-ease), background-color 240ms ease; }
+.lp-swipe-dots button[aria-current="true"]::before { clip-path: inset(0 round 999px); background: var(--tg-rust); }
 .lp-menu { position: relative; isolation: isolate; overflow-x: clip; }
 .lp-menu::after { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--g-fade-y); }
 .lp-glass-light { background: color-mix(in srgb, #fff 56%, transparent); -webkit-backdrop-filter: var(--blur-glass); backdrop-filter: var(--blur-glass); box-shadow: var(--sh-rim), var(--sh-3); }
@@ -782,7 +781,7 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 @keyframes lp-hero-drift { to { transform: translateY(18%) scale(1.06); } }
 .lp-story { padding-block: clamp(56px, 8vw, 112px); text-align: center; }
 .lp-story__mark { display: block; margin: 0 auto 32px; color: var(--primary); }
-.lp-story__text { margin: 0 auto; max-width: 30ch; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.3; font-weight: 500; letter-spacing: -0.02em; text-wrap: balance; }
+.lp-story__text { margin: 0 auto; max-width: 46ch; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.3; font-weight: 500; letter-spacing: -0.02em; text-wrap: balance; }
 .lp-story__text strong { font-weight: 700; }
 .lp-story__quote { margin: 32px auto 0; font-size: clamp(18px, 2vw, 26px); color: var(--primary-text, var(--primary)); font-weight: 600; }
 .lp .dark:not(.lp-hero) { background: var(--background); color: var(--foreground); }
