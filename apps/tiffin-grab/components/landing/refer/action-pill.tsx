@@ -11,7 +11,7 @@ import { isStaffRole, roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
 import { pillVisible } from "./pill-visible";
 
-// Heroes carry their own call to action, so over one the bar stays small (and blur-free over video).
+// Over a hero the bar keeps its size (one behaviour everywhere) and only swaps to smoky glass over video.
 const HERO = ".lp-hero, .tg-refer-stage";
 // Safari 26's bar: it shrinks while the page scrolls down, grows back the moment it scrolls up,
 // and grows back once scrolling rests.
@@ -152,12 +152,12 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
 
   if (!mounted || !pillVisible(path)) return null;
   // Smoky glass only over the home hero's video; other heroes (Refer's stage, with its light phone)
-  // keep the colour-aware glass, and the dock only shrinks there.
+  // keep the colour-aware glass.
   const overVideo = !!document.querySelector(".lp-hero");
   const go = (d: 1 | -1) => { manual.current = Date.now(); move(d); };
   const shown = [...(slide.leaving != null && slide.leaving !== front ? [{ i: slide.leaving, role: "out" as const }] : []), { i: front, role: "in" as const }];
   return (
-    <nav className="tg-pill" aria-label="Quick actions" onClick={onTap} data-compact={overHero || scrolling || undefined} data-hero={(overHero && overVideo) || undefined}>
+    <nav className="tg-pill" aria-label="Quick actions" onClick={onTap} data-compact={scrolling || undefined} data-hero={(overHero && overVideo) || undefined}>
       {user ? (
         // Signed in: the way back into the app, shown as their account avatar (solid, not glass).
         <Link href={orderHref} prefetch={false} className="tg-pill__me" data-tapped={lit(orderHref)} aria-label={isStaffRole(role ?? Role.USER) ? "Open dashboard" : "Open my account"}>

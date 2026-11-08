@@ -267,10 +267,6 @@
 .tg-pill { left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); align-items: center; gap: 8px; translate: -50% 0; transform-origin: 50% 100%; }
 .tg-pill[data-compact] { scale: 0.82; }
 .tg-pill :is(a, button) { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-@media (hover: hover) {
-  .tg-pill[data-compact]:is(:hover, :focus-within) { scale: 1; }
-  .tg-pill[data-compact]:is(:hover, :focus-within) .tg-drum__nav { opacity: 1; }
-}
 .tg-pill[data-compact] .tg-drum__nav { opacity: 0.55; }
 :is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(.tg-pill__orb, .tg-drum) { --glass-tint: rgb(255 255 255 / 0.08); -webkit-backdrop-filter: var(--blur-smoke); backdrop-filter: var(--blur-smoke); }
 :is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(.tg-drum__face, .tg-drum__nav, .tg-pill__home) { color: var(--tg-cream); }
