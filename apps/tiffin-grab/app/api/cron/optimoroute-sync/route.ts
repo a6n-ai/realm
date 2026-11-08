@@ -1,8 +1,7 @@
+import { withCronAuth } from "@/lib/cron/auth";
 import { clampDays, parseMode, runScheduledSync } from "@/lib/services/optimoroute/sync";
-import { cronSecret } from "@/lib/runtime/env";
 
-// Scheduler-agnostic protected route, same contract as the mint-rep-coupons job: a bearer
-// secret, fail-closed, request-time only.
+// Scheduler-agnostic protected route (withCronAuth), request-time only.
 //
 //   # 17:00 IST — push tomorrow's stops so the dispatcher opens a full board
 //   30 11 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
@@ -16,14 +15,7 @@ import { cronSecret } from "@/lib/runtime/env";
 // the two, so pulling immediately after a push would read an empty plan.
 export const dynamic = "force-dynamic";
 
-async function handle(request: Request): Promise<Response> {
-  const secret = cronSecret();
-  const authorization = request.headers.get("authorization");
-  // Fail closed: no configured secret, or a mismatched bearer → 401.
-  if (!secret || authorization !== `Bearer ${secret}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+const handle = withCronAuth(async (request) => {
   const params = new URL(request.url).searchParams;
   const summary = await runScheduledSync({
     mode: parseMode(params.get("mode")),
@@ -34,7 +26,7 @@ async function handle(request: Request): Promise<Response> {
   // because the key is missing is a misconfiguration worth alerting on.
   const status = summary.skipped === "OPTIMOROUTE_API_KEY not set" ? 503 : 200;
   return Response.json(summary, { status });
-}
+});
 
 export const GET = handle;
 export const POST = handle;

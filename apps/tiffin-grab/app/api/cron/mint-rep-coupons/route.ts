@@ -1,24 +1,11 @@
+import { withCronAuth } from "@/lib/cron/auth";
 import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
-import { cronSecret } from "@/lib/runtime/env";
 
-// Scheduler-agnostic protected route (see spec §8.1, locked decision 7). Not
-// deployed yet — a real scheduler runs it just after 00:00 in the app-settings
-// timezone (America/Toronto: `5 4 * * *` UTC in EDT, `5 5 * * *` in EST) when a host is chosen. The route is the contract.
-//
-// Reading the Authorization header makes this request-time only; never cache.
+// Not deployed yet: a real scheduler runs it just after 00:00 in the app-settings timezone
+// (America/Toronto: `5 4 * * *` UTC in EDT, `5 5 * * *` in EST) when a host is chosen.
 export const dynamic = "force-dynamic";
 
-async function handle(request: Request): Promise<Response> {
-  const secret = cronSecret();
-  const authorization = request.headers.get("authorization");
-  // Fail closed: no configured secret, or a mismatched bearer → 401.
-  if (!secret || authorization !== `Bearer ${secret}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const summary = await mintRepCoupons();
-  return Response.json(summary);
-}
+const handle = withCronAuth(async () => Response.json(await mintRepCoupons()));
 
-// Vercel Cron issues GET; system crontab can curl either verb with the bearer.
 export const GET = handle;
 export const POST = handle;

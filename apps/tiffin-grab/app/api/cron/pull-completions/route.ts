@@ -1,5 +1,5 @@
+import { withCronAuth } from "@/lib/cron/auth";
 import { runCronJob } from "@/lib/cron/run";
-import { cronSecret } from "@/lib/runtime/env";
 
 // Nightly reconcile with OptimoRoute, same fail-closed bearer contract as the other cron
 // routes. PULL-ONLY: it records what OptimoRoute says for today's stops and never pushes.
@@ -13,16 +13,10 @@ import { cronSecret } from "@/lib/runtime/env";
 // Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
 
-async function handle(request: Request): Promise<Response> {
-  const secret = cronSecret();
-  const authorization = request.headers.get("authorization");
-  if (!secret || authorization !== `Bearer ${secret}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+const handle = withCronAuth(async () => {
   const result = await runCronJob("pull-completions", "schedule");
   return Response.json(result, { status: result.ok ? 200 : 500 });
-}
+});
 
 export const GET = handle;
 export const POST = handle;
