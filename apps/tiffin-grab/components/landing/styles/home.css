@@ -232,9 +232,6 @@ video.lp-hero__video[data-playing] { opacity: 1; }
 .lp-size small { font-size: 13px; text-align: right; }
 .lp-size > svg { align-self: center; }
 a.lp-size:hover > svg, a.lp-size:focus-visible > svg { transform: translateX(4px); }
-.lp-from { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.lp-from strong { font-size: clamp(28px, 3vw, 34px); line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--tg-saffron); }
-.lp-from span { white-space: nowrap; font-size: 14px; color: color-mix(in srgb, var(--foreground) 72%, transparent); }
 @media (max-width: 640px) {
   .lp-size { grid-template-columns: minmax(0, 1fr) auto; }
   .lp-size small { grid-row: 2; text-align: left; font-size: 14px; }

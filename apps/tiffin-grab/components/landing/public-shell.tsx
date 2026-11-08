@@ -120,13 +120,14 @@ async function PublicFooter() {
 export const dashless = (name: string) => name.replace(/\s+[—–]\s+/g, " · ");
 
 // Inner-page title block, the home hero's type at page scale: kicker, a display h1 with its italic
-// saffron accent word, a lede.
-export function PageIntro({ eyebrow, title, lede }: { eyebrow?: string; title: ReactNode; lede?: ReactNode }) {
+// saffron accent word, a lede, and the page's actions when it has them. Every inner page uses it, so titles match.
+export function PageIntro({ eyebrow, title, lede, children }: { eyebrow?: string; title: ReactNode; lede?: ReactNode; children?: ReactNode }) {
   return (
     <header className="lp-intro">
       {eyebrow ? <span className="lp-kicker">{eyebrow}</span> : null}
       <h1 className="lp-display lp-display--page">{title}</h1>
       {lede ? <p className="lp-lede">{lede}</p> : null}
+      {children}
     </header>
   );
 }

@@ -13,8 +13,11 @@ import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
+import { savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
 import "@/components/landing/styles/pricing.css";
+import { PlanPicks } from "@/components/landing/pricing/plan-picks";
+import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -70,38 +73,87 @@ export default async function PricingPage() {
       days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (d !== "sat" && d !== "sun")),
     })),
   }));
-  // Delivery frequencies as the kitchen defines them: fixed weekdays, or the first N days of the week.
-  const frequencies: MathFrequency[] = (catalog.frequencies ?? []).map((f) => ({
-    id: f.publicId,
-    name: f.name,
-    days: (f.weekdays && f.weekdays.length > 0 ? f.weekdays : ALL_DAYS.slice(0, f.daysPerWeek)).filter((d): d is DayOfWeek => (ALL_DAYS as string[]).includes(d)),
-  }));
+  const maxPct = catalog.maxDiscountPct ?? 25;
+  const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
+  const weeksList = [...new Set(catalog.durations.map((d) => d.weeks))].sort((a, b) => a - b);
+  // Delivery frequencies as the kitchen defines them (fixed weekdays), each with its delivery discount per plan length.
+  const frequencies: MathFrequency[] = (catalog.frequencies ?? [])
+    .filter((f) => f.weekdays && f.weekdays.length > 0)
+    .map((f) => ({
+      id: f.publicId,
+      key: f.key,
+      name: f.name,
+      days: f.weekdays!.filter((d): d is DayOfWeek => (ALL_DAYS as string[]).includes(d)),
+      off: Object.fromEntries(weeksList.map((w) => [w, savePct(catalog.discounts, "delivery", f.publicId, w)])),
+    }));
+  // Like the engine: every duration rule that applies is summed, then capped.
   const lengths: MathLength[] = [...new Map(catalog.durations.map((d) => [d.weeks, d])).values()]
     .sort((a, b) => a.weeks - b.weeks)
     .map((d) => ({
       weeks: d.weeks,
-      off: Math.max(0, ...(catalog.discounts ?? [])
-        .filter((x) => x.kind === "duration" && (x.targetPublicId === d.publicId || (x.targetPublicId == null && (x.minWeeks ?? 0) <= d.weeks)))
-        .map((x) => x.percent)),
+      off: Math.min(maxPct, (catalog.discounts ?? [])
+        .filter((x) => x.kind === "duration" && x.percent > 0 && (x.targetPublicId === d.publicId || (x.targetPublicId == null && (x.minWeeks ?? 0) <= d.weeks)))
+        .reduce((sum, x) => sum + x.percent, 0)),
     }));
+
+  const from = lowestRate(catalog);
+  const weekdayFreq = frequencies.find((f) => f.days.length === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => f.days.includes(d as DayOfWeek)));
 
   return (
     <>
     <div className="lp-wrap lp-section flex flex-col gap-[clamp(56px,8vw,96px)]">
-      <div className="lp-price-hero">
-        <PageIntro
+      <div className="pr-hero">
+      <PageIntro
           eyebrow="Plans and pricing"
-          title={<>No packages. Just <span className="c-accent">math.</span></>}
-          lede="Pick a diet, then a size. You see the total in the plan builder before you pay."
-        />
-        <PriceMath plans={mathPlans} lengths={lengths} frequencies={frequencies} />
+          title={<>Home cooked lunch from <span className="c-accent">{from != null ? money(from) : "us"}</span></>}
+          lede="One rate per tiffin. Pick a ready plan or adjust your own."
+      >
+        <div className="lp-actions lp-actions--start">
+          <a href="#picks" className="lp-cta">See ready plans<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></a>
+          <BuildTiffinLink href="/subscribe" className="lp-textlink">Build my tiffin<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></BuildTiffinLink>
+        </div>
+      </PageIntro>
+      {/* The trial is the low-commitment way in: shown beside the price, only while one is offered. */}
+      {trial ? (
+        <aside className="lp-tile pr-trial" aria-labelledby="pr-trial-title">
+          <h2 id="pr-trial-title" className="lp-tile__title">Not sure yet?</h2>
+          <p className="pr-trial__lead">Try {trialLength(trial)} first.</p>
+          <p className="lp-from lp-from--lg"><strong>{money(trial.rate)}</strong><span>a tiffin</span></p>
+          <Link prefetch={false} href={trial.href} className="lp-cta">Start a trial</Link>
+        </aside>
+      ) : null}
       </div>
 
+      <PlanPicks
+        plans={plans.map((p) => ({
+          key: p.key,
+          label: DIET_LABEL[p.key] ?? p.name,
+          sizes: p.sizes.filter((m) => !m.trial).map((m) => ({
+            id: m.publicId,
+            name: dashless(m.name),
+            rate: effectivePrice(m.basePrice, m),
+            days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (d !== "sat" && d !== "sun")),
+            parts: m.components,
+            kcalMin: m.kcalMin,
+            kcalMax: m.kcalMax,
+          })),
+        }))}
+        lengths={lengths}
+        weekdayFreq={weekdayFreq}
+        maxPct={maxPct}
+      />
+
+      <section aria-labelledby="tg-adjust" className="lp-adjust">
+        <div className="lp-head lp-head--split">
+          <h2 id="tg-adjust" className="lp-h2">Or build your <span className="c-accent">own.</span></h2>
+        </div>
+        <PriceMath plans={mathPlans} lengths={lengths} frequencies={frequencies} bounds={bounds} maxPct={maxPct} />
+      </section>
+
       {plans.length > 0 ? (
-        <section aria-labelledby="tg-rates" className="lp-rates">
-          <div className="lp-head lp-head--split">
-            <h2 id="tg-rates" className="lp-h2">The per-tiffin <span className="c-accent">rate.</span></h2>
-          </div>
+        <details className="lp-all">
+        <summary className="lp-all__sum"><h2 className="lp-h2">All sizes and <span className="c-accent">prices.</span></h2><ChevronDown aria-hidden className="lp-all__chev size-5" strokeWidth={2} /></summary>
+        <section aria-label="Per tiffin rates" className="lp-rates">
           {/* Phones show one diet at a time; the switch is native radios, so it needs no script, works by
               keyboard and keeps every size in the HTML. Desktop shows both cards side by side. */}
           {plans.length > 1 ? (
@@ -169,6 +221,7 @@ export default async function PricingPage() {
             })}
           </div>
         </section>
+        </details>
       ) : null}
 
       {weeksOff.length > 0 ? (
@@ -189,11 +242,15 @@ export default async function PricingPage() {
         </section>
       ) : null}
 
-      <div className="lp-actions lp-actions--start">
-        <Link prefetch={false} href="/subscribe" className="lp-cta">See my price<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
-        {trial ? <Link prefetch={false} href={trial.href} className="lp-textlink">Try {trialLength(trial)} first<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link> : null}
-        <Link href="/menu" className="lp-textlink">This week&apos;s menu<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link>
-      </div>
+      <section aria-labelledby="tg-band" className="lp-band">
+        <h2 id="tg-band" className="lp-h2">Ready when <span className="c-accent">you are.</span></h2>
+        <p className="lp-lede">You see the total in the plan builder before you pay.</p>
+        <div className="lp-actions lp-actions--start">
+          <BuildTiffinLink href="/subscribe" className="lp-cta">Build my tiffin<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></BuildTiffinLink>
+          {trial ? <Link prefetch={false} href={trial.href} className="lp-textlink">Try {trialLength(trial)} first<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link> : null}
+          <Link href="/menu" className="lp-textlink">This week&apos;s menu<ArrowRight aria-hidden className="size-4" strokeWidth={2} /></Link>
+        </div>
+      </section>
     </div>
       {/* External Places fetch: a cache miss must not hold back the page. */}
       <Suspense fallback={null}><LandingReviews /></Suspense>

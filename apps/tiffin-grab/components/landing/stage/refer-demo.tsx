@@ -90,8 +90,11 @@ function TabBar() {
 }
 
 /** `gift` is the friend's figure ("$15"), `earn` yours, `coins` the coins yours pays (60). */
-export function ReferDemo({ gift, earn, coins, className }: { gift: string | null; earn: string; coins: number; className?: string }) {
+/** `step` (0 to 2) holds one screen still instead of playing the script, so a page can drive it by scroll. */
+export function ReferDemo({ gift, earn, coins, className, step }: { gift: string | null; earn: string; coins: number; className?: string; step?: 0 | 1 | 2 }) {
   const POSTER: S = { screen: 2, sent: true, read: true, typing: false, reply: true, status: "rewarded", coins };
+  const held: S[] = [START, { screen: 1, sent: true, read: true, typing: false, reply: true, status: "joined", coins: 0 }, POSTER];
+  const driven = step != null;
   return (
     <Stage<S>
       width={340}
@@ -99,12 +102,12 @@ export function ReferDemo({ gift, earn, coins, className }: { gift: string | nul
       compact={{ below: 340, width: 300, height: 631 }}
       initial={START}
       poster={POSTER}
-      script={script(coins)}
-      cursor={{ at: REST, style: "touch", ripple: true }}
+      script={driven ? undefined : script(coins)}
+      cursor={driven ? undefined : { at: REST, style: "touch", ripple: true }}
       tokens={{ "--ss-font": "var(--font-poppins), Poppins, system-ui, sans-serif", "--ss-accent": "#F06B1A" }}
       className={`rd${className ? ` ${className}` : ""}`}
     >
-      {(s, _rect, layout) => (
+      {(played, _rect, layout) => { const s = driven ? held[step] : played; return (
         <Phone width={layout === "compact" ? 300 : 340} wallpaper="#FBF4E7" className="rd-phone">
           <div className="rd-track" style={{ transform: `translateX(${-100 * s.screen}%)` }}>
             {/* 1. Me > Refer */}
@@ -218,7 +221,7 @@ export function ReferDemo({ gift, earn, coins, className }: { gift: string | nul
             </section>
           </div>
         </Phone>
-      )}
+      ); }}
     </Stage>
   );
 }

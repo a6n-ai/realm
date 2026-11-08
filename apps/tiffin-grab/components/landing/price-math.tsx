@@ -3,28 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calculator, Hand } from "lucide-react";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { consentMoment } from "@/components/consent/cookie-consent";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 
 export type MathSize = { id: string; name: string; rate: number; days: DayOfWeek[] };
 export type MathPlan = { key: string; label: string; sizes: MathSize[] };
 export type MathLength = { weeks: number; off: number };
-export type MathFrequency = { id: string; name: string; days: DayOfWeek[] };
+export type MathFrequency = { id: string; key: string; name: string; days: DayOfWeek[]; off: Record<number, number> };
 
 const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" }, { key: "thu", short: "Thu" },
   { key: "fri", short: "Fri" }, { key: "sat", short: "Sat" }, { key: "sun", short: "Sun" },
 ];
 const money = (n: number) => `$${n.toFixed(2)}`;
-const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-// A frequency's button label, short enough to keep the row on one line; its full name stays the accessible name.
-function freqLabel(days: DayOfWeek[]): string {
-  const set = new Set(days);
-  if (days.length === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => set.has(d as DayOfWeek))) return "Weekdays";
-  if (days.length === 7) return "Every day";
-  if (days.length <= 3) return WEEK.filter((d) => set.has(d.key)).map((d) => SHORT[d.key]).join(" ");
-  return `${days.length} days`;
+const MON_FRI: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** The days to eat on: the wanted ones the size serves, kept within the min and max a week (topped up in week order). */
+function fitDays(want: DayOfWeek[], size: MathSize, b: { min: number; max: number }): DayOfWeek[] {
+  const open = WEEK.map((d) => d.key).filter((d) => size.days.includes(d));
+  const max = Math.min(b.max, open.length), min = Math.min(b.min, max);
+  const keep = open.filter((d) => want.includes(d)).slice(0, max);
+  for (const d of open) if (keep.length < min && !keep.includes(d)) keep.push(d);
+  return WEEK.map((d) => d.key).filter((d) => keep.includes(d));
 }
 
 /** Eases a shown number to its new value, so the total visibly adds up as you tap. Instant under reduced motion. */
@@ -79,28 +81,55 @@ function useTapHint() {
   return { ref, hint };
 }
 
-export function PriceMath({ plans, lengths, frequencies = [] }: { plans: MathPlan[]; lengths: MathLength[]; frequencies?: MathFrequency[] }) {
+export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3, max: 7 }, maxPct = 25 }: { plans: MathPlan[]; lengths: MathLength[]; frequencies?: MathFrequency[]; bounds?: { min: number; max: number }; maxPct?: number }) {
   const [planKey, setPlanKey] = useState(plans[0]?.key ?? "");
   const plan = plans.find((p) => p.key === planKey) ?? plans[0];
   const [sizeId, setSizeId] = useState(plan?.sizes[0]?.id ?? "");
   const size = plan?.sizes.find((s) => s.id === sizeId) ?? plan?.sizes[0];
-  // Starts on every day the size delivers ("All days"); a frequency or single days narrow it.
-  const ALL = WEEK.map((d) => d.key);
-  const [days, setDays] = useState<DayOfWeek[]>(ALL);
+  const [eating, setEating] = useState<DayOfWeek[]>(() => (plans[0]?.sizes[0] ? fitDays(MON_FRI, plans[0].sizes[0], bounds) : MON_FRI));
+  const [freqKey, setFreqKey] = useState("");
   // Opens on the first length that earns a discount (else the shortest): the useful comparison.
   const [weeks, setWeeks] = useState((lengths.find((l) => l.off > 0) ?? lengths[0])?.weeks ?? 4);
-
-  const allowed = new Set(size?.days ?? []);
-  const picked = days.filter((d) => allowed.has(d));
-  const length = lengths.find((l) => l.weeks === weeks) ?? lengths[0];
-  const rate = size?.rate ?? 0;
-  const gross = rate * picked.length * (length?.weeks ?? 0);
-  const off = gross * ((length?.off ?? 0) / 100);
-  const total = useTween(gross - off);
   const { ref, hint } = useTapHint();
 
+  const length = lengths.find((l) => l.weeks === weeks) ?? lengths[0];
+  const rate = size?.rate ?? 0;
+  const open = (d: DayOfWeek) => !!size?.days.includes(d);
+  const openCount = WEEK.filter((d) => open(d.key)).length;
+  const max = Math.min(bounds.max, openCount);
+  const min = Math.min(bounds.min, max);
+  const fits = frequencies.filter((f) => f.days.every(open)).sort((a, b) => a.days.length - b.days.length);
+  const freq = frequencies.find((f) => f.key === freqKey && fits.includes(f)) ?? [...fits].sort((a, b) => frequencies.indexOf(a) - frequencies.indexOf(b))[0];
+  const saveFor = (f: MathFrequency) => Math.min(maxPct, f.off[length?.weeks ?? 0] ?? 0);
+
+  const tiffins = eating.length * (length?.weeks ?? 0);
+  const gross = round2(rate * tiffins);
+  const lenOff = length?.off ?? 0;
+  const delOff = freq?.off[length?.weeks ?? 0] ?? 0;
+  const pct = Math.min(maxPct, lenOff + delOff);
+  const off = round2(gross * pct / 100);
+  const total = useTween(gross - off);
+
   if (!plan || !size || !length) return null;
-  const toggle = (d: DayOfWeek) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
+  const pickSize = (p: MathPlan, id: string) => {
+    const next = p.sizes.find((x) => x.id === id) ?? p.sizes[0];
+    setPlanKey(p.key);
+    setSizeId(next?.id ?? "");
+    if (next) setEating((cur) => fitDays(cur, next, bounds));
+  };
+  const atMax = eating.length >= max, atMin = eating.length <= min;
+  const toggle = (d: DayOfWeek) => {
+    if (eating.includes(d)) { if (!atMin) setEating(eating.filter((x) => x !== d)); }
+    else if (!atMax) setEating(WEEK.map((x) => x.key).filter((x) => x === d || eating.includes(x)));
+  };
+  const capped = lenOff + delOff > maxPct;
+  const href = (() => {
+    const q = new URLSearchParams({ p: plan.key, m: size.id });
+    if (freq) q.set("f", freq.key);
+    if (eating.join() !== MON_FRI.join()) q.set("d", eating.map((d) => WEEK.findIndex((x) => x.key === d) + 1).join(""));
+    if (length.weeks !== 1) q.set("w", String(length.weeks));
+    return `/subscribe?${q}`;
+  })();
 
   return (
     <section ref={ref} id="estimate" className="lp-math" data-hint={hint || undefined} aria-labelledby="lp-math-title" onPointerDownCapture={consentMoment}>
@@ -112,7 +141,7 @@ export function PriceMath({ plans, lengths, frequencies = [] }: { plans: MathPla
         {plans.length > 1 ? (
           <div className="lp-math__row" role="radiogroup" aria-label="Diet">
             {plans.map((p) => (
-              <button key={p.key} type="button" role="radio" aria-checked={p.key === plan.key} className="lp-math__chip" onClick={() => { setPlanKey(p.key); setSizeId(p.sizes[0]?.id ?? ""); }}>{p.label}</button>
+              <button key={p.key} type="button" role="radio" aria-checked={p.key === plan.key} className="lp-math__chip" onClick={() => pickSize(p, p.sizes[0]?.id ?? "")}>{p.label}</button>
             ))}
           </div>
         ) : null}
@@ -120,56 +149,90 @@ export function PriceMath({ plans, lengths, frequencies = [] }: { plans: MathPla
             shows each size's price in a styled list. CSS shows one of the two. */}
         <label className="lp-math__field lp-math__field--native">
           <span className="sr-only">Size</span>
-          <select value={size.id} onChange={(e) => setSizeId(e.target.value)}>
-            {plan.sizes.map((s) => <option key={s.id} value={s.id}>{s.name} · {money(s.rate)}</option>)}
+          <select value={size.id} onChange={(e) => pickSize(plan, e.target.value)}>
+            {plan.sizes.map((s) => <option key={s.id} value={s.id}>{s.name}, {money(s.rate)}</option>)}
           </select>
         </label>
         <div className="lp-math__field lp-math__field--picker">
-          <Select value={size.id} onValueChange={setSizeId}>
+          <Select value={size.id} onValueChange={(id) => pickSize(plan, id)}>
             <SelectTrigger aria-label="Size" className="lp-math__trigger"><SelectValue /></SelectTrigger>
             <SelectContent position="popper" side="bottom" sideOffset={6} avoidCollisions={false} className="lp-math__menu">
               {plan.sizes.map((s) => (
-                <SelectItem key={s.id} value={s.id} className="lp-math__option">{s.name} · {money(s.rate)}</SelectItem>
+                <SelectItem key={s.id} value={s.id} className="lp-math__option">{s.name}, {money(s.rate)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <div className="lp-math__row" role="radiogroup" aria-label="Delivery frequency">
-          {[{ id: "all", name: "Every day it delivers", days: ALL, label: "All days" }, ...frequencies.map((f) => ({ ...f, label: freqLabel(f.days) }))].map((f) => {
-            // One choice lights at a time: "All days" when every deliverable day is picked, else the matching frequency.
-            const want = f.days.filter((d) => allowed.has(d));
-            const same = want.length === picked.length && want.every((d) => picked.includes(d));
-            const on = f.id === "all" ? picked.length === allowed.size : same && picked.length !== allowed.size;
-            return <button key={f.id} type="button" role="radio" aria-checked={on} aria-label={f.name} title={f.name} className="lp-math__chip" onClick={() => setDays(f.days)}>{f.label}</button>;
-          })}
-        </div>
-        <div className="lp-math__row" role="group" aria-label="Days you would eat">
-          {WEEK.map((d) => {
-            const can = allowed.has(d.key);
-            return (
-              <button key={d.key} type="button" aria-pressed={can && days.includes(d.key)} disabled={!can} className="lp-math__day" onClick={() => toggle(d.key)}>{d.short}</button>
-            );
-          })}
-        </div>
-        <div className="lp-math__row" role="radiogroup" aria-label="Plan length">
-          {lengths.map((l) => (
-            <button key={l.weeks} type="button" role="radio" aria-checked={l.weeks === length.weeks} aria-label={`${l.weeks} ${l.weeks === 1 ? "week" : "weeks"}${l.off > 0 ? `, ${l.off}% off` : ""}`} className="lp-math__chip lp-math__chip--wk" onClick={() => setWeeks(l.weeks)}>
-              {l.weeks} wk{l.off > 0 ? <small>{l.off}%</small> : null}
-            </button>
-          ))}
-        </div>
+
+        <section className="lp-math__group" aria-labelledby="lp-math-eat">
+          <h3 id="lp-math-eat" className="lp-math__h">Days you eat</h3>
+          <div className="lp-math__row" role="group" aria-label="Days you would eat">
+            {WEEK.map((d) => {
+              const on = eating.includes(d.key), can = open(d.key);
+              return (
+                <button key={d.key} type="button" aria-pressed={on} disabled={!can} aria-disabled={!can || (on ? atMin : atMax) || undefined} data-closed={!can || undefined} className="lp-math__day" onClick={() => toggle(d.key)}>
+                  {d.short}{!can ? <span className="sr-only"> (closed)</span> : null}
+                </button>
+              );
+            })}
+          </div>
+          <p className="lp-math__count" aria-live="polite">
+            <span><b className="tabular-nums">{eating.length}</b> {eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
+            <small>{min === max ? `${min} days` : `${min} to ${max} days`}</small>
+          </p>
+        </section>
+
+        <section className="lp-math__group" aria-labelledby="lp-math-deliver">
+          <h3 id="lp-math-deliver" className="lp-math__h">Deliveries</h3>
+          {fits.length === 0 ? <p role="alert" className="lp-math__note">No delivery plan fits this meal’s days.</p> : null}
+          <div className="lp-math__freqs" role="radiogroup" aria-label="Delivery frequency">
+            {fits.map((f) => {
+              const save = saveFor(f);
+              // How this schedule brings the tiffins for the days picked: each delivery day and how many it carries.
+              const trips = planWeek(f.days, eating);
+              return (
+                <button key={f.key} type="button" role="radio" aria-checked={f.key === freq?.key} aria-label={`${f.name}, ${f.days.length} ${f.days.length === 1 ? "delivery" : "deliveries"} a week${save > 0 ? `, save ${save}%` : ""}`} className="lp-math__freq" onClick={() => setFreqKey(f.key)}>
+                  <span className="lp-math__freq-top">
+                    <span><b className="tabular-nums">{f.days.length}×</b> a week</span>
+                    {save > 0 ? <span className="lp-math__save">Save {save}%</span> : null}
+                  </span>
+                  {trips ? (
+                    <span className="lp-math__trips" aria-label={trips.map((t) => `${WEEK.find((d) => d.key === t.day)?.short}: ${t.units} ${t.units === 1 ? "tiffin" : "tiffins"}`).join(", ")}>
+                      {trips.map((t) => (
+                        <span key={t.day} className="lp-math__trip" aria-hidden><small>{WEEK.find((d) => d.key === t.day)?.short}</small><b className="tabular-nums">{t.units}</b></span>
+                      ))}
+                    </span>
+                  ) : <span className="lp-math__freq-days">Doesn’t fit your days</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="lp-math__group" aria-labelledby="lp-math-len">
+          <h3 id="lp-math-len" className="lp-math__h">Weeks</h3>
+          <div className="lp-math__row" role="radiogroup" aria-label="Plan length">
+            {lengths.map((l) => (
+              <button key={l.weeks} type="button" role="radio" aria-checked={l.weeks === length.weeks} aria-label={`${l.weeks} ${l.weeks === 1 ? "week" : "weeks"}${l.off > 0 ? `, ${l.off}% off` : ""}`} className="lp-math__chip lp-math__chip--wk" onClick={() => setWeeks(l.weeks)}>
+                {l.weeks} wk{l.off > 0 ? <small>{l.off}%</small> : null}
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* A till receipt: each term its own line, the total adds up underneath. Read aloud once per change, not per animation frame. */}
       <div className="lp-receipt">
-        <p className="lp-receipt__head"><span>Estimate, before tax</span><span>{plan.label} · {size.name}</span></p>
+        <p className="lp-receipt__head"><span>Estimate, before tax</span><span>{plan.label}, {size.name}</span></p>
         <dl className="lp-receipt__lines">
           <div><dt>Per tiffin</dt><dd>{money(rate)}</dd></div>
-          <div><dt>Tiffins <small>{picked.length} {picked.length === 1 ? "day" : "days"} × {length.weeks} wk</small></dt><dd>× {picked.length * length.weeks}</dd></div>
-          {length.off > 0 ? (
+          <div><dt>Tiffins <small>{eating.length} {eating.length === 1 ? "day" : "days"} × {length.weeks} wk</small></dt><dd>× {tiffins}</dd></div>
+          {pct > 0 || lenOff > 0 || delOff > 0 ? (
             <>
               <div><dt>Subtotal</dt><dd>{money(gross)}</dd></div>
-              <div className="lp-receipt__off"><dt>{length.weeks}-week discount <small>{length.off}%</small></dt><dd>−{money(off)}</dd></div>
+              {lenOff > 0 ? <div className="lp-receipt__off"><dt>{length.weeks}-week discount <small>{lenOff}%</small></dt><dd>−{money(round2(gross * lenOff / 100))}</dd></div> : null}
+              {delOff > 0 ? <div className="lp-receipt__off"><dt>Delivery discount <small>{delOff}%</small></dt><dd>−{money(round2(gross * delOff / 100))}</dd></div> : null}
+              {capped ? <div><dt>Capped at <small>{maxPct}%</small></dt><dd>+{money(round2(gross * (lenOff + delOff) / 100) - off)}</dd></div> : null}
             </>
           ) : null}
         </dl>
@@ -178,7 +241,7 @@ export function PriceMath({ plans, lengths, frequencies = [] }: { plans: MathPla
       <p className="sr-only" aria-live="polite">Estimated total {money(gross - off)}, before tax.</p>
       <div className="lp-math__foot">
         <small>Add-ons and coupons come in the plan builder.</small>
-        <Link prefetch={false} href={`/subscribe?plan=${plan.key}`} className="lp-cta">Build this plan<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
+        <Link prefetch={false} href={href} className="lp-cta">Build this plan<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
       </div>
     </section>
   );
