@@ -1,43 +1,11 @@
-// Delivery-area landing pages (/locations/<slug>): which zones get one, their neighbours, and the
-// facts each page is built from. Pure: the page passes in catalog zones.
+// Delivery areas on /locations: each zone is one anchored row (/locations#brampton). Pure: callers
+// pass catalog zones.
 
 type Zone = { name: string; active: boolean; postalPrefixes: string[]; slotWindow: string | null };
 
-/** "Richmond Hill" -> "richmond-hill", "Queen's Park" -> "queens-park". */
+/** "Richmond Hill" -> "richmond-hill", "Queen's Park" -> "queens-park": the row's anchor id. */
 export const areaSlug = (name: string) =>
   name.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-// One block of government buildings (M7A): no search demand of its own; it stays on /locations.
-const NO_PAGE = new Set(["queens-park"]);
-
-/** Active zones that get their own page. */
-export function areaZones<Z extends Zone>(zones: Z[]): Z[] {
-  return zones.filter((z) => z.active && !NO_PAGE.has(areaSlug(z.name)));
-}
-
-// Zones carry no coordinates, so neighbours are written by hand from the GTA map.
-// ponytail: hand map; derive from zone centroids if zones start changing often.
-const NEIGHBOURS: Record<string, string[]> = {
-  brampton: ["mississauga", "vaughan", "etobicoke"],
-  durham: ["scarborough", "markham"],
-  "east-york": ["toronto", "north-york", "scarborough"],
-  etobicoke: ["mississauga", "toronto", "brampton"],
-  markham: ["richmond-hill", "scarborough", "thornhill", "durham"],
-  mississauga: ["etobicoke", "brampton", "oakville"],
-  "north-york": ["toronto", "east-york", "thornhill", "vaughan"],
-  oakville: ["mississauga"],
-  "richmond-hill": ["markham", "thornhill", "vaughan"],
-  scarborough: ["east-york", "markham", "durham"],
-  thornhill: ["vaughan", "richmond-hill", "markham", "north-york"],
-  toronto: ["east-york", "north-york", "etobicoke"],
-  vaughan: ["brampton", "thornhill", "north-york", "richmond-hill"],
-};
-
-/** Neighbouring zones that have a page, in map order. */
-export function neighbours<Z extends Zone>(zone: Z, zones: Z[]): Z[] {
-  const bySlug = new Map(areaZones(zones).map((z) => [areaSlug(z.name), z]));
-  return (NEIGHBOURS[areaSlug(zone.name)] ?? []).flatMap((s) => bySlug.get(s) ?? []);
-}
 
 export type Window = { from: string; to: string; fromHour: number; toHour: number };
 
@@ -61,6 +29,36 @@ export function sharedPrefixes<Z extends Zone>(zone: Z, zones: Z[]): Map<string,
   for (const p of zone.postalPrefixes) {
     const others = zones.filter((o) => o !== zone && o.active && o.postalPrefixes.some((q) => q.startsWith(p) || p.startsWith(q)));
     if (others.length) out.set(p, others);
+  }
+  return out;
+}
+
+export type Run<Z> = { key: string; label: string; start: number; zones: Z[] };
+
+/** One run per delivery window, earliest first; a window that does not parse keeps its stored text. */
+export function runsOf<Z extends Zone>(zones: Z[]): Run<Z>[] {
+  const byRun = new Map<string, Run<Z>>();
+  for (const z of zones) {
+    const w = parseWindow(z.slotWindow);
+    const key = w ? `${w.fromHour}-${w.toHour}` : (z.slotWindow ?? "any");
+    const run = byRun.get(key) ?? { key, label: w ? `${w.from} to ${w.to}` : (z.slotWindow ?? "Any time"), start: w?.fromHour ?? 99, zones: [] };
+    run.zones.push(z);
+    byRun.set(key, run);
+  }
+  return [...byRun.values()].sort((a, b) => a.start - b.start);
+}
+
+/** The zone that owns each district (postal area, "M5V"): the one with the longest matching prefix,
+ *  so East York's "M4B" beats Toronto's "M4". Districts no zone lists are left out. */
+export function districtOwners<Z extends Zone>(zones: Z[], districtIds: string[]): Map<string, Z> {
+  const out = new Map<string, Z>();
+  for (const id of districtIds) {
+    let best: Z | null = null, len = 0;
+    for (const z of zones) for (const p of z.postalPrefixes) {
+      const q = p.replace(/\s/g, "").toUpperCase();
+      if (q && id.startsWith(q) && q.length > len) { best = z; len = q.length; }
+    }
+    if (best) out.set(id, best);
   }
   return out;
 }

@@ -178,7 +178,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
   const forwardedRequest = { request: { headers: request.headers } };
 
   // Every method: server actions POST to the page URL, which now exists only under /site/<org>.
-  const friendPath = siteFriendPath(pathname) ?? (AREA_PAGE.test(pathname) ? pathname : null);
+  // Area pages were folded into /locations: keep their indexed URLs alive as anchors on it.
+  if (AREA_PAGE.test(pathname)) return NextResponse.redirect(new URL(`/locations#${pathname.slice("/locations/".length)}`, request.url), 308);
+  const friendPath = siteFriendPath(pathname);
   if (SITE_PAGES.has(pathname) || friendPath) {
     const target = `/site/${resolvedOrgId ?? "brand"}${pathname === "/" ? "" : friendPath ?? pathname}`;
     return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);

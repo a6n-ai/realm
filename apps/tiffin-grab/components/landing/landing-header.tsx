@@ -12,6 +12,7 @@ import { Role, type RoleValue } from "@foundry/commons";
 const LINKS = [
   { href: "/menu", label: "Menu" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/locations", label: "Locations" },
 ];
 
 /** Label that rolls up on hover: the visible copy slides out as an aria-hidden twin rolls in. */
@@ -99,7 +100,8 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
   // observer's root is a thin strip where the capsule floats, so no scroll math is needed.
   useEffect(() => {
     const bands = [...document.querySelectorAll<HTMLElement>(".tg-land main .dark")];
-    if (bands.length === 0) return;
+    // A page with no dark band resets to light: the previous page's tone otherwise sticks (Back from home).
+    if (bands.length === 0) { setTone(null); return; }
     const under = new Set<Element>();
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) e.isIntersecting ? under.add(e.target) : under.delete(e.target);
@@ -161,7 +163,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
           <div className="tg-sheet__foot">
             <Link href="/contact" onClick={close}>Contact</Link>
             <Link href="/faq" onClick={close}>FAQ</Link>
-            <Link href="/locations" onClick={close}>Where we deliver</Link>
           </div>
         </div>
       </header>

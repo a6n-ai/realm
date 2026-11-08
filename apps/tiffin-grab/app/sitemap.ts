@@ -1,8 +1,6 @@
 import type { MetadataRoute } from "next";
 import { reviewsConnected } from "@/components/landing/landing-reviews";
 import { publicOrigin } from "@/lib/routing/apex";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { areaSlug, areaZones } from "@/lib/landing/areas";
 
 const PAGES: { path: string; changeFrequency: "weekly" | "monthly" | "yearly"; priority: number }[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
@@ -26,8 +24,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages = (await reviewsConnected()) ? [...PAGES, { path: "/reviews", changeFrequency: "weekly" as const, priority: 0.6 }] : PAGES;
   // Apex URLs only: /subscribe lives on app. (the apex 302s it), so it is left out.
   const base = publicOrigin();
-  // One page per delivery area (lib/landing/areas.ts decides which zones get one).
-  const zones = await loadCatalogSnapshot().then((c) => areaZones(c.zones)).catch(() => []);
-  const all = [...pages, ...zones.map((z) => ({ path: `/locations/${areaSlug(z.name)}`, changeFrequency: "weekly" as const, priority: 0.7 }))];
-  return all.map((p) => ({ url: `${base}${p.path}`, changeFrequency: p.changeFrequency, priority: p.priority }));
+  return pages.map((p) => ({ url: `${base}${p.path}`, changeFrequency: p.changeFrequency, priority: p.priority }));
 }

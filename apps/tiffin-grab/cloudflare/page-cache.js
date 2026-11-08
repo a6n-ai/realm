@@ -5,7 +5,6 @@
 // (router data shares the page URL, and the key ignores headers). Deploy's purge-by-URL clears these.
 import publicPages from "../lib/routing/public-pages.json";
 import { SESSION_COOKIES, SESSION_HINT_COOKIE } from "../lib/auth/cookie-prefix.ts";
-import { AREA_PAGE } from "../lib/routing/apex.ts";
 
 const HOST = "tiffingrab.ca";
 const PAGES = new Set(publicPages);
@@ -17,7 +16,7 @@ const ORIGIN_CC = "x-origin-cache-control";
 export function isCacheablePage(request) {
   if (request.method !== "GET") return false;
   const url = new URL(request.url);
-  if (url.host !== HOST || url.search !== "" || !(PAGES.has(url.pathname) || AREA_PAGE.test(url.pathname))) return false;
+  if (url.host !== HOST || url.search !== "" || !PAGES.has(url.pathname)) return false;
   const cookies = cookieNames(request.headers.get("cookie"));
   if (cookies.has("franchise")) return false;
   // A hit skips proxy.ts, which keeps the session hint in step; send a mismatch through so it can.

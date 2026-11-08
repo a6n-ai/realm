@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
-  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/cloud", "@foundry/maps", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
+  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/cloud", "@foundry/maps", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/region-map", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: {
     root: monorepoRoot,
     // maplibre (1.2 MB) is only loaded inside map effects; keep it out of the server bundle.
@@ -51,8 +51,7 @@ const nextConfig: NextConfig = {
   // Router-data responses (RSC header) for the same URLs stay private: a shared cache must never
   // hold one, since the cache key ignores the header that changed the response.
   async headers() {
-    // Area pages share one pattern (AREA_PAGE in lib/routing/apex.ts); the edge cache matches the same paths.
-    return [...publicPages, "/locations/:area"].flatMap((source) => [
+    return publicPages.flatMap((source) => [
       { source, missing: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] },
       { source, has: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "private, no-cache" }] },
     ]);

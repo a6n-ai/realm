@@ -21,8 +21,7 @@ export function publicOrigin(): string {
   return app.hostname.startsWith("app.") ? `${app.protocol}//${app.host.slice(4)}` : app.origin;
 }
 
-/** A delivery-area page, /locations/<slug>. Shared by the proxy rewrite, the edge page cache and the
- *  cache headers, so all three agree on which paths are area pages. */
+/** A retired delivery-area page, /locations/<slug>: the proxy sends it to its row on /locations. */
 export const AREA_PAGE = /^\/locations\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function apexServes(pathname: string): boolean {

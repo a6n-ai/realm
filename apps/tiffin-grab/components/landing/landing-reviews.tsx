@@ -115,23 +115,6 @@ export async function LandingReviews({ withPhotos = false }: { withPhotos?: bool
   );
 }
 
-/** Google reviews that name one area ("Brampton"). Google returns only a handful, so this is often
- *  empty, and then the section is not rendered at all. */
-export async function AreaReviews({ area }: { area: string }) {
-  const summary = await summaryOrNull();
-  const named = new RegExp(`\\b${area.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-  const reviews = summary?.reviews.filter((r) => named.test(r.text)) ?? [];
-  if (reviews.length === 0) return null;
-  return (
-    <section className="flex flex-col gap-8" aria-labelledby="lp-area-reviews">
-      <h2 id="lp-area-reviews" className="lp-h2">Said in <span className="c-accent">{area}.</span></h2>
-      <div className="grid gap-3 md:grid-cols-3">
-        {reviews.slice(0, 3).map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} clamp />)}
-      </div>
-    </section>
-  );
-}
-
 // Listing photos from Google. Each one carries its uploader's name, as Google requires.
 export async function ReviewPhotos({ limit = 8 }: { limit?: number }) {
   const photos = await getPlacePhotos(limit);

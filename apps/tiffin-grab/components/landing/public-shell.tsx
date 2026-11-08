@@ -12,6 +12,7 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { referHeadline } from "@/components/landing/refer/refer-content";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
+import { areaSlug } from "@/lib/landing/areas";
 
 // One shell for every public page: the landing header, the ink close band and
 // the location picker. .customer-app opts in to the customer design system.
@@ -82,7 +83,16 @@ async function PublicFooter() {
       <div className="tg-wrap tg-close__meta">
         {zones.length > 0 ? (
           <>
-            <p className="tg-close__zones">Delivering to {zones.join(", ")}.</p>
+            <p className="tg-close__zones">
+              Delivering to{" "}
+              {zones.map((z, i) => (
+                <span key={z}>
+                  {/* Each area's row on /locations (#brampton), from every page. */}
+                  <Link href={`/locations#${areaSlug(z)}`} className="underline underline-offset-2 transition-colors hover:text-[var(--tg-ink-warm)]">{z}</Link>
+                  {i < zones.length - 1 ? ", " : "."}
+                </span>
+              ))}
+            </p>
             {/* Phones: the count and a way to the list, not an eleven-name sentence. */}
             <p className="tg-close__zones-short">Delivering to {zones.length} areas across the GTA. <Link href="/locations">See the areas</Link></p>
           </>

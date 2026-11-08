@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @import "../globals.css";
 @import "../../components/landing/styles/core.css";
+@import "@foundry/region-map/region-map.css";
 
 @source "../../app/layout.tsx";
 @source "../../app/not-found.tsx";

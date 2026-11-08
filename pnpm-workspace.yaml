@@ -10,6 +10,7 @@ blockExoticSubdeps: false
 overrides:
   "@foundry/cloud": "github:a6n-ai/foundry#path:packages/cloud"
   "@foundry/maps": "github:a6n-ai/foundry#path:packages/maps"
+  "@foundry/region-map": "github:a6n-ai/foundry#path:packages/region-map"
   "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"

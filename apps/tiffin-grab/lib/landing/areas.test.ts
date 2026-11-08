@@ -1,22 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { areaSlug, areaZones, neighbours, parseWindow, sharedPrefixes } from "./areas";
+import { areaSlug, parseWindow, sharedPrefixes } from "./areas";
 
 const z = (name: string, postalPrefixes: string[], active = true) => ({ name, active, postalPrefixes, slotWindow: null });
 
 describe("areaSlug", () => {
-  it("makes URL-safe slugs", () => {
+  it("makes URL-safe anchors", () => {
     expect(areaSlug("Richmond Hill")).toBe("richmond-hill");
     expect(areaSlug("Queen's Park")).toBe("queens-park");
-  });
-});
-
-describe("areaZones / neighbours", () => {
-  const zones = [z("Brampton", ["L6P"]), z("Mississauga", ["L5"]), z("Queen's Park", ["M7A"]), z("Vaughan", ["L4H"], false)];
-  it("skips inactive zones and Queen's Park", () => {
-    expect(areaZones(zones).map((x) => x.name)).toEqual(["Brampton", "Mississauga"]);
-  });
-  it("links only neighbours that have a page", () => {
-    expect(neighbours(zones[0]!, zones).map((x) => x.name)).toEqual(["Mississauga"]);
   });
 });
 

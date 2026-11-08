@@ -1,105 +1,83 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
-import { StaticMap } from "./static-map";
-import { checkDelivery, type DeliveryCheck as Result } from "@/lib/landing/check-delivery";
+import { RegionLegend, RegionMap, type MapDistrict, type Region } from "@foundry/region-map";
+import { parseWindow } from "@/lib/landing/areas";
 import { trackMeta } from "@foundry/meta-pixel/client";
 
 type Point = { lat: number; lng: number };
-type Area = { name: string; slotWindow: string | null; point: Point | null };
+type Area = { name: string; slotWindow: string | null; group: number; point: Point | null };
 type Ring = { name: string; radiusKm: number };
 
-const GTA: Point = { lat: 43.7, lng: -79.42 };
-// A code further than this from the GTA gets no pin: the map stays on our areas.
-const NEAR_KM = 120;
+// Desktop keeps the floating panel's side of the map clear; phones stack the panel above.
+// What the page lays over the map: the info panel (top-left) and the legend (bottom), kept clear of names.
+const overlays = (w: number, h: number) => (w > 900 ? [{ l: 0, r: 320, t: 0, b: 150 }, { l: w - 700, r: w, t: h - 56, b: h }] : [{ l: 0, r: w - 60, t: 0, b: 116 }, { l: 0, r: w, t: h - 80, b: h }]);
+const padFor = (w: number) => (w > 900 ? { top: 56, bottom: 72, left: 330, right: 72 } : { top: 124, bottom: 90, left: 24, right: 52 });
 
-const km = (a: Point, b: Point) => {
-  const r = Math.PI / 180;
-  const h = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2;
-  return 12742 * Math.asin(Math.sqrt(h));
-};
-
-export function DeliveryCheck({ origin, rings, areas }: { origin: Point | null; rings: Ring[]; areas: Area[] }) {
-  const [value, setValue] = useState("");
-  const [result, setResult] = useState<Result | null>(null);
-  const [focus, setFocus] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+/** "Do we come to you?" in one tap: hovering or tapping a postal area reads out its zone and window;
+ *  the legend lights one run. */
+export function DeliveryCheck({ origin, rings, areas, region, districts, runs }: { origin: Point | null; rings: Ring[]; areas: Area[]; region: Region; districts: MapDistrict[]; runs: string[] }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const [run, setRun] = useState<number | null>(null);
   const placed = areas.filter((a): a is Area & { point: Point } => a.point != null);
-  // The checked code gets a pin when it is near; a far code leaves the map on our areas.
-  const near = result && "point" in result && result.point && km(result.point, origin ?? GTA) <= NEAR_KM ? result.point : null;
-  const pin = near ? { ...near, served: result?.status === "served" } : null;
+  const zoneOf = new Map(districts.map((d) => [d.id, areas.find((a) => a.name === d.place) ?? null]));
+  const zone = picked ? (zoneOf.get(picked) ?? null) : null;
+  const near = hover && hover !== picked ? { id: hover, zone: zoneOf.get(hover) ?? null } : null;
+  const active = zone?.group ?? run;
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    start(async () => {
-      const eventId = crypto.randomUUID();
-      const r = await checkDelivery(value, { eventId, eventSourceUrl: window.location.href });
-      setResult(r);
-      setFocus(r.status === "served" ? (r.zone?.name ?? null) : null);
-      if (r.status === "served" || r.status === "not_served") {
-        trackMeta("FindLocation", {}, eventId);
-      }
-    });
+  const pick = (id: string) => {
+    setPicked(id);
+    setRun(null);
+    trackMeta("FindLocation", {}, crypto.randomUUID());
   };
-
-  const showArea = (a: Area) => setFocus(a.name);
-
-  const verdict =
-    result?.status === "invalid" ? { tone: "info", title: "That is not a full postal code.", body: "Use all six characters, like M5V 2T6." }
-    : result?.status === "busy" ? { tone: "info", title: "One moment.", body: "Too many checks in a minute. Try again shortly." }
-    : result?.status === "served" ? { tone: "yes", title: `Yes, we deliver to ${result.postalCode}.`, body: `${result.zone?.name ?? "Your area"}${result.zone?.slotWindow ? `, delivered ${result.zone.slotWindow}` : ""}.` }
-    : result?.status === "not_served" ? { tone: "no", title: `Not yet at ${result.postalCode}.`, body: "We are adding areas across the GTA. Tell us where you are and we will write when we reach you." }
-    : null;
 
   return (
     <div className="tg-card tg-deliver">
-      <StaticMap origin={origin} rings={rings} places={placed} focus={focus} pin={pin} />
-      <div className="tg-deliver__panel">
-        <form className="tg-deliver__form" onSubmit={submit}>
-          <label htmlFor="tg-postal" className="tg-deliver__label">Your postal code</label>
-          <div className="flex gap-2">
-            <input
-              id="tg-postal"
-              className="tg-input"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="M5V 2T6"
-              autoComplete="postal-code"
-              maxLength={7}
-              spellCheck={false}
-            />
-            <button type="submit" className="tg-cta" disabled={pending || value.replace(/\s/g, "").length < 6}>
-              {pending ? "Checking" : "Check"}
-            </button>
-          </div>
-        </form>
-        <div aria-live="polite">
-          {verdict ? (
-            <div className="tg-verdict" data-tone={verdict.tone}>
-              <strong>{verdict.title}</strong>
-              <span>{verdict.body}</span>
-              {verdict.tone === "yes" ? <BuildTiffinLink className="tg-link tg-link--tap">Build my tiffin</BuildTiffinLink> : null}
-              {verdict.tone === "no" ? <Link href="/contact" className="tg-link tg-link--tap">Ask us about your area</Link> : null}
-            </div>
-          ) : null}
-        </div>
-        {areas.length > 0 ? (
-          <div className="tg-deliver__areas">
-            <span className="tg-deliver__label">Where we deliver</span>
-            <ul>
-              {areas.map((a) => (
-                <li key={a.name}>
-                  <button type="button" className="tg-chip" aria-pressed={focus === a.name} onClick={() => showArea(a)} disabled={!a.point}>
-                    {a.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+      {/* Small: what is under the pointer, or what was tapped. The legend on the map picks a run. */}
+      <div className="tg-deliver__panel" aria-live="polite">
+        {(() => {
+          const id = near?.id ?? picked;
+          const z = near ? near.zone : zone;
+          if (!id) return <p className="tg-deliver__info m-0"><strong>Tap your area</strong><span>Its colour is the window your tiffin arrives in.</span></p>;
+          return z ? (
+            <p className="tg-deliver__info m-0" data-group={z.group}>
+              <i aria-hidden /><strong>{id} · {z.name}</strong><span>{windowOf(z.slotWindow)}</span>
+              <BuildTiffinLink className="tg-link tg-link--tap">Start building your tiffin</BuildTiffinLink>
+            </p>
+          ) : (
+            <p className="tg-deliver__info m-0" data-tone="no">
+              <strong>{id} · not yet</strong><span>We are adding areas across the GTA.</span>
+              <Link href="/contact" className="tg-link tg-link--tap">Ask about your area</Link>
+            </p>
+          );
+        })()}
       </div>
+      <RegionMap
+        className="tg-deliver__map"
+        src="/landing/maps/gta.svg"
+        region={region}
+        places={placed.map((a) => ({ id: a.name, name: a.name, group: a.group, ...a.point }))}
+        districts={districts}
+        focus={zone?.name ?? null}
+        picked={picked}
+        onPick={pick}
+        activeGroup={active}
+        onHover={setHover}
+        rings={origin ? rings.map((r) => ({ center: origin, radiusKm: r.radiusKm })) : []}
+        pad={padFor}
+        blocked={overlays}
+        label={`Map of the areas we deliver to: ${placed.map((a) => a.name).join(", ")}. Tap an area to check it.`}
+      >
+        <RegionLegend groups={runs} active={active} onPick={(i) => { setPicked(null); setRun(run === i ? null : i); }} />
+        {/* Required by the data licences: OpenStreetMap (ODbL) and Statistics Canada (OGL - Canada). */}
+        <small className="rm-credit">© OpenStreetMap contributors, Statistics Canada</small>
+      </RegionMap>
     </div>
   );
 }
+
+// "Delivered 11 AM to 2 PM": the stored slot text carries an en dash, which public copy avoids.
+const windowOf = (slot: string | null) => { const w = parseWindow(slot); return w ? `Delivered ${w.from} to ${w.to}` : slot ? `Delivered ${slot}` : "On a delivery run"; };
