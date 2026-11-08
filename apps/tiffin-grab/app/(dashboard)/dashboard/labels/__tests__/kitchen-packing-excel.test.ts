@@ -87,7 +87,7 @@ describe("kitchenSummaryAoA", () => {
     const aoa = kitchenSummaryAoA(sheet);
     expect(aoa[0]?.[0]).toBe("Kitchen Summary");
     expect(aoa[2]).toEqual(["Food Item", "Portion / Unit", "Total Quantity"]);
-    expect(aoa[3]).toEqual(["Alpha Dish", "12 OZ", 1]);
+    expect(aoa[3]).toEqual(["Alpha Dish", "12oz", 1]);
     expect(aoa[5]).toEqual(["Beta Side", "4 roti", 1]);
   });
 });

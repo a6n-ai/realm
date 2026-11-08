@@ -5,7 +5,7 @@ import { groupPickCells, buildMealSummary, type PickCategoryMeta, type PickCateg
 import { applySwapsToCounts, type SwapRow } from "../swap-rules";
 import { swapAppliesTo } from "../coverage";
 import type { GridCell } from "../meals-grid";
-import { packingItemLabel } from "../packing-item-label";
+import { labelLineTexts } from "../packing-requirement";
 
 describe("Universal Container Slots (1 slot = 1 physical container item)", () => {
   const tuByKey = new Map<string, TuCategory>([
@@ -350,15 +350,13 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
 
   // Scenario 15: Packing item label formatting for multi-pick container vs count
   it("Scenario 15: Packing item label formats multi-slot container dishes with portions and count dishes in bulk", () => {
-    const daalPicks = [{ name: "Dal Tadka" }, { name: "Dal Tadka" }];
-    const daalPortions = ["12oz", "12oz"];
-    const daalLabel = packingItemLabel(daalPicks, daalPortions, 2, "weight");
-    expect(daalLabel).toBe("Dal Tadka 12oz, Dal Tadka 12oz");
-
-    const rotiPicks = [{ name: "Roti" }];
-    const rotiPortions = ["4 roti"];
-    const rotiLabel = packingItemLabel(rotiPicks, rotiPortions, 4, "count");
-    expect(rotiLabel).toBe("Roti 4");
+    const texts = labelLineTexts([
+      { dish: "Dal Tadka", portion: "12oz", defaulted: false },
+      { dish: "Dal Tadka", portion: "12oz", defaulted: false },
+      { dish: "Roti", portion: "4 roti", count: true, defaulted: false },
+      { dish: "Roti", portion: "1 roti", count: true, addon: true, defaulted: false },
+    ]).map((t) => t.text);
+    expect(texts).toEqual(["Dal Tadka - 12oz × 2", "5 Rotis"]);
   });
 
   // Additional Regression Test: Mixed container categories + cross-category swap

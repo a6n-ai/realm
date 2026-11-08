@@ -25,7 +25,8 @@ import { dropOffTexts } from "@/lib/services/address-drop-off.service";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
-import { loadExtraDates } from "@/lib/services/delivery-extras";
+import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/services/delivery-extras";
+import { packLines } from "@/lib/menu/packing-requirement";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
@@ -51,7 +52,7 @@ export type LabelLine = {
   defaulted: boolean;
   /** An add-on row (extra sabzi…); labels mark it, kitchen counts don't split on it. */
   addon?: boolean;
-  /** Count category (roti, rice, weekend dish): portion is a total ("8 roti"), not a container size. */
+  /** Count category (roti, rice, weekend dish): portion is the box total ("8 roti"), add-ons folded in (packLines). */
   count?: boolean;
 };
 
@@ -110,7 +111,7 @@ export type DeliveryLabel = {
   persons: number;
   /** The eating day this label is for. Equals the sheet date unless the trip carries later days. */
   forDate: string;
-  /** "For Tue" — only on trips carrying several eating days; null on single-day trips. */
+  /** "For Tue" on trips carrying several eating days, "Extra · Oct 7" on a moved-in repeat tiffin, else null. */
   forLabel: string | null;
   deliveryNotes: string | null;
   lines: LabelLine[];
@@ -310,6 +311,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     portionsByCategory(itemsFor(r), categoriesByKey, swapsForDay(swapRows, r.delivery, date));
 
   const extrasById = await loadExtraDates(db, rows.map((r) => r.delivery.id));
+  const movesInById = await loadMovesIn(db, rows.map((r) => r.delivery.id));
   const mealCache = createMealResolveCache(addonsByOrder);
   const labels: DeliveryLabel[] = [];
   // Rows are independent; resolve them side by side (sortForPrinting fixes the order).
@@ -322,7 +324,12 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
 
     // One label per covered occurrence per person: the kitchen packs every carried meal for the
     // trip's delivery date, each tagged with the day it is eaten.
-    for (const forDate of occurrences)
+    const seenByDate = new Map<string, number>();
+    for (const forDate of occurrences) {
+    // Second+ tiffin for one eating day gets the same "Extra · Nov 6" tag as the packing sheet.
+    const nth = seenByDate.get(forDate) ?? 0;
+    seenByDate.set(forDate, nth + 1);
+    const extraLabel = extraTiffinLabelAt(movesInById.get(delivery.id), forDate, nth);
     for (let person = 1; person <= order.persons; person++) {
       const dayWeek = forDate === dateIso ? week : await loadWeek(forDate);
       const portions = portionsFor(row, forDate);
@@ -364,10 +371,12 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         personIndex: person,
         persons: order.persons,
         forDate,
-        forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
+        forLabel: [covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null, extraLabel]
+          .filter(Boolean).join(" · ") || null,
         deliveryNotes: row.driverNote,
-        lines,
+        lines: packLines(lines),
       });
+    }
     }
   }, ROW_CONCURRENCY);
 

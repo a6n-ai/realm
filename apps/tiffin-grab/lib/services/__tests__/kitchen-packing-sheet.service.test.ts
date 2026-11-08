@@ -6,7 +6,8 @@ import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers"
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { getKitchenPackingSheet, extraTiffinLabel } = await import("../kitchen-packing-sheet.service");
+const { getKitchenPackingSheet } = await import("../kitchen-packing-sheet.service");
+const { extraTiffinLabel } = await import("../delivery-extras");
 const { selectionsService } = await import("@/lib/menu/selections.service");
 
 const MONDAY = (() => {
@@ -148,11 +149,11 @@ describe("getKitchenPackingSheet", () => {
 
     const items = sheet.rows[0]!.items.join(" | ");
     expect(items).toMatch(/Chilli Chicken|Saag Paneer/);
-    expect(items).toMatch(/— \d+ OZ/);
+    expect(items).toMatch(/ - \d+oz/);
     expect(items).not.toMatch(/× 1\b/);
     expect(items).toMatch(/Kali Dal/);
     // Count: "Dish — total"; a single one is just the dish — maharaja roti row @ 2 TU → "… — 8".
-    expect(items).toMatch(/Roti[^|]* — 8\b/i);
+    expect(items).toMatch(/\b8 [^|]*Rotis\b/i);
     expect(sheet.rows[0]?.items).toContain(`${DISH_PREFIX}Jeera Rice`);
     expect(items).not.toMatch(/unit\s*×/i);
     expect(items).not.toMatch(/roti\s*×/i);
@@ -216,12 +217,12 @@ describe("getKitchenPackingSheet", () => {
 
       const before = await getKitchenPackingSheet(MONDAY);
       const beforeItems = before.rows[0]?.items.join(" | ") ?? "";
-      expect(beforeItems).toMatch(/12\s*OZ/i);
-      expect(beforeItems).toMatch(/8\s*OZ/i);
-      expect(beforeItems).not.toMatch(/24\s*OZ/i);
+      expect(beforeItems).toMatch(/12\s*oz/i);
+      expect(beforeItems).toMatch(/8\s*oz/i);
+      expect(beforeItems).not.toMatch(/24\s*oz/i);
       // Count: eight 0.25-TU roti slots → "… — 8"; one rice → just the dish.
-      expect(beforeItems).toMatch(/Roti[^|]* — 8\b/i);
-      expect(beforeItems).not.toMatch(/Rice[^|]* — \d/i);
+      expect(beforeItems).toMatch(/\b8 [^|]*Rotis\b/i);
+      expect(beforeItems).not.toMatch(/\b\d+ [^|]*Rice/i);
       expect(beforeItems).not.toMatch(/unit\s*×/i);
       expect(before.rows[0]?.items.filter((c) => /roti/i.test(c))).toHaveLength(1);
 
@@ -239,10 +240,10 @@ describe("getKitchenPackingSheet", () => {
       const afterItems = after.rows[0]?.items.join(" | ") ?? "";
       const cells = after.rows[0]?.items ?? [];
       // Front-removed 12oz sabzi; remaining sabzi is 8oz. Same-unit swap: the daal it became keeps 12oz.
-      expect(cells.filter((c) => c.includes("Chilli Chicken") || c.includes("Saag Paneer")).join(" | ")).not.toMatch(/12\s*OZ/i);
-      expect(cells.filter((c) => c.includes("Kali Dal")).join(" | ")).toMatch(/12\s*OZ/i);
-      expect(afterItems).toMatch(/8\s*OZ/i);
-      expect(afterItems).not.toMatch(/24\s*OZ/i);
+      expect(cells.filter((c) => c.includes("Chilli Chicken") || c.includes("Saag Paneer")).join(" | ")).not.toMatch(/12\s*oz/i);
+      expect(cells.filter((c) => c.includes("Kali Dal")).join(" | ")).toMatch(/12\s*oz/i);
+      expect(afterItems).toMatch(/8\s*oz/i);
+      expect(afterItems).not.toMatch(/24\s*oz/i);
     } finally {
       await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
       if (prior.length) {
@@ -278,8 +279,8 @@ describe("getKitchenPackingSheet", () => {
 
       const sheet = await getKitchenPackingSheet(MONDAY);
       const items = sheet.rows[0]?.items.join(" | ") ?? "";
-      expect(items).toMatch(/Rice[^|]* — 2\b/i);
-      expect(items).toMatch(/Roti[^|]* — 3\b/i);
+      expect(items).toMatch(/\b2 [^|]*Rice/i);
+      expect(items).toMatch(/\b3 [^|]*Rotis\b/i);
       expect(items).not.toMatch(/unit\s*×/i);
       expect(items).not.toMatch(/2 unit/i);
       expect(sheet.summary.find((s) => /rice/i.test(s.dish))).toEqual(
