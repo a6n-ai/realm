@@ -34,8 +34,16 @@ export async function getPauseLimits(orderId: bigint, exec: Reader = db) {
 
 function chargedDays(row: { fromDate: string; untilDate: string; deliveryDates: string[] | null; releasedDates: string[] }): number {
   if (row.deliveryDates == null) return spanDays(row.fromDate, row.untilDate);
-  const released = new Set(row.releasedDates);
-  return row.deliveryDates.filter((d) => !released.has(d)).length;
+  // Each refund cancels one charge: a Friday trip refunded on a partial resume can sit next to
+  // Friday's own tiffin, still paused and charged again.
+  const refunds = new Map<string, number>();
+  for (const d of row.releasedDates) refunds.set(d, (refunds.get(d) ?? 0) + 1);
+  return row.deliveryDates.filter((d) => {
+    const n = refunds.get(d) ?? 0;
+    if (n === 0) return true;
+    refunds.set(d, n - 1);
+    return false;
+  }).length;
 }
 
 export async function getPauseUsage(orderId: bigint, exec: Reader = db) {

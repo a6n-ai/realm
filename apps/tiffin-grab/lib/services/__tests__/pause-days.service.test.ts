@@ -855,9 +855,20 @@ describe("weekend days on Friday's truck pause on their own", () => {
   it("resuming one day of a paused trip brings that day back and sends the others to the end", async () => {
     const o = await weekendOrder();
     await pauseDays(o.publicId, [FRI, SAT, SUN], null);
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
     await expect(releasePausedDays(o.publicId, [SAT], null)).resolves.toEqual([SAT]);
     const fri = await rowOn(o.id, FRI);
     expect([fri.status, fri.coversDates, fri.tiffinUnits]).toEqual(["scheduled", [SAT], 1]);
     expect(await eaten(o.id)).toHaveLength(7);
+    // Fri and Sun stayed paused: they spend two days, not zero, so resuming one day can't move the rest for free.
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(2);
+  });
+
+  it("a partial resume is refused when the days left paused would go over the budget", async () => {
+    const o = await limited({ maxPauseDaysTotal: 1 });
+    await db.update(deliveries).set({ coversDates: [FRI, SAT, SUN], tiffinUnits: 3 }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, FRI)));
+    await pauseDays(o.publicId, [FRI, SAT, SUN], null);
+    await expect(releasePausedDays(o.publicId, [SAT], null)).rejects.toThrow("pause days limit exceeded");
+    expect((await rowOn(o.id, FRI)).status).toBe("paused");
   });
 });

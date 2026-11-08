@@ -1,11 +1,11 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
-import { assertDaysPauseAllowed } from "./pause-limits.service";
+import { assertDaysPauseAllowed, getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";
 import { loadExtraDates } from "./delivery-extras";
 import { dateCounts } from "@/lib/menu/coverage";
@@ -179,8 +179,10 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
   let closed: OptimoSyncedRow[] = [];
   let reclosed: ReclosedDay[] = [];
   // Eating days of a resumed trip the customer left paused: they leave the truck after commit.
-  const stayPaused: { deliveryPublicId: string; deliveryId: bigint; eat: string }[] = [];
+  const stayPaused: { deliveryPublicId: string; deliveryId: bigint; eat: string; trip: string }[] = [];
   const eatsOfTrip = new Map<string, string[]>();
+  let left: typeof stayPaused = [];
+  let chargedOn: bigint | null = null;
   const resumedTrips = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
@@ -199,7 +201,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
         eatsOfTrip.set(row.deliveryDate, [...counts.keys()]);
         for (const [eat, n] of counts) {
           if (picked.includes(eat)) continue;
-          for (let i = 0; i < n; i++) stayPaused.push({ deliveryPublicId: row.publicId, deliveryId: row.id, eat });
+          for (let i = 0; i < n; i++) stayPaused.push({ deliveryPublicId: row.publicId, deliveryId: row.id, eat, trip: row.deliveryDate });
         }
       }
     }
@@ -211,12 +213,34 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
     closed = applied.map((x) => ({ publicId: x.deliveryPublicId, routeSyncedAt: x.routeSyncedAt }));
     const closedAgain = new Set(applied.map((x) => x.date));
     reclosed = applied.filter((x) => dates.includes(x.date)).map((x) => ({ date: x.date, holidayName: x.holidayName, placed: x.needsPlacing == null }));
-    return dates.filter((d) => !closedAgain.has(d));
+    const back = dates.filter((d) => !closedAgain.has(d));
+    left = stayPaused.filter((t) => back.includes(t.trip));
+    // The release refunded the whole trip; the days still paused spend the budget again, on the
+    // trip's own pause entry, so resuming one day can never move the rest for free.
+    const staying = [...new Set(left.map((t) => t.eat))];
+    if (staying.length) {
+      const [limits, usage] = await Promise.all([getPauseLimits(order.id, tx), getPauseUsage(order.id, tx)]);
+      if (limits.maxPauseDaysTotal != null && usage.daysUsed + staying.length > limits.maxPauseDaysTotal) {
+        throw new ValidationError("pause days limit exceeded");
+      }
+      const entries = await tx.select({ id: subscriptionPauses.id, deliveryDates: subscriptionPauses.deliveryDates })
+        .from(subscriptionPauses).where(eq(subscriptionPauses.orderId, order.id)).orderBy(desc(subscriptionPauses.id));
+      const entry = entries.find((e) => e.deliveryDates?.some((d) => left.some((t) => t.trip === d))) ?? entries[0];
+      if (entry) {
+        await tx.update(subscriptionPauses).set({ deliveryDates: [...(entry.deliveryDates ?? []), ...staying] }).where(eq(subscriptionPauses.id, entry.id));
+        chargedOn = entry.id;
+      }
+    }
+    return back;
   });
   await removeStopsBestEffort(closed.filter((r) => r.routeSyncedAt != null));
   if (resumedTrips.length > 0) await restoreStopsBestEffort(order.id, resumedTrips, actorId);
-  const left = stayPaused.filter((t) => resumedTrips.some((d) => eatsOfTrip.get(d)?.includes(t.eat)));
-  const { moved } = left.length ? await movePausedTiffinsToEnd(order.id, left, actorId) : { moved: [] as string[] };
+  const { moved, failed } = left.length ? await movePausedTiffinsToEnd(order.id, left, actorId) : { moved: [] as string[], failed: [] as string[] };
+  if (failed.length && chargedOn != null) {
+    // Still on the truck: that day was not paused after all.
+    const [entry] = await db.select({ releasedDates: subscriptionPauses.releasedDates }).from(subscriptionPauses).where(eq(subscriptionPauses.id, chargedOn));
+    await db.update(subscriptionPauses).set({ releasedDates: [...(entry?.releasedDates ?? []), ...new Set(failed)] }).where(eq(subscriptionPauses.id, chargedOn));
+  }
   // Say the eating days that came back, not the trip dates they ride on.
   const resumed = resumedTrips.flatMap((d) => (eatsOfTrip.get(d) ?? [d]).filter((eat) => !moved.includes(eat))).sort();
   return { resumed, reclosed };
