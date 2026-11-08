@@ -39,7 +39,7 @@ export function EmailTrackingSettings({
   const count = types.filter((t) => t.tracked).length;
 
   return (
-    <Tabs value={tab} onValueChange={setTab} orientation={isMobile ? "horizontal" : "vertical"} className="gap-6 md:flex-row">
+    <Tabs value={tab} onValueChange={setTab} orientation={isMobile ? "horizontal" : "vertical"} className="flex-col gap-6 md:flex-row">
       <TabsList variant="line" className="max-md:w-full md:w-48 md:shrink-0" aria-label="Email tracking sections">
         <TabsTrigger value="how">How it works</TabsTrigger>
         <TabsTrigger value="tracked">Tracked emails</TabsTrigger>
@@ -58,8 +58,8 @@ export function EmailTrackingSettings({
                 <Alert variant="info">
                   <InfoIcon />
                   <AlertDescription>
-                    {trackedStatus(count)}
-                    {count > 0 && (
+                    {trackedStatus(count, trackingAvailable)}
+                    {trackingAvailable && count > 0 && (
                       <Button variant="link" size="sm" onClick={() => setTab("tracked")}>
                         Change
                       </Button>

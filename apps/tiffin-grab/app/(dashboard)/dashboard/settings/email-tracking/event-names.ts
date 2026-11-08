@@ -53,7 +53,8 @@ export function streamSummary(routing: { webhook: readonly EmailEventType[]; cou
   };
 }
 
-export function trackedStatus(n: number): string {
+export function trackedStatus(n: number, available = true): string {
+  if (!available) return "Open and click tracking isn't set up for this app yet.";
   if (n === 0) return "Nothing to set up. No emails are tracked — that's the default.";
   return `${n} email ${n === 1 ? "type is" : "types are"} tracked.`;
 }

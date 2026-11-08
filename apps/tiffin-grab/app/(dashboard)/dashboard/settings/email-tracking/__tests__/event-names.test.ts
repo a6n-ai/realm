@@ -38,5 +38,6 @@ describe("summaries", () => {
     expect(trackedStatus(0)).toContain("Nothing to set up");
     expect(trackedStatus(1)).toBe("1 email type is tracked.");
     expect(trackedStatus(3)).toBe("3 email types are tracked.");
+    expect(trackedStatus(0, false)).toBe("Open and click tracking isn't set up for this app yet.");
   });
 });
