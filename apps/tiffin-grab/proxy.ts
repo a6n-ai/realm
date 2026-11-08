@@ -5,6 +5,7 @@ import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
 import { AREA_PAGE, apexServes, appServes } from "./lib/routing/apex";
+import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -130,6 +131,12 @@ export async function proxy(request: NextRequest) {
   if (door) return door;
   // /site/<org>/... is reachable only through the rewrite below (which never re-enters the proxy).
   if (/^\/site(?:\/|$)/i.test(pathname)) return new NextResponse(null, { status: 404 });
+  // An agent asking for markdown (Accept: text/markdown) gets the page as markdown built from live data.
+  if (request.method === "GET" && MD_PAGES.has(pathname) && wantsMarkdown(request.headers.get("accept"))) {
+    const headers = new Headers(request.headers);
+    headers.set("x-md-path", pathname);
+    return NextResponse.rewrite(new URL("/agents-md", request.url), { request: { headers } });
+  }
   // The apex matcher entry below sends static assets here too; they skip everything else, as before.
   // With Assets run_worker_first exclusions these ideally never reach the isolate; belt-and-braces here.
   if (STATIC_PATH.test(pathname)) return NextResponse.next();

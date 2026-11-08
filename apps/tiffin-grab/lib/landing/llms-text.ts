@@ -3,7 +3,7 @@ import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const money = (n: number, currency: string) => new Intl.NumberFormat("en-CA", { style: "currency", currency, minimumFractionDigits: 2 }).format(n);
 
-function deliveryLine(f: SiteFacts) {
+export function deliveryLine(f: SiteFacts) {
   return f.free ? "Delivery is free." : "Delivery has a charge, shown at checkout before you pay.";
 }
 

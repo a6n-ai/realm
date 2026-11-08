@@ -5,13 +5,9 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { PageIntro } from "@/components/landing/public-shell";
-import { listPublicFaqs } from "@/lib/services/faqs.service";
 import { pageMeta } from "@/lib/landing/meta";
 import { jsonLdScript } from "@/lib/landing/business-jsonld";
-import { buildFaq, type FaqGroup } from "@/lib/landing/faq-list";
-import { loadSiteFacts } from "@/lib/landing/site-facts";
-import { loadReferralOffer } from "@/lib/referrals/offer";
-import { referHeadline } from "@/components/landing/refer/refer-content";
+import { loadFaqGroups } from "@/lib/landing/faq-data";
 
 export const metadata: Metadata = pageMeta("Tiffin Service FAQ: Delivery, Changes, Pricing | Tiffin Grab", "How Tiffin Grab works: where we deliver in the GTA, changing what comes on a given day, how pricing works, and how to pay for your plan.", "/faq");
 export const revalidate = 3600;
@@ -33,13 +29,7 @@ function faqJsonLd(faqs: { question: string; answer: string }[]) {
 }
 
 export default async function FaqPage({ params }: { params: Promise<{ org: string }> }) {
-  const saved = await listPublicFaqs(await siteOrgId((await params).org));
-  let groups: FaqGroup[];
-  if (saved.length > 0) groups = [{ heading: "", items: saved.map((f) => ({ q: f.question, a: f.answer })) }];
-  else {
-    const [facts, offer] = await Promise.all([loadSiteFacts(), loadReferralOffer()]);
-    groups = buildFaq(facts, offer.on ? referHeadline(offer) : null);
-  }
+  const groups = await loadFaqGroups(await siteOrgId((await params).org));
   const faqs = groups.flatMap((g) => g.items.map((i) => ({ question: i.q, answer: i.a })));
 
   return (

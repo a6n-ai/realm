@@ -15,6 +15,8 @@ const ORIGIN_CC = "x-origin-cache-control";
 
 export function isCacheablePage(request) {
   if (request.method !== "GET") return false;
+  // The key ignores headers, so an agent's markdown request (proxy.ts serves it) must not share the page's HTML.
+  if (/text\/markdown/i.test(request.headers.get("accept") ?? "")) return false;
   const url = new URL(request.url);
   if (url.host !== HOST || url.search !== "" || !PAGES.has(url.pathname)) return false;
   const cookies = cookieNames(request.headers.get("cookie"));
