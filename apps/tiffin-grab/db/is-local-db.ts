@@ -1,3 +1,4 @@
+import { databaseUrl } from "../lib/runtime/env";
 /**
  * Is this DATABASE_URL a local dev database?
  *
@@ -35,7 +36,7 @@ export function isLocalDb(url: string): boolean {
  * would write a known credential into production.
  */
 export function assertLocalDb(scriptName: string): string {
-  const url = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin";
+  const url = databaseUrl();
   if (!isLocalDb(url)) {
     let where = "a non-local host";
     try {

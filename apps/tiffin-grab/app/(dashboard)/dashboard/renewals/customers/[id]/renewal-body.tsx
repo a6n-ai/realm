@@ -10,6 +10,7 @@ import { EstimateButton } from "../../estimate-button";
 import { RenewControl } from "../../../orders/[id]/renew-control";
 import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-actions";
 import { PlanHistory, RenewalReminders } from "./renewal-history";
+import { appOrigin } from "@/lib/runtime/env";
 
 const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => p.status === "active" || p.status === "paused");
 
@@ -20,7 +21,7 @@ export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: Cust
   const latest = plans[plans.length - 1];
   // Same rule as the order page's Renew: the newest paid plan, if nothing follows it yet.
   const renewFrom = [...plans].reverse().find((p) => !p.trial && ["active", "paused", "completed"].includes(p.status));
-  const renewUrl = `${(process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "")}/me/renew`;
+  const renewUrl = `${appOrigin()}/me/renew`;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ContactButtons name={customer.name} phone={customer.phone} renewUrl={renewUrl} />

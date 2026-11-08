@@ -1,4 +1,5 @@
 import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
+import { cronSecret } from "@/lib/runtime/env";
 
 // Scheduler-agnostic protected route (see spec §8.1, locked decision 7). Not
 // deployed yet — a real scheduler runs it just after 00:00 in the app-settings
@@ -8,7 +9,7 @@ import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
+  const secret = cronSecret();
   const authorization = request.headers.get("authorization");
   // Fail closed: no configured secret, or a mismatched bearer → 401.
   if (!secret || authorization !== `Bearer ${secret}`) {

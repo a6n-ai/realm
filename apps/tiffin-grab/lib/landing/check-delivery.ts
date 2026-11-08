@@ -11,6 +11,7 @@ import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { liveMetaRequestContext } from "@/lib/meta/request-context";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
+import { awsRegion } from "@/lib/runtime/env";
 
 export type DeliveryCheck =
   | { status: "invalid" | "busy" }
@@ -39,7 +40,7 @@ export async function checkDelivery(
   const { zones } = await loadCatalogSnapshot(orgId);
   const [zone, place] = await Promise.all([
     findZone(zones.filter((z) => z.active), { postalCode }, orgId),
-    awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({ address: `${postalCode}, Canada`, persist: false }).catch(() => null),
+    awsPlaceProvider({ region: awsRegion() }).resolve({ address: `${postalCode}, Canada`, persist: false }).catch(() => null),
   ]);
   const result: DeliveryCheck = {
     status: zone ? "served" : "not_served",

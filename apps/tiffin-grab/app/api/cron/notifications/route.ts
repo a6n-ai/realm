@@ -1,4 +1,5 @@
 import { runCronJob } from "@/lib/cron/run";
+import { cronSecret } from "@/lib/runtime/env";
 
 // Two callers. mode=tick: the Queue consumer (every transactional email) and the CampaignWake Workflow
 // (`wake=1`, recorded in cron_runs as campaign-wake). Otherwise the manual backstop that expands any due
@@ -6,7 +7,7 @@ import { runCronJob } from "@/lib/cron/run";
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
+  const secret = cronSecret();
   const authorization = request.headers.get("authorization");
   if (!secret || authorization !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

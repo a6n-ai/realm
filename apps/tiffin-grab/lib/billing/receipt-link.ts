@@ -1,4 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { appOrigin, authSecret } from "@/lib/runtime/env";
 
 // The email queue fetches the receipt PDF with no session, so the attachment url
 // carries its own proof: an HMAC over the order id and an expiry. Seven days covers
@@ -6,8 +7,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function key(): Buffer {
-  const secret =
-    process.env.BETTER_AUTH_SECRET ?? (process.env.NODE_ENV === "production" ? undefined : "dev-receipt-secret");
+  const secret = authSecret("receipt-link");
   if (!secret) throw new Error("BETTER_AUTH_SECRET is not set");
   return createHash("sha256").update(`receipt-link:${secret}`).digest();
 }
@@ -23,7 +23,7 @@ export function receiptPath(orderPublicId: string): string {
 /** Absolute, signed url for the email attachment. */
 export function signedReceiptUrl(orderPublicId: string, now = Date.now()): string {
   const exp = now + TTL_MS;
-  const origin = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
+  const origin = appOrigin();
   // The email queue fetches this from the server: a relative url can never resolve.
   if (!origin) throw new Error("BETTER_AUTH_URL is not set; cannot build the receipt link");
   return `${origin}${receiptPath(orderPublicId)}?exp=${exp}&sig=${sign(orderPublicId, exp)}`;

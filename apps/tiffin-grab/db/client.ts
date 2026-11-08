@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { trackOutbox } from "@/lib/notifications/outbox-dirty";
 import { isWorkers } from "@/lib/runtime/platform";
 import * as schema from "./schema";
+import { isProduction } from "@/lib/runtime/env";
 
 type Pg = ReturnType<typeof postgres>;
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -44,12 +45,12 @@ function nodeDb(): Db {
   const client =
     globalForDb.__tiffinGrabPg ??
     postgres(connectionString, {
-      max: process.env.NODE_ENV === "production" ? 10 : 4,
+      max: isProduction() ? 10 : 4,
       idle_timeout: 20,
       max_lifetime: 60 * 30,
       prepare: false,
     });
-  if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+  if (!isProduction()) globalForDb.__tiffinGrabPg = client;
   return signalAfterCommit(drizzle(client, { schema }));
 }
 

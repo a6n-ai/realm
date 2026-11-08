@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { campaign } from "@/db/schema";
 import { cloudWatchSesMetrics, type CampaignTotals, type EmailMetricsProvider } from "@relay/email";
+import { awsRegion } from "@/lib/runtime/env";
 
 const DAY_S = 86_400;
 
@@ -18,7 +19,7 @@ export function mergeCounts(current: Record<string, number>, fresh: CampaignTota
 /** SES campaign Delivery/Open/Click totals are pulled on demand into campaign.counts. */
 export async function refreshCampaignResults(
   publicId: string,
-  metrics: EmailMetricsProvider = cloudWatchSesMetrics({ region: process.env.AWS_REGION }),
+  metrics: EmailMetricsProvider = cloudWatchSesMetrics({ region: awsRegion() }),
 ): Promise<{ counts: Record<string, number> } | null> {
   const [row] = await db
     .select({ id: campaign.id, sentAt: campaign.sentAt, counts: campaign.counts })

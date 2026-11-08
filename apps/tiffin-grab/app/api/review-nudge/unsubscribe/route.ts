@@ -1,5 +1,6 @@
 import { handleReviewUnsubscribe } from "@foundry/google-reviews";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { authSecret } from "@/lib/runtime/env";
 
 // Unauthenticated by design — the guest email inbox is the only "session" this
 // link has. The signed token is the auth; no login required, no error surfaced
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const secret = process.env.BETTER_AUTH_SECRET;
+  const secret = authSecret("review-nudge");
   if (secret) {
     await handleReviewUnsubscribe({
       email: url.searchParams.get("email"),

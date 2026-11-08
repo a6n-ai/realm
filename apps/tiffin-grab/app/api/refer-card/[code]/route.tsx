@@ -5,6 +5,7 @@ import { friendOfferParts } from "@/lib/referrals/share";
 import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { siteOrigin } from "@/lib/runtime/env";
 
 // Public (see PUBLIC_API in proxy.ts): WhatsApp and other link-preview crawlers fetch it with no cookie.
 // The image shows the code, the public offer and the referrer's first name, nothing else about them.
@@ -60,7 +61,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
   const perCoin = await walletService.activeRate(currency).catch(() => null);
   const offer = friendOfferParts(settings, perCoin == null ? null : { perCoin, currency });
   const who = referrer.firstName ?? "A friend";
-  const host = new URL(process.env.SITE_URL ?? "https://app.tiffingrab.ca").host;
+  const host = new URL(siteOrigin()).host;
   const k = L.width / 1080;
 
   // Satori has no backdrop blur, so the glass is a bright translucent fill, a white rim and a warm

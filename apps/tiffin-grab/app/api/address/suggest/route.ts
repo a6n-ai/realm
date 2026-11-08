@@ -2,6 +2,7 @@ import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
 import { awsPlaceProvider } from "@foundry/places";
+import { awsRegion } from "@/lib/runtime/env";
 
 const suggestSchema = z.object({ query: z.string().trim().min(1) });
 
@@ -21,7 +22,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   const parsed = suggestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({ suggestions: [] });
 
-  const suggestions = await awsPlaceProvider({ region: process.env.AWS_REGION }).suggest(
+  const suggestions = await awsPlaceProvider({ region: awsRegion() }).suggest(
     parsed.data.query,
     { country: "CA" },
   );

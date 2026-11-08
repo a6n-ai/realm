@@ -12,6 +12,7 @@ import { withListDates } from "@/lib/list/default-month";
 import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
+import { awsRegion } from "@/lib/runtime/env";
 
 const SORT_COL = {
   name: campaign.name,
@@ -81,7 +82,7 @@ async function Buttons({ searchParams }: { searchParams: SearchParams }) {
 // ses:GetAccount permission or unset AWS_REGION renders nothing rather than
 // breaking the page.
 async function SesQuotaCard() {
-  const quota = await getSesSendQuota({ region: process.env.AWS_REGION }).catch(() => null);
+  const quota = await getSesSendQuota({ region: awsRegion() }).catch(() => null);
   if (!quota) return null;
   const remaining = Math.max(0, quota.max24HourSend - quota.sentLast24Hours);
   return (

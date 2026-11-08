@@ -1,3 +1,4 @@
+import { isProduction } from "@/lib/runtime/env";
 // A share link's ?ref= code rides this cookie until the friend first signs in.
 // Kept dependency-free: the proxy imports it.
 export const REFERRAL_COOKIE = "tg_ref";
@@ -7,7 +8,7 @@ export const REFERRAL_COOKIE_OPTIONS = {
   sameSite: "lax" as const,
   path: "/",
   maxAge: REFERRAL_COOKIE_MAX_AGE,
-  secure: process.env.NODE_ENV === "production",
+  secure: isProduction(),
 };
 
 export function readReferralCookie(headers: Headers | null | undefined): string | null {

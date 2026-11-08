@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { randomBytes } from "node:crypto";
+import { isProduction } from "@/lib/runtime/env";
 
 const COOKIE = "clover_oauth_state";
 const MAX_AGE_SEC = 60 * 10;
@@ -10,7 +11,7 @@ export async function createCloverOAuthState(): Promise<string> {
   jar.set(COOKIE, state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction(),
     path: "/",
     maxAge: MAX_AGE_SEC,
   });

@@ -1,3 +1,4 @@
+import { appUrlOr, DEFAULT_ORIGIN } from "@/lib/runtime/env";
 // Paths the public apex (tiffingrab.ca) answers itself. Paths in APP_ROOTS 308 to app.; every other path is a 404 on the apex.
 // Shared by the proxy (which redirects) and the cross-host splash (which must know a tap
 // will leave the host before the redirect happens). Client-safe: no server imports.
@@ -25,7 +26,7 @@ const APEX_SVG = /^\/[^/]*\.svg$/;
  *  from BETTER_AUTH_URL the same way the proxy's front door does. Hosts without "app." (localhost,
  *  previews) keep their own origin. */
 export function publicOrigin(): string {
-  const app = new URL(process.env.BETTER_AUTH_URL || "https://app.tiffingrab.ca");
+  const app = new URL(appUrlOr(DEFAULT_ORIGIN));
   return app.hostname.startsWith("app.") ? `${app.protocol}//${app.host.slice(4)}` : app.origin;
 }
 

@@ -1,4 +1,5 @@
 import { notificationTemplate } from "../../db/schema";
+import { emailBaseUrl } from "@/lib/runtime/env";
 
 export const DEFAULT_GRANT_REASON = "Staff gift";
 
@@ -10,7 +11,7 @@ export function walletCreditedDefaults(coins: number, reason: string) {
   };
 }
 
-const BASE = process.env.EMAIL_BASE_URL ?? "https://app.tiffingrab.ca";
+const BASE = emailBaseUrl();
 const SUBJECT = "You've got {{wallet.coins}} TiffinGrab coins";
 const BODY = "{{wallet.reason}} — we've added {{wallet.coins}} coins to your wallet. Use them at checkout on your next plan.";
 const HTML = `<p>Hi {{contact.first_name|there}},</p><p>${BODY}</p><p><a href="${BASE}/me/wallet">View your wallet</a></p>`;

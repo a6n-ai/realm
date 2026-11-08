@@ -1,5 +1,6 @@
 import { awsMapProvider, type MapTileProvider } from "@foundry/maps";
 import { createLogger } from "@foundry/commons/logger";
+import { awsRegion } from "@/lib/runtime/env";
 
 export const mapsLog = createLogger("geo-maps-proxy");
 
@@ -7,7 +8,7 @@ let provider: MapTileProvider | null = null;
 
 /** Memoised per process; credentials come from static AWS_* env keys, never the browser. */
 export function mapProvider(): MapTileProvider {
-  return (provider ??= awsMapProvider({ region: process.env.AWS_REGION }));
+  return (provider ??= awsMapProvider({ region: awsRegion() }));
 }
 
 /**

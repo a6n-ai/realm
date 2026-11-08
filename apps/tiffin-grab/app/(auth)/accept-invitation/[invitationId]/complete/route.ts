@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { appOrigin } from "@/lib/runtime/env";
 
 // Magic-link landing for a staff invite: the link already signed the invitee
 // in, so accept here (a route handler, not the page — accepting can rewrite
@@ -10,7 +11,7 @@ import { auth } from "@/lib/auth";
 export async function GET(_req: Request, { params }: { params: Promise<{ invitationId: string }> }) {
   const { invitationId } = await params;
   const h = await headers();
-  const to = (path: string) => NextResponse.redirect(new URL(path, process.env.BETTER_AUTH_URL));
+  const to = (path: string) => NextResponse.redirect(new URL(path, appOrigin()));
   try {
     await auth.api.acceptInvitation({ body: { invitationId }, headers: h });
   } catch {

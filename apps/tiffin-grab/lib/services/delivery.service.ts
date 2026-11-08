@@ -4,6 +4,7 @@ import { awsPlaceProvider } from "@foundry/places";
 import { db } from "@/db/client";
 import { addressTags, deliveryChargeConfigs, deliveryChargeType, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, deliveryTypes, deliveryZoneTypes, deliveryZones, orders, users, deliveries, customerAddresses } from "@/db/schema";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { awsRegion } from "@/lib/runtime/env";
 
 export type { DeliveryChargeRuleDto, DeliveryChargeRuleInput, DeliveryStrategyGroupInput } from "@foundry/delivery";
 
@@ -46,7 +47,7 @@ export const deliveryService = createDeliveryService({
     ]),
   // The map point on the public delivery map, stored with the zone so no page geocodes at render.
   geocodeZone: async (name) => {
-    const hit = await awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({ address: `${name}, Ontario, Canada`, persist: false });
+    const hit = await awsPlaceProvider({ region: awsRegion() }).resolve({ address: `${name}, Ontario, Canada`, persist: false });
     return hit ? { lat: hit.lat, lng: hit.lng } : null;
   },
   currentUserId,

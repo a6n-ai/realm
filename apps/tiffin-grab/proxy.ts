@@ -7,6 +7,7 @@ import { syncSessionHint } from "./lib/auth/session-hint";
 import { AREA_PAGE, apexServes, appServes } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
+import { appUrlOr, isTest } from "@/lib/runtime/env";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
 // runtime` here throws — the option isn't available for proxy files), so a
@@ -67,7 +68,7 @@ function corsHeaders(origin: string | null): Headers {
 type OrgSnapshot = { byCode: Map<string, string>; defaultId: string | null; at: number };
 let orgSnapshot: OrgSnapshot | null = null;
 // Tests rewrite org rows between requests, so they always read fresh.
-const ORG_TTL_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
+const ORG_TTL_MS = isTest() ? 0 : 60_000;
 
 async function orgs(): Promise<OrgSnapshot> {
   if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return orgSnapshot;
@@ -101,7 +102,7 @@ function siteFriendPath(pathname: string): string | null {
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
 
 function frontDoor(request: NextRequest): NextResponse | null {
-  const appHost = new URL(process.env.BETTER_AUTH_URL || "http://localhost").hostname;
+  const appHost = new URL(appUrlOr("http://localhost")).hostname;
   if (!appHost.startsWith("app.")) return null;
   const apex = appHost.slice(4);
   const { hostname, pathname, search } = request.nextUrl;

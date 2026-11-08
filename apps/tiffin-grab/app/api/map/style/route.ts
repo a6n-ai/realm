@@ -1,4 +1,5 @@
 import { errorName, mapProvider, mapsLog } from "@/lib/maps/geo-maps";
+import { appOrigin } from "@/lib/runtime/env";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export async function GET(): Promise<Response> {
     // which throws without a base, so the source silently never loads and no
     // tile request is ever made. BETTER_AUTH_URL is the public origin the app
     // already relies on being correct.
-    const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
+    const origin = appOrigin();
     for (const source of Object.values(style.sources ?? {})) {
       if (source.tiles) source.tiles = [`${origin}/api/map/tiles/{z}/{x}/{y}`];
     }

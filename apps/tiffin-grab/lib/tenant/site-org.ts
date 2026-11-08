@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { organization } from "@/db/schema";
+import { isTest } from "@/lib/runtime/env";
 
 // The [org] segment of app/site/[org]/** is an organization id, or "brand" when proxy
 // resolved none. Validated against the table so nothing can mint arbitrary cache keys.
 // ponytail: same 60s plain-data snapshot as orgs() in proxy.ts; a new org 404s for up to a minute.
-const TTL_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
+const TTL_MS = isTest() ? 0 : 60_000;
 let snapshot: { ids: Set<string>; at: number } | null = null;
 
 async function orgIds(fresh = false): Promise<Set<string>> {

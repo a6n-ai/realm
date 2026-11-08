@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { isProduction } from "@/lib/runtime/env";
 
 export const LOCK_COOKIE = "tg_locked";
 
@@ -7,7 +8,7 @@ export async function isLocked(): Promise<boolean> {
 }
 
 export async function setLock(): Promise<void> {
-  (await cookies()).set(LOCK_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" });
+  (await cookies()).set(LOCK_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/", secure: isProduction() });
 }
 
 export async function clearLock(): Promise<void> {

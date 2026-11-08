@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { authSecret } from "@/lib/runtime/env";
 
 // The code email's "Copy code" button opens /magic-link?t=<token>. The token is
 // the code sealed with AES-256-GCM, so the URL (history, logs, link scanners)
@@ -6,9 +7,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 const TTL_MS = 10 * 60 * 1000; // matches emailOTP expiresIn
 
 function key(): Buffer {
-  // Local .env files often omit it (better-auth has its own dev default); prod must set it.
-  const secret =
-    process.env.BETTER_AUTH_SECRET ?? (process.env.NODE_ENV === "production" ? undefined : "dev-magic-link-secret");
+  const secret = authSecret("magic-link");
   if (!secret) throw new Error("BETTER_AUTH_SECRET is not set");
   return createHash("sha256").update(`magic-link:${secret}`).digest();
 }

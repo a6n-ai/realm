@@ -2,6 +2,7 @@ import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
 import { awsPlaceProvider } from "@foundry/places";
+import { awsRegion } from "@/lib/runtime/env";
 
 const resolveSchema = z.object({
   placeId: z.string().trim().min(1).optional(),
@@ -26,7 +27,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   const parsed = resolveSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({ place: null });
 
-  const place = await awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({
+  const place = await awsPlaceProvider({ region: awsRegion() }).resolve({
     ...parsed.data,
     persist: false,
   });

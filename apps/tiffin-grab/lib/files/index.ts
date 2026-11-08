@@ -11,6 +11,7 @@ import {
 } from "@foundry/storage";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { db } from "@/db/client";
+import { filesPublicBaseUrl, isProduction } from "@/lib/runtime/env";
 
 // Storage env. If the Worker has the FILES R2 binding (wrangler r2_buckets) AND
 // FILES_URL_SIGNING_SECRET is set, files go through the binding with HMAC-signed
@@ -75,7 +76,7 @@ export function makeStorage(): StorageProvider {
   // The container has no volume for FILES_LOCAL_DIR, so on-disk files die with it
   // on the next deploy while their file_system rows survive — silent 404s, not an
   // error. Fail loudly instead: in prod, S3 is the only correct backend.
-  if (process.env.NODE_ENV === "production") {
+  if (isProduction()) {
     throw new Error("FILES_S3_BUCKET is not set — refusing to store files on ephemeral container disk");
   }
   return new LocalStorageProvider(process.env.FILES_LOCAL_DIR ?? ".files-storage");
@@ -87,7 +88,7 @@ let cached: FileSystemService | undefined;
 export function filesService(): FileSystemService {
   if (!cached) {
     cached = new FileSystemService(makeStorage(), db, {
-      publicBaseUrl: process.env.FILES_PUBLIC_BASE_URL ?? "/api/files",
+      publicBaseUrl: filesPublicBaseUrl(),
       // Static files live under public/* so the files CDN can be scoped there
       // and never reach secured objects (e.g. ticket attachment originals under
       // tickets/*). See deployment/cdn/. Existing objects keep their old keys.

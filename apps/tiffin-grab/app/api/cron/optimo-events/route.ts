@@ -1,9 +1,10 @@
+import { cronSecret } from "@/lib/runtime/env";
 // Called by the OptimoPoller Durable Object every 30 s on Workers (cloudflare/worker.js).
 // Fail-closed bearer, same contract as the other cron routes. pollOnce holds its own lease.
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
+  const secret = cronSecret();
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

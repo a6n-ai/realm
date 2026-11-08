@@ -7,13 +7,14 @@ import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 import { reviewNudgeEmailProvider } from "@/lib/notifications/review-nudge-provider";
+import { appOrigin, authSecret, cronSecret } from "@/lib/runtime/env";
 
 // Scheduler-agnostic protected route, same fail-closed contract as optimoroute-sync.
 export const dynamic = "force-dynamic";
 
 /** Customers with at least one past-dated scheduled delivery and no nudge yet. */
 async function handle(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
+  const secret = cronSecret();
   const authorization = request.headers.get("authorization");
   // Fail closed: no configured secret, or a mismatched bearer → 401.
   if (!secret || authorization !== `Bearer ${secret}`) {
@@ -27,8 +28,8 @@ async function handle(request: Request): Promise<Response> {
 
   // Signs the CASL-required unsubscribe link — reuses BETTER_AUTH_SECRET (the
   // app's one server signing secret) rather than adding a second one just for this.
-  const unsubscribeSecret = process.env.BETTER_AUTH_SECRET;
-  const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  const unsubscribeSecret = authSecret("review-nudge");
+  const baseUrl = appOrigin();
   if (!unsubscribeSecret || !baseUrl) {
     return Response.json({ error: "BETTER_AUTH_SECRET/BETTER_AUTH_URL not configured" }, { status: 500 });
   }

@@ -95,6 +95,7 @@ import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
+import { isProduction } from "@/lib/runtime/env";
 
 const log = createLogger("orders.service");
 
@@ -398,7 +399,7 @@ export async function createOrder(
   const requestedMethodId = input.paymentMethodId?.trim() || null;
   const realMethods = enabledMethods(paymentCfg);
   const useSimulated = realMethods.length === 0;
-  if (useSimulated && process.env.NODE_ENV === "production") {
+  if (useSimulated && isProduction()) {
     throw new ValidationError("Payments aren't set up yet. Please contact admin.");
   }
   if (!useSimulated && (!requestedMethodId || requestedMethodId === "simulated")) {

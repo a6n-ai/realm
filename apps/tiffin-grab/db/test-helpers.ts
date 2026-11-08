@@ -1,6 +1,7 @@
 import { count, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import { categoryPlans, dishCategories, dishes, plans, users } from "./schema";
+import { databaseUrl } from "../lib/runtime/env";
 
 /**
  * inquiriesService.create resolves an inbound lead's owner to the system user and throws
@@ -77,7 +78,7 @@ export async function categoryIdFor(key: string): Promise<bigint> {
 export async function ensureSeededCatalog(): Promise<void> {
   const [row] = await db.select({ count: count() }).from(dishes);
   if (Number(row?.count ?? 0) >= 10) return;
-  const dbUrl = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin_v2";
+  const dbUrl = databaseUrl();
   const postgres = (await import("postgres")).default;
   const raw = postgres(dbUrl, { prepare: false, max: 1 });
   try {

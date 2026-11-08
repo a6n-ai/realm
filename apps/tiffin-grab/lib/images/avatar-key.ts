@@ -1,4 +1,5 @@
-const FILES_BASE = `${(process.env.FILES_PUBLIC_BASE_URL ?? "/api/files").replace(/\/+$/, "")}/`;
+import { filesPublicBaseUrl } from "@/lib/runtime/env";
+const FILES_BASE = `${filesPublicBaseUrl().replace(/\/+$/, "")}/`;
 
 /**
  * The stored key of THIS user's own uploaded avatar, else null (a Google photo,

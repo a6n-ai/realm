@@ -15,6 +15,7 @@ import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "./ledger.service";
 import { displayName } from "@/lib/inquiries/display";
+import { appOrigin } from "@/lib/runtime/env";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -151,7 +152,7 @@ export async function sendAccountSetupEmail(email: string): Promise<void> {
   // Absolute callback URL: a relative one makes better-auth infer the origin
   // from the request, fragile behind a proxy — BETTER_AUTH_URL is the same
   // value baseURL is built from.
-  const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
+  const origin = appOrigin();
   await auth.api.sendVerificationEmail({ body: { email, callbackURL: `${origin}/set-password` } });
 }
 

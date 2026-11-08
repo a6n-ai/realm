@@ -1,4 +1,5 @@
 import { runCronJob } from "@/lib/cron/run";
+import { cronSecret } from "@/lib/runtime/env";
 
 // ISR is stale-while-revalidate: a quiet page would serve yesterday's menu or an ended promo to the
 // first visitor of the day. A SiteRefreshWake Workflow calls this at each local midnight / promo edge /
@@ -6,7 +7,7 @@ import { runCronJob } from "@/lib/cron/run";
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
+  const secret = cronSecret();
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,4 +1,5 @@
 import { type EmailProvider, type EmailStream, SesEmailProvider } from "@relay/email";
+import { awsRegion } from "@/lib/runtime/env";
 
 let transactional: EmailProvider | undefined;
 let marketing: EmailProvider | undefined;
@@ -6,7 +7,7 @@ let trackedProvider: EmailProvider | undefined;
 
 function build(configurationSetName: string | undefined): EmailProvider {
   return new SesEmailProvider({
-    region: process.env.AWS_REGION,
+    region: awsRegion(),
     configurationSetName,
     defaultFrom: {
       email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",

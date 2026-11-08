@@ -9,9 +9,10 @@
  */
 import type { ReactNode } from "react";
 import { Body, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
+import { emailBaseUrl } from "@/lib/runtime/env";
 
 // Links must be absolute and must never point at a dev host once seeded into prod.
-const BASE = (process.env.EMAIL_BASE_URL ?? "https://app.tiffingrab.ca").replace(/\/$/, "");
+const BASE = emailBaseUrl();
 
 const C = {
   cream: "#FBF4E7",

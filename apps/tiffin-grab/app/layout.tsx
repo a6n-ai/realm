@@ -13,6 +13,7 @@ import { BrowserChrome } from "@/components/browser-chrome";
 import { CrossHostSplash } from "@/components/cross-host-splash";
 import { CookieConsent } from "@/components/consent/cookie-consent";
 import { AreaBoundary } from "@/components/area-boundary";
+import { siteOrigin } from "@/lib/runtime/env";
 
 // Rounded, friendly sans — swapped in for the previous neutral/system-feeling Geist Sans
 // specifically so headers, dish names, and the wallet balance read as a warm consumer food
@@ -33,7 +34,7 @@ const poppins = Poppins({
 
 // Absolute URLs for canonical and share-card tags; SITE_URL is the deployed origin.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL ?? "https://app.tiffingrab.ca"),
+  metadataBase: new URL(siteOrigin()),
   title: "Tiffin Grab",
   description: "Customizable tiffin subscriptions across the GTA.",
 };

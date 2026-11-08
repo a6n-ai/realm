@@ -26,20 +26,21 @@ import { isWorkers, trustedIpHeaders } from "@/lib/runtime/platform";
 import { recordAudit } from "@/lib/services/session-service";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
+import { authBaseUrl, authSecret, cookieDomain, isProduction } from "@/lib/runtime/env";
 
 const log = createLogger("auth");
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: authBaseUrl(),
   trustedOrigins: [
-    ...(process.env.NODE_ENV !== "production" && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : []),
+    ...(!isProduction() && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : []),
     // Public pages live on the apex (tiffingrab.ca) while auth stays on app.; the
     // marketing header's useSession call comes from the apex origin.
-    ...(process.env.AUTH_COOKIE_DOMAIN ? [`https://${process.env.AUTH_COOKIE_DOMAIN}`] : []),
+    ...(cookieDomain() ? [`https://${cookieDomain()}`] : []),
   ],
-  secret: process.env.BETTER_AUTH_SECRET,
+  secret: authSecret("auth"),
   // Magic links are invites only, issued server-side by lib/auth/invite-links
   // (auth.api calls skip the HTTP router, so they are unaffected). Public
   // sign-in stays email-code / password; an open magic-link route would be a
@@ -66,8 +67,8 @@ export const auth = betterAuth({
     ipAddress: { ipAddressHeaders: trustedIpHeaders() },
     // Unset locally: cookies stay host-only. In prod ("tiffingrab.ca") the session
     // cookie covers the apex public pages and app. alike.
-    ...(process.env.AUTH_COOKIE_DOMAIN
-      ? { crossSubDomainCookies: { enabled: true, domain: process.env.AUTH_COOKIE_DOMAIN } }
+    ...(cookieDomain()
+      ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain() } }
       : {}),
   },
   // Memory is correct for the single Node instance; Workers isolates share

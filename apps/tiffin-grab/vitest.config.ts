@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { databaseUrl } from "./lib/runtime/env";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "skeleton-audit", ".turbo"]);
@@ -42,7 +43,7 @@ export default defineConfig({
   test: {
     environment: "node",
     env: {
-      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin_v2",
+      DATABASE_URL: databaseUrl(),
       // Always set in deployed envs. Without it better-auth has no baseURL for a
       // server-side auth.api call (no request to infer one from), and magic-link
       // issuance throws on `new URL("")`.

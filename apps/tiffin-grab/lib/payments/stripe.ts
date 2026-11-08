@@ -17,6 +17,7 @@ import {
   getPaymentConfig,
   setIntegrationsConfig,
 } from "@/lib/services/app-settings.service";
+import { appOrigin } from "@/lib/runtime/env";
 
 const log = createLogger("payments.stripe");
 
@@ -80,7 +81,7 @@ export async function stripeMethodAvailable(): Promise<boolean> {
 
 // BETTER_AUTH_URL base, as lib/clover/redirect-uri.ts: the request host is unreliable behind a proxy.
 export function appBaseUrl(): string {
-  return (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
+  return appOrigin();
 }
 
 export const payLink = (paymentPublicId: string): string => `${appBaseUrl()}/me/pay/${paymentPublicId}`;

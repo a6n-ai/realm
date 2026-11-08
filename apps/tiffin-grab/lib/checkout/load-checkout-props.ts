@@ -14,6 +14,7 @@ import { myRenewalWindow } from "@/lib/services/customer-deliveries.service";
 import { pendingFriendGift } from "@/lib/services/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import type { Checkout } from "@/components/checkout/checkout";
+import { isProduction } from "@/lib/runtime/env";
 
 export type CheckoutProps = Omit<ComponentProps<typeof Checkout>, "plan" | "closeHref">;
 
@@ -45,7 +46,7 @@ export async function loadCheckoutProps(userId: bigint, sessionUserId: string, o
   ]);
 
   // Simulated payment is local-only; prod with no rail enabled can't take an order.
-  if (process.env.NODE_ENV === "production" && (await listCheckoutPaymentMethods()).length === 0) return null;
+  if (isProduction() && (await listCheckoutPaymentMethods()).length === 0) return null;
 
   return { defaultCountry, prefill, catalog, savedAddresses, addressDropOffs, suggestedCoupons, lastTiffin, cardContext, referralGift };
 }

@@ -2,6 +2,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { oneTapClient } from "better-auth/client/plugins";
+import { publicAuthUrl } from "@/lib/runtime/env.public";
 
 // Google One Tap, sign-in only (server: googleOneTapPlugins). Its own client
 // because the Client ID arrives from the server as a prop: no NEXT_PUBLIC_
@@ -12,10 +13,10 @@ export function promptGoogleOneTap(clientId: string, handlers: { onSignedIn: () 
   // Google only accepts the client's registered origin; anywhere else (local builds, previews) every
   // attempt fails with a 403 in the console, so don't prompt there at all. No configured origin (a local
   // build without the deploy's env) counts as unregistered too.
-  const appUrl = process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  const appUrl = publicAuthUrl();
   if (typeof window !== "undefined" && (!appUrl || new URL(appUrl).origin !== window.location.origin)) return Promise.resolve();
   const client = createAuthClient({
-    baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
+    baseURL: appUrl,
     // maxAttempts 1: one prompt per visit, no re-prompting after a dismiss.
     plugins: [oneTapClient({ clientId, autoSelect: true, context: "signin", promptOptions: { maxAttempts: 1 } })],
   });
