@@ -379,7 +379,8 @@ describe("decisions pinned: partial move and make-up", () => {
     await db.delete(deliveries).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[4])));
     const units = async () => (await rowsFor(o.id)).reduce((n, r) => n + (r.mergedIntoDeliveryId ? 0 : r.tiffinUnits), 0);
     const before = await units();
-    await pauseDays(o.publicId, [D[3]], null);
+    // Both eating days picked: the whole trip pauses. (One of them alone would only move that tiffin.)
+    await pauseDays(o.publicId, [D[3], D[4]], null);
     await rescheduleDelivery((await rowOn(o.id, D[3])).publicId, "2030-01-14", null, D[4]);
     const trip = await rowOn(o.id, D[3]);
     expect([trip.status, trip.tiffinUnits]).toEqual(["paused", 1]);
@@ -803,5 +804,60 @@ describe("listPauseDays", () => {
     expect((await listPauseDays(o.id)).map((d) => d.date)).not.toContain(D[0]);
     await rescheduleDelivery((await rowOn(o.id, D[1])).publicId, "2030-01-14", null);
     expect((await listPauseDays(o.id)).map((d) => d.date)).not.toContain(D[1]);
+  });
+});
+
+describe("weekend days on Friday's truck pause on their own", () => {
+  beforeEach(reset);
+  const [FRI, SAT, SUN] = ["2030-01-11", "2030-01-12", "2030-01-13"];
+
+  // Friday's trip carries Fri + Sat + Sun, one tiffin each.
+  async function weekendOrder() {
+    const o = await activatedOrder();
+    await db.update(deliveries).set({ coversDates: [FRI, SAT, SUN], tiffinUnits: 3 }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, FRI)));
+    return o;
+  }
+  const eaten = async (orderId: bigint) => (await rowsFor(orderId)).filter((r) => r.status === "scheduled").flatMap((r) => r.coversDates ?? [r.deliveryDate]).sort();
+
+  it("lists Sat and Sun as days of their own", async () => {
+    const o = await weekendOrder();
+    expect((await listPauseDays(o.id)).map((d) => d.date)).toEqual([...D, SAT, SUN]);
+  });
+
+  it("pausing Sat moves only Saturday's tiffin; Friday and Sunday still go out on Friday", async () => {
+    const o = await weekendOrder();
+    await expect(pauseDays(o.publicId, [SAT], null)).resolves.toEqual({ paused: [SAT], skipped: [] });
+    const fri = await rowOn(o.id, FRI);
+    expect([fri.status, fri.coversDates, fri.tiffinUnits]).toEqual(["scheduled", [FRI, SUN], 2]);
+    // Same tiffin count, Saturday's now eaten at the end of the plan.
+    const after = await eaten(o.id);
+    expect(after).toHaveLength(7);
+    expect(after).not.toContain(SAT);
+    expect(after.at(-1)! > SUN).toBe(true);
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
+  });
+
+  it("pausing Friday alone keeps the weekend on the truck", async () => {
+    const o = await weekendOrder();
+    await pauseDays(o.publicId, [FRI], null);
+    const fri = await rowOn(o.id, FRI);
+    expect([fri.status, fri.coversDates]).toEqual(["scheduled", [SAT, SUN]]);
+  });
+
+  it("pausing every day on the trip stops the whole truck, as before", async () => {
+    const o = await weekendOrder();
+    await pauseDays(o.publicId, [FRI, SAT, SUN], null);
+    const fri = await rowOn(o.id, FRI);
+    expect([fri.status, fri.coversDates, fri.tiffinUnits]).toEqual(["paused", [FRI, SAT, SUN], 3]);
+    expect((await listPauseDays(o.id)).filter((d) => d.paused).map((d) => d.date)).toEqual([FRI, SAT, SUN]);
+  });
+
+  it("resuming one day of a paused trip brings that day back and sends the others to the end", async () => {
+    const o = await weekendOrder();
+    await pauseDays(o.publicId, [FRI, SAT, SUN], null);
+    await expect(releasePausedDays(o.publicId, [SAT], null)).resolves.toEqual([SAT]);
+    const fri = await rowOn(o.id, FRI);
+    expect([fri.status, fri.coversDates, fri.tiffinUnits]).toEqual(["scheduled", [SAT], 1]);
+    expect(await eaten(o.id)).toHaveLength(7);
   });
 });

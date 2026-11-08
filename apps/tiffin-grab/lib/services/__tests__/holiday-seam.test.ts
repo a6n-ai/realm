@@ -111,7 +111,10 @@ describe("a holiday row is not a customer pause", () => {
   it("the pause drawer does not list it", async () => {
     const { order, wed, org } = await orderWithOrg();
     await closeForHoliday(wed.id, org, "2030-01-09");
-    expect(await listPauseDays(order.id)).toEqual([{ date: "2030-01-07", paused: false }, { date: "2030-01-11", paused: false }]);
+    // Eating days, each on its own (Tue rides Monday, the weekend rides Friday); the closed Wed/Thu are not offered.
+    expect((await listPauseDays(order.id)).map((d) => [d.date, d.paused])).toEqual([
+      ["2030-01-07", false], ["2030-01-08", false], ["2030-01-11", false], ["2030-01-12", false], ["2030-01-13", false],
+    ]);
   });
 
   it("does not make the plan read 'all upcoming days paused'", async () => {

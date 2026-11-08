@@ -116,6 +116,35 @@ export async function moveLapsedPausesToEnd(orderId: bigint): Promise<number> {
   return moved;
 }
 
+/**
+ * Some eating days of a trip paused while the rest of the truck still goes out (Sat off a
+ * Fri + Sat + Sun trip): each of those tiffins goes to the end of the plan now, where a whole
+ * paused day ends up at its cutoff. One reschedule per tiffin, each in its own transaction, so
+ * one that cannot move stays on the trip and comes back in `failed`.
+ */
+export async function movePausedTiffinsToEnd(
+  orderId: bigint,
+  tiffins: { deliveryPublicId: string; deliveryId: bigint; eat: string }[],
+  actorId: bigint | null,
+): Promise<{ moved: string[]; failed: string[] }> {
+  const moved: string[] = [];
+  const failed: string[] = [];
+  for (const t of tiffins) {
+    try {
+      const target = await endOfPlanDate(orderId);
+      if (!target) throw new Error("no end-of-plan day");
+      const { carriedOn } = await rescheduleDelivery(t.deliveryPublicId, target, actorId, t.eat);
+      const rides = carriedOn === target ? "" : ` (rides ${carriedOn})`;
+      await db.insert(orderActivities).values({ orderId, deliveryId: t.deliveryId, type: "note", note: `Paused ${t.eat} moved to ${target}${rides}, the end of the plan`, createdBy: actorId });
+      moved.push(t.eat);
+    } catch (err) {
+      log.error({ err, orderId: String(orderId), eat: t.eat }, "move paused tiffin to end failed");
+      failed.push(t.eat);
+    }
+  }
+  return { moved, failed };
+}
+
 /** Flip the switch; turning it on also moves any paused day already past its cutoff. The activity says who flipped it. */
 export async function setAutoMovePaused(orderPublicId: string, on: boolean, actorId: bigint | null): Promise<{ on: boolean; moved: number }> {
   const [order] = await db.update(orders).set({ autoMovePaused: on }).where(eq(orders.publicId, orderPublicId))

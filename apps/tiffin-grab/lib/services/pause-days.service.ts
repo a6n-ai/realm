@@ -1,13 +1,16 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
-import { autoMovePausedOn, moveLapsedPausesToEnd } from "./pause-auto-move";
-import { CUSTOMER_PAUSED, MOVED_AWAY, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";
+import { loadExtraDates } from "./delivery-extras";
+import { dateCounts } from "@/lib/menu/coverage";
+import type { Reader } from "./pause-state";
+import { CUSTOMER_PAUSED, MOVED_AWAY, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -41,6 +44,31 @@ export async function removeStopsBestEffort(rows: OptimoSyncedRow[]): Promise<nu
   return gone.length;
 }
 
+
+type CarrierRow = typeof deliveries.$inferSelect & { movedAway: boolean };
+
+/**
+ * Each eating day → the trip that carries it. Weekend food rides Friday, so "pause Sat" is a day
+ * on Friday's row, never a row of its own. A live row wins over a held or moved-away one on the
+ * same eating day. `eats` lists every eating day per row (a doubled-up day once per tiffin).
+ */
+async function carriersFor(exec: Reader, orderId: bigint, from: string, until: string) {
+  // A trip carries days up to a week after its own date.
+  const earliest = new Date(`${from}T00:00:00Z`);
+  earliest.setUTCDate(earliest.getUTCDate() - 7);
+  const rows: CarrierRow[] = await exec.select({ ...getTableColumns(deliveries), movedAway: sql<boolean>`${MOVED_AWAY}` }).from(deliveries)
+    .where(and(eq(deliveries.orderId, orderId), gte(deliveries.deliveryDate, earliest.toISOString().slice(0, 10)), lte(deliveries.deliveryDate, until)))
+    .orderBy(asc(deliveries.deliveryDate));
+  const extras = await loadExtraDates(exec, rows.map((r) => r.id));
+  const eats = new Map<bigint, Map<string, number>>(rows.map((r) => [r.id, dateCounts(r, extras.get(r.id) ?? [])]));
+  const rank = (r: CarrierRow) => (r.movedAway ? 2 : r.status === "scheduled" || r.status === "paused" ? 0 : 1);
+  const byEat = new Map<string, CarrierRow>();
+  for (const r of [...rows].sort((a, b) => rank(a) - rank(b))) {
+    for (const eat of eats.get(r.id)!.keys()) if (!byEat.has(eat)) byEat.set(eat, r);
+  }
+  return { byEat, eats };
+}
+
 /**
  * Pause specific upcoming delivery days. The audit row is closed immediately so another
  * pause is legal while these days are still paused. The one-open unique index stays.
@@ -54,55 +82,82 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   }
 
   let removed: OptimoSyncedRow[] = [];
+  let logId: bigint | null = null;
+  // Eating days of a trip that keeps going out: they leave the truck after this commits.
+  const partial: { deliveryPublicId: string; deliveryId: bigint; eat: string }[] = [];
   const result = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
-    const rows = await tx.select().from(deliveries).where(and(
-      eq(deliveries.orderId, order.id),
-      inArray(deliveries.deliveryDate, wanted),
-    ));
-    const byDate = new Map(rows.map((r) => [r.deliveryDate, r]));
-    const missing = wanted.filter((d) => !byDate.has(d));
+    const { byEat, eats } = await carriersFor(tx, order.id, wanted[0]!, wanted.at(-1)!);
+    const missing = wanted.filter((d) => !byEat.has(d));
     if (missing.length) throw new ValidationError("That date is not a delivery on this plan");
     const now = Date.now();
-    const eligible = wanted.flatMap((d) => {
-      const row = byDate.get(d)!;
-      if (row.status !== "scheduled" || row.cutoffAt <= now) return [];
-      return [row];
-    });
-    if (eligible.length === 0) throw new ValidationError("Cutoff has passed for those days");
-    await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate), tx);
+    const open = (r: CarrierRow) => r.status === "scheduled" && r.cutoffAt > now && !r.movedAway;
+    const picked = new Map<bigint, { row: CarrierRow; days: string[] }>();
+    for (const d of wanted) {
+      const row = byEat.get(d)!;
+      if (!open(row)) continue;
+      const hit = picked.get(row.id) ?? picked.set(row.id, { row, days: [] }).get(row.id)!;
+      hit.days.push(d);
+    }
+    if (picked.size === 0) throw new ValidationError("Cutoff has passed for those days");
+    // Every eating day of the trip picked: the whole truck stops, as it always has. Some of them: only those tiffins leave.
+    const whole = [...picked.values()].filter((p) => p.days.length === eats.get(p.row.id)!.size);
+    for (const p of picked.values()) {
+      if (whole.includes(p)) continue;
+      for (const eat of p.days) {
+        for (let i = 0; i < eats.get(p.row.id)!.get(eat)!; i++) partial.push({ deliveryPublicId: p.row.publicId, deliveryId: p.row.id, eat });
+      }
+    }
+    // A whole trip spends its own date from the budget (as before); a single eating day spends that day.
+    const charged = [...whole.map((p) => p.row.deliveryDate), ...new Set(partial.map((t) => t.eat))];
+    await assertDaysPauseAllowed(order.id, charged, tx);
 
-    const updated = await pauseRows(tx, eligible.map((r) => r.id), now);
-
-    if (updated.length === 0) throw new ValidationError("Cutoff has passed for those days");
-    const pausedDates = updated.map((r) => r.deliveryDate).sort();
-    await tx.insert(subscriptionPauses).values({
+    const updated = await pauseRows(tx, whole.map((p) => p.row.id), now);
+    if (updated.length === 0 && partial.length === 0) throw new ValidationError("Cutoff has passed for those days");
+    const pausedTrips = updated.map((r) => r.deliveryDate);
+    // ponytail: a single eating day is logged by its own date, so it shares lapsedPauseDates with a trip
+    // dated the same day (Fri alone paused off Friday's truck); a held Friday later reads as a lapsed pause.
+    // A `trip_date` on the log row if that ever bites.
+    const logged = [...pausedTrips, ...new Set(partial.map((t) => t.eat))].sort();
+    const [entry] = await tx.insert(subscriptionPauses).values({
       orderId: order.id,
-      fromDate: pausedDates[0]!,
-      untilDate: pausedDates[pausedDates.length - 1]!,
+      fromDate: logged[0]!,
+      untilDate: logged[logged.length - 1]!,
       isIndefinite: false,
-      deliveryDates: pausedDates,
+      deliveryDates: logged,
       releasedDates: [],
       // Closed on insert. The live set is deliveries.status, not an open pause row.
       resumedAt: new Date(),
       createdBy: actorId,
-    });
+    }).returning({ id: subscriptionPauses.id });
+    logId = entry!.id;
+    const pausedEats = [
+      ...whole.filter((p) => updated.some((u) => u.id === p.row.id)).flatMap((p) => p.days),
+      ...new Set(partial.map((t) => t.eat)),
+    ].sort();
     await tx.insert(orderActivities).values({
       orderId: order.id,
       type: "paused",
-      note: pausedDates.join(", "),
+      note: pausedEats.join(", "),
       createdBy: actorId,
     });
-    removed = eligible
-      .filter((r) => updated.some((u) => u.id === r.id))
-      .map((r) => ({ publicId: r.publicId, routeSyncedAt: r.routeSyncedAt }));
+    removed = whole
+      .filter((p) => updated.some((u) => u.id === p.row.id))
+      .map((p) => ({ publicId: p.row.publicId, routeSyncedAt: p.row.routeSyncedAt }));
     // Past cutoff by the time the server looked: say so rather than let the caller claim them.
-    const skipped = wanted.filter((d) => byDate.get(d)!.cutoffAt <= now && !pausedDates.includes(d));
-    return { paused: pausedDates, skipped };
+    const skipped = wanted.filter((d) => !pausedEats.includes(d));
+    return { paused: pausedEats, skipped };
   });
   await removeStopsBestEffort(removed);
-  return result;
+  if (partial.length === 0) return result;
+
+  const { failed } = await movePausedTiffinsToEnd(order.id, partial, actorId);
+  if (failed.length === 0) return result;
+  // A tiffin that could not leave its trip still goes out: give that day back to the budget.
+  const back = [...new Set(failed)];
+  await db.update(subscriptionPauses).set({ releasedDates: back }).where(eq(subscriptionPauses.id, logId!));
+  return { paused: result.paused.filter((d) => !back.includes(d)), skipped: [...result.skipped, ...back].sort() };
 }
 
 /** Put paused days back on the same dates. "all" is every paused day still before cutoff. */
@@ -119,13 +174,35 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
   if (order.status !== "active" && order.status !== "paused") {
     throw new ValidationError(`Cannot resume an order that is ${order.status}`);
   }
-  const wanted = dates === "all" ? null : uniqueDates(dates);
+  const picked = dates === "all" ? null : uniqueDates(dates);
 
   let closed: OptimoSyncedRow[] = [];
   let reclosed: ReclosedDay[] = [];
-  const resumed = await db.transaction(async (tx) => {
+  // Eating days of a resumed trip the customer left paused: they leave the truck after commit.
+  const stayPaused: { deliveryPublicId: string; deliveryId: bigint; eat: string }[] = [];
+  const eatsOfTrip = new Map<string, string[]>();
+  const resumedTrips = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
+    // Picked eating days → the paused trips carrying them (Sat resumes Friday's truck).
+    let wanted: string[] | null = null;
+    if (picked) {
+      const { byEat, eats } = await carriersFor(tx, order.id, picked[0]!, picked.at(-1)!);
+      const trips = new Map<string, CarrierRow>();
+      for (const d of picked) {
+        const row = byEat.get(d);
+        if (row && isCustomerPaused(row)) trips.set(row.deliveryDate, row);
+      }
+      wanted = trips.size ? [...trips.keys()] : picked;
+      for (const row of trips.values()) {
+        const counts = eats.get(row.id)!;
+        eatsOfTrip.set(row.deliveryDate, [...counts.keys()]);
+        for (const [eat, n] of counts) {
+          if (picked.includes(eat)) continue;
+          for (let i = 0; i < n; i++) stayPaused.push({ deliveryPublicId: row.publicId, deliveryId: row.id, eat });
+        }
+      }
+    }
     const dates = await releasePausedRows(tx, order.id, wanted, actorId);
     // A day resumed onto a declared holiday is closed again at once: free this time (the release
     // refunded the pause day) and with its extra day added.
@@ -137,7 +214,11 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
     return dates.filter((d) => !closedAgain.has(d));
   });
   await removeStopsBestEffort(closed.filter((r) => r.routeSyncedAt != null));
-  if (resumed.length > 0) await restoreStopsBestEffort(order.id, resumed, actorId);
+  if (resumedTrips.length > 0) await restoreStopsBestEffort(order.id, resumedTrips, actorId);
+  const left = stayPaused.filter((t) => resumedTrips.some((d) => eatsOfTrip.get(d)?.includes(t.eat)));
+  const { moved } = left.length ? await movePausedTiffinsToEnd(order.id, left, actorId) : { moved: [] as string[] };
+  // Say the eating days that came back, not the trip dates they ride on.
+  const resumed = resumedTrips.flatMap((d) => (eatsOfTrip.get(d) ?? [d]).filter((eat) => !moved.includes(eat))).sort();
   return { resumed, reclosed };
 }
 
@@ -202,7 +283,7 @@ export type PauseDay = { date: string; paused: boolean; /** Paused and past its 
  */
 export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
   const now = Date.now();
-  const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status, cutoffAt: deliveries.cutoffAt, routeSyncedAt: deliveries.routeSyncedAt })
+  const rows = await db.select({ id: deliveries.id, date: deliveries.deliveryDate, coversDates: deliveries.coversDates, status: deliveries.status, cutoffAt: deliveries.cutoffAt, routeSyncedAt: deliveries.routeSyncedAt })
     .from(deliveries).where(and(
       eq(deliveries.orderId, orderId),
       not(MOVED_AWAY),
@@ -213,9 +294,17 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
       ),
     )).orderBy(asc(deliveries.deliveryDate));
   const lapsed = rows.some((r) => r.status === "skipped") ? (await lapsedPauseDates(db, [orderId])).get(orderId) : undefined;
+  const extras = await loadExtraDates(db, rows.map((r) => r.id));
+  const seen = new Set<string>();
+  // One day per eating day, not per trip: Sat and Sun on Friday's truck are paused on their own.
   return rows.flatMap((r): PauseDay[] => {
-    if (r.status === "skipped") return isLapsedPause({ status: r.status, deliveryDate: r.date, routeSyncedAt: r.routeSyncedAt }, lapsed) ? [{ date: r.date, paused: true, lapsed: true }] : [];
-    if (r.cutoffAt <= now) return [{ date: r.date, paused: true, lapsed: true }];
-    return [{ date: r.date, paused: r.status === "paused" }];
-  });
+    const state: Omit<PauseDay, "date"> | null =
+      r.status === "skipped" ? (isLapsedPause({ status: r.status, deliveryDate: r.date, routeSyncedAt: r.routeSyncedAt }, lapsed) ? { paused: true, lapsed: true } : null)
+      : r.cutoffAt <= now ? { paused: true, lapsed: true }
+      : { paused: r.status === "paused" };
+    if (!state) return [];
+    return [...dateCounts({ deliveryDate: r.date, coversDates: r.coversDates }, extras.get(r.id) ?? []).keys()]
+      .filter((date) => !seen.has(date) && seen.add(date))
+      .map((date) => ({ date, ...state }));
+  }).sort((a, b) => a.date.localeCompare(b.date));
 }
