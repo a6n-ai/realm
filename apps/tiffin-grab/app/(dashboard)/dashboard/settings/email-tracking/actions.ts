@@ -10,7 +10,7 @@ import { setTrackedEmailEvents } from "@/lib/services/app-settings.service";
 import { eventCategory } from "@/lib/notifications/event-categories";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/event-list";
 
-const PATH = "/dashboard/notifications/events";
+const PATH = "/dashboard/settings/email-tracking";
 const log = createLogger("email-events");
 const SAFE_ERROR = "Couldn't save — SES rejected the change. Try again or check logs.";
 

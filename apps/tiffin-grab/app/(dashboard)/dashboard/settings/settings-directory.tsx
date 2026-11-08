@@ -6,6 +6,7 @@ import {
   CalendarOffIcon,
   ChevronRightIcon,
   ClockIcon,
+  MailCheckIcon,
   GlobeIcon,
   MegaphoneIcon,
   PuzzleIcon,
@@ -49,6 +50,7 @@ const STATIC_GROUPS: Group[] = [
     title: "System",
     items: [
       { label: "Scheduled jobs", description: "Automatic jobs, last result and next run", icon: ClockIcon, tone: "gray", href: "/dashboard/settings/scheduled-jobs" },
+      { label: "Email tracking", description: "Opens, clicks and delivery records for emails", icon: MailCheckIcon, tone: "blue", href: "/dashboard/settings/email-tracking" },
       { label: "Logs", description: "Customer and staff activity", icon: ScrollTextIcon, tone: "gray", href: "/dashboard/settings/logs" },
     ],
   },

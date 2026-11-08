@@ -22,7 +22,6 @@ export default async function NotificationsLayout({ children }: { children: Reac
           { href: "/dashboard/notifications/contact-lists", label: "Contact lists" },
           { href: "/dashboard/notifications/unsubscribed", label: "Unsubscribed" },
           { href: "/dashboard/notifications/logs", label: "Logs" },
-          { href: "/dashboard/notifications/events", label: "Email events" },
           { href: "/dashboard/notifications/analytics", label: "Analytics" },
         ]}
       />
