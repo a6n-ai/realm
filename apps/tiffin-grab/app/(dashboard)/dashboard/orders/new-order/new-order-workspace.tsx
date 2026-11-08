@@ -8,7 +8,7 @@ import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
 import { CheckIcon, Loader2Icon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { estimatePrefill, renewPrefill } from "../../discounts/estimate-actions";
 import { toast } from "sonner";
-import { emailSchema } from "@foundry/commons";
+import { emailSchema } from "@foundry/commons/util/email";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";

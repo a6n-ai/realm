@@ -35,7 +35,7 @@ export function SubscribeChrome({
       <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {/* The logo answers a pointer like every other link here: a small lift. */}
-          <span className="inline-flex transition-transform duration-300 ease-soft active:scale-[0.98] hover:-translate-y-0.5"><Brand href={closeHref} /></span>
+          <Brand href={closeHref} />
           <Button
             variant="ghost"
             className="group !hidden gap-1 !px-2 !text-footnote tracking-tight sm:!inline-flex transition-transform duration-300 ease-soft active:scale-[0.97] hover:-translate-y-0.5"

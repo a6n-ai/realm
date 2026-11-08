@@ -107,7 +107,8 @@ export function PauseDemo({ className, cutoffTime }: { className?: string; cutof
                   <span className="pd-mut">Non-veg</span>
                   <span className="pd-mut">· 20 of 20 tiffins left</span>
                 </div>
-                <div className="pd-plan__last">Last tiffin in 25 days</div>
+                {/* A paused day is never lost: the plan runs one day longer, and the end date rolls on. */}
+                <Flip a="Last tiffin in 25 days" b="Last tiffin in 26 days" on={s.paused} h={18} className="pd-plan__last" />
                 <span className="pd-btn pd-btn--outline">Pause or resume days</span>
               </div>
 

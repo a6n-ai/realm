@@ -59,6 +59,8 @@ export function EdgeTint() {
       // small card does not), so it reads cream over green and dark over cream.
       const behind = colourAt(innerHeight - 40, 0.3) ?? bottom;
       if (behind) root.dataset.edgeBottom = isDark(behind) ? "dark" : "light";
+      // The fade under the dock takes the same colour, so text dissolves into its band before the glass.
+      if (behind) root.style.setProperty("--edge-behind", behind);
     };
     // Throttled by time, plus one trailing paint where scrolling stops. (A requestAnimationFrame gate
     // could stay stuck if a frame was asked for while the tab was in the background.)
@@ -80,6 +82,7 @@ export function EdgeTint() {
       removeEventListener("scroll", queue);
       removeEventListener("resize", queue);
       root.style.removeProperty("background-color");
+      root.style.removeProperty("--edge-behind");
       delete root.dataset.edgeBottom;
     };
   }, [path]);

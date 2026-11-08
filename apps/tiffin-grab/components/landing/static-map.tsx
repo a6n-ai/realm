@@ -120,7 +120,7 @@ export function StaticMap({ origin, rings, places, focus, pin }: {
   }
 
   return (
-    <div ref={box} className={`tg-deliver__map tg-smap${size && !size.wide ? " tg-smap--compact" : ""}`} role="img" aria-label={`Map of the areas we deliver to: ${places.map((p) => p.name).join(", ")}`}>
+    <div ref={box} className={`tg-deliver__map tg-smap${size && !size.wide ? " tg-smap--compact" : ""}`} role="group" aria-label={`Map of the areas we deliver to: ${places.map((p) => p.name).join(", ")}`}>
       {cam && size ? (
         <>
           <div className="tg-smap__tiles" aria-hidden>

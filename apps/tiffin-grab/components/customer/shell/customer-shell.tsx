@@ -47,7 +47,7 @@ const THEMES = [
 /** Mark + wordmark. `compact` fits a 44px chrome bar (public subscribe and checkout). */
 export function Brand({ href = "/me", compact = false, markOnlyNarrow = false }: { href?: string; compact?: boolean; markOnlyNarrow?: boolean }) {
   return (
-    <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full")}>
+    <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full transition-transform duration-300 ease-soft hover:-translate-y-0.5 active:scale-[0.98]")}>
       <BrandMark className={compact ? "size-8" : "size-9"} />
       <BrandWordmark className={cn(compact ? "text-title-3" : "text-title-2", markOnlyNarrow && "max-[429px]:hidden")} />
     </Link>

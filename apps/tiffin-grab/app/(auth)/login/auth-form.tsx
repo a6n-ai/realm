@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { emailSchema } from "@foundry/commons";
+import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
@@ -23,7 +23,6 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
-import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
@@ -111,11 +110,12 @@ export function AuthForm({
       {googleClientId && mode !== "pin" ? (
         <GoogleOneTap
           start={() =>
-            promptGoogleOneTap(googleClientId, {
+            // Loaded on demand: One Tap's own auth client stays out of the page bundle.
+            import("@/lib/auth/one-tap").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
               onSignedIn: () => void landSignedIn(),
               // No account for that Google email: sign-up lives on /subscribe.
               onRefused: () => router.replace("/subscribe?error=signup_disabled"),
-            })
+            }))
           }
         />
       ) : null}
