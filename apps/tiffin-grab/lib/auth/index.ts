@@ -15,6 +15,7 @@ import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
+import { isCustomerRole } from "./roles";
 import {
   notifyNewLoginIfNewDevice,
   notifyPasswordChanged,
@@ -221,7 +222,7 @@ export const auth = betterAuth({
       db: db as unknown as Parameters<typeof createOrganizationPlugin>[0]["db"],
       organizationTable: organization,
       eq,
-      allowUserToCreateOrganization: (user) => user.role !== Role.USER,
+      allowUserToCreateOrganization: (user) => !isCustomerRole(user.role),
       // No sendInvitationEmail: the invite mail carries a magic link, which needs
       // auth.api — unreachable from inside this config. Every createInvitation
       // caller sends it via sendStaffInviteLink instead.

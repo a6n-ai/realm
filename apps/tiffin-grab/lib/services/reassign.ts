@@ -1,12 +1,13 @@
+import { STAFF_ROLES, isAdmin } from "@/lib/auth/roles";
 import { and, eq, inArray } from "drizzle-orm";
-import { ForbiddenError, Role, ValidationError } from "@foundry/commons";
+import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 
 export async function canReassign(): Promise<boolean> {
   const user = (await getSession())?.user;
-  return user?.role === Role.ADMIN;
+  return isAdmin(user?.role);
 }
 
 export async function assertReassignAllowed(): Promise<void> {
@@ -26,7 +27,7 @@ export async function resolveAssignableOwner(
       and(
         eq(users.publicId, ownerPublicId),
         eq(users.isSystem, false),
-        inArray(users.role, ["admin", "member"]),
+        inArray(users.role, STAFF_ROLES),
       ),
     )
     .limit(1);

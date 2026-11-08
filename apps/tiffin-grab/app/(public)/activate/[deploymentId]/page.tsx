@@ -7,7 +7,7 @@ import { CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { StaticMapClient } from "@/components/maps/static-map-client";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/landing";
+import { isStaffRole } from "@/lib/auth/roles";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getClaimPaymentContext, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";

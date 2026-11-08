@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_ROLES, ALL_ROLES, STAFF_ROLES, isAdmin } from "@/lib/auth/roles";
 import * as React from "react";
 import {
   BarChart3Icon,
@@ -91,45 +92,45 @@ export const SECTIONS: NavSection[] = [
   {
     label: "Operations",
     items: [
-      { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
-      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon, roles: ["admin"] },
-      { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
-      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
-      { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon, roles: ["admin", "member"] },
-      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, roles: ["admin", "member"] },
-      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, roles: ["admin", "member"] },
-      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
-      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: ["admin", "member"] },
+      { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: STAFF_ROLES },
+      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon, roles: ADMIN_ROLES },
+      { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: STAFF_ROLES },
+      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: STAFF_ROLES },
+      { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon, roles: STAFF_ROLES },
+      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, roles: STAFF_ROLES },
+      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, roles: STAFF_ROLES },
+      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: STAFF_ROLES },
+      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: STAFF_ROLES },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
-      { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ["admin"] },
+      { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ADMIN_ROLES },
+      { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ADMIN_ROLES },
     ],
   },
   {
     label: "Finance",
     items: [
-      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon, roles: ["admin"] },
-      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, roles: ["admin"] },
-      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, roles: ["admin"] },
+      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon, roles: ADMIN_ROLES },
+      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, roles: ADMIN_ROLES },
+      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, roles: ADMIN_ROLES },
     ],
   },
   {
     label: "Engagement",
     items: [
-      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ["admin"] },
-      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon, roles: ["admin"] },
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ADMIN_ROLES },
+      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon, roles: ADMIN_ROLES },
     ],
   },
   {
     label: "Administration",
     items: [
-      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, roles: ["admin"] },
-      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ["admin"] },
-      { title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ["admin"] },
+      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, roles: ADMIN_ROLES },
+      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ADMIN_ROLES },
+      { title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ADMIN_ROLES },
     ],
   },
   {
@@ -137,7 +138,7 @@ export const SECTIONS: NavSection[] = [
     items: [
       { title: "My meals", href: "/dashboard/meals", icon: UtensilsCrossedIcon, roles: ["user"] },
       { title: "Support", href: "/me/support", icon: LifeBuoyIcon, roles: ["user"] },
-      { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ["admin", "member", "user"] },
+      { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ALL_ROLES },
     ],
   },
 ];
@@ -285,7 +286,7 @@ export function AppSidebar({
                       Account
                     </Link>
                   </DropdownMenuItem>
-                  {user.role === "admin" && (
+                  {isAdmin(user.role) && (
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/settings">
                         <SettingsIcon data-icon="inline-start" />

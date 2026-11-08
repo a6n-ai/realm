@@ -1,4 +1,5 @@
 "use client";
+import { isStaffRole } from "@/lib/auth/roles";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ClipboardListIcon, LayoutDashboardIcon, MenuIcon, PackageIcon } from "lucide-react";
@@ -16,7 +17,7 @@ export function AppBottomNav({ role }: { role: string }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const staff = role === "admin" || role === "member";
+  const staff = isStaffRole(role);
   if (!staff) return null; // customers use the sidebar/account nav; no bottom bar
   const items: BottomNavItem[] = [
     ...TABS.map((t) => ({

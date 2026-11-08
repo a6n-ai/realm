@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
@@ -47,7 +48,7 @@ export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event:
 export async function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRoleInput, "roles" | "event"> & { event?: Event }): Promise<void> {
   await enqueueToRole(tx, notificationTables, usersRef, {
     ...input,
-    roles: ["admin", "member"],
+    roles: STAFF_ROLES,
     channels: input.channels ?? (input.event ? EVENT_CHANNELS[input.event] : undefined),
   });
   markOutboxDirty();

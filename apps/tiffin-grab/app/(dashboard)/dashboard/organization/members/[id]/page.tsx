@@ -1,3 +1,4 @@
+import { isStaffRole } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { NotFoundError, Role } from "@foundry/commons";
@@ -51,7 +52,7 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     listOrganizations(),
   ]);
 
-  const isStaff = user.role === Role.ADMIN || user.role === Role.MEMBER;
+  const isStaff = isStaffRole(user.role);
   const contact = [user.email, user.phone].filter(Boolean).join(" · ");
 
   return (

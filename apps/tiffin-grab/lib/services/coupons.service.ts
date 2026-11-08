@@ -1,3 +1,4 @@
+import { isStaffRole } from "@/lib/auth/roles";
 import { round2 } from "@foundry/discounts";
 import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
@@ -661,7 +662,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .from(users)
       .where(eq(users.id, coupon.ownerUserId))
       .limit(1);
-    if (!owner || owner.status !== "active" || (owner.role !== "admin" && owner.role !== "member")) return false;
+    if (!owner || owner.status !== "active" || !isStaffRole(owner.role)) return false;
     return repAllowanceFor(await getDiscountPolicy(), owner.publicId) != null;
   }
 

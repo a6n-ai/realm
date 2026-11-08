@@ -1,5 +1,6 @@
+import { isStaffRole } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
-import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@foundry/commons";
+import { AuthError, ForbiddenError, NotFoundError, ValidationError, type RoleValue } from "@foundry/commons";
 import { and, asc, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } from "drizzle-orm";
 import { alias, type PgSelect } from "drizzle-orm/pg-core";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -80,7 +81,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const id = await this.currentUserId();
     if (!session || id == null) throw new AuthError();
     const role = session.user.role as RoleValue;
-    const isStaff = role === Role.ADMIN || role === Role.MEMBER;
+    const isStaff = isStaffRole(role);
     return { id, role, isStaff };
   }
 
@@ -226,7 +227,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   private async hasStaffOwner(ticket: typeof tickets.$inferSelect): Promise<boolean> {
     if (ticket.currentOwner == null) return false;
     const [o] = await db.select({ role: users.role, isSystem: users.isSystem }).from(users).where(eq(users.id, ticket.currentOwner)).limit(1);
-    return !!o && !o.isSystem && (o.role === Role.ADMIN || o.role === Role.MEMBER);
+    return !!o && !o.isSystem && isStaffRole(o.role);
   }
 
   /** Hands the ticket to `ownerId` and leaves the staff-only note saying who had it before. */

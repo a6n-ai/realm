@@ -1,5 +1,5 @@
+import { isStaffRole } from "@/lib/auth/roles";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { Role } from "@foundry/commons";
 import { db } from "@/db/client";
 import { listFilterUsage, member } from "@/db/schema";
 import type { FacetDef } from "@/components/ds";
@@ -18,7 +18,7 @@ type Actor = { publicId: string; userId: bigint; organizationId: string | null }
 /** Staff only: customers never record or see list filters. */
 async function actor(): Promise<Actor | null> {
   const s = await getSession();
-  if (!s || (s.user.role !== Role.ADMIN && s.user.role !== Role.MEMBER)) return null;
+  if (!s || !isStaffRole(s.user.role)) return null;
   const userId = await userIdByPublicId(s.user.id);
   if (!userId) return null;
   let organizationId = s.session.activeOrganizationId;

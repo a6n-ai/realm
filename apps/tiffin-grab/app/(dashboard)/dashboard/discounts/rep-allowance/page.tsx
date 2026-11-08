@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { and, eq, inArray } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
@@ -33,7 +34,7 @@ async function RepAllowanceData({ searchParams }: { searchParams: SearchParams }
     db
       .select({ publicId: users.publicId, name: users.name, email: users.email, role: users.role })
       .from(users)
-      .where(and(inArray(users.role, ["admin", "member"]), eq(users.isSystem, false)))
+      .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
       .orderBy(users.name),
     getDiscountPolicy(),
   ]);

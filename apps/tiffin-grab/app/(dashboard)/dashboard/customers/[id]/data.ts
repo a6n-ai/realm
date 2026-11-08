@@ -1,3 +1,4 @@
+import { isAdmin } from "@/lib/auth/roles";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { NotFoundError } from "@foundry/commons";
@@ -20,5 +21,5 @@ export const loadCustomer = cache(async (id: string) => {
 export const loadViewer = cache(async () => {
   const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
   // Email is the login identity and coins are money: only admins edit those.
-  return { session, isAdmin: session?.user?.role === "admin", timezone };
+  return { session, isAdmin: isAdmin(session), timezone };
 });

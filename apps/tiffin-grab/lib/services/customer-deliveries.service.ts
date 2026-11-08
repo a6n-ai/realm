@@ -1,5 +1,5 @@
 import { loadExtraDates } from "@/lib/services/delivery-extras";
-import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -19,6 +19,7 @@ import {
 import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
+import { isStaffRole } from "@/lib/auth/roles";
 import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
@@ -37,11 +38,9 @@ import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 // Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
 // only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
 // share one authorization policy (feature-flagged refinements can layer on later).
-const STAFF_ROLES = new Set<string>([Role.ADMIN, Role.MEMBER]);
-
 async function callerIsStaff(): Promise<boolean> {
   const session = await getSession();
-  return session != null && STAFF_ROLES.has(session.user.role);
+  return session != null && isStaffRole(session.user.role);
 }
 
 // Passes if the caller is staff, or owns the order. Not-owned and not-existent both throw the same

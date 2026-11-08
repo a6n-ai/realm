@@ -1,3 +1,4 @@
+import { isAdmin } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
 import { formatMoney, zonedDateIso } from "@foundry/commons";
@@ -285,7 +286,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       { kind: "select", field: "day", label: "Day", options: [...MISSED_DAYS] },
       { kind: "search", fields: ["customerName", "orderCode", "planName"] },
     ];
-    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={session?.user?.role === "admin"} today={today} />;
+    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={isAdmin(session)} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
   const paymentReview = raw.view === "payment";

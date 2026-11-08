@@ -1,3 +1,4 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import { ratePct } from "@/lib/money";
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -115,7 +116,7 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
   ]);
 
   // Customers log order actions too (pause, edit meals) and system users run jobs: only staff are reps.
-  const repIds = new Set(staff.filter((u) => !u.isSystem && u.role !== "user").map((u) => u.id.toString()));
+  const repIds = new Set(staff.filter((u) => !u.isSystem && !isCustomerRole(u.role)).map((u) => u.id.toString()));
   const staffById = new Map(staff.map((u) => [u.id.toString(), u]));
 
   const byOwner = new Map<string, EmployeeRow>();

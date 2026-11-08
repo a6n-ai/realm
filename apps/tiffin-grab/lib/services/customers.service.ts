@@ -1,3 +1,4 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
@@ -56,13 +57,13 @@ export async function provisionCustomerByPhone(
 
   const [existing] = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.phone, contact.phone)).limit(1);
   if (existing) {
-    if (existing.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+    if (!isCustomerRole(existing.role)) throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
     return existing.id;
   }
 
   const [clash] = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, email)).limit(1);
   if (clash) {
-    if (clash.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+    if (!isCustomerRole(clash.role)) throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
     throw new ValidationError("That email is already in use");
   }
   // No credential row: a provisioned customer has NO password until they choose
@@ -168,7 +169,7 @@ async function assertCustomerEmail(email: string): Promise<void> {
     .where(eq(users.email, email.toLowerCase()))
     .limit(1);
   if (!u) throw new NotFoundError("Customer not found");
-  if (u.role !== "user") throw new ValidationError("This email belongs to a staff account");
+  if (!isCustomerRole(u.role)) throw new ValidationError("This email belongs to a staff account");
 }
 
 export async function sendCustomerInvite(email: string): Promise<void> {
@@ -432,7 +433,7 @@ export async function getCustomerDashboard(userPublicId: string): Promise<Custom
     .from(users)
     .where(eq(users.publicId, userPublicId))
     .limit(1);
-  if (!user || user.role !== "user") throw new NotFoundError("Customer not found");
+  if (!user || !isCustomerRole(user.role)) throw new NotFoundError("Customer not found");
 
   const [orderRows, totalSpent] = await Promise.all([
     db
@@ -608,7 +609,7 @@ export async function getCustomer360(userPublicId: string) {
     .from(users)
     .where(eq(users.publicId, userPublicId))
     .limit(1);
-  if (!user || user.role !== "user") throw new NotFoundError("Customer not found");
+  if (!user || !isCustomerRole(user.role)) throw new NotFoundError("Customer not found");
 
   const matchConds = [];
   if (user.email) matchConds.push(eq(sql`lower(${inquiries.email})`, user.email.toLowerCase()));

@@ -4,8 +4,7 @@ import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIco
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
-import { Role } from "@foundry/commons";
-import { requireStaff } from "@/lib/auth/guards";
+import { AdminOnly, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getSupportHours } from "@/lib/services/app-settings.service";
 import { SupportHoursDialog } from "./support-hours-dialog";
@@ -80,10 +79,17 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
 }
 
 // Admins only: the hours are a promise to customers.
+async function SupportHoursDialogLoader() {
+  return <SupportHoursDialog value={await getSupportHours()} />;
+}
+
 async function SupportHoursAction() {
   await requireStaff();
-  if ((await getSession())?.user.role !== Role.ADMIN) return null;
-  return <SupportHoursDialog value={await getSupportHours()} />;
+  return (
+    <AdminOnly>
+      <SupportHoursDialogLoader />
+    </AdminOnly>
+  );
 }
 
 async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {

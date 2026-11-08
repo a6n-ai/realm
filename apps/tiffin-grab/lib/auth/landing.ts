@@ -1,10 +1,5 @@
-import { Role, type RoleValue } from "@foundry/commons";
-
-// Staff = admin or member (mirrors requireStaff in guards.ts). Non-throwing so
-// pages can branch on it rather than guard.
-export function isStaffRole(role: RoleValue): boolean {
-  return role === Role.ADMIN || role === Role.MEMBER;
-}
+import type { RoleValue } from "@foundry/commons";
+import { isStaffRole } from "./roles";
 
 // Where a signed-in user of this role belongs: staff → ops dashboard, customers
 // → their account home. Used to skip the login form for an already-authed visitor

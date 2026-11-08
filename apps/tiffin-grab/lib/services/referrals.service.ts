@@ -1,3 +1,4 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import { randomInt } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -109,7 +110,7 @@ export async function attachReferral(userId: bigint, rawCode: string): Promise<A
     if (me.referredBy != null) return "already";
     // Only an account its owner has signed in to: a pre-registered, never-verified
     // email can't be claimed for someone's code before the real person shows up.
-    if (me.role !== "user" || !me.verified) return "not_eligible";
+    if (!isCustomerRole(me.role) || !me.verified) return "not_eligible";
     if (!referrer) return "unknown_code";
     if (referrer.id === userId) return "self";
 
@@ -140,7 +141,7 @@ export async function staffAttachReferral(customerId: bigint, rawCode: string, a
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${customerId} FOR UPDATE`);
     const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId }).from(users).where(eq(users.id, customerId)).limit(1);
-    if (!me || me.role !== "user") return { result: "not_eligible" as const };
+    if (!me || !isCustomerRole(me.role)) return { result: "not_eligible" as const };
     if (me.referredBy != null) return { result: "already" as const };
     if (!referrer) return { result: "unknown_code" as const };
     if (referrer.id === customerId) return { result: "self" as const };

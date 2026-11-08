@@ -1,3 +1,4 @@
+import { isAdmin, isStaffRole } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,7 +12,7 @@ import {
   UserIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Role, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
+import { formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
@@ -67,7 +68,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   // Customers landing here are sent to their account page.
   const session = await getSession();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
+  if (!isStaffRole(session.user.role)) {
     return <CustomerDashboard userId={session.user.id} />;
   }
   return <StaffOverview searchParams={searchParams} session={session} />;
@@ -76,7 +77,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 async function StaffOverview({ searchParams, session }: { searchParams: SearchParams; session: NonNullable<Awaited<ReturnType<typeof getSession>>> }) {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(session);
-  const isAdmin = session.user.role === Role.ADMIN;
+  const admin = isAdmin(session);
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
@@ -117,10 +118,10 @@ async function StaffOverview({ searchParams, session }: { searchParams: SearchPa
       {/* Act first: what needs doing, how today is going, the menus to release. */}
       <CardGrid
         cards={[
-          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} isAdmin={isAdmin} />, h: 260 },
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} isAdmin={admin} />, h: 260 },
           seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
           // Menu pages are admin-only, so the menu card is too.
-          isAdmin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
+          admin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
         ]}
       />
 

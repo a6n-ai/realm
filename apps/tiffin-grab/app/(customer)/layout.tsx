@@ -1,3 +1,4 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "user") redirect("/dashboard");
+  if (!isCustomerRole(session.user.role)) redirect("/dashboard");
 
   let user;
   try {

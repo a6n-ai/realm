@@ -1,5 +1,6 @@
 "use server";
 
+import { isStaffRole } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
 import { AuthError, ValidationError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
@@ -32,7 +33,7 @@ export async function pickDish(input: {
   // Resolved for every actor, not just customers: staff picks are logged too, and an
   // unattributed meal_pick row is the exact thing this log exists to prevent.
   const actorId = await currentUserId();
-  const isStaff = session.user.role === "admin" || session.user.role === "member";
+  const isStaff = isStaffRole(session.user.role);
   if (!isStaff && (actorId == null || order.userId !== actorId)) {
     void weekP.catch(() => {});
     throw new AuthError();

@@ -1,4 +1,5 @@
 "use client";
+import { isStaffRole } from "@/lib/auth/roles";
 import { ClipboardListIcon, PackageIcon, UserPlusIcon, type LucideIcon } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/drawer";
 import { useQuickAdd, type QuickAddKind } from "./quick-add-provider";
@@ -22,7 +23,7 @@ export function QuickCreateDrawer({
   onOpenChange: (open: boolean) => void;
 }) {
   const quickAdd = useQuickAdd();
-  const staff = role === "admin" || role === "member";
+  const staff = isStaffRole(role);
   if (!staff) return null;
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>

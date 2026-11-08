@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/purity */
+import { isAdmin } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { EyeIcon, FileDownIcon, PackageIcon } from "lucide-react";
@@ -334,7 +335,7 @@ async function OrderDetail({
     .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
     .map((r) => ({ publicId: r.publicId, label: `${humanDate(r.deliveryDate)} · ${deliveryState(r)}` }));
   // Admin only; a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
-  const canGiveFree = session?.user?.role === "admin"
+  const canGiveFree = isAdmin(session)
     && complimentaryBlocker(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status)) == null;
   // Owner changes live here, not in the orders table (a row dropdown shifted row heights).
   const [ownerRow, mayReassign] = await Promise.all([

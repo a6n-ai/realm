@@ -1,5 +1,6 @@
 "use server";
 
+import { isCustomerRole } from "@/lib/auth/roles";
 import { round2 } from "@foundry/discounts";
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
@@ -310,7 +311,7 @@ export async function checkExistingAccount(email: string): Promise<{ status: "ne
     .where(eq(users.email, parsed.data.toLowerCase()))
     .limit(1);
   if (!row) return { status: "new" };
-  return { status: row.role === "user" ? "matched" : "staff" };
+  return { status: isCustomerRole(row.role) ? "matched" : "staff" };
 }
 
 // New-customer branch of the email step: create the account so the gate can

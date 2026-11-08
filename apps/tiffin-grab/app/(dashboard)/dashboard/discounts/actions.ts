@@ -1,5 +1,6 @@
 "use server";
 
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -205,7 +206,7 @@ export async function setRepCeiling(
   const [rep] = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.publicId, repPublicId), inArray(users.role, ["admin", "member"]), eq(users.isSystem, false)))
+    .where(and(eq(users.publicId, repPublicId), inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
     .limit(1);
   if (!rep) throw new ValidationError("Unknown staff member");
 

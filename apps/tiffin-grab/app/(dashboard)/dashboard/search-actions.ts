@@ -1,5 +1,6 @@
 "use server";
 
+import { isStaffRole } from "@/lib/auth/roles";
 import { and, desc, eq, ilike, or, type Column } from "drizzle-orm";
 import { Role } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -29,7 +30,7 @@ export async function globalSearch(query: string): Promise<SearchResults> {
 
   const session = await getSession();
   const role = session?.user?.role;
-  if (role !== Role.ADMIN && role !== Role.MEMBER) return EMPTY;
+  if (!isStaffRole(role)) return EMPTY;
 
   const like = `%${q}%`;
   const [ord, cust, inq, tkt] = await Promise.all([

@@ -1,7 +1,8 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, LifeBuoy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
-import { Role, type RoleValue } from "@foundry/commons";
+import { type RoleValue } from "@foundry/commons";
 import { IconTile, ListGroup, PageHeader, type IconTint } from "@/components/customer/kit";
 import { Avatar } from "./avatar";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
@@ -48,7 +49,7 @@ function SectionBody({ k, user, role, addresses, cards, dropOff, dropOffs, googl
     case "notifications":
       return <NotificationsForm notifyEmail={user.notifyEmail} />;
     case "security":
-      return <SecurityPanel email={user.email} staffPin={role === Role.USER ? null : { hasPin: user.hasPin }} google={google} />;
+      return <SecurityPanel email={user.email} staffPin={isCustomerRole(role) ? null : { hasPin: user.hasPin }} google={google} />;
   }
 }
 

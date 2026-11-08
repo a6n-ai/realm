@@ -1,6 +1,7 @@
 /* eslint-disable */
 "use client";
 
+import { isStaffRole } from "@/lib/auth/roles";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PlusIcon } from "lucide-react";
@@ -59,7 +60,7 @@ export function GlobalSearch({ role }: { role: string }) {
   const router = useRouter();
   const quickAdd = useQuickAdd();
   const isMobile = useIsMobile();
-  const isStaff = role === "admin" || role === "member";
+  const isStaff = isStaffRole(role);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);

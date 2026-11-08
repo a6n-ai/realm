@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
@@ -65,7 +66,7 @@ function activitiesResolver() {
     if (f.field === "actorKind") {
       const kind = valuesOf(f)[0];
       if (kind === "system") return isNull(orderActivities.createdBy);
-      if (kind === "staff") return inArray(actor.role, ["admin", "member"]);
+      if (kind === "staff") return inArray(actor.role, STAFF_ROLES);
       if (kind === "customer") return eq(actor.role, "user");
       return undefined;
     }

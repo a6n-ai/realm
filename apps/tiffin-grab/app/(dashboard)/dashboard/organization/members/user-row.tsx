@@ -1,5 +1,6 @@
 "use client";
 
+import { isCustomerRole } from "@/lib/auth/roles";
 import Link from "next/link";
 import { Role, formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
@@ -77,7 +78,7 @@ export function ResetPasswordButton({
   variant?: "icon" | "button";
 }) {
   const [pending, start] = useTransition();
-  if (role === Role.USER) return null;
+  if (isCustomerRole(role)) return null;
   const label = passwordSet ? "Reset password" : "Resend invite";
   const onClick = () =>
     start(async () => {
@@ -153,7 +154,7 @@ export function UserRowCard({ id, name, email, phone, role, status, passwordSet 
         <span className="text-muted-foreground text-sm">Status</span>
         <StatusSelect id={id} status={status} />
       </div>
-      {role !== Role.USER && (
+      {!isCustomerRole(role) && (
         <div className="flex items-center justify-between gap-3">
           <span className="text-muted-foreground text-sm">Password</span>
           <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />

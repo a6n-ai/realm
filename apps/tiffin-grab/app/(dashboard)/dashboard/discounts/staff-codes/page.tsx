@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { and, eq, exists, gt, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -67,7 +68,7 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
   const staff = await db
     .select({ publicId: users.publicId, name: users.name, email: users.email })
     .from(users)
-    .where(and(inArray(users.role, ["admin", "member"]), eq(users.isSystem, false)))
+    .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
     .orderBy(users.name);
 
   const spec: FacetDef[] = [

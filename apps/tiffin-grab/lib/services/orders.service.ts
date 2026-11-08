@@ -1,3 +1,4 @@
+import { isCustomerRole } from "@/lib/auth/roles";
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { trackConversion } from "@/lib/services/tracking";
@@ -458,7 +459,7 @@ export async function createOrder(
     // guest-checkout collision case.
     if (ownerId) {
       const [ownerRow] = await tx.select({ role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1);
-      if (ownerRow && ownerRow.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+      if (ownerRow && !isCustomerRole(ownerRow.role)) throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
     }
     let userId = ownerId;
     if (!userId) {

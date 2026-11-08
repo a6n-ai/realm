@@ -1,3 +1,4 @@
+import { isAdmin } from "@/lib/auth/roles";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/services/orders.service";
@@ -86,7 +87,7 @@ export async function loadSubscription(
 
   const session = await getSession();
   // Under payment review staff can check the schedule, but nothing changes until the money is verified.
-  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: session?.user?.role === "admin" };
+  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: isAdmin(session) };
 }
 
 export function DeliveriesSection({ data, routing = [] }: { data: SubscriptionData; routing?: OptimoRouteRow[] }) {

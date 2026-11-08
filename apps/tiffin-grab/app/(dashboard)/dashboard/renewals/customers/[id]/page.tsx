@@ -1,3 +1,4 @@
+import { isAdmin } from "@/lib/auth/roles";
 import { notFound } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -27,7 +28,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         icon={RefreshCwIcon}
         title={customer.name || "Unnamed customer"}
         subtitle={[customer.phone, customer.email].filter(Boolean).join(" · ") || undefined}
-        actions={<RenewalActions data={data} isAdmin={session?.user?.role === "admin"} />}
+        actions={<RenewalActions data={data} isAdmin={isAdmin(session)} />}
       />
       <RenewalSections data={data} today={today} timezone={timezone} />
     </PageShell>

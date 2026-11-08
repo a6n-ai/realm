@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Role } from "@foundry/commons";
-import { isStaffRole, roleLanding } from "./landing";
+import { roleLanding } from "./landing";
+import { isStaffRole } from "./roles";
 
 describe("roleLanding", () => {
   it("sends staff to the ops dashboard", () => {

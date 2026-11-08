@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
@@ -92,7 +93,7 @@ function actorKindSql(
   actorRole: typeof orderActor.role | typeof auditActor.role,
 ): SQL | undefined {
   if (kind === "system") return isNull(createdBy);
-  if (kind === "staff") return inArray(actorRole, ["admin", "member"]);
+  if (kind === "staff") return inArray(actorRole, STAFF_ROLES);
   if (kind === "customer") return eq(actorRole, "user");
   return undefined;
 }

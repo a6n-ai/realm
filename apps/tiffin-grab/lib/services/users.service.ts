@@ -1,5 +1,6 @@
+import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
 import { UpdatableRepository } from "@foundry/database";
-import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
+import { AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
@@ -164,7 +165,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (input.phone !== undefined) {
       const phone = input.phone.trim();
       if (phone === "") {
-        if (current.role === Role.USER && !opts.removePhone) throw new ValidationError("Phone is required for customers");
+        if (isCustomerRole(current.role) && !opts.removePhone) throw new ValidationError("Phone is required for customers");
         patch.phone = null;
       } else {
         const p = phoneSchema().safeParse(phone);
@@ -177,7 +178,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (input.email !== undefined) {
       const raw = input.email.trim();
       if (raw === "") {
-        if (current.role !== Role.USER) throw new ValidationError("Email is required for staff");
+        if (!isCustomerRole(current.role)) throw new ValidationError("Email is required for staff");
         patch.email = null;
       } else {
         const e = emailSchema.safeParse(raw);
@@ -405,7 +406,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
   private async assertStaff(userId: string): Promise<void> {
     const [u] = await db.select({ role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u) throw new ValidationError("User not found");
-    if (u.role !== Role.ADMIN && u.role !== Role.MEMBER) throw new AuthError();
+    if (!isStaffRole(u.role)) throw new AuthError();
   }
 
   private async assertPassword(userId: string, currentPassword: string): Promise<void> {

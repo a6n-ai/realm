@@ -1,4 +1,5 @@
-import { NotFoundError, Role } from "@foundry/commons";
+import { isStaffRole } from "@/lib/auth/roles";
+import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { loadReceipt } from "@/lib/billing/receipt";
 import { renderReceiptPdf } from "@/lib/billing/receipt-pdf";
@@ -17,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     try {
       const session = await getSession();
       if (!session) return new Response("Not found", { status: 404 });
-      if (session.user.role === Role.ADMIN || session.user.role === Role.MEMBER) {
+      if (isStaffRole(session.user.role)) {
         await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(session));
       } else {
         const userId = await currentUserId();

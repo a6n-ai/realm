@@ -1,3 +1,4 @@
+import { isAdmin } from "@/lib/auth/roles";
 import { NextResponse } from "next/server";
 import {
   exchangeCloverAuthorizationCode,
@@ -22,7 +23,7 @@ function settingsRedirect(request: Request, query: Record<string, string>) {
  */
 export async function GET(request: Request) {
   const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user || !isAdmin(session)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

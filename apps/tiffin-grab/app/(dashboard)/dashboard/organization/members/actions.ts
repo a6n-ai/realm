@@ -1,8 +1,9 @@
 "use server";
 
+import { isCustomerRole } from "@/lib/auth/roles";
 import { StaffInviteError } from "@foundry/auth";
 import type { RoleValue } from "@foundry/commons";
-import { Role, ValidationError } from "@foundry/commons";
+import { ValidationError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -52,7 +53,7 @@ export async function adminUpdateContact(
   } catch (e) {
     if (e instanceof ContactTakenError) {
       const { publicId, role } = e.holder;
-      const base = role === Role.USER ? "/dashboard/customers" : "/dashboard/organization/members";
+      const base = isCustomerRole(role) ? "/dashboard/customers" : "/dashboard/organization/members";
       return { error: e.message, holderHref: `${base}/${publicId}` };
     }
     if (e instanceof ValidationError) return { error: e.message };

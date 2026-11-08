@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
@@ -220,7 +221,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   private staffWhere() {
-    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, ["admin", "member"]));
+    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, STAFF_ROLES));
   }
 
   private async isActiveStaff(userId: bigint): Promise<boolean> {

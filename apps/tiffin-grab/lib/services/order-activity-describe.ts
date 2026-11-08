@@ -1,3 +1,4 @@
+import { isStaffRole } from "@/lib/auth/roles";
 export type OrderActivityLike = {
   type: string;
   note: string | null;
@@ -66,7 +67,7 @@ export function describeActivityActor(a: {
 }): { label: string; kind: "system" | "staff" | "customer" } {
   if (a.createdBy == null) return { label: "System", kind: "system" };
   const label = a.actorName?.trim() || a.actorEmail || "Unknown user";
-  if (a.actorRole === "admin" || a.actorRole === "member") {
+  if (isStaffRole(a.actorRole)) {
     return { label, kind: "staff" };
   }
   return { label, kind: "customer" };

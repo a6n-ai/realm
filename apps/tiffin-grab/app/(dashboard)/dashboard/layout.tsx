@@ -1,3 +1,4 @@
+import { isAdmin, isCustomerRole } from "@/lib/auth/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -65,7 +66,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Customers have their own app at /me — the CRM shell is staff/admin only.
   // This is the mirror of the (customer) layout's non-user → /dashboard guard,
   // and it also makes post-login push("/dashboard") land customers on /me.
-  if (session.user.role === "user") redirect("/me");
+  if (isCustomerRole(session.user.role)) redirect("/me");
 
   // One read covers PIN state + the header avatar (name/image). A session can
   // outlive its user row (e.g. dev DB reseeded) — treat that as expired.
@@ -106,7 +107,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   };
 
   const notify = notifyChannel(session.user.id);
-  const realtimeChannels = [notify, TICKETS_INBOX, ...(role === "admin" ? [PAYMENTS_INBOX] : [])];
+  const realtimeChannels = [notify, TICKETS_INBOX, ...(isAdmin(role) ? [PAYMENTS_INBOX] : [])];
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
   const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
@@ -161,7 +162,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           bottomNav={<DashboardBottomNav role={role} />}
         >
           <DashboardLive
-            payments={role === "admin"}
+            payments={isAdmin(role)}
             showRepCode={hasRepAllowance}
             ticketsBootstrap={realtimeTokens[TICKETS_INBOX]}
             paymentsBootstrap={realtimeTokens[PAYMENTS_INBOX]}

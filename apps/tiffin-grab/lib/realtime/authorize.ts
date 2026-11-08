@@ -1,14 +1,10 @@
-import { Role, type RoleValue } from "@foundry/commons";
+import { isAdmin, isStaffRole } from "@/lib/auth/roles";
+import { type RoleValue } from "@foundry/commons";
 import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
 import { notifyChannel } from "./notify";
-
-function staffRole(role: RoleValue): RealtimeRole | null {
-  if (role === Role.ADMIN || role === Role.MEMBER) return "staff";
-  return null;
-}
 
 // Resolve the caller and confirm they may use this channel.
 // - `notify:<userId>` — that user's bell + shell refresh (personal hub)
@@ -23,7 +19,7 @@ export async function authorizeChannel(
   if (!userId) return null;
 
   const role = session.user.role as RoleValue;
-  const realtimeRole: RealtimeRole = role === Role.ADMIN || role === Role.MEMBER ? "staff" : "customer";
+  const realtimeRole: RealtimeRole = isStaffRole(role) ? "staff" : "customer";
 
   const parts = channel.split(":");
   if (parts.length !== 2) return null;
@@ -36,13 +32,13 @@ export async function authorizeChannel(
   }
 
   if (kind === "tickets" && publicId === "inbox") {
-    if (!staffRole(role)) return null;
+    if (!isStaffRole(role)) return null;
     return { channel: TICKETS_INBOX, userId, role: "staff" };
   }
 
   if (kind === "payments" && publicId === "inbox") {
     // Payments nav is admin-only — members must not hold the review stream.
-    if (role !== Role.ADMIN) return null;
+    if (!isAdmin(role)) return null;
     return { channel: PAYMENTS_INBOX, userId, role: "staff" };
   }
 

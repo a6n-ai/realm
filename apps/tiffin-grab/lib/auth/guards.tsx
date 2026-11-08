@@ -2,6 +2,7 @@ import { Role } from "@foundry/commons";
 import { createPermissionGuards, createRoleGuards } from "@foundry/auth";
 import { getSession } from "./session";
 import { roles } from "./permissions";
+import { isAdmin } from "./roles";
 
 const { requireRole } = createRoleGuards(getSession);
 const { requirePermission, roleCan } = createPermissionGuards(getSession, roles);
@@ -16,4 +17,8 @@ export function requireAdmin(): Promise<void> {
 
 export function requireStaff(): Promise<void> {
   return requireRole(Role.ADMIN, Role.MEMBER);
+}
+
+export async function AdminOnly({ children }: { children: React.ReactNode }) {
+  return isAdmin(await getSession()) ? children : null;
 }

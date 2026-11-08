@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { and, eq, gte, sql } from "drizzle-orm";
-import { requireStaff } from "@/lib/auth/guards";
+import { AdminOnly, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources, orders, users } from "@/db/schema";
@@ -75,10 +75,17 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
   );
 }
 
+async function InvitePendingButtonLoader() {
+  return <InvitePendingButton count={await countPendingInvites()} />;
+}
+
 async function InvitePendingAction() {
   await requireStaff();
-  if ((await getSession())?.user?.role !== "admin") return null;
-  return <InvitePendingButton count={await countPendingInvites()} />;
+  return (
+    <AdminOnly>
+      <InvitePendingButtonLoader />
+    </AdminOnly>
+  );
 }
 
 async function CustomersStats({ searchParams }: { searchParams: SearchParams }) {
