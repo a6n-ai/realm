@@ -25,12 +25,12 @@ const KEY_POINTS: KeyPoint[] = [
   { text: "Problem with a meal? Report it within 2 hours of delivery, with photos.", section: 4 },
   { text: "Damaged packaging gets a one-day service credit for each verified incident.", section: 5 },
   { text: "If we stop delivering to your area, you get a pro-rata refund within 14 business days.", section: 6 },
-  { text: "Approved refunds are sent manually by staff, by Interac e-Transfer, after we review your written request.", section: 8 },
+  { text: "Approved refunds are sent manually by staff, back the way you paid (to your card, or by Interac e-Transfer), after we review your written request.", section: 8 },
 ];
 
 export default function RefundPolicyPage() {
   return (
-    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="October 7, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="November 9, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout tone="warn">
         <strong>Important:</strong> Food is perishable and time-sensitive; refund options are limited. Read this policy
         before purchasing. Submit refund requests in writing to <Mail />.
@@ -132,8 +132,9 @@ export default function RefundPolicyPage() {
           approves the request and we email you that confirmation.
         </p>
         <p className="m-0">
-          Today that refund is an <strong>Interac e-Transfer</strong>. When card payments through Stripe are available, an
-          approved card refund will go back to that card, and your bank sets how long it takes to appear.
+          A refund goes back the way you paid. A card payment (through Stripe) is refunded <strong>to that card</strong>, and
+          your bank sets how long it takes to appear. An Interac e-Transfer payment is refunded by <strong>Interac
+          e-Transfer</strong>.
         </p>
         <p className="m-0">
           Review may take up to <strong>3 to 4 weeks</strong> from your written request. No refund is started without email

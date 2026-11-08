@@ -40,7 +40,7 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="October 7, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="November 9, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Binding agreement.</strong> By using tiffingrab.ca, placing an order, or subscribing, you agree to these
         Terms with TiffinGrab. If you disagree, do not use our services. These Terms are governed by the laws of Ontario
@@ -87,8 +87,9 @@ export default function TermsPage() {
       <Clause n={4} title={SECTIONS[3]}>
         <Sub title="4.1 Payment">
           <p className="m-0">
-            Fees are due at purchase unless we agree otherwise in writing. You pay by <strong>Interac e-Transfer</strong>.
-            Deliveries start once we confirm the transfer. Card payments through Stripe will be added later.
+            Fees are due at purchase unless we agree otherwise in writing. You pay by <strong>card</strong>, processed securely
+            by Stripe, or by <strong>Interac e-Transfer</strong>. With an Interac e-Transfer, deliveries start once we confirm
+            the transfer.
           </p>
         </Sub>
         <Sub title="4.2 Currency & pricing">

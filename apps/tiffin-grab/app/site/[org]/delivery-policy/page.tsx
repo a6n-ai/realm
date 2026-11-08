@@ -22,7 +22,7 @@ const SECTIONS = [
 
 const KEY_POINTS: KeyPoint[] = [
   { text: "We deliver across the GTA. The current areas are listed below, and your address is confirmed at checkout.", section: 1 },
-  { text: "Deliveries run Monday to Friday. This may change as we grow.", section: 3 },
+  { text: "Deliveries run Monday to Friday; Saturday and Sunday tiffins come with your Friday delivery. This may change as we grow.", section: 3 },
    { text: "Delivery windows are estimates, shared the evening before or the morning of delivery.", section: 4 },
   { text: "We make one attempt per delivery. Share buzzer or access codes 24 hours ahead, and safe drop-off spots 12 hours ahead.", section: 5 },
   { text: "If a delivery fails because of our error, that day is credited to your plan.", section: 5 },
@@ -36,7 +36,7 @@ export default async function DeliveryPolicyPage() {
   const { zones } = await loadCatalogSnapshot();
   const areas = zones.filter((z) => z.active).map((z) => z.name).sort((a, b) => a.localeCompare(b));
   return (
-    <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." updated="April 6, 2026" current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." updated="November 9, 2026" current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Please note:</strong> TiffinGrab delivers freshly prepared meals. Delivery windows are estimated, not
         guaranteed fixed times. Customer cooperation on access and availability helps us complete deliveries successfully.
@@ -64,7 +64,9 @@ export default async function DeliveryPolicyPage() {
 
       <Clause n={3} title={SECTIONS[2]}>
         <p className="m-0">
-          Standard deliveries are made <strong>Monday through Friday</strong>. Our delivery days may change as we grow.
+          Standard deliveries are made <strong>Monday through Friday</strong>. If your plan includes Saturday or Sunday tiffins
+          (meal sizes that come with the weekend dish), they arrive with your <strong>Friday delivery</strong>. Our delivery
+          days may change as we grow.
           Public-holiday availability will be
           communicated to active subscribers at least 48 hours in advance. We will notify you of scheduled off-days or
           holiday closures by email or WhatsApp.
