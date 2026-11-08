@@ -6,6 +6,7 @@ import {
   formatDishCell,
   formatItemCell,
   formatPackingRequirement,
+  formatPortionLabel,
   formatPortionUnit,
   labelLineTexts,
   packLines,
@@ -135,5 +136,15 @@ describe("the kitchen packing language", () => {
         { dish: "Paneer Butter Masala", portion: "12oz", defaulted: false },
       ]).map((t) => t.text),
     ).toEqual(["3 Rotis", "Dal Makhani - 8oz × 2", "Raita - 8oz", "Paneer Butter Masala - 12oz"]);
+  });
+});
+
+describe("formatPortionLabel (kitchen counts card)", () => {
+  it("speaks the same language as the labels", () => {
+    expect(formatPortionLabel("Aloo Methi", "12oz")).toBe("12oz");
+    expect(formatPortionLabel("Roti", "8 roti")).toBe("8 Rotis");
+    expect(formatPortionLabel("Rice", "2 unit")).toBe("2 Rice");
+    expect(formatPortionLabel("Rice", "1 unit")).toBe("Rice");
+    expect(formatPortionLabel("Rice", null)).toBe("—");
   });
 });

@@ -12,7 +12,7 @@ import {
   useSortNav,
 } from "@/components/ds";
 import { sortRows } from "@/lib/list/sort";
-import { labelLineTexts } from "@/lib/menu/packing-requirement";
+import { formatCountTotal, formatPortionLabel, labelLineTexts } from "@/lib/menu/packing-requirement";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
 import { groupKitchenCounts } from "./kitchen-groups";
@@ -44,7 +44,13 @@ export function KitchenCounts({
                 {g.total ? (
                   <>
                     {" · "}
-                    <span className="text-foreground font-semibold">{g.total.amount.toLocaleString()}</span> {g.total.unit}
+                    {g.total.unit === "oz" ? (
+                      <>
+                        <span className="text-foreground font-semibold">{g.total.amount.toLocaleString()}</span>oz
+                      </>
+                    ) : (
+                      <span className="text-foreground font-semibold">{formatCountTotal(g.label, g.total.amount)}</span>
+                    )}
                     {/* Kitchens buy and batch in pounds; oz alone is hard to picture at this scale. */}
                     {g.total.unit === "oz" ? ` (${Math.round(g.total.amount / 16).toLocaleString()} lb)` : null}
                   </>
@@ -66,7 +72,7 @@ export function KitchenCounts({
                         key={p.portion ?? "-"}
                         className="bg-muted/60 flex min-w-16 flex-col rounded-md px-2.5 py-1.5"
                       >
-                        <dt className="text-muted-foreground text-xs">{p.portion ?? "—"}</dt>
+                        <dt className="text-muted-foreground text-xs">{formatPortionLabel(d.dish, p.portion)}</dt>
                         <dd className="text-xl font-semibold leading-tight tabular-nums">{p.count}</dd>
                       </div>
                     ))}

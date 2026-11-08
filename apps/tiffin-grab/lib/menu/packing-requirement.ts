@@ -58,6 +58,14 @@ export function formatCountTotal(name: string, total: number): string {
   return `${total} ${/roti$/i.test(name) ? `${name}s` : name}`;
 }
 
+/** A portion on its own, as the kitchen counts card shows it: "12oz", "8 Rotis", "2 Rice", "Rice". */
+export function formatPortionLabel(dish: string, portion: string | null): string {
+  if (!portion) return "—";
+  if (OZ.test(portion.trim())) return formatPortionUnit(portion);
+  const n = Number(/^(\d+(?:\.\d+)?)/.exec(portion.trim())?.[1]);
+  return Number.isFinite(n) ? formatCountTotal(dish, n) : portion;
+}
+
 /** "12oz" × 1 → "12oz"; "8oz" × 2 → "8oz × 2". */
 export function formatPackingRequirement(portion: string, quantity: number): string {
   const unit = formatPortionUnit(portion);
