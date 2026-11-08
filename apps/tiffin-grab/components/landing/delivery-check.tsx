@@ -25,7 +25,9 @@ export function DeliveryCheck({ origin, rings, areas, region, districts, runs }:
   const placed = areas.filter((a): a is Area & { point: Point } => a.point != null);
   const zoneOf = new Map(districts.map((d) => [d.id, areas.find((a) => a.name === d.place) ?? null]));
   const zone = picked ? (zoneOf.get(picked) ?? null) : null;
-  const near = hover && hover !== picked ? { id: hover, zone: zoneOf.get(hover) ?? null } : null;
+  // Hover reads out only until something is tapped; after that the panel holds the tapped area, so
+  // the pointer can cross other areas on its way to the panel's link.
+  const near = hover && !picked ? { id: hover, zone: zoneOf.get(hover) ?? null } : null;
   const active = zone?.group ?? run;
 
   const pick = (id: string) => {
@@ -45,12 +47,12 @@ export function DeliveryCheck({ origin, rings, areas, region, districts, runs }:
           return z ? (
             <p className="tg-deliver__info m-0" data-group={z.group}>
               <i aria-hidden /><strong>{id} · {z.name}</strong><span>{windowOf(z.slotWindow)}</span>
-              <BuildTiffinLink className="tg-link tg-link--tap">Start building your tiffin</BuildTiffinLink>
+              {!near ? <BuildTiffinLink className="tg-link tg-link--tap">Start building your tiffin</BuildTiffinLink> : null}
             </p>
           ) : (
             <p className="tg-deliver__info m-0" data-tone="no">
               <strong>{id} · not yet</strong><span>We are adding areas across the GTA.</span>
-              <Link href="/contact" className="tg-link tg-link--tap">Ask about your area</Link>
+              {!near ? <Link href="/contact" className="tg-link tg-link--tap">Ask about your area</Link> : null}
             </p>
           );
         })()}
