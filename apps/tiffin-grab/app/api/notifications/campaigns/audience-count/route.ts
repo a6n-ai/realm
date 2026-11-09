@@ -1,3 +1,4 @@
+import { readBody } from "@/lib/http/read-json";
 import { handler, json } from "@foundry/routes";
 import { getAudienceCount } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -13,6 +14,6 @@ const deps = { db, tables: notificationTables, users: usersRef, resolveSegment }
  */
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
-  const audience = await req.json().catch(() => ({}));
+  const audience = await readBody<Parameters<typeof getAudienceCount>[1]>(req, {});
   return json(await getAudienceCount(deps, audience));
 });

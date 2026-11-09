@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { z } from "zod";
 import { handler, json, problem } from "@foundry/routes";
 import { setCampaignContent, setCampaignContentSchema } from "@relay/engine";
@@ -20,7 +21,7 @@ export const POST = handler(
   async (req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
     await requireAdmin();
     const { id } = await ctx.params;
-    const parsed = schema.safeParse(await req.json().catch(() => null));
+    const parsed = await readJson(req, schema);
     if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
     const result = await setCampaignContent(deps, id, parsed.data);
     if ("error" in result) return problem(result.status, result.error);

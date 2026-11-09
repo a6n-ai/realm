@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { handler, json, problem } from "@foundry/routes";
 import { createContactList, createContactListSchema, listContactLists } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -14,7 +15,7 @@ export const GET = handler(async (): Promise<Response> => {
 
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
-  const parsed = createContactListSchema.safeParse(await req.json().catch(() => null));
+  const parsed = await readJson(req, createContactListSchema);
   if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
   return json(await createContactList(deps, parsed.data));
 });

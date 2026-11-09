@@ -1,8 +1,9 @@
+import { readBody } from "@/lib/http/read-json";
 import { handler, json, problem } from "@foundry/routes";
 import { saveEmailTemplateSchema } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { AppEvent } from "@/lib/notifications/event-entities";
-import { listTemplates, saveTemplateEmail, upsertTemplate } from "@/lib/services/notification-template.service";
+import { listTemplates, saveTemplateEmail, upsertTemplate, type UpsertInput } from "@/lib/services/notification-template.service";
 
 export const GET = handler(async (): Promise<Response> => {
   await requireAdmin();
@@ -11,9 +12,9 @@ export const GET = handler(async (): Promise<Response> => {
 
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
-  const raw = await req.json().catch(() => null);
+  const raw = await readBody<{ channel?: string } | null>(req);
   if (raw?.channel !== "email") {
-    await upsertTemplate(raw);
+    await upsertTemplate(raw as UpsertInput);
     return Response.json({ ok: true });
   }
   const parsed = saveEmailTemplateSchema.safeParse(raw);

@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { handler, json, problem } from "@foundry/routes";
 import { createCampaign, createCampaignSchema, listCampaigns } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -15,7 +16,7 @@ export const GET = handler(async (): Promise<Response> => {
 
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
-  const parsed = schema.safeParse(await req.json().catch(() => null));
+  const parsed = await readJson(req, schema);
   if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
   // Always a draft: scheduling goes through /schedule, which runs the checklist and rejects past times.
   const created = await createCampaign(deps, { ...parsed.data, scheduledAt: null });

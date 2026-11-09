@@ -1,3 +1,4 @@
+import { readBody } from "@/lib/http/read-json";
 import { handler, json, problem } from "@foundry/routes";
 import { deleteCampaign, renameCampaign } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -21,7 +22,7 @@ export const PATCH = handler(
   async (req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
     await requireAdmin();
     const { id } = await ctx.params;
-    const body = await req.json().catch(() => null);
+    const body = await readBody<{ name?: unknown } | null>(req);
     if (typeof body?.name !== "string") return problem(400, "Name the campaign");
     const result = await renameCampaign(deps, id, body.name);
     if ("error" in result) return problem(result.status, result.error);

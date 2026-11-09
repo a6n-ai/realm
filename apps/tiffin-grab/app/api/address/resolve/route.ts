@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
@@ -24,7 +25,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     return json({ place: null });
   }
 
-  const parsed = resolveSchema.safeParse(await request.json().catch(() => null));
+  const parsed = await readJson(request, resolveSchema);
   if (!parsed.success) return json({ place: null });
 
   const place = await awsPlaceProvider({ region: awsRegion() }).resolve({

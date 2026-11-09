@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
@@ -19,7 +20,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     return json({ suggestions: [] });
   }
 
-  const parsed = suggestSchema.safeParse(await request.json().catch(() => null));
+  const parsed = await readJson(request, suggestSchema);
   if (!parsed.success) return json({ suggestions: [] });
 
   const suggestions = await awsPlaceProvider({ region: awsRegion() }).suggest(

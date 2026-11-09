@@ -1,3 +1,4 @@
+import { readJson } from "@/lib/http/read-json";
 import { handler, json, problem } from "@foundry/routes";
 import { updateCampaignAudience, updateCampaignAudienceSchema } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -11,7 +12,7 @@ export const POST = handler(
   async (req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
     await requireAdmin();
     const { id } = await ctx.params;
-    const parsed = updateCampaignAudienceSchema.safeParse(await req.json().catch(() => null));
+    const parsed = await readJson(req, updateCampaignAudienceSchema);
     if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
     const result = await updateCampaignAudience(deps, id, parsed.data.audience);
     if ("error" in result) return problem(result.status, result.error);
