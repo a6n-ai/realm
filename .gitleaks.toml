@@ -11,6 +11,8 @@ targetRules = ["generic-api-key"]
 paths = [
   '''(^|/)__tests__/''',
   '''\.test\.tsx?$''',
+  # The QA seed fixtures were *.test.ts, then plain scripts for a few commits before being deleted.
+  '''(^|/)scripts/seed-qa-[^/]+\.ts$''',
 ]
 
 [[allowlists]]

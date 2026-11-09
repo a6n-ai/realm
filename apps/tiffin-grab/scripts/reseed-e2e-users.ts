@@ -9,7 +9,7 @@ import { hashPassword } from "../lib/auth/password";
  * disable the forced /set-password gate on that account. Run against prod by accident
  * (a stale DATABASE_URL is all it takes) it would hand out a known login.
  *
- * Local databases only, via the same guard the seed-qa-*.ts scripts use (tunnel ports and sslmode included).
+ * Local databases only, via assertLocalDb (tunnel ports and sslmode included).
  */
 
 // Defaults mirror e2e/helpers/auth.ts, so `pnpm test:e2e` logs in with what this writes.
