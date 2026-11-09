@@ -1,6 +1,6 @@
 // A read-only MCP server (Streamable HTTP, stateless): each POST is one JSON-RPC message, answered with JSON.
 // No sessions, no streaming, no auth: every tool returns what the public pages already show (lib/public-api/load.ts).
-// Tool calls are POSTs, which the edge cache skips; loadPublic shares each answer through Workers KV for 60 s instead.
+// Tool calls are POSTs, which the edge cache skips; loadPublic shares each answer through Workers KV until the next public-site edit (at most an hour).
 import { normalizePostal, POSTAL_HINT } from "@/lib/public-api/postal";
 import type { loadPublic } from "@/lib/public-api/load";
 

@@ -1,7 +1,7 @@
-import { sharedCache } from "@/lib/cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadFaqGroups } from "@/lib/landing/faq-data";
 import { loadLandingPromos } from "@/lib/landing/promos";
+import { publicApiCache } from "@/lib/landing/revalidate-site";
 import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
@@ -12,10 +12,9 @@ import { contactBody, deliveryBody, faqBody, menuBody, plansBody, promotionsBody
 import { deliveryCheck } from "@/lib/public-api/postal";
 import { publicOrigin } from "@/lib/routing/apex";
 
-// Answers shared through Workers KV (L1 in-process, then KV) for 60 s, the edge cache's TTL: MCP tool calls are POSTs,
-// which the edge cache never stores, so without this every call ran its queries. Bodies are plain JSON.
-const apiCache = sharedCache("public-api", 60_000, 0, 60_000);
-const cached = <T>(key: string, load: () => Promise<T>) => () => apiCache.getOrSet(key, load);
+// Answers shared through Workers KV (L1 in-process, then KV) for an hour, cleared by every public-site edit
+// (publicApiCache in revalidate-site.ts). MCP tool calls are POSTs, which the edge cache never stores. Bodies are plain JSON.
+const cached = <T>(key: string, load: () => Promise<T>) => () => publicApiCache.getOrSet(key, load);
 
 // Each public answer, loaded and shaped once: the v1 routes and the MCP tools both call these.
 // check() is not memoized per postal code: it reads the catalog snapshot, which loadCatalogSnapshot already caches in KV.
