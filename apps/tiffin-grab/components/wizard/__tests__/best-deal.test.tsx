@@ -4,10 +4,13 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 import { BestDeal } from "../best-deal";
 import { initialSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
+import { buildDealTable } from "@/lib/pricing/deals";
+
+const withDeals = (c: ClientCatalogSnapshot): ClientCatalogSnapshot => ({ ...c, deals: buildDealTable(c as never) });
 
 afterEach(cleanup);
 
-const catalog = {
+const catalog = withDeals({
   plans: [],
   mealSizes: [{ publicId: "msz_1", key: "k", name: "K", planKey: "veg", tier: "budget", components: [], items: [], basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true }],
   frequencies: [
@@ -21,10 +24,10 @@ const catalog = {
     { key: "dd", name: "dd", kind: "duration", targetPublicId: "dur_8", percent: 5, minWeeks: null },
   ],
   maxDiscountPct: 25,
-} as unknown as ClientCatalogSnapshot;
+} as unknown as ClientCatalogSnapshot);
 
 // Frequency tips compare delivery discounts alone; the plan-length discount would shift the numbers.
-const freqCatalog = { ...catalog, discounts: catalog.discounts!.filter((d) => d.kind === "delivery") } as ClientCatalogSnapshot;
+const freqCatalog = withDeals({ ...catalog, discounts: catalog.discounts!.filter((d) => d.kind === "delivery") } as ClientCatalogSnapshot);
 
 const sel = (over = {}) => ({ ...initialSelections, mealSizeId: "msz_1", frequencyKey: "5_day", eatingDays: ["mon", "wed", "fri"] as never, durationWeeks: 1, mealSlots: ["lunch"], ...over });
 
@@ -97,7 +100,7 @@ describe("BestDeal", () => {
   });
 
   it("no card when no option differs in price", () => {
-    const flat = { ...catalog, discounts: [] } as unknown as ClientCatalogSnapshot;
+    const flat = withDeals({ ...catalog, discounts: [] } as unknown as ClientCatalogSnapshot);
     render(<BestDeal vary="frequency" catalog={flat} selections={sel()} set={vi.fn()} />);
     expect(screen.queryByRole("region")).toBeNull();
   });
