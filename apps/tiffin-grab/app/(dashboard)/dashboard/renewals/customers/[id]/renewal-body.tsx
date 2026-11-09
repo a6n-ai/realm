@@ -1,3 +1,4 @@
+import { RUNNING, RUNNING_OR_DONE, inOrderStatuses } from "@/lib/orders/status";
 import { CalendarClockIcon, CoinsIcon, HourglassIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
@@ -12,7 +13,7 @@ import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-a
 import { PlanHistory, RenewalReminders } from "./renewal-history";
 import { appOrigin } from "@/lib/runtime/env";
 
-const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => p.status === "active" || p.status === "paused");
+const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => inOrderStatuses(RUNNING, p.status));
 
 /** Renewal actions for one customer: contact, reminder, coins, estimate, renew. Shared by the Renewals page header and the customer's Renewals tab. */
 export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: CustomerRenewal; isAdmin: boolean; giveCoins?: boolean }) {
@@ -20,7 +21,7 @@ export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: Cust
   const current = currentPlan(data);
   const latest = plans[plans.length - 1];
   // Same rule as the order page's Renew: the newest paid plan, if nothing follows it yet.
-  const renewFrom = [...plans].reverse().find((p) => !p.trial && ["active", "paused", "completed"].includes(p.status));
+  const renewFrom = [...plans].reverse().find((p) => !p.trial && inOrderStatuses(RUNNING_OR_DONE, p.status));
   const renewUrl = `${appOrigin()}/me/renew`;
   return (
     <div className="flex flex-wrap items-center gap-2">

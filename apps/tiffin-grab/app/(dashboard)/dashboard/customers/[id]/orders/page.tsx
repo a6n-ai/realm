@@ -1,3 +1,4 @@
+import { LIVE, inOrderStatuses } from "@/lib/orders/status";
 import Link from "next/link";
 import { zonedDateIso } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
@@ -7,7 +8,6 @@ import { CustomerOrdersTable } from "../customer-orders-table";
 import { loadCustomer, loadViewer } from "../data";
 import { requestNow } from "@/lib/dates/request-now";
 
-const LIVE_PLAN = new Set(["active", "paused", "pending", "waitlisted"]);
 
 // Imported WordPress lines already end in city + postal code; don't print them twice.
 function fullAddress(line: string | null, unit: string | null, city: string | null, postalCode: string | null) {
@@ -29,7 +29,7 @@ export default async function CustomerOrdersPage({
   const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   const orders = activeOnly ? data.orders.filter((o) => o.status === "active") : data.orders;
   const changes = await upcomingAddressChanges(data.profile.id, zonedDateIso(requestNow(), timezone));
-  const live = data.orders.filter((o) => LIVE_PLAN.has(o.status));
+  const live = data.orders.filter((o) => inOrderStatuses(LIVE, o.status));
 
   return (
     <>

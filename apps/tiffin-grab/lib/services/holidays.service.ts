@@ -1,3 +1,5 @@
+import { ONGOING, RUNNING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { NotFoundError, ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
@@ -76,7 +78,7 @@ export async function previewHoliday(input: { organizationId: string; date: stri
   const rows = await db.select({ routeSyncedAt: deliveries.routeSyncedAt, completion: deliveries.optimoCompletionStatus })
     .from(deliveries).innerJoin(orders, eq(deliveries.orderId, orders.id))
     .where(and(
-      eq(orders.organizationId, input.organizationId), inArray(orders.status, ["active", "paused", "pending"]),
+      eq(orders.organizationId, input.organizationId), orderStatusIn(ONGOING),
       eq(deliveries.deliveryDate, input.date), eq(deliveries.status, "scheduled"), isNull(deliveries.mergedIntoDeliveryId),
     ));
   const live = rows.filter((r) => r.completion !== "success");
@@ -406,7 +408,7 @@ export async function listNeedsPlacing(visible: Visible): Promise<NeedsPlacingRo
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
     .where(and(
       inArray(deliveries.status, ["paused", "skipped"]), gt(deliveries.tiffinUnits, 0), not(MOVED_AWAY), not(HOLIDAY_DISMISSED),
-      inArray(orders.status, ["active", "paused"]), scope(visible),
+      orderStatusIn(RUNNING), scope(visible),
     ))
     .orderBy(desc(holidays.date), asc(orders.deploymentId));
   return rows.map(({ status, trialLength, ...r }) => ({ ...r, trial: trialLength != null, held: status === "skipped" }));

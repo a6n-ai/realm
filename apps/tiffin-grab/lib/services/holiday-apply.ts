@@ -1,3 +1,4 @@
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
@@ -213,7 +214,7 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
   const today = zonedDateIso(Date.now(), cut.timezone);
   if (!isRealDate(fromDate)) throw new ValidationError("Pick a valid date");
   if (fromDate < today) throw new ValidationError("Pick today or a later date");
-  if (order.status !== "active" && order.status !== "paused") throw new ValidationError(`Cannot add a delivery to an order that is ${order.status}`);
+  if (!inOrderStatuses(RUNNING, order.status)) throw new ValidationError(`Cannot add a delivery to an order that is ${order.status}`);
   const [source] = await tx.select().from(deliveries).where(and(
     eq(deliveries.id, sourceId),
     eq(deliveries.orderId, order.id),

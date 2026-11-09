@@ -1,3 +1,5 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { NotFoundError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, inArray, isNull, ne, not } from "drizzle-orm";
@@ -65,7 +67,7 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
   const last = own.reduce((m, d) => (d > m ? d : m), today);
   const others = order.userId == null ? [] : await db.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId))
-    .where(and(eq(orders.userId, order.userId), ne(orders.id, orderId), inArray(orders.status, ["pending", "active", "paused"]), live));
+    .where(and(eq(orders.userId, order.userId), ne(orders.id, orderId), orderStatusIn(ONGOING), live));
   const takenTrips = new Set(others.map((r) => r.deliveryDate));
   const takenEats = new Set(eatDates(others));
   return nextEndOfPlanDate(

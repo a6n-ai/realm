@@ -1,3 +1,5 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { Suspense, cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -213,7 +215,7 @@ async function CustomerData({ params }: { params: Promise<{ id: string }> }) {
       .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
       .innerJoin(plans, eq(plans.id, orders.planId))
       // The order the ticket was raised about; else the customer's latest live one.
-      .where(ticket.orderId ? eq(orders.id, ticket.orderId) : and(eq(orders.userId, ticket.raisedBy), inArray(orders.status, ["active", "paused", "pending"])))
+      .where(ticket.orderId ? eq(orders.id, ticket.orderId) : and(eq(orders.userId, ticket.raisedBy), orderStatusIn(ONGOING)))
       .orderBy(desc(orders.createdAt))
       .limit(1),
   ]);

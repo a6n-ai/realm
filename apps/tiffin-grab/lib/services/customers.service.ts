@@ -1,3 +1,4 @@
+import { RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
@@ -309,8 +310,7 @@ export async function listCustomersPage(
     extraWhere = sql`${planCompletionSubquery} between current_date and current_date + cast(${customFilters.planCompletesInDays} || ' days' as interval)`;
   }
 
-  // ponytail: literal active+paused (ONGOING_STATUSES lives in an app file; lib must not import it).
-  const hasRunning = sql`exists (select 1 from ${orders} o where o.user_id = ${users.id} and o.status in ('active', 'paused'))`;
+  const hasRunning = sql`exists (select 1 from ${orders} o where o.user_id = ${users.id} and o.status in (${sql.join(RUNNING.map((v) => sql`${v}`), sql`, `)}))`;
   // Same non-cancelled definition the Customers KPI cards use for With orders / Repeat / No order yet.
   const liveOrderCount = sql`(select count(*) from ${orders} o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
   const f = customFilters;

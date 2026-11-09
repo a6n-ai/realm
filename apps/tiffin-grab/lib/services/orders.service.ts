@@ -1,3 +1,4 @@
+import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { daysBetween } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
@@ -1509,7 +1510,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
       await assertStartNotHoliday(tx, order.organizationId, startDate);
       // Waitlisted/pending plans hold no days yet; they meet the guard when they activate.
-      if (order.userId != null && (order.status === "active" || order.status === "paused")) {
+      if (order.userId != null && inOrderStatuses(RUNNING, order.status)) {
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
       }
 
@@ -1579,7 +1580,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
-      if (order.status !== "active" && order.status !== "paused" && order.status !== "pending") {
+      if (!inOrderStatuses(ONGOING, order.status)) {
         throw new ValidationError("Eating days can only change on a plan that is running or waiting to start");
       }
       if (order.trialLength != null) throw new ValidationError("A trial's days come from its trial schedule");

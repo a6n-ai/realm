@@ -1,3 +1,5 @@
+import { ONGOING, RUNNING, RUNNING_OR_DONE } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { zonedDateIso } from "@foundry/commons";
 import { and, inArray, isNotNull, isNull, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -65,7 +67,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
         trials: sql<number>`count(*) filter (where ${isNotNull(orders.trialLength)})`,
       })
       .from(orders)
-      .where(and(inArray(orders.status, ["active", "paused"]), inOrgs)),
+      .where(and(orderStatusIn(RUNNING), inOrgs)),
     // Paid plans whose last tiffin landed in the range (up to today), and how many already have a next plan.
     fromIso > toIso
       ? Promise.resolve([{ ended: 0, renewed: 0 }])
@@ -77,7 +79,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
           .from(orders)
           .where(and(
             isNull(orders.trialLength),
-            inArray(orders.status, ["active", "paused", "completed"]),
+            orderStatusIn(RUNNING_OR_DONE),
             sql`${lastTiffinSql} between ${fromIso} and ${toIso}`,
             inOrgs,
           )),
@@ -118,7 +120,7 @@ export async function getLookOutStats(visible: "all" | string[], range: { from: 
   const [r] = await db
     .select({
       flagged: sql<number>`cast(count(*) as int)`,
-      running: sql<number>`cast(count(*) filter (where ${inArray(orders.status, ["active", "paused"])}) as int)`,
+      running: sql<number>`cast(count(*) filter (where ${orderStatusIn(RUNNING)}) as int)`,
       unpaid: sql<number>`cast(count(*) filter (where ${paymentReviewWhere()}) as int)`,
       inRange: sql<number>`cast(count(*) filter (where ${orders.lookOutAt} between ${range.from} and ${range.to}) as int)`,
     })
@@ -142,7 +144,7 @@ export async function getPaymentReviewStats(visible: "all" | string[]): Promise<
     .from(payments)
     .innerJoin(orders, sql`${orders.id} = ${payments.orderId}`)
     .where(and(
-      inArray(orders.status, ["active", "pending", "paused"]),
+      orderStatusIn(ONGOING),
       isNull(payments.addonRequest),
       paymentStatusIn(PENDING),
       visibleOrgWhere(visible),

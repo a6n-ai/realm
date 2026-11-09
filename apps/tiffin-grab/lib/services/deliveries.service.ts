@@ -1,3 +1,5 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
@@ -941,7 +943,7 @@ export async function rescheduleDelivery(
     const [other] = order.userId == null ? [] : await tx.select({ startDate: orders.startDate }).from(deliveries)
       .innerJoin(orders, eq(orders.id, deliveries.orderId))
       .where(and(
-        eq(orders.userId, order.userId), ne(orders.id, orderId), inArray(orders.status, ["pending", "active", "paused"]),
+        eq(orders.userId, order.userId), ne(orders.id, orderId), orderStatusIn(ONGOING),
         eq(deliveries.deliveryDate, carriedOn), inArray(deliveries.status, ["scheduled", "paused"]), isNull(deliveries.mergedIntoDeliveryId),
       )).limit(1);
     if (other) {

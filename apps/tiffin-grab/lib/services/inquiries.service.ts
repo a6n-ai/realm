@@ -1,3 +1,5 @@
+import { LIVE } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -21,8 +23,6 @@ import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
-const LIVE_ORDER_STATUSES = ["pending", "active", "waitlisted", "paused"] as const;
-
 /** Reject inquiry→order convert when this phone already has a live subscription. */
 async function assertNoLiveOrderForPhone(phone: string): Promise<void> {
   const trimmed = phone.trim();
@@ -36,7 +36,7 @@ async function assertNoLiveOrderForPhone(phone: string): Promise<void> {
   const [live] = await db
     .select({ deploymentId: orders.deploymentId, status: orders.status })
     .from(orders)
-    .where(and(eq(orders.userId, user.id), inArray(orders.status, [...LIVE_ORDER_STATUSES])))
+    .where(and(eq(orders.userId, user.id), orderStatusIn(LIVE)))
     .limit(1);
   if (live) {
     throw new ValidationError(

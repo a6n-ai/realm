@@ -1,3 +1,4 @@
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
@@ -77,7 +78,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   const wanted = uniqueDates(dates);
   const order = await orderByPublicId(orderPublicId);
   if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
-  if (order.status !== "active" && order.status !== "paused") {
+  if (!inOrderStatuses(RUNNING, order.status)) {
     throw new ValidationError(`Cannot pause an order that is ${order.status}`);
   }
 
@@ -171,7 +172,7 @@ export type ReclosedDay = { date: string; holidayName: string; placed: boolean }
 /** `releasePausedDays` plus the days a holiday closed again, so the caller can say so instead of "nothing resumed". */
 export async function releasePausedDaysDetailed(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<{ resumed: string[]; reclosed: ReclosedDay[] }> {
   const order = await orderByPublicId(orderPublicId);
-  if (order.status !== "active" && order.status !== "paused") {
+  if (!inOrderStatuses(RUNNING, order.status)) {
     throw new ValidationError(`Cannot resume an order that is ${order.status}`);
   }
   const picked = dates === "all" ? null : uniqueDates(dates);

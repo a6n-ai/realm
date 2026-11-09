@@ -1,4 +1,6 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { RUNNING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
+import { and, desc, eq } from "drizzle-orm";
 import { ensureSystemCampaign, runSystemCampaign } from "@relay/engine";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -56,7 +58,7 @@ async function activeCustomers() {
     .from(users)
     .innerJoin(orders, eq(orders.userId, users.id))
     .where(
-and(inArray(orders.status, ["active", "paused"]), eq(users.status, "active")),
+and(orderStatusIn(RUNNING), eq(users.status, "active")),
     );
   return rows.map((r) => ({ userId: r.userId, name: r.name }));
 }

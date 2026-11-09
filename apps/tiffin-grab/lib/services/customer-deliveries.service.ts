@@ -1,3 +1,5 @@
+import { RUNNING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { NotFoundError, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
@@ -196,7 +198,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+    .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING)));
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));

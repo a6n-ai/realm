@@ -1,3 +1,4 @@
+import { ONGOING, RUNNING, RUNNING_OR_DONE, inOrderStatuses } from "@/lib/orders/status";
 import { isAdmin } from "@/lib/auth/roles";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -113,7 +114,7 @@ async function OrderDetail({
   }
 
   // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
-  if (order.status === "active" || order.status === "paused") await lapseElapsedPausesSafe(order.id);
+  if (inOrderStatuses(RUNNING, order.status)) await lapseElapsedPausesSafe(order.id);
 
   const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone, lookOutBy] = await Promise.all([
     listOrderActivities(order.id),
@@ -144,7 +145,7 @@ async function OrderDetail({
   const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(requestNow(), settings.timezone);
-  const fullyPaused = (order.status === "active" || order.status === "paused") && (await isOrderFullyPaused(db, order.id, settingsToday));
+  const fullyPaused = inOrderStatuses(RUNNING, order.status) && (await isOrderFullyPaused(db, order.id, settingsToday));
   const optimoRows = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
     .map((r) => ({
@@ -162,7 +163,7 @@ async function OrderDetail({
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
-  const running = order.status === "active" || order.status === "paused";
+  const running = inOrderStatuses(RUNNING, order.status);
   const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
@@ -227,7 +228,7 @@ async function OrderDetail({
     .filter((m) => m.id !== "simulated")
     .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
   const customMealSize = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.custom === true;
-  const canAddAddons = order.trialLength == null && !customMealSize && (order.status === "active" || order.status === "paused")
+  const canAddAddons = order.trialLength == null && !customMealSize && inOrderStatuses(RUNNING, order.status)
     && canTakeAddonPayment(order, order.payments) == null;
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
@@ -262,7 +263,7 @@ async function OrderDetail({
   // Saving eating days moves a WordPress plan imported as MWF onto the 5-day route (changeEatingDays).
   const deliveryRow = isWordpressImport(order) ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
   const canEditEating = frequencyRow != null && order.trialLength == null
-    && (order.status === "active" || order.status === "paused" || order.status === "pending");
+    && inOrderStatuses(ONGOING, order.status);
   const eatingAction = canEditEating ? (
     <EatingDaysControl
       orderId={order.publicId}
@@ -373,7 +374,7 @@ async function OrderDetail({
         </a>
       </Button>
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
-      {["active", "paused", "completed"].includes(order.status) && order.trialLength == null && <RenewControl orderId={order.publicId} canRenew={!renewal && !unpaidRenewal} />}
+      {inOrderStatuses(RUNNING_OR_DONE, order.status) && order.trialLength == null && <RenewControl orderId={order.publicId} canRenew={!renewal && !unpaidRenewal} />}
       {unpaidRenewal && (
         <Badge variant="outline" asChild>
           <Link href={`/dashboard/orders/${unpaidRenewal.publicId}`}>Renewal {unpaidRenewal.deploymentId} waiting for payment</Link>

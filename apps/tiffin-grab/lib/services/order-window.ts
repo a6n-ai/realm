@@ -1,3 +1,5 @@
+import { RUNNING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { parseIsoDateUtc, ValidationError } from "@foundry/commons";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -11,8 +13,6 @@ export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number
  * Order statuses that hold real calendar days. Cancelled, completed, waitlisted and
  * pending orders deliver nothing, so they never block another plan's start date.
  */
-const DAY_RESERVING_STATUSES = ["active", "paused"] as const;
-
 /**
  * A delivery row still holds its date: not cancelled, and its tiffin was not handed to
  * another row (merged, made up, or given a holiday's extra day). A skipped day made up
@@ -74,7 +74,7 @@ async function reservedBands(tx: Tx | typeof db, userId: bigint, excludeOrderId?
     .from(orders)
     .where(and(
       eq(orders.userId, userId),
-      inArray(orders.status, [...DAY_RESERVING_STATUSES]),
+      orderStatusIn(RUNNING),
       excludeOrderId == null ? undefined : ne(orders.id, excludeOrderId),
     ));
   const ends = await reservedEndDatesExclusive(tx, live);
@@ -105,7 +105,7 @@ export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<
     })
     .from(orders)
     .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
-    .where(and(eq(orders.userId, userId), inArray(orders.status, [...DAY_RESERVING_STATUSES])))
+    .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING)))
     .orderBy(orders.startDate);
   const ends = await reservedEndDatesExclusive(tx, live);
   const lasts = live.length === 0 ? [] : await tx
@@ -143,7 +143,7 @@ export async function lastRunningTiffinDate(tx: Tx | typeof db, userId: bigint):
     .select({ last: sql<string | null>`max(${deliveries.deliveryDate})` })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
-    .where(and(eq(orders.userId, userId), inArray(orders.status, [...DAY_RESERVING_STATUSES]), holdsDay));
+    .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING), holdsDay));
   return row?.last ?? null;
 }
 

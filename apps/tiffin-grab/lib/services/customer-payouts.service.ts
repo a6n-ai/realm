@@ -2,6 +2,8 @@
 // broadcast. A manual, admin-picks-people-right-now action with no
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
+import { RUNNING_OR_DONE } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { zonedDateIso } from "@foundry/commons";
 import { unexpired } from "@foundry/wallet";
 import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
@@ -98,7 +100,7 @@ export async function listPayoutCandidates(
       renewed: sql<boolean>`${laterOrderSql}`.as("renewed"),
     })
     .from(orders)
-    .where(inArray(orders.status, ["active", "paused", "completed"]))
+    .where(orderStatusIn(RUNNING_OR_DONE))
     .orderBy(orders.userId, desc(orders.startDate))
     .as("lp");
 

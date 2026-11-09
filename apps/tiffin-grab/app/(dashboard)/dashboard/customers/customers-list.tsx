@@ -1,5 +1,6 @@
 "use client";
 
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
@@ -74,7 +75,7 @@ export function CustomersList({
                 publicId={c.publicId}
                 email={c.email}
                 joined={c.joined}
-                hasActivePlan={c.latestStatus === "active" || c.latestStatus === "paused"}
+                hasActivePlan={inOrderStatuses(RUNNING, c.latestStatus)}
                 lastInvite={c.lastInvite}
                 lastReminder={c.lastReminder}
               />

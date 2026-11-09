@@ -1,4 +1,6 @@
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { dedupeKeyStartsWith } from "@/lib/notifications/dedupe-prefix";
 import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -58,7 +60,7 @@ async function candidates(lastTiffin: string): Promise<RenewalCandidate[]> {
     .innerJoin(users, eq(users.id, orders.userId))
     .leftJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
     .where(and(
-      inArray(orders.status, ["active", "paused"]),
+      orderStatusIn(RUNNING),
       isNull(orders.trialLength),
       isNotNull(orders.userId),
       eq(users.status, "active"),
@@ -117,7 +119,7 @@ export async function sendRenewalReminderNow(orderPublicId: string, now = Date.n
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!c?.userId) throw new NotFoundError("Order not found");
-  if (!["active", "paused"].includes(c.status) || c.later || !c.lastTiffin || c.lastTiffin < today) {
+  if (!inOrderStatuses(RUNNING, c.status) || c.later || !c.lastTiffin || c.lastTiffin < today) {
     throw new ValidationError("Only a running plan with no next plan booked gets a renewal reminder");
   }
   const dedupeKey = `renewal:${c.orderPublicId}:${c.lastTiffin}:staff-${today}`;

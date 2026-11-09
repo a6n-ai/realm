@@ -1,6 +1,8 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ValidationError, cutoffMsFor } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
@@ -147,7 +149,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
           .where(
             and(
               eq(orders.mealSizeId, mealSizeId),
-              inArray(orders.status, ["active", "paused", "pending"]),
+              orderStatusIn(ONGOING),
             ),
           );
       });

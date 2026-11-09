@@ -1,3 +1,5 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
@@ -55,7 +57,7 @@ export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all"
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
 export function paymentReviewWhere() {
   return and(
-    inArray(orders.status, ["active", "pending", "paused"]),
+    orderStatusIn(ONGOING),
     sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${paymentStatusIn(PENDING)})`,
   );
 }

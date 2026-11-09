@@ -1,3 +1,5 @@
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
+
 export type DeliveryStatus = "delivered" | "upcoming" | "paused" | "hold" | "combined" | "holiday";
 
 /** Default wording. A surface that says it differently (staff calendar, menu day) overrides explicitly. */
@@ -52,4 +54,4 @@ export function deliveryTripState(d: StateInput): DeliveryStatus {
 }
 
 /** A plan that still has days to deliver (the delivery schedule is manageable). */
-export const isLiveOrder = (status: string) => status === "active" || status === "paused";
+export const isLiveOrder = (status: string) => inOrderStatuses(RUNNING, status);

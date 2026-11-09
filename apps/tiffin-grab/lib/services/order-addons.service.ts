@@ -1,3 +1,4 @@
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { round2 } from "@foundry/commons/util/money";
 import { inStatuses, SETTLEABLE } from "@/lib/payments/status";
 import { and, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
@@ -83,7 +84,7 @@ async function priceAddons(
   const [order] = lock ? await base.for("update").limit(1) : await base.limit(1);
   if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
 
-  if (order.status !== "active" && order.status !== "paused") {
+  if (!inOrderStatuses(RUNNING, order.status)) {
     throw new ValidationError(`Add-ons can only be added to a running plan (this one is ${order.status})`);
   }
   if (order.trialLength != null) throw new ValidationError("A trial can't take add-ons");
@@ -469,7 +470,7 @@ export async function settleAddonPayment(
       await note(`Add-ons not applied (${why}); refunding ${fromCents(charged)} to the card`);
       return { outcome: "not_applied" as const, ...done, refundCents: charged };
     };
-    if (order.status !== "active" && order.status !== "paused") return notApplied(`order ${order.status}`);
+    if (!inOrderStatuses(RUNNING, order.status)) return notApplied(`order ${order.status}`);
     const snapshot = order.pricingSnapshot as OrderPricingSnapshot | null;
     if (!snapshot) return notApplied("no pricing receipt");
 

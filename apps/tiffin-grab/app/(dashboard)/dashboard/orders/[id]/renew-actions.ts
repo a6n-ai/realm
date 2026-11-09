@@ -1,5 +1,6 @@
 "use server";
 
+import { RUNNING_OR_DONE, inOrderStatuses } from "@/lib/orders/status";
 import { revalidateOrder } from "@/lib/revalidate";
 import { ValidationError } from "@foundry/commons";
 import { requirePermission } from "@/lib/auth/guards";
@@ -12,7 +13,6 @@ import type { WizardSelections } from "@/lib/wizard/selections";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { AdminOrderCreated } from "../admin-order-created-dialog";
 
-const RENEWABLE = new Set(["active", "paused", "completed"]);
 
 async function guard(orderPublicId: string) {
   await requirePermission({ order: ["write"] });
@@ -39,7 +39,7 @@ export async function renewOrderAction(input: {
     const src = await loadRenewContext(input.orderPublicId);
     if (!src) throw new ValidationError("Order not found");
     if (await findUnpaidRenewal(src)) throw new ValidationError("This customer already has a renewal waiting for payment. Open it to resend the pay link or cancel it.");
-    if (!RENEWABLE.has(src.status)) throw new ValidationError("Only an active, paused or completed plan can be renewed.");
+    if (!inOrderStatuses(RUNNING_OR_DONE, src.status)) throw new ValidationError("Only an active, paused or completed plan can be renewed.");
     if (src.trialLength != null) throw new ValidationError("A trial can't be quick-renewed. Use New order.");
     const addressPublicId = input.addressPublicId ?? src.addressPublicId;
     if (!addressPublicId) throw new ValidationError("Pick a delivery address");

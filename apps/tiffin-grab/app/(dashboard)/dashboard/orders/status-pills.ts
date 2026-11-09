@@ -1,3 +1,4 @@
+import { ONGOING, RUNNING } from "@/lib/orders/status";
 import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Single source of truth for the Status facet — also the pill/badge label map.
@@ -10,9 +11,9 @@ import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Pseudo-buckets expand to real status sets. They exist because the `pills` facet
 // kind parses to eq() — a comma list in the URL would match nothing.
-export const ONGOING_STATUSES = ["pending", "active", "paused"] as const;
+export const ONGOING_STATUSES = ONGOING;
 /** Active + paused — matches the Orders "Running plans" KPI. */
-export const RUNNING_STATUSES = ["active", "paused"] as const;
+export const RUNNING_STATUSES = RUNNING;
 /** Pending + active + waitlisted — matches the "Starting soon" KPI. */
 export const SOON_STATUSES = ["pending", "active", "waitlisted"] as const;
 /** Every status except cancelled — matches the "New orders" KPI. */
