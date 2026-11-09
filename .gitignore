@@ -70,6 +70,8 @@ opencode.json
 .mcp.json
 skills-lock.json
 docs/
+# A route folder, not design docs: /api/public/v1/docs.
+!apps/tiffin-grab/app/api/public/v1/docs/
 .vcscore
 .impeccable/
 
