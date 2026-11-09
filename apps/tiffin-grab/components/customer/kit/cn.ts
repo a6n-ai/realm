@@ -1,6 +1,4 @@
-export function cn(...c: (string | false | null | undefined)[]) {
-  return c.filter(Boolean).join(" ");
-}
+export { cn } from "@foundry/ui/cn";
 
 export const FONT = "font-[family-name:var(--font-poppins),system-ui,sans-serif]";
 export const FOCUS =

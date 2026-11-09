@@ -21,6 +21,7 @@ const VARIANT: Record<ButtonVariant, string> = {
 
 /** The kit button's classes, for links that must look like buttons (public tg-cta / tg-btn match these). */
 export function buttonClass({ variant = "outline", size = "md", pill, blocked, className }: { variant?: ButtonVariant; size?: "md" | "lg"; pill?: boolean; blocked?: boolean; className?: string }) {
+  const hero = variant === "hero";
   return cn(
     FONT,
     FOCUS,
@@ -28,10 +29,10 @@ export function buttonClass({ variant = "outline", size = "md", pill, blocked, c
     SPRING,
     // Every customer button is a capsule, the same shape as the tab bar.
     "rounded-full",
-    variant === "hero" && "px-[22px] text-subhead",
+    hero ? "px-[22px] text-subhead" : "px-4",
     size === "lg"
-      ? cn("min-h-[50px] px-4 text-body tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-subhead tracking-normal")
-      : cn("min-h-[44px] px-4 text-subhead", variant === "hero" && "px-[22px]"),
+      ? (hero ? "min-h-[52px] tracking-normal" : "min-h-[50px] text-body tracking-[-0.022em]")
+      : (hero ? "min-h-[44px]" : "min-h-[44px] text-subhead"),
     VARIANT[variant],
     // Primary actions answer the pointer with a 1px lift as well as the darker fill.
     !blocked && (variant === "primary" || variant === "hero") && "hover:-translate-y-px",
