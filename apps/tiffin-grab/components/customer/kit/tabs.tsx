@@ -33,7 +33,7 @@ export function Tabs({ label, items, value, onChange, idPrefix = "kit", variant 
     refs.current[id]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className={cn(FONT, "flex gap-1.5 overflow-x-auto overscroll-x-contain", variant === "segmented" && "rounded-full bg-muted p-1", className)}>
+    <div role="tablist" aria-label={label} className={cn(FONT, "flex gap-1.5 overflow-x-auto overscroll-x-contain", variant === "segmented" && "c-seg", className)}>
       {items.map((it, i) => {
         const on = it.id === value;
         return (
@@ -53,11 +53,11 @@ export function Tabs({ label, items, value, onChange, idPrefix = "kit", variant 
             className={cn(
               FOCUS,
               "min-h-11 flex-none rounded-full px-4 text-sm font-semibold [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none",
-              on
-                ? "bg-foreground text-background"
-                : variant === "tabs"
-                  ? "c-surface bg-foreground/8"
-                  : "text-[var(--muted-foreground,#6E6558)] hover:bg-card hover:text-foreground",
+              variant === "segmented"
+                ? "" // c-seg styles both states from aria-selected (the raised glass thumb)
+                : on
+                  ? "bg-foreground text-background"
+                  : "c-surface bg-foreground/8",
             )}
           >
             {it.label}

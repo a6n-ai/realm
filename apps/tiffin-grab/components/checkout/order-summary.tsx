@@ -64,7 +64,7 @@ export function OrderSummary({
     : null;
 
   return (
-    <section aria-label="Your order" className={plain ? undefined : "c-surface bg-card rounded-[24px] p-5"}>
+    <section aria-label="Your order" className={plain ? undefined : "c-glass-card rounded-[24px] p-5"}>
       <div className="flex items-center justify-between gap-2">
         {plain ? <span /> : <h2 className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Your order</h2>}
         {onEdit ? (

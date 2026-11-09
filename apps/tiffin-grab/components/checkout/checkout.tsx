@@ -41,7 +41,7 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
+import { asWizardOrigin, originHref, parsePlanSteps, WIZARD_POSTAL_KEY, wizardSession } from "@/lib/wizard/session";
 import { firstBlockedStep, mealNote, pickedAddons, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 
 function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
@@ -55,8 +55,7 @@ function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
 import { OrderSummary, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
-import { TotalChip } from "@/components/wizard/total-chip";
-import { BottomBar, Button, buttonClass, Label, PillToggle, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, buttonClass, Label, PillToggle, Sheet, InfoBar } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
@@ -104,6 +103,15 @@ const emptyContact: Contact = {
 
 type AddressDraft = Pick<Contact, "addressLine" | "addressUnit" | "city" | "postalCode" | "deliveryInstructions">;
 const EMPTY_ADDRESS: AddressDraft = { addressLine: "", addressUnit: "", city: "", postalCode: "", deliveryInstructions: "" };
+/** A new address starts with the postal code the visitor already checked on the builder. */
+function newAddress(): AddressDraft {
+  try {
+    const checked = JSON.parse(sessionStorage.getItem(WIZARD_POSTAL_KEY) ?? "null") as { postal?: string } | null;
+    return { ...EMPTY_ADDRESS, postalCode: checked?.postal ?? "" };
+  } catch {
+    return { ...EMPTY_ADDRESS };
+  }
+}
 const addressOf = (c: Contact): AddressDraft => ({
   addressLine: c.addressLine,
   addressUnit: c.addressUnit ?? "",
@@ -542,7 +550,7 @@ export function Checkout({
     setAddressPublicId(a?.publicId ?? null);
     // Drop-off belongs to the address: a saved one brings its own (and its charge), or none.
     if (a) handleDropOffChange(validDropOff(dropOff, addressDropOffs[a.publicId]));
-    const next = a ? addressFields(a) : (draft ?? EMPTY_ADDRESS);
+    const next = a ? addressFields(a) : (draft ?? newAddress());
     setContact((c) => ({ ...c, ...next }));
     setZone(null);
     if (next.postalCode) void checkPostal(next.postalCode, true, next);
@@ -957,7 +965,7 @@ export function Checkout({
   const savingsSection = (
       <section aria-labelledby="co-savings">
         <h2 id="co-savings" className={H}>Savings</h2>
-        <div className="c-surface bg-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
+        <div className="c-glass-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
           <AnimatePresence initial={false}>
             {applied.map((c) => (
               <m.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
@@ -1116,12 +1124,11 @@ export function Checkout({
         onBack={goBack}
         backLabel={backLabel}
         stepTag={step === 0 ? "Renew" : CHECKOUT_STEPS[step]}
-        trailing={shown ? <TotalChip tiffinCount={shown.tiffinCount} total={shown.total} open={summaryOpen} onOpen={() => setSummaryOpen(true)} /> : null}
       />
 
       <div className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,1fr)_340px] md:items-start lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
         <div className="min-w-0">
-          <Progress steps={CHECKOUT_STEPS} current={step} planParts={planSteps.length} />
+          <Progress steps={CHECKOUT_STEPS} current={step} planParts={planSteps.length} planNames={planSteps} />
 
           {/* Arriving from the plan builder the Delivery body slides in, as Plan → Delivery does on quick renew. */}
           <AnimatePresence mode="popLayout" initial={!!handoff} custom={sign}>
@@ -1159,19 +1166,20 @@ export function Checkout({
                         onPick={pickAddress}
                         draft={draft ? oneLine(draft) : null}
                         draftFromAccount={draft != null && prefill?.addressLine === draft.addressLine && prefill?.postalCode === draft.postalCode}
-                        onAdd={() => setEditor({ ...EMPTY_ADDRESS })}
-                        onEditDraft={() => setEditor(draft ?? { ...EMPTY_ADDRESS })}
+                        onAdd={() => setEditor(newAddress())}
+                        onEditDraft={() => setEditor(draft ?? newAddress())}
                         dropOff={dropOff}
                         dropOffs={addressDropOffs}
                         selectedExtra={hasDropOffChoices ? dropOffChoices : null}
                       />
                       <div aria-live="polite" className="grid gap-2 empty:hidden">
                         {zone?.served && !waitlisted && (
-                          // A footnote under the cards, not a banner box: it confirms, it doesn't need a block of its own.
-                          <m.p key="served" {...reveal} className="flex items-start gap-2 px-4 text-footnote text-[var(--s-delivered-fg,#059669)]">
-                            <MapPin aria-hidden className="mt-0.5 size-4 shrink-0" />
-                            <span><span className="font-semibold">We deliver here.</span> {zone.name}{zone.slotWindow ? `, ${zone.slotWindow}` : ""}</span>
-                          </m.p>
+                          // The same notice bar as the builder's "Delivering to" line.
+                          <m.div key="served" {...reveal}>
+                            <InfoBar role="status" tint="green" icon={<MapPin />}>
+                              <span className="min-w-0">Delivering to <strong className="font-semibold">{zone.name}</strong>{zone.slotWindow ? <span className="text-muted-foreground">, {zone.slotWindow}</span> : null}</span>
+                            </InfoBar>
+                          </m.div>
                         )}
                         {zone && !zone.served && !waitlisted && (
                           <m.div key="unserved" {...reveal} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${toneClasses("warning").bg}`}>
@@ -1191,7 +1199,7 @@ export function Checkout({
                   <section aria-labelledby="co-contact">
                     <h2 id="co-contact" className={H}>Contact</h2>
                     {/* One grouped card, like iOS Settings: who you are, then the phone row under a hairline. */}
-                    <div className="c-surface bg-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
+                    <div className="c-glass-card mt-3 divide-y divide-border overflow-hidden rounded-3xl">
                       <div className="flex items-center gap-3.5 px-4 py-3">
                         <span aria-hidden className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-subhead font-bold">
                           {(contact.fullName.trim()[0] ?? "?").toUpperCase()}
@@ -1219,7 +1227,6 @@ export function Checkout({
 
           {/* Card step: wallet and card action live here at every width, like Continue on the Delivery step. */}
           <BottomBar
-            alignEnd
             note={step === 2 ? (payWithCard && phone && result ? undefined : (actionReason ?? undefined)) : (actionReason ?? mealNote(catalog, selections))}
             className="sm:sticky sm:mt-8 sm:px-0"
           >
@@ -1233,12 +1240,12 @@ export function Checkout({
                 </div>
               </div>
             ) : (
-              <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>{backLabel}</Button>
+              <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>{backLabel}</Button>
             )}
             {step === 0 && plan ? (
-              <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!plan.canContinue} pending={plan.pending} onClick={continuePlan}>Continue to checkout</Button>
+              <Button variant="primary" size="lg" className="flex-1" disabled={!plan.canContinue} pending={plan.pending} onClick={continuePlan}>Continue to checkout</Button>
             ) : step === 1 ? (
-              <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
+              <Button variant="primary" size="lg" className="flex-1" disabled={step1Reason != null} onClick={() => {
                 setStep(2);
                 // The address is final now — re-price so tax reflects its province.
                 void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined)
@@ -1248,7 +1255,7 @@ export function Checkout({
               <Button
                 variant="primary"
                 size="lg"
-                className="flex-1 sm:min-h-10 sm:flex-none sm:px-8"
+                className="flex-1"
                 pending={submitting}
                 disabled={submitting || payReason != null}
                 onClick={confirm}
@@ -1298,9 +1305,9 @@ export function Checkout({
   // The settled state keeps the checkout shell (header, progress, bottom bar); the receipt already carries the order, so no summary column.
   const paidLayout = (kind: "paid" | "processing" | "submitted", receipt: ReactNode, ready: boolean, primary: { label: string; href: string }, secondary?: { label: string; href: string }) => (
     <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-10">
-      <SubscribeChrome closeHref="/me/deliveries" onBack={() => router.replace("/me/deliveries")} backLabel="Deliveries" stepTag="Paid" />
+      <SubscribeChrome topBack closeHref="/me/deliveries" onBack={() => router.replace("/me/deliveries")} backLabel="Deliveries" stepTag="Paid" />
       <div className="mx-auto max-w-xl">
-        <Progress steps={CHECKOUT_STEPS} current={CHECKOUT_STEPS.length - 1} planParts={planSteps.length} />
+        <Progress steps={CHECKOUT_STEPS} current={CHECKOUT_STEPS.length - 1} planParts={planSteps.length} planNames={planSteps} />
         <PaidPage
           kind={kind}
           subtitle={kind === "processing" ? "We'll confirm by email." : kind === "submitted" ? "We'll verify your e-Transfer and email you." : start ? `Your first tiffin arrives ${start}.` : "We've emailed your receipt."}
@@ -1408,7 +1415,7 @@ function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: {
       type="button"
       aria-haspopup="dialog"
       onClick={onOpen}
-      className="c-surface bg-card mb-8 flex w-full items-center gap-3 rounded-3xl p-4 text-left transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100 md:hidden"
+      className="c-glass-card mb-8 flex w-full items-center gap-3 rounded-3xl p-4 text-left transition-transform duration-100 active:scale-[0.98] motion-reduce:active:scale-100 md:hidden"
     >
       <span className="min-w-0 flex-1">
         <span className="text-muted-foreground block text-xs font-semibold tracking-[0.02em]">Your order</span>

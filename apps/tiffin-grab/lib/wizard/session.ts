@@ -4,6 +4,8 @@ import type { WizardOrigin, WizardSelections } from "@/lib/wizard/selections";
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 /** Which flow wrote WIZARD_STORAGE_KEY: checkout's "Edit plan" returns to that flow's page. */
 export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
+/** The postal code a visitor checked on the builder ({ postal, area, window }); checkout starts a new address with it. */
+export const WIZARD_POSTAL_KEY = "tiffin.wizard.postal";
 /** The plan steps the customer came through (JSON string[]), so checkout's Plan segment keeps the same ticks. */
 export const WIZARD_PLAN_STEPS_KEY = "tiffin.wizard.planSteps";
 /** Wizard step to reopen on when "Edit plan" comes back from checkout. */

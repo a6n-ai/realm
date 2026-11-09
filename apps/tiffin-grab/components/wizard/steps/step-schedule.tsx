@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
@@ -18,7 +18,10 @@ export function StepSchedule({
   selections,
   set,
   currentPlan = null,
+  preview = true,
 }: {
+  /** The weekday preview card; off when the dated one under the plan length shows on the same page. */
+  preview?: boolean;
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
@@ -56,10 +59,14 @@ export function StepSchedule({
   const max = Math.min(bounds.max, WEEK_DAYS.filter(open).length);
   const min = Math.min(bounds.min, max);
 
+  // A tap the limit refuses says why on the hint line, instead of a greyed pill that looks broken.
+  const [nudge, setNudge] = useState<"max" | "min" | null>(null);
   const toggle = (day: DayOfWeek) => {
     if (eating.includes(day)) {
-      if (eating.length > min) setEating(eating.filter((d) => d !== day));
-    } else if (eating.length < max) setEating([...eating, day]);
+      if (eating.length > min) { setEating(eating.filter((d) => d !== day)); setNudge(null); }
+      else setNudge("min");
+    } else if (eating.length < max) { setEating([...eating, day]); setNudge(null); }
+    else setNudge("max");
   };
 
   const trips = row ? planWeek(deliveryDays, eating) : null;
@@ -75,12 +82,13 @@ export function StepSchedule({
       ) : null}
 
       <section aria-labelledby="sched-eating">
-        <h2 id="sched-eating" className={H}>Which days do you eat?</h2>
+        <h2 id="sched-eating" className={H}>Tap the days you eat.</h2>
         <div className="mt-3 flex gap-1.5 sm:gap-2">
           {WEEK_DAYS.map((day) => {
             const on = eating.includes(day);
             return (
-              <PillToggle key={day} on={on} disabled={on ? atMin : atMax || !open(day)} onClick={() => toggle(day)}>
+              // Only a day the meal can't come on is disabled; the pick limit answers on the hint line.
+              <PillToggle key={day} on={on} disabled={!on && !open(day)} onClick={() => toggle(day)}>
                 {LABEL[day]}
               </PillToggle>
             );
@@ -91,7 +99,9 @@ export function StepSchedule({
             <span className="text-primary text-title-1 font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
             <span className="text-muted-foreground ml-1 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
           </span>
-          <span className={`text-footnote ${eating.length < min ? "text-destructive font-medium" : "text-muted-foreground"}`}>{min === max ? `Pick ${min} days` : `Pick ${min} to ${max} days`}</span>
+          <span className={`text-footnote text-right ${eating.length < min ? "text-destructive font-medium" : nudge ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+            {nudge === "max" && atMax ? `Up to ${max} days. Tap a picked day to free one.` : nudge === "min" && atMin ? `Keep at least ${min} days.` : min === max ? `Pick ${min} days` : `Pick ${min} to ${max} days`}
+          </span>
         </p>
         {closedNote ? <p className="text-muted-foreground mt-2 text-footnote text-pretty">{closedNote}</p> : null}
         {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
@@ -99,16 +109,15 @@ export function StepSchedule({
 
       <section aria-labelledby="sched-delivery">
         <h2 id="sched-delivery" className={`${H} flex items-center gap-1.5`}>
-          How often should we deliver?
+          Deliveries a week
           <Tooltip>
             <TooltipTrigger type="button" className="text-muted-foreground hover:text-foreground">
               <Info className="size-[15px]" />
-              <span className="sr-only">Delivery info</span>
+              <span className="sr-only">About delivery days</span>
             </TooltipTrigger>
-            <TooltipContent>You cannot change your delivery days until your plan is completed</TooltipContent>
+            <TooltipContent>Fewer deliveries means some tiffins come a day or two before you eat them; the preview below shows which. Delivery days stay fixed until your plan ends.</TooltipContent>
           </Tooltip>
         </h2>
-        <p className="text-muted-foreground mt-1 text-footnote text-pretty">Fewer deliveries means some tiffins arrive a day or two before you eat them.</p>
         {frequencies.length === 0 ? <p role="alert" className="text-destructive mt-3 text-sm text-pretty">No delivery plan fits this meal&apos;s days.</p> : null}
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
@@ -140,11 +149,13 @@ export function StepSchedule({
         </div>
       </section>
 
-      <section aria-labelledby="sched-preview" className="c-surface bg-card rounded-[20px] p-5">
-        {/* The tiffin count already sits under the day pills; this card only shows how they arrive. */}
-        <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
-        {trips ? <TripTimeline trips={trips} compact /> : null}
-      </section>
+      {preview ? (
+        <section aria-labelledby="sched-preview" className="c-glass-card rounded-[20px] p-5">
+          {/* The tiffin count already sits under the day pills; this card only shows how they arrive. */}
+          <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
+          {trips ? <TripTimeline trips={trips} compact /> : null}
+        </section>
+      ) : null}
     </div>
   );
 }

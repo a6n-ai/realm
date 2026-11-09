@@ -38,6 +38,8 @@ export interface AppliedCoupon {
   name: string;
   amount: number;
   auto: boolean;
+  /** A first-order coupon priced for a signed-out visitor: it holds only if the account turns out to be new. */
+  newCustomersOnly?: boolean;
 }
 
 export type { CheckoutPaymentMethod };
@@ -171,7 +173,10 @@ async function quote(
   // subtotal (after coupon lines), never a client-sent amount, and capped with
   // the SAME capRedemption createOrder uses — duplicating that arithmetic is
   // how the preview and the charged order end up disagreeing by a cent.
-  const lines = [...best.lines];
+  // Signed out, a first-order coupon is priced in (most visitors are new) but labelled, since sign-in can
+  // still drop it for a returning customer; checkout then names why. Lines and redemptions share an index.
+  const newOnly = (i: number) => userId == null && best.redemptions[i]?.coupon.kind === "first_order";
+  const lines = best.lines.map((l, i) => (newOnly(i) ? { ...l, label: `${l.label} (new customers)` } : l));
   let coinBalance: number | null = null;
   let coinsError: string | undefined;
   let coinCap: RepriceResult["coinCap"] = null;
@@ -231,11 +236,12 @@ async function quote(
     balance: coinBalance - coinsSpent,
     cap: await getMaxWalletBalance(),
   });
-  const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
+  const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r, i) => ({
     code: r.coupon.code,
     name: r.coupon.name,
     amount: r.amount,
     auto: r.coupon.autoApply,
+    ...(newOnly(i) ? { newCustomersOnly: true } : {}),
   }));
   return {
     pricing,

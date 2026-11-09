@@ -109,13 +109,12 @@ describe("checkout contact locking", () => {
     expect(screen.getByText("3 Days/Wk (Mon, Wed, Fri)")).toBeTruthy();
   });
 
-  it("has one top Back (sm+) and one bottom Back (below sm) that share the handler label", async () => {
+  it("has one Back, in the bottom bar at every width", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
     await screen.findByLabelText(/phone/i);
     const backs = screen.getAllByRole("button", { name: "Back" });
-    expect(backs).toHaveLength(2);
-    expect(backs.filter((b) => b.className.includes("sm:hidden"))).toHaveLength(1);
-    expect(backs.filter((b) => b.className.includes("hidden") && b.className.includes("sm:!inline-flex"))).toHaveLength(1);
+    expect(backs).toHaveLength(1);
+    expect(backs[0]!.className).not.toContain("hidden");
   });
 });

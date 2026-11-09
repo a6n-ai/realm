@@ -90,7 +90,7 @@ export function CheckoutAddressPicker({
       {onAdd && <button
         type="button"
         onClick={onAdd}
-        className="c-surface text-foreground flex min-h-12 w-full items-center gap-3 rounded-[20px] bg-foreground/8 px-4 py-2 text-left transition-[transform,background-color] duration-100 hover:bg-foreground/13 active:scale-[.98] motion-reduce:active:scale-100"
+        className="c-glass-card text-foreground flex min-h-12 w-full items-center gap-3 rounded-[20px] px-4 py-2 text-left transition-[transform,background-color] duration-100 hover:bg-foreground/5 active:scale-[.98] motion-reduce:active:scale-100"
       >
         <span aria-hidden className="bg-primary/15 text-primary flex size-8 shrink-0 items-center justify-center rounded-full">
           <Plus className="size-4" />

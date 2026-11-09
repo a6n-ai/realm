@@ -8,17 +8,15 @@ const pill = (page: Page, d: string) => page.getByRole("button", { name: d, exac
 const next = (page: Page) => page.getByRole("button", { name: "Next", exact: true });
 const chip = (page: Page) => page.getByRole("button", { name: /^Price summary:/ });
 
+// Signed out, /subscribe opens on the builder: diet and meal size share the first page; the email is asked at checkout.
 async function startWizard(page: Page) {
   await page.goto("/subscribe");
-  await page.getByLabel("Email").fill(email());
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("button", { name: /Non-Veg Plan/ })).toBeVisible(FIRST_LOAD);
+  await expect(page.getByRole("radio", { name: "Non-Veg" })).toBeVisible(FIRST_LOAD);
 }
 
 async function toBundle(page: Page) {
   await startWizard(page);
-  await page.getByRole("button", { name: /Pure Vegetarian Plan/ }).click();
-  await next(page).click();
+  await page.getByRole("radio", { name: "Pure Vegetarian" }).click();
   await expect(page.getByRole("button", { name: new RegExp(MEAL) })).toBeVisible();
 }
 
@@ -26,16 +24,24 @@ async function toSchedule(page: Page) {
   await toBundle(page);
   await page.getByRole("button", { name: new RegExp(MEAL) }).click();
   await next(page).click();
-  await expect(page.getByRole("heading", { name: "Which days do you eat?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tap the days you eat." })).toBeVisible();
 }
 
 async function toDuration(page: Page) {
   await toSchedule(page);
   await next(page).click();
-  await expect(page.getByText("Commitment duration")).toBeVisible();
+  await expect(page.getByText("Plan length")).toBeVisible();
 }
 
 test.describe("subscribe -> checkout journey", () => {
+  test("signed out: Continue to checkout asks for the email in place, with the plan and price above it", async ({ page }) => {
+    await toDuration(page);
+    await page.getByRole("button", { name: "Continue to checkout" }).click();
+    await expect(page.getByRole("heading", { name: "Save your plan." })).toBeVisible();
+    await expect(page.getByText("Your plan is ready")).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+  });
+
   test("schedule step: defaults, min bound, live count, trip preview, apply/undo tip", async ({ page }) => {
     await toSchedule(page);
 
@@ -93,19 +99,18 @@ test.describe("subscribe -> checkout journey", () => {
     await expect(chip(page)).toContainText("$60.00");
   });
 
-  test("disabled Next explains what is missing on Baseline and Bundle", async ({ page }) => {
+  test("disabled Next explains what is missing on the first page", async ({ page }) => {
     await startWizard(page);
+    // The first diet is picked for the visitor, so the sizes and prices show at once.
+    await expect(page.getByRole("radio", { name: "Pure Vegetarian" })).toHaveAttribute("aria-checked", "true");
     await expect(next(page)).toBeDisabled();
-    await expect(page.getByText("Choose a baseline plan to continue.")).toBeVisible();
-    await page.getByRole("button", { name: /Pure Vegetarian Plan/ }).click();
-    await expect(next(page)).toBeEnabled();
-    await next(page).click();
-    await expect(next(page)).toBeDisabled();
-    await expect(page.getByText("Pick a meal size to continue.")).toBeVisible();
+    await expect(page.getByText("Pick a size to see your price.")).toBeVisible();
     await page.getByRole("button", { name: new RegExp(MEAL) }).click();
     await expect(next(page)).toBeEnabled();
   });
 
+  // TODO(e2e): the tests below reach /checkout, which now needs the 6-digit email code first; they need a signed-in
+  // customer (e2e/auth.setup.customer.ts) or a test OTP before they can run again.
   test("start date is pre-filled and Continue to checkout shows the plan", async ({ page }) => {
     await toDuration(page);
     await expect(page.getByText("Start date", { exact: true }).first()).toBeVisible();
@@ -125,7 +130,7 @@ test.describe("subscribe -> checkout journey", () => {
     await page.getByRole("button", { name: "Edit plan" }).first().click();
     await page.waitForURL(/\/subscribe/, FIRST_LOAD);
     await expect(page.getByLabel("Email")).toHaveCount(0);
-    await expect(page.getByText("Commitment duration")).toBeVisible();
+    await expect(page.getByText("Plan length")).toBeVisible();
     await page.getByRole("button", { name: "Back", exact: true }).click();
     await page.getByRole("button", { name: "Back", exact: true }).click();
     await expect(pill(page, "Mon")).toHaveAttribute("aria-pressed", "true");

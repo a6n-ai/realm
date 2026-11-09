@@ -47,10 +47,16 @@ describe("StepSchedule", () => {
     expect(screen.getByText("mwf")).toBeDefined();
   });
 
-  it("disables unselected days at max but keeps selected ones toggleable", () => {
-    render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue", "wed", "thu", "fri"])} set={vi.fn()} />);
-    expect(pill("Sat").disabled).toBe(true);
+  it("at max, an open day stays tappable and says why it can't be added", () => {
+    const set = vi.fn();
+    render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue", "wed", "thu", "fri"])} set={set} />);
+    // Disabled reads as broken; only a day the meal can't come on is disabled.
+    expect(pill("Sat").disabled).toBe(false);
     expect(pill("Mon").disabled).toBe(false);
+    set.mockClear();
+    fireEvent.click(pill("Sat"));
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ eatingDays: expect.arrayContaining(["sat"]) }));
+    expect(screen.getByText(/Tap a picked day to free one/)).toBeTruthy();
   });
 
   it("mirrors weekend flags when a weekend day is picked", () => {

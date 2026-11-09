@@ -107,7 +107,7 @@ export function TripTimeline({
 
       {/* Wider screens (or pick mode): the whole week on one rail. */}
       <div aria-hidden={pick ? undefined : true} role={pick ? "group" : undefined} aria-label={pick ? "Delivery days" : undefined} className={pick || compact ? "block" : "hidden sm:block"}>
-        <div className="grid grid-cols-7">
+        <div key={pick ? undefined : weekStart ?? "week"} className="grid grid-cols-7">
           {WEEK_DAYS.map((d, i) => {
             const trip = tripOf.get(d);
             const eats = trip != null;
@@ -124,8 +124,9 @@ export function TripTimeline({
               </>
             ) : (
               <>
-                <span className={`text-footnote font-semibold ${eats ? "text-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
-                {weekStart && <span className={`text-caption-2 tabular-nums ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{dateOf(d)}</span>}
+                <span className={`text-caption-2 font-semibold uppercase tracking-[0.06em] ${eats ? "text-muted-foreground" : "text-muted-foreground/50"}`}>{SHORT[d]}</span>
+                {/* The day number only: the month is in the card's week line, so "Nov 10" x7 doesn't crowd the row. */}
+                {weekStart && <span className={`text-subhead font-semibold tabular-nums ${eats ? "text-foreground" : "text-muted-foreground/50"}`}>{Number(dateIso(d).slice(8))}</span>}
               </>
             );
             const body = (
@@ -134,16 +135,19 @@ export function TripTimeline({
                 <div className="relative mt-2 flex h-8 w-full items-center justify-center">
                   {/* Base week line, then the trip's own bar over it. */}
                   <span className="bg-border absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2" />
-                  {joinLeft && <span className="absolute top-1/2 left-0 h-1 w-1/2 -translate-y-1/2" style={{ background: tint }} />}
-                  {joinRight && <span className="absolute top-1/2 right-0 h-1 w-1/2 -translate-y-1/2" style={{ background: tint }} />}
+                  {joinLeft && <m.span initial={pick ? false : { scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: reduce ? 0 : 0.25, delay: reduce ? 0 : 0.18 + i * 0.05, ease: [0.22, 1, 0.36, 1] }} className="absolute top-1/2 left-0 h-1 w-1/2 origin-left -translate-y-1/2" style={{ background: tint }} />}
+                  {joinRight && <m.span initial={pick ? false : { scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: reduce ? 0 : 0.25, delay: reduce ? 0 : 0.12 + i * 0.05, ease: [0.22, 1, 0.36, 1] }} className="absolute top-1/2 right-0 h-1 w-1/2 origin-left -translate-y-1/2" style={{ background: tint }} />}
                   {delivery ? (
                     <m.span
                       layout={!reduce}
-                      transition={spring}
-                      className="text-primary-foreground relative z-10 grid size-8 place-items-center rounded-full shadow-sm"
+                      initial={pick ? false : reduce ? { opacity: 0 } : { opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={reduce ? { duration: 0.15 } : { type: "spring", bounce: 0.25, duration: 0.45, delay: i * 0.05 }}
+                      className="c-stop text-primary-foreground relative z-10 grid size-8 place-items-center rounded-full text-footnote font-bold tabular-nums"
                       style={{ background: tint }}
                     >
-                      <Truck className="size-4" strokeWidth={2.25} />
+                      {/* Read-only: the number of tiffins this delivery brings; pick mode keeps the truck. */}
+                      {pick ? <Truck className="size-4" strokeWidth={2.25} /> : delivery.units}
                     </m.span>
                   ) : pick?.deliveryDay?.(d) ? (
                     <span className="bg-card text-muted-foreground relative z-10 grid size-6 place-items-center rounded-full border-[1.5px] border-dashed">
@@ -155,9 +159,11 @@ export function TripTimeline({
                     <span className="bg-border relative z-10 size-2 rounded-full" />
                   )}
                 </div>
-                <span className="mt-2 h-5 text-footnote font-semibold tabular-nums" style={{ color: tint }}>
-                  {delivery ? (pick ? delivery.units : plural(delivery.units, "tiffin", "tiffins")) : ""}
-                </span>
+                {pick ? (
+                  <span className="mt-2 h-5 text-footnote font-semibold tabular-nums" style={{ color: tint }}>
+                    {delivery ? delivery.units : ""}
+                  </span>
+                ) : null}
               </>
             );
             return pick ? (
@@ -178,19 +184,18 @@ export function TripTimeline({
           })}
         </div>
         {legend !== undefined ? legend : (
-        <p className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption">
+        <p className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption">
           <span className="inline-flex items-center gap-1.5">
-            <span className="bg-primary text-primary-foreground grid size-4 place-items-center rounded-full"><Truck className="size-2.5" /></span>
-            Delivery day
+            <span className="c-stop bg-primary text-primary-foreground grid size-4 place-items-center rounded-full text-[9px] font-bold">{pick ? <Truck className="size-2.5" /> : 2}</span>
+            {pick ? "Delivery day" : "Delivery, tiffins it brings"}
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="border-primary size-3 rounded-full border-[3px]" />
-            Tiffin comes in an earlier delivery
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="bg-border size-2 rounded-full" />
-            No tiffin
-          </span>
+          {/* Only when this week has a day eaten from an earlier delivery. */}
+          {pick || WEEK_DAYS.some((d) => tripOf.has(d) && !tripAt.has(d)) ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="border-primary size-3 rounded-full border-[3px]" />
+              From an earlier delivery
+            </span>
+          ) : null}
         </p>
         )}
       </div>

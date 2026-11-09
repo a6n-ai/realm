@@ -15,7 +15,7 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * Bare wizard option shell: 20px radius, bevel (no outline), primary ring + wash when selected, press scale.
+ * Bare wizard option shell: 20px radius, liquid-glass bevel (c-glass-card), saffron glass + ring when selected, press scale.
  * Callers own the inner layout (SelectableCard is the titled row; bundle and delivery cards are stacks).
  * role="radio" swaps aria-pressed for aria-checked so it can sit in a ChoiceGroup.
  */
@@ -36,9 +36,7 @@ export function OptionCard({ selected, tone, badge, className, children, type = 
           ? selected
             ? "ring-2 ring-[var(--s-vac,#d98a00)] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_16%,transparent)]"
             : "c-surface bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_8%,var(--card))]"
-          : selected
-            ? "ring-2 ring-primary bg-primary/10"
-            : "c-surface bg-card hover:bg-muted",
+          : "c-glass-card",
         badge && "relative",
         className,
       )}
@@ -105,9 +103,8 @@ export function PillToggle({ on, className, children, type = "button", ...rest }
       className={cn(
         FONT,
         FOCUS,
-        "c-surface flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-subhead",
+        "c-pill-glass flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-subhead",
         SPRING,
-        on ? "bg-primary text-[var(--primary-foreground,#fff)]" : "bg-foreground/8",
         className,
       )}
     >
@@ -151,5 +148,18 @@ export function Choice({ value, className, children, ...rest }: Omit<ButtonHTMLA
         {on && <span className="size-2 rounded-full bg-primary" />}
       </span>
     </OptionCard>
+  );
+}
+
+/** One option of a segmented choice: put them in `<ChoiceGroup className="c-seg">`. The picked one is the raised glass
+ *  thumb (c-seg in globals.css); the group gives the arrow keys and roving tab stop. */
+export function SegmentOption({ value, className, children, ...rest }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "value"> & { value: string }) {
+  const ctx = useContext(ChoiceCtx);
+  if (!ctx) throw new Error("SegmentOption must sit inside ChoiceGroup");
+  const on = ctx.value === value;
+  return (
+    <button {...rest} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1} onClick={() => ctx.onChange(value)} className={cn(FONT, FOCUS, "flex-1 text-sm", className)}>
+      {children}
+    </button>
   );
 }

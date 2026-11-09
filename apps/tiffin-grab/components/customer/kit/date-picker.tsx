@@ -181,7 +181,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
         id={id}
         variant="quiet"
         aria-haspopup="dialog"
-        className="!min-h-12 w-full justify-start !rounded-2xl !border font-normal tabular-nums"
+        className="c-glass-card !min-h-12 w-full justify-start !rounded-2xl !bg-transparent font-semibold tabular-nums"
         onClick={() => {
           setMonth(monthOf(value || min));
           setJump(false);

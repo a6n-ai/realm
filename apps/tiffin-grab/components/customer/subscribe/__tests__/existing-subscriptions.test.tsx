@@ -56,6 +56,12 @@ describe("SubscribeChrome", () => {
   it("renders Close linking to closeHref", () => {
     render(<SubscribeChrome closeHref="/me" />);
     expect(screen.getByRole("link", { name: /Close/i })).toHaveAttribute("href", "/me");
-    expect(screen.getByRole("button", { name: /Back/i })).toBeInTheDocument();
+    // Back lives in the page's bottom bar; the top bar only carries one when asked (the paid screen).
+    expect(screen.queryByRole("button", { name: /Back/i })).toBeNull();
+  });
+
+  it("renders a top Back only with topBack", () => {
+    render(<SubscribeChrome closeHref="/me" topBack backLabel="Deliveries" />);
+    expect(screen.getByRole("button", { name: /Deliveries/i })).toBeInTheDocument();
   });
 });

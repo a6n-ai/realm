@@ -173,17 +173,22 @@ describe("IdentityGate referral code", () => {
     await user.type(screen.getByLabelText(/referral code/i), "qrst2345");
     await user.click(screen.getByRole("button", { name: /send my code/i }));
     await waitFor(() => expect(sendVerificationOtp).toHaveBeenCalled());
-    expect(rememberReferralCode).toHaveBeenCalledWith("qrst2345");
+    expect(rememberReferralCode).toHaveBeenCalledWith("QRST2345");
   });
 
   it("keeps a bad code on screen and creates no account", async () => {
     rememberReferralCode.mockResolvedValue({ ok: false, error: "That referral code isn't valid" });
     const user = await toNamePhase();
     await user.type(screen.getByLabelText(/full name/i), "Priya Sharma");
-    await user.type(screen.getByLabelText(/referral code/i), "NOPE2345");
+    await user.type(screen.getByLabelText(/referral code/i), "WXYZ2345");
     await user.click(screen.getByRole("button", { name: /send my code/i }));
     expect(await screen.findByText("That referral code isn't valid")).toBeInTheDocument();
     expect(createCheckoutAccount).not.toHaveBeenCalled();
+  });
+
+  it("offers the code at the email step, before the account check", () => {
+    render(<IdentityGate />);
+    expect(screen.getByLabelText(/referral code/i)).toBeInTheDocument();
   });
 
   it("does not show the field to a returning customer", async () => {

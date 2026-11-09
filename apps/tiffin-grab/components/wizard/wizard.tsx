@@ -2,11 +2,12 @@
 "use client";
 import { useAppCurrency } from "@/components/app-currency";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { Invoice } from "./invoice";
+import { formatDateOnly } from "@/lib/format/datetime";
 import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
@@ -15,7 +16,7 @@ import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
+import { firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 import { wizardSession } from "@/lib/wizard/session";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
@@ -24,7 +25,6 @@ import { StepDuration } from "./steps/step-duration";
 import { BestDeal } from "./best-deal";
 import { SubscribeChrome } from "./subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "./progress";
-import { TotalChip } from "./total-chip";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 import { Checkout } from "@/components/checkout/checkout";
@@ -32,9 +32,13 @@ import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
 import type { CheckoutProps } from "@/components/checkout/load-checkout-props";
+import { IdentityGate } from "./identity-gate";
+import { PauseCircle, Star, Truck } from "lucide-react";
+import { DeliveryCheck } from "./delivery-check";
 
-const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
-const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;
+// Three pages over the four step checks (selections.ts keeps them, and checkout routes back by them):
+// diet + meal size share page 0 (steps 0 and 1); schedule (2) and start date + length (3) keep their own.
+const pageOf = (n: number) => (n <= 1 ? 0 : n >= 3 ? 3 : 2);
 
 export function Wizard({
   catalog,
@@ -52,7 +56,16 @@ export function Wizard({
   quote = null,
   promoCodes = [],
   checkout,
+  signIn,
+  trust = null,
+  intro,
 }: {
+  /** Offers to show on the first page (coupons a visitor can use, a friend's referral gift). */
+  intro?: ReactNode;
+  /** Real proof shown under the steps: the Google rating, and whether delivery is free. */
+  trust?: { rating: number; reviews: number; freeDelivery: boolean } | null;
+  /** Signed out: the plan is built and priced first; "Continue to checkout" asks who it's for, then opens /checkout. */
+  signIn?: { googleClientId: string | null; oauthError: string | null; referralCode: string };
   /** Present: the last step opens Delivery and Payment in place instead of navigating to /checkout. */
   checkout?: CheckoutProps;
   /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
@@ -81,15 +94,22 @@ export function Wizard({
   const router = useRouter();
   const bouncing = useBounceAfterPaid();
   // A quote opens on the first step that still needs the customer, normally Start.
-  const [step, setStepState] = useState(() => (quote ? (firstBlockedStep(catalog, reconcileSelections(catalog, quote.picks)) ?? 3) : 0));
+  const [step, setStepState] = useState(() => (quote ? pageOf(firstBlockedStep(catalog, reconcileSelections(catalog, quote.picks)) ?? 3) : 0));
   const setStep = (n: number | ((s: number) => number)) =>
     setStepState((s) => {
       const next = typeof n === "function" ? n(s) : n;
       try { wizardSession.saveStep(next); } catch { /* storage unavailable */ }
       return next;
     });
-  const [selections, setSelections] = useState<WizardSelections>(() => reconcileSelections(catalog, initial));
+  const [selections, setSelections] = useState<WizardSelections>(() => {
+    const s = reconcileSelections(catalog, initial);
+    // The diet toggle starts on the first plan, so the sizes and their prices show at once.
+    const first = s.planKey == null ? catalog.plans[0] : undefined;
+    return first ? reconcileSelections(catalog, { ...s, planKey: first.key, mealSlots: first.offeredSlots ?? [] }) : s;
+  });
   const [result, setResult] = useState<PricingResult | null>(null);
+  // First-order codes the signed-out price includes: checkout re-tries them signed in and says why if one drops.
+  const [newOnlyCodes, setNewOnlyCodes] = useState<string[]>([]);
   const prevStep = useRef(step);
   const direction = step >= prevStep.current ? "forward" : "back";
   useEffect(() => {
@@ -107,16 +127,15 @@ export function Wizard({
       if (!raw) return;
       const saved = JSON.parse(raw) as WizardSelections;
       if (saved.planKey != null && !catalog.plans.some((p) => p.key === saved.planKey)) return;
-      let savedStep = wizardSession.step();
-      const savedTrial = trial != null && catalog.mealSizes.some((m) => m.publicId === saved.mealSizeId && m.trial);
-      if (savedTrial && savedStep === 2) savedStep = 3;
+      let savedStep = pageOf(wizardSession.step() || 0);
       const restored = reconcileSelections(catalog, { ...initial, ...saved });
-      // A field the catalog dropped since the cart was saved: reopen on the step that asks for it.
+      // A field the catalog dropped since the cart was saved: reopen on the page that asks for it.
       const blockedAt = firstBlockedStep(catalog, restored);
-      if (blockedAt != null && blockedAt < savedStep) savedStep = blockedAt;
+      if (blockedAt != null && pageOf(blockedAt) < savedStep) savedStep = pageOf(blockedAt);
       /* eslint-disable react-hooks/set-state-in-effect */
       setSelections(restored);
-      if (Number.isInteger(savedStep) && savedStep >= 0 && savedStep < STEPS.length) {
+      if (trial != null && catalog.mealSizes.some((m) => m.publicId === saved.mealSizeId && m.trial) && savedStep === 2) savedStep = 3;
+      if (savedStep === 0 || savedStep === 2 || savedStep === 3) {
         prevStep.current = savedStep;
         setStepState(savedStep);
       }
@@ -136,20 +155,28 @@ export function Wizard({
     if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) { setTimeout(() => setResult(null), 0); return; }
     let active = true;
     reprice(selections, undefined, selections.planKey ?? undefined)
-      .then((r) => { if (active) setResult("error" in r ? null : r.pricing); })
+      .then((r) => {
+        if (!active) return;
+        setResult("error" in r ? null : r.pricing);
+        setNewOnlyCodes("error" in r ? [] : r.appliedCoupons.filter((c) => c.newCustomersOnly).map((c) => c.code));
+      })
       .catch(() => { if (active) setResult(null); });
     return () => { active = false; };
   }, [selections, trial, catalog]);
 
-  const blocked = nextBlockedReason(step, catalog, selections);
-  // From the bundle step on, the bar says what's picked, so nobody scrolls back up to check.
-  const pickedNote = step >= 1 ? mealNote(catalog, selections) : undefined;
+  const blocked = step === 0 ? nextBlockedReason(0, catalog, selections) ?? nextBlockedReason(1, catalog, selections) : nextBlockedReason(step, catalog, selections);
+  // Once a meal is picked, the bar says what's picked, so nobody scrolls back up to check.
+  const pickedNote = selections.mealSizeId ? mealNote(catalog, selections) : undefined;
   const canNext = blocked === null;
 
   const [atCheckout, setAtCheckout] = useState(false);
+  // A failed Google round trip lands back on /subscribe?error=...: reopen the sign-in step it came from.
+  const [atGate, setAtGate] = useState(() => !!signIn?.oauthError);
 
   const deploy = () => {
-    wizardSession.saveHandoff({ selections, origin, planSteps: stepLabels, codes: quote?.codes.length ? quote.codes : promoCodes, coins: quote?.coins });
+    const linkCodes = quote?.codes.length ? quote.codes : promoCodes;
+    // Signed out, first-order codes ride along so checkout can say why one drops for a returning account.
+    wizardSession.saveHandoff({ selections, origin, planSteps: [...stepLabels], codes: signIn ? [...new Set([...linkCodes, ...newOnlyCodes])] : linkCodes, coins: quote?.coins });
     const meal = catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId);
     const contentIds = [selections.planKey, meal?.key].filter((x): x is string => !!x);
     const eventId = crypto.randomUUID();
@@ -176,6 +203,12 @@ export function Wizard({
       window.scrollTo({ top: 0 });
       return;
     }
+    if (signIn) {
+      gtagEvent("begin_checkout", { ...(result ? { value: result.total, currency: "CAD" } : {}), signed_in: false });
+      setAtGate(true);
+      window.scrollTo({ top: 0 });
+      return;
+    }
     router.push("/checkout", { transitionTypes: ["nav-forward"] });
   };
 
@@ -183,16 +216,15 @@ export function Wizard({
     selections.startDate !== "" && anySameIsoWeek(selections.startDate, existingStartDates);
 
   const trialSelected = trial != null && selectionIsTrial(catalog, selections);
-  const stepLabels = trialSelected ? (["Baseline", "Bundle", "Start"] as const) : STEPS;
+  const stepLabels = trialSelected ? (["Tiffin", "Start"] as const) : (["Tiffin", "Schedule", "Start"] as const);
   const questions = trialSelected
-    ? (["What's your baseline?", "Pick your bundle.", "When should the trial start?"] as const)
-    : QUESTIONS;
-  const progressIndex = trialSelected ? (step <= 1 ? step : 2) : step;
+    ? (["Pick your tiffin.", "When should the trial start?"] as const)
+    : (["Pick your tiffin.", "Set your schedule.", "When do you start?"] as const);
+  const progressIndex = step === 0 ? 0 : trialSelected ? 1 : step === 2 ? 1 : 2;
 
   const goBack = () => {
-    const prev = adjacentWizardStep(step, -1, trialSelected);
-    if (prev >= 0 && prev < step) {
-      setStep(prev);
+    if (step > 0) {
+      setStep(step === 3 && !trialSelected ? 2 : 0);
       return;
     }
     if (exitHref) router.push(exitHref, { transitionTypes: ["nav-back"] });
@@ -206,12 +238,12 @@ export function Wizard({
   const offered = offeredAddons(catalog, selections);
   const goNext = () => {
     const phone = typeof matchMedia === "function" && !matchMedia("(min-width: 640px)").matches;
-    if (step === 1 && phone && offered.length > 0 && addonsAskedFor !== selections.mealSizeId) {
+    if (step === 0 && phone && offered.length > 0 && addonsAskedFor !== selections.mealSizeId) {
       setAddonsAskedFor(selections.mealSizeId);
       setAddonsOpen(true);
       return;
     }
-    setStep(adjacentWizardStep(step, 1, trialSelected));
+    setStep(step === 0 && !trialSelected ? 2 : 3);
   };
   const addonCount = (selections.addonSelections ?? []).reduce((n, a) => n + a.qty, 0);
   const reduce = useReducedMotion();
@@ -220,13 +252,30 @@ export function Wizard({
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   if (bouncing) return null;
+  const invoiceSheet = (
+      <Sheet bottom open={invoiceOpen && result != null} onClose={() => setInvoiceOpen(false)} title="Price summary">
+        {result && (
+          <div className="space-y-3 pb-3">
+            <PlanSummary
+              baseline={catalog.plans.find((p) => p.key === selections.planKey)?.name}
+              mealName={catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name}
+              deliveryName={catalog.frequencies.find((f) => f.key === selections.frequencyKey)?.name}
+              eatingDays={selections.eatingDays ?? []}
+              weeks={selections.durationWeeks}
+              startDate={selections.startDate}
+              tiffinCount={result.tiffinCount}
+              addons={pickedAddons(catalog, selections)}
+            />
+            <Invoice result={result} />
+          </div>
+        )}
+      </Sheet>
+  );
   const builder = (
     <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-6">
-      <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]}
-        trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
-      />
+      <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]} />
 
-      <Progress steps={CHECKOUT_STEPS} current={0} planParts={stepLabels.length} planAt={progressIndex} />
+      <Progress steps={CHECKOUT_STEPS} current={0} planParts={stepLabels.length} planAt={progressIndex} planNames={stepLabels} />
 
       {quote && quoteChanged(quote.picks, selections) && (
         // Same shape as the BestDeal banner, so it reads as an offer to undo, not an error.
@@ -245,7 +294,16 @@ export function Wizard({
         </div>
       )}
 
-      {step >= 1 && step <= 3 && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
+      {step === 0 ? (
+        <div className="mb-6 flex flex-col gap-3">
+          <DeliveryCheck />
+          {intro}
+        </div>
+      ) : (
+        <div className="mb-6 empty:hidden"><DeliveryCheck onlyWhenChecked /></div>
+      )}
+
+      {selections.mealSizeId && !trialSelected && <BestDeal key={step} vary={step === 0 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 
       <AnimatePresence mode="popLayout" initial={false} custom={sign}>
         <m.div
@@ -258,8 +316,12 @@ export function Wizard({
         >
           <h2 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
 
-          {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
-          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} popular={popular[selections.planKey ?? ""] ?? []} />}
+          {step === 0 && (
+            <div className="flex flex-col gap-6">
+              <StepBaseline compact catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+              {selections.planKey ? <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} popular={popular[selections.planKey ?? ""] ?? []} /> : null}
+            </div>
+          )}
           {step === 2 && !trialSelected && <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
           {step === 3 && (
             <StepDuration
@@ -278,23 +340,7 @@ export function Wizard({
         </m.div>
       </AnimatePresence>
 
-      <Sheet bottom open={invoiceOpen && result != null} onClose={() => setInvoiceOpen(false)} title="Price summary">
-        {result && (
-          <div className="space-y-3 pb-3">
-            <PlanSummary
-              baseline={catalog.plans.find((p) => p.key === selections.planKey)?.name}
-              mealName={catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name}
-              deliveryName={catalog.frequencies.find((f) => f.key === selections.frequencyKey)?.name}
-              eatingDays={selections.eatingDays ?? []}
-              weeks={selections.durationWeeks}
-              startDate={selections.startDate}
-              tiffinCount={result.tiffinCount}
-              addons={pickedAddons(catalog, selections)}
-            />
-            <Invoice result={result} />
-          </div>
-        )}
-      </Sheet>
+      {invoiceSheet}
 
       <Sheet
         bottom
@@ -308,7 +354,7 @@ export function Wizard({
             className="w-full"
             onClick={() => {
               setAddonsOpen(false);
-              setStep(adjacentWizardStep(1, 1, trialSelected));
+              setStep(trialSelected ? 3 : 2);
             }}
           >
             {addonCount > 0 ? "Continue" : "Skip extras"}
@@ -319,18 +365,59 @@ export function Wizard({
         <AddonsPanel bare addons={offered} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="pb-2" />
       </Sheet>
 
-      <BottomBar alignEnd note={blocked ?? pickedNote} className="sm:sticky sm:mt-6 sm:px-0">
-        <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
+      {trust ? <TrustLine {...trust} /> : null}
+
+      <BottomBar note={blocked ?? pickedNote} className="sm:sticky sm:mt-6 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={goBack}>Back</Button>
         {step < 3 ? (
-          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={goNext}>Next</Button>
+          <Button variant="primary" size="lg" className="flex-1" disabled={!canNext} onClick={goNext}>Next</Button>
         ) : (
-          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={deploy}>
+          <Button variant="primary" size="lg" className="flex-1" disabled={!canNext} onClick={deploy}>
             Continue to checkout
           </Button>
         )}
       </BottomBar>
     </div>
   );
+  if (signIn && atGate) {
+    const meal = catalog.mealSizes.find((x) => x.publicId === selections.mealSizeId)?.name;
+    return (
+      <div className="pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-6">
+        <SubscribeChrome closeHref={closeHref} onBack={() => setAtGate(false)} stepTag="Your details" />
+        <Progress steps={CHECKOUT_STEPS} current={1} planNames={stepLabels} />
+        {result ? (
+          // The plan they're saving, in full: what, how many, from when, and the total, with Edit back to the steps.
+          <section aria-label="Your plan" className="c-glass-card mb-4 rounded-[20px] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-footnote font-semibold text-muted-foreground">Your plan</p>
+                <p className="text-headline leading-tight font-semibold tracking-[-0.02em]">{meal ?? "Your tiffin"}</p>
+              </div>
+              <button type="button" onClick={() => setInvoiceOpen(true)} className="shrink-0 text-right" aria-label={`$${result.total.toFixed(2)} total. Show the price summary`}>
+                <span className="block text-headline font-bold tabular-nums">${result.total.toFixed(2)}</span>
+                <span className="block text-caption text-muted-foreground underline-offset-4 hover:underline">Price details</span>
+              </button>
+            </div>
+            <p className="mt-2 text-footnote text-muted-foreground">
+              {[`${result.tiffinCount} tiffins`, `${(selections.eatingDays ?? []).length} a week`, selections.startDate ? `starts ${formatDateOnly(selections.startDate, { mode: "short" })}` : null].filter(Boolean).join(", ")}
+            </p>
+            <button type="button" onClick={() => setAtGate(false)} className="mt-2 text-footnote font-semibold text-primary underline-offset-4 hover:underline">Edit plan</button>
+          </section>
+        ) : null}
+        <div className="mb-6"><DeliveryCheck /></div>
+        <IdentityGate
+          googleClientId={signIn.googleClientId}
+          oauthError={signIn.oauthError}
+          defaultReferralCode={signIn.referralCode}
+          next="/checkout"
+          onBack={() => setAtGate(false)}
+          intro={{ title: "Save your plan.", body: "Enter your email and we'll send a 6-digit code. New here? That creates your account." }}
+        />
+        {trust ? <TrustLine {...trust} /> : null}
+        {invoiceSheet}
+      </div>
+    );
+  }
   if (!checkout) return builder;
   // No wrapper animation: the builder and Checkout share the same top bar and bottom bar, so swapping them
   // in one frame keeps both bars still (a transformed wrapper would also drag the fixed phone bar along).
@@ -349,6 +436,22 @@ export function Wizard({
       }}
     />
   ) : builder;
+}
+
+// Proof next to the button, only what is true: the live Google rating and the plan rules every customer gets.
+function TrustLine({ rating, reviews, freeDelivery }: { rating: number; reviews: number; freeDelivery: boolean }) {
+  return (
+    <ul className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-footnote text-muted-foreground" aria-label="Why customers stay">
+      {reviews > 0 ? (
+        <li className="flex items-center gap-1">
+          <Star aria-hidden className="size-3.5 fill-current text-primary" />
+          <span><strong className="font-semibold text-foreground tabular-nums">{rating.toFixed(1)}</strong> from {reviews} Google reviews</span>
+        </li>
+      ) : null}
+      <li className="flex items-center gap-1"><PauseCircle aria-hidden className="size-3.5" />Pause or skip any day</li>
+      {freeDelivery ? <li className="flex items-center gap-1"><Truck aria-hidden className="size-3.5" />Free delivery</li> : null}
+    </ul>
+  );
 }
 
 // Everything the estimate priced; the start date is not part of a quote.

@@ -1,14 +1,14 @@
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
-import { SUPPORT_E164 } from "@/lib/landing/contact";
+import { CONTACT_EMAIL, SUPPORT_E164 } from "@/lib/landing/contact";
 import { runsOf } from "@/lib/landing/areas";
 import { biggestDurationOff, deliveryIsFree, hourLabel, lowestRate, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { effectivePrice } from "@/lib/pricing";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 
-export const CONTACT_EMAIL = "info@tiffingrab.ca";
+export { CONTACT_EMAIL };
 const e = SUPPORT_E164;
 export const CONTACT_PHONE = `+${e[0]} (${e.slice(1, 4)}) ${e.slice(4, 7)}-${e.slice(7)}`;
 

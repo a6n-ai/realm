@@ -171,7 +171,7 @@ export function StepDuration({
       </div>
       {trial ? (multiDay && <TrialLength trial={trial} picks={picks} set={set} />) : (
       <div>
-        <p className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Commitment duration</p>
+        <p className="text-muted-foreground text-footnote font-semibold tracking-[0.02em]">Plan length</p>
         <div className="mt-3">
           <WeeksSlider
             weeks={catalog.durations.map((d) => d.weeks)}

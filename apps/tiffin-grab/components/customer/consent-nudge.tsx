@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { inOrderFlow } from "@/components/consent/card-visible";
 import { BarChart3 } from "lucide-react";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { hasConsentAnswer, saveConsent } from "@/components/consent/cookie-consent";
@@ -17,14 +19,16 @@ const SHOW_AFTER_MS = 15000;
 
 export function ConsentNudge() {
   const [ask, setAsk] = useState(false);
+  // Held during the order flow (renew, trial, checkout): it asks again on the next app page instead.
+  const ordering = inOrderFlow(usePathname() ?? "/");
   useEffect(() => {
-    if (hasConsentAnswer()) return;
+    if (ordering || hasConsentAnswer()) return;
     if (Date.now() - Number(localStore.get(KEY) ?? 0) < AGAIN_MS) return;
     // Never on top of the review request: if that is up, this waits for another session.
     const t = setTimeout(() => { if (!hasConsentAnswer() && !document.querySelector('[aria-label="Review request"]')) setAsk(true); }, SHOW_AFTER_MS);
     return () => clearTimeout(t);
-  }, []);
-  if (!ask) return null;
+  }, [ordering]);
+  if (!ask || ordering) return null;
 
   const snooze = () => localStore.set(KEY, String(Date.now()));
   const answer = (yes: boolean, close: () => void) => { saveConsent(yes); close(); };

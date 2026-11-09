@@ -66,7 +66,7 @@ export function adjacentWizardStep(step: number, dir: 1 | -1, trial: boolean): n
 /** What the customer still needs to do before the current step's button works; null = good to go. */
 export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
   if (step === 0) return s.planKey == null ? "Choose a baseline plan to continue." : null;
-  if (step === 1) return s.mealSizeId === "" ? "Pick a meal size to continue." : null;
+  if (step === 1) return s.mealSizeId === "" ? "Pick a size to see your price." : null;
   if (step === 2 && selectionIsTrial(catalog, s)) return null;
   if (step === 2) {
     const err = scheduleError(catalog, s);

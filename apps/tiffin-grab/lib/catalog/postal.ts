@@ -35,3 +35,11 @@ export function matchZone<Z extends ZoneLike>(postalCode: string, zones: Z[]): Z
   const hit = matchPostalZone(postalCode, zones.map((z, i) => ({ ...z, radiusKm: z.radiusKm ?? null, publicId: String(i) })));
   return hit ? zones[Number(hit.publicId)]! : null;
 }
+
+/** "m5v 2t6" -> "M5V2T6"; null unless it is a Canadian FSA (M5V) or a full postal code. Pure: the builder's
+ *  client-side delivery check uses it, so it must not sit next to the zone lookup (which loads the catalog). */
+export function normalizePostal(raw: string | null | undefined): string | null {
+  const p = (raw ?? "").toUpperCase().replace(/[\s-]/g, "");
+  if (p.length === 3) return isPostalFsa(p) ? p : null;
+  return p.length === 6 && isFullPostalCode(p) ? p : null;
+}

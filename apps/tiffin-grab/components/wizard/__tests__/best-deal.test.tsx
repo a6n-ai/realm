@@ -33,7 +33,7 @@ describe("BestDeal", () => {
     const set = vi.fn();
     render(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8 })} set={set} />);
     expect(screen.getByText(/3-day delivery/)).toBeTruthy();
-    expect(screen.getByText("Fewer deliveries, lower price")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Fewer deliveries, lower price" })).toBeTruthy();
     expect(screen.getByText(/save 10% on every tiffin/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use this" }));
     expect(set).toHaveBeenCalledWith({ frequencyKey: "3_day" });
@@ -58,7 +58,7 @@ describe("BestDeal", () => {
 
   it("is hidden without a meal size", () => {
     render(<BestDeal vary="duration" catalog={catalog} selections={sel({ mealSizeId: "" })} set={vi.fn()} />);
-    expect(screen.queryByText(/lower price/)).toBeNull();
+    expect(screen.queryByRole("region", { name: /lower price/ })).toBeNull();
   });
 
   it("is dismissible", async () => {
@@ -75,7 +75,7 @@ describe("BestDeal", () => {
     rerender(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8, frequencyKey: "3_day" })} set={set} />);
     return waitFor(() => {
       expect(screen.queryByRole("button", { name: "Use this" })).toBeNull();
-      expect(screen.getByText("Applied")).toBeTruthy();
+      expect(screen.getByRole("region", { name: "Applied" })).toBeTruthy();
       expect(screen.getByText(/You're getting 3-day delivery — saving 10% on every tiffin/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Undo" }));
       expect(set).toHaveBeenLastCalledWith({ frequencyKey: "5_day" });
@@ -85,7 +85,7 @@ describe("BestDeal", () => {
   it("applied state is derived from selections, so Undo works after a fresh mount (falls back to least-discounted)", () => {
     const set = vi.fn();
     render(<BestDeal vary="duration" catalog={catalog} selections={sel({ frequencyKey: "3_day", durationWeeks: 8 })} set={set} />);
-    expect(screen.getByText("Applied")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Applied" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(set).toHaveBeenCalledWith({ durationWeeks: 1 });
   });
@@ -93,7 +93,7 @@ describe("BestDeal", () => {
   it("dismissing hides the green card too", async () => {
     render(<BestDeal vary="duration" catalog={catalog} selections={sel({ frequencyKey: "3_day", durationWeeks: 8 })} set={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss best deal" }));
-    await waitFor(() => expect(screen.queryByText("Applied")).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Applied" })).toBeNull());
   });
 
   it("no card when no option differs in price", () => {
@@ -108,20 +108,20 @@ describe("BestDeal", () => {
       const set = vi.fn();
       const c = disc(10);
       const { rerender } = render(<BestDeal vary="bundle" catalog={c} selections={sel({ planKey: "veg", mealSizeId: "msz_2" })} set={set} />);
-      expect(screen.getByText("Deal on now")).toBeTruthy();
+      expect(screen.getByRole("region", { name: "Deal on now" })).toBeTruthy();
       expect(screen.getByText(/K is 10% off/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Use this" }));
       expect(set).toHaveBeenLastCalledWith({ mealSizeId: "msz_1" });
       rerender(<BestDeal vary="bundle" catalog={c} selections={sel({ planKey: "veg", mealSizeId: "msz_1" })} set={set} />);
       return waitFor(() => {
-        expect(screen.getByText("Applied")).toBeTruthy();
+        expect(screen.getByRole("region", { name: "Applied" })).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: "Undo" }));
         expect(set).toHaveBeenLastCalledWith({ mealSizeId: "msz_2" });
       });
     });
     it("shows nothing when no meal size is discounted", () => {
       render(<BestDeal vary="bundle" catalog={disc(0, { mealSizes: [{ ...catalog.mealSizes[0], planKey: "veg" }] })} selections={sel({ planKey: "veg" })} set={vi.fn()} />);
-      expect(screen.queryByText("Deal on now")).toBeNull();
+      expect(screen.queryByRole("region", { name: "Deal on now" })).toBeNull();
     });
   });
 });

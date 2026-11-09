@@ -1,60 +1,34 @@
 "use client";
 
-import { useId } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import type { AuthButtonProps, AuthFieldProps, AuthUi } from "@foundry/auth-ui";
-import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
-import { Label } from "@foundry/ui/label";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { Button as KitBtn, Field } from "@/components/customer/kit";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized
 // controls (50px targets, 14px corners, 17px type) the customer app uses.
-export const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-body tracking-[-0.011em]";
+// The kit Field's filled look (no outline until invalid), for the auth forms' own react-hook-form inputs.
+export const IOS_INPUT = "!h-[52px] !rounded-2xl !border-transparent !bg-foreground/7 !px-4 !text-body !shadow-none tracking-[-0.011em] aria-[invalid=true]:!border-[#be123c]";
+// @foundry/ui PhoneInput is a country button + input at h-8; same lift as IOS_INPUT, on a wrapper.
+export const IOS_PHONE = "[&_input]:!h-[52px] [&_input]:!text-body [&_input]:!rounded-e-2xl [&_button]:!h-[52px] [&_button]:!rounded-s-2xl";
 
-const VARIANT = { primary: "default", outline: "outline", quiet: "ghost", danger: "destructive" } as const;
-// The shadcn primary fades to 80% on hover, which reads as disabled; darken it and lift
-// 1px instead, the same answer the customer kit's primary gives.
-const HOVER: Partial<Record<keyof typeof VARIANT, string>> = {
-  primary: "transition-[background-color,translate] hover:!bg-[color-mix(in_oklch,var(--primary)_86%,black)] hover:-translate-y-px",
-  outline: "transition-[background-color,border-color] hover:!border-primary",
-};
-
+// The auth screens (login, set password, verify) wear the customer kit itself: the same capsule buttons and filled
+// fields as the order flow, so signing in looks like the rest of the app instead of a separate shadcn skin.
 function KitButton({ variant = "primary", pending, pendingLabel, disabled, type = "button", className, onClick, children }: AuthButtonProps) {
   return (
-    <Button type={type} variant={VARIANT[variant]} disabled={disabled || pending} onClick={onClick} className={`${IOS_BUTTON} gap-2 ${HOVER[variant] ?? ""} ${className ?? ""}`}>
-      {pending ? (
-        <>
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-          {pendingLabel}
-        </>
-      ) : (
-        children
-      )}
-    </Button>
+    <KitBtn type={type} variant={variant} size="lg" pending={pending} disabled={disabled} onClick={onClick} className={`w-full ${className ?? ""}`}>
+      {pending && pendingLabel ? pendingLabel : children}
+    </KitBtn>
   );
 }
 
 function KitField({ label, error, trailing, id, ref, className, ...input }: AuthFieldProps) {
-  const auto = useId();
-  const fieldId = id ?? auto;
-  const control = (
-    <Input
-      id={fieldId}
-      ref={ref}
-      aria-invalid={!!error}
-      aria-describedby={error ? `${fieldId}-error` : undefined}
-      className={`${IOS_INPUT} ${trailing ? "pr-12" : ""} ${className ?? ""}`}
-      {...input}
-    />
-  );
+  if (!trailing) return <Field id={id} ref={ref} label={label} error={error} className={className} {...input} />;
+  // A trailing control (show password) sits inside the field, over its right edge.
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={fieldId} className="text-subhead">{label}</Label>
-      {trailing ? <div className="relative">{control}{trailing}</div> : control}
-      {error ? <p id={`${fieldId}-error`} className="text-destructive text-sm">{error}</p> : null}
+    <div className="relative">
+      <Field id={id} ref={ref} label={label} error={error} className={`pr-12 ${className ?? ""}`} {...input} />
+      <div className="absolute right-0 top-[calc(theme(spacing.6)+2px)]">{trailing}</div>
     </div>
   );
 }

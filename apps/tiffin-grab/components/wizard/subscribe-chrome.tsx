@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
-import { Button, IconButton } from "@/components/customer/kit";
+import { Button, IconButton, ThemeToggle } from "@/components/customer/kit";
 import { Brand } from "@/components/customer/shell/customer-shell";
 
 /**
@@ -18,10 +18,13 @@ export function SubscribeChrome({
   backLabel = "Back",
   stepTag,
   trailing,
+  topBack = false,
 }: {
   closeHref: string;
   onBack?: () => void;
   backLabel?: string;
+  /** A Back link in this bar (from sm up). Off where the page's bottom bar already has Back at every width. */
+  topBack?: boolean;
   /** Centered step label, e.g. "Plan". */
   stepTag?: string;
   /** Sits left of Close (e.g. the running-total chip). */
@@ -36,19 +39,21 @@ export function SubscribeChrome({
         <div className="flex min-w-0 items-center gap-3">
           {/* The logo answers a pointer like every other link here: a small lift. */}
           <Brand href={closeHref} />
-          <Button
+          {topBack ? <Button
             variant="ghost"
             className="group !hidden gap-1 !px-2 !text-footnote tracking-tight sm:!inline-flex transition-transform duration-300 ease-soft active:scale-[0.97] hover:-translate-y-0.5"
             onClick={() => (onBack ? onBack() : router.back())}
           >
             <ArrowLeftIcon aria-hidden className="size-3.5 transition-transform duration-300 ease-soft group-hover:-translate-x-0.5" />
             {backLabel}
-          </Button>
+          </Button> : null}
         </div>
         <span className="text-subhead font-semibold tracking-[-0.01em] max-sm:invisible">{stepTag}</span>
         <div className="flex items-center justify-end gap-2">
           {trailing}
-          <IconButton href={closeHref} aria-label="Close" className="!size-11 transition-transform duration-300 ease-soft active:scale-[0.97] hover:-translate-y-0.5 [&_svg]:transition-transform [&_svg]:duration-300 hover:[&_svg]:rotate-90">
+          {/* Light or dark, beside Close; both bare, so the bar stays two quiet icons. */}
+          <ThemeToggle lightDark className="![background-image:none] !bg-transparent hover:!bg-foreground/10" />
+          <IconButton bare href={closeHref} aria-label="Close" className="!size-11 transition-transform duration-300 ease-soft active:scale-90 hover:-translate-y-0.5 [&_svg]:transition-transform [&_svg]:duration-500 [&_svg]:ease-[cubic-bezier(0.22,1,0.36,1)] hover:[&_svg]:rotate-90 active:[&_svg]:rotate-180 motion-reduce:transition-none motion-reduce:[&_svg]:transition-none">
             <XIcon aria-hidden className="size-4" />
           </IconButton>
         </div>

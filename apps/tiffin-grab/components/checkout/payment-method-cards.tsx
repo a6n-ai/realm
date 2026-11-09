@@ -59,9 +59,11 @@ function Choice({ name, value, checked, onChange, title, subtitle, aside, wide }
   return (
     <label
       htmlFor={id}
+      // The glass card draws its own saffron ring when picked (a ring utility would be overwritten by its shadow).
+      data-on={checked || undefined}
       className={cn(
         "relative flex min-h-28 cursor-pointer flex-col justify-between gap-3 rounded-[20px] p-4 [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] transition-[transform,background-color,box-shadow] duration-100 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary",
-        checked ? "bg-primary/10 ring-2 ring-primary" : "c-surface bg-card hover:bg-muted",
+        "c-glass-card",
         wide && "col-span-2 sm:col-span-1",
       )}
     >

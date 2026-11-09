@@ -26,7 +26,7 @@ export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { week
           return s > 0 ? (
             <span
               key={w}
-              className={cn("absolute bottom-0 -translate-x-1/2 font-bold leading-none tabular-nums whitespace-nowrap text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200", i === at ? "opacity-100" : "opacity-70")}
+              className={cn("absolute bottom-0 font-bold leading-none tabular-nums whitespace-nowrap text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200", i === at ? "opacity-100" : "opacity-70", i === 0 ? "" : i === stops.length - 1 ? "-translate-x-full" : "-translate-x-1/2")}
               style={{ left: pos(i), fontSize: saveSize(s, best) }}
             >
               −{s}%

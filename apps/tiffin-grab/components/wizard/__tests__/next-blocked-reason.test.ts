@@ -16,7 +16,7 @@ describe("nextBlockedReason", () => {
   });
 
   it("bundle: asks for a meal size", () => {
-    expect(nextBlockedReason(1, catalog, sel({ mealSizeId: "" }))).toMatch(/meal size/i);
+    expect(nextBlockedReason(1, catalog, sel({ mealSizeId: "" }))).toMatch(/pick a size/i);
     expect(nextBlockedReason(1, catalog, sel({ mealSizeId: "msz_1" }))).toBeNull();
   });
 

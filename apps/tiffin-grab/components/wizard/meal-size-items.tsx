@@ -40,7 +40,12 @@ export function MealSizeItems({
   );
 }
 
-/** "Sabzi 12oz", "2× Roti 4 roti": the count only when more than one, the portion right after the name. */
-function itemLabel(count: number, name: string, portion: string | null | undefined): string {
-  return `${count > 1 ? `${count}× ` : ""}${name}${portion ? ` ${portion}` : ""}`;
+/** "Sabzi 12oz", "4 roti", "Rice": the count only when more than one; a portion that already names the item
+ *  ("4 roti") stands alone, and a single unit ("1 unit") says nothing the name doesn't. */
+export function itemLabel(count: number, name: string, portion: string | null | undefined): string {
+  const times = count > 1 ? `${count}× ` : "";
+  const p = portion?.trim() ?? "";
+  if (!p || /^1 units?$/i.test(p)) return `${times}${name}`;
+  if (p.toLowerCase().endsWith(name.toLowerCase())) return `${times}${p}`;
+  return `${times}${name} ${p}`;
 }

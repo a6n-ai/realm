@@ -12,6 +12,7 @@ import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
+import { ReferralCodeInput } from "./referral-code-input";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { newOrderHref } from "@/lib/wizard/selections";
 import { publicAuthUrl } from "@/lib/runtime/env.public";
@@ -43,7 +44,16 @@ export function IdentityGate({
   googleClientId = null,
   oauthError: initialOauthError = null,
   defaultReferralCode = "",
+  next,
+  onBack,
+  intro,
 }: {
+  /** Where a signed-in visitor goes. Default: the signed-in wizard (/me/renew), carrying any quote in the URL. */
+  next?: string;
+  /** Back on the email phase. Default: leave to the home page. */
+  onBack?: () => void;
+  /** The email phase's headline and line, when the gate is not the first thing on the page. */
+  intro?: { title: string; body: string };
   googleClientId?: string | null;
   oauthError?: string | null;
   /** From a share link's cookie; new customers only see the field. */
@@ -61,6 +71,8 @@ export function IdentityGate({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ field: "email" | "name" | "referral" | "code" | "form"; message: string } | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  const destination = () => next ?? newOrderHref(new URLSearchParams(window.location.search));
+  const copy = phase === "email" && intro ? intro : COPY[phase];
   useEffect(() => warmCaptchaOnInput(), []);
 
   const reveal = reduced
@@ -92,6 +104,11 @@ export function IdentityGate({
     if (!parsed.success) return setError({ field: "email", message: "Enter a valid email, like you@gmail.com." });
     const clean = parsed.data;
     setEmail(clean);
+    // Checked up front, where the field first shows, so a typo is fixed before anything else happens.
+    if (referralCode.trim()) {
+      const ref = await rememberReferralCode(referralCode);
+      if (!ref.ok) return setError({ field: "referral", message: ref.error });
+    }
     const { status } = await checkExistingAccount(clean);
     if (status === "staff") return setPhase("staff");
     if (status === "matched") {
@@ -119,7 +136,7 @@ export function IdentityGate({
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
     // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
     // leaving it in history turns the wizard's Back (and the phone's back gesture) into a loop.
-    router.replace(newOrderHref(new URLSearchParams(window.location.search)), { transitionTypes: ["nav-forward"] });
+    router.replace(destination(), { transitionTypes: ["nav-forward"] });
     router.refresh();
   }
 
@@ -149,17 +166,17 @@ export function IdentityGate({
   }
 
   // Bottom-bar Back: on the email phase it leaves the flow; later phases step back to the email.
-  const back = () => (phase === "email" ? router.push("/") : changeEmail());
+  const back = () => (phase !== "email" ? changeEmail() : onBack ? onBack() : router.push("/"));
 
   const lockedEmail = phase !== "email";
-  const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
+  const cta = phase === "email" ? (intro ? "Continue with email" : "Continue") : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <form method="post" onSubmit={onSubmit} noValidate className="max-w-md pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-0">
+    <form method="post" onSubmit={onSubmit} noValidate className={intro ? "max-w-md" : "max-w-md pb-[calc(var(--bottom-bar-h,7rem)+1rem)] sm:pb-0"}>
       <AnimatePresence mode="wait" initial={false}>
         <m.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
-          <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
-          {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-muted-foreground">{COPY[phase].body}</p> : null}
+          <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : copy.title}</h2>
+          {copy.body ? <p className="c-body mt-1.5 text-pretty text-muted-foreground">{copy.body}</p> : null}
         </m.div>
       </AnimatePresence>
 
@@ -173,7 +190,7 @@ export function IdentityGate({
                 // Loaded on demand: One Tap's own auth client stays out of the page bundle.
                 import("@foundry/auth-ui/google-one-tap-prompt").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
                   onSignedIn: () => {
-                    router.replace(newOrderHref(new URLSearchParams(window.location.search)), { transitionTypes: ["nav-forward"] });
+                    router.replace(destination(), { transitionTypes: ["nav-forward"] });
                     router.refresh();
                   },
                   onRefused: () => setOauthError("signup_disabled"),
@@ -187,7 +204,7 @@ export function IdentityGate({
                 {
                 // A staff estimate link's quote survives the Google round trip. The error page stays
                 // bare: the auth library appends its own ?error= to it.
-                return signIn.social({ provider: "google", requestSignUp: true, callbackURL: newOrderHref(new URLSearchParams(window.location.search)), errorCallbackURL: "/subscribe" });
+                return signIn.social({ provider: "google", requestSignUp: true, callbackURL: destination(), errorCallbackURL: "/subscribe" });
               }
               }
             />
@@ -245,20 +262,25 @@ export function IdentityGate({
                 error={error?.field === "name" ? error.message : undefined}
                 className={phase !== "name" ? "bg-muted text-muted-foreground" : undefined}
               />
-              {phase === "name" ? (
-                <div className="mt-5">
-                  <Field
-                    label="Referral code (optional)"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    placeholder="From a friend"
-                    value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                    error={error?.field === "referral" ? error.message : undefined}
-                  />
-                </div>
-              ) : null}
+            </Reveal>
+          ) : null}
+
+          {phase === "email" || (isNew && phase === "name") ? (
+            <Reveal key="referral" motionProps={reveal}>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="gate-referral" className="font-semibold">Referral code <span className="font-normal text-muted-foreground">(optional, new customers)</span></Label>
+                <ReferralCodeInput
+                  id="gate-referral"
+                  value={referralCode}
+                  onChange={setReferralCode}
+                  invalid={error?.field === "referral"}
+                />
+                {error?.field === "referral" ? (
+                  <p role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
+                ) : (
+                  <p className="c-caption">From a friend. 6 letters and numbers.</p>
+                )}
+              </div>
             </Reveal>
           ) : null}
 
@@ -303,7 +325,7 @@ export function IdentityGate({
         ) : null}
       </div>
 
-      {phase === "email" || phase === "name" ? (
+      {!intro && (phase === "email" || phase === "name") ? (
         // The brand's own line (PRODUCT.md voice), not a customer quote: there are no reviews to cite.
         <figure className="mt-12">
           <blockquote className="text-title-2 leading-[1.25] font-bold tracking-[-0.02em] text-balance">
@@ -314,16 +336,16 @@ export function IdentityGate({
       ) : null}
 
       {/* Same bar as the wizard steps: Back + one primary action, fixed on phones, inline from sm up. */}
-      <BottomBar alignEnd className="sm:sticky sm:mt-8 sm:px-0">
-        <Button variant="quiet" size="lg" className="w-28 shrink-0 sm:hidden" onClick={back}>
+      <BottomBar className="sm:sticky sm:mt-8 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-28 shrink-0" onClick={back}>
           Back
         </Button>
         {phase === "staff" ? (
-          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" onClick={() => router.push("/login")}>
+          <Button variant="primary" size="lg" className="flex-1" onClick={() => router.push("/login")}>
             Sign in to the dashboard
           </Button>
         ) : (
-          <Button type="submit" variant="primary" size="lg" pending={pending} className="flex-1 sm:min-h-10 sm:flex-none sm:px-8">
+          <Button type="submit" variant="primary" size="lg" pending={pending} className="flex-1">
             {cta}
           </Button>
         )}

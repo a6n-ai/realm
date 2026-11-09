@@ -11,7 +11,7 @@ export async function reviewsConnected(): Promise<boolean> {
 }
 
 // Null on any failure: the header renders on static pages that prerender at build, with no DB.
-const summaryOrNull = () => getReviewsSummary(integrationsConfigReadStore).catch(() => null);
+export const summaryOrNull = () => getReviewsSummary(integrationsConfigReadStore).catch(() => null);
 
 export function ReviewStars({ value, size = 16 }: { value: number; size?: number }) {
   const filled = Math.round(value);

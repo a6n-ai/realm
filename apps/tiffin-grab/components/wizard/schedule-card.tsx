@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
+import { formatMenuWeekRange } from "@/lib/format/datetime";
 import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
@@ -58,25 +58,20 @@ export function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: 
   const last = i === weeks.length - 1;
   // Swipe weeks like the deliveries calendar; the chevrons slide the same way.
   const { ref, bind, go } = useSwipePages({ page: w.weekStart, canPrev: i > 0, canNext: !last, step: (dir) => setPage(i + dir) });
-  const short = (iso: string) => formatDateOnly(iso, { mode: "short" });
   const navBtn = "grid size-11 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground";
   return (
-    <section aria-labelledby="start-preview" className="c-surface bg-card rounded-[20px] p-5">
-      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
-        <h2 id="start-preview" className={H}>How your tiffins arrive</h2>
-        <p className="text-sm">
-          <strong>{short(trips[0]!.dateIso)}</strong>
-          <span className="text-muted-foreground"> to </span>
-          <strong>{short(trips.at(-1)!.dateIso)}</strong>
-        </p>
-      </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-footnote font-semibold" aria-live="polite">
-          Week {i + 1} of {weeks.length}
-          <span className="text-muted-foreground font-normal"> · {formatMenuWeekRange(w.weekStart)}</span>
-        </p>
+    <section aria-labelledby="start-preview" className="c-glass-card rounded-[20px] p-5">
+      {/* One header row: the title and the week arrows; the week it shows on the line under it. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="start-preview" className={H}>How your tiffins arrive</h2>
+          <p className="mt-0.5 text-sm font-semibold" aria-live="polite">
+            {weeks.length > 1 ? <>Week {i + 1} of {weeks.length}<span className="text-muted-foreground font-normal">, </span></> : null}
+            <span className={weeks.length > 1 ? "text-muted-foreground font-normal" : ""}>{formatMenuWeekRange(w.weekStart)}</span>
+          </p>
+        </div>
         {weeks.length > 1 && (
-          <div className="-my-2 -mr-3 flex">
+          <div className="-my-2 -mr-3 flex shrink-0">
             <button type="button" className={navBtn} disabled={i === 0} onClick={() => go(-1)} aria-label="Previous week">
               <ChevronLeft className="size-5" />
             </button>

@@ -105,7 +105,7 @@ export function AddonsPanel({
 
   if (bare) return <section aria-label="Add-ons" className={className}>{list}</section>;
   return (
-    <section aria-label="Add-ons" className={`c-surface bg-card rounded-3xl p-4 ${className}`}>
+    <section aria-label="Add-ons" className={`c-glass-card rounded-3xl p-4 ${className}`}>
       <h4 className="text-subhead font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
       <p className="text-muted-foreground mt-0.5 text-footnote">Optional extras, billed per tiffin.</p>
       {list}

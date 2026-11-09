@@ -134,3 +134,4 @@ describe("planDaysError (createOrder and both price previews)", () => {
     expect(planDaysError({ ...base, servesWeekends: false, allowed: null, eatingDays: ["sat"], frequencyWeekdays: ["mon"] })).toMatch(/weekend dish/);
   });
 });
+

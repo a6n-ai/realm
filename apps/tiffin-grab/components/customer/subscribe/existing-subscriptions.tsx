@@ -1,11 +1,11 @@
 "use client";
 
+import { InfoBar } from "@/components/customer/kit";
 import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
 import { OrderStatusBadge } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Reveal } from "@/components/motion";
-import { KIND_LABELS } from "@/lib/coupons/kind-labels";
 import type { SubSummary } from "@/lib/services/customer-deliveries.service";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
@@ -74,26 +74,17 @@ export function ExistingSubscriptions({ subs }: { subs: SubSummary[] }) {
 export function SubscribeCouponsPreview({ coupons }: { coupons: AvailableCoupon[] }) {
   if (coupons.length === 0) return null;
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-semibold">Coupons you can apply at checkout</h2>
+    <section aria-label="Offers">
       <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {coupons.map((c) => (
-          <li
-            key={c.code}
-            className="flex items-center gap-2 c-surface rounded-2xl bg-card px-3 py-2 text-sm"
-          >
-            <TicketPercentIcon className="text-primary size-4 shrink-0" aria-hidden />
-            <span className="font-medium tracking-wide">{c.code}</span>
-            <span className="text-muted-foreground truncate text-xs">{c.autoApply ? "Applies itself at checkout" : c.name}</span>
-            <Badge variant="secondary" className="ml-auto shrink-0 text-[0.65rem]">
-              {discountLine(c)}
-            </Badge>
-            <span className="sr-only">{KIND_LABELS[c.kind]}</span>
+          <li key={c.code}>
+            <InfoBar tint="orange" icon={<TicketPercentIcon />} action={<span className="text-muted-foreground truncate text-xs">{c.autoApply ? "Applied at checkout" : "Enter it at checkout"}</span>}>
+              <span className="font-semibold tracking-wide">{c.code}</span>
+              <Badge variant="secondary" className="shrink-0">{discountLine(c)}</Badge>
+            </InfoBar>
           </li>
         ))}
       </ul>
-      {/* Auto-apply coupons need no typing; only say "enter a code" when one does. */}
-      {coupons.some((c) => !c.autoApply) ? <p className="text-muted-foreground text-xs">Enter a code on the checkout step to apply it.</p> : null}
     </section>
   );
 }

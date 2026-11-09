@@ -3,7 +3,7 @@ import { Fragment, useState } from "react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { AddonsPanel } from "../addons-panel";
-import { ChevronDown, Gift } from "lucide-react";
+import { ChevronDown, Crown, Gift } from "lucide-react";
 import { IconTile, OptionCard, Pill } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
@@ -49,6 +49,8 @@ export function StepBundle({
   // Order: best sellers, then the trial (when there is one), then the rest highest price first: the fuller (and most profitable) thalis, Maharaja today, lead the list.
   const price = (m: ClientMealSizeView) => (m.discountType === "none" ? m.basePrice : effectivePrice(m.basePrice, m));
   const weeklyAll = meals.filter((m) => !m.trial && !top.includes(m)).sort((x, y) => price(y) - price(x));
+  // The biggest meal of this diet wears a crown: most calories, the dearer one on a tie.
+  const biggest = ordered.filter((m) => m.kcalMax > 0).reduce<ClientMealSizeView | null>((b, m) => (!b || m.kcalMax > b.kcalMax || (m.kcalMax === b.kcalMax && price(m) > price(b)) ? m : b), null)?.publicId;
   // Common path first: a few sizes, the rest one tap away. A filter, or a picked size further down, shows them all.
   const FOLD = 4;
   const picked = weeklyAll.findIndex((m) => m.publicId === selections.mealSizeId);
@@ -83,8 +85,8 @@ export function StepBundle({
         </CurrentPlanHint>
       ) : null}
       {levels.length > 1 && (
-        // Liquid-glass capsule filter by price level; a filter, so plain toggle buttons rather than tabs.
-        <div role="group" aria-label="Filter by price" className="c-liquid inline-flex gap-1 rounded-full p-1">
+        // Liquid-glass segmented filter by price level (c-seg); a filter, so plain toggle buttons rather than tabs.
+        <div role="group" aria-label="Filter by price" className="c-seg">
           {(["all", ...levels] as const).map((l) => {
             const on = level === l;
             return (
@@ -94,7 +96,7 @@ export function StepBundle({
                 aria-pressed={on}
                 aria-label={l === "all" ? "All prices" : TIER_MARK[l].label}
                 onClick={() => setLevel(l)}
-                className={`min-h-9 min-w-12 rounded-full px-3.5 text-footnote font-bold tracking-[0.04em] [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none ${on ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                className="min-w-12 text-footnote font-bold tracking-[0.04em] outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {l === "all" ? "All" : TIER_MARK[l].mark}
               </button>
@@ -107,7 +109,7 @@ export function StepBundle({
           <h3 className="text-muted-foreground mb-3 text-footnote font-semibold tracking-[0.02em]">Best sellers</h3>
           {/* One per row on phones (room for name, price and what's in it), two across from sm up. */}
           <div className={top.filter(inLevel).length > 1 ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid gap-3"}>
-            {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
+            {top.filter(inLevel).map((m) => <PopularOption key={m.publicId} meal={m} biggest={m.publicId === biggest} categoryLabels={catalog.categoryLabels} active={selections.mealSizeId === m.publicId} onPick={() => pick(m)} />)}
             {top.some((m) => m.publicId === selections.mealSizeId) && eligibleAddons.length > 0 && (
               <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} categoryIcons={catalog.categoryIcons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
             )}
@@ -120,6 +122,7 @@ export function StepBundle({
           <div className="grid gap-3 sm:grid-cols-2">
             {trials.map((m) => (
               <MealOption
+                biggest={m.publicId === biggest}
                 key={m.publicId}
                 meal={m}
                 active={selections.mealSizeId === m.publicId}
@@ -134,11 +137,12 @@ export function StepBundle({
       {/* No tier headings: every size in one grid, highest price first; each card carries its $ / $$ / $$$ mark. */}
       {weekly.length > 0 && (
         <section>
-        <h3 className="text-muted-foreground mb-3 text-footnote font-semibold tracking-[0.02em]">All plans</h3>
+        <h3 className="text-muted-foreground mb-3 text-footnote font-semibold tracking-[0.02em]">All sizes</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {weekly.map((m) => (
             <Fragment key={m.publicId}>
               <MealOption
+                biggest={m.publicId === biggest}
                 meal={m}
                
                 active={selections.mealSizeId === m.publicId}
@@ -202,11 +206,17 @@ function useCardLabel() {
   return (meal: ClientMealSizeView) => `${meal.name}, ${money(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal))} per tiffin`;
 }
 
-function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
+/** The biggest meal's pill, beside "Best seller": the crown says it at a glance, the word says it to everyone. */
+const BiggestPill = () => <Pill tone="vac" size="sm" icon={<Crown aria-hidden className="size-3.5 fill-current" strokeWidth={1.75} />} className="w-fit">Biggest meal</Pill>;
+
+function PopularOption({ meal, active, categoryLabels, onPick, biggest = false }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void; biggest?: boolean }) {
   const cardLabel = useCardLabel();
   return (
-    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4">
-      <Pill tone="up" size="sm" className="w-fit">Best seller</Pill>
+    <OptionCard badge selected={active} onClick={onPick} aria-label={`${cardLabel(meal)}${biggest ? ", our biggest meal" : ""}`} className="flex min-w-0 flex-col gap-2 p-4">
+      <span className="flex flex-wrap gap-1.5">
+        <Pill tone="up" size="sm" className="w-fit">Best seller</Pill>
+        {biggest ? <BiggestPill /> : null}
+      </span>
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-title-3 leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
@@ -234,11 +244,13 @@ function MealOption({
   categoryLabels,
   trial = false,
   onPick,
+  biggest = false,
 }: {
   meal: ClientMealSizeView;
   active: boolean;
   categoryLabels?: Record<string, string>;
   trial?: boolean;
+  biggest?: boolean;
   onPick: () => void;
 }) {
   const cardLabel = useCardLabel();
@@ -263,10 +275,11 @@ function MealOption({
     );
   }
   return (
-    <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-3 p-4">
+    <OptionCard badge selected={active} onClick={onPick} aria-label={`${cardLabel(meal)}${biggest ? ", our biggest meal" : ""}`} className="flex min-w-0 flex-col gap-3 p-4">
+      {biggest ? <BiggestPill /> : null}
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 flex-col items-start gap-1">
-          <span className="text-title-3 leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
+          <span className="text-title-3 leading-tight font-semibold tracking-[-0.025em] text-balance">{meal.name}</span>
           {/* Always on its own line under the name, on every card, so long names and short ones line up; the days a
               limited size is made on follow the kcal. */}
           <span className="flex flex-wrap items-center gap-1">
