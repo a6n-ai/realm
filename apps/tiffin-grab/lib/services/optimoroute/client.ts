@@ -1,7 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { optimoRouteApiKey } from "./config";
-import { withConcurrency as runLimited } from "@/lib/concurrency";
+import { withConcurrency as runLimited } from "@foundry/commons/util/concurrency";
 
 const log = createLogger("optimoroute.client");
 

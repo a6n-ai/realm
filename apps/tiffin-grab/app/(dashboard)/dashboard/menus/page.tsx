@@ -7,7 +7,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuWeekRow, MenuWeekRowsSkeleton } from "./menu-history-card";
 import { NewWeekButton } from "./new-week-card";
-import { addDaysIso, todayInZone } from "@/lib/dates";
+import { addDaysIso, todayInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 /**

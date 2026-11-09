@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { isWorkers } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 const NAMES = ["Poppins-Bold.ttf", "Poppins-Medium.ttf", "tiffin.png", "mark.png"] as const;
 

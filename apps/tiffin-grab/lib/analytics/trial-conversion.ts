@@ -7,7 +7,7 @@
  * Whether a trial converted is decided in SQL by the same "later plan" rule the Renewals desk uses.
  */
 import { ratePct } from "@/lib/money";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 export const TRIAL_CONVERT_WINDOW_DAYS = 14;
 

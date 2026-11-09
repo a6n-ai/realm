@@ -7,7 +7,7 @@ import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { TripTimeline } from "@/components/wizard/trip-timeline";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
-import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });

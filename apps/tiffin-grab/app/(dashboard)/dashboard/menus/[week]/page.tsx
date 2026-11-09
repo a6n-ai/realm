@@ -13,7 +13,7 @@ import { MenuBuilder, MenuBuilderSkeleton } from "../menu-builder";
 import { MenuReminderButton } from "./menu-reminder-button";
 import { menuSidesService } from "@/lib/services/menu-sides.service";
 import type { Slot } from "../menu-grid";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 type Params = Promise<{ week: string }>;
 

@@ -6,7 +6,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { type DayOfWeek } from "@/lib/menu/delivery-days";
 import { resolveDeliveryMeal, type MealResolveCache, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 /** Swaps of one trip that apply to one eating day; NULL for_date means the trip's own date. */
 export function swapsForDay<T extends { deliveryId: bigint; forDate: string | null }>(

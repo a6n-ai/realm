@@ -6,7 +6,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
-import { addDaysIso, daysBetween } from "@/lib/dates";
+import { addDaysIso, daysBetween } from "@foundry/commons/util/dates";
 
 /** Days before the last tiffin that a reminder goes out. */
 export const RENEWAL_REMINDER_DAYS = [5, 1] as const;

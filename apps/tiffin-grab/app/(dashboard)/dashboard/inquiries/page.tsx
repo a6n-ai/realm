@@ -13,7 +13,7 @@ import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
 import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { loadOwnerOptions, loadSourceOptions } from "@/lib/list/facet-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
@@ -35,7 +35,7 @@ import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
-import { dayRange } from "@/lib/dates";
+import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 

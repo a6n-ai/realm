@@ -7,7 +7,7 @@
 // Workers: isolates share nothing, so the counts live in otp_throttle.
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { isWorkers } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const PER_IP = 6;

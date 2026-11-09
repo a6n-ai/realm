@@ -1,6 +1,6 @@
 import { ActivityIcon, CalendarCheckIcon, CalendarClockIcon, PackageIcon, PauseIcon, ReceiptIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
 import type { StatCardItem } from "@/components/dashboard/stat-cards";
-import { daysBetween } from "@/lib/dates";
+import { daysBetween } from "@foundry/commons/util/dates";
 
 export type StageInput = {
   /** orderDisplayStatus: payment_review / rejected overlay the order status. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decorateDay, kpis, navScope, rangeFor, parseAssumptions, periodKey, rollup, ZERO_ASSUMPTIONS } from "../profitability";
-import { isoDateInZone, mondayOfIso } from "@/lib/dates";
+import { isoDateInZone, mondayOfIso } from "@foundry/commons/util/dates";
 
 describe("parseAssumptions", () => {
   it("treats missing or negative values as zero", () => {

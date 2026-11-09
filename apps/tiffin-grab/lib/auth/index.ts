@@ -23,7 +23,8 @@ import {
   sendInviteLinkEmail,
   sendVerification,
 } from "./security-events";
-import { isWorkers, trustedIpHeaders } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
+import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { recordAudit } from "@/lib/services/session-service";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";

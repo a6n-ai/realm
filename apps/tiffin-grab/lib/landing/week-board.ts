@@ -1,10 +1,10 @@
 import { formatDateOnly } from "@/lib/format/datetime";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { buildPosterColumns, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import { popularThisWeek } from "@/lib/menu/customer-week";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 export const dateOf = (weekStart: string, offset: number) => formatDateOnly(addDaysIso(weekStart, offset), { mode: "short" });
 

@@ -1,6 +1,6 @@
 import { round2 } from "@foundry/commons/util/money";
 import { type ProfitRow } from "./profitability";
-import { addDaysIso, mondayIndex } from "@/lib/dates";
+import { addDaysIso, mondayIndex } from "@foundry/commons/util/dates";
 
 export type ProfitWeek = { start: string; end: string; row: ProfitRow };
 

@@ -40,7 +40,7 @@ import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
 import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;

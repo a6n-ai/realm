@@ -10,7 +10,7 @@ import { Sheet } from "./sheet";
 import { Segmented } from "./tabs";
 import { cn, FONT } from "./cn";
 import { useSwipePages } from "./use-swipe-pages";
-import { isoToUtcDate } from "@/lib/dates";
+import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const monthOf = (iso: string) => iso.slice(0, 7);
 const shift = (month: string, n: number) => {

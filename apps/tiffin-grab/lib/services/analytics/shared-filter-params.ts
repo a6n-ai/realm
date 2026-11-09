@@ -6,7 +6,7 @@
 
 import { zonedRangeMs } from "@/lib/analytics/drill";
 import { currentMonth, monthBounds } from "@/lib/analytics/profitability";
-import { isoToUtcDate } from "@/lib/dates";
+import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone", "org"] as const;
 

@@ -4,7 +4,7 @@ import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { buildPosterColumns, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 function weekRangeLabel(weekStart: string): string {
   return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(addDaysIso(weekStart, 6), { mode: "short" })}`;

@@ -3,7 +3,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders } from "@/db/schema";
 import type { Tx } from "./deliveries.service";
-import { utcIso } from "@/lib/dates";
+import { utcIso } from "@foundry/commons/util/dates";
 
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
 

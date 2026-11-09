@@ -4,7 +4,7 @@ import { DATE_PRESETS, presetRange } from "@/lib/analytics/date-presets";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { parseAnalyticsFilters } from "../../shared-filters";
 import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 
 const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
 

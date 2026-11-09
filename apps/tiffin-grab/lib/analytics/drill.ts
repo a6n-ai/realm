@@ -7,7 +7,7 @@
  * list already understands, so a click lands on the same days.
  */
 
-import { dayRange } from "@/lib/dates";
+import { dayRange } from "@foundry/commons/util/dates";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
 type Visible = "all" | string[];

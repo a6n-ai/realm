@@ -2,7 +2,7 @@
 
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { runInBackground } from "@/lib/runtime/background";
+import { runInBackground } from "@foundry/cloud/background";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, mealSizeItems, orders } from "@/db/schema";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -22,7 +22,7 @@ import { rolesByCategory, type MealItemRole } from "@/lib/menu/side-rules";
 import { AppError } from "@foundry/commons";
 import { menuService } from "@/lib/services/menu.service";
 import { foldPicks, plainDishName, popularSince, popularThisWeek } from "@/lib/menu/customer-week";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 export type PickGrid = {
   cells: GridCell[];

@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/dates";
+import { DAY_MS } from "@foundry/commons/util/dates";
 import { couponStatus } from "@/lib/coupons/status";
 import { Suspense } from "react";
 import { and, asc, desc, eq, ilike, notInArray, or } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { coupons, customerGroups } from "@/db/schema";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";

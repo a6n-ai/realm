@@ -34,7 +34,7 @@ import {
   type SlotDropdownOption,
 } from "@/lib/menu/slot-dropdown";
 import { swapAmounts } from "@/lib/menu/swap-rules";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PopularDishes, type RowChoice } from "./choice-row";
 import type { ActionSheetProps } from "./types";
 

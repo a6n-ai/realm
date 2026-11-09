@@ -6,7 +6,7 @@ import { cn, FONT, FOCUS, SPRING } from "./cn";
 import { Reason } from "./notice";
 import { StatusDot, StatusRing } from "./status";
 import { STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
-import { addDaysIso, isoToUtcDate, mondayIndex } from "@/lib/dates";
+import { addDaysIso, isoToUtcDate, mondayIndex } from "@foundry/commons/util/dates";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });

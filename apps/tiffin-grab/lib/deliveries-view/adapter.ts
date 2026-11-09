@@ -3,7 +3,7 @@ import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
-import { daysBetween } from "@/lib/dates";
+import { daysBetween } from "@foundry/commons/util/dates";
 
 type PauseLimits = { maxPauses: number | null; maxPauseDaysTotal: number | null; maxPauseStretchDays: number | null };
 type PauseUsage = { count: number; daysUsed: number };

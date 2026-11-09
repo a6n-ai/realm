@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { delta } from "../delta";
 import { KITCHEN_WEEK_ROWS, buildKitchenWeek } from "../kitchen-week";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 describe("delta", () => {
   it("relative percent, good up", () => expect(delta(106, 100)).toEqual({ text: "+6%", tone: "ok", word: "Above" }));

@@ -1,4 +1,4 @@
-import { addDaysIso, mondayIndex } from "@/lib/dates";
+import { addDaysIso, mondayIndex } from "@foundry/commons/util/dates";
 
 /** Mon–Sun weeks, oldest first, from the first to the last row's week; days without a row are null so columns stay aligned. */
 export function dayGrid<T extends { date: string }>(rows: T[]): (T | null)[][] {

@@ -1,6 +1,6 @@
 import { zonedRangeMs } from "@/lib/analytics/drill";
 import { addMonths, currentMonth, monthBounds } from "@/lib/analytics/profitability";
-import { addDaysIso, isoDateInZone } from "@/lib/dates";
+import { addDaysIso, isoDateInZone } from "@foundry/commons/util/dates";
 
 export const DATE_PRESETS = [
   { key: "this-month", label: "This month" },

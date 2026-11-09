@@ -25,7 +25,7 @@ import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
-import { addDaysIso, isWeekendDay, utcIso } from "@/lib/dates";
+import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 
 const log = createLogger("deliveries.service");
 

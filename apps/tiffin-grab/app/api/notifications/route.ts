@@ -1,4 +1,4 @@
-import { readBody } from "@/lib/http/read-json";
+import { readBody } from "@foundry/commons/util/http";
 import { handler, problem } from "@foundry/routes";
 import { currentUserId, getFeed, markRead } from "@/lib/notifications/feed";
 

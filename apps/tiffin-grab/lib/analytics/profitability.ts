@@ -7,7 +7,7 @@ import { round2 } from "@foundry/commons/util/money";
  * Revenue excludes tax; cash is what the customer paid, tax included.
  */
 import { zonedRangeMs } from "@/lib/analytics/drill";
-import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type ProfitabilityAssumptions = {
   kitchenCostPerTiffin: number;

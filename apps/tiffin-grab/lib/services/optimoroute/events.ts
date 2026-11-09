@@ -9,7 +9,7 @@ import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-lab
 import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";
 import { getOptimoRouteConfig } from "./config";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 // OptimoRoute has no webhooks. get_events is its cursor feed of driver-app events for live
 // routes; polling it gives the same result (the OptimoPoller Durable Object alarm calls pollOnce). The cursor and a single-runner lock

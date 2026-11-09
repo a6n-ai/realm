@@ -34,7 +34,7 @@ import {
   getRepeatCustomers,
   getStatusMix,
 } from "@/lib/services/analytics/complaints.service";
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 const TICKETS = "/dashboard/tickets";

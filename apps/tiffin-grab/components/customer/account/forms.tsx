@@ -1,6 +1,6 @@
 "use client";
 
-import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
+import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
@@ -8,7 +8,7 @@ import type { Area, CropperProps } from "react-easy-crop";
 import { BellIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
 import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { getCroppedBlob } from "@/lib/images/crop";
+import { getCroppedBlob } from "@foundry/design-system/image-crop";
 import {
   updateMyContact,
   updateMyPreferences,

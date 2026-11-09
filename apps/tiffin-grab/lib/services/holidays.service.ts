@@ -13,7 +13,7 @@ import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE, MOVED_AWAY } from "./pause-state";
-import { isRealDate } from "@/lib/dates";
+import { isRealDate } from "@foundry/commons/util/dates";
 
 const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");

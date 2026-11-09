@@ -3,7 +3,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteConfig, optimoRouteApiKey } from "./config";
 import { pushDay, type PushResult } from "./push";
 import { pullRoutes, type PullResult } from "./pull";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 export type SyncMode = "push" | "pull" | "both";
 

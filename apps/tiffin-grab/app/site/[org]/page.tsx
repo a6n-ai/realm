@@ -14,7 +14,7 @@ import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, ReferBand, Story } from "@
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadLandingPromos } from "@/lib/landing/promos";
@@ -32,7 +32,7 @@ import "@/components/landing/styles/home.css";
 import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 export async function generateMetadata(): Promise<Metadata> {
   const catalog = await loadCatalogSnapshot();

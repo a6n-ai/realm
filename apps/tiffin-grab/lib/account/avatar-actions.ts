@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { filesService } from "@/lib/files";
 import { usersService } from "@/lib/services/users.service";
-import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@/lib/images/validate";
+import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@foundry/commons/util/image-sniff";
 import { ownAvatarKey } from "@/lib/images/avatar-key";
 
 // Avatars go through the shared file store (S3 in prod), like dish photos. They

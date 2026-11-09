@@ -1,6 +1,6 @@
 "use client";
 
-import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
+import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
@@ -14,6 +14,7 @@ import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/k
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { newOrderHref } from "@/lib/wizard/selections";
+import { publicAuthUrl } from "@/lib/runtime/env.public";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the
@@ -170,13 +171,13 @@ export function IdentityGate({
             <GoogleOneTap
               start={() =>
                 // Loaded on demand: One Tap's own auth client stays out of the page bundle.
-                import("@/lib/auth/one-tap").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
+                import("@foundry/auth-ui/google-one-tap-prompt").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
                   onSignedIn: () => {
                     router.replace(newOrderHref(new URLSearchParams(window.location.search)), { transitionTypes: ["nav-forward"] });
                     router.refresh();
                   },
                   onRefused: () => setOauthError("signup_disabled"),
-                }))
+                }, publicAuthUrl()))
               }
             />
             {/* requestSignUp: this is the one page that may create an account (see lib/auth). */}

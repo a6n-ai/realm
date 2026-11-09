@@ -5,10 +5,10 @@ import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import type { PlanView } from "@/lib/deliveries-view/adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
-import { isoToUtcDate } from "@/lib/dates";
+import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => isoToUtcDate(iso);

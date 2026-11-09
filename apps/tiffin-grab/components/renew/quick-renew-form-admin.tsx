@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { useQuickRenew, type QuickRenewProps } from "./use-quick-renew";
-import { isoToLocalDate, localIso } from "@/lib/dates";
+import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 

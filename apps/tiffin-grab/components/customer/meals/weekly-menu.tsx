@@ -8,10 +8,10 @@ import type { DeliveryStatus } from "@/lib/deliveries/status";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { makeCategoryLook } from "./category-look";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
-import { isoToUtcDate } from "@/lib/dates";
+import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const at = (iso: string) => isoToUtcDate(iso);
 const WEEKDAY = new Intl.DateTimeFormat("en-CA", { weekday: "long", timeZone: "UTC" });

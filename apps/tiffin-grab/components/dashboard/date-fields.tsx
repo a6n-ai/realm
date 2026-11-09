@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { TimePicker } from "@/components/reui/time-picker";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { isoToLocalDate, localIso } from "@/lib/dates";
+import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 // Phones keep the native control: its OS sheet beats any popover at that size. Desktop
 // gets the ReUI/shadcn pickers. Every field speaks the same string the native input does

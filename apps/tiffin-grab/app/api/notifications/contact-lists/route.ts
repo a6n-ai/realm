@@ -1,4 +1,4 @@
-import { readJson } from "@/lib/http/read-json";
+import { readJson } from "@foundry/commons/util/http";
 import { handler, json, problem } from "@foundry/routes";
 import { createContactList, createContactListSchema, listContactLists } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";

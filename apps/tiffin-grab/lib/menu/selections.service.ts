@@ -21,7 +21,7 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { type DayOfWeek } from "@/lib/menu/delivery-days";
 import { rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;

@@ -1,4 +1,4 @@
-import { isWorkers } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 import { ValidationError } from "@foundry/commons";
 
 type Images = {

@@ -1,4 +1,4 @@
-import { readBody } from "@/lib/http/read-json";
+import { readBody } from "@foundry/commons/util/http";
 import { handler, json } from "@foundry/routes";
 import { getAudienceCount } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";

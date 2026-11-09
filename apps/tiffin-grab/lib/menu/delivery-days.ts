@@ -1,4 +1,4 @@
-import { isWeekendDay } from "@/lib/dates";
+import { isWeekendDay } from "@foundry/commons/util/dates";
 /** The one week order (Monday first) and day type; every list of weekdays in the app derives from these. */
 export const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type DayOfWeek = (typeof WEEK_DAYS)[number];

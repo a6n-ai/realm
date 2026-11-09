@@ -3,7 +3,7 @@ import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTif
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { NO_WEEKEND_DISH, dayAllowed, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
-import { daysBetween, isWeekendDay, utcIso } from "@/lib/dates";
+import { daysBetween, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 
 
 /** First plan delivery weekday after the plan's last delivery: where "Move to end" sends a tiffin. */

@@ -10,7 +10,7 @@ import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service
 import { menuService } from "@/lib/services/menu.service";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 /** `bare`: show the label alone (a yes/no item, not a count). */

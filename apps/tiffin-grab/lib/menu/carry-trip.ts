@@ -4,7 +4,7 @@
 // Pure / DB-free — shared by client preview and server reschedule so they cannot disagree.
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { DayOfWeek } from "./delivery-days";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 
 /**

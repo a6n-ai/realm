@@ -22,7 +22,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { createOrder } from "@/lib/services/orders.service";
 import { assertLocalDb } from "../db/is-local-db";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 // The password below is committed to a public repo — never seed it anywhere but local.
 assertLocalDb("seed-qa-plans");

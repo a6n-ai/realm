@@ -1,6 +1,6 @@
 import { parseIsoDateUtc } from "@foundry/commons";
 import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 
 /** ISO dates of the eating days a trip carries; a carried day maps to the trip's date plus its weekday offset from the trip's own day. */

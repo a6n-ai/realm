@@ -1,7 +1,7 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Line } from "@/lib/billing/pay-lines";
 import type { Receipt } from "./receipt";
-import { isoToUtcDate } from "@/lib/dates";
+import { isoToUtcDate } from "@foundry/commons/util/dates";
 import { formatMoney } from "@/lib/format/money";
 
 // Built-in Helvetica only covers WinAnsi: no U+2212 minus, so negatives use "-".

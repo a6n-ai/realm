@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultWeek, parseWeekParam, splitAgenda, type AgendaDot } from "../week";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 describe("week helpers", () => {
   it("mondayOfIso snaps any day to its Monday", () => {

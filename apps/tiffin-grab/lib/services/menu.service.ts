@@ -11,7 +11,7 @@ import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import type { PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id));
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));

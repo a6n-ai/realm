@@ -2,13 +2,13 @@
 
 import { useMemo } from "react";
 import { Truck } from "lucide-react";
-import { EventCalendar } from "@/components/reui/event-calendar/event-calendar";
-import { EventCalendarContent } from "@/components/reui/event-calendar/event-calendar-content";
-import { EventCalendarNav } from "@/components/reui/event-calendar/event-calendar-nav";
-import type { CalendarEvent } from "@/components/reui/event-calendar/event-calendar-types";
+import { EventCalendar } from "@foundry/design-system/event-calendar/event-calendar";
+import { EventCalendarContent } from "@foundry/design-system/event-calendar/event-calendar-content";
+import { EventCalendarNav } from "@foundry/design-system/event-calendar/event-calendar-nav";
+import type { CalendarEvent } from "@foundry/design-system/event-calendar/event-calendar-types";
 import { STATUS_COLOR, STATUS_LABEL, deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
 import type { Agenda, AgendaDot } from "@/lib/deliveries-view/week";
-import { addDaysIso, isoToLocalDate, localIso } from "@/lib/dates";
+import { addDaysIso, isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 // The statuses staff set in the delivery status dropdown, which splits two the customer strip merges:
 // past the cutoff an unconfirmed day is awaiting confirmation, and a driver-failed drop is not an admin hold.

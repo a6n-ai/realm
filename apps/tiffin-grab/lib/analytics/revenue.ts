@@ -7,7 +7,7 @@ import { round2 } from "@foundry/commons/util/money";
  */
 
 import { type Grain } from "./profitability";
-import { eachDate, isoDateInZone } from "@/lib/dates";
+import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 
 /** Display order for the payments-by-status breakdown. Unknown statuses sort last. */

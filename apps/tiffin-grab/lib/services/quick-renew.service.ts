@@ -15,7 +15,7 @@ import { dropOffsFor } from "./address-drop-off.service";
 import { checkoutHolidayDates } from "./holidays.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
 import { appToday, earliestPlanStart, planStartDays } from "./start-date";
-import { utcIso } from "@/lib/dates";
+import { utcIso } from "@foundry/commons/util/dates";
 
 export type { QuickRenewData };
 

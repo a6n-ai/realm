@@ -1,5 +1,5 @@
 "use client";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import "react-phone-number-input/style.css";
 
 import { zodResolver } from "@hookform/resolvers/zod";

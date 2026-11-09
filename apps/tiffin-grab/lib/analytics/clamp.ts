@@ -1,4 +1,4 @@
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 
 /**
  * Trims a calendar range (YYYY-MM-DD, app timezone) so it ends today. Null when the whole range is still ahead.

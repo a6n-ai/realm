@@ -1,7 +1,7 @@
 "use client";
 
-import { initials } from "@/lib/format/initials";
-import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
+import { initials } from "@foundry/ui/initials";
+import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import type { ComponentType } from "react";
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -23,7 +23,7 @@ import {
   DialogFooter,
 } from "@foundry/ui/dialog";
 import { Button } from "@foundry/ui/button";
-import { getCroppedBlob } from "@/lib/images/crop";
+import { getCroppedBlob } from "@foundry/design-system/image-crop";
 import { updateMyAvatar, removeMyAvatar } from "@/lib/account/avatar-actions";
 
 const MAX_BYTES = 2 * 1024 * 1024;

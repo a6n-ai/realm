@@ -2,7 +2,7 @@ import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { coveredDates } from "./coverage";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 export type Trip = typeof deliveries.$inferSelect;
 

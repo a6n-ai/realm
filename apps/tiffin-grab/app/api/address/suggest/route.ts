@@ -1,4 +1,4 @@
-import { readJson } from "@/lib/http/read-json";
+import { readJson } from "@foundry/commons/util/http";
 import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";

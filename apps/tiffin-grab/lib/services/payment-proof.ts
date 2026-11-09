@@ -3,7 +3,7 @@ import { ValidationError } from "@foundry/commons";
 import { securedFilesService } from "@/lib/files";
 import { protectThumbnail } from "@/lib/files/protect-thumbnail";
 import type { PaymentProof } from "@/db/schema";
-import { sniffUploadImage } from "@/lib/images/validate";
+import { sniffUploadImage } from "@foundry/commons/util/image-sniff";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 

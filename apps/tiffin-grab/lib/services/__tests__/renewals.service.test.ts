@@ -12,7 +12,7 @@ const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
 const { countRenewals, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
 const { messageSuppression } = await import("@/db/schema");
-const { addDaysIso: addDays } = await import("@/lib/dates");
+const { addDaysIso: addDays } = await import("@foundry/commons/util/dates");
 
 async function reset() {
   await db.delete(walletLedger);

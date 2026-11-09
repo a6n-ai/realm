@@ -14,7 +14,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { carryingTrips } from "./trip-lookup";
 import { fullDayName } from "./coverage";
 import { isContainerCategory } from "./format-tu";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type GridCell = {
   day: DayOfWeek;

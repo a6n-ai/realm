@@ -1,6 +1,6 @@
 import { MON_FRI } from "@/lib/menu/delivery-days";
 import { cutoffMsFor, isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
-import { utcIso } from "@/lib/dates";
+import { utcIso } from "@foundry/commons/util/dates";
 
 /**
  * The day start-date rules count from, as UTC midnight: today's calendar date in the

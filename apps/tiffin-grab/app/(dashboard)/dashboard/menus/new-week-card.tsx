@@ -7,7 +7,7 @@ import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { WeekStartPicker } from "./week-start-picker";
 import { upsertWeek } from "./actions";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 
 /**
  * Starting a week is a rare decision, so it is a button that opens the Monday picker instead of a

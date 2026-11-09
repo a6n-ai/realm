@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { DAY_LABELS } from "@/lib/menu/poster";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/services/menu-sides.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { setDaySide, setSideDefault } from "./actions";

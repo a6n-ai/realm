@@ -1,4 +1,4 @@
-import { readBody } from "@/lib/http/read-json";
+import { readBody } from "@foundry/commons/util/http";
 import { handler, json, problem } from "@foundry/routes";
 import { saveEmailTemplateSchema } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";

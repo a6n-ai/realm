@@ -8,7 +8,7 @@ import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { TripTimeline } from "../trip-timeline";
-import { isWeekendDay } from "@/lib/dates";
+import { isWeekendDay } from "@foundry/commons/util/dates";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";

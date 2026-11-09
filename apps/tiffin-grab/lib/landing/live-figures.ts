@@ -1,6 +1,6 @@
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import { effectivePrice } from "@/lib/pricing";
 import { formatMoney } from "@/lib/format/money";
 

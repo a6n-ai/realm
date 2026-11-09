@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Calendar } from "@foundry/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { isoToLocalDate, localIso } from "@/lib/dates";
+import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 function label(value: string): string {
   if (!value) return "Pick a Monday";

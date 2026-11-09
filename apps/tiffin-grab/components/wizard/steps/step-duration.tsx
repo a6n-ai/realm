@@ -13,7 +13,7 @@ import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/sta
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";
-import { addDaysIso, utcIso } from "@/lib/dates";
+import { addDaysIso, utcIso } from "@foundry/commons/util/dates";
 
 export function StepDuration({
   catalog,

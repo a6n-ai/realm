@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fillDefaultMonth, withListDates } from "@/lib/list/default-month";
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 
 const TZ = "America/Toronto";
 const now = Date.parse("2035-03-10T16:00:00Z");

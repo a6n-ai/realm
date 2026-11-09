@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/dates";
+import { DAY_MS } from "@foundry/commons/util/dates";
 import { Suspense, type ReactNode } from "react";
 import {
   ActivityIcon,

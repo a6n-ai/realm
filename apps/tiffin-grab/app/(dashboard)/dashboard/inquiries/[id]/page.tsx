@@ -22,7 +22,7 @@ import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
-import { dayRange } from "@/lib/dates";
+import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 export default function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {

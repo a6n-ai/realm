@@ -1,6 +1,6 @@
 import { periodKey, periodLabel, type Grain } from "./profitability";
 import { grainForRange } from "./revenue";
-import { eachDate, isoToUtcDate } from "@/lib/dates";
+import { eachDate, isoToUtcDate } from "@foundry/commons/util/dates";
 
 const TIP_DAY = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const TICK_DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });

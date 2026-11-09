@@ -1,7 +1,7 @@
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { earliestPlanStart, firstStartOnOrAfter, validateStartDate } from "@/lib/services/start-date";
 import { assertTrialStart, earliestTrialIso } from "@/lib/trial/schedule";
-import { utcIso } from "@/lib/dates";
+import { utcIso } from "@foundry/commons/util/dates";
 
 /**
  * The start for a Stripe order that was paid after it was placed: the date the customer

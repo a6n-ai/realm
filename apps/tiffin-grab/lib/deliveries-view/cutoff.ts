@@ -1,4 +1,4 @@
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 // The cutoff is shown once in the header from live settings, never per trip: a trip's
 // stored cutoffAt is a snapshot and would show a stale hour after an admin changes it.

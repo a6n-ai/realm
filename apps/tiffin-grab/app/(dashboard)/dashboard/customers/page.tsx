@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/dates";
+import { DAY_MS } from "@foundry/commons/util/dates";
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
@@ -13,7 +13,7 @@ import { countPendingInvites, listCustomersPage, type CustomerSortColumn } from 
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {

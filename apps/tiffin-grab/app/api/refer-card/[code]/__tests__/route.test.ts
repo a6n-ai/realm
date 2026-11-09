@@ -6,7 +6,7 @@ const workers = vi.hoisted(() => ({ on: false }));
 const assetsFetch = vi.hoisted(() => vi.fn());
 
 // "\u002f" keeps these mock paths from matching vitest.config TOUCHES_DB: everything touching a DB is mocked here.
-vi.mock("@/lib/runtime/platform", () => ({ isWorkers: () => workers.on }));
+vi.mock("@foundry/commons/runtime/platform", () => ({ isWorkers: () => workers.on }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: { ASSETS: { fetch: assetsFetch } } }) }));
 vi.mock("@/lib/services\u002freferrals\u002eservice", () => ({ findReferrerByCode: async () => ({ firstName: "Asha" }) }));
 vi.mock("@/lib/services\u002fapp-settings\u002eservice", () => ({

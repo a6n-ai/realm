@@ -23,7 +23,7 @@ import {
 } from "@/lib/services/customer-deliveries.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type OrderWeek = {
   plan: PlanView;

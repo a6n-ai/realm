@@ -5,7 +5,7 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
 import { menuService } from "@/lib/services/menu.service";
 import { FooterLink } from "./footer-link";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 const STATE = {

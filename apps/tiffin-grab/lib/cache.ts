@@ -1,6 +1,6 @@
 import { LruTier, TieredCache } from "@foundry/commons";
 import { KvTier } from "./cache/kv-tier";
-import { isWorkers } from "./runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 /**
  * A read-through cache tiered L1 in-process LRU → L2 Workers KV (Workers only; Node

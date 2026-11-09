@@ -11,7 +11,7 @@ import { db } from "@/db/client";
 import { dishCategories, dishes, menuItems, menuWeeks } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 

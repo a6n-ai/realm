@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createWake } from "../../cloudflare/wake.js";
-import { isWorkers } from "./platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 type Workflow = { create(o: { id: string; params: { at: number } }): Promise<unknown> };
 

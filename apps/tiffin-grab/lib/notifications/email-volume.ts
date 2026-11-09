@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/dates";
+import { DAY_MS } from "@foundry/commons/util/dates";
 import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { EmailEventType, EmailStream } from "@relay/email";
 import { db } from "@/db/client";

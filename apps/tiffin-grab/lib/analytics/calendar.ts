@@ -1,4 +1,4 @@
-import { addDaysIso, mondayIndex } from "@/lib/dates";
+import { addDaysIso, mondayIndex } from "@foundry/commons/util/dates";
 /**
  * Mon–Sun rows covering `from`..`to` (inclusive calendar days, already in the app timezone).
  * Days outside the range are null, so a month starting on a Thursday has blank Mon–Wed cells.

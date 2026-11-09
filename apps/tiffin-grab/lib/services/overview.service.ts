@@ -13,7 +13,7 @@ import { buildAnalyticsScope } from "./analytics/metrics/scope";
 import { getOrdersOverview } from "./orders-stats.service";
 import { getAppSettings } from "./app-settings.service";
 import { dayStartMs } from "./today.service";
-import { addDaysIso, DAY_MS } from "@/lib/dates";
+import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 
 type Visible = "all" | string[];
 

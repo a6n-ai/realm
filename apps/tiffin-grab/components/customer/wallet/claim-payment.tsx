@@ -11,7 +11,7 @@ import { Label } from "@foundry/ui/label";
 import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";

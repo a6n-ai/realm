@@ -31,8 +31,8 @@ import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
-import { withConcurrency } from "@/lib/concurrency";
-import { DAY_NAMES, mondayOfIso } from "@/lib/dates";
+import { withConcurrency } from "@foundry/commons/util/concurrency";
+import { DAY_NAMES, mondayOfIso } from "@foundry/commons/util/dates";
 
 // Under the pool size (10) so the other loaders on the labels page still get connections.
 const ROW_CONCURRENCY = 6;

@@ -4,7 +4,7 @@ import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { getKitchenWeek, getKitchenWeekDishes } from "@/lib/services/overview.service";
 import { KitchenWeekView } from "./kitchen-week-view";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 const md = (iso: string) => formatDateOnly(iso, { mode: "short" });

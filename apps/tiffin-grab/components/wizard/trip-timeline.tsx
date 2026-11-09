@@ -5,7 +5,7 @@ import { Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const FULL: Record<DayOfWeek, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };

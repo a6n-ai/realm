@@ -9,7 +9,7 @@ import { WeekTimeline } from "../week-timeline";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 import { useSheetUi } from "./sheet-ui";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;

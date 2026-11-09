@@ -16,7 +16,7 @@ import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
 import { getDeliveriesDaily } from "./operations.service";
 import { localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
-import { eachDate, isoDateInZone } from "@/lib/dates";
+import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 export type { TrialConversionStats };
 export { TRIAL_CONVERT_WINDOW_DAYS };

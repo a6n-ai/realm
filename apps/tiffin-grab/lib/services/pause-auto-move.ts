@@ -11,7 +11,7 @@ import { getAppSettings } from "./app-settings.service";
 import { holidayForOrderDate } from "./holiday-dates";
 import { orderDeliveryDaySet, rescheduleDelivery, type Tx } from "./deliveries.service";
 import { MOVED_AWAY, isLapsedPause, lapsedPauseDates, type Reader } from "./pause-state";
-import { isWeekendDay, utcIso } from "@/lib/dates";
+import { isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 
 const log = createLogger("pause-auto-move");
 

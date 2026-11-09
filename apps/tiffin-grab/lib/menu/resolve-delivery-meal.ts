@@ -17,7 +17,7 @@ import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
 import { loadSideRules, rolesAfterSwaps, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.

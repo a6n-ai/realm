@@ -2,7 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { isWorkers } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 import * as schema from "./schema";
 import { isProduction } from "@/lib/runtime/env";
 

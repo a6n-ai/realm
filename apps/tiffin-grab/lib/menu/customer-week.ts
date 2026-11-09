@@ -1,7 +1,7 @@
 import type { MealSlot } from "./meal-types";
 import { WEEK_DAYS } from "./delivery-days";
 import type { PosterItem } from "./poster";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 import { deliveryTripState } from "@/lib/deliveries/status";
 
 /** What this customer has on a menu day, from their own delivery rows. */

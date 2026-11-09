@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/dates";
+import { DAY_MS } from "@foundry/commons/util/dates";
 // Shared by the server service and the "use client" queue. Kept out of any client file:
 // a server module importing a constant from a "use client" file crashes in production.
 

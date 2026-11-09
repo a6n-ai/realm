@@ -1,7 +1,7 @@
 import { and, between, eq, gt, notInArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, discounts, promotions } from "@/db/schema";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 function zoneOffsetMs(ms: number, timezone: string): number {
   const p = Object.fromEntries(

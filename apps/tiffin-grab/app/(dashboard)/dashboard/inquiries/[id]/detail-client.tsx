@@ -13,7 +13,7 @@ import { formatPhone, zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { displayName } from "@/lib/inquiries/display";
 import { formatMoney } from "@/lib/format/money";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { logActivity } from "../actions";
@@ -25,7 +25,7 @@ import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import type { OrderFormInput } from "./order-schema";
-import { daysBetween } from "@/lib/dates";
+import { daysBetween } from "@foundry/commons/util/dates";
 
 type Catalog = {
   plans: { key: string; name: string }[];

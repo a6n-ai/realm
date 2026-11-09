@@ -22,7 +22,7 @@ import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
-import { addDaysIso, mondayOfIso } from "@/lib/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 

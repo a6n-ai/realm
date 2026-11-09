@@ -1,4 +1,4 @@
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 // Scheduled jobs shown in Settings → Scheduled jobs. Client-safe: no server imports.
 //

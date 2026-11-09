@@ -1,8 +1,8 @@
 "use client";
 
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useAppCurrency } from "@/components/app-currency";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { preconnect } from "react-dom";
 import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";

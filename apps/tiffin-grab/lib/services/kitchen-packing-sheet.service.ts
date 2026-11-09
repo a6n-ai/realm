@@ -29,8 +29,8 @@ import { isContainerCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { withConcurrency } from "@/lib/concurrency";
-import { DAY_NAMES } from "@/lib/dates";
+import { withConcurrency } from "@foundry/commons/util/concurrency";
+import { DAY_NAMES } from "@foundry/commons/util/dates";
 
 // Under the pool size (10) so the other loaders on the labels page still get connections.
 const ROW_CONCURRENCY = 6;

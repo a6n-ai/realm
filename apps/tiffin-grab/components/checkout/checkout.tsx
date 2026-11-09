@@ -1,8 +1,8 @@
 "use client";
 
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { toCents } from "@/lib/money";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";

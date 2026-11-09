@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createLogger } from "@foundry/commons/logger";
-import { isWorkers } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 const log = createLogger("outbox-signal");
 

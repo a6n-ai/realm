@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { comingWeekStartIso, subscriptionDeliveryDates, subscriptionTrips, thisWeekStartIso, tripsByWeek } from "../delivery-dates";
-import { mondayOfIso } from "@/lib/dates";
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 

@@ -5,7 +5,7 @@ import { ChartEmpty } from "@/components/analytics/chart-boundary";
 import { DayCard, DayGridView, signedMoney } from "@/components/analytics/day-card";
 import { useFormatMoney } from "@/components/app-currency";
 import { dayGrid } from "@/lib/analytics/day-grid";
-import { addDaysIso, isoToUtcDate, mondayIndex } from "@/lib/dates";
+import { addDaysIso, isoToUtcDate, mondayIndex } from "@foundry/commons/util/dates";
 
 export type ScorecardDay = {
   date: string;

@@ -34,7 +34,7 @@ import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
-import { isWeekendDay, isoToUtcDate, mondayOfIso } from "@/lib/dates";
+import { isWeekendDay, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 // Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
 // only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces

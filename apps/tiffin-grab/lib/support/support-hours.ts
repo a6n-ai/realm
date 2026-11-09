@@ -1,5 +1,5 @@
-import { dateTimeFormat } from "@/lib/intl/date-format";
-import { DAY_NAMES } from "@/lib/dates";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
+import { DAY_NAMES } from "@foundry/commons/util/dates";
 
 import type { DayHours, SupportHours } from "@/db/schema/app";
 

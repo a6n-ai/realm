@@ -1,5 +1,5 @@
 import { humanDate, isPastPause, type Trip, type TripStatus } from "./index";
-import { DAY_NAMES, isoToUtcDate } from "@/lib/dates";
+import { DAY_NAMES, isoToUtcDate } from "@foundry/commons/util/dates";
 
 /** The customer's unit of thought: one eating day, fed by the trip (delivery day) that carries it. */
 export type EatingRow = {

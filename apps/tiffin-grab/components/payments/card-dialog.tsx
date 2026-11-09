@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatMoney } from "@/components/app-currency";
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import type { Appearance, Stripe } from "@stripe/stripe-js";

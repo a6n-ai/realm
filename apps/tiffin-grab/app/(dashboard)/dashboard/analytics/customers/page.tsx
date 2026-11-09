@@ -21,7 +21,7 @@ import {
   getSubscriptionMix,
   getTopCities,
 } from "@/lib/services/analytics/customers.service";
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

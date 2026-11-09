@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@/lib/format/client-error";
+import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@foundry/commons/util/client-error";
 
 type Result = { ok: true; message?: string } | { error: string };
 

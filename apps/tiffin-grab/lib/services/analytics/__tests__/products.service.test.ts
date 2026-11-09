@@ -13,7 +13,7 @@ const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats,
   await import("../products.service");
 const { getDeliveryStatusMix } = await import("../operations.service");
 const { buildSizeTreemap, treemapTotal } = await import("@/lib/analytics/size-treemap");
-const { isoDateInZone } = await import("@/lib/dates");
+const { isoDateInZone } = await import("@foundry/commons/util/dates");
 
 const TZ = "America/Toronto";
 const now = Date.now();

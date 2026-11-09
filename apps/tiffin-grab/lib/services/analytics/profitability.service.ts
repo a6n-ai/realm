@@ -9,7 +9,7 @@ import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./me
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { CAPTURED } from "@/lib/payments/status";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
-import { eachDate, isoDateInZone, utcIso } from "@/lib/dates";
+import { eachDate, isoDateInZone, utcIso } from "@foundry/commons/util/dates";
 
 function isoDate(v: unknown): string {
   if (v instanceof Date) return utcIso(v);

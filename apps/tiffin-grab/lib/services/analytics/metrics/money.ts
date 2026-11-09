@@ -5,7 +5,7 @@ import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@
 import { CAPTURED, PAID } from "@/lib/payments/status";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
-import { isoDateInZone } from "@/lib/dates";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 import { round2 } from "@foundry/commons/util/money";
 
 

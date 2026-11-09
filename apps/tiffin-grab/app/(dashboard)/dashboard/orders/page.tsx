@@ -15,7 +15,7 @@ import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderFormCatalog } from "./order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
@@ -41,7 +41,7 @@ import { and, between } from "@foundry/commons/model/condition";
 import { ordersListHref } from "@/lib/list/orders-drill";
 import { NewOrderSheet } from "./new-order-sheet";
 import { StartMigratedDialog } from "./start-migrated-dialog";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

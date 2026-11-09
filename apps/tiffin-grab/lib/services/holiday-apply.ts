@@ -7,7 +7,7 @@ import { nextDeliveryDateAfter, orderDeliveryDaySet, type OptimoSyncedRow, type 
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { datesInsideOtherPlans } from "./order-window";
 import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
-import { addDaysIso, isRealDate, isWeekendDay } from "@/lib/dates";
+import { addDaysIso, isRealDate, isWeekendDay } from "@foundry/commons/util/dates";
 
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
