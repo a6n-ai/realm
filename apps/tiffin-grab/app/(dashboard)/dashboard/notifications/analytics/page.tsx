@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import { sql } from "drizzle-orm";
-import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
 import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
-import { getNotificationBuckets } from "@/lib/services/analytics/notifications.service";
+import { getChannelCounts, getNotificationBuckets, getStatusCounts } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { notificationLogsHref } from "@/lib/notifications/outcome";
 import { ChartCard } from "@/components/analytics/chart-card";
@@ -12,8 +10,6 @@ import { PartsDonut, SegmentedBar } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 
 const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
-
-const intCount = sql<number>`cast(count(*) as int)`;
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -90,19 +86,11 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function ChannelChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await db
-    .select({ channel: notificationOutbox.channel, n: intCount })
-    .from(notificationOutbox)
-    .where(await createdWhere(searchParams))
-    .groupBy(notificationOutbox.channel);
+  const rows = await getChannelCounts(await createdWhere(searchParams));
   return <SegmentedBar withList parts={rows.map((r) => ({ label: r.channel, value: r.n }))} />;
 }
 
 async function StatusChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await db
-    .select({ status: notificationOutbox.status, n: intCount })
-    .from(notificationOutbox)
-    .where(await createdWhere(searchParams))
-    .groupBy(notificationOutbox.status);
+  const rows = await getStatusCounts(await createdWhere(searchParams));
   return <PartsDonut caption="Notifications" parts={rows.map((r) => ({ label: r.status, value: r.n, tone: STATUS_TONE[r.status] ?? "chart" }))} />;
 }

@@ -1,46 +1,13 @@
 import { pageOffset } from "@/lib/list/pagination";
 import { couponStatus } from "@/lib/coupons/status";
-import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
-import { STAFF_ROLES } from "@/lib/auth/roles";
 import { Suspense } from "react";
-import { and, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
-import { pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { db } from "@/db/client";
-import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
+import { withListDates } from "@/lib/list/default-month";
 import { StaffCodes, StaffCodesSkeleton, type IssuedCode } from "./staff-codes";
 import { requestNow } from "@/lib/dates/request-now";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
-
-const customer = alias(users, "customer");
-const searchUser = alias(users, "search_user");
-const searchOrder = alias(orders, "search_order");
-
-// Redemptions rolled up per coupon. A staff code is used once; a rep daily coupon can be used
-// up to its daily budget, so a plain join would repeat the coupon once per use.
-const uses = db
-  .select({
-    couponId: couponRedemptions.couponId,
-    count: sql<number>`cast(count(*) as int)`.as("use_count"),
-    applied: sql<string>`sum(${couponRedemptions.amountApplied})`.as("applied"),
-    firstUserId: sql<bigint>`min(${couponRedemptions.userId})`.as("first_user_id"),
-    firstOrderId: sql<bigint>`min(${couponRedemptions.orderId})`.as("first_order_id"),
-  })
-  .from(couponRedemptions)
-  .groupBy(couponRedemptions.couponId)
-  .as("uses");
-
-const SORT_COL = {
-  code: coupons.code,
-  amount: coupons.valueAmount,
-  created: coupons.createdAt,
-  expires: coupons.expiresAt,
-} as const;
-
-type StaffCodeSortColumn = keyof typeof SORT_COL;
+import { listCodeIssuers, listStaffCodes, STAFF_CODE_SORT_COLUMNS, type StaffCodeKind, type StaffCodeSortColumn } from "@/lib/services/staff-codes.service";
 
 const TYPE_OPTIONS = [
   { value: "rep_code", label: "Staff code" },
@@ -66,14 +33,10 @@ export default function StaffCodesPage({ searchParams }: { searchParams: SearchP
 async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) {
   const usd = await getMoneyFormatter();
   const sp = await withListDates(await searchParams);
-  const sort: SortState<StaffCodeSortColumn> = parseSort(sp, ["code", "amount", "created", "expires"], { column: "created", dir: "desc" });
+  const sort: SortState<StaffCodeSortColumn> = parseSort(sp, STAFF_CODE_SORT_COLUMNS, { column: "created", dir: "desc" });
   const now = requestNow();
 
-  const staff = await db
-    .select({ publicId: users.publicId, name: users.name, email: users.email })
-    .from(users)
-    .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
-    .orderBy(users.name);
+  const staff = await listCodeIssuers();
 
   const spec: FacetDef[] = [
     { kind: "select", field: "type", label: "Type", options: TYPE_OPTIONS },
@@ -83,98 +46,18 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
   ];
   const { page } = parseFilterState(spec, sp);
 
-  const used = sql`coalesce(${uses.count}, 0)`;
-  const budget = sql`coalesce(${coupons.maxRedemptions}, 1)`;
-  const left = sql`${used} < ${budget}`;
-  const statusWhere: Record<string, SQL | undefined> = {
-    used: sql`${used} >= ${budget}`,
-    unused: and(left, couponLiveSql(now)),
-    expired: and(left, couponExpiredSql(now)),
-    revoked: and(left, eq(coupons.active, false)),
-  };
-
-  const q = sp.q?.trim();
-  const like = `%${q}%`;
-  const type = TYPE_OPTIONS.find((t) => t.value === sp.type)?.value as "rep_code" | "rep_daily" | undefined;
-  const base = and(
-    type ? eq(coupons.kind, type) : inArray(coupons.kind, ["rep_code", "rep_daily"]),
-    epochBoundsWhere(coupons.createdAt, sp),
-    sp.issuer ? eq(users.publicId, sp.issuer) : undefined,
-    q
-      ? or(
-          ilike(coupons.code, like),
-          ilike(users.name, like),
-          ilike(users.email, like),
-          // Any customer or order that used the coupon, not only the first.
-          exists(
-            db
-              .select({ one: sql`1` })
-              .from(couponRedemptions)
-              .innerJoin(searchUser, eq(searchUser.id, couponRedemptions.userId))
-              .innerJoin(searchOrder, eq(searchOrder.id, couponRedemptions.orderId))
-              .where(and(
-                eq(couponRedemptions.couponId, coupons.id),
-                or(ilike(searchUser.name, like), ilike(searchUser.email, like), ilike(searchOrder.publicId, like)),
-              )),
-          ),
-        )
-      : undefined,
-  );
-  // Cards count every status in range; the table also applies the status filter.
-  const where = and(base, sp.status ? statusWhere[sp.status] : undefined);
-
-  const from = () =>
-    db
-      .select({
-        publicId: coupons.publicId,
-        kind: coupons.kind,
-        active: coupons.active,
-        code: coupons.code,
-        amount: coupons.valueAmount,
-        capPct: coupons.capPct,
-        capAmount: coupons.capAmount,
-        maxUses: coupons.maxRedemptions,
-        note: coupons.description,
-        createdAt: coupons.createdAt,
-        expiresAt: coupons.expiresAt,
-        issuerName: users.name,
-        issuerEmail: users.email,
-        uses: uses.count,
-        applied: uses.applied,
-        customerName: customer.name,
-        customerEmail: customer.email,
-        orderPublicId: orders.publicId,
-      })
-      .from(coupons)
-      .innerJoin(users, eq(users.id, coupons.ownerUserId))
-      .leftJoin(uses, eq(uses.couponId, coupons.id))
-      .leftJoin(customer, eq(customer.id, uses.firstUserId))
-      .leftJoin(orders, eq(orders.id, uses.firstOrderId));
-
-  const [rows, [agg], [{ total }]] = await Promise.all([
-    from()
-      .where(where)
-      .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], coupons.id))
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
-    db
-      .select({
-        issued: sql<number>`cast(count(*) as int)`,
-        used: sql<number>`cast(count(*) filter (where ${statusWhere.used}) as int)`,
-        open: sql<number>`cast(count(*) filter (where ${statusWhere.unused}) as int)`,
-        given: sql<string>`coalesce(sum(${uses.applied}), 0)`,
-      })
-      .from(coupons)
-      .innerJoin(users, eq(users.id, coupons.ownerUserId))
-      .leftJoin(uses, eq(uses.couponId, coupons.id))
-      .where(base),
-    db
-      .select({ total: sql<number>`cast(count(*) as int)` })
-      .from(coupons)
-      .innerJoin(users, eq(users.id, coupons.ownerUserId))
-      .leftJoin(uses, eq(uses.couponId, coupons.id))
-      .where(where),
-  ]);
+  const type = TYPE_OPTIONS.find((t) => t.value === sp.type)?.value as StaffCodeKind | undefined;
+  const { rows, agg, total } = await listStaffCodes({
+    now,
+    dates: sp,
+    type,
+    issuer: sp.issuer,
+    q: sp.q,
+    status: sp.status,
+    sort,
+    size: page.size,
+    offset: pageOffset(page.page, page.size),
+  });
 
   const codes: IssuedCode[] = rows.map((c) => {
     const count = c.uses ?? 0;

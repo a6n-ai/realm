@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
-import { currentUserId } from "@/lib/services/session-service";
+import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
 import {
   addGroupMembers,
   createCustomerGroup,
@@ -108,9 +108,9 @@ const idSchema = z.string().trim().min(1);
 
 export async function addGroupMemberAction(groupPublicId: string, userPublicId: string) {
   return run(async () => {
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, idSchema.parse(userPublicId)));
-    if (!u) throw new Error("Customer not found");
-    await addGroupMembers(idSchema.parse(groupPublicId), [u.id]);
+    const userId = await userIdByPublicId(idSchema.parse(userPublicId));
+    if (!userId) throw new Error("Customer not found");
+    await addGroupMembers(idSchema.parse(groupPublicId), [userId]);
     revalidatePath("/dashboard/customer-groups");
   });
 }

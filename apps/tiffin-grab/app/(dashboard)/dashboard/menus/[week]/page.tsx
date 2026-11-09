@@ -1,10 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { asc, eq } from "drizzle-orm";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
-import { db } from "@/db/client";
-import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getMealTypes } from "@/lib/services/app-settings.service";
@@ -58,25 +55,15 @@ async function WeekData({ params }: { params: Params }) {
 
   const [mealTypes, activeDishes, weeks, categories, planRows, sizeItemRows, problems] = await Promise.all([
     getMealTypes(),
-    db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category, planId: plans.publicId })
-      .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId))
-      .where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    menuService.activeDishes(),
     menuService.listWeekMenus(),
     dishCategoriesService.enabledCategories(),
-    db.select({ id: plans.id, publicId: plans.publicId, name: plans.name })
-      .from(plans).where(eq(plans.active, true)),
-    // "N needed" hint + slot list source: every (category, plan) pair any active meal
-    // size's composition actually asks for. Keyed by the ITEM's own planId, not its
-    // parent meal size's — an item can independently target a different plan.
-    db.select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category, planId: mealSizeItems.planId })
-      .from(mealSizeItems)
-      .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
-      .where(eq(mealSizes.active, true)),
+    menuService.activePlans(),
+    menuService.activeSizeItems(),
     result.week.status === "released" ? Promise.resolve([]) : menuService.releaseProblems(weekPublicId),
   ]);
 
-  const dishRows = await db.select({ bigintId: dishes.id, publicId: dishes.publicId }).from(dishes);
-  const byId = new Map(dishRows.map((d) => [d.bigintId, d.publicId]));
+  const byId = await menuService.dishPublicIds();
   const items = result.items.flatMap((i) => {
     const dishId = byId.get(i.dishId);
     return dishId

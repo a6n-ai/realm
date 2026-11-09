@@ -5,7 +5,8 @@ import { inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { coinRate, users } from "@/db/schema";
+import { users } from "@/db/schema";
+import { saveCoinRate as saveCoinRateValue } from "@/lib/services/wallet-balances.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { awardCustomerBroadcast } from "@/lib/services/customer-payouts.service";
 
@@ -19,10 +20,7 @@ const coinRateSchema = z.object({
 export async function saveCoinRate(input: unknown) {
   await requireAdmin();
   const data = coinRateSchema.parse(input);
-  await db.insert(coinRate).values({
-    currency: data.currency,
-    valuePerCoin: data.valuePerCoin.toFixed(4),
-  });
+  await saveCoinRateValue(data.currency, data.valuePerCoin);
   revalidatePath(PATH, "layout");
 }
 

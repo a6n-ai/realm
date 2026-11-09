@@ -23,3 +23,13 @@ export async function getNotificationBuckets(created?: SQL): Promise<Notificatio
     .where(created);
   return row;
 }
+
+const intCount = sql<number>`cast(count(*) as int)`;
+
+export async function getChannelCounts(created?: SQL): Promise<{ channel: string; n: number }[]> {
+  return db.select({ channel: notificationOutbox.channel, n: intCount }).from(notificationOutbox).where(created).groupBy(notificationOutbox.channel);
+}
+
+export async function getStatusCounts(created?: SQL): Promise<{ status: string; n: number }[]> {
+  return db.select({ status: notificationOutbox.status, n: intCount }).from(notificationOutbox).where(created).groupBy(notificationOutbox.status);
+}

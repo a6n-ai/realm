@@ -19,9 +19,19 @@ export const balanceSql = (asOf: number = Date.now()) =>
 /** Customers only: staff and soft-deleted accounts never appear on a balance sheet. */
 const customerOnly = and(eq(users.role, "user"), ne(users.status, "deleted"));
 
-export async function currentRate(): Promise<number | null> {
+export async function latestCoinRateValue(): Promise<string | null> {
   const [row] = await db.select({ v: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1);
-  return row ? Number(row.v) : null;
+  return row?.v ?? null;
+}
+
+export async function currentRate(): Promise<number | null> {
+  const v = await latestCoinRateValue();
+  return v == null ? null : Number(v);
+}
+
+/** Rates are append-only: the newest row is the rate in force. */
+export async function saveCoinRate(currency: string, valuePerCoin: number): Promise<void> {
+  await db.insert(coinRate).values({ currency, valuePerCoin: valuePerCoin.toFixed(4) });
 }
 
 const money = (coins: number, rate: number | null) => (rate == null ? null : Number((coins * rate).toFixed(2)));

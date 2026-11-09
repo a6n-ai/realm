@@ -1,15 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/coupons.service";
+import { userIdByPublicId } from "@/lib/services/session-service";
 import { repAllowanceFor, repAllowanceZone } from "@/lib/services/rep-allowance";
 
 export type RepCodeAllowance = { capAmount: number; capPct: number; left: number; total: number; validityHours: number };
@@ -19,13 +18,11 @@ export type RepCodeAllowance = { capAmount: number; capPct: number; left: number
 async function ownAllowance() {
   await requireStaff();
   const publicId = (await getSession())?.user?.id;
-  const [staff] = publicId
-    ? await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1)
-    : [];
+  const staffId = publicId ? await userIdByPublicId(publicId) : null;
   const allowance = publicId ? repAllowanceFor(await getDiscountPolicy(), publicId) : null;
-  if (!staff || !allowance) throw new ValidationError("Staff discounts are not enabled for your account");
+  if (!staffId || !allowance) throw new ValidationError("Staff discounts are not enabled for your account");
   const istDate = zonedDateIso(Date.now(), await repAllowanceZone());
-  return { staffId: staff.id, allowance, istDate };
+  return { staffId, allowance, istDate };
 }
 
 const view = (a: { capAmount: number; capPct: number; dailyUses: number; codeValidityHours: number }, used: number): RepCodeAllowance => ({

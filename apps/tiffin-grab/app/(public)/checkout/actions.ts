@@ -7,7 +7,7 @@ import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
 import { getSession } from "@/lib/auth/session";
-import { currentUserId } from "@/lib/services/session-service";
+import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 import { usersService } from "@/lib/services/users.service";
@@ -156,16 +156,11 @@ async function paymentAmount(paymentPublicId: string): Promise<string> {
  * Otherwise cancels the customer's unpaid card orders, which releases the coins they hold for the new order.
  */
 async function replaceUnpaidCheckouts(userPublicId: string): Promise<boolean> {
-  const [{ eq }, { db }, { users }, { hasChargeInFlight, cancelUnpaidCheckouts }] = await Promise.all([
-    import("drizzle-orm"),
-    import("@/db/client"),
-    import("@/db/schema"),
-    import("@/lib/services/stripe-expiry"),
-  ]);
-  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
-  if (!u) return false;
-  if (await hasChargeInFlight(u.id)) return true;
-  await cancelUnpaidCheckouts(u.id);
+  const { hasChargeInFlight, cancelUnpaidCheckouts } = await import("@/lib/services/stripe-expiry");
+  const userId = await userIdByPublicId(userPublicId);
+  if (!userId) return false;
+  if (await hasChargeInFlight(userId)) return true;
+  await cancelUnpaidCheckouts(userId);
   return false;
 }
 

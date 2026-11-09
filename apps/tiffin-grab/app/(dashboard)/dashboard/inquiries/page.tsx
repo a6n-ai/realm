@@ -5,10 +5,11 @@ import { ClipboardListIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, Trending
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
-import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
+import { deliveryZones, inquiries } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
 import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
@@ -95,19 +96,9 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function loadSheetData() {
-  const [{ defaultCountry, timezone }, sourceRows, subRows, zones, catalog] = await Promise.all([
+  const [{ defaultCountry, timezone }, sources, zones, catalog] = await Promise.all([
     getAppSettings(),
-    db
-      .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
-      .from(leadSources),
-    db
-      .select({
-        sourceId: leadSubsources.sourceId,
-        key: leadSubsources.key,
-        label: leadSubsources.label,
-        active: leadSubsources.active,
-      })
-      .from(leadSubsources),
+    listActiveLeadSources(),
     db
       .select({
         name: deliveryZones.name,
@@ -119,16 +110,6 @@ async function loadSheetData() {
       .where(eq(deliveryZones.active, true)),
     loadCatalogSnapshot(),
   ]);
-
-  const sources = sourceRows
-    .filter((s) => s.active)
-    .map((s) => ({
-      key: s.key,
-      label: s.label,
-      subs: subRows
-        .filter((sub) => sub.active && sub.sourceId === s.id)
-        .map((sub) => ({ key: sub.key, label: sub.label })),
-    }));
 
   const interestCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),

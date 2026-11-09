@@ -510,6 +510,34 @@ export const menuService = {
     });
   },
 
+  /** Dishes the menu builder can offer: active only, with their plan. */
+  async activeDishes() {
+    return db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category, planId: plans.publicId })
+      .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId))
+      .where(eq(dishes.active, true)).orderBy(asc(dishes.name));
+  },
+
+  async activePlans() {
+    return db.select({ id: plans.id, publicId: plans.publicId, name: plans.name }).from(plans).where(eq(plans.active, true));
+  },
+
+  /**
+   * "N needed" hint + slot list source: every (category, plan) pair any active meal size's composition
+   * actually asks for. Keyed by the ITEM's own planId, not its parent meal size's — an item can
+   * independently target a different plan.
+   */
+  async activeSizeItems() {
+    return db.select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category, planId: mealSizeItems.planId })
+      .from(mealSizeItems)
+      .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
+      .where(eq(mealSizes.active, true));
+  },
+
+  async dishPublicIds(): Promise<Map<bigint, string>> {
+    const rows = await db.select({ bigintId: dishes.id, publicId: dishes.publicId }).from(dishes);
+    return new Map(rows.map((d) => [d.bigintId, d.publicId]));
+  },
+
   async weekWithItems(weekPublicId: string) {
     const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) return { week: undefined, items: [] };

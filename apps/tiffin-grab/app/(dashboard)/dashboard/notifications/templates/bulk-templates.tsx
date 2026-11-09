@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { isNotNull } from "drizzle-orm";
 import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
-import { db } from "@/db/client";
 import { requireAdmin } from "@/lib/auth/guards";
-import { campaign } from "@/db/schema";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
+import { listSystemCampaigns } from "@/lib/notifications/lists";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 
@@ -21,10 +19,7 @@ export async function BulkTemplates() {
   // Seeded on first view so staff can review the copy before the first send.
   await ensureMenuReminder();
   const [rows, { timezone }] = await Promise.all([
-    db
-      .select({ publicId: campaign.publicId, name: campaign.name, sentAt: campaign.sentAt, counts: campaign.counts })
-      .from(campaign)
-      .where(isNotNull(campaign.systemKey)),
+    listSystemCampaigns(),
     getAppSettings(),
   ]);
 

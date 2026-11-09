@@ -1,35 +1,20 @@
 import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import Link from "next/link";
-import { and, count, isNotNull, notInArray, sql } from "drizzle-orm";
 import { ListIcon, UsersIcon } from "lucide-react";
-import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { columnResolver, conditionToSql } from "@foundry/database";
 import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
-import { db } from "@/db/client";
-import { contactList, customerGroups } from "@/db/schema";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { contactList } from "@/db/schema";
+import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { ContactListFromSegment } from "@relay/engine/ui/contact-list-from-segment";
 import { ContactListManualAdd } from "@relay/engine/ui/contact-list-manual-add";
+import { contactListStats, listContactLists, CONTACT_LIST_SORT_COLUMNS, type ContactListSortColumn } from "@/lib/notifications/lists";
 import { ContactListsTable, ContactListsTableSkeleton, type ContactListRow } from "./contact-lists-table";
 
 export const dynamic = "force-dynamic";
-
-// Group-backed lists are rewritten from the group on every sync, so edits here would be lost.
-const notGroupBacked = notInArray(
-  contactList.publicId,
-  db.select({ id: customerGroups.contactListPublicId }).from(customerGroups).where(isNotNull(customerGroups.contactListPublicId)),
-);
-
-const SORT_COL = {
-  name: contactList.name,
-  memberCount: contactList.memberCount,
-  createdAt: contactList.createdAt,
-} as const;
-
-type ContactListSortColumn = keyof typeof SORT_COL;
 
 const SPEC: FacetDef[] = [
   { kind: "search", fields: ["name"] },
@@ -94,11 +79,7 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const where = and(notGroupBacked, epochBoundsWhere(contactList.createdAt, await withDefaultMonth(await searchParams)));
-  const [[{ n: listCount }], [{ total }]] = await Promise.all([
-    db.select({ n: count() }).from(contactList).where(where),
-    db.select({ total: sql<number>`cast(coalesce(sum(${contactList.memberCount}), 0) as int)` }).from(contactList).where(where),
-  ]);
+  const { lists: listCount, contacts: total } = await contactListStats(await withDefaultMonth(await searchParams));
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <StatCard label="Lists" value={listCount} icon={ListIcon} />
@@ -119,7 +100,7 @@ function StatsSkeleton() {
 async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withListDates(await searchParams);
 
-  const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {
+  const sort: SortState<ContactListSortColumn> = parseSort(sp, CONTACT_LIST_SORT_COLUMNS, {
     column: "createdAt",
     dir: "desc",
   });
@@ -133,28 +114,8 @@ async function ContactListsData({ searchParams }: { searchParams: SearchParams }
     }),
   );
 
-  const where = and(notGroupBacked, filterWhere);
-  const col = SORT_COL[sort.column];
-  const orderBy = pageOrder(sort.dir, col, contactList.id);
-
-  const [rows, [totalRow], { timezone }] = await Promise.all([
-    db
-      .select({
-        publicId: contactList.publicId,
-        name: contactList.name,
-        consentSource: contactList.consentSource,
-        consentAt: contactList.consentAt,
-        consentNote: contactList.consentNote,
-        memberCount: contactList.memberCount,
-        segmentDef: contactList.segmentDef,
-        createdAt: contactList.createdAt,
-      })
-      .from(contactList)
-      .where(where)
-      .orderBy(...orderBy)
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
-    db.select({ n: count() }).from(contactList).where(where),
+  const [{ rows, total }, { timezone }] = await Promise.all([
+    listContactLists({ filter: filterWhere, sort, size: page.size, offset: pageOffset(page.page, page.size) }),
     getAppSettings(),
   ]);
 
@@ -165,7 +126,7 @@ async function ContactListsData({ searchParams }: { searchParams: SearchParams }
       spec={SPEC}
       rows={tableRows}
       sort={sort}
-      total={Number(totalRow?.n ?? 0)}
+      total={total}
       page={page.page}
       size={page.size}
       timeZone={timezone}

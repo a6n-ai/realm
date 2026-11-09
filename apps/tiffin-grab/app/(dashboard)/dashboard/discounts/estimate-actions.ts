@@ -1,10 +1,8 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
 import { db } from "@/db/client";
-import { customerAddresses, deliveryFrequencies, mealSizes, orderAddons, orders, plans, users } from "@/db/schema";
 import { requirePermission, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
@@ -12,6 +10,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { assertOrderVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { findRenewableOrder, readOrderPrefill } from "@/lib/services/order-prefill.service";
+import { userIdByPublicId } from "@/lib/services/session-service";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { orderFormCatalog } from "../orders/order-form-catalog";
 import type { CustomerHit } from "../_leads/match-actions";
@@ -39,9 +39,9 @@ export async function createQuoteLink(query: string): Promise<{ code: string } |
   const qs = quoteQuery(new URLSearchParams(query));
   if (!qs) return { error: "Nothing to link to yet" };
   const publicId = (await getSession())?.user?.id;
-  const [staff] = publicId ? await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1) : [];
+  const staffId = publicId ? await userIdByPublicId(publicId) : null;
   try {
-    return { code: await createShortLink(db, { target: `/subscribe${qs}`, createdBy: staff?.id ?? null }) };
+    return { code: await createShortLink(db, { target: `/subscribe${qs}`, createdBy: staffId }) };
   } catch {
     return { error: "Couldn't create a short link" };
   }
@@ -70,17 +70,7 @@ export async function renewPrefill(customerPublicId: string): Promise<ActionResu
     await requirePermission({ order: ["read"] });
     const visible = await resolveSessionVisibleOrgIds(await getSession());
     if (visible !== "all" && visible.length === 0) throw new ValidationError("This customer has no earlier plan you can see");
-    const [last] = await db
-      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
-      .from(orders)
-      .innerJoin(users, eq(orders.userId, users.id))
-      .where(and(
-        eq(users.publicId, customerPublicId),
-        ne(orders.status, "cancelled"),
-        visible === "all" ? undefined : inArray(orders.organizationId, visible),
-      ))
-      .orderBy(desc(orders.startDate), desc(orders.createdAt))
-      .limit(1);
+    const last = await findRenewableOrder(customerPublicId, visible);
     if (!last) throw new ValidationError("This customer has no earlier plan to renew");
     return { ...(await prefillFromOrder(last.publicId)), deploymentId: last.deploymentId };
   });
@@ -89,45 +79,10 @@ export async function renewPrefill(customerPublicId: string): Promise<ActionResu
 type OrderPrefill = { customer: CustomerHit; prefill: Partial<OrderFormInput>; addressPublicId: string | null };
 
 async function prefillFromOrder(orderPublicId: string): Promise<OrderPrefill> {
-    const [o] = await db
-      .select({
-        userPublicId: users.publicId,
-        fullName: users.name,
-        phone: users.phone,
-        email: users.email,
-        planKey: plans.key,
-        mealSizeId: mealSizes.publicId,
-        frequencyKey: deliveryFrequencies.key,
-        eatingDays: orders.eatingDays,
-        persons: orders.persons,
-        mealSlots: orders.mealSlots,
-        includeSaturday: orders.includeSaturday,
-        includeSunday: orders.includeSunday,
-        durationWeeks: orders.durationWeeks,
-        trialLength: orders.trialLength,
-        addressLine: orders.addressLine,
-        city: orders.city,
-        postalCode: orders.postalCode,
-        orderId: orders.id,
-        // Only a still-saved address can be re-picked; an archived one falls back to the typed fields.
-        addressPublicId: customerAddresses.publicId,
-      })
-      .from(orders)
-      .leftJoin(customerAddresses, and(eq(orders.addressId, customerAddresses.id), isNull(customerAddresses.archivedAt)))
-      .innerJoin(users, eq(orders.userId, users.id))
-      .innerJoin(plans, eq(orders.planId, plans.id))
-      .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-      .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-      .where(eq(orders.publicId, orderPublicId))
-      .limit(1);
+    const o = await readOrderPrefill(orderPublicId);
     if (!o) throw new ValidationError("This order has no customer account to estimate for");
     const trial = o.trialLength != null;
-    // A trial has no add-ons and leaves the size empty, so nothing to carry.
-    const addons = trial ? [] : await db
-      .select({ key: orderAddons.addonKey, qty: orderAddons.qty })
-      .from(orderAddons)
-      .where(eq(orderAddons.orderId, o.orderId))
-      .orderBy(asc(orderAddons.addonKey));
+    const { addons } = o;
     return {
       customer: { publicId: o.userPublicId, fullName: o.fullName, phone: o.phone, email: o.email },
       addressPublicId: o.addressPublicId ?? null,

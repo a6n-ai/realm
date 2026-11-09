@@ -9,10 +9,11 @@ import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
-import { coupons, orders, users } from "@/db/schema";
+import { coupons, orders } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
+import { userIdByPublicId } from "@/lib/services/session-service";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -43,8 +44,7 @@ import { quoteTrial } from "@/lib/trial/quote";
 async function actingStaffId(): Promise<bigint | null> {
   const publicId = (await getSession())?.user?.id;
   if (!publicId) return null;
-  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-  return row?.id ?? null;
+  return userIdByPublicId(publicId);
 }
 
 export type RepCouponInfo =

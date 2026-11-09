@@ -2,15 +2,13 @@ import { isAdmin } from "@/lib/auth/roles";
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
 import { formatMoney, zonedDateIso } from "@foundry/commons";
-import { db } from "@/db/client";
-import { deliveryFrequencies, deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
-import { and as sqlAnd, eq, inArray } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { loadOwnerOptions } from "@/lib/list/facet-options";
+import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
 import { countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders } from "@/lib/orders/queries";
 import { redirect } from "next/navigation";
@@ -314,25 +312,11 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     lookOutOnly ? { column: "flagged", dir: "desc" } : { column: "created", dir: "desc" },
   );
 
-  const planOptions = await db
-    .select({ value: plans.key, label: plans.name })
-    .from(plans)
-    .orderBy(plans.name);
-
   const session = await getSession();
   const visible = await resolveSessionVisibleOrgIds(session);
-  const [sizeOptions, zoneOptions, orgOptions, ownerOptions, frequencyOptions, { timezone }] = await Promise.all([
-    db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
-    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones)
-      .where(sqlAnd(eq(deliveryZones.active, true), visible === "all" ? undefined : inArray(deliveryZones.organizationId, visible)))
-      .orderBy(deliveryZones.name),
-    visible === "all"
-      ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
-      : visible.length > 1
-        ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
-        : [],
+  const [{ planOptions, sizeOptions, zoneOptions, orgOptions, frequencyOptions }, ownerOptions, { timezone }] = await Promise.all([
+    loadOrderFilterOptions(visible),
     loadOwnerOptions(),
-    db.select({ value: deliveryFrequencies.key, label: deliveryFrequencies.name }).from(deliveryFrequencies).orderBy(deliveryFrequencies.name),
     getAppSettings(),
   ]);
   const spec = buildOrdersSpec({ planOptions, sizeOptions, zoneOptions, orgOptions, ownerOptions, frequencyOptions });
@@ -387,33 +371,13 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots, planKeys] = await Promise.all([
+  const [{ defaultCountry, currency }, sources, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
-    db
-      .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
-      .from(leadSources),
-    db
-      .select({
-        sourceId: leadSubsources.sourceId,
-        key: leadSubsources.key,
-        label: leadSubsources.label,
-        active: leadSubsources.active,
-      })
-      .from(leadSubsources),
+    listActiveLeadSources(),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     dishCategoriesService.planKeysByCategoryKey(),
   ]);
-
-  const sources = sourceRows
-    .filter((s) => s.active)
-    .map((s) => ({
-      key: s.key,
-      label: s.label,
-      subs: subRows
-        .filter((sub) => sub.active && sub.sourceId === s.id)
-        .map((sub) => ({ key: sub.key, label: sub.label })),
-    }));
 
   const orderCatalog = orderFormCatalog(catalog);
 

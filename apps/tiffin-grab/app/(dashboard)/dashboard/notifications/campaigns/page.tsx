@@ -1,27 +1,18 @@
 import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
-import { and, count, desc, isNull } from "drizzle-orm";
-import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { columnResolver, conditionToSql } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
 import { NewCampaignButtons } from "./new-campaign-buttons";
-import { db } from "@/db/client";
-import { campaign, contactList } from "@/db/schema";
+import { campaign } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { withListDates } from "@/lib/list/default-month";
 import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listCampaigns, listContactListChoices, CAMPAIGN_SORT_COLUMNS, type CampaignSortColumn } from "@/lib/notifications/lists";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
 import { awsRegion } from "@/lib/runtime/env";
-
-const SORT_COL = {
-  name: campaign.name,
-  status: campaign.status,
-  createdAt: campaign.createdAt,
-} as const;
-
-type CampaignSortColumn = keyof typeof SORT_COL;
 
 const SPEC: FacetDef[] = [
   { kind: "search", fields: ["name"] },
@@ -104,48 +95,16 @@ async function SesQuotaCard() {
 async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await withListDates(await searchParams);
 
-  const sort: SortState<CampaignSortColumn> = parseSort(sp, ["name", "status", "createdAt"], {
+  const sort: SortState<CampaignSortColumn> = parseSort(sp, CAMPAIGN_SORT_COLUMNS, {
     column: "createdAt",
     dir: "desc",
   });
   const { condition, page } = parseFilterState(SPEC, sp);
-  // System campaigns (menu reminder) live on their own tab.
-  const where = and(
-    conditionToSql(condition, columnResolver({ name: campaign.name, status: campaign.status, createdAt: campaign.createdAt })),
-    isNull(campaign.systemKey),
-  );
+  const filter = conditionToSql(condition, columnResolver({ name: campaign.name, status: campaign.status, createdAt: campaign.createdAt }));
 
-  const col = SORT_COL[sort.column];
-  const orderBy = pageOrder(sort.dir, col, campaign.id);
-
-  const [rows, [totalRow], lists, { timezone }] = await Promise.all([
-    db
-      .select({
-        publicId: campaign.publicId,
-        name: campaign.name,
-        channels: campaign.channels,
-        status: campaign.status,
-        scheduledAt: campaign.scheduledAt,
-        sentAt: campaign.sentAt,
-        counts: campaign.counts,
-        createdAt: campaign.createdAt,
-      })
-      .from(campaign)
-      .where(where)
-      .orderBy(...orderBy)
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
-    db.select({ n: count() }).from(campaign).where(where),
-    db
-      .select({
-        publicId: contactList.publicId,
-        name: contactList.name,
-        consentSource: contactList.consentSource,
-        consentAt: contactList.consentAt,
-        memberCount: contactList.memberCount,
-      })
-      .from(contactList)
-      .orderBy(desc(contactList.createdAt)),
+  const [{ rows, total }, lists, { timezone }] = await Promise.all([
+    listCampaigns({ filter, sort, size: page.size, offset: pageOffset(page.page, page.size) }),
+    listContactListChoices(),
     getAppSettings(),
   ]);
 
@@ -154,7 +113,7 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
       spec={SPEC}
       rows={rows as CampaignRow[]}
       sort={sort}
-      total={Number(totalRow?.n ?? 0)}
+      total={total}
       page={page.page}
       size={page.size}
       lists={lists}

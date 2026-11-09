@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
-import { leadSources, leadSubsources } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { deliveryFrequencies, deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Option } from "@foundry/design-system";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 
@@ -25,4 +25,22 @@ export async function loadSourceOptions(): Promise<{ sources: Option[]; subsourc
     sources: s.map((r) => ({ value: r.value, label: r.label })),
     subsources: ss.map((r) => ({ value: r.value, label: r.label, parent: r.parentKey })),
   };
+}
+
+/** Orders-list filter options: plans, standard meal sizes, frequencies, and the zones/organizations the caller can see. */
+export async function loadOrderFilterOptions(visible: "all" | string[]) {
+  const [planOptions, sizeOptions, zoneOptions, orgOptions, frequencyOptions] = await Promise.all([
+    db.select({ value: plans.key, label: plans.name }).from(plans).orderBy(plans.name),
+    db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
+    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones)
+      .where(and(eq(deliveryZones.active, true), visible === "all" ? undefined : inArray(deliveryZones.organizationId, visible)))
+      .orderBy(deliveryZones.name),
+    visible === "all"
+      ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
+      : visible.length > 1
+        ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
+        : [],
+    db.select({ value: deliveryFrequencies.key, label: deliveryFrequencies.name }).from(deliveryFrequencies).orderBy(deliveryFrequencies.name),
+  ]);
+  return { planOptions, sizeOptions, zoneOptions, orgOptions, frequencyOptions };
 }

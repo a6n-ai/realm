@@ -4,10 +4,10 @@ import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIc
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { AdminOnly, requireStaff } from "@/lib/auth/guards";
-import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
 import { countPendingInvites, listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
@@ -233,32 +233,12 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewCustomerAction() {
   await requireStaff();
 
-  const [{ defaultCountry }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ defaultCountry }, sources, catalog, slots] = await Promise.all([
     getAppSettings(),
-    db
-      .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
-      .from(leadSources),
-    db
-      .select({
-        sourceId: leadSubsources.sourceId,
-        key: leadSubsources.key,
-        label: leadSubsources.label,
-        active: leadSubsources.active,
-      })
-      .from(leadSubsources),
+    listActiveLeadSources(),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
   ]);
-
-  const sources = sourceRows
-    .filter((s) => s.active)
-    .map((s) => ({
-      key: s.key,
-      label: s.label,
-      subs: subRows
-        .filter((sub) => sub.active && sub.sourceId === s.id)
-        .map((sub) => ({ key: sub.key, label: sub.label })),
-    }));
 
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),

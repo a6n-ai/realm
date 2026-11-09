@@ -4,9 +4,10 @@ import { savePct } from "@/lib/pricing/discounts";
 import { eq } from "drizzle-orm";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
+import { deliveryZones } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -41,12 +42,9 @@ export type QuickAddData = {
 export async function loadQuickAddData(): Promise<QuickAddData> {
   await requireStaff();
 
-  const [{ defaultCountry, currency, timezone }, sourceRows, subRows, zones, catalog, slots, planKeys] = await Promise.all([
+  const [{ defaultCountry, currency, timezone }, sources, zones, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
-    db.select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active }).from(leadSources),
-    db
-      .select({ sourceId: leadSubsources.sourceId, key: leadSubsources.key, label: leadSubsources.label, active: leadSubsources.active })
-      .from(leadSubsources),
+    listActiveLeadSources(),
     db
       .select({ name: deliveryZones.name, postalPrefixes: deliveryZones.postalPrefixes, slotWindow: deliveryZones.slotWindow, active: deliveryZones.active })
       .from(deliveryZones)
@@ -55,14 +53,6 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     dishCategoriesService.enabledCategories(),
     dishCategoriesService.planKeysByCategoryKey(),
   ]);
-
-  const sources = sourceRows
-    .filter((s) => s.active)
-    .map((s) => ({
-      key: s.key,
-      label: s.label,
-      subs: subRows.filter((sub) => sub.active && sub.sourceId === s.id).map((sub) => ({ key: sub.key, label: sub.label })),
-    }));
 
   return {
     defaultCountry,

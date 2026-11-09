@@ -1,7 +1,5 @@
 import { Suspense } from "react";
-import { desc } from "drizzle-orm";
-import { db } from "@/db/client";
-import { coinRate } from "@/db/schema";
+import { latestCoinRateValue } from "@/lib/services/wallet-balances.service";
 import {
   getAppSettings,
   getCoinEarnPct,
@@ -26,8 +24,8 @@ export default function WalletSettingsPage() {
 }
 
 async function WalletSettingsData() {
-  const [[latestRate], { currency }, maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
-    db.select({ valuePerCoin: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1),
+  const [latestRate, { currency }, maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
+    latestCoinRateValue(),
     getAppSettings(),
     getMaxWalletBalance(),
     getCoinEarnPct(),
@@ -39,7 +37,7 @@ async function WalletSettingsData() {
     <div className="grid gap-6">
       <CoinRateForm
         currency={currency}
-        current={latestRate ? { valuePerCoin: latestRate.valuePerCoin } : null}
+        current={latestRate != null ? { valuePerCoin: latestRate } : null}
         onSave={saveCoinRate}
       />
       <EarnPctForm current={earnPct} />

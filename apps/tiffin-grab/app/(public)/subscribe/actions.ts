@@ -15,6 +15,7 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
 import { couponsService } from "@/lib/services/coupons.service";
+import { userIdByPublicId } from "@/lib/services/session-service";
 import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
@@ -156,11 +157,7 @@ async function quote(
   // higher total than the preview promised. An anonymous/phone-only cart stays
   // userId=null — those gates are then decided server-side at order time.
   const session = await getSession();
-  let userId: bigint | null = null;
-  if (session?.user?.id) {
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    userId = u?.id ?? null;
-  }
+  const userId = session?.user?.id ? await userIdByPublicId(session.user.id) : null;
 
   const best = await couponsService.resolveBestCoupons({
     subtotal: postCatalog,

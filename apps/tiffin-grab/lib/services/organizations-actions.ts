@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
+import { userIdByPublicId } from "./session-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -29,8 +30,8 @@ export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; erro
 async function resolveActingUserId(): Promise<bigint | null> {
   const session = await getSession();
   if (session?.user.id) {
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    if (row) return row.id;
+    const id = await userIdByPublicId(session.user.id);
+    if (id) return id;
   }
   const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
   return sys?.id ?? null;
