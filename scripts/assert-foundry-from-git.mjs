@@ -7,33 +7,12 @@ import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PACKAGES = [
-  "ai",
-  "auth",
-  "auth-ui",
-  "clover",
-  "commons",
-  "coupons",
-  "crm",
-  "database",
-  "design-system",
-  "doordash",
-  "email",
-  "eslint-config",
-  "google-reviews",
-  "order-tracking",
-  "payments",
-  "places",
-  "realtime",
-  "routes",
-  "storage",
-  "themes",
-  "uber-eats",
-  "ui",
-  "wallet",
-];
-
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const PACKAGES = Object.keys({ ...rootPkg.dependencies, ...rootPkg.devDependencies })
+  .filter((dep) => dep.startsWith("@foundry/") && dep !== "@foundry/realtime-worker")
+  .map((dep) => dep.slice("@foundry/".length));
 
 for (const name of PACKAGES) {
   const real = realpathSync(join(root, "node_modules/@foundry", name));
