@@ -62,7 +62,7 @@ import { round2 } from "@foundry/discounts";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertStartNotHoliday } from "./holiday-dates";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
@@ -70,7 +70,6 @@ import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
-import { assertPauseAllowed } from "./pause-limits.service";
 import { appToday, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
@@ -92,18 +91,6 @@ import { quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { isProduction } from "@/lib/runtime/env";
 
 const log = createLogger("orders.service");
-
-// True when a Postgres unique-violation (23505) hit the one-open-pause partial
-// index. drizzle wraps the driver error, so the real PostgresError (with code +
-// constraint_name) sits on .cause; postgres.js names the field constraint_name.
-function isOpenPauseConflict(e: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-  const err = e as PgErr;
-  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-  return layers.some(
-    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_unique"),
-  );
-}
 
 // A transaction handle (or the base db) — payments + their ledger credit are
 // written inside the same tx as the order they settle.
@@ -1783,118 +1770,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // External API call, deliberately outside the tx — see walletService.award above for the
     // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.
     await deleteFromOptimoRouteBestEffort(cancelledRows);
-  }
-
-  // Delegates the actual row-marking to pauseRange (which validates the window and does its own
-  // locked, cutoff-aware update). The order flips to "paused" only if every future original ended
-  // up paused — a window narrower than the subscription leaves the order "active" with some rows
-  // paused and others still scheduled.
-  // assertPauseAllowed runs BEFORE pauseRange so limit/overlap violations ("already paused",
-  // "pause limit reached", etc.) surface ahead of pauseRange's own date-format/order validation —
-  // both throw ValidationError so callers can't tell the difference, but it keeps the limits check
-  // authoritative over a window that would otherwise be silently accepted.
-  // Indefinite pauses use the order's LAST delivery date as the until-date sentinel (until_date is
-  // NOT NULL in subscription_pauses) — getPauseUsage counts those days toward cumulative usage by design.
-  async pause(publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> {
-    const order = await this.read(publicId);
-    if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
-    if (order.status !== "active") throw new ValidationError(`Cannot pause an order that is ${order.status}`);
-    const actorId = await this.currentUserId();
-
-    let until = window.until;
-    if (window.indefinite) {
-      const [last] = await db.select({ d: sql<string>`max(${deliveries.deliveryDate})` })
-        .from(deliveries).where(eq(deliveries.orderId, order.id));
-      until = last?.d ?? window.from;
-    }
-    // assertPauseAllowed is a fast-path UX check only — it reads-then-writes with no lock, so
-    // two concurrent pause requests can both pass it. The subscription_pauses_one_open_unique
-    // partial unique index is the real concurrency backstop: it makes a second OPEN pause row
-    // for this order impossible at the DB level. A losing concurrent request surfaces here as a
-    // 23505 unique violation, which we map to the same "already paused" error assertPauseAllowed
-    // would have thrown had it seen the winner's row in time. pauseRange already ran by this
-    // point, but its per-delivery update is a no-op on rows the winner already paused, so the
-    // loser leaves no inconsistent delivery state behind.
-    await assertPauseAllowed(order.id, window.from, until, window.indefinite ?? false);
-    await pauseRange(publicId, window.from, until);
-
-    try {
-      await db.insert(subscriptionPauses).values({
-        orderId: order.id,
-        fromDate: window.from,
-        untilDate: until,
-        isIndefinite: window.indefinite ?? false,
-        createdBy: actorId,
-      });
-    } catch (e) {
-      if (isOpenPauseConflict(e)) throw new ValidationError("already paused — resume first");
-      throw e;
-    }
-
-    const [remaining] = await db.select({ id: deliveries.id }).from(deliveries)
-      .where(and(
-        eq(deliveries.orderId, order.id),
-        isNull(deliveries.makeupForDeliveryId),
-        gt(deliveries.cutoffAt, Date.now()),
-        ne(deliveries.status, "paused"),
-      ))
-      .limit(1);
-
-    // A pause window narrower than the subscription leaves future deliveries scheduled, so
-    // the ORDER stays active — but the customer did pause something. The log write used to
-    // sit behind this early return, which meant every partial pause was invisible.
-    const full = !remaining;
-    const note = `${window.from} → ${until}${window.indefinite ? " (indefinite)" : ""}`;
-    if (full) await this.update(publicId, { status: "paused" });
-    await this.activities.create({
-      orderId: order.id,
-      type: "paused",
-      note,
-      ...(full ? { fromStatus: order.status, toStatus: "paused" as const } : {}),
-    });
-  }
-
-  // Delegates to resumeOrderDeliveries (reverts future paused rows to scheduled) then always flips
-  // the order back to "active" — the guard above already requires the order to be "paused". Stamps
-  // the open pause row (resumedAt IS NULL) closed in the same flow so the one-active-pause guard
-  // releases and a new pause becomes legal again.
-  //
-  // The status flip is a CONDITIONAL update (WHERE status = 'paused'), not the usual this.update().
-  // autoResumeIfElapsed runs on the read path (myActiveSubscriptions) with no lock, so two
-  // concurrent renders can both read status="paused" and both call resume(). Only the request whose
-  // UPDATE actually matches a row (i.e. the one that wins the race) proceeds to revert deliveries,
-  // close the pause row, and log the "resumed" activity — the loser gets zero rows back and returns
-  // as a no-op instead of writing a duplicate activity / redundant delivery revert.
-  // `fromDate` (ISO) resumes a pause partway: only paused days on/after it come back. Omit for a
-  // full resume. The range pause has no entry point today (move-only deliveries).
-  async resume(publicId: string, actorId?: bigint, fromDate?: string): Promise<void> {
-    const order = await this.read(publicId);
-    if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);
-    const resolvedActorId = actorId ?? (await this.currentUserId()) ?? null;
-
-    const [flipped] = await db.update(orders)
-      .set({ status: "active", updatedBy: resolvedActorId })
-      .where(and(eq(orders.publicId, publicId), eq(orders.status, "paused")))
-      .returning({ id: orders.id });
-    if (!flipped) return;
-
-    await recordAudit({
-      entity: this.repo.tableName,
-      entityPublicId: publicId,
-      operation: "update",
-      changes: { status: { from: order.status, to: "active" } },
-      createdBy: resolvedActorId,
-    });
-    await resumeOrderDeliveries(publicId, fromDate);
-    await db.update(subscriptionPauses)
-      .set({ resumedAt: new Date(), resumedBy: resolvedActorId })
-      .where(and(eq(subscriptionPauses.orderId, order.id), isNull(subscriptionPauses.resumedAt)));
-    await this.activities.create({
-      orderId: order.id,
-      type: "resumed",
-      fromStatus: order.status,
-      toStatus: "active",
-    });
   }
 
   async reassign(publicId: string, ownerId: string): Promise<void> {
