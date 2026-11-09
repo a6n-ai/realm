@@ -646,8 +646,28 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     }
     if (coupon.kind === "first_order") {
       if (await hasPaidOrder(db, userId)) return "This coupon is only valid on your first order";
+      if (await this.firstOrderHeldByUnpaidOrder(userId)) return "Your first-order offer is already on an order waiting for payment";
     }
     return null;
+  }
+
+  // "No paid order yet" alone would let two unpaid orders each take a first-order coupon and both
+  // be paid. Unpaid card checkouts are cancelled when their link expires, which frees the offer.
+  private async firstOrderHeldByUnpaidOrder(userId: bigint): Promise<boolean> {
+    const [row] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(
+        eq(orders.userId, userId),
+        ne(orders.status, "cancelled"),
+        sql`exists (
+          select 1 from jsonb_array_elements(coalesce(${orders.pricingSnapshot}->'pendingRedemptions', '[]'::jsonb)) r
+          join ${coupons} c on c.public_id = r->>'couponPublicId'
+          where c.kind = 'first_order'
+        )`,
+      ))
+      .limit(1);
+    return row != null;
   }
 
   // A staff code dies with its issuer's allowance: switching a rep off, or turning staff
