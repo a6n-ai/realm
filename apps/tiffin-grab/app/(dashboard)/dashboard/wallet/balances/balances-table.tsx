@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { useState } from "react";
 import Link from "next/link";
 import { CoinsIcon, WalletIcon } from "lucide-react";

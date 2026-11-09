@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { ShieldOffIcon } from "lucide-react";
 import { ClearSuppressionButton } from "../unsubscribed/suppression-actions";
@@ -9,8 +9,8 @@ import { ReuiFacetFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@foundry/ui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
-import type { SortState } from "@/lib/list/sort";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { ResubscribeLinkButton } from "../resubscribe-link-button";
 import type { SuppressedSortColumn } from "@/lib/notifications/logs-query";
 

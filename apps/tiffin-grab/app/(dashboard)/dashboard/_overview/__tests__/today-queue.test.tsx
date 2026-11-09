@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { TODAY_KINDS, kindOptionLabel, type TodayItem } from "@/lib/today/types";
 
 const push = vi.fn();

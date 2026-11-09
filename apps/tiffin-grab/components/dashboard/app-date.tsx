@@ -1,6 +1,6 @@
 "use client";
 
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 
 /** A timestamp's calendar date in the app timezone, not the viewer's browser zone. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { ScrollTextIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";

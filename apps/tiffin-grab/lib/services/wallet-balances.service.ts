@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { and, desc, eq, gt, gte, ilike, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";

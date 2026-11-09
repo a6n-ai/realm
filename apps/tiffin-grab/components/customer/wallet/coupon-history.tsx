@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Tag, Ticket, TicketPercent } from "lucide-react";
 import { EmptyState, IconTile, ListGroup, ListRow, StatGroup, StatTile, buttonClass } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { CustomerCouponUse } from "@/lib/services/customer-finances.service";
 import { QuietPagination } from "./finance-kit";
 import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";

@@ -3,7 +3,7 @@ import { CoinsIcon, TrendingDownIcon, TrendingUpIcon, WalletIcon, BanknoteIcon }
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";

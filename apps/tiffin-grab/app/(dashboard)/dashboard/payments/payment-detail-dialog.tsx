@@ -6,7 +6,7 @@ import { ExternalLinkIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { ReferenceEditor } from "../orders/[id]/reference-editor";
 import { methodLabel, type PaymentRow } from "./payment-facets";

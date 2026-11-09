@@ -7,7 +7,7 @@ import { DataTable, SearchInput, StageBadge, type Column } from "@/components/ds
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { getCustomer360 } from "@/lib/services/customers.service";
 import { displayName } from "@/lib/inquiries/display";
 

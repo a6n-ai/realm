@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
@@ -18,7 +18,7 @@ import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 const LIVE_ORDER_STATUSES = ["pending", "active", "waitlisted", "paused"] as const;

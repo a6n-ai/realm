@@ -3,7 +3,7 @@
 
 
 import { zonedDateIso } from "@foundry/commons";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useState } from "react";
 import { DownloadIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";

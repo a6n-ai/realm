@@ -15,7 +15,7 @@ import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
 import { ModeToggle } from "@/components/mode-toggle";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 
 // One client module for the whole admin shell. The server layout used to import
 // each of these itself, and Turbopack then copied that module's chunk list into

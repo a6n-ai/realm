@@ -1,7 +1,7 @@
 "use client";
 
 import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
@@ -10,7 +10,7 @@ import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { GroupRowActions } from "./group-quick-actions";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 
 export type GroupTableRow = {
   publicId: string;

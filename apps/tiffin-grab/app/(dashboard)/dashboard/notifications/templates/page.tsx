@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import {
   TemplateList,

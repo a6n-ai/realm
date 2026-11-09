@@ -1,6 +1,6 @@
 "use client";
 
-import { parsePagination } from "@/lib/list/pagination";
+import { parsePagination } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

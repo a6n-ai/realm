@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { zonedDateIso } from "@foundry/commons";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { AlertTriangleIcon, TruckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";

@@ -8,9 +8,9 @@ import { PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, XIcon } from "l
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/filters";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { CouponSortColumn } from "./page";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";

@@ -8,7 +8,7 @@ import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
 import { DataTable, type Column } from "@/components/ds";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { ReminderDelivery, RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";

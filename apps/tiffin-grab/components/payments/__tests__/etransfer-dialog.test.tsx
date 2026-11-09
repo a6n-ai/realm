@@ -14,7 +14,7 @@ vi.mock("@/components/app-currency", () => ({
   useAppCurrency: () => "CAD",
   useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
 }));
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 const payment = { paymentPublicId: "pay_1", deploymentId: "SUB-ABC123", amount: 84.5, payeeHandle: "pay@tiffin.ca", instructions: "Auto-deposit is on", requireProof: false };
 

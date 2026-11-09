@@ -8,7 +8,7 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, RowActions, TonePill, type Column, type FacetDef, type Tone } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/filters";
 import { humanDate } from "@/lib/deliveries-view";
-import { parseSort, sortRows } from "@/lib/list/sort";
+import { parseSort, sortRows } from "@foundry/design-system/list-sort";
 import type { HolidayClosedRow, HolidayOutcome, HolidayRow, NeedsPlacingRow } from "@/lib/services/holidays.service";
 import { HolidayRowActions } from "./holiday-row-actions";
 import { PlacingActions } from "./placing-actions";

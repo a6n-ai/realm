@@ -1,5 +1,5 @@
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
@@ -12,7 +12,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCE_HOOKS, type CatalogLoadCtx } from "@/lib/catalog/resource-hooks";
 import { RESOURCES, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";

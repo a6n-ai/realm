@@ -6,7 +6,7 @@ import { ChevronDown, Copy, CreditCard, Percent, ReceiptText, RotateCcw, Sliders
 import { toast } from "sonner";
 import { EmptyState, IconTile, ListGroup, buttonClass, type IconTint } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";

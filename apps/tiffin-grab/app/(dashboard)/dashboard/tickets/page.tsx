@@ -10,7 +10,7 @@ import { getSupportHours } from "@/lib/services/app-settings.service";
 import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/services/analytics/complaint-filters";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState } from "@/components/ds";
 import {
   PageShell,

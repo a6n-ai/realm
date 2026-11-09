@@ -10,7 +10,7 @@ import { walletService } from "@/lib/services/wallet.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
 import { AppCurrencyProvider } from "@/components/app-currency";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { Suspense } from "react";
 import { ReviewNudge } from "./me/review-nudge";

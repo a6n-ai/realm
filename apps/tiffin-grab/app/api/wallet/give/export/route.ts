@@ -2,7 +2,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { epochRange, withListDates } from "@/lib/list/default-month";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { giveHistoryCsv, type GiveSortColumn } from "@/lib/services/customer-groups.service";
 

@@ -21,7 +21,7 @@ vi.mock("@/components/filters/filters", () => ({
   ReuiFacetFilters: () => <div data-testid="facets" />,
 }));
 
-vi.mock("@/components/providers/timezone-provider", () => ({
+vi.mock("@foundry/design-system/timezone-provider", () => ({
   useTimezone: () => "America/Toronto",
 }));
 

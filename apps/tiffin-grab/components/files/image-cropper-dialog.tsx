@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@foundry/ui/di
 import { Label } from "@foundry/ui/label";
 import { Slider } from "@foundry/ui/slider";
 import { Switch } from "@foundry/ui/switch";
-import { encodeCanvasToFile } from "@/lib/images/export-image";
+import { encodeCanvasToFile } from "@foundry/design-system/export-image";
 import { ImageCropper } from "./cropper/image-cropper";
 import { useCropper } from "./cropper/use-cropper";
 

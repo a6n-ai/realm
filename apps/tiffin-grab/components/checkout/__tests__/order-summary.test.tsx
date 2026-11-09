@@ -9,7 +9,7 @@ vi.mock("@/components/app-currency", () => ({
   useAppCurrency: () => "CAD",
   useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
 }));
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 const sel = {
   mealSizeId: "m", frequencyKey: "f", eatingDays: ["mon", "wed", "fri"], persons: 1, mealSlots: [],

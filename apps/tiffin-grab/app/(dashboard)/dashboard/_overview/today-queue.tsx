@@ -9,7 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Badge } from "@/components/reui/badge";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { TODAY_KIND_LABEL, waitingLabel, type TodayItem, type TodayKind } from "@/lib/today/types";
 import { VerifyPaymentButton } from "./verify-payment-button";

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "@/app/(dashboard)/dashboard/discounts/rep-code-actions";
 import { useFormatMoney } from "@/components/app-currency";
 

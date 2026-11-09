@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { columnResolver, conditionToSql } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
@@ -6,7 +6,7 @@ import { getSesSendQuota } from "@relay/email";
 import { GaugeIcon } from "lucide-react";
 import { NewCampaignButtons } from "./new-campaign-buttons";
 import { campaign } from "@/db/schema";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { withListDates } from "@/lib/list/default-month";
 import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";

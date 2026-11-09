@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { useMemo, useState } from "react";
 import { TagIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
@@ -12,7 +12,7 @@ import {
   SearchInput,
   useSortNav,
 } from "@/components/ds";
-import { sortRows } from "@/lib/list/sort";
+import { sortRows } from "@foundry/design-system/list-sort";
 import { formatCountTotal, formatPortionLabel, labelLineTexts } from "@/lib/menu/packing-requirement";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";

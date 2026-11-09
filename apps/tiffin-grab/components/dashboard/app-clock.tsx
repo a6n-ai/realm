@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see

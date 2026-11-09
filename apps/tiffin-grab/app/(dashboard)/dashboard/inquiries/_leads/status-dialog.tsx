@@ -26,7 +26,7 @@ import type { LostReason } from "@/lib/services/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { followUpAtDate, followUpPick } from "./follow-up-picks";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "price", label: "Price" },

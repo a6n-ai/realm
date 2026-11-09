@@ -7,7 +7,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch, formatMenuWeekRange } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 
 type WeekStatus = "draft" | "ready" | "released";
 

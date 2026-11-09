@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, TonePill, type Column } from "@/components/ds";
 import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
-import { sortRows } from "@/lib/list/sort";
+import { sortRows } from "@foundry/design-system/list-sort";
 import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
 import { GOING_OUT } from "./label-tab";
 import { useTableParams } from "./use-table-params";

@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { walletLedger } from "@/db/schema";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";

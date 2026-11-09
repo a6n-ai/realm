@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { and, eq, gte, ilike, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders, customerGroupActions, customerGroups } from "@/db/schema";
 import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "@/lib/services/customer-groups.service";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";

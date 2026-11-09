@@ -12,7 +12,7 @@ vi.mock("@/components/app-currency", () => ({
   useAppCurrency: () => "CAD",
   useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
 }));
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));

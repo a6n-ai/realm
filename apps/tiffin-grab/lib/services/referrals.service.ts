@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { CAPTURED } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";

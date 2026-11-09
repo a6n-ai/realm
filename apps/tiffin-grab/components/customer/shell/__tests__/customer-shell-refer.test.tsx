@@ -6,14 +6,14 @@ vi.mock("@/components/app-currency", () => ({
   useAppCurrency: () => "CAD",
   useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
 }));
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/me/refer", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/client", () => ({ signOut: vi.fn() }));
 vi.mock("@foundry/themes", async (orig) => ({ ...(await orig<object>()), useTheme: () => ({ theme: "system", setTheme: vi.fn() }) }));
 vi.mock("@/components/motion/page-transition", () => ({ PageTransition: ({ children }: { children: unknown }) => children }));
 vi.mock("@/components/customer/support/unread", () => ({ useSupportUnread: () => 0 }));
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 vi.mock("@foundry/realtime/client", () => ({ openChannel: () => () => {} }));
 

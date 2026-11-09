@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { render as rtlRender, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { toast } from "sonner";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { InvitesList } from "../invites-list";
 
 // Dates render in the app-settings zone, so the list needs the provider the dashboard layout mounts.

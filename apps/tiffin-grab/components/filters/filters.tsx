@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { ListSearchFilters as DsListSearchFilters, ReuiFacetFilters as DsReuiFacetFilters } from "@foundry/design-system";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { filterRecommendationsAction, recordFilterUseAction } from "@/lib/services/filter-usage.actions";
 import { DefaultDateRange } from "./default-date-range";
 import { RangeCalendarPicker } from "./range-calendar-picker";

@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { ChevronRightIcon, LifeBuoyIcon } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -11,8 +11,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@foundry/ui/select";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
-import type { SortState } from "@/lib/list/sort";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
 

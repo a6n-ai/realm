@@ -5,7 +5,7 @@ import { TicketPercentIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button, EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 // Discount pill text — distinct from the admin table's couponValue() (which reads

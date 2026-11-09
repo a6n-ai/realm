@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -14,7 +14,7 @@ import {
   type CustomerActivityAction,
   type CustomerActivityCategory,
 } from "@/lib/customer-activity/log-facets";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { describeActivityActor } from "@/lib/services/order-activity-describe";
 
 export type CustomerActivitySortColumn = "time";

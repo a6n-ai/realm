@@ -4,7 +4,7 @@ import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-librar
 import type { ReactElement, ReactNode } from "react";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { AppCurrencyProvider } from "@/components/app-currency";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CatalogTabs } from "../catalog-tabs";
 import { ResourceEditor } from "../../[resource]/resource-editor";

@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { AppDate } from "@/components/dashboard/app-date";
 import { MegaphoneIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
@@ -11,7 +11,7 @@ import { CampaignDuplicateButton } from "@relay/engine/ui/campaign-duplicate-but
 import { CampaignRetriggerButton } from "@relay/engine/ui/campaign-retrigger-button";
 import type { ContactListOption } from "@relay/engine/ui/audience-builder";
 import { ReuiFacetFilters } from "@/components/filters/filters";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { CampaignSortColumn } from "./page";
 
 export type CampaignRow = {

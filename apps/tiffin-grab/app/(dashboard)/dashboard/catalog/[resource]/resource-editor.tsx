@@ -3,7 +3,7 @@ import { useFormatMoney } from "@/components/app-currency";
 /* eslint-disable */
 
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import {
   ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, Trash2Icon,
 } from "lucide-react";
@@ -24,7 +24,7 @@ import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { TableCell } from "@foundry/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,

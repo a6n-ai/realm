@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import {
   listCustomerActivitiesPage,
   type CustomerActivitySortColumn,

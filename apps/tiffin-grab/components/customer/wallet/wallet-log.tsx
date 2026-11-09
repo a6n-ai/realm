@@ -6,7 +6,7 @@ import { EmptyState, ListGroup, ListRow, buttonClass } from "@/components/custom
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
 import { WALLET_FACETS } from "./wallet-facets";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";

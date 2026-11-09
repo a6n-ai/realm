@@ -6,7 +6,7 @@ import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
 import { epochBoundsWhere } from "@/lib/list/default-month";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 
 const customer = alias(users, "customer");
 const searchUser = alias(users, "search_user");

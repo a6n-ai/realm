@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { clientStats } from "../org-stats";

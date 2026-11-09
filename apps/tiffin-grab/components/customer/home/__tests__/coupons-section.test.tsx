@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 import { CouponsSection } from "../coupons-section";
 

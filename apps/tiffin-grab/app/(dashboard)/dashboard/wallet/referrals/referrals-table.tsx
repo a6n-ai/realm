@@ -1,6 +1,6 @@
 "use client";
 
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { GiftIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
@@ -8,7 +8,7 @@ import { ListSearchFilters } from "@/components/filters/filters";
 import { Badge } from "@/components/reui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { ReferralListRow } from "@/lib/services/referrals.service";
 import { REFERRAL_STATUS } from "./referral-status";
 

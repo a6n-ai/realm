@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@/components/reui/badge";
 import { DataTable, RowActions, UserAvatar, useListNav, type Column } from "@/components/ds";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { CreateFranchiseButton } from "./create-franchise-button";
 
 const ALL = "all";

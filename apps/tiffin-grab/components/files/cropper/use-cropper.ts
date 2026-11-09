@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fitWithin } from "@/lib/images/export-image";
+import { fitWithin } from "@foundry/design-system/export-image";
 import {
   type Handle,
   type Rect,

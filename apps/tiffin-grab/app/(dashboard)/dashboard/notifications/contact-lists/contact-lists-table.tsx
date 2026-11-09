@@ -1,7 +1,7 @@
 "use client";
 
 import { CONSENT_LABEL } from "@/lib/notifications/consent-labels";
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { AppDate } from "@/components/dashboard/app-date";
 import { ListIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
@@ -10,7 +10,7 @@ import { ContactListDeleteButton } from "@relay/engine/ui/contact-list-delete-bu
 import { ContactListResyncButton } from "@relay/engine/ui/contact-list-resync-button";
 import { formatConsentDate } from "@relay/engine/ui/date";
 import { ReuiFacetFilters } from "@/components/filters/filters";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { ContactListSortColumn } from "./page";
 
 export type ContactListRow = {

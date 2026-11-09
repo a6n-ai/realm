@@ -1,10 +1,10 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import type { Condition } from "@foundry/commons/model/condition";
 import { getSession } from "@/lib/auth/session";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { InviteUserButton } from "./invite-user-button";

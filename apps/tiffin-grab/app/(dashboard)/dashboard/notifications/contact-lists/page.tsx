@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import Link from "next/link";
 import { ListIcon, UsersIcon } from "lucide-react";
@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { contactList } from "@/db/schema";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { ContactListFromSegment } from "@relay/engine/ui/contact-list-from-segment";
 import { ContactListManualAdd } from "@relay/engine/ui/contact-list-manual-add";
 import { contactListStats, listContactLists, CONTACT_LIST_SORT_COLUMNS, type ContactListSortColumn } from "@/lib/notifications/lists";

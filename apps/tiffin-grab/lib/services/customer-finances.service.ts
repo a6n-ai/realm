@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import type { Condition } from "@foundry/commons/model/condition";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { parsePagination } from "@/lib/list/pagination";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parsePagination } from "@foundry/design-system/filters/parse-filter-state";
+import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 
 // Each labels tab renders exactly one list, so that list owns the page-wide
 // sort/dir/page/size params. Switching tabs drops them (see LabelsTabs).

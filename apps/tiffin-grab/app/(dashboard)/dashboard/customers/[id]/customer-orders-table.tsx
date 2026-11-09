@@ -9,7 +9,7 @@ import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { getCustomer360 } from "@/lib/services/customers.service";
 
 type CustomerOrderRow = Awaited<ReturnType<typeof getCustomer360>>["orders"][number];

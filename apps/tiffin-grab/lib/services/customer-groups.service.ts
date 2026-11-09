@@ -1,4 +1,4 @@
-import { pageOffset } from "@/lib/list/pagination";
+import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";

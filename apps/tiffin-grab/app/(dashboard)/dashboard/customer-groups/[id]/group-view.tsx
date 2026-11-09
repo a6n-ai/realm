@@ -12,7 +12,7 @@ import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, Sectio
 import { ReuiFacetFilters } from "@/components/filters/filters";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/services/customer-groups.service";
 import { AccountSearch } from "../new/account-search";

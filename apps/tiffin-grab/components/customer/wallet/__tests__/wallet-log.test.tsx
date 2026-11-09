@@ -20,7 +20,7 @@ vi.mock("@/components/filters/filters", () => ({
   ReuiFacetFilters: ({ spec }: { spec: unknown }) => <div data-testid="facet-filters" data-spec={JSON.stringify(spec)} />,
 }));
 
-vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "UTC" }));
+vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "UTC" }));
 
 import { WalletLog } from "../wallet-log";
 

@@ -9,7 +9,7 @@ import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";
 import { stageLabel } from "@/components/ds";
