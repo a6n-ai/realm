@@ -12,14 +12,14 @@ import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { PLUGIN_CATEGORIES, PLUGIN_DISPLAY, PLUGIN_METAS, type PluginCategory } from "@/lib/plugins";
+import { PLUGIN_CATEGORIES, PLUGIN_METAS, type PluginCategory } from "@/lib/plugins";
 import type { PluginMeta } from "@foundry/crm";
 import { IconTile, IconTileSkeleton } from "../_components/icon-tile";
 import { setPluginInstalledAction } from "./actions";
 
 type Filter = "all" | "installed" | PluginCategory;
 
-const categoryOf = (m: PluginMeta): PluginCategory => PLUGIN_DISPLAY[m.id]?.category ?? "Operations";
+const categoryOf = (m: PluginMeta): PluginCategory => m.category ?? "Operations";
 
 export function Marketplace({ statuses }: { statuses: Record<string, PluginCatalogStatus> }) {
   const [query, setQuery] = useState("");
@@ -106,7 +106,6 @@ export function Marketplace({ statuses }: { statuses: Record<string, PluginCatal
 function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogStatus }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const display = PLUGIN_DISPLAY[meta.id];
 
   const setInstalled = (installed: boolean) =>
     start(async () => {
@@ -128,7 +127,7 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
     <Card variant="flat" className="h-full gap-0 p-0">
       <div className="flex h-full flex-col gap-4 p-5">
         <div className="flex items-start gap-3">
-          <IconTile icon={meta.icon} tone={display?.tone ?? "gray"} logo={meta.logo} size="lg" />
+          <IconTile icon={meta.icon} tone={meta.tone ?? "gray"} logo={meta.logo} size="lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="text-sm font-semibold tracking-tight">{meta.label}</h3>
             <span className="text-muted-foreground text-xs">{categoryOf(meta)}</span>

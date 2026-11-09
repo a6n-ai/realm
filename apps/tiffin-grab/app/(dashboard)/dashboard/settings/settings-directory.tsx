@@ -16,16 +16,15 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
   Webhook,
-  type LucideIcon,
 } from "lucide-react";
-import type { PluginLogo } from "@foundry/commons/plugin";
+import type { PluginIcon, PluginLogo } from "@foundry/commons/plugin";
 import { Card, EmptyState, SearchInput } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
-import { PLUGIN_DISPLAY, PLUGIN_METAS, type Tone } from "@/lib/plugins";
+import { PLUGIN_METAS, type Tone } from "@/lib/plugins";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { IconTile, IconTileSkeleton } from "./_components/icon-tile";
 
-type Item = { label: string; description: string; icon: LucideIcon; tone: Tone; logo?: PluginLogo; href: string };
+type Item = { label: string; description: string; icon: PluginIcon; tone: Tone; logo?: PluginLogo; href: string };
 type Group = { title: string; items: Item[] };
 
 const STATIC_GROUPS: Group[] = [
@@ -64,7 +63,7 @@ export function SettingsDirectory({ installedPluginIds }: { installedPluginIds: 
       label: m.label,
       description: m.description,
       icon: m.icon,
-      tone: PLUGIN_DISPLAY[m.id]?.tone ?? "gray",
+      tone: m.tone ?? "gray",
       logo: m.logo,
       href: m.settingsHref!,
     }));

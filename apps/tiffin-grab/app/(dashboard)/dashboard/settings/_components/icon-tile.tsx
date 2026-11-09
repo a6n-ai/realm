@@ -1,5 +1,4 @@
-import type { LucideIcon } from "lucide-react";
-import type { PluginLogo } from "@foundry/commons/plugin";
+import type { PluginIcon, PluginLogo } from "@foundry/commons/plugin";
 import { cn } from "@foundry/ui/cn";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { TONES, type Tone } from "@/lib/plugins";
@@ -17,7 +16,7 @@ export function IconTile({
   logo,
   size = "sm",
 }: {
-  icon: LucideIcon;
+  icon: PluginIcon;
   tone: Tone;
   logo?: PluginLogo;
   size?: keyof typeof SIZES;

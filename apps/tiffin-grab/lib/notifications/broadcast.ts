@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { realtimeBus } from "@/lib/realtime/bus";
-import { realtimeConfig } from "@/lib/realtime/config";
+import { realtimeConfigFromEnv } from "@foundry/realtime/server";
 import { notifyChannel } from "@/lib/realtime/notify";
 
 /**
@@ -22,7 +22,7 @@ export interface BroadcastInput {
 }
 
 export async function broadcast(input: BroadcastInput): Promise<void> {
-  if (realtimeConfig() === null) return;
+  if (realtimeConfigFromEnv() === null) return;
   try {
     const [u] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, input.userId)).limit(1);
     if (!u) return;

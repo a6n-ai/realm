@@ -1,4 +1,5 @@
 import { round2 } from "@foundry/discounts";
+import { coinsFor } from "@foundry/wallet";
 
 export type CoinCapQuote = {
   /** Largest currency value coins may cover on this order. */
@@ -37,7 +38,7 @@ export function quoteCoinCap(args: {
   const valueCap = Math.min(remaining, pctCap);
   const walletPctCap = maxRedeemPctOfBalance == null ? Infinity : Math.floor(balance * (maxRedeemPctOfBalance / 100));
   // Floor so the customer is never offered a coin count worth a cent more than the cap.
-  const rawCoinsForCap = Math.floor(valueCap / rate + 1e-9);
+  const rawCoinsForCap = coinsFor(valueCap, rate);
   const coinsForCap = Math.min(rawCoinsForCap, walletPctCap);
 
   if (balance <= coinsForCap) {

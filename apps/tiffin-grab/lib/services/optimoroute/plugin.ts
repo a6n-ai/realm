@@ -15,6 +15,8 @@ export const OPTIMOROUTE_PLUGIN_META: PluginMeta = {
   label: OPTIMOROUTE_PLUGIN.label,
   description: OPTIMOROUTE_PLUGIN.description,
   icon: TruckIcon,
+  category: "Operations",
+  tone: "sky",
   settingsHref: "/dashboard/settings/optimoroute",
 };
 

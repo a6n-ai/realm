@@ -1,4 +1,4 @@
-import type { PluginMeta } from "@foundry/crm";
+import type { PluginCategory, PluginMeta } from "@foundry/commons/plugin";
 import { PAYMENTS_PLUGIN } from "@foundry/payments/plugin";
 import { CLOVER_PLUGIN_META } from "@foundry/clover/plugin";
 import { GOOGLE_REVIEWS_PLUGIN_META } from "@foundry/google-reviews/plugin";
@@ -17,18 +17,8 @@ export const PLUGIN_METAS: readonly PluginMeta[] = [
   GA_PLUGIN_META,
 ];
 
-export type PluginCategory = "Payments" | "Marketing" | "Operations";
+export type { PluginCategory };
 export const PLUGIN_CATEGORIES: readonly PluginCategory[] = ["Payments", "Marketing", "Operations"];
-
-/** Marketplace shelf placement and icon tile color. Keys are plugin ids. */
-export const PLUGIN_DISPLAY: Record<string, { category: PluginCategory; tone: Tone }> = {
-  [PAYMENTS_PLUGIN.id]: { category: "Payments", tone: "green" },
-  [CLOVER_PLUGIN_META.id]: { category: "Payments", tone: "emerald" },
-  [GOOGLE_REVIEWS_PLUGIN_META.id]: { category: "Marketing", tone: "amber" },
-  [META_PIXEL_PLUGIN_META.id]: { category: "Marketing", tone: "blue" },
-  [GA_PLUGIN_META.id]: { category: "Marketing", tone: "orange" },
-  [OPTIMOROUTE_PLUGIN_META.id]: { category: "Operations", tone: "sky" },
-};
 
 /** Categorical identity only (icon tiles), each with its dark pair. */
 export const TONES = {
