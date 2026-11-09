@@ -1,12 +1,13 @@
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { PinSection as PinForm } from "@/components/account/leaves/pin-section";
+import { PinForm } from "@foundry/auth-ui";
+import { setMyPin, removeMyPin } from "@/lib/account/actions";
 
 export function PinSection({ hasPin, titleAs }: { hasPin: boolean; titleAs?: "h2" | "h3" }) {
   return (
     <section id="pin" className="scroll-mt-24">
       <SectionCard variant="flat" titleAs={titleAs} title="PIN">
-        <PinForm hasPin={hasPin} />
+        <PinForm hasPin={hasPin} onSetPin={setMyPin} onRemovePin={removeMyPin} />
       </SectionCard>
     </section>
   );

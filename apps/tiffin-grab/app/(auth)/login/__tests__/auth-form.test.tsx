@@ -12,7 +12,7 @@ vi.mock("@/lib/auth/client", () => ({
 }));
 vi.mock("@/lib/auth/lock-actions", () => ({ clearLockSession: vi.fn() }));
 vi.mock("../actions", () => ({ verifyPinAction: vi.fn() }));
-vi.mock("@/components/pin-otp", () => ({ PinOtp: () => <div data-testid="pin-otp" /> }));
+vi.mock("@foundry/auth-ui", async (orig) => ({ ...(await orig<object>()), CodeOtp: () => <div data-testid="pin-otp" /> }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),

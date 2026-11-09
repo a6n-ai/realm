@@ -11,9 +11,8 @@ import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
-import { PinOtp } from "@/components/pin-otp";
 import {
-  AUTH_LINK, AuthScreen, AuthWelcome, ContinueAs, EmailCodeSignIn, EmailSuggestions, GoogleOneTap, GoogleSignInButton, authErrorMessage,
+  AUTH_LINK, AuthScreen, AuthWelcome, CodeOtp, ContinueAs, EmailCodeSignIn, EmailSuggestions, GoogleOneTap, GoogleSignInButton, authErrorMessage,
   oauthErrorMessage, type ContinueAsUser,
 } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
@@ -375,7 +374,7 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
         <p className="text-muted-foreground text-sm">Enter your PIN to continue.</p>
       </div>
       <form method="post" onSubmit={(e) => { e.preventDefault(); verify(pin); }} className="flex w-full flex-col items-center gap-3">
-        <PinOtp value={pin} onChange={setPin} onComplete={verify} autoFocus disabled={pending} aria-label="PIN" />
+        <CodeOtp length={4} masked value={pin} onChange={setPin} onComplete={verify} autoFocus disabled={pending} aria-label="PIN" />
         {error && <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p>}
         <Button type="submit" disabled={pending || pin.length !== 4} className={IOS_BUTTON}>
           Unlock
