@@ -90,3 +90,10 @@ export const agentSkillsIndex = async (origin: string) => ({
     },
   ],
 });
+
+/** Personal Agent Protocol (draft): website only. Agents browse as ordinary signed-out visitors; no sessions, no OAuth. */
+export const poppyManifest = (origin: string) => ({
+  protocol_version: "0.1",
+  organization: { name: "Tiffin Grab", domain: host(origin).replace(/^www\./, "") },
+  web: {},
+});

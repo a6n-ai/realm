@@ -40,8 +40,12 @@ describe("MCP server", () => {
 });
 
 describe("agent discovery documents", async () => {
-  const { agentSkillMd, agentSkillsIndex, aiCatalog, mcpServerCard, sha256Hex } = await import("@/lib/public-api/discovery");
+  const { agentSkillMd, agentSkillsIndex, aiCatalog, mcpServerCard, poppyManifest, sha256Hex } = await import("@/lib/public-api/discovery");
   const o = "https://tiffingrab.ca";
+
+  it("poppy declares the website only, on the requested domain", () => {
+    expect(poppyManifest(o)).toEqual({ protocol_version: "0.1", organization: { name: "Tiffin Grab", domain: "tiffingrab.ca" }, web: {} });
+  });
 
   it("the skills index digest is the SKILL.md it serves", async () => {
     const idx = await agentSkillsIndex(o);
