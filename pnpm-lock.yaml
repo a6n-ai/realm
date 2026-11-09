@@ -4558,7 +4558,7 @@ packages:
       react-dom: 19.2.4
 
   '@relay/email@https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3#path:packages/email':
-    resolution: {gitHosted: true, integrity: sha512-lhDVsNRpwE80Ddb9jFUNGhGdaQL/+5PqhxRPbGW/jk5ACemWjWPGi3lJrRQoGdFdAansYalhzOQhd2jDtiGXfg==, path: packages/email, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3}
+    resolution: {gitHosted: true, integrity: sha512-9gKjRpXH7VvbU623yFBwUmuV147rmuyVAlj6PVOQ9YAM55NfIq3I/j8i/6KkbbpqpV8RjqDeGooZzSqz9lAcwg==, path: packages/email, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3}
     version: 0.0.0
     peerDependencies:
       react: 19.2.4
@@ -4580,7 +4580,7 @@ packages:
       react: ^19
 
   '@relay/engine@https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3#path:packages/engine':
-    resolution: {gitHosted: true, integrity: sha512-lhDVsNRpwE80Ddb9jFUNGhGdaQL/+5PqhxRPbGW/jk5ACemWjWPGi3lJrRQoGdFdAansYalhzOQhd2jDtiGXfg==, path: packages/engine, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3}
+    resolution: {gitHosted: true, integrity: sha512-9gKjRpXH7VvbU623yFBwUmuV147rmuyVAlj6PVOQ9YAM55NfIq3I/j8i/6KkbbpqpV8RjqDeGooZzSqz9lAcwg==, path: packages/engine, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/5b60894c483c0e424029b8ffa0652304c5da6dc3}
     version: 0.0.0
     peerDependencies:
       drizzle-orm: 0.45.4
