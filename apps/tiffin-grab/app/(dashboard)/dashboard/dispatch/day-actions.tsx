@@ -16,6 +16,10 @@ export function DayActions({ date, labelsCount, unassigned }: { date: string; la
     startTransition(async () => {
       try {
         const r = await pullCompletionsAction(date);
+        if ("error" in r) {
+          toast.error(r.error);
+          return;
+        }
         const failed = r.outcomes.filter((o) => o.action !== "confirmed").length;
         toast.success(
           `${r.outcomes.length - failed} confirmed, ${failed} not delivered, ${r.pendingCount} not closed yet, ${r.settled.length} already settled`,

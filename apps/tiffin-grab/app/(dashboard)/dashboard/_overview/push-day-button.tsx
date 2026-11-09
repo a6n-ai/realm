@@ -17,6 +17,10 @@ export function PushDayButton({ date, dayLabel, stops, label = "Push to OptimoRo
     start(async () => {
       try {
         const res = await pushDayAction(date);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         if (res.failed > 0) toast.warning(`Sent ${res.pushed}, ${res.failed} stop${res.failed === 1 ? "" : "s"} failed`);
         else toast.success(`Sent ${res.pushed} stop${res.pushed === 1 ? "" : "s"} to OptimoRoute`);
         setOpen(false);

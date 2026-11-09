@@ -63,8 +63,8 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
   function send(r: LedgerRow) {
     startTransition(async () => {
       const res = await pushDeliveryAction(r.deliveryPublicId!, date);
-      if (res.ok) toast.success(`${r.customerName} sent to OptimoRoute`);
-      else toast.error(res.message);
+      if ("ok" in res) toast.success(`${r.customerName} sent to OptimoRoute`);
+      else toast.error(res.error);
       router.refresh();
     });
   }
@@ -74,7 +74,8 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
       try {
         // Re-checks staleness against a fresh read, so a stop that went live again is left on the route.
         const res = await removeStopsAction(date, [r.deliveryPublicId!]);
-        if (res.removed > 0) toast.success(`${r.customerName} removed from OptimoRoute`);
+        if ("error" in res) toast.error(res.error);
+        else if (res.removed > 0) toast.success(`${r.customerName} removed from OptimoRoute`);
         else if (res.skipped.length > 0) toast.info(`${r.customerName} is no longer stale, left on the route`);
         else toast.error(`${r.customerName} could not be removed`);
       } catch (e) {

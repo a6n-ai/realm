@@ -30,6 +30,10 @@ export function PushControl({
     startTransition(async () => {
       try {
         const res = only ? await pushUnassignedAction(date, only) : await pushDayAction(date);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         setResult(res);
         if (res.failed === 0) toast.success(`Sent ${res.pushed} stop${res.pushed === 1 ? "" : "s"}`);
         else toast.error(`${res.failed} of ${res.pushed + res.failed} stops failed`);
@@ -44,6 +48,10 @@ export function PushControl({
     startTransition(async () => {
       try {
         const res = await pullRoutesAction(date);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         setPull(res);
         toast.success(
           res.matched > 0

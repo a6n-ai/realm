@@ -109,8 +109,8 @@ export function DispatchView({
     setDriverBySerial((prev) => ({ ...prev, [orderNo]: driverSerial }));
     startTransition(async () => {
       const result = await reassignDriverAction(orderNo, date, driverSerial);
-      if (!result.ok) {
-        setErrorFor({ orderNo, message: result.message });
+      if ("error" in result) {
+        setErrorFor({ orderNo, message: result.error });
         setDriverBySerial((prev) => ({ ...prev, [orderNo]: revertTo }));
       }
     });
@@ -120,7 +120,7 @@ export function DispatchView({
     setErrorFor(null);
     startTransition(async () => {
       const result = await pushDeliveryAction(orderNo, date);
-      if (!result.ok) setErrorFor({ orderNo, message: result.message });
+      if ("error" in result) setErrorFor({ orderNo, message: result.error });
     });
   }
 
@@ -129,7 +129,7 @@ export function DispatchView({
     setConfirmRemove(null);
     startTransition(async () => {
       const result = await removeDeliveryAction(orderNo, date);
-      if (!result.ok) setErrorFor({ orderNo, message: result.message });
+      if ("error" in result) setErrorFor({ orderNo, message: result.error });
     });
   }
 
