@@ -17,7 +17,7 @@ import type { FacetDef, Option } from "@/components/ds";
 import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
-import { MethodName } from "@/components/payments/stripe-mark";
+import { MethodName, StripeMark } from "@/components/payments/stripe-mark";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { sendPaymentReminderAction } from "../orders/[id]/actions";
@@ -34,7 +34,7 @@ const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
 
 const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
   { kind: "multi", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
-  { kind: "multi", field: "method", label: "Method", options: [...PAYMENT_METHOD_OPTIONS] },
+  { kind: "multi", field: "method", label: "Method", options: PAYMENT_METHOD_OPTIONS.map((o) => (o.value === "stripe" ? { ...o, icon: <StripeMark /> } : o)) },
   { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
   { kind: "select", field: "kind", label: "Type", options: [{ value: "plan", label: "Plan" }, { value: "addon", label: "Add-on" }] },
   { kind: "dateRange", field: "createdAt", label: "Created" },
