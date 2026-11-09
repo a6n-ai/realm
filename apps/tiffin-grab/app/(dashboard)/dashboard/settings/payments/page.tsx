@@ -1,103 +1,88 @@
-import Link from "next/link";
-import { ChevronRightIcon, PlusIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
+import { Suspense } from "react";
+import { PlusIcon, ReceiptIcon } from "lucide-react";
 import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
-import { SectionCard, TonePill } from "@/components/ds";
+import { Badge } from "@/components/reui/badge";
 import { ensurePaymentCatalog, getProvinceTaxes, installedPlugins } from "@/lib/services/app-settings.service";
+import { IconTile } from "../_components/icon-tile";
+import { SettingsColumns, SettingsGroup, SettingsGroupSkeleton, SettingsRow } from "../_components/grouped-list";
+import { providerDisplay, providerHref } from "./provider-display";
 
 // Every provider is added here; Stripe lists once its plugin is installed (Add installs it).
 const MANUAL_IDS = new Set(["cash", "etransfer"]);
 
-function providerHref(id: string): string {
-  return id === "stripe" ? "/dashboard/settings/payments/stripe" : `/dashboard/settings/payments/${id}`;
+export default async function PaymentsSettingsHub() {
+  return (
+    <Suspense fallback={<PaymentsHubSkeleton />}>
+      <PaymentsHub />
+    </Suspense>
+  );
 }
 
-export default async function PaymentsSettingsHub() {
+async function PaymentsHub() {
   const [cfg, provinceTaxes, plugins] = await Promise.all([ensurePaymentCatalog(), getProvinceTaxes(), installedPlugins()]);
 
   const providers = PAYMENT_PROVIDERS.filter(
     (p) => MANUAL_IDS.has(p.id) || (p.requiresPlugin != null && plugins.includes(p.requiresPlugin)),
   );
-  const installed = providers
-    .map((p) => ({ provider: p, method: cfg.methods.find((m) => m.id === p.id) }))
-    .filter((r) => r.method);
-  const canAdd = installed.length < PAYMENT_PROVIDERS.length;
+  const added = providers.flatMap((p) => {
+    const method = cfg.methods.find((m) => m.id === p.id);
+    return method ? [{ provider: p, method }] : [];
+  });
+  const canAdd = added.length < PAYMENT_PROVIDERS.length;
   const customizedProvinces = Object.keys(provinceTaxes).length;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <SectionCard
-        title="Payment providers"
-        subtitle="How customers pay at checkout. Each provider has its own label, instructions and on/off switch."
-        action={
-          canAdd ? (
-            <Button asChild variant="outline" size="sm" className="gap-1.5">
-              <Link href="/dashboard/settings/payments/add" prefetch={false}>
-                <PlusIcon className="size-3.5" />
-                Add provider
-              </Link>
-            </Button>
-          ) : null
-        }
-      >
-        {installed.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No providers yet. Add one to take payments.</p>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {installed.map(({ provider, method }) => (
-              <li key={provider.id}>
-                <Link
-                  href={providerHref(provider.id)}
-                  prefetch={false}
-                  className="hover:bg-muted/50 flex items-center gap-3 px-3 py-2.5"
-                >
-                  <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-md">
-                    <provider.icon className="size-4" />
-                  </span>
-                  {/* Staff see the provider ("Stripe"); the checkout label is set on its own page. */}
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {provider.id === "stripe" ? "Stripe" : method!.label}
-                  </span>
-                  <TonePill tone={method!.enabled ? "ok" : "neutral"}>{method!.enabled ? "On" : "Off"}</TonePill>
-                  <ChevronRightIcon className="text-muted-foreground size-4" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title="Taxes"
-        subtitle="Tax follows the delivery province; a provider's own taxes apply only when the province is unknown. Coin limits live in Wallet → Settings."
-        action={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/settings/payments/checkout-rules" prefetch={false}>
-              Edit
-            </Link>
-          </Button>
-        }
-      >
-        <dl className="grid gap-2 text-sm">
-          <SummaryRow
-            label="Sales tax"
-            value={
-              customizedProvinces === 0
-                ? "By delivery province, standard rates"
-                : `By delivery province, ${customizedProvinces} customized`
-            }
+    <SettingsColumns>
+      <SettingsGroup title="Payment methods">
+        {added.map(({ provider, method }) => {
+          const d = providerDisplay(provider.id);
+          const isDefault = cfg.defaultMethodId === provider.id;
+          return (
+            <SettingsRow
+              key={provider.id}
+              href={providerHref(provider.id)}
+              tile={<IconTile icon={provider.icon} tone={d.tone} logo={d.logo} />}
+              // Staff see the provider ("Stripe"); the checkout label is set on its own page.
+              label={provider.id === "stripe" ? "Stripe" : method.label}
+              description={`${d.kind} · ${d.settles}${isDefault ? " · Default at checkout" : ""}`}
+              trailing={
+                <Badge variant={method.enabled ? "success-light" : "secondary"}>{method.enabled ? "On" : "Off"}</Badge>
+              }
+            />
+          );
+        })}
+        {canAdd ? (
+          <SettingsRow
+            href="/dashboard/settings/payments/add"
+            tile={<IconTile icon={PlusIcon} tone="gray" />}
+            label="Add payment method"
+            description={added.length === 0 ? "No methods yet. Add one to take payments." : "Cash, e-Transfer or card"}
+            emphasis
           />
-        </dl>
-      </SectionCard>
-    </div>
+        ) : null}
+      </SettingsGroup>
+
+      <SettingsGroup title="Checkout rules">
+        <SettingsRow
+          href="/dashboard/settings/payments/checkout-rules"
+          tile={<IconTile icon={ReceiptIcon} tone="sky" />}
+          label="Taxes"
+          description={
+            customizedProvinces === 0
+              ? "By delivery province, standard rates"
+              : `By delivery province, ${customizedProvinces} customized`
+          }
+        />
+      </SettingsGroup>
+    </SettingsColumns>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function PaymentsHubSkeleton() {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
-    </div>
+    <SettingsColumns>
+      <SettingsGroupSkeleton rows={MANUAL_IDS.size + 1} />
+      <SettingsGroupSkeleton rows={1} />
+    </SettingsColumns>
   );
 }

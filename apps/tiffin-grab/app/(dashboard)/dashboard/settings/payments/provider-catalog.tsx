@@ -1,28 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { IntegrationPluginCard, IntegrationPluginCardSkeleton } from "@foundry/crm";
+import { PAYMENT_PROVIDERS, type PaymentProviderDef } from "@foundry/payments/providers";
+import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
-import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
+import { IconTile } from "../_components/icon-tile";
+import { CatalogCard, CatalogShelf, CatalogShelfSkeleton } from "../_components/catalog-card";
 import { installPaymentPlugin } from "./actions";
 import { setPluginInstalledAction } from "../integrations/actions";
+import { providerDisplay, providerHref } from "./provider-display";
 
 /**
- * The install surface for Settings → Payment: every PAYMENT_PROVIDERS entry
- * not already installed, regardless of how many are. Mirrors the deleted
- * Integrations plugin cards (git show 7af0ea7), reusing the same
- * IntegrationPluginCard chrome, but scoped to PAYMENT_PROVIDERS and wired to
- * the payments actions instead of a per-provider Integrations entry.
+ * Add payment method: every PAYMENT_PROVIDERS entry as a store card, already-added ones on
+ * their own shelf with Open. A plugin-backed provider (Stripe) is added by installing its
+ * plugin, then finishes setup on its own page.
  *
- * A plugin-backed provider (Stripe) is added by installing its plugin, then
- * finishes setup on its own settings page.
- *
- * `installedIds` filters out already-installed providers rather than relying
- * on installPaymentPlugin's duplicate-id error as the guard — that error
- * exists as a last-resort invariant, not a UI contract.
+ * `installedIds` drives the shelves rather than installPaymentPlugin's duplicate-id error:
+ * that error is a last-resort invariant, not a UI contract.
  */
 export function ProviderCatalog({
   installedIds,
@@ -31,86 +29,106 @@ export function ProviderCatalog({
   installedIds: string[];
   blockedPluginIds: string[];
 }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-
-  const install = (id: string, label: string, plugin?: string) =>
-    start(async () => {
-      try {
-        if (plugin) {
-          const res = await setPluginInstalledAction(plugin, true);
-          if (res.error) {
-            toast.error(res.error);
-            return;
-          }
-          router.push(`/dashboard/settings/payments/${plugin}`);
-          return;
-        }
-        const res = await installPaymentPlugin(id);
-        if ("error" in res) {
-          toast.error(res.error);
-          return;
-        }
-        toast.success(`${label} installed`);
-        router.refresh();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not install provider");
-      }
-    });
-
+  const added = PAYMENT_PROVIDERS.filter((p) => installedIds.includes(p.id));
   const available = PAYMENT_PROVIDERS.filter((p) => !installedIds.includes(p.id));
-  if (available.length === 0) {
-    return <p className="text-muted-foreground text-sm">All payment providers are installed.</p>;
-  }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {available.map((provider) => {
-        // A provider that is its own plugin installs it on Add, so it is never blocked by it.
-        const blocked =
-          !!provider.requiresPlugin &&
-          provider.requiresPlugin !== provider.id &&
-          blockedPluginIds.includes(provider.requiresPlugin);
-        return (
-          <IntegrationPluginCard
-            key={provider.id}
-            icon={<provider.icon className="size-5" />}
-            label={provider.label}
-            description={
-              blocked
-                ? `${provider.description} Install ${provider.requiresPlugin} first.`
-                : provider.description
-            }
-          >
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1.5 self-start"
-              disabled={pending || blocked}
-              onClick={() =>
-                install(
-                  provider.id,
-                  provider.label,
-                  provider.requiresPlugin === provider.id ? provider.requiresPlugin : undefined,
-                )
-              }
-            >
-              <PlusIcon className="size-3.5" />
-              Add provider
-            </Button>
-          </IntegrationPluginCard>
-        );
-      })}
+    <div className="flex flex-col gap-6">
+      {available.length > 0 ? (
+        <CatalogShelf title="Available" count={available.length}>
+          {available.map((p) => (
+            <ProviderCard key={p.id} provider={p} added={false} blockedPluginIds={blockedPluginIds} />
+          ))}
+        </CatalogShelf>
+      ) : (
+        <p className="text-muted-foreground text-sm">Every payment method is added. Manage them on the Payment page.</p>
+      )}
+      {added.length > 0 ? (
+        <CatalogShelf title="Added" count={added.length}>
+          {added.map((p) => (
+            <ProviderCard key={p.id} provider={p} added blockedPluginIds={blockedPluginIds} />
+          ))}
+        </CatalogShelf>
+      ) : null}
     </div>
   );
 }
 
-export function ProviderCatalogSkeleton() {
+function ProviderCard({
+  provider,
+  added,
+  blockedPluginIds,
+}: {
+  provider: PaymentProviderDef;
+  added: boolean;
+  blockedPluginIds: string[];
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const d = providerDisplay(provider.id);
+  // A provider that is its own plugin installs it on Add, so it is never blocked by it.
+  const blockedBy =
+    provider.requiresPlugin && provider.requiresPlugin !== provider.id && blockedPluginIds.includes(provider.requiresPlugin)
+      ? provider.requiresPlugin
+      : null;
+
+  const add = () =>
+    start(async () => {
+      try {
+        if (provider.requiresPlugin === provider.id) {
+          const res = await setPluginInstalledAction(provider.id, true);
+          if (res.error) {
+            toast.error(res.error);
+            return;
+          }
+          router.push(providerHref(provider.id));
+          return;
+        }
+        const res = await installPaymentPlugin(provider.id);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success(`${provider.label} added`, {
+          action: { label: "Set up", onClick: () => router.push(providerHref(provider.id)) },
+        });
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not add payment method");
+      }
+    });
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {PAYMENT_PROVIDERS.map((p) => (
-        <IntegrationPluginCardSkeleton key={p.id} />
-      ))}
-    </div>
+    <CatalogCard
+      tile={<IconTile icon={provider.icon} tone={d.tone} logo={d.logo} size="lg" />}
+      title={provider.label}
+      category={`${d.kind} · ${d.settles}`}
+      description={provider.description}
+      status={
+        added ? (
+          <Badge variant="success-light">Added</Badge>
+        ) : blockedBy ? (
+          <Badge variant="warning-light">Needs {blockedBy}</Badge>
+        ) : null
+      }
+      action={
+        added ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link href={providerHref(provider.id)} prefetch={false}>
+              Open
+            </Link>
+          </Button>
+        ) : (
+          <Button size="sm" disabled={pending || !!blockedBy} onClick={add}>
+            <PlusIcon data-icon="inline-start" />
+            {pending ? "Adding..." : "Add"}
+          </Button>
+        )
+      }
+    />
   );
+}
+
+export function ProviderCatalogSkeleton() {
+  return <CatalogShelfSkeleton cards={PAYMENT_PROVIDERS.length} />;
 }

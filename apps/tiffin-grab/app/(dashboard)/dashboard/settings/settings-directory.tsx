@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   CalendarOffIcon,
-  ChevronRightIcon,
   ClockIcon,
   GlobeIcon,
   MailCheckIcon,
@@ -18,11 +16,12 @@ import {
   Webhook,
 } from "lucide-react";
 import type { PluginIcon, PluginLogo } from "@foundry/commons/plugin";
-import { Card, EmptyState, SearchInput } from "@/components/ds";
+import { EmptyState, SearchInput } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { PLUGIN_METAS, type Tone } from "@/lib/plugins";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { IconTile, IconTileSkeleton } from "./_components/icon-tile";
+import { IconTile } from "./_components/icon-tile";
+import { SettingsColumns, SettingsGroup, SettingsGroupSkeleton, SettingsRow } from "./_components/grouped-list";
 
 type Item = { label: string; description: string; icon: PluginIcon; tone: Tone; logo?: PluginLogo; href: string };
 type Group = { title: string; items: Item[] };
@@ -102,36 +101,21 @@ export function SettingsDirectory({ installedPluginIds }: { installedPluginIds: 
           }
         />
       ) : (
-        // Columns, not a grid: groups differ in length, and a grid row leaves a hole under the short one.
-        <div className="gap-6 lg:columns-2">
+        <SettingsColumns>
           {visible.map((g) => (
-            <section key={g.title} className="mb-6 flex break-inside-avoid flex-col gap-2 last:mb-0" aria-labelledby={`settings-${g.title}`}>
-              <h2 id={`settings-${g.title}`} className="text-muted-foreground px-1 text-xs font-medium">
-                {g.title}
-              </h2>
-              <Card variant="flat" className="overflow-hidden p-0">
-                <ul className="divide-border divide-y">
-                  {g.items.map((i) => (
-                    <li key={i.href}>
-                      <Link
-                        href={i.href}
-                        prefetch={false}
-                        className="hover:bg-accent focus-visible:bg-accent flex items-center gap-3 px-4 py-3 transition-colors outline-none"
-                      >
-                        <IconTile icon={i.icon} tone={i.tone} logo={i.logo} />
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="text-sm font-medium">{i.label}</span>
-                          <span className="text-muted-foreground truncate text-xs">{i.description}</span>
-                        </span>
-                        <ChevronRightIcon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            </section>
+            <SettingsGroup key={g.title} title={g.title}>
+              {g.items.map((i) => (
+                <SettingsRow
+                  key={i.href}
+                  href={i.href}
+                  tile={<IconTile icon={i.icon} tone={i.tone} logo={i.logo} />}
+                  label={i.label}
+                  description={i.description}
+                />
+              ))}
+            </SettingsGroup>
           ))}
-        </div>
+        </SettingsColumns>
       )}
     </div>
   );
@@ -143,26 +127,11 @@ export function SettingsDirectorySkeleton() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true">
       <Skeleton className="h-9 max-w-sm" />
-      <div className="gap-6 lg:columns-2">
+      <SettingsColumns>
         {groups.map((rows, g) => (
-          <div key={g} className="mb-6 flex break-inside-avoid flex-col gap-2 last:mb-0">
-            <Skeleton className="mx-1 h-3.5 w-20" />
-            <Card variant="flat" className="overflow-hidden p-0">
-              <ul className="divide-border divide-y">
-                {Array.from({ length: rows }, (_, r) => (
-                  <li key={r} className="flex items-center gap-3 px-4 py-3">
-                    <IconTileSkeleton />
-                    <span className="flex flex-1 flex-col gap-1.5">
-                      <Skeleton className="h-3.5 w-28" />
-                      <Skeleton className="h-3 w-48 max-w-full" />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
+          <SettingsGroupSkeleton key={g} rows={rows} />
         ))}
-      </div>
+      </SettingsColumns>
     </div>
   );
 }

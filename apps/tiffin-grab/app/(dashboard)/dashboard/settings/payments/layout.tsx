@@ -9,7 +9,7 @@ export default async function PaymentsSettingsLayout({ children }: { children: R
       <PageHeader
         icon={BanknoteIcon}
         title="Payment"
-        subtitle="Providers customers can pay with, and the tax and coin rules every order follows."
+        subtitle="How customers pay at checkout, and the tax rules every order follows."
       />
       <div className="min-w-0">{children}</div>
     </div>

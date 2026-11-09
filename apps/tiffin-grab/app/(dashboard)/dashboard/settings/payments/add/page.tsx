@@ -4,19 +4,14 @@ import { ProviderCatalogSkeleton } from "../provider-catalog";
 import { ProviderCatalogLoader } from "../provider-catalog-loader";
 import { PaymentsBackLink } from "../back-link";
 
-/** Reachable from the hub's Payment providers card "Add provider" action. */
+/** Reachable from the Payment page's "Add payment method" row. */
 export default async function AddPaymentProviderPage() {
   const cfg = await getPaymentConfig();
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <PaymentsBackLink />
-      <div className="space-y-1">
-        <p className="font-medium">Add a payment provider</p>
-        <p className="text-muted-foreground text-sm">
-          Installed providers are listed on the Payment page.
-        </p>
-      </div>
+      <h2 className="text-base font-semibold tracking-tight">Add a payment method</h2>
       <Suspense fallback={<ProviderCatalogSkeleton />}>
         <ProviderCatalogLoader methodIds={cfg.methods.map((m) => m.id)} />
       </Suspense>

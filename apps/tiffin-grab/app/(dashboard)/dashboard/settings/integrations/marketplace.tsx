@@ -7,14 +7,15 @@ import { EllipsisIcon, PlusIcon, SearchXIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { PluginCatalogStatus } from "@foundry/crm";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { Card, EmptyState, SearchInput } from "@/components/ds";
+import { EmptyState, SearchInput } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PLUGIN_CATEGORIES, PLUGIN_METAS, type PluginCategory } from "@/lib/plugins";
 import type { PluginMeta } from "@foundry/crm";
-import { IconTile, IconTileSkeleton } from "../_components/icon-tile";
+import { IconTile } from "../_components/icon-tile";
+import { CatalogCard, CatalogShelf, CatalogShelfSkeleton } from "../_components/catalog-card";
 import { setPluginInstalledAction } from "./actions";
 
 type Filter = "all" | "installed" | PluginCategory;
@@ -85,18 +86,11 @@ export function Marketplace({ statuses }: { statuses: Record<string, PluginCatal
         />
       ) : (
         shelves.map((s) => (
-          <section key={s.title ?? "results"} className="flex flex-col gap-3">
-            {s.title ? (
-              <h2 className="text-sm font-semibold tracking-tight">
-                {s.title} <span className="text-muted-foreground font-normal tabular-nums">{s.items.length}</span>
-              </h2>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {s.items.map((m) => (
-                <PluginCard key={m.id} meta={m} status={statuses[m.id] ?? { installed: false }} />
-              ))}
-            </div>
-          </section>
+          <CatalogShelf key={s.title ?? "results"} title={s.title} count={s.items.length}>
+            {s.items.map((m) => (
+              <PluginCard key={m.id} meta={m} status={statuses[m.id] ?? { installed: false }} />
+            ))}
+          </CatalogShelf>
         ))
       )}
     </div>
@@ -124,51 +118,41 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
     });
 
   return (
-    <Card variant="flat" className="h-full gap-0 p-0">
-      <div className="flex h-full flex-col gap-4 p-5">
-        <div className="flex items-start gap-3">
-          <IconTile icon={meta.icon} tone={meta.tone ?? "gray"} logo={meta.logo} size="lg" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <h3 className="text-sm font-semibold tracking-tight">{meta.label}</h3>
-            <span className="text-muted-foreground text-xs">{categoryOf(meta)}</span>
-          </div>
-          {status.installed ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label={`More for ${meta.label}`} disabled={pending}>
-                  <EllipsisIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem variant="destructive" onSelect={() => setInstalled(false)}>
-                  Remove plugin
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
-
-        <p className="text-muted-foreground line-clamp-2 flex-1 text-sm">{meta.description}</p>
-
-        <div className="flex items-center justify-between gap-2">
-          {status.installed ? (
-            <Badge variant={statusVariant(status.statusLabel)}>{status.statusLabel ?? "Installed"}</Badge>
-          ) : (
-            <span />
-          )}
-          {!status.installed ? (
-            <Button size="sm" disabled={pending} onClick={() => setInstalled(true)}>
-              <PlusIcon data-icon="inline-start" />
-              {pending ? "Installing..." : "Install"}
-            </Button>
-          ) : meta.settingsHref ? (
-            <Button size="sm" variant="outline" asChild>
-              <Link href={meta.settingsHref}>Open</Link>
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </Card>
+    <CatalogCard
+      tile={<IconTile icon={meta.icon} tone={meta.tone ?? "gray"} logo={meta.logo} size="lg" />}
+      title={meta.label}
+      category={categoryOf(meta)}
+      description={meta.description}
+      menu={
+        status.installed ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label={`More for ${meta.label}`} disabled={pending}>
+                <EllipsisIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" onSelect={() => setInstalled(false)}>
+                Remove plugin
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null
+      }
+      status={status.installed ? <Badge variant={statusVariant(status.statusLabel)}>{status.statusLabel ?? "Installed"}</Badge> : null}
+      action={
+        !status.installed ? (
+          <Button size="sm" disabled={pending} onClick={() => setInstalled(true)}>
+            <PlusIcon data-icon="inline-start" />
+            {pending ? "Installing..." : "Install"}
+          </Button>
+        ) : meta.settingsHref ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link href={meta.settingsHref}>Open</Link>
+          </Button>
+        ) : null
+      }
+    />
   );
 }
 
@@ -186,32 +170,7 @@ export function MarketplaceSkeleton() {
         <Skeleton className="h-9 sm:w-72" />
         <Skeleton className="h-8 w-80" />
       </div>
-      <section className="flex flex-col gap-3">
-        <Skeleton className="h-5 w-24" />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {PLUGIN_METAS.map((m) => (
-            <Card key={m.id} variant="flat" className="h-full gap-0 p-0">
-              <div className="flex h-full flex-col gap-4 p-5">
-                <div className="flex items-start gap-3">
-                  <IconTileSkeleton size="lg" />
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-3.5 w-full" />
-                  <Skeleton className="h-3.5 w-2/3" />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                  <Skeleton className="h-8 w-20" />
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </section>
+      <CatalogShelfSkeleton cards={PLUGIN_METAS.length} />
     </div>
   );
 }
