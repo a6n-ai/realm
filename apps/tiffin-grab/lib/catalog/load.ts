@@ -4,6 +4,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
 import { ValidationError } from "@foundry/commons";
+import { buildDealTable } from "@/lib/pricing/deals";
 import { mealSizeDiscountFor } from "@/lib/pricing/meal-size-discount";
 import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
 import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
@@ -152,7 +153,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
       throw err;
     }
   };
-  return {
+  const snapshot: Omit<CatalogSnapshot, "deals"> = {
     validUntil,
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => {
@@ -233,4 +234,5 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
       })),
     },
   };
+  return { ...snapshot, deals: buildDealTable(snapshot) };
 }

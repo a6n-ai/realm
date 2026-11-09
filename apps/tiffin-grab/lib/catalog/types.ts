@@ -40,6 +40,20 @@ export function listableMealSizes<T extends { custom: boolean; publicId: string;
 }
 
 // Active, in-window rows of the central `discounts` table. targetPublicId null = all rows of that kind.
+export interface DealOption {
+  /** Share of the food price the configured discounts take off, as the pricing engine applies it. */
+  pct: number;
+  includes: { name: string; percent: number }[];
+}
+
+/** Server-computed deal numbers; the wizard only displays them. */
+export interface DealTable {
+  /** frequencyKey -> weeks -> option. Discounts are percentages of the food price, so it does not depend on what is picked. */
+  options: Record<string, Record<number, DealOption>>;
+  /** frequencyKey -> weeks -> whole-percent per-tiffin saving vs that frequency's shortest plan; only lengths saving at least 1%. */
+  durationSavings: Record<string, Record<number, number>>;
+}
+
 export interface CatalogDiscount {
   key: string;
   name: string;
@@ -109,6 +123,7 @@ export interface CatalogSnapshot {
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
+  deals?: DealTable;
   deliveryCharges?: {
     baseCharge: number;
     /** Active tags; the customer picks at most one. */
@@ -166,6 +181,7 @@ export interface ClientCatalogSnapshot {
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
+  deals?: DealTable;
   deliveryCharges?: {
     baseCharge: number;
     strategyGroups: StrategyGroupView[];
@@ -233,6 +249,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     discounts: snapshot.discounts,
     waivers: snapshot.waivers,
     maxDiscountPct: snapshot.maxDiscountPct,
+    deals: snapshot.deals,
     deliveryCharges: snapshot.deliveryCharges
       ? {
           baseCharge: snapshot.deliveryCharges.baseCharge,

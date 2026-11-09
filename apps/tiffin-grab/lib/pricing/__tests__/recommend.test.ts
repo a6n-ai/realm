@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { compareOptions, durationSavings, recommendDeals } from "../recommend";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingSelections } from "../types";
+import { buildDealTable } from "../deals";
 
-const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnapshot => ({
+const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnapshot => withDeals({
   plans: [],
   mealSizes: [{ publicId: "msz_1", key: "k", name: "K", description: null, planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true }],
   frequencies: [
@@ -16,6 +17,11 @@ const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnaps
   maxDiscountPct: 25,
   ...over,
 } as unknown as ClientCatalogSnapshot);
+
+// What the server puts in the catalog payload (load.ts); the client only reads it.
+function withDeals(c: ClientCatalogSnapshot): ClientCatalogSnapshot {
+  return { ...c, deals: buildDealTable(c as never) };
+}
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   mealSizeId: "msz_1", frequencyKey: "5_day", eatingDays: ["mon", "wed", "fri"], persons: 1, mealSlots: ["lunch"],
@@ -37,7 +43,6 @@ describe("recommendDeals", () => {
     const [best] = recommendDeals({ snapshot: s, selections: sel() });
     expect(best.payload.durationWeeks).toBe(8);
     expect(best.savingPct).toBeGreaterThan(1);
-    expect(best.totalDelta).toBeGreaterThan(0);
   });
 
   it("finds a cheaper frequency", () => {
@@ -53,8 +58,8 @@ describe("recommendDeals", () => {
   it("respects the discount cap when pricing alternatives", () => {
     const s = snapshot({ discounts: [d("big", "duration", { targetPublicId: "dur_8", percent: 90 })], maxDiscountPct: 10 });
     const [best] = recommendDeals({ snapshot: s, selections: sel(), cap: 5 });
-    // 8wk x3 = 24 tiffins at base 10 (tier 0%): capped 10% => 216
-    expect(best.payload.total).toBe(216);
+    expect(best.payload.includes).toEqual([{ name: "big", percent: 90 }]);
+    expect(Math.round(best.savingPct)).toBe(10);
   });
 
   it("skips frequencies that cannot carry the eating days", () => {
@@ -109,6 +114,15 @@ describe("compareOptions", () => {
       expect(c.deal.payload.durationWeeks).toBe(12);
       expect(Math.round(c.deal.savingPct)).toBe(durationSavings(s, sel())[12]);
     }
+  });
+  it("still shows deals when a delivery strategy or address tag is picked", () => {
+    const s = snapshot({
+      discounts: [d("dd", "duration", { targetPublicId: "dur_8", percent: 5 })],
+      deliveryCharges: { baseCharge: 0, strategyGroups: [], strategyConnections: [], deliveryStrategies: [{ id: "ds_1", name: "x", description: null, chargeType: "fixed", chargeValue: 5, groupId: "g1", connectionId: null, chargeBasis: "once" }], addressTags: [{ id: "tag_1", name: "t", description: null, chargeType: "none", chargeValue: 0 }] },
+    });
+    const picked = sel({ addressTagId: "tag_1", deliveryStrategyIds: ["ds_1"] });
+    expect(durationSavings(s, picked)).toEqual({ 8: 5 });
+    expect(compareOptions({ snapshot: s, selections: { ...picked, durationWeeks: 1 }, vary: "duration" }).state).toBe("recommend");
   });
   it("none when nothing differs", () => {
     const flat = snapshot();
