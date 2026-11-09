@@ -14,9 +14,7 @@ import {
   scopeToComplaintFilters,
   ticketOrgWhere,
 } from "./complaint-filters";
-import { localDay, type AnalyticsScope } from "./metrics/scope";
-
-const intCount = sql<number>`cast(count(*) as int)`;
+import { localDay, type AnalyticsScope, intCount } from "./metrics/scope";
 
 /**
  * Tickets joined to the order they were raised about (and that order's plan and

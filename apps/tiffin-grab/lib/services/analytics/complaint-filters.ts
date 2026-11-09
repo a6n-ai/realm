@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-o
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones, mealSizes, orders, plans, tickets } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
-import type { AnalyticsScope } from "./metrics/scope";
+import { orgWhere, type AnalyticsScope } from "./metrics/scope";
 
 /**
  * Complaint analytics and the ticket queue read the SAME query parameters, so
@@ -86,10 +86,7 @@ export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters
  * Franchise scope for tickets, through the linked order's own organization_id. A ticket with no
  * order has no franchise, so it counts only when the viewer sees every franchise.
  */
-export function ticketOrgWhere(orgIds: AnalyticsScope["orgIds"]): SQL | undefined {
-  if (orgIds === "all") return undefined;
-  return orgIds.length === 0 ? sql`false` : inArray(orders.organizationId, orgIds);
-}
+export const ticketOrgWhere = (orgIds: AnalyticsScope["orgIds"]) => orgWhere(orders.organizationId, orgIds);
 
 /** Serialise filters back into a querystring for a drill-through link. */
 export function complaintHref(base: string, filters: Partial<ComplaintFilters> & { [k: string]: unknown }): string {

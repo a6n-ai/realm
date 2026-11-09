@@ -6,9 +6,7 @@ import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets
 import { leadWhere as scopedLeadWhere } from "./leads.service";
 import { laterOrderSql } from "@/lib/orders/queries";
 import { revenueBy } from "./metrics/money";
-import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
-
-const intCount = sql<number>`cast(count(*) as int)`;
+import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope, intCount, noOrgs, orgWhere } from "./metrics/scope";
 
 export type EmployeeRow = {
   userId: string;
@@ -42,7 +40,8 @@ function ticketScope(scope: AnalyticsScope): SQL | undefined {
 // no plan / size / zone, so a facet keeps the coupons redeemed on an in-scope order.
 function couponScope(scope: AnalyticsScope): SQL | undefined {
   const parts: SQL[] = [];
-  if (scope.orgIds !== "all") parts.push(scope.orgIds.length ? inArray(coupons.organizationId, scope.orgIds) : sql`false`);
+  const org = orgWhere(coupons.organizationId, scope.orgIds);
+  if (org) parts.push(org);
   const facets = facetsWhere(scope);
   if (facets) {
     parts.push(sql`exists (
@@ -57,7 +56,7 @@ function couponScope(scope: AnalyticsScope): SQL | undefined {
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
 export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRollup> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return { rows: [], unassignedRevenue: 0 };
+  if (noOrgs(scope)) return { rows: [], unassignedRevenue: 0 };
   const window = { fromMs: scope.fromMs, toMs: scope.toMs };
   const [leadRows, ticketRows, couponRows, staff, ownedRows, revenueRows, actionRows] = await Promise.all([
     db

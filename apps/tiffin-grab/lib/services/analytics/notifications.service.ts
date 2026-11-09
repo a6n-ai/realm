@@ -3,6 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
 import { notificationOutcomeWhere } from "@/lib/notifications/outcome";
+import { intCount } from "./metrics/scope";
 
 export type NotificationBuckets = { total: number; sent: number; skipped: number; failed: number; inFlight: number };
 
@@ -23,8 +24,6 @@ export async function getNotificationBuckets(created?: SQL): Promise<Notificatio
     .where(created);
   return row;
 }
-
-const intCount = sql<number>`cast(count(*) as int)`;
 
 export async function getChannelCounts(created?: SQL): Promise<{ channel: string; n: number }[]> {
   return db.select({ channel: notificationOutbox.channel, n: intCount }).from(notificationOutbox).where(created).groupBy(notificationOutbox.channel);

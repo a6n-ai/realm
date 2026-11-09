@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { CAPTURED, PAID } from "@/lib/payments/status";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
-import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
+import { dateWhere, localDay, ordersScope, type AnalyticsScope, noOrgs } from "./scope";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { round2 } from "@foundry/commons/util/money";
 
@@ -37,7 +37,6 @@ const refundExSurcharge = sql`coalesce(${ledgerEntries.amount} * (${payments.amo
 export const refundExTax = sql`coalesce(${refundExSurcharge} * (1 - ${taxShare}), 0)`;
 
 const sqlList = (v: readonly string[]) => sql.join(v.map((s) => sql`${s}`), sql`, `);
-const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 const rowsOf = (r: unknown) => (Array.isArray(r) ? r : ((r as { rows: unknown[] }).rows ?? [])) as Record<string, string | null>[];
 // Payment-method facet (scope.extra.method); unknown values match nothing.
 export const methodWhere = (scope: AnalyticsScope) => (scope.extra.method?.length ? sql`${payments.method}::text in (${sqlList(scope.extra.method)})` : undefined);

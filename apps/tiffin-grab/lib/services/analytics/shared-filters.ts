@@ -1,8 +1,8 @@
-import { and, asc, eq, exists, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
 import { ticketOrgWhere } from "./complaint-filters";
-import { resolveAnalyticsScope } from "./metrics/scope";
+import { noOrgs, resolveAnalyticsScope } from "./metrics/scope";
 import { parseAnalyticsFilters as parseAnalyticsFiltersSync, type AnalyticsFilterOptions, type AnalyticsFilters, type AnalyticsSearchParams } from "./shared-filter-params";
 
 export {
@@ -41,8 +41,8 @@ export { parseAnalyticsFiltersSync };
 export async function getAnalyticsFilterOptions(
   visibleOrgIds: "all" | string[],
 ): Promise<AnalyticsFilterOptions> {
-  const noOrgs = visibleOrgIds !== "all" && visibleOrgIds.length === 0;
-  const orderOrg = visibleOrgIds === "all" ? undefined : noOrgs ? sql`false` : inArray(orders.organizationId, visibleOrgIds);
+  const hasNoOrgs = noOrgs({ orgIds: visibleOrgIds });
+  const orderOrg = ticketOrgWhere(visibleOrgIds);
   const hasOrder = (col: typeof orders.mealSizeId | typeof orders.zoneId, id: typeof mealSizes.id | typeof deliveryZones.id) =>
     exists(db.select({ one: orders.id }).from(orders).where(and(eq(col, id), orderOrg)));
   const [planRows, sizeRows, zoneRows, orgRows, ticketRows] = await Promise.all([
@@ -77,7 +77,7 @@ export async function getAnalyticsFilterOptions(
           .from(organization)
           .where(visibleOrgIds === "all" ? undefined : inArray(organization.id, visibleOrgIds))
           .orderBy(asc(organization.name)),
-    noOrgs
+    hasNoOrgs
       ? Promise.resolve([])
       : db
           .selectDistinct({ category: tickets.category, subcategory: tickets.subcategory })

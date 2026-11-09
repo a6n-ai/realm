@@ -22,7 +22,7 @@ import {
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
 import { freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
-import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { dateWhere, ordersScope, type AnalyticsScope, noOrgs } from "./metrics/scope";
 import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
@@ -39,7 +39,7 @@ export const REVENUE_METHODS = payments.method.enumValues;
 
 /** One row per order with a settled payment in the window: its paid amount and snapshot, for discount lines. */
 async function settledOrderRows(scope: AnalyticsScope) {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+  if (noOrgs(scope)) return [];
   const rows = await db
     .select({
       orderId: orders.id,

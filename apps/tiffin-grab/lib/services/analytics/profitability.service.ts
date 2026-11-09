@@ -8,7 +8,7 @@ import { chartPeriod } from "@/lib/analytics/buckets";
 import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { CAPTURED } from "@/lib/payments/status";
-import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { dateWhere, noOrgs, ordersScope, type AnalyticsScope } from "./metrics/scope";
 import { eachDate, isoDateInZone, utcIso } from "@foundry/commons/util/dates";
 
 function isoDate(v: unknown): string {
@@ -93,9 +93,9 @@ export async function getProfitabilityReport(opts: {
   ];
   const deliveredWhere = and(...delivered, sql`not ${WP_MIGRATED}`);
 
-  const noOrgs = scope.orgIds !== "all" && scope.orgIds.length === 0;
+  const hasNoOrgs = noOrgs(scope);
   const [earnedRows, cashDays, totals, [nextCutoff], [migrated], [migratedAddons]] = await Promise.all([
-    noOrgs
+    hasNoOrgs
       ? []
       : db
           .select({
@@ -113,7 +113,7 @@ export async function getProfitabilityReport(opts: {
           .groupBy(deliveries.deliveryDate),
     revenueBy(scope, "day"),
     revenueTotals(scope),
-    noOrgs
+    hasNoOrgs
       ? [{ at: null }]
       : db
           .select({ at: sql<number | null>`min(${deliveries.cutoffAt})` })
@@ -129,14 +129,14 @@ export async function getProfitabilityReport(opts: {
               orderWhere,
             ),
           ),
-    noOrgs
+    hasNoOrgs
       ? [{ n: 0 }]
       : db
           .select({ n: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int` })
           .from(deliveries)
           .innerJoin(orders, eq(deliveries.orderId, orders.id))
           .where(and(...delivered, WP_MIGRATED)),
-    noOrgs
+    hasNoOrgs
       ? [{ n: 0 }]
       : db
           .select({ n: sql<number>`count(*)::int` })

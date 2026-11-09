@@ -2,9 +2,7 @@ import { ratePct } from "@/lib/money";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { dateWhereCalendar, ordersScope, type AnalyticsScope } from "./metrics/scope";
-
-const intCount = sql<number>`cast(count(*) as int)`;
+import { dateWhereCalendar, ordersScope, type AnalyticsScope, intCount, noOrgs } from "./metrics/scope";
 
 export type OperationsStats = {
   totalDeliveries: number;
@@ -21,8 +19,6 @@ export function deliveryWhere(scope: AnalyticsScope) {
     orderScope ? sql`${deliveries.orderId} in (select ${orders.id} from ${orders} where ${orderScope})` : undefined,
   );
 }
-
-const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
 export async function getOperationsStats(scope: AnalyticsScope): Promise<OperationsStats> {
   if (noOrgs(scope)) return { totalDeliveries: 0, skipped: 0, cancelled: 0, skipRatePct: 0 };

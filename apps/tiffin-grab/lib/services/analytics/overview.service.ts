@@ -1,6 +1,6 @@
 import { and, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments } from "@/db/schema";
+import { orders } from "@/db/schema";
 import { clampToToday } from "@/lib/analytics/clamp";
 import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
 import {
@@ -16,7 +16,7 @@ import { getSignupDaily } from "./customers.service";
 import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
 import { getDeliveriesDaily } from "./operations.service";
-import { localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { localDay, ordersScope, type AnalyticsScope, noOrgs, ranOrders } from "./metrics/scope";
 import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 export type { TrialConversionStats };
@@ -40,9 +40,7 @@ export async function getTrialToPlanConversion(scope: AnalyticsScope, now = Date
         ordersScope(scope),
         isNotNull(orders.trialLength),
         isNotNull(orders.userId),
-        sql`not (${orders.status} = 'cancelled' and not exists (
-          select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} in ('paid', 'simulated_paid')
-        ))`,
+        ranOrders,
         sql`(${lastTiffinSql} between ${earliestRelevantEnd(from)} and ${to} or ${convertedOn} between ${from} and ${to})`,
       ),
     );
@@ -72,7 +70,7 @@ export type ScorecardRow = {
 export const SCORECARD_MAX_DAYS = 92;
 
 async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+  if (noOrgs(scope)) return [];
   return db
     .select({ iso: sql<string>`${localDay(orders.createdAt, scope.tz)}::text`, n: sql<number>`cast(count(*) as int)` })
     .from(orders)
@@ -99,7 +97,7 @@ export async function getDailyScorecard(
     getComplaintDaily(scope),
     profit ?? getProfitabilityReport({ month: from.slice(0, 7), grain: "daily", scope, now }),
   ]);
-  const noAccess = scope.orgIds !== "all" && scope.orgIds.length === 0;
+  const noAccess = noOrgs(scope);
   const profitBy = new Map(profitReport.rows.map((r) => [r.date, r.profit]));
   const revenueByDay = new Map(revenue.map((r) => [r.key, r.net]));
   const ordersBy = new Map(orderDays.map((r) => [r.iso, r.n]));

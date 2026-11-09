@@ -2,9 +2,7 @@ import { ratePct } from "@/lib/money";
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, mealSizes } from "@/db/schema";
-import { dateWhere, type AnalyticsScope } from "./metrics/scope";
-
-const intCount = sql<number>`cast(count(*) as int)`;
+import { dateWhere, intCount, orgWhere, type AnalyticsScope } from "./metrics/scope";
 
 export type LeadStats = { total: number; converted: number; lost: number; conversionRatePct: number };
 
@@ -14,8 +12,10 @@ export type LeadStats = { total: number; converted: number; lost: number; conver
  * unstamped ones appear under All franchises only.
  */
 export function leadWhere(scope: AnalyticsScope): SQL | undefined {
-  const parts: (SQL | undefined)[] = [dateWhere(inquiries.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs })];
-  if (scope.orgIds !== "all") parts.push(scope.orgIds.length ? inArray(inquiries.organizationId, scope.orgIds) : sql`false`);
+  const parts: (SQL | undefined)[] = [
+    dateWhere(inquiries.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
+    orgWhere(inquiries.organizationId, scope.orgIds),
+  ];
   if (scope.plans.length) parts.push(inArray(inquiries.planInterest, scope.plans));
   // Interest stores meal size publicId; shared filters use meal size keys.
   if (scope.mealSizes.length) {

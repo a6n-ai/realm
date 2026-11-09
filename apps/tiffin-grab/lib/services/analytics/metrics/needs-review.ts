@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { ledgerEntries, orders, payments } from "@/db/schema";
 import { CAPTURED } from "@/lib/payments/status";
 import { methodWhere, moneyDate } from "./money";
-import { dateWhere, ordersScope, type AnalyticsScope } from "./scope";
+import { dateWhere, ordersScope, type AnalyticsScope, noOrgs } from "./scope";
 
 export type ReviewReason = "cancelled_paid" | "paid_ne_total" | "partly_refunded" | "refunded_no_ledger";
 
@@ -53,7 +53,7 @@ const refundedNoLedger = sql`exists (select 1 from ${payments} where ${mine} and
  * payments falls in the window; the figures then cover all of that order's payments.
  */
 export async function needsReviewRows(scope: AnalyticsScope): Promise<NeedsReviewRow[]> {
-  if (scope.orgIds !== "all" && scope.orgIds.length === 0) return [];
+  if (noOrgs(scope)) return [];
   const inWindow = sql`exists (select 1 from ${payments} where ${mine} and ${captured} and ${and(methodWhere(scope), dateWhere(moneyDate, scope)) ?? sql`true`})`;
   const rows = await db
     .select({

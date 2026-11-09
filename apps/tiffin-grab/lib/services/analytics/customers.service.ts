@@ -4,10 +4,9 @@ import { deliveries, orders, users } from "@/db/schema";
 import { bucketCounts } from "@/lib/analytics/buckets";
 import { lastTiffinSql, ordersListWhere } from "@/lib/orders/queries";
 import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
-import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { dateWhere, localDay, ordersScope, type AnalyticsScope, intCount, noOrgs } from "./metrics/scope";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 
-const intCount = sql<number>`cast(count(*) as int)`;
 const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;
 
 export type CustomerStats = {
@@ -23,8 +22,6 @@ export type CustomerStats = {
 
 /** Orders matching the Orders listing for this scope, so these counts equal what the list shows. */
 const listingWhere = (scope: AnalyticsScope) => ordersListWhere(scopeToOrdersCondition(scope), scope.orgIds);
-
-const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
 export async function getCustomerStats(scope: AnalyticsScope, now = Date.now()): Promise<CustomerStats> {
   if (noOrgs(scope)) return { customers: 0, activeCustomers: 0, pausedToday: 0, cancelledOrders: 0 };

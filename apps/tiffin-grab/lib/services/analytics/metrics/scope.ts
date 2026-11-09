@@ -1,7 +1,8 @@
 import "server-only";
 import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
-import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
+import { deliveryZones, mealSizes, orders, payments, plans } from "@/db/schema";
+import { PAID } from "@/lib/payments/status";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentMonthEpochRange, epoch, list } from "../shared-filter-params";
@@ -103,15 +104,24 @@ export function facetsWhere(f: Facets): SQL | undefined {
   return parts.length ? and(...parts) : undefined;
 }
 
+export const intCount = sql<number>`cast(count(*) as int)`;
+
+export const noOrgs = (scope: Pick<AnalyticsScope, "orgIds">) => scope.orgIds !== "all" && scope.orgIds.length === 0;
+
+/** Rows limited to the visible orgs through `col`; `[]` matches nothing, "all" adds no filter. */
+export function orgWhere(col: AnyColumn, orgIds: AnalyticsScope["orgIds"]): SQL | undefined {
+  if (orgIds === "all") return undefined;
+  return orgIds.length === 0 ? sql`false` : inArray(col, orgIds);
+}
+
+/** Orders minus cancelled ones nobody paid for: those never ran. */
+export const ranOrders = sql`not (${orders.status} = 'cancelled' and not exists (
+  select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, [...PAID])}
+))`;
+
 /** Org (via the order's own organization_id) plus plan / meal size / zone. `[]` orgs matches nothing. */
 export function ordersScope(scope: Pick<AnalyticsScope, "orgIds"> & Facets): SQL | undefined {
-  const org =
-    scope.orgIds === "all"
-      ? undefined
-      : scope.orgIds.length === 0
-        ? sql`false`
-        : inArray(orders.organizationId, scope.orgIds);
-  return and(org, facetsWhere(scope));
+  return and(orgWhere(orders.organizationId, scope.orgIds), facetsWhere(scope));
 }
 
 type Window = { fromMs?: number; toMs?: number };

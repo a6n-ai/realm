@@ -1,15 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orderAddons, orders, payments, plans } from "@/db/schema";
+import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orderAddons, orders, plans } from "@/db/schema";
 import type { SizeSale } from "@/lib/analytics/size-treemap";
 import { revenueBy } from "./metrics/money";
-import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { dateWhere, ordersScope, type AnalyticsScope, intCount, noOrgs, ranOrders } from "./metrics/scope";
 import { deliveryWhere } from "./operations.service";
 import { round2 } from "@foundry/commons/util/money";
-
-const intCount = sql<number>`cast(count(*) as int)`;
-
-const noOrgs = (scope: AnalyticsScope) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
 export type ProductStats = {
   totalSelections: number;
@@ -26,9 +22,7 @@ function selectionOrderIds(scope: AnalyticsScope) {
     where ${and(
       ordersScope(scope),
       dateWhere(orders.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
-      sql`not (${orders.status} = 'cancelled' and not exists (
-        select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} in ('paid', 'simulated_paid')
-      ))`,
+      ranOrders,
     )}
   )`;
 }
