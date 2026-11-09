@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
@@ -140,7 +141,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       surchargeAmount: p.surchargeAmount,
       cardPayable:
         p.method === "stripe" &&
-        (p.status === "awaiting_payment" || p.status === "rejected") &&
+        (inStatuses(UNPAID, p.status)) &&
         !cardPayClosed(orderStatus.get(p.orderId) ?? "", p.expiresAt, now),
       addonLines: addon ? [...addon.lines, ...addon.taxLines] : null,
     });

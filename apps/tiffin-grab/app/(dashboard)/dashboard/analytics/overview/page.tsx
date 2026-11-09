@@ -14,7 +14,7 @@ import { complaintHref, scopeToComplaintFilters } from "@/lib/services/analytics
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { countCustomers, countOrders, ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
-import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { PAID } from "@/lib/payments/status";
 import { currentMonth } from "@/lib/analytics/profitability";
 import { getRevenueReport, getRevenueCohortMix } from "@/lib/services/analytics/revenue.service";
 import { getComplaintKpis } from "@/lib/services/analytics/complaints.service";
@@ -137,7 +137,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
     loadProfit(scope),
     loadTrial(scope),
   ]);
-  const paid = paymentsHref(scope, { statuses: SETTLED_STATUSES, methods: scope.extra.method, basis: "money" });
+  const paid = paymentsHref(scope, { statuses: PAID, methods: scope.extra.method, basis: "money" });
   const complaintFilters = scopeToComplaintFilters(scope);
 
   return (

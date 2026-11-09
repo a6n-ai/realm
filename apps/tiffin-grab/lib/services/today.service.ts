@@ -1,10 +1,11 @@
 import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { formatMoney, tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orders, organization, payments } from "@/db/schema";
-import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { inStatuses, PENDING } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
@@ -55,7 +56,7 @@ const METHOD_LABEL: Record<string, string> = { etransfer: "e-Transfer", cash: "C
 const PAYMENT_STATUS_LABEL: Record<string, string> = { pending_verification: "claimed, to verify", awaiting_payment: "awaiting payment" };
 
 const reviewPaymentWhere = (visible: Visible) =>
-  and(paymentReviewWhere(), isNull(payments.addonRequest), inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]), visibleOrgWhere(visible));
+  and(paymentReviewWhere(), isNull(payments.addonRequest), paymentStatusIn(PENDING), visibleOrgWhere(visible));
 
 export async function countReviewPayments(visible: Visible): Promise<number> {
   if (empty(visible)) return 0;
@@ -136,7 +137,7 @@ const SOURCES: Record<TodayKind, Source> = {
         what: `${method} ${formatMoney(Number(r.amount))} · ${PAYMENT_STATUS_LABEL[r.status] ?? r.status}`,
         since: r.createdAt, urgency: 2, href: `/dashboard/orders/${r.orderId}`,
         // Same rule as the order page's Verify: not a card payment, and claimed or still awaiting payment.
-        canVerify: r.method !== "stripe" && (r.status === "pending_verification" || r.status === "awaiting_payment"),
+        canVerify: r.method !== "stripe" && (inStatuses(PENDING, r.status)),
         payment: { orderId: r.orderId, paymentId: r.paymentId, amount: r.amount, method, reference: r.reference, proofUrl: r.proofUrl, status: r.status },
       };
     });

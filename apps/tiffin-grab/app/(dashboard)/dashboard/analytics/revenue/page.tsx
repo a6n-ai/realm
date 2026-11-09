@@ -16,7 +16,8 @@ import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { slotTone, topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
-import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
+import { PAID } from "@/lib/payments/status";
+import { grainUnitForRange, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
 import { isoDateInZone, isoToUtcDate } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -133,7 +134,7 @@ async function RangeAndLive({ scope }: { scope: AnalyticsScope }) {
 
 function links(scope: AnalyticsScope) {
   const methods = scope.extra.method ?? [];
-  return (statuses: readonly string[] = SETTLED_STATUSES, only: readonly string[] = methods) =>
+  return (statuses: readonly string[] = PAID, only: readonly string[] = methods) =>
     paymentsHref(scope, { statuses, methods: only, basis: "money" });
 }
 
@@ -279,7 +280,7 @@ async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   const href = links(scope);
-  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, tone: slotTone(m.key, METHOD_SLOTS), href: href(SETTLED_STATUSES, [m.key]) }))} />;
+  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, tone: slotTone(m.key, METHOD_SLOTS), href: href(PAID, [m.key]) }))} />;
 }
 
 // Fixed slots so a method or discount source keeps its colour whatever its rank in the range.

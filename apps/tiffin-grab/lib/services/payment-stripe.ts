@@ -1,4 +1,6 @@
 import "server-only";
+import { inStatuses, SETTLEABLE, UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
@@ -88,11 +90,10 @@ async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof 
   }
 }
 
-const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
 
 // A late webhook may already have settled this payment with an earlier PI; keep that one so a second charge is flagged, not hidden.
 const bindIntent = (payId: bigint, piId: string) =>
-  db.update(payments).set({ providerRef: piId }).where(and(eq(payments.id, payId), inArray(payments.status, SETTLEABLE as Payment["status"][])));
+  db.update(payments).set({ providerRef: piId }).where(and(eq(payments.id, payId), paymentStatusIn(SETTLEABLE)));
 
 /** A second PI for an already-paid payment (create timed out, customer retried) means the card was charged twice. */
 async function flagDuplicateCharge(pay: Payment, piId: string, source: string) {
@@ -120,7 +121,7 @@ export async function settleStripePayment(
 ): Promise<SettleOutcome> {
   const pay = await findStripePayment(ref);
   if (!pay) return "not_found";
-  if (!SETTLEABLE.includes(pay.status)) {
+  if (!inStatuses(SETTLEABLE, pay.status)) {
     if (pay.status === "paid" && ref.piId && pay.providerRef && ref.piId !== pay.providerRef) await flagDuplicateCharge(pay, ref.piId, source);
     return "already_paid";
   }
@@ -291,7 +292,7 @@ async function loadOwned(paymentPublicId: string, userPublicId: string | null) {
     .limit(1);
   if (!row || (userPublicId && row.user.publicId !== userPublicId)) throw new NotFoundError("Payment not found");
   if (row.order.status === "cancelled") throw new ValidationError("This order was cancelled");
-  if (row.pay.status !== "awaiting_payment" && row.pay.status !== "rejected") throw new ValidationError("This payment is already settled");
+  if (!inStatuses(UNPAID, row.pay.status)) throw new ValidationError("This payment is already settled");
   const closed = cardPayClosed(row.order.status, row.pay.expiresAt);
   if (closed) throw new ValidationError(closed);
   return row;

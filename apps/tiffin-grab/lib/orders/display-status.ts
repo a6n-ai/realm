@@ -1,16 +1,11 @@
 import { isWordpressImport } from "./wordpress-import";
-
-/** Payment statuses that mean staff still needs to confirm money before the plan is “fully on”. */
-export const PAYMENT_REVIEW_STATUSES = ["awaiting_payment", "pending_verification"] as const;
-
-/** Money confirmed — kitchen packing and OptimoRoute may fulfill. */
-export const PAYMENT_SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
+import { PAID, PENDING } from "@/lib/payments/status";
 
 /** Staff rejected the claim; customer must start a new order (hidden from /me lists). */
 export const PAYMENT_REJECTED_STATUS = "rejected" as const;
 
-const PAYMENT_REVIEW = new Set<string>(PAYMENT_REVIEW_STATUSES);
-const PAYMENT_SETTLED = new Set<string>(PAYMENT_SETTLED_STATUSES);
+const PAYMENT_REVIEW = new Set<string>(PENDING);
+const PAYMENT_SETTLED = new Set<string>(PAID);
 
 /** Order statuses where payment overlays replace the green “Active” badge. */
 const OVERLAY_ORDER = new Set(["active", "pending", "paused"]);

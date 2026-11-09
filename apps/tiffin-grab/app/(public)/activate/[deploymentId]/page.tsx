@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db/client";
@@ -33,7 +34,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
 
   const waitlisted = sub.status === "waitlisted";
   const inReview = pay?.status === "pending_verification";
-  const needsPayment = pay != null && (pay.status === "awaiting_payment" || pay.status === "rejected");
+  const needsPayment = pay != null && (inStatuses(UNPAID, pay.status));
   const claimable = inReview || needsPayment;
 
   let ownsOrder = false;

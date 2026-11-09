@@ -5,8 +5,8 @@ import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema
 import { periodKey } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
+import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
 import {
-  PENDING_STATUSES,
   grainForRange,
   methodLabel,
   presentPaymentStatuses,
@@ -21,7 +21,7 @@ import {
   type RevenueCohortKey,
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
-import { SETTLED, freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
+import { freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 import { eachDate, isoDateInZone } from "@/lib/dates";
 
@@ -54,7 +54,7 @@ async function settledOrderRows(scope: AnalyticsScope) {
     })
     .from(payments)
     .innerJoin(orders, eq(payments.orderId, orders.id))
-    .where(and(ordersScope(scope), methodWhere(scope), inArray(payments.status, [...SETTLED]), dateWhere(moneyDate, scope)))
+    .where(and(ordersScope(scope), methodWhere(scope), inArray(payments.status, [...PAID]), dateWhere(moneyDate, scope)))
     .groupBy(orders.id);
   return rows.map((r) => ({
     orderId: String(r.orderId),
@@ -89,7 +89,7 @@ export async function getRevenueReport(scope: AnalyticsScope, now = Date.now()):
   }
 
   const disc = summarizeDiscounts(orderRows);
-  const pending = statusRows.filter((r) => (PENDING_STATUSES as readonly string[]).includes(r.status));
+  const pending = statusRows.filter((r) => inStatuses(PENDING, r.status));
 
   return {
     from,

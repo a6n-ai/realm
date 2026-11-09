@@ -16,7 +16,8 @@ import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql,
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { unexpired } from "@foundry/wallet";
 import { hasMissedDeliveries } from "@/lib/services/missed-where";
-import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { inStatuses, PAID, PENDING, SETTLEABLE, UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
 import { defaultOwner } from "./default-owner";
@@ -981,7 +982,7 @@ export async function verifyPayment(
     // Locked so a second, concurrent verify waits, then sees "paid" and stops.
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
-    if (pay.status === "paid" || pay.status === "simulated_paid") return null;
+    if (inStatuses(PAID, pay.status)) return null;
     if (pay.method === "stripe" && !opts.fromProvider) throw new ValidationError("Card payments settle automatically");
     // A provider-confirmed charge settles even a staff-rejected row; a manual verify must not.
     if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification" && !(opts.fromProvider && pay.status === "rejected")) {
@@ -1202,7 +1203,7 @@ export async function refundOrder(
     if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
 
     const [pay] = await tx.select().from(payments).where(eq(payments.orderId, order.id)).limit(1);
-    if (!pay || (pay.status !== "paid" && pay.status !== "simulated_paid")) {
+    if (!pay || !inStatuses(PAID, pay.status)) {
       throw new ValidationError(`Order ${orderPublicId} has no settled payment to refund`);
     }
 
@@ -1268,7 +1269,7 @@ export async function claimPayment(
   if (pay.method === "stripe") throw new ValidationError("Card payments are settled automatically");
 
   // Once claimed the payment is in staff hands: no re-submit until they approve or reject it.
-  if (pay.status !== "awaiting_payment" && pay.status !== "rejected") {
+  if (!inStatuses(UNPAID, pay.status)) {
     throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
   }
 
@@ -1526,7 +1527,7 @@ export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all"
 export function paymentReviewWhere() {
   return and(
     inArray(orders.status, ["active", "pending", "paused"]),
-    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
+    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${paymentStatusIn(PENDING)})`,
   );
 }
 
@@ -1617,7 +1618,7 @@ export async function getClaimPaymentContextForOrder(orderPublicId: string): Pro
       and(
         eq(orders.publicId, orderPublicId),
         isNull(payments.addonRequest),
-        inArray(payments.status, ["awaiting_payment", "pending_verification", "rejected"]),
+        paymentStatusIn(SETTLEABLE),
       ),
     )
     .orderBy(desc(payments.createdAt))
@@ -2586,7 +2587,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         });
         await reverseReferral(tx, order);
         const [pay] = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id)).limit(1);
-        const paid = pay?.status === "paid" || pay?.status === "simulated_paid";
+        const paid = inStatuses(PAID, pay?.status);
         if (!paid) await reverseCoinRedemption(tx, { userId: order.userId, orderId: order.id });
       }
 

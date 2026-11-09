@@ -1,4 +1,5 @@
 import { isAdmin } from "@/lib/auth/roles";
+import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -167,7 +168,7 @@ async function OrderDetail({
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
     Promise.all(
       order.payments
-        .filter((p) => !p.addonRequest && (p.status === "awaiting_payment" || p.status === "rejected"))
+        .filter((p) => !p.addonRequest && (inStatuses(UNPAID, p.status)))
         .map(async (p) => {
           const ctx = await getClaimPaymentContext(p.publicId);
           if (ctx) claimContexts[p.publicId] = ctx;
@@ -204,7 +205,7 @@ async function OrderDetail({
       && r.tiffinUnits > 0 && r.mergedIntoDeliveryId == null)
     .sort((x, y) => x.deliveryDate.localeCompare(y.deliveryDate))[0];
   const paid = order.payments
-    .filter((p) => p.status === "paid" || p.status === "simulated_paid")
+    .filter((p) => inStatuses(PAID, p.status))
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const due = Math.max(Number(order.total) - paid, 0);
   const toReview = order.payments.filter((p) => p.status === "pending_verification").length;

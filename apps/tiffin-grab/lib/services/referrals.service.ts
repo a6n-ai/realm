@@ -1,4 +1,6 @@
 import { isCustomerRole } from "@/lib/auth/roles";
+import { CAPTURED } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { randomInt } from "node:crypto";
@@ -19,7 +21,6 @@ import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cooki
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 // 31^6 ≈ 887M codes; the unique index + retry below catch the rare clash.
 const CODE_LENGTH = 6;
-const PAID = ["paid", "simulated_paid"] as const;
 
 export { normalizeReferralCode };
 
@@ -84,7 +85,7 @@ async function hasOrderHistory(q: Tx | typeof db, userId: bigint): Promise<boole
     .leftJoin(payments, eq(payments.orderId, orders.id))
     .where(and(
       eq(orders.userId, userId),
-      or(inArray(payments.status, [...PAID, "refunded"]), wordpressImportSql),
+      or(paymentStatusIn(CAPTURED), wordpressImportSql),
     ))
     .limit(1);
   return row != null;
@@ -154,7 +155,7 @@ export async function staffAttachReferral(customerId: bigint, rawCode: string, a
       .select({ order: orders, payStatus: payments.status })
       .from(orders)
       .leftJoin(payments, eq(payments.orderId, orders.id))
-      .where(and(eq(orders.userId, customerId), or(inArray(payments.status, [...PAID, "refunded"]), wordpressImportSql)))
+      .where(and(eq(orders.userId, customerId), or(paymentStatusIn(CAPTURED), wordpressImportSql)))
       .orderBy(orders.createdAt);
     const first = history[0];
     if (history.length > 1 || (first && isWordpressImport(first.order))) return { result: "repeat_customer" as const };

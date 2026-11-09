@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { inStatuses, PAID, SETTLEABLE } from "@/lib/payments/status";
 import Link from "next/link";
 import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -61,7 +62,6 @@ const BILL_TINT: Record<PayStatus, IconTint> = {
 // A bill's tile follows its first payment (a bill with no payment rows reads as awaiting).
 const billTint = (b: CustomerBill): IconTint => (b.payments[0] ? BILL_TINT[b.payments[0].status] : "orange");
 
-const isPaid = (s: PayStatus) => s === "paid" || s === "simulated_paid";
 
 // Date-only strings: format in UTC so the day never shifts with the viewer's zone.
 function planRange(start: string, last: string | null): string {
@@ -73,7 +73,7 @@ function planRange(start: string, last: string | null): string {
 
 function isClaimable(p: CustomerBill["payments"][number]): boolean {
   if (p.method === "stripe") return false;
-  return p.status === "awaiting_payment" || p.status === "rejected" || p.status === "pending_verification";
+  return inStatuses(SETTLEABLE, p.status);
 }
 
 function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number], currency: string): string | null {
@@ -236,7 +236,7 @@ export function BillsList({
 
   const groups = groupByMonth(items, (b) => b.createdAt, tz).map((g) => ({
     ...g,
-    paid: g.items.reduce((n, bill) => n + bill.payments.filter((p) => isPaid(p.status)).reduce((m, p) => m + Number(p.amount), 0), 0),
+    paid: g.items.reduce((n, bill) => n + bill.payments.filter((p) => inStatuses(PAID, p.status)).reduce((m, p) => m + Number(p.amount), 0), 0),
   }));
 
   return (

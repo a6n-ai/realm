@@ -1,4 +1,5 @@
 import { round2 } from "@foundry/discounts";
+import { inStatuses, SETTLEABLE } from "@/lib/payments/status";
 import { and, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -408,7 +409,6 @@ export async function regenerateAddonPayment(paymentPublicId: string, actorId: b
   return res;
 }
 
-const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
 
 /**
  * Stripe confirmed an add-on payment: mark it paid and apply its request to the tiffins open now,
@@ -424,7 +424,7 @@ export async function settleAddonPayment(
   const res = await db.transaction(async (tx) => {
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay?.addonRequest) throw new NotFoundError(`Add-on payment not found: ${paymentPublicId}`);
-    if (!SETTLEABLE.includes(pay.status)) return { outcome: "already_paid" as const };
+    if (!inStatuses(SETTLEABLE, pay.status)) return { outcome: "already_paid" as const };
     // Same order as verifyPayment and cancel(): payment row, customer row, the order's advisory lock, then the order row.
     await tx.execute(sql`select 1 from ${users} where ${users.id} = (select ${orders.userId} from ${orders} where ${orders.id} = ${pay.orderId}) for key share`);
     await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);

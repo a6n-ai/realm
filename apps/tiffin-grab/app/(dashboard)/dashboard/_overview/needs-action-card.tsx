@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { inStatuses, PENDING } from "@/lib/payments/status";
 import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
@@ -27,7 +28,7 @@ const go = (href: string, text: string) => (
 export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: "all" | string[]; today: string; seesAll: boolean; isAdmin: boolean }) {
   const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
-  const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (oldest.status === "pending_verification" || oldest.status === "awaiting_payment");
+  const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (inStatuses(PENDING, oldest.status));
   const lines: Line[] = [
     {
       key: "payment", icon: CreditCardIcon, count: c.byKind.payment, label: "payments to verify",

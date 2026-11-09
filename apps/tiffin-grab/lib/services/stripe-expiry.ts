@@ -1,4 +1,6 @@
-import { and, eq, inArray, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
+import { and, eq, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments } from "@/db/schema";
@@ -39,7 +41,6 @@ export async function cancelOpenIntent(piId: string): Promise<"cancelled" | "in_
   return "cancelled";
 }
 
-const UNPAID = ["awaiting_payment", "rejected"] as const;
 
 /**
  * Cancels pending, non-migrated orders whose unpaid Stripe payment matches `extra`. Returns how many were cancelled.
@@ -55,7 +56,7 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
       eq(orders.status, "pending"),
       not(wordpressImportSql),
       eq(payments.method, "stripe"),
-      inArray(payments.status, [...UNPAID]),
+      paymentStatusIn(UNPAID),
       isNull(payments.addonRequest),
       extra,
     ));
@@ -69,7 +70,7 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
         if (!(await tryChargeLock(tx, r.payPublicId))) return false;
         const [pay] = await tx.select({ status: payments.status, providerRef: payments.providerRef }).from(payments).where(eq(payments.publicId, r.payPublicId)).limit(1);
         const [ord] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, r.id)).limit(1);
-        if (!pay || !(UNPAID as readonly string[]).includes(pay.status) || ord?.status !== "pending") return false;
+        if (!pay || !inStatuses(UNPAID, pay.status) || ord?.status !== "pending") return false;
         if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") return false;
         await cancelOrder(r.publicId);
         await tx.insert(orderActivities).values({ orderId: r.id, type: "note", note });
@@ -99,7 +100,7 @@ export async function hasChargeInFlight(userId: bigint): Promise<boolean> {
       eq(orders.status, "pending"),
       not(wordpressImportSql),
       eq(payments.method, "stripe"),
-      inArray(payments.status, [...UNPAID]),
+      paymentStatusIn(UNPAID),
       isNull(payments.addonRequest),
     ));
   for (const r of rows) {
@@ -142,7 +143,7 @@ export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigi
     .where(and(
       eq(orders.publicId, publicId),
       eq(payments.method, "stripe"),
-      inArray(payments.status, [...UNPAID]),
+      paymentStatusIn(UNPAID),
       or(isNull(payments.expiresAt), ne(payments.expiresAt, 0)),
     ));
   for (const p of open) {
@@ -150,7 +151,7 @@ export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigi
       const closed = await db.transaction(async (tx) => {
         if (!(await tryChargeLock(tx, p.publicId))) return false;
         const [pay] = await tx.select().from(payments).where(eq(payments.publicId, p.publicId)).for("update").limit(1);
-        if (!pay || !(UNPAID as readonly string[]).includes(pay.status)) return true;
+        if (!pay || !inStatuses(UNPAID, pay.status)) return true;
         if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") return false;
         if (pay.addonRequest) await tx.update(payments).set({ status: "rejected", expiresAt: 0, note: "Order cancelled" }).where(eq(payments.id, pay.id));
         return true;

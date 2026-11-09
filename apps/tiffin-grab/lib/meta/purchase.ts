@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { inStatuses, PAID } from "@/lib/payments/status";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { mealSizes, orders, payments, plans, users } from "@/db/schema";
@@ -19,7 +20,6 @@ const log = createLogger("meta-purchase");
  * order from checkout. Awaits the Graph POST so Workers keep the isolate alive
  * through the send. event_id = payment public id (same as card browser Pixel).
  */
-const PURCHASE_STATUSES = new Set(["paid", "simulated_paid"]);
 
 export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<void> {
   try {
@@ -32,7 +32,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
         .limit(1);
       if (!pay) return null;
       if (pay.metaPurchaseSentAt != null) return null;
-      if (!PURCHASE_STATUSES.has(pay.status)) return null;
+      if (!inStatuses(PAID, pay.status)) return null;
 
       const [first] = await tx
         .select({ id: payments.id })

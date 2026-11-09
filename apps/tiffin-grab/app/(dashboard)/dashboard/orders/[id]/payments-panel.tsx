@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CheckIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
@@ -61,10 +62,6 @@ function methodLabel(method: OrderPaymentDetail["method"]): string {
   }
 }
 
-function isSettled(status: OrderPaymentDetail["status"]): boolean {
-  return status === "paid" || status === "simulated_paid";
-}
-
 // Non-card payments are paid on the activate page; card payments have their own pay link (built server-side).
 function activateUrl(deploymentId: string): string {
   const path = `/activate/${deploymentId}`;
@@ -95,7 +92,7 @@ function PaymentSummary({
   payments: OrderPaymentDetail[];
 }) {
   const paidTotal = payments
-    .filter((p) => isSettled(p.status))
+    .filter((p) => inStatuses(PAID, p.status))
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const outstanding = Math.max(0, orderTotal - paidTotal);
   const openPayment = payments.find(
@@ -188,28 +185,28 @@ function PaymentRow({
   const isCard = payment.method === "stripe";
   const isAddon = payment.addonRequest != null;
   // expiresAt 0 is a link staff cancelled or replaced: it is void and can never be paid.
-  const isVoid = isAddon && payment.expiresAt === 0 && !isSettled(payment.status);
+  const isVoid = isAddon && payment.expiresAt === 0 && !inStatuses(PAID, payment.status);
   // A void link a late webhook still charged: the money is in, the add-ons are not applied.
-  const refundNeeded = isAddon && payment.expiresAt === 0 && isSettled(payment.status);
+  const refundNeeded = isAddon && payment.expiresAt === 0 && inStatuses(PAID, payment.status);
   const expired = isAddon && payment.expiresAt != null && payment.expiresAt <= now;
   const openLink = isAddon && payment.status === "awaiting_payment" && !expired;
-  const unpaid = (payment.status === "awaiting_payment" || payment.status === "rejected") && (!isAddon || openLink);
+  const unpaid = (inStatuses(UNPAID, payment.status)) && (!isAddon || openLink);
 
   const canVerify =
-    !isCard && (payment.status === "pending_verification" || payment.status === "awaiting_payment");
+    !isCard && (inStatuses(PENDING, payment.status));
   const canReject = !isCard && payment.status === "pending_verification";
   const canShareLink = isAddon
     ? openLink
     : payment.status === "awaiting_payment" ||
       payment.status === "pending_verification" ||
       payment.status === "rejected";
-  const canRemind = isAddon ? openLink : payment.status === "awaiting_payment" || payment.status === "rejected";
+  const canRemind = isAddon ? openLink : inStatuses(UNPAID, payment.status);
   const canRegenerate = isAddon && payment.status === "awaiting_payment" && expired && !isVoid;
   const canCancel = isAddon && payment.status === "awaiting_payment" && !isVoid;
   const shareUrl = (): string => payLink ?? activateUrl(deploymentId);
   const canClaim =
     claimCtx != null &&
-    (payment.status === "awaiting_payment" || payment.status === "rejected");
+    (inStatuses(UNPAID, payment.status));
 
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: timezone });
 
@@ -370,7 +367,7 @@ function PaymentRow({
               </Button>
             </>
           )}
-          {isCard && canCheck && payment.providerRef && !isSettled(payment.status) && payment.status !== "refunded" && (
+          {isCard && canCheck && payment.providerRef && !inStatuses(PAID, payment.status) && payment.status !== "refunded" && (
             <Button size="sm" variant="outline" disabled={pending} onClick={checkStatus}>
               <RefreshCwIcon data-icon="inline-start" />
               Check status

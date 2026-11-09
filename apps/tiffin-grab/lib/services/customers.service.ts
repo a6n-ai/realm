@@ -1,4 +1,5 @@
 import { isCustomerRole } from "@/lib/auth/roles";
+import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
@@ -657,7 +658,6 @@ export async function getCustomer360(userPublicId: string) {
   ]);
 
   const orderIds = orderRows.map((o) => o.id);
-  const PAID_STATUSES = new Set(["paid", "simulated_paid"]);
   const paymentRows = orderIds.length
     ? await db
         .select({
@@ -680,8 +680,8 @@ export async function getCustomer360(userPublicId: string) {
     if (!paymentStatusByOrder.has(key)) paymentStatusByOrder.set(key, p.status);
   }
   const payment = {
-    totalPaid: paymentRows.filter((p) => PAID_STATUSES.has(p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
-    pendingCount: planPayments.filter((p) => p.status === "pending_verification" || p.status === "awaiting_payment").length,
+    totalPaid: paymentRows.filter((p) => inStatuses(PAID, p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
+    pendingCount: planPayments.filter((p) => inStatuses(PENDING, p.status)).length,
     lastMethod: paymentRows[0]?.method ?? null,
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -113,7 +114,7 @@ export function PaymentsTable({
           <TableCell className="text-right">
             <RowActions>
               <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
-              {(r.status === "awaiting_payment" || r.status === "rejected") && (
+              {(inStatuses(UNPAID, r.status)) && (
                 <RowActionTooltipButton icon={MailIcon} label="Email payment reminder" onClick={() => remind(r)} />
               )}
             </RowActions>

@@ -3,7 +3,8 @@ import { and, inArray, isNotNull, isNull, sql, type AnyColumn, type SQL } from "
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, payments } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
-import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { PENDING } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "./orders.service";
 import { addDaysIso } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -144,7 +145,7 @@ export async function getPaymentReviewStats(visible: "all" | string[]): Promise<
     .where(and(
       inArray(orders.status, ["active", "pending", "paused"]),
       isNull(payments.addonRequest),
-      inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]),
+      paymentStatusIn(PENDING),
       visibleOrgWhere(visible),
     ));
   return { owed: n(r?.owed), needsReview: n(r?.needsReview), overdue: n(r?.overdue) };

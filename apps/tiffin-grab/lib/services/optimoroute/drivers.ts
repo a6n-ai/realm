@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, payments, users } from "@/db/schema";
-import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { PENDING } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
@@ -81,7 +82,7 @@ export type PaymentHeldRow = {
   orderPublicId: string;
   customerName: string;
   phone: string | null;
-  paymentStatus: (typeof PAYMENT_REVIEW_STATUSES)[number];
+  paymentStatus: (typeof PENDING)[number];
   amount: string;
   reference: string | null;
 };
@@ -111,7 +112,7 @@ export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
         eq(deliveries.deliveryDate, date),
         eq(deliveries.status, "scheduled"),
         eq(orders.status, "active"),
-        inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]),
+        paymentStatusIn(PENDING),
         isNull(payments.addonRequest),
       ),
     )

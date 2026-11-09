@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClockIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
@@ -41,7 +42,7 @@ export function ClaimPayment({
   const inputRef = useRef<HTMLInputElement>(null);
   const orderSubmittedPixelFired = useRef(false);
 
-  const claimable = ctx.status === "awaiting_payment" || ctx.status === "rejected";
+  const claimable = inStatuses(UNPAID, ctx.status);
 
   if (ctx.status === "pending_verification") {
     return (

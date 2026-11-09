@@ -2,7 +2,8 @@ import "server-only";
 import { and, desc, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, payments } from "@/db/schema";
-import { CAPTURED, methodWhere, moneyDate } from "./money";
+import { CAPTURED } from "@/lib/payments/status";
+import { methodWhere, moneyDate } from "./money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./scope";
 
 export type ReviewReason = "cancelled_paid" | "paid_ne_total" | "partly_refunded" | "refunded_no_ledger";

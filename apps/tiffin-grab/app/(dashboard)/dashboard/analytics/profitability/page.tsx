@@ -4,7 +4,7 @@ import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref } from "@/lib/analytics/drill";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { PAID } from "@/lib/payments/status";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { DivergingBarChart, WaterfallChart } from "@/components/analytics/charts";
@@ -129,7 +129,7 @@ async function Headline({ view }: { view: View }) {
       kpis={report.kpis}
       range={`${report.from} to ${report.to}`}
       toDate={report.to > isoDateInZone(requestNow(), view.scope.tz)}
-      cashHref={paymentsHref(view.scope, { statuses: SETTLED_STATUSES, basis: "money" })}
+      cashHref={paymentsHref(view.scope, { statuses: PAID, basis: "money" })}
     />
   );
 }

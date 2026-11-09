@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import Link from "next/link";
 import { toCents } from "@/lib/money";
 import { Card, Notice, PageHeader } from "@/components/customer/kit";
@@ -68,8 +69,8 @@ export function PayForm(p: {
   /** Why this payment can no longer be paid (cancelled order, expired or void link), or null. */
   closed?: string | null;
 }) {
-  if (p.status === "paid" || p.status === "simulated_paid") return <Paid />;
-  if (p.method !== "stripe" || (p.status !== "awaiting_payment" && p.status !== "rejected")) {
+  if (inStatuses(PAID, p.status)) return <Paid />;
+  if (p.method !== "stripe" || (!inStatuses(UNPAID, p.status))) {
     return (
       <Shell>
         <Notice>This payment can&apos;t be paid online.</Notice>

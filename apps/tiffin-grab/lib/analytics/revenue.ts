@@ -9,12 +9,6 @@ import { round2 } from "@foundry/discounts";
 import { type Grain } from "./profitability";
 import { eachDate, isoDateInZone } from "@/lib/dates";
 
-export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
-// A full refund flips the payment to 'refunded' and also writes a ledger refund row. Revenue counts
-// every captured payment and subtracts the ledger, so a refunded payment must stay in the gross side
-// or its refund would be deducted from nothing.
-export const CAPTURED: (typeof SETTLED_STATUSES[number] | "refunded")[] = [...SETTLED_STATUSES, "refunded"];
-export const PENDING_STATUSES = ["awaiting_payment", "pending_verification"] as const;
 
 /** Display order for the payments-by-status breakdown. Unknown statuses sort last. */
 export const PAYMENT_STATUS_ORDER = [

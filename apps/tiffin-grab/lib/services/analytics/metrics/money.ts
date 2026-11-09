@@ -2,13 +2,11 @@ import "server-only";
 import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
-import { CAPTURED, SETTLED_STATUSES } from "@/lib/analytics/revenue";
+import { CAPTURED, PAID } from "@/lib/payments/status";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 import { isoDateInZone } from "@/lib/dates";
 
-export const SETTLED = SETTLED_STATUSES;
-export { CAPTURED };
 
 /** The date money moved: capture, else row creation (same fallback the payments list uses). */
 export const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
@@ -50,7 +48,7 @@ function moneyRows(scope: AnalyticsScope, payKey: SQL, refKey: SQL): SQL {
   return sql`
     select ${payKey} as key, ${payments.amount} as gross, ${netExTax()} as net, ${payments.surchargeAmount} as surcharge,
       0::numeric as refunds, 0::numeric as refund_ex_sur, 0::numeric as refund_ex, 1 as pay_cnt,
-      (case when ${inArray(payments.status, [...SETTLED])} then 1 else 0 end) as settled_cnt,
+      (case when ${inArray(payments.status, [...PAID])} then 1 else 0 end) as settled_cnt,
       (case when ${payments.status} = 'refunded' and not exists (select 1 from ${ledgerEntries} where ${ledgerEntries.paymentId} = ${payments.id} and ${ledgerEntries.type} = 'refund') then 1 else 0 end) as legacy
     from ${payments} inner join ${orders} on ${orders.id} = ${payments.orderId}
     where ${and(ordersScope(scope), methodWhere(scope), inArray(payments.status, CAPTURED), dateWhere(moneyDate, scope)) ?? sql`true`}

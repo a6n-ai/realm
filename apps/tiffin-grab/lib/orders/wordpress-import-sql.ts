@@ -1,6 +1,6 @@
 import { like, sql } from "drizzle-orm";
 import { orders, payments } from "@/db/schema";
-import { CAPTURED } from "@/lib/analytics/revenue";
+import { CAPTURED } from "@/lib/payments/status";
 import { WP_PREFIX } from "./wordpress-import";
 
 /** SQL twin of `isWordpressImport`. */

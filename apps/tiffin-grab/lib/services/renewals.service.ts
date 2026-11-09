@@ -1,4 +1,6 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
+import { UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
@@ -394,7 +396,7 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     const pays = await db
       .select({ orderId: payments.orderId, publicId: payments.publicId })
       .from(payments)
-      .where(and(inArray(payments.orderId, pendingIds), isNull(payments.addonRequest), inArray(payments.status, ["awaiting_payment", "rejected"])))
+      .where(and(inArray(payments.orderId, pendingIds), isNull(payments.addonRequest), paymentStatusIn(UNPAID)))
       .orderBy(desc(payments.createdAt));
     for (const p of pays) if (!unpaid.has(p.orderId.toString())) unpaid.set(p.orderId.toString(), p.publicId);
   }

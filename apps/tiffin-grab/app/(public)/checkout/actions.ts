@@ -1,6 +1,8 @@
 "use server";
 
 import { toCents } from "@/lib/money";
+import { UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
@@ -199,7 +201,7 @@ async function stampInputsFingerprint(paymentPublicId: string, input: ConfirmInp
  */
 async function findReusableCheckout(paymentPublicId: string, userPublicId: string, input: CreateOrderInput & { paymentMethodId?: string | null }) {
   // Lazy: keeps the confirm-only path (and its tests) free of the db and Stripe module graph.
-  const [{ and, eq, gt, inArray, isNull, or }, { db }, { orders, payments, users }, { reprice }] = await Promise.all([
+  const [{ and, eq, gt, isNull, or }, { db }, { orders, payments, users }, { reprice }] = await Promise.all([
     import("drizzle-orm"),
     import("@/db/client"),
     import("@/db/schema"),
@@ -214,7 +216,7 @@ async function findReusableCheckout(paymentPublicId: string, userPublicId: strin
       and(
         eq(payments.publicId, paymentPublicId),
         eq(payments.method, "stripe"),
-        inArray(payments.status, ["awaiting_payment", "rejected"]),
+        paymentStatusIn(UNPAID),
         isNull(payments.addonRequest),
         or(isNull(payments.expiresAt), gt(payments.expiresAt, Date.now())),
         eq(orders.status, "pending"),

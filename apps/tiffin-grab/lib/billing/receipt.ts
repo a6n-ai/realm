@@ -1,4 +1,5 @@
 import { round2 } from "@foundry/discounts";
+import { CAPTURED, inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -8,7 +9,6 @@ import { paymentMethodLabel } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 
-type PayStatus = (typeof payments.status.enumValues)[number];
 
 export type ReceiptPayment = {
   date: number;
@@ -44,11 +44,6 @@ export type Receipt = {
   balanceDue: number;
 };
 
-const PAID: PayStatus[] = ["paid", "simulated_paid"];
-// Money that came in at some point; a refund afterwards is shown separately, not as owed.
-const RECEIVED: PayStatus[] = [...PAID, "refunded"];
-// Not money received or owed yet: an unpaid card link, a rejected claim.
-const SKIP: PayStatus[] = ["awaiting_payment", "rejected"];
 
 /** The order's receipt, or null when it doesn't exist. Callers do the access check. */
 export async function loadReceipt(orderPublicId: string, now = Date.now()): Promise<Receipt | null> {
@@ -117,7 +112,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     ? payPageLines({ amount: o.total, addonRequest: null }, { pricingSnapshot: o.snapshot })
     : { lines: [{ label: `${o.mealSize} plan`, amount: Number(o.total) }], taxLines: [], total: Number(o.total) };
 
-  const kept = pays.filter((p) => !SKIP.includes(p.status));
+  const kept = pays.filter((p) => !inStatuses(UNPAID, p.status));
   const receiptPayments: ReceiptPayment[] = kept.map((p) => {
     const cardFee = p.method === "stripe" ? Number(p.surcharge) : 0;
     const amount = round2(Number(p.amount) + cardFee);
@@ -129,11 +124,11 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
       amount,
       cardFee,
       refunded: round2(refunded),
-      status: PAID.includes(p.status) ? "paid" : p.status === "refunded" ? "refunded" : "pending",
+      status: inStatuses(PAID, p.status) ? "paid" : p.status === "refunded" ? "refunded" : "pending",
     };
   });
   // WordPress imports have no payment row: they were paid on the old site.
-  if (isWordpressImport({ deploymentId: o.code }) && !kept.some((p) => RECEIVED.includes(p.status))) {
+  if (isWordpressImport({ deploymentId: o.code }) && !kept.some((p) => inStatuses(CAPTURED, p.status))) {
     receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
   }
 

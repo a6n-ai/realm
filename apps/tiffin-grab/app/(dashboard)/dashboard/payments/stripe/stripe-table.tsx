@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, EyeIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
@@ -179,7 +180,7 @@ export function StripeTable({
             <TableCell className="text-right">
               <RowActions>
                 <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
-                {(r.status === "awaiting_payment" || r.status === "rejected") && (() => {
+                {(inStatuses(UNPAID, r.status)) && (() => {
                   const { tone, status } = sendTone(r.lastReminder, (ms) => formatEpoch(ms, { mode: "datetime", timeZone: tz }));
                   return (
                     <RowActionTooltipButton

@@ -1,5 +1,7 @@
 import "server-only";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { UNPAID } from "@/lib/payments/status";
+import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type Stripe from "stripe";
 import { createLogger } from "@foundry/commons/logger";
 import { findMethod } from "@foundry/payments";
@@ -32,7 +34,7 @@ export const stripeDeps: ConnectDeps = {
       .where(
         and(
           eq(payments.method, "stripe"),
-          inArray(payments.status, ["awaiting_payment", "rejected"]),
+          paymentStatusIn(UNPAID),
           isNotNull(payments.providerRef),
         ),
       )
