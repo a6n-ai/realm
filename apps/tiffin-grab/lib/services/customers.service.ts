@@ -1,6 +1,6 @@
 import { resolveUserId } from "@/lib/services/session-service";
 import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
-import { RUNNING } from "@/lib/orders/status";
+import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
@@ -453,7 +453,7 @@ export async function getCustomerDashboard(userPublicId: string): Promise<Custom
     current,
     orders: orderRows,
     ordersCount: orderRows.length,
-    activeCount: orderRows.filter((o) => o.status === "active").length,
+    activeCount: orderRows.filter((o) => inOrderStatuses(RUNNING, o.status)).length,
     totalSpent,
   };
 }

@@ -60,6 +60,18 @@ describe("getCustomerDashboard (integration)", () => {
     expect(data.current).not.toHaveProperty("id");
   });
 
+  it("counts active and paused plans as active, not pending or cancelled", async () => {
+    const snap = await loadCatalogSnapshot();
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [u] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.phone, PHONE)).limit(1);
+    const counts: Record<string, number> = {};
+    for (const status of ["active", "paused", "pending", "cancelled"] as const) {
+      await db.update(orders).set({ status });
+      counts[status] = (await getCustomerDashboard(u.publicId)).activeCount;
+    }
+    expect(counts).toEqual({ active: 1, paused: 1, pending: 0, cancelled: 0 });
+  });
+
   it("returns an empty, zero-spend shape for a customer with no orders", async () => {
     const [u] = await db
       .insert(users)
