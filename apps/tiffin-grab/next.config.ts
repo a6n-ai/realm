@@ -51,10 +51,17 @@ const nextConfig: NextConfig = {
   // Router-data responses (RSC header) for the same URLs stay private: a shared cache must never
   // hold one, since the cache key ignores the header that changed the response.
   async headers() {
-    return publicPages.flatMap((source) => [
+    const cache = publicPages.flatMap((source) => [
       { source, missing: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=300" }] },
       { source, has: [{ type: "header" as const, key: "rsc" }], headers: [{ key: "Cache-Control", value: "private, no-cache" }] },
     ]);
+    // Agent discovery (RFC 8288): the site described for machines, and pages as markdown (proxy.ts serves
+    // it on Accept: text/markdown). The public JSON API is advertised through the api-catalog relation (RFC 9727).
+    const links = [
+      { source: "/", headers: [{ key: "Link", value: '</llms.txt>; rel="describedby"; type="text/plain", </pricing.md>; rel="describedby"; type="text/markdown", </>; rel="alternate"; type="text/markdown", </.well-known/api-catalog>; rel="api-catalog"' }] },
+      ...["/pricing", "/faq", "/locations"].map((source) => ({ source, headers: [{ key: "Link", value: `<${source}>; rel="alternate"; type="text/markdown"` }] })),
+    ];
+    return [...cache, ...links];
   },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];

@@ -24,10 +24,10 @@ describe("legal pages", () => {
   });
 
   it.each([
-    ["terms", Terms, "Terms &amp; conditions", 11, "shared kitchen", "October 7, 2026"],
+    ["terms", Terms, "Terms &amp; conditions", 11, "shared kitchen", "November 9, 2026"],
     ["privacy", Privacy, "Privacy policy", 9, "Privacy Commissioner of Canada", "October 7, 2026"],
-    ["refund", Refund, "Refund &amp; return policy", 9, "48 hours before", "October 7, 2026"],
-    ["delivery", Delivery, "Delivery policy", 8, "+1 (647) 244-9813", "April 6, 2026"],
+    ["refund", Refund, "Refund &amp; return policy", 9, "48 hours before", "November 9, 2026"],
+    ["delivery", Delivery, "Delivery policy", 8, "+1 (647) 244-9813", "November 9, 2026"],
   ])("%s renders its title, every numbered section and key wording", async (_n, Page, title, sections, phrase, updated) => {
     const html = renderToStaticMarkup(await (Page as () => Promise<React.ReactElement> | React.ReactElement)());
     expect(html).toContain(title);
@@ -38,7 +38,8 @@ describe("legal pages", () => {
     expect(html).toContain(phrase);
     if (_n === "delivery") {
       expect(html).toContain("Monday through Friday");
-      expect(html).not.toContain("Saturday");
+      // No weekend deliveries: weekend tiffins ride with Friday's.
+      expect(html).toContain("Friday delivery");
       // areas are the live active zones, sorted, inactive ones left out
       expect(html.indexOf("Brampton")).toBeLessThan(html.indexOf("Scarborough"));
       expect(html).not.toContain("Closed Zone");

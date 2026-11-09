@@ -79,7 +79,7 @@ async function cachedImage(request, env, ctx) {
 
 // Same scanner denylist as proxy.ts PROBE_PATH — belt for hosts that skip the Next proxy matcher.
 const PROBE =
-  /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|\.git(?:\/.*)?|\.svn(?:\/.*)?|\.hg(?:\/.*)?|\.aws(?:\/.*)?|\.docker(?:\/.*)?|\.DS_Store|Dockerfile|docker-compose(?:\..*)?\.ya?ml|\.htaccess|web\.config|server-status|actuator(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|xmlrpc\.php)(?:$|\?)/i;
+  /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|\.git(?:\/.*)?|\.svn(?:\/.*)?|\.hg(?:\/.*)?|\.aws(?:\/.*)?|\.docker(?:\/.*)?|\.DS_Store|Dockerfile|docker-compose(?:\..*)?\.ya?ml|\.htaccess|web\.config|server-status|actuator(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|wp-cron\.php|wp-content(?:\/.*)?|wp-includes(?:\/.*)?|wp-json(?:\/.*)?|xmlrpc\.php)(?:$|\?)/i;
 
 // Immutable static extensions — Assets-first usually never reaches the isolate; if one does, skip wake bootstrap.
 const STATIC_EXT = /\.(?:js|css|map|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|mp4|webm|txt|xml)$/i;

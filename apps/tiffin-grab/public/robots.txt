@@ -6,6 +6,7 @@
 User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
+Allow: /api/public/
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /me$
@@ -31,6 +32,7 @@ User-agent: Applebot-Extended
 User-agent: CCBot
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
+Allow: /api/public/
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /me$

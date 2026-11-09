@@ -20,7 +20,7 @@ export type SiteFacts = {
   currency: string;
   from: number | null;
   biggestOff: number | null;
-  weeksOff: { percent: number; label: string }[];
+  weeksOff: { weeks: number; percent: number; label: string }[];
   free: boolean;
   cutoff: string | null;
   areas: string[];

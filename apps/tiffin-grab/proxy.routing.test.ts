@@ -28,10 +28,15 @@ describe("apex/www front door", () => {
     "/menu/weekly", "/sitemap.xml", "/", "/pricing", "/terms-and-conditions/", "/legal/", "/robots.txt",
     "/api/files/a/b.jpg", "/lottie/x.json", "/uploads/x.png", "/landing/figure.json", "/vendor/maplibre-gl-worker-6.15.0.mjs", "/favicon.ico",
     "/logo.svg", "/opengraph-image.png", "/twitter-image.png", "/_next/static/x.js", "/api/auth/get-session",
-    "/api/analytics", "/landing/fonts/poppins-400.woff2", "/landing/stock/hero-mobile.mp4",
+    "/api/analytics", "/api/public/v1/plans", "/.well-known/api-catalog", "/landing/fonts/poppins-400.woff2", "/landing/stock/hero-mobile.mp4",
   ])("passes %s through to the app on the apex", async (p) => {
     const res = await get(`https://tiffingrab.ca${p}`);
     expect(res.headers.get("location")).toBeNull();
+  });
+
+  it.each(["/api/public/v1/plans", "/.well-known/api-catalog"])("serves %s on the apex (not a 404)", async (p) => {
+    const res = await get(`https://tiffingrab.ca${p}`);
+    expect(res.status).toBe(200);
   });
 
   it.each([
@@ -40,6 +45,7 @@ describe("apex/www front door", () => {
     ["/login", "https://app.tiffingrab.ca/login"],
     ["/subscribe?c=WELCOME10", "https://app.tiffingrab.ca/subscribe?c=WELCOME10"],
     ["/api/plans", "https://app.tiffingrab.ca/api/plans"],
+    ["/api/other", "https://app.tiffingrab.ca/api/other"],
   ])("308s %s on the apex to app", async (p, to) => {
     const res = await get(`https://tiffingrab.ca${p}`);
     expect(res.status).toBe(308);
@@ -153,6 +159,11 @@ describe("apex/www front door", () => {
     "/.mcp.json",
     "/src/environments/environment.ts",
     "/wp-login.php",
+    // An old WordPress host's cron still wgets this once a minute.
+    "/wp-cron.php",
+    "/wp-cron.php?doing_wp_cron=1794175340.1",
+    "/wp-content/plugins/x.php",
+    "/wp-json/wp/v2/users",
   ])("404s scanner probe %s without rewriting", async (p) => {
     const res = await get(`https://tiffingrab.ca${p}`);
     expect(res.status).toBe(404);
