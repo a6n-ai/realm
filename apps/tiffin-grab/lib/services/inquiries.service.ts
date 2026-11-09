@@ -10,7 +10,7 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones, inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities, leadCounters, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
@@ -23,6 +23,7 @@ import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
+import { generatedLeadName } from "@/lib/inquiries/quick-add";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 /** Reject inquiry→order convert when this phone already has a live subscription. */
@@ -247,9 +248,16 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * converted/lost) inquiry is the same person. Email wins when phone and email
    * point at different inquiries — email is the login identity. Newest first.
    */
-  async findOpenMatch(phone: string | null, email?: string | null, excludeId?: bigint): Promise<typeof inquiries.$inferSelect | null> {
+  async findOpenMatch(
+    phone: string | null,
+    email?: string | null,
+    excludeId?: bigint,
+    whatsappPhone?: string | null,
+  ): Promise<typeof inquiries.$inferSelect | null> {
+    // A number matches either stored number: people often enquire from WhatsApp on a different phone.
+    const numbers = [...new Set([phone, whatsappPhone].filter((n): n is string => !!n).map((n) => n.toLowerCase()))];
     const parts = [
-      phone ? eq(sql`lower(${inquiries.phone})`, phone.toLowerCase()) : undefined,
+      ...numbers.flatMap((n) => [eq(sql`lower(${inquiries.phone})`, n), eq(sql`lower(${inquiries.whatsappPhone})`, n)]),
       email ? eq(sql`lower(${inquiries.email})`, email.toLowerCase()) : undefined,
     ].filter((p): p is SQL => !!p);
     if (!parts.length) return null;
@@ -276,23 +284,35 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
   }
 
+  /** Next never-resetting "Lead <n>" number for the org. Atomic; a failed insert just skips a number. */
+  private async nextLeadNumber(organizationId: string | null): Promise<number> {
+    const [row] = await db
+      .insert(leadCounters)
+      .values({ orgKey: organizationId ?? "", lastNumber: 1 })
+      .onConflictDoUpdate({ target: leadCounters.orgKey, set: { lastNumber: sql`${leadCounters.lastNumber} + 1` } })
+      .returning({ n: leadCounters.lastNumber });
+    return row.n;
+  }
+
   /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
   async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-    const fullName = clean(values.fullName);
+    let fullName = clean(values.fullName);
     const rawPhone = clean(values.phone);
+    const rawWhatsapp = clean(values.whatsappPhone);
     const rawEmail = clean(values.email);
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
     let phone: string | null = null;
     if (rawPhone) {
       phone = parsePhone(rawPhone);
     }
+    const whatsappPhone = rawWhatsapp ? parsePhone(rawWhatsapp) : null;
     let email: string | null = null;
     if (rawEmail) {
       email = parseEmail(rawEmail);
     }
 
-    const { sourceKey, subSourceKey, subStatus: rawSub, ...rest } = values as {
+    const { sourceKey, subSourceKey, subStatus: rawSub, whatsappPhone: _wa, ...rest } = values as {
       sourceKey: string;
       subSourceKey?: string;
       subStatus?: unknown;
@@ -307,7 +327,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       return { inquiry: existing, folded: true };
     };
 
-    const existing = await this.findOpenMatch(phone, email);
+    const existing = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
     if (existing) return fold(existing);
 
     // Zone resolution depends only on the postal code, so run it alongside the
@@ -318,13 +338,20 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const zoneId = await zoneIdP;
     // Stamped like orders (getBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
     const organizationId = await getBrandOrgId(db);
+    let leadNumber: number | null = null;
+    if (!fullName) {
+      leadNumber = await this.nextLeadNumber(organizationId);
+      fullName = generatedLeadName(leadNumber);
+    }
 
     let inq: typeof inquiries.$inferSelect;
     try {
       inq = await super.create({
         ...rest,
         fullName,
+        leadNumber,
         phone,
+        whatsappPhone,
         email,
         stage: stageFor(subStatus),
         subStatus,
@@ -340,7 +367,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       // insert for the same person won the race — fold into it (the dedup rule,
       // enforced at the DB).
       if (isOpenLeadConflict(e)) {
-        const winner = await this.findOpenMatch(phone, email);
+        const winner = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
         if (winner) return fold(winner);
       }
       throw e;
