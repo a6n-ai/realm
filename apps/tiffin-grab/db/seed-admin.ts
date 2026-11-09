@@ -39,13 +39,12 @@ async function main() {
     // ORDER BY id LIMIT 1` — NULL on an empty app table violates the app_id NOT
     // NULL constraint. Mirrors db/seed.sql's APP block.
     await tx.execute(sql`
-      INSERT INTO app (id, public_id, app_id, created_at, updated_at, timezone, currency)
+      INSERT INTO app (id, public_id, app_id, created_at, updated_at, currency)
       SELECT v.id,
              'aps_default',
              v.id,
              (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
              (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-             'America/Toronto',
              'CAD'
       FROM (SELECT next_id() AS id) v
       WHERE NOT EXISTS (SELECT 1 FROM app)

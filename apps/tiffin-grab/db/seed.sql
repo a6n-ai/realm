@@ -18,14 +18,13 @@ BEGIN;
 -- Must be first: every other row resolves app_id via current_app_id(), which
 -- reads this row. Sets id and app_id to the same value (self-reference) since no
 -- app exists yet for the default to resolve.
-INSERT INTO app (id, public_id, app_id, created_at, updated_at, timezone, cutoff_hour, currency, meal_types)
+-- timezone, cutoff_hour and the rest come from the column defaults (APP_DEFAULTS in db/schema/app.ts); only the tenant's currency is set here.
+INSERT INTO app (id, public_id, app_id, created_at, updated_at, currency, meal_types)
 SELECT v.id,
        'aps_default',
        v.id,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       'America/Toronto',
-       18,
        'CAD',
        '{
          "tiffin": {

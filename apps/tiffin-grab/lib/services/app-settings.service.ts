@@ -14,7 +14,7 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import { configCache } from "@/lib/cache";
 import { formatMoney } from "@/lib/format/money";
 import { db } from "@/db/client";
-import { app, deliveries } from "@/db/schema";
+import { APP_DEFAULTS, app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
@@ -22,7 +22,6 @@ import { eventCategory } from "@/lib/notifications/event-categories";
 import type { LeadAssignmentConfig, Strategy } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
-const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7, maxDiscountPct: 25 } as const;
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };
 
 // "creator" is legacy: staff creators always own their records now, so for everything else it means round robin.
@@ -69,17 +68,24 @@ const appSettingsEntity = new AppSettingsService(
   new UpdatableRepository(db, app, app.publicId, app.id),
 );
 
+// The one place the app row is written or first created; goes through the entity so the cache is evicted.
+async function saveSetting(patch: Record<string, unknown>): Promise<void> {
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, patch);
+  else await appSettingsEntity.create({ ...APP_DEFAULTS, ...patch });
+}
+
 export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string; defaultCountry: CountryCode; minTiffinsPerWeek: number; maxTiffinsPerWeek: number; maxDiscountPct: number }> {
   return settingsCache.getOrSet("settings", async () => {
     const [row] = await db.select().from(app).limit(1);
-    const timezone = row?.timezone ?? DEFAULTS.timezone;
+    const timezone = row?.timezone ?? APP_DEFAULTS.timezone;
     return {
       timezone,
-      cutoffHour: row?.cutoffHour ?? DEFAULTS.cutoffHour,
-      currency: row?.currency ?? DEFAULTS.currency,
-      minTiffinsPerWeek: row?.minTiffinsPerWeek ?? DEFAULTS.minTiffinsPerWeek,
-      maxTiffinsPerWeek: row?.maxTiffinsPerWeek ?? DEFAULTS.maxTiffinsPerWeek,
-      maxDiscountPct: row?.maxDiscountPct ?? DEFAULTS.maxDiscountPct,
+      cutoffHour: row?.cutoffHour ?? APP_DEFAULTS.cutoffHour,
+      currency: row?.currency ?? APP_DEFAULTS.currency,
+      minTiffinsPerWeek: row?.minTiffinsPerWeek ?? APP_DEFAULTS.minTiffinsPerWeek,
+      maxTiffinsPerWeek: row?.maxTiffinsPerWeek ?? APP_DEFAULTS.maxTiffinsPerWeek,
+      maxDiscountPct: row?.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct,
       // Explicit admin setting wins; NULL falls back to the timezone-derived country.
       defaultCountry: (row?.defaultCountry as CountryCode | null) ?? tzToDefaultCountry(timezone),
     };
@@ -104,8 +110,8 @@ export async function setAppSettings(input: {
   maxDiscountPct?: number;
 }): Promise<void> {
   const [row0] = await db.select({ min: app.minTiffinsPerWeek, max: app.maxTiffinsPerWeek }).from(app).limit(1);
-  const min = input.minTiffinsPerWeek ?? row0?.min ?? DEFAULTS.minTiffinsPerWeek;
-  const max = input.maxTiffinsPerWeek ?? row0?.max ?? DEFAULTS.maxTiffinsPerWeek;
+  const min = input.minTiffinsPerWeek ?? row0?.min ?? APP_DEFAULTS.minTiffinsPerWeek;
+  const max = input.maxTiffinsPerWeek ?? row0?.max ?? APP_DEFAULTS.maxTiffinsPerWeek;
   if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 7 || min > max) {
     throw new ValidationError("Tiffins per week must be whole numbers with 1 ≤ min ≤ max ≤ 7");
   }
@@ -119,7 +125,7 @@ export async function setAppSettings(input: {
   const patch = {
     timezone: input.timezone,
     cutoffHour: input.cutoffHour,
-    currency: input.currency ?? row?.currency ?? DEFAULTS.currency,
+    currency: input.currency ?? row?.currency ?? APP_DEFAULTS.currency,
     // undefined = leave unchanged; null = clear (unlimited / timezone fallback).
     minTiffinsPerWeek: min,
     maxTiffinsPerWeek: max,
@@ -129,11 +135,7 @@ export async function setAppSettings(input: {
     ...(input.defaultMaxPauseDaysTotal !== undefined ? { defaultMaxPauseDaysTotal: input.defaultMaxPauseDaysTotal } : {}),
     ...(input.defaultMaxPauseStretchDays !== undefined ? { defaultMaxPauseStretchDays: input.defaultMaxPauseStretchDays } : {}),
   };
-  if (row) {
-    await appSettingsEntity.update(row.publicId, patch);
-  } else {
-    await appSettingsEntity.create(patch);
-  }
+  await saveSetting(patch);
 
   // Missed-ness must stay monotonic: rows whose cutoff already passed are terminal (they may
   // already have spawned a make-up). Only future rows adopt the new cutoff. Use `patch` (the
@@ -191,9 +193,7 @@ export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {
 }
 
 export async function setLeadAssignment(cfg: LeadAssignmentConfig): Promise<void> {
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { leadAssignment: cfg });
-  else await appSettingsEntity.create({ ...DEFAULTS, leadAssignment: cfg });
+  await saveSetting({ leadAssignment: cfg });
 }
 
 export async function getTrackedEmailEvents(): Promise<string[]> {
@@ -205,9 +205,7 @@ export async function getTrackedEmailEvents(): Promise<string[]> {
 
 export async function setTrackedEmailEvents(events: string[]): Promise<void> {
   const cleaned = [...new Set(events.filter((e) => e && eventCategory(e) !== "account"))];
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { trackedEmailEvents: cleaned });
-  else await appSettingsEntity.create({ ...DEFAULTS, trackedEmailEvents: cleaned });
+  await saveSetting({ trackedEmailEvents: cleaned });
 }
 
 export async function getSupportHours(): Promise<SupportHours> {
@@ -228,9 +226,7 @@ export async function setSupportHours(input: unknown): Promise<void> {
   } catch (e) {
     throw new ValidationError(e instanceof Error ? e.message : "Invalid support hours");
   }
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { supportHours: cfg });
-  else await appSettingsEntity.create({ ...DEFAULTS, supportHours: cfg });
+  await saveSetting({ supportHours: cfg });
 }
 
 export async function getDiscountPolicy(): Promise<DiscountPolicy> {
@@ -245,9 +241,7 @@ export async function getDiscountPolicy(): Promise<DiscountPolicy> {
 }
 
 export async function setDiscountPolicy(policy: DiscountPolicy): Promise<void> {
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { discountPolicy: policy });
-  else await appSettingsEntity.create({ ...DEFAULTS, discountPolicy: policy });
+  await saveSetting({ discountPolicy: policy });
 }
 
 // Enabled payment methods + per-method taxes. NULL/garbage → no methods (simulated mode),
@@ -268,9 +262,7 @@ export async function getPaymentConfigFresh(): Promise<PaymentConfig> {
 export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   // parse-then-store: normalizes field defaults and rejects a malformed blob before it lands.
   const parsed = parsePaymentConfig(cfg);
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
-  else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
+  await saveSetting({ paymentConfig: parsed });
 }
 
 export async function installedPlugins(): Promise<string[]> {
@@ -320,9 +312,7 @@ export async function getIntegrationsConfigFresh(): Promise<IntegrationsConfig> 
 
 export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<void> {
   const parsed = parseIntegrationsConfig(cfg);
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { integrationsConfig: parsed });
-  else await appSettingsEntity.create({ ...DEFAULTS, integrationsConfig: parsed });
+  await saveSetting({ integrationsConfig: parsed });
 }
 
 // Atomic single-key write: the webhook must not read-modify-write the whole blob
@@ -361,9 +351,7 @@ export async function getMealTypes(): Promise<MealTypesSettings> {
 
 export async function setMealTypes(cfg: MealTypesSettings): Promise<void> {
   const parsed = parseMealTypes(cfg);
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { mealTypes: parsed });
-  else await appSettingsEntity.create({ ...DEFAULTS, mealTypes: parsed });
+  await saveSetting({ mealTypes: parsed });
 }
 
 // NULL = unlimited. Read on every award, so it's cached like the other settings.
@@ -375,9 +363,7 @@ export async function getMaxWalletBalance(): Promise<number | null> {
 }
 
 export async function setMaxWalletBalance(cap: number | null): Promise<void> {
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { maxWalletBalance: cap });
-  else await appSettingsEntity.create({ ...DEFAULTS, maxWalletBalance: cap });
+  await saveSetting({ maxWalletBalance: cap });
 }
 
 /**
@@ -402,9 +388,7 @@ export async function setMaxCoinPctOfSubtotal(pct: number | null): Promise<void>
   if (pct != null && (!Number.isInteger(pct) || pct < 0 || pct > 100)) {
     throw new ValidationError("Coin limit must be a whole percent between 0 and 100");
   }
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { maxCoinPctOfSubtotal: pct });
-  else await appSettingsEntity.create({ ...DEFAULTS, maxCoinPctOfSubtotal: pct });
+  await saveSetting({ maxCoinPctOfSubtotal: pct });
 }
 
 /** Percent (up to 2 decimals) of a paid order's pre-tax amount earned back as coins. 0 = off. */
@@ -419,9 +403,7 @@ export async function setCoinEarnPct(pct: number): Promise<void> {
   if (!Number.isFinite(pct) || pct < 0 || pct > 100 || Math.abs(pct * 100 - Math.round(pct * 100)) > 1e-6) {
     throw new ValidationError("Earn rate must be a percent between 0 and 100 with at most 2 decimals");
   }
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { coinEarnPct: pct });
-  else await appSettingsEntity.create({ ...DEFAULTS, coinEarnPct: pct });
+  await saveSetting({ coinEarnPct: pct });
 }
 
 export type ReferralSettings = { mode: "flat" | "pct"; referrerValue: number; friendValue: number; maxPerReferrer: number | null };
@@ -458,9 +440,7 @@ export async function setReferralSettings(input: unknown): Promise<void> {
     referralFriendValue: s.friendValue,
     referralMaxPerReferrer: s.maxPerReferrer,
   };
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, values);
-  else await appSettingsEntity.create({ ...DEFAULTS, ...values });
+  await saveSetting(values);
 }
 
 /** Admin overrides for provincial sales tax rates; provinces absent here fall
@@ -484,9 +464,7 @@ export async function setProfitabilityAssumptions(input: ProfitabilityAssumption
   for (const [k, v] of Object.entries(parsed)) {
     if (v > 1_000_000) throw new ValidationError(`${k} is too large`);
   }
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { profitabilityAssumptions: parsed });
-  else await appSettingsEntity.create({ ...DEFAULTS, profitabilityAssumptions: parsed });
+  await saveSetting({ profitabilityAssumptions: parsed });
 }
 
 export async function setProvinceTaxes(
@@ -500,9 +478,7 @@ export async function setProvinceTaxes(
       }
     }
   }
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) await appSettingsEntity.update(row.publicId, { provinceTaxes: taxes });
-  else await appSettingsEntity.create({ ...DEFAULTS, provinceTaxes: taxes });
+  await saveSetting({ provinceTaxes: taxes });
 }
 
 export async function setMaxCoinRedeemPctOfBalance(pct: number | null): Promise<void> {
