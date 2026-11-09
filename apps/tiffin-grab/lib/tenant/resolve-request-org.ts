@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { rethrowNextInternal } from "@/lib/next-bailout";
+import { rethrowNextInternal } from "@foundry/auth/next-bailout";
 
 // Reads the organization id proxy.ts resolved from the URL's client-code segment
 // (docs/superpowers/specs/2026-08-19-tenant-url-routing-design.md). Returns null on

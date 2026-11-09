@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
 import { AUDIT_UPDATE_SKIP } from "./audit-config";
-import { rethrowNextInternal } from "@/lib/next-bailout";
+import { rethrowNextInternal } from "@foundry/auth/next-bailout";
 
 const log = createLogger("session-service");
 

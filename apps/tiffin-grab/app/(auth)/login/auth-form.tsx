@@ -22,8 +22,9 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
-import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
+import { LAST_USER_COOKIE } from "@foundry/auth/last-user";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
+import { publicAuthUrl } from "@/lib/runtime/env.public";
 
 // Login is the shared gateway into both the customer and staff shells, so it
 // draws with the customer app's iOS-sized controls (components/auth/auth-kit).
@@ -110,11 +111,11 @@ export function AuthForm({
         <GoogleOneTap
           start={() =>
             // Loaded on demand: One Tap's own auth client stays out of the page bundle.
-            import("@/lib/auth/one-tap").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
+            import("@foundry/auth-ui/google-one-tap-prompt").then(({ promptGoogleOneTap }) => promptGoogleOneTap(googleClientId, {
               onSignedIn: () => void landSignedIn(),
               // No account for that Google email: sign-up lives on /subscribe.
               onRefused: () => router.replace("/subscribe?error=signup_disabled"),
-            }))
+            }, publicAuthUrl()))
           }
         />
       ) : null}
