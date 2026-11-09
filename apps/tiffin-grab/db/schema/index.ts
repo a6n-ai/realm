@@ -6,6 +6,7 @@ export * from "./promotions";
 export * from "./deliveries";
 export * from "./coupons";
 export * from "./inquiries";
+export * from "./lead-counters";
 export * from "./tickets";
 export * from "./section-seen";
 export * from "./list-filter-usage";
