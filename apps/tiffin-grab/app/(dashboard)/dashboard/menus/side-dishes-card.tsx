@@ -86,7 +86,6 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
     valueOf,
     standingOf,
     packs,
-    /** A day differs from the standing default. */
     changed: (day: DayOfWeek, slot: SideSlot) => valueOf(day, slot) !== DEFAULT,
     /** Day choices not yet written: they make the menu dirty like any other edit. */
     dirty: changedKeys().length > 0,

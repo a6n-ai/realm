@@ -117,7 +117,6 @@ export type CustomerOrderContext = {
   plans: Omit<RunningPlan, "organizationId">[];
   /** The phone is one customer's and the email another's: createOrder will refuse this order. */
   conflict: boolean;
-  /** Saved addresses with the drop-off picked under each. */
   addresses: (SavedAddress & { dropOff: DropOffValue | null })[];
 };
 
