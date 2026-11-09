@@ -1,6 +1,6 @@
-import { useAppCurrency } from "@/components/app-currency";
 /* eslint-disable */
 "use client";
+import { useAppCurrency } from "@/components/app-currency";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

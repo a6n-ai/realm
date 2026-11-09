@@ -1,6 +1,6 @@
-import { initials } from "@foundry/ui/initials";
 /* eslint-disable */
 "use client";
+import { initials } from "@foundry/ui/initials";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
