@@ -1,0 +1,2 @@
+CREATE INDEX "notification_outbox_dedupe_prefix_idx" ON "notification_outbox" USING btree ("dedupe_key" text_pattern_ops);--> statement-breakpoint
+CREATE INDEX "notification_outbox_created_idx" ON "notification_outbox" USING btree ("created_at");
