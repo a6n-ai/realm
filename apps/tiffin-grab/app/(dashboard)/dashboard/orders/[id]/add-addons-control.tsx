@@ -41,6 +41,8 @@ export function AddAddonsControl({
   const [formError, setFormError] = useState<string | null>(null);
   // Bumped to ask for a fresh quote for the same inputs (after a refused save or a failed quote).
   const [refresh, setRefresh] = useState(0);
+  // Bumped on close so a quote from an earlier open never matches the new session's inputs.
+  const [session, setSession] = useState(0);
   const [saving, startSaving] = useTransition();
 
   const selections = options.filter((o) => (qty[o.key] ?? 0) > 0).map((o) => ({ key: o.key, qty: qty[o.key]! }));
@@ -48,7 +50,7 @@ export function AddAddonsControl({
   const method = methods.find((m) => m.id === methodId);
   // Card: nothing is recorded now; the customer pays a link and the add-ons apply when it settles.
   const isCard = methodId === "stripe";
-  const inputKey = `${methodId}|${selectionKey}|${refresh}`;
+  const inputKey = `${session}|${methodId}|${selectionKey}|${refresh}`;
   const priced = open && selections.length > 0 && !!methodId;
   // Keyed by the inputs it answers, so a result for older inputs is never shown or saved.
   const found = useDebouncedAsync<QuoteResult>(priced ? inputKey : null, async () => {
@@ -73,6 +75,7 @@ export function AddAddonsControl({
     setFile(null);
     setFormError(null);
     setRefresh(0);
+    setSession((n) => n + 1);
   }
 
   function save() {
