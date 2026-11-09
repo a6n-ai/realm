@@ -3,13 +3,12 @@ import type { LandingPromo, LandingPromos } from "@/lib/landing/promo-types";
 import { deliveryLine } from "@/lib/landing/llms-text";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { windowOf } from "@/lib/public-api/postal";
-import type { BoardDay } from "@/components/landing/week-board";
-import type { BoardWeekend } from "@/lib/landing/week-board";
+import type { BoardDay, BoardWeekend } from "@/lib/landing/week-board";
 import type { FaqGroup } from "@/lib/landing/faq-list";
 import { SUPPORT_E164 } from "@/lib/landing/contact";
 import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
 import type { ReferralOffer } from "@/lib/referrals/offer";
-import { referHeadline } from "@/components/landing/refer/refer-content";
+import { referHeadline } from "@/lib/referrals/headline";
 
 export const plansBody = (f: SiteFacts, origin: string) => ({
   currency: f.currency,
