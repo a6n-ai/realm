@@ -81,7 +81,7 @@ export async function stripeMethodAvailable(): Promise<boolean> {
   return !!method?.enabled && (await stripeRuntime()) != null;
 }
 
-// BETTER_AUTH_URL base, as lib/clover/redirect-uri.ts: the request host is unreliable behind a proxy.
+// BETTER_AUTH_URL base, as @foundry/clover cloverOAuthRedirectUri: the request host is unreliable behind a proxy.
 export function appBaseUrl(): string {
   return appOrigin();
 }

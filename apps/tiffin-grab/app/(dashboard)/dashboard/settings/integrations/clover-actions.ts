@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import {
   buildCloverAuthorizeUrl,
   cloverApiTokenConnectSchema,
+  cloverOAuthRedirectUri,
   connectCloverWithApiToken,
+  createCloverOAuthState,
   disconnectClover,
   getCloverConnection,
   installCloverPlugin,
@@ -15,8 +17,6 @@ import {
 } from "@foundry/clover";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
-import { createCloverOAuthState } from "@/lib/clover/oauth-state";
-import { cloverOAuthRedirectUri } from "@/lib/clover/redirect-uri";
 
 function revalidateCloverPaths() {
   revalidatePath("/dashboard/settings/integrations");

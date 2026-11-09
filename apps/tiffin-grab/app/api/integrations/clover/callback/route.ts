@@ -4,9 +4,9 @@ import {
   exchangeCloverAuthorizationCode,
   loadCloverAppCredentialsFromEnv,
   parseCloverOAuthCallback,
+  consumeCloverOAuthState,
   persistCloverOAuthConnection,
 } from "@foundry/clover";
-import { consumeCloverOAuthState } from "@/lib/clover/oauth-state";
 import { getSession } from "@/lib/auth/session";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 
