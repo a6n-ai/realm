@@ -12,7 +12,7 @@ import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
-import { ReferralCodeInput } from "./referral-code-input";
+import { normalizeReferralCode } from "@/lib/referrals/cookie";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { newOrderHref } from "@/lib/wizard/selections";
 import { publicAuthUrl } from "@/lib/runtime/env.public";
@@ -267,20 +267,20 @@ export function IdentityGate({
 
           {phase === "email" || (isNew && phase === "name") ? (
             <Reveal key="referral" motionProps={reveal}>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="gate-referral" className="font-semibold">Referral code <span className="font-normal text-muted-foreground">(optional, new customers)</span></Label>
-                <ReferralCodeInput
-                  id="gate-referral"
-                  value={referralCode}
-                  onChange={setReferralCode}
-                  invalid={error?.field === "referral"}
-                />
-                {error?.field === "referral" ? (
-                  <p role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
-                ) : (
-                  <p className="c-caption">From a friend. 6 letters and numbers.</p>
-                )}
-              </div>
+              {/* One plain text field: boxes here read as the email code and people waited for one. */}
+              <Field
+                id="gate-referral"
+                label="Referral code (optional)"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                maxLength={8}
+                placeholder="From a friend, like QR7K2M"
+                value={referralCode}
+                onChange={(e) => setReferralCode(normalizeReferralCode(e.target.value).replace(/[^A-HJ-NP-Z2-9]/g, "").slice(0, 8))}
+                error={error?.field === "referral" ? error.message : undefined}
+                className="uppercase tracking-[0.08em] placeholder:normal-case placeholder:tracking-normal"
+              />
             </Reveal>
           ) : null}
 
