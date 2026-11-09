@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Calculator, ChevronLeft, ChevronRight, Gift, House, TicketPercent, UtensilsCrossed } from "lucide-react";
-import { WhatsAppDockLink } from "@/components/landing/whats-app-chat";
+import { WhatsAppDockLink } from "@/components/landing/whats-app-glyph";
 import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";

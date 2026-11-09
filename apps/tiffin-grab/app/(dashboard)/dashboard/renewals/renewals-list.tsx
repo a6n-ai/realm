@@ -10,7 +10,7 @@ import { formatMoney as fmt } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@/components/reui/badge";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { humanDate } from "@/lib/deliveries-view";
 import { rowStatus, statusLabel, type RenewalRowStatus, type RenewalsTab } from "@/lib/renewals/filters";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";

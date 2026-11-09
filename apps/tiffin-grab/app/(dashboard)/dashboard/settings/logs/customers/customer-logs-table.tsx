@@ -6,7 +6,7 @@ import { UserRoundSearchIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import {
   CUSTOMER_ACTIVITY_CATEGORY_LABELS,

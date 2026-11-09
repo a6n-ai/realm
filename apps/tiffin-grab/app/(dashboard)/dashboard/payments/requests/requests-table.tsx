@@ -21,7 +21,7 @@ import {
   type FacetDef,
   type Option,
 } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "../../orders/[id]/actions";

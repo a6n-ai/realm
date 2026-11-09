@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { MealInfoChips, PlanHeadingRow } from "../plan-box";
+import { MealInfoChips, PlanHeadingRow } from "../plan-heading-row";
 
 afterEach(cleanup);
 

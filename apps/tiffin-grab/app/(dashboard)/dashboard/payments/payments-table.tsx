@@ -12,7 +12,7 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, RowActions, RowActionTooltipButton, type Column } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import type { FacetDef, Option } from "@/components/ds";
 import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";

@@ -5,7 +5,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { GroupRowActions } from "./group-quick-actions";

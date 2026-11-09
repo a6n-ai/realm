@@ -15,7 +15,7 @@ import { Textarea } from "@foundry/ui/textarea";
 import { TableCell } from "@foundry/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { DataTable, ListPagination, RowActions, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";

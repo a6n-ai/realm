@@ -24,7 +24,7 @@ import {
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
 import { formatEpoch } from "@/lib/format/datetime";

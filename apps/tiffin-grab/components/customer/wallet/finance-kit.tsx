@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ListPagination } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { FacetDef } from "@/components/ds";
 
 export function monthKey(ms: number, timeZone: string): string {

@@ -4,7 +4,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { GiftIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { Badge } from "@/components/reui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";

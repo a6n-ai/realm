@@ -10,7 +10,7 @@ import { CampaignDeleteButton } from "@relay/engine/ui/campaign-delete-button";
 import { CampaignDuplicateButton } from "@relay/engine/ui/campaign-duplicate-button";
 import { CampaignRetriggerButton } from "@relay/engine/ui/campaign-retrigger-button";
 import type { ContactListOption } from "@relay/engine/ui/audience-builder";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { CampaignSortColumn } from "./page";
 

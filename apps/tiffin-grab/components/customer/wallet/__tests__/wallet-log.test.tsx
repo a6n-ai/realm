@@ -16,7 +16,7 @@ vi.mock("@/components/ds", () => ({
   ),
 }));
 
-vi.mock("@/components/filters/filters", () => ({
+vi.mock("@/components/filters/reui-facet-filters", () => ({
   ReuiFacetFilters: ({ spec }: { spec: unknown }) => <div data-testid="facet-filters" data-spec={JSON.stringify(spec)} />,
 }));
 

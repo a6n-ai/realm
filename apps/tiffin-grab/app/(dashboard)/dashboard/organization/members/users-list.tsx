@@ -3,7 +3,7 @@
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { UserRow, UserRowCard } from "./user-row";
 import type { UserStatusValue } from "./actions";

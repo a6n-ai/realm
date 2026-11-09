@@ -6,7 +6,7 @@ import { ScrollTextIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { LEDGER_TYPE_OPTIONS, type LedgerSortKey } from "../payment-facets";
 import { formatEpoch } from "@/lib/format/datetime";

@@ -11,7 +11,7 @@ import {
   CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon, ShoppingBagIcon,
 } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";

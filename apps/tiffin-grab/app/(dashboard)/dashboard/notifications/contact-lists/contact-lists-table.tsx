@@ -9,7 +9,7 @@ import { TableCell } from "@foundry/ui/table";
 import { ContactListDeleteButton } from "@relay/engine/ui/contact-list-delete-button";
 import { ContactListResyncButton } from "@relay/engine/ui/contact-list-resync-button";
 import { formatConsentDate } from "@relay/engine/ui/date";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { ContactListSortColumn } from "./page";
 

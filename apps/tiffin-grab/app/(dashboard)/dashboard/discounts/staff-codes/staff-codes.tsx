@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { BanIcon, TicketIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";

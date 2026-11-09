@@ -2,7 +2,7 @@
 import "@/components/landing/styles/demos.css";
 
 import { CalendarDays, Check, Clock, ChevronLeft, Coins, Copy, Download, Ellipsis, Gift, LifeBuoy, Link2, Mail, MessageSquare, Phone as PhoneIcon, Send, Share, Share2, Ticket, User, Users, UtensilsCrossed, Video, Wallet } from "lucide-react";
-import { WhatsAppGlyph } from "@/components/landing/whats-app-chat";
+import { WhatsAppGlyph } from "@/components/landing/whats-app-glyph";
 import { Phone, Stage, type Act } from "./kit";
 
 // A referral told from the referrer's own app, the same three screens as the section below:

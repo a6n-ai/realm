@@ -6,7 +6,7 @@ import { ScrollTextIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/filters";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { SETTINGS_ACTIVITY_FACETS } from "@/lib/order-activity/log-facets";
 import { formatEpoch } from "@/lib/format/datetime";

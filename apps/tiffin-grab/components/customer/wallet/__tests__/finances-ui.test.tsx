@@ -17,7 +17,7 @@ vi.mock("@/components/motion", () => ({
   }),
 }));
 
-vi.mock("@/components/filters/filters", () => ({
+vi.mock("@/components/filters/reui-facet-filters", () => ({
   ReuiFacetFilters: () => <div data-testid="facets" />,
 }));
 

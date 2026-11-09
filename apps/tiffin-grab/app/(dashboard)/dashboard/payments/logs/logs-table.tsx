@@ -9,7 +9,7 @@ import { ActivityIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";

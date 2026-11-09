@@ -4,7 +4,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { CoinsIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/filters";
+import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { MemoCell } from "@/components/dashboard/memo-cell";
 import { TableCell } from "@foundry/ui/table";
 
