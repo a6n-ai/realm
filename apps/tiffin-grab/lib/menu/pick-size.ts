@@ -6,12 +6,12 @@
 // category's own unit conversion: each meal_size_item IS one slot in sortOrder, and
 // pickIndex N is the Nth row. A sabzi category with two rows @ 1 TU each gives picks
 // 1 and 2 at that portion; a dal category with one row @ 1.5 TU gives pick 1 at that portion.
-import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
+import { formatTuHuman, isCountCategory, type TuCategory } from "./format-tu";
 import { foldSwaps, type SlotRow } from "./swap-rules";
 
 export type MealSizeItemRow = {
   category: string;
-  tuAmount: string | null;
+  tuAmount: string | number | null;
   sortOrder: number;
 };
 
@@ -120,7 +120,7 @@ export function portionsByCategory(
     const converter = categoriesByKey.get(category) ?? null;
     // Only genuine bulk/count categories (e.g. roti count) collapse their slots into a single pack total.
     // Container-based categories (weight: daal, sabzi, salad, raita, etc.) MUST preserve each container slot!
-    if (converter && !isContainerCategory(converter) && converter.selectable === false) {
+    if (isCountCategory(converter ?? undefined)) {
       if (slots.length === 0) {
         out.set(category, []);
       } else if (!slots.some((tu) => tu != null)) {

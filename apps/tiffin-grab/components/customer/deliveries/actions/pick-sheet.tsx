@@ -3,7 +3,8 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
-import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
+import { addonRowKeys, countAddons, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
+import { isCountCategory } from "@/lib/menu/format-tu";
 import {
   applyMyDeliverySwap,
   removeMyDeliverySwap,

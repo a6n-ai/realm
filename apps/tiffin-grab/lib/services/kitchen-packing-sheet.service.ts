@@ -25,7 +25,7 @@ import {
   splitContainers,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
-import { isContainerCategory } from "@/lib/menu/format-tu";
+import { isCountCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -216,7 +216,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         for (const cat of ordered) {
           if (cat.picks.length === 0) continue;
           const converter = tuByKey.get(cat.category);
-          if (isContainerCategory(converter) || cat.selectable) {
+          if (!isCountCategory(converter)) {
             cat.picks.forEach((pick, i) => {
               const pickIndex = i + 1;
               const portion = (portionForPick(portions, cat.category, pickIndex) ?? "").trim();

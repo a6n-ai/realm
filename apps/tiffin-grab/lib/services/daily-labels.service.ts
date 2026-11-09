@@ -4,6 +4,7 @@
 // Every read of "what does this subscriber receive" goes through resolveDeliveryMeal —
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
+import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { labelDeliveryStatus, type LabelDeliveryStatus } from "@/lib/deliveries/label-status";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
@@ -14,7 +15,6 @@ import {
   deliveryZones,
   dishCategories,
   dishes,
-  mealSizeItems,
   mealSizes,
   orders,
   plans,
@@ -27,7 +27,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/services/delivery-extras";
 import { packLines } from "@/lib/menu/packing-requirement";
-import { isContainerCategory } from "@/lib/menu/format-tu";
+import { isCountCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
@@ -243,15 +243,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
 
   const [zones, sizeItems, categories] = await Promise.all([
     db.select({ id: deliveryZones.id, name: deliveryZones.name }).from(deliveryZones),
-    db
-      .select({
-        mealSizeId: mealSizeItems.mealSizeId,
-        category: mealSizeItems.category,
-        tuAmount: mealSizeItems.tuAmount,
-        sortOrder: mealSizeItems.sortOrder,
-      })
-      .from(mealSizeItems)
-      .where(inArray(mealSizeItems.mealSizeId, [...new Set(rows.map((r) => r.order.mealSizeId))])),
+    loadMealSizeItems([...new Set(rows.map((r) => r.order.mealSizeId))]),
     db
       .select({
         key: dishCategories.key,
@@ -334,7 +326,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             addon: addonPicks.get(category.category)?.has(i + 1) || undefined,
             portion: portionForPick(portions, category.category, i + 1),
             defaulted: pick.isDefaulted,
-            count: (!category.selectable && !isContainerCategory(categoriesByKey.get(category.category))) || undefined,
+            count: isCountCategory(categoriesByKey.get(category.category)) || undefined,
           });
         });
       }

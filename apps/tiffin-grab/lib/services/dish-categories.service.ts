@@ -10,6 +10,7 @@ import { RESOURCES } from "@/lib/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { parsePatch } from "./parse-patch";
+import { loadMealSizeItems, tuSlotsByCategory } from "@/lib/menu/meal-size-items";
 
 // A slot shared by several plans joins once per plan; callers want it once.
 function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
@@ -416,18 +417,10 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         .from(dishCategories)
         .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
         .where(and(eq(categoryPlans.planId, size.planId), eq(dishCategories.enabled, true))),
-      db
-        .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount })
-        .from(mealSizeItems)
-        .where(eq(mealSizeItems.mealSizeId, mealSizeId))
-        .orderBy(asc(mealSizeItems.sortOrder)),
+      loadMealSizeItems(mealSizeId),
     ]);
-    const pickTu = new Map<string, number>();
-    const rowTu = new Map<string, number[]>();
-    for (const i of items) {
-      if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
-      rowTu.set(i.category, [...(rowTu.get(i.category) ?? []), Number(i.tuAmount)]);
-    }
+    const rowTu = tuSlotsByCategory(items);
+    const pickTu = new Map([...rowTu].map(([category, slots]) => [category, slots[0]!]));
     return new Map(cats.map((c) => [c.key, {
       key: c.key, pickTu: pickTu.get(c.key) ?? null, ...(rowTu.has(c.key) ? { rowTu: rowTu.get(c.key) } : {}), unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
       ...(size.custom && !pickTu.has(c.key) ? { addable: true } : {}),

@@ -1,9 +1,10 @@
 // Single source of truth for "what a subscriber receives" for a given order/week/day/person:
 // buildMealsGrid must show exactly what this resolves, so any fulfillment/kitchen read
 // reuses this instead of re-deriving the pick → isDefault fallback.
+import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { and, asc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizes, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
 import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
@@ -190,16 +191,7 @@ function loadSizeContext(order: Order) {
     // one non-veg), and both must be servable to the subscriber.
     allowedDishIdsForMealSize(order.mealSizeId),
     exclusiveDishIdsForPlan(order.planId),
-    db
-      .select({
-        category: mealSizeItems.category,
-        tuAmount: mealSizeItems.tuAmount,
-        sortOrder: mealSizeItems.sortOrder,
-        planId: mealSizeItems.planId,
-        role: mealSizeItems.role,
-      })
-      .from(mealSizeItems)
-      .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
+    loadMealSizeItems(order.mealSizeId),
     mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
     db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
   ]);

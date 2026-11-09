@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
-import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
+import { formatTuHuman, isCountCategory, type TuCategory } from "./format-tu";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
 /**
@@ -53,7 +53,7 @@ export function buildSubscriptionAddons(rows: AddonViewRow[], cats: Map<string, 
   const out = new Map<bigint, SubscriptionAddon[]>();
   for (const a of rows) {
     const tu = cats.get(a.category);
-    const folded = !!tu && !isContainerCategory(tu) && !tu.selectable;
+    const folded = isCountCategory(tu, { unsetIsCount: true });
     const list = out.get(a.orderId) ?? [];
     list.push({ name: a.name, qty: a.qty, category: a.category, folded, portion: tu ? formatTuHuman(tu, Number(a.tuAmount) * (folded ? a.qty : 1)) : null });
     out.set(a.orderId, list);

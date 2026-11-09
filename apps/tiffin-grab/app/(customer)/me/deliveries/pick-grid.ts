@@ -1,9 +1,10 @@
 "use server";
 
+import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { runInBackground } from "@foundry/cloud/background";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, mealSizeItems, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, orders } from "@/db/schema";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -116,11 +117,7 @@ export async function loadPickGrid(
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
     const [sizeItems, addonItems, planCats] = await Promise.all([
-      db
-        .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder, role: mealSizeItems.role })
-        .from(mealSizeItems)
-        .where(eq(mealSizeItems.mealSizeId, row.mealSizeId))
-        .orderBy(asc(mealSizeItems.sortOrder)),
+      loadMealSizeItems(row.mealSizeId),
       addonItemsForOrder(row.id),
       dishCategoriesService.forPlan(row.planId),
     ]);

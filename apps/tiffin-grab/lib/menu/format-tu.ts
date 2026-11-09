@@ -37,3 +37,12 @@ export function isContainerCategory(category?: { tuUnitType?: string } | null): 
   return category?.tuUnitType === "weight";
 }
 
+/**
+ * A category whose rows fold into one total (8 roti), not one row per container (Sabzi 12oz).
+ * `unsetIsCount`: a category with no `selectable` flag counts as folded (add-on rows are loaded without one).
+ */
+export function isCountCategory(category: TuCategory | undefined, opts: { unsetIsCount?: boolean } = {}): boolean {
+  if (!category || isContainerCategory(category)) return false;
+  return category.selectable === false || (opts.unsetIsCount === true && category.selectable == null);
+}
+

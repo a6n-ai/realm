@@ -1,11 +1,11 @@
-import { asc, eq } from "drizzle-orm";
+import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { mealSizeItems, orders } from "@/db/schema";
+import { orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { CalendarDay } from "@/lib/services/customer-deliveries.service";
-import type { TuCategory } from "./format-tu";
+import { isCountCategory, type TuCategory } from "./format-tu";
 import { addonItemsForOrder } from "./order-addon-items";
-import { isCountCategory } from "./pick-addons";
 import { portionsByCategory } from "./pick-size";
 
 export type PortionsByDate = Record<string, Record<string, (string | null)[]>>;
@@ -22,8 +22,7 @@ export async function portionsAfterSwaps(orderPublicId: string, days: CalendarDa
     .from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
   if (!order) return {};
   const [sizeItems, addonItems, planCats] = await Promise.all([
-    db.select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder })
-      .from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, order.mealSizeId)).orderBy(asc(mealSizeItems.sortOrder)),
+    loadMealSizeItems(order.mealSizeId),
     addonItemsForOrder(order.id),
     dishCategoriesService.forPlan(order.planId),
   ]);

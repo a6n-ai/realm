@@ -5,7 +5,7 @@
  */
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryCategorySwaps, dishCategories, mealSizeItems, orders } from "@/db/schema";
+import { deliveryCategorySwaps, dishCategories, orders } from "@/db/schema";
 import {
   computeAllSwapOptions,
   type CompositionContext,
@@ -18,6 +18,7 @@ import { addonItemsForOrder, countsWithoutAddons } from "@/lib/menu/order-addon-
 import type { SwapRow } from "@/lib/menu/swap-rules";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
+import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 
 /**
  * Swap composition for an order's meal: only the meal size's own rows. Add-on rows (extra sabzi, roti…)
@@ -26,25 +27,11 @@ import { dishCategoriesService } from "./dish-categories.service";
 export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Record<string, number>, orderId?: bigint): Promise<CompositionContext> {
   const [cats, items, labels, addons] = await Promise.all([
     dishCategoriesService.swapCategoriesForMealSize(mealSizeId),
-    db
-      .select({
-        category: mealSizeItems.category,
-        tuAmount: mealSizeItems.tuAmount,
-        maxTuAmount: mealSizeItems.maxTuAmount,
-        sortOrder: mealSizeItems.sortOrder,
-      })
-      .from(mealSizeItems)
-      .where(eq(mealSizeItems.mealSizeId, mealSizeId))
-      .orderBy(asc(mealSizeItems.sortOrder)),
+    loadMealSizeItems(mealSizeId),
     db.select({ key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
     orderId != null ? addonItemsForOrder(orderId) : Promise.resolve([]),
   ]);
-  const mealSizeItemRows: MealSizeItemRow[] = items.map((i) => ({
-    category: i.category,
-    tuAmount: Number(i.tuAmount),
-    maxTuAmount: i.maxTuAmount == null ? null : Number(i.maxTuAmount),
-    sortOrder: i.sortOrder,
-  }));
+  const mealSizeItemRows: MealSizeItemRow[] = items.map(({ category, tuAmount, maxTuAmount, sortOrder }) => ({ category, tuAmount, maxTuAmount, sortOrder }));
   const labelMap: Record<string, string> = {};
   for (const l of labels) labelMap[l.key] = l.label;
   const effectiveBaseCounts = items.length > 0 ? categoryCountsFromItems(items) : countsWithoutAddons(baseCounts, addons);

@@ -3,16 +3,13 @@
  * tests share it. Add-on rows sit after the meal's own rows (sortOrder ≥ ADDON_SORT_BASE), are
  * picked from the menu only, and never take part in a swap.
  */
-import { isContainerCategory, type TuCategory } from "./format-tu";
+import { isCountCategory } from "./format-tu";
 import { cellKey, type AnchoredGroup, type PickCategoryGroup } from "./pick-groups";
 import { previewPortions, type PreviewBase, type ProvisionalSwap } from "./pick-preview";
 import { portionsByCategory } from "./pick-size";
 
 /** Add-on rows are appended after every meal row: sortOrder at or above this marks one. */
 export const ADDON_SORT_BASE = 100_000;
-
-/** A category whose rows fold into one total (8 roti), not one row per container (Sabzi 12oz). */
-export const isCountCategory = (tu: TuCategory | undefined) => !!tu && !isContainerCategory(tu) && tu.selectable === false;
 
 /**
  * Cell keys of the per-row add-ons (an extra Sabzi): a category's last N plain rows, where N is
