@@ -2,14 +2,13 @@ import { isAdmin } from "@/lib/auth/roles";
 import { NextResponse } from "next/server";
 import {
   exchangeCloverAuthorizationCode,
-  getCloverConnection,
   loadCloverAppCredentialsFromEnv,
   parseCloverOAuthCallback,
-  setCloverConnection,
+  persistCloverOAuthConnection,
 } from "@foundry/clover";
+import { consumeCloverOAuthState } from "@/lib/clover/oauth-state";
 import { getSession } from "@/lib/auth/session";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
-import { consumeCloverOAuthState } from "@/lib/clover/oauth-state";
 
 function settingsRedirect(request: Request, query: Record<string, string>) {
   const url = new URL("/dashboard/settings/clover", request.url);
@@ -50,16 +49,10 @@ export async function GET(request: Request) {
       credentials,
       code: cb.code,
     });
-    const current = await getCloverConnection(integrationsConfigStore);
-    await setCloverConnection(integrationsConfigStore, {
-      ...current,
-      installed: true,
-      connected: true,
+    await persistCloverOAuthConnection(integrationsConfigStore, {
+      credentials,
       merchantId: cb.merchantId,
-      environment: credentials.environment,
-      region: credentials.region,
       tokens,
-      connectedAt: new Date().toISOString(),
     });
     return settingsRedirect(request, { clover: "connected" });
   } catch (err) {
