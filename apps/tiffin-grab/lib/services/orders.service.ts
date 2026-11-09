@@ -90,7 +90,7 @@ import {
 } from "./wallet.service";
 import { awardReferral, reverseReferral } from "./referrals.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { eatingDaysError, orderDeliveryDays, planDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
@@ -1593,7 +1593,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const trips = planWeek(deliveryDays, days)!;
       const next = trips.flatMap((t) => t.days);
       const before = (order.eatingDays as DayOfWeek[] | null)
-        ?? orderDeliveryDays({ ...frequency, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday });
+        ?? planDeliveryDays(order, { key: freq.key, weekdays: frequency.weekdays });
       if (before.join() === next.join() && !toFiveDay) return;
 
       const rows = await tx.select().from(deliveries).where(eq(deliveries.orderId, order.id));

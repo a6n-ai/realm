@@ -10,7 +10,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, mealSizes, orders, payments, users } = await import("@/db/schema");
 const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { orderDeliveryDaySet, rescheduleDelivery } = await import("../deliveries.service");
+const { loadPlanDays, rescheduleDelivery } = await import("../deliveries.service");
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
@@ -79,7 +79,7 @@ describe("meal size allowed days", () => {
   it("an old Mon-Fri order's make-up / redelivery days skip the days the size isn't made on", async () => {
     const old = await order("5_day", ["mon", "tue", "wed", "thu", "fri"]);
     await setAllowed(["mon", "wed", "fri"]);
-    expect([...(await orderDeliveryDaySet(db as never, old))].sort()).toEqual(["fri", "mon", "wed"]);
+    expect([...(await loadPlanDays(db as never, old))].sort()).toEqual(["fri", "mon", "wed"]);
   });
 
   it("a move onto a day the size isn't made on is refused", async () => {

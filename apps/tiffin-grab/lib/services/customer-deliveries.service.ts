@@ -14,7 +14,7 @@ import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
-import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,
@@ -39,7 +39,7 @@ import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
-import { isWeekendDay, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
+import { isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 // Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
 // only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
@@ -537,12 +537,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     (max, r) => (r.status === "cancelled" || r.mergedIntoDeliveryId != null || handedOn.has(String(r.id)) || (max != null && r.deliveryDate <= max) ? max : r.deliveryDate),
     null,
   );
-  const deliveryWeekdays = orderDeliveryDays({
-    frequencyKey: order.frequencyKey,
-    weekdays: order.weekdays as DayOfWeek[] | null,
-    includeSaturday: !order.eatingDays?.length && order.includeSaturday,
-    includeSunday: !order.eatingDays?.length && order.includeSunday,
-  }).filter((d) => !isWeekendDay(d));
+  const deliveryWeekdays = planDeliveryDays(order, { key: order.frequencyKey, weekdays: order.weekdays as DayOfWeek[] | null }, { weekdaysOnly: true });
 
   const total = order.tiffinCount + order.complimentaryTiffins;
   return {

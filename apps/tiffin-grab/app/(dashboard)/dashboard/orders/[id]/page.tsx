@@ -43,7 +43,7 @@ import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import { dayAllowed, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { payLink } from "@/lib/payments/stripe";
@@ -267,10 +267,7 @@ async function OrderDetail({
   const eatingAction = canEditEating ? (
     <EatingDaysControl
       orderId={order.publicId}
-      eatingDays={(order.eatingDays as DayOfWeek[] | null) ?? orderDeliveryDays({
-        frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
-        includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
-      })}
+      eatingDays={(order.eatingDays as DayOfWeek[] | null) ?? planDeliveryDays(order, { key: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null })}
       deliveryDays={orderDeliveryDays({ frequencyKey: deliveryRow!.key, weekdays: deliveryRow!.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
       toFiveDay={deliveryRow !== frequencyRow}
       servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}

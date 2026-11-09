@@ -124,3 +124,35 @@ export function orderDeliveryDays(o: {
   return base;
 }
 
+
+/** What a trial order's delivery days are: ignored (frequency days), its own send days, or its send days when it has any. */
+export type TrialDays = "ignore" | "sendDays" | "sendDaysIfAny";
+
+/**
+ * The days an order's trucks run: its frequency's days (Sat/Sun flags only on an order without eating days), limited to
+ * `allowed` unless that would leave nothing, or a trial's own send days per `trial`. A trial with no send days is
+ * "no days" under `sendDays` but the frequency's days under `sendDaysIfAny`. `weekdaysOnly` drops Sat/Sun (weekend food rides Friday).
+ */
+export function planDeliveryDays(
+  order: {
+    eatingDays?: readonly string[] | null;
+    includeSaturday: boolean;
+    includeSunday: boolean;
+    trialLength?: number | null;
+    trialWeekdays?: readonly string[] | null;
+  },
+  freq: { key: string; weekdays?: DayOfWeek[] | null },
+  o: { allowed?: AllowedDays; trial?: TrialDays; weekdaysOnly?: boolean } = {},
+): DayOfWeek[] {
+  const trial = o.trial ?? "ignore";
+  let days: DayOfWeek[];
+  if (trial !== "ignore" && order.trialLength != null && (trial === "sendDays" || order.trialWeekdays?.length)) {
+    days = [...(order.trialWeekdays ?? [])] as DayOfWeek[];
+  } else {
+    const flags = !order.eatingDays?.length;
+    days = orderDeliveryDays({ frequencyKey: freq.key, weekdays: freq.weekdays, includeSaturday: flags && order.includeSaturday, includeSunday: flags && order.includeSunday });
+    const kept = days.filter((d) => dayAllowed(d, o.allowed));
+    if (kept.length > 0) days = kept;
+  }
+  return o.weekdaysOnly ? days.filter((d) => !isWeekendDay(d)) : days;
+}

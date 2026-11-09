@@ -60,6 +60,7 @@ export type PlanContext = {
   cutoffHour: number;
   timezone: string;
   lastDeliveryDate: string | null;
+  /** Mon-Fri only: weekend food rides Friday. */
   deliveryWeekdays: string[];
   eatingWeekdays?: string[] | null;
   /** Closed dates for this plan's organization (ISO date to holiday name); Move never offers them. */

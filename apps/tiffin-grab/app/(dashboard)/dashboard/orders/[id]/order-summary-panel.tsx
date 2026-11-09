@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/ds";
 import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
-import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderDetail } from "@/lib/services/orders.service";
 
 function isPricingSnapshot(value: unknown): value is OrderPricingSnapshot {
@@ -62,12 +62,7 @@ export function OrderOverview({
     .map(([key, qty]) => [key, qty - (addonByCategory.get(key) ?? 0)] as const)
     .filter(([, qty]) => qty > 0);
   const eatingDays = order.eatingDays as DayOfWeek[] | null;
-  const deliveryDays = orderDeliveryDays({
-    frequencyKey: order.frequencyKey,
-    weekdays: order.frequencyWeekdays as DayOfWeek[] | null,
-    includeSaturday: eatingDays ? false : order.includeSaturday,
-    includeSunday: eatingDays ? false : order.includeSunday,
-  });
+  const deliveryDays = planDeliveryDays(order, { key: order.frequencyKey, weekdays: order.frequencyWeekdays as DayOfWeek[] | null });
   const trips = eatingDays ? planWeek(deliveryDays, eatingDays) : null;
   const details = isPricingSnapshot(snap) ? deliveryDetails(snap.deliveryCharge) : "";
 

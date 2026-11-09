@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowedDaysError, clubbedQuantities, planDaysError, dayAllowed, frequencyFits, onlyOnMessage, planWeek, orderDeliveryDays, weekendDaysError, type DayOfWeek } from "../delivery-days";
+import { allowedDaysError, clubbedQuantities, planDaysError, dayAllowed, frequencyFits, onlyOnMessage, planWeek, orderDeliveryDays, planDeliveryDays, weekendDaysError, type DayOfWeek } from "../delivery-days";
 
 describe("orderDeliveryDays", () => {
   it("5_day → mon..fri", () => {
@@ -135,3 +135,35 @@ describe("planDaysError (createOrder and both price previews)", () => {
   });
 });
 
+
+describe("planDeliveryDays", () => {
+  const freq = { key: "mwf", weekdays: null };
+  const plain = { includeSaturday: false, includeSunday: false };
+
+  it("adds Sat/Sun flags only without eating days, and weekdaysOnly drops them", () => {
+    expect(planDeliveryDays({ ...plain, includeSaturday: true }, freq)).toEqual(["mon", "wed", "fri", "sat"]);
+    expect(planDeliveryDays({ ...plain, includeSaturday: true, eatingDays: ["mon"] }, freq)).toEqual(["mon", "wed", "fri"]);
+    expect(planDeliveryDays({ ...plain, includeSaturday: true }, freq, { weekdaysOnly: true })).toEqual(["mon", "wed", "fri"]);
+  });
+
+  it("limits to allowed days unless that leaves nothing", () => {
+    expect(planDeliveryDays(plain, freq, { allowed: ["mon", "fri"] })).toEqual(["mon", "fri"]);
+    expect(planDeliveryDays(plain, freq, { allowed: ["tue"] })).toEqual(["mon", "wed", "fri"]);
+  });
+
+  describe("a trial with no send days (planDaySet vs planWeekdays disagree)", () => {
+    const trial = { ...plain, trialLength: 3, trialWeekdays: [] as string[] };
+    it("sendDaysIfAny falls back to the frequency days", () => {
+      expect(planDeliveryDays(trial, freq, { trial: "sendDaysIfAny" })).toEqual(["mon", "wed", "fri"]);
+    });
+    it("sendDays means no days at all", () => {
+      expect(planDeliveryDays(trial, freq, { trial: "sendDays" })).toEqual([]);
+    });
+    it("both use the send days when there are some, and ignore skips the trial", () => {
+      const sent = { ...trial, trialWeekdays: ["tue", "thu"] };
+      expect(planDeliveryDays(sent, freq, { trial: "sendDays" })).toEqual(["tue", "thu"]);
+      expect(planDeliveryDays(sent, freq, { trial: "sendDaysIfAny" })).toEqual(["tue", "thu"]);
+      expect(planDeliveryDays(sent, freq)).toEqual(["mon", "wed", "fri"]);
+    });
+  });
+});

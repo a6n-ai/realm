@@ -6,11 +6,11 @@ import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "driz
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
 import { getAppSettings } from "./app-settings.service";
-import { nextDeliveryDateAfter, orderDeliveryDaySet, type OptimoSyncedRow, type Tx } from "./deliveries.service";
+import { loadPlanDays, nextDeliveryDateAfter, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { datesInsideOtherPlans } from "./order-window";
 import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
-import { addDaysIso, isRealDate, isWeekendDay } from "@foundry/commons/util/dates";
+import { addDaysIso, isRealDate } from "@foundry/commons/util/dates";
 
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
@@ -31,19 +31,13 @@ export type HolidayApplied = {
 /** `owed`: closed days undo could not restore that have no extra day. They stay tagged and in the staff queue. */
 export type HolidayUndone = { restored: string[]; left: string[]; owed: string[]; stops: OptimoSyncedRow[] };
 
-/** Trucks never run on weekends; a trial delivers on its own send days. */
-async function planWeekdays(tx: Tx, order: Order): Promise<Set<string>> {
-  const pattern = order.trialLength != null ? new Set<string>(order.trialWeekdays ?? []) : await orderDeliveryDaySet(tx, order);
-  return new Set([...pattern].filter((d) => !isWeekendDay(d)));
-}
-
 /**
  * The next `n` free plan weekdays strictly after `after`: no row of this order on the date (a
  * cancelled, held or paused row keeps its date), not a holiday, cutoff still ahead. Null when the
  * plan's weekdays cannot supply them.
  */
 async function freePlanDays(tx: Tx, order: Order, after: string, n: number, holidays: ReadonlyMap<string, HolidayDay>, cut: Cutoff): Promise<string[] | null> {
-  const weekdays = await planWeekdays(tx, order);
+  const weekdays = await loadPlanDays(tx, order, { trial: "sendDays", weekdaysOnly: true });
   if (weekdays.size === 0) return null;
   const taken = new Set((await tx.select({ date: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.orderId, order.id))).map((r) => r.date));
   const now = Date.now();
