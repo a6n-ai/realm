@@ -70,12 +70,6 @@ export function assertCoverageUnits(d: { coversDates: string[] | null; tiffinUni
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "Mon and Tue", "Mon, Tue and Wed" — for customer copy naming the days a skipped trip carried. */
-export function formatMissedDays(dates: string[]): string {
-  const names = dates.map((d) => DAY_LABELS[parseIsoDateUtc(d).getUTCDay()]);
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
 /** A swap with NULL for_date belongs to the trip's own date. */
 export function swapAppliesTo(swapForDate: string | null, tripDate: string, eatingDate: string): boolean {
   return (swapForDate ?? tripDate) === eatingDate;

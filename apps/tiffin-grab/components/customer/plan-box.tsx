@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Card, Pill } from "@/components/customer/kit";
+import { Pill } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { mealChipLabel } from "@/lib/menu/format-tu";
 type SubscriptionStatus = "active" | "paused";
@@ -12,22 +12,6 @@ export function planBoxStyle(hex: string | null | undefined): CSSProperties | un
     backgroundColor: `${hex}14`,
     borderColor: `${hex}59`,
   };
-}
-
-export function PlanBox({
-  color,
-  className,
-  children,
-}: {
-  color?: string | null;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card className={cn("p-4", className)} style={planBoxStyle(color)}>
-      {children}
-    </Card>
-  );
 }
 
 export function DietTag({ label, color }: { label: string; color?: string | null }) {

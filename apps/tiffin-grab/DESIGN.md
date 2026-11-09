@@ -170,8 +170,8 @@ Deliveries hub (`/me`): calm and selection-first. Title, then ONE quiet plan lin
 - DatePicker: trigger button plus a month grid (`MonthGrid`); an anchored popover from 768px up, the kit Sheet on phones; `min`, `max`, `disabledReason(iso)` explain blocked days. Never a native date input. `components/customer/date-field.tsx` adapts it for deliveries.
 - Sheet `bottom`: keep the bottom-sheet form on desktop (centered, max-w-xl); the wizard price summary uses it. BottomBar `alignEnd` right-aligns the wizard bar from sm up.
 - Tabs / Segmented: pill 44; active = ink fill.
-- DateStrip / MonthGrid / DateCell: 16px cells, emerald ring delivered, dashed combined.
-- NavPill, CoinChip, ThemeToggle, TabBar (56px, 11/600 labels), BottomBar (glass, hairline, safe-area, note above CTA).
+- MonthGrid / DateCell: 16px cells, emerald ring delivered, dashed combined.
+- NavPill, CoinChip, TabBar (56px, 11/600 labels), BottomBar (glass, hairline, safe-area, note above CTA).
 - PageHeader, StatTile (20px, label, saffron `c-stat`), ListRow/ListGroup (56px rows, 24px group, chevron when link), EmptyState (dashed 24px, wash icon), MenuSection (label + rows), Notice/Reason, Toast (ink pill bottom), Skeleton (muted, 16px).
 
 ## Motion and accessibility

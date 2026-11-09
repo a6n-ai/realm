@@ -667,11 +667,3 @@ export function computeAllSwapOptions(args: {
   return args.hideUnavailable ? options.filter((o) => o.available) : options;
 }
 
-/** Format helper for tests / admin read-only conversion notes. */
-export function naturalTuNote(cat: SwapCategory, tu: number): string {
-  if (!cat.unitSize) return `${tu} TU`;
-  return formatTuHuman(
-    { tuUnitType: cat.unitType, tuUnitSize: cat.unitSize, tuUnitLabel: cat.unitLabel },
-    tu,
-  );
-}

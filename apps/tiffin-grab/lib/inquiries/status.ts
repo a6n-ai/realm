@@ -32,8 +32,6 @@ export const SUB_STATUS_META: Record<SubStatus, SubStatusMeta> = {
   took_trial: { label: "Took a trial", group: "follow_up", closes: true, pickable: false },
 };
 
-export const CLOSE_OPTIONS: SubStatus[] = ["lost", "undeliverable"];
-
 const CONVERT_ONLY: ReadonlySet<SubStatus> = new Set(["took_plan", "took_trial"]);
 
 export function stageFor(sub: SubStatus | null): InquiryStage {

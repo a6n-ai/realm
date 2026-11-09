@@ -3,7 +3,7 @@
 // off-pattern weekdays (e.g. Tue on MWF) land on Mon/Wed/Fri accordingly.
 // Pure / DB-free — shared by client preview and server reschedule so they cannot disagree.
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
+import type { DayOfWeek } from "./delivery-days";
 import { addDaysIso } from "@/lib/dates";
 
 
@@ -87,9 +87,3 @@ export function formatEatDayCarryPreview(
   return line;
 }
 
-export function isDeliveryWeekday(dateIso: string, deliveryWeekdays: readonly DayOfWeek[]): boolean {
-  return deliveryWeekdays.includes(weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek);
-}
-
-/** Exported for tests — week order used when walking backward. */
-export const CARRY_WEEK_ORDER = WEEK_DAYS;

@@ -6,7 +6,6 @@ import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliverie
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { TripTimeline } from "@/components/wizard/trip-timeline";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 

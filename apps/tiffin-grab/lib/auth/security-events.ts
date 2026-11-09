@@ -157,23 +157,6 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
   throw new Error("magic link requested without invite metadata");
 }
 
-/** Confirm-link for account deletion (OAuth / no-password paths). */
-export async function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
-  if (!user.email) return;
-  await db.transaction((tx) =>
-    enqueueNotification(tx, {
-      event: "account_deletion_confirm",
-      recipientEmail: user.email!,
-      title: `Confirm deleting your ${APP_NAME} account`,
-      body: "",
-      data: { url },
-      channels: ["email"],
-      kind: "transactional",
-      dedupeKey: `account_deletion_confirm:${user.email!.toLowerCase()}:${url}`,
-    }),
-  );
-}
-
 /** Security alert after a password reset or change. */
 export async function notifyPasswordChanged(email: string | null | undefined): Promise<void> {
   if (!email) return;

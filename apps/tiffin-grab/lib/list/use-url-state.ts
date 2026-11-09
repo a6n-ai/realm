@@ -31,18 +31,3 @@ export function useUrlState(key: string, fallback: string): [string, (v: string)
   return [value, set];
 }
 
-// Removes several keys in ONE navigation. Calling multiple useUrlState setters
-// in one tick clobbers each other (each merges over the same stale snapshot);
-// use this for "clear all filters".
-export function useClearUrlKeys(): (keys: string[]) => void {
-  const nav = useListNav();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  return useCallback(
-    (keys: string[]) => {
-      const qs = dropParams(params.toString(), keys);
-      nav(qs ? `${pathname}?${qs}` : pathname);
-    },
-    [params, pathname, nav],
-  );
-}

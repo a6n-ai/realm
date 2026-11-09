@@ -68,47 +68,6 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
   );
 }
 
-export interface StripDay {
-  date: string;
-  disabledReason?: string;
-  status?: DeliveryStatus;
-  delivery?: boolean;
-}
-
-interface StripProps {
-  label: string;
-  days: StripDay[];
-  value: string | null;
-  onChange: (date: string) => void;
-  /** Seven-day weeks: cells share the width instead of scrolling. */
-  fit?: boolean;
-}
-
-export function DateStrip({ label, days, value, onChange, fit }: StripProps) {
-  const [reason, setReason] = useState<string | null>(null);
-  return (
-    <div>
-      <div role="group" aria-label={label} className={fit ? "grid grid-cols-7 gap-1.5" : "flex gap-2 overflow-x-auto overscroll-x-contain pb-1"}>
-        {days.map((d) => (
-          <DateCell
-            key={d.date}
-            {...d}
-            className={fit ? "w-full min-w-0" : undefined}
-            selected={d.date === value}
-            onSelect={(x) => (setReason(null), onChange(x))}
-            onDisabledTap={setReason}
-          />
-        ))}
-      </div>
-      {reason && (
-        <div role="status" className="mt-2">
-          <Reason>{reason}</Reason>
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface GridProps {
   /** YYYY-MM */
   month: string;

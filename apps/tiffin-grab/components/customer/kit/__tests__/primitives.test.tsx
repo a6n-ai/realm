@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BottomBar, CoinChip, EmptyState, ListRow, NavPill, PageHeader, SelectableCard, StatTile, TabBar, ThemeToggle } from "..";
+import { BottomBar, CoinChip, EmptyState, ListRow, NavPill, PageHeader, SelectableCard, StatTile, TabBar } from "..";
 
 vi.mock("@/components/app-currency", () => ({
   useAppCurrency: () => "CAD",
@@ -32,20 +32,6 @@ describe("SelectableCard", () => {
     expect(b).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(b);
     expect(onClick).toHaveBeenCalled();
-  });
-});
-
-describe("ThemeToggle", () => {
-  it("announces current and next theme and cycles light, dark, system", () => {
-    const onChange = vi.fn();
-    render(<ThemeToggle value="light" onChange={onChange} />);
-    const b = screen.getByRole("button", { name: "Theme: light. Switch to dark" });
-    fireEvent.click(b);
-    expect(onChange).toHaveBeenCalledWith("dark");
-    cleanup();
-    render(<ThemeToggle value="system" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: /Switch to light/ }));
-    expect(onChange).toHaveBeenLastCalledWith("light");
   });
 });
 

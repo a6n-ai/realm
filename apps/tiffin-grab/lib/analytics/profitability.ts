@@ -58,16 +58,6 @@ export function currentMonth(timeZone: string, now = Date.now()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(now);
 }
 
-/** Wall-clock time of an instant in `timeZone`, e.g. "1:42:07 p.m.". */
-export function clockInZone(epochMs: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(epochMs);
-}
-
 export function monthBounds(monthIso: string): { from: string; to: string } {
   const [y, m] = monthIso.split("-").map(Number) as [number, number];
   const last = daysInMonth(y, m);

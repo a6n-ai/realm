@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ActionRow, Button, Field, Notice, Stepper, Toggle } from "..";
+import { Button, Field, Notice, Stepper, Toggle } from "..";
 
 afterEach(cleanup);
 
@@ -81,19 +81,10 @@ describe("Field", () => {
   });
 });
 
-describe("Notice / ActionRow", () => {
+describe("Notice", () => {
   it("error notice is an alert, info is status", () => {
     render(<><Notice tone="error">Bad</Notice><Notice>Fine</Notice></>);
     expect(screen.getByRole("alert")).toHaveTextContent("Bad");
     expect(screen.getByRole("status")).toHaveTextContent("Fine");
-  });
-  it("disabled ActionRow shows its reason permanently and does not fire", () => {
-    const onClick = vi.fn();
-    render(<ActionRow label="Move" sublabel="Pick a day" disabledReason="Locked" onClick={onClick} />);
-    const b = screen.getByRole("button", { name: /Move/ });
-    expect(b).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Locked")).toBeVisible();
-    fireEvent.click(b);
-    expect(onClick).not.toHaveBeenCalled();
   });
 });

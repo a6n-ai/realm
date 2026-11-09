@@ -22,8 +22,6 @@ export const DONUT_INNER = "62%";
 export const DONUT_OUTER = "95%";
 export const DONUT_VALUE_CLASS = "fill-foreground text-2xl font-bold tabular-nums";
 export const DONUT_CAPTION_CLASS = "fill-muted-foreground text-xs";
-export const DONUT_VALUE_TEXT_CLASS = "text-foreground text-2xl font-bold tabular-nums";
-export const DONUT_CAPTION_TEXT_CLASS = "text-muted-foreground text-xs";
 
 /** The i-th categorical colour; all five chart slots are categorical, status uses --chart-good/warn/bad. */
 export const chartColor = (i: number) => `var(--chart-${(i % 5) + 1})`;

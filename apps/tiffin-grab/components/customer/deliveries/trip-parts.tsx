@@ -1,6 +1,6 @@
 "use client";
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
-import { Card, Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
+import { Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
 import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
@@ -98,40 +98,6 @@ export function dedupeDishes(summary: string | null): string[] {
   for (const n of summary ? summary.split(", ") : []) counts.set(n, (counts.get(n) ?? 0) + 1);
   return [...counts].map(([n, c]) => (c > 1 ? `${n} ×${c}` : n));
 }
-
-/** Header + dishes only; the desktop card slots its actions in as children. */
-export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
-  const m = statusMeta(trip);
-  const multi = trip.eatingDays.length > 1;
-  return (
-    <Card className="p-5 lg:p-8" aria-live="polite">
-      <p className="flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
-        {m.dot && <StatusDot decorative status={m.dot} />}
-        {m.label}
-        {plan && <PlanTag plan={plan} />}
-      </p>
-      <h2 className="mt-1 text-title-1 font-bold leading-tight tracking-[-0.03em] lg:text-large-title">{humanDate(trip.date)}</h2>
-      <p className="mt-1 text-subhead text-[var(--muted-foreground,#6E6558)]">
-        {[trip.coversLabel, trip.status === "upcoming" ? null : reason].filter(Boolean).join(" · ") || tiffins(trip.units)}
-      </p>
-      {trip.status !== "combined-into" && (
-        <ul className="mt-5 space-y-3 border-t border-border pt-5">
-          {trip.eatingDays.map((e) => {
-            const dishes = dedupeDishes(e.dishSummary);
-            return (
-              <li key={e.date} className="text-subhead">
-                {multi && <span className="mb-0.5 block text-footnote font-semibold text-[var(--muted-foreground,#6E6558)]">{humanDate(e.date)}</span>}
-                <span className="block">{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {children}
-    </Card>
-  );
-}
-
 
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 /** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */

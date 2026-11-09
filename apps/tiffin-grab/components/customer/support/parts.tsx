@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, X } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
-import { Button, buttonClass, type Tone } from "@/components/customer/kit";
+import { useRef, useState } from "react";
+import { Button, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 
@@ -28,17 +28,6 @@ export function BackLink({ href, label }: { href: string; label: string }) {
     <Link href={href} className={cn(FONT, FOCUS, "mb-2 inline-flex min-h-11 items-center gap-2 text-subhead font-semibold text-muted-foreground lg:hidden")}>
       <ArrowLeft aria-hidden className="size-4" />
       {label}
-    </Link>
-  );
-}
-
-export function LinkButton({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className={buttonClass({ variant: "primary" })}
-    >
-      {children}
     </Link>
   );
 }

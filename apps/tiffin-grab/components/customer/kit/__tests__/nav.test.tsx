@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DateStrip, MonthGrid, Segmented, StatusDot, Tabs, formatRelative } from "..";
+import { MonthGrid, Segmented, StatusDot, Tabs } from "..";
 
 afterEach(cleanup);
 
@@ -35,22 +35,6 @@ describe("Tabs", () => {
   });
 });
 
-describe("DateStrip", () => {
-  it("disabled cell is aria-disabled, shows its reason on tap, never selects", () => {
-    const onChange = vi.fn();
-    render(<DateStrip label="Pick" value={null} onChange={onChange} days={[
-      { date: "2026-09-22" }, { date: "2026-09-23", disabledReason: "Already a delivery" },
-    ]} />);
-    const cell = screen.getByRole("button", { name: /23/ });
-    expect(cell).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(cell);
-    expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent("Already a delivery");
-    fireEvent.click(screen.getByRole("button", { name: /22/ }));
-    expect(onChange).toHaveBeenCalledWith("2026-09-22");
-  });
-});
-
 describe("MonthGrid", () => {
   it("is a grid with roving tabindex and arrow navigation", () => {
     const onSelect = vi.fn();
@@ -71,14 +55,9 @@ describe("MonthGrid", () => {
   });
 });
 
-describe("StatusDot / formatRelative", () => {
+describe("StatusDot", () => {
   it("labels status in text for assistive tech", () => {
     render(<StatusDot status="hold" />);
     expect(screen.getByRole("img", { name: "Not delivered" })).toBeInTheDocument();
-  });
-  it("formats relative time", () => {
-    expect(formatRelative(125 * 60_000)).toBe("in 2h 5m");
-    expect(formatRelative(-5 * 60_000)).toBe("passed");
-    expect(formatRelative(30 * 60 * 60_000)).toBe("in 1d 6h");
   });
 });

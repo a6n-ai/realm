@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/deliveries/status";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { ARROW, Legend } from "./week-timeline";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";

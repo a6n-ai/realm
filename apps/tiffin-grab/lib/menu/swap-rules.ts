@@ -235,15 +235,3 @@ export function hasEvenPortionSwap(
   return false;
 }
 
-/** Side note for a swap option: the smallest whole swap in real units ("8oz ⇄ 8oz", "4 roti ⇄ 1 unit"); "" when none fits. */
-export function smallestSwapNote(from: SwapCategory | undefined, to: SwapCategory | undefined, receivesMissing = false): string {
-  if (!from || !to) return "";
-  for (let q = 1; q <= 8; q++) {
-    const r = swapQuantities(from, to, q, receivesMissing);
-    if (r.ok) {
-      const a = swapAmounts(from, to, q, r.qtyTo);
-      return a ? `${a.give} ⇄ ${a.get}` : "";
-    }
-  }
-  return "";
-}

@@ -58,8 +58,3 @@ export function bezier(e: EaseName | Bezier): (t: number) => number {
   }
 }
 
-/** The curve's slope as it starts (progress per unit time at t = 0). */
-export const startSlope = (e: EaseName | Bezier) => {
-  const [x1, y1] = typeof e === 'string' ? EASE[e] : e
-  return x1 > 0 ? y1 / x1 : 1e3
-}

@@ -1,5 +1,5 @@
 import "@/components/landing/styles/demos.css";
-import { type CSSProperties, type HTMLAttributes, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { type CSSProperties, type HTMLAttributes, type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { useLook } from './looks'
 
 // An iPhone drawn from the real geometry, the iPhone 18 Pro in points, as
@@ -253,12 +253,6 @@ export interface LockScreenProps extends HTMLAttributes<HTMLDivElement> {
   /** Notifications. They stack at the bottom of the screen, as iOS does. */
   children?: ReactNode
 }
-
-/** The default lock screen wallpaper: a soft blue to lilac gradient with a
- * faint light at the top, after the iPhone's own defaults. Quiet enough to
- * sit behind any demo; white type and frosted banners read on it. */
-export const WALLPAPER =
-  'radial-gradient(120% 70% at 25% 0%, rgba(255, 255, 255, 0.3), transparent 65%), linear-gradient(172deg, #8ea9d6 0%, #9aa1d4 50%, #aca3cf 100%)'
 
 /** The iOS lock screen: date, large clock, notifications stacked at the bottom. Put it inside a Phone with `dark` and a `wallpaper`. */
 export function LockScreen({ date = 'Tuesday, October 21', time = '9:41', controls = true, stack = 'bottom', size = 'full', clock = true, className, children, ...rest }: LockScreenProps) {
