@@ -206,6 +206,7 @@ export function InquiryDetailClient({
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
+              {canEditContact && <EditContactDialog inquiryId={inquiryId} contact={contact} />}
               {nextQuickHref && (
                 <Button variant="outline" size="sm" asChild>
                   <Link href={nextQuickHref}>Next quick add</Link>
@@ -274,11 +275,7 @@ export function InquiryDetailClient({
             )}
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold">Contact</h2>
-              {canEditContact && <EditContactDialog inquiryId={inquiryId} contact={contact} />}
-            </div>
+          <Card title="Contact">
             <div className="flex flex-col gap-2">
               <InfoRow label="Name" value={displayName(contact)} />
               <InfoRow label="Phone" value={contact.phone ? formatPhone(contact.phone) : "No phone"} />

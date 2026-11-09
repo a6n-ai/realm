@@ -70,9 +70,9 @@ export function EditContactDialog({ inquiryId, contact }: { inquiryId: string; c
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button variant="outline" size="sm">
           <PencilIcon className="size-4" />
-          Edit
+          Edit lead
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
