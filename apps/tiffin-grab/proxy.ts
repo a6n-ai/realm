@@ -4,6 +4,8 @@ import { db } from "./db/client";
 import { organization } from "./db/schema";
 import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
+import probePath from "./lib/routing/probe-path.json";
+import publicPages from "./lib/routing/public-pages.json";
 import { AREA_PAGE, apexServes, appServes } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
@@ -30,9 +32,8 @@ const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "
 // /api/public: the read-only public JSON API (lib/public-api); it only republishes what the public pages show.
 
 // Vuln scanners (.env, .git, next.config, IDE mcp files, …). 404 before org resolution / Next.
-// Keep in sync with cloudflare/worker.js `PROBE`.
-const PROBE_PATH =
-  /^\/(?:\.env(?:\..*)?|env\.js|environment(?:\.prod)?\.(?:ts|js)|next\.config\.(?:js|mjs|ts)|nuxt\.config\.(?:js|ts)|vue\.config\.js|webpack\.config\.js|vite\.config\.(?:js|ts)|composer\.(?:json|lock)|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.mcp\.json|\.cursor(?:\/.*)?|\.vscode(?:\/.*)?|\.amazonq(?:\/.*)?|\.continue(?:\/.*)?|\.git(?:\/.*)?|\.svn(?:\/.*)?|\.hg(?:\/.*)?|\.aws(?:\/.*)?|\.docker(?:\/.*)?|\.DS_Store|Dockerfile|docker-compose(?:\..*)?\.ya?ml|\.htaccess|web\.config|server-status|actuator(?:\/.*)?|src\/environments(?:\/.*)?|_profiler(?:\/.*)?|phpinfo\.php|wp-admin(?:\/.*)?|wp-login\.php|wp-cron\.php|wp-content(?:\/.*)?|wp-includes(?:\/.*)?|wp-json(?:\/.*)?|xmlrpc\.php)(?:$|\?)/i;
+// The pattern lives in lib/routing/probe-path.json, which cloudflare/worker.js also imports.
+const PROBE_PATH = new RegExp(probePath.source, probePath.flags);
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all
@@ -85,10 +86,8 @@ async function orgs(): Promise<OrgSnapshot> {
 // the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
 // Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
-const SITE_PAGES = new Set([
-  "/", "/menu", "/menu/weekly", "/plans", "/pricing", "/locations", "/reviews", "/faq", "/contact",
-  "/delivery-policy", "/legal", "/terms", "/privacy", "/refund-policy", "/refer",
-]);
+// The cacheable pages (public-pages.json) plus two legacy paths next.config.ts redirects.
+const SITE_PAGES = new Set([...publicPages, "/menu/weekly", "/plans"]);
 
 // A referral friend page, /refer/<code>: personalised, so never in public-pages.json (edge cache).
 // Any one segment goes through: the page falls back to the general refer content for a mistyped

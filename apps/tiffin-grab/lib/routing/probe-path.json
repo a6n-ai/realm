@@ -1,0 +1,4 @@
+{
+  "source": "^\\/(?:\\.env(?:\\..*)?|env\\.js|environment(?:\\.prod)?\\.(?:ts|js)|next\\.config\\.(?:js|mjs|ts)|nuxt\\.config\\.(?:js|ts)|vue\\.config\\.js|webpack\\.config\\.js|vite\\.config\\.(?:js|ts)|composer\\.(?:json|lock)|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml|\\.mcp\\.json|\\.cursor(?:\\/.*)?|\\.vscode(?:\\/.*)?|\\.amazonq(?:\\/.*)?|\\.continue(?:\\/.*)?|\\.git(?:\\/.*)?|\\.svn(?:\\/.*)?|\\.hg(?:\\/.*)?|\\.aws(?:\\/.*)?|\\.docker(?:\\/.*)?|\\.DS_Store|Dockerfile|docker-compose(?:\\..*)?\\.ya?ml|\\.htaccess|web\\.config|server-status|actuator(?:\\/.*)?|src\\/environments(?:\\/.*)?|_profiler(?:\\/.*)?|phpinfo\\.php|wp-admin(?:\\/.*)?|wp-login\\.php|wp-cron\\.php|wp-content(?:\\/.*)?|wp-includes(?:\\/.*)?|wp-json(?:\\/.*)?|xmlrpc\\.php)(?:$|\\?)",
+  "flags": "i"
+}

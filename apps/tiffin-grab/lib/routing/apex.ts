@@ -1,10 +1,11 @@
 import { appUrlOr, DEFAULT_ORIGIN } from "@/lib/runtime/env";
+import publicPages from "./public-pages.json";
 // Paths the public apex (tiffingrab.ca) answers itself. Paths in APP_ROOTS 308 to app.; every other path is a 404 on the apex.
 // Shared by the proxy (which redirects) and the cross-host splash (which must know a tap
 // will leave the host before the redirect happens). Client-safe: no server imports.
 const APEX_PUBLIC_EXACT = new Set([
-  "/", "/pricing", "/plans", "/menu", "/locations", "/faq", "/contact", "/reviews", "/legal", "/terms", "/privacy",
-  "/refund-policy", "/delivery-policy", "/refer", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
+  ...publicPages,
+  "/plans", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
   "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
   "/twitter-image.png", "/robots.txt", "/sitemap.xml", "/llms.txt", "/pricing.md", "/.well-known/api-catalog",
   "/.well-known/mcp/server-card.json", "/.well-known/ai-catalog.json", "/.well-known/poppy.json",
