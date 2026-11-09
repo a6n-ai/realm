@@ -16,7 +16,7 @@ import {
 } from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
-import { assignDriver, listKnownDrivers, type KnownDriver } from "@/lib/services/optimoroute/drivers";
+import { assignDriver } from "@/lib/services/optimoroute/drivers";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -99,14 +99,6 @@ export async function pullCompletionsAction(date: string): Promise<PullCompletio
   revalidatePath("/dashboard/orders");
   revalidatePath("/me", "layout");
   return result;
-}
-
-/**
- * Lists drivers seen on past OptimoRoute routes, for the reassignment picklist.
- */
-export async function listDriversAction(): Promise<KnownDriver[]> {
-  await requireStaff();
-  return listKnownDrivers();
 }
 
 /**

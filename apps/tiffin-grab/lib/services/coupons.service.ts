@@ -53,7 +53,7 @@ export interface BestCouponsContext {
   manualCodes?: readonly string[] | null;
 }
 
-export const MAX_MANUAL_CODES = 5;
+const MAX_MANUAL_CODES = 5;
 const GROUP_ONLY_ERROR = "This code isn't available for your account";
 
 // The winning set: discount lines (already distributed against the running
@@ -70,7 +70,7 @@ export interface BestCouponsResult {
 }
 
 // Typed codes as the resolver reads them: trimmed, uppercased, deduped, capped.
-export function normalizeCodes(...lists: (readonly (string | null | undefined)[] | null | undefined)[]): string[] {
+function normalizeCodes(...lists: (readonly (string | null | undefined)[] | null | undefined)[]): string[] {
   const out: string[] = [];
   for (const list of lists) for (const c of list ?? []) {
     const code = c?.trim().toUpperCase();

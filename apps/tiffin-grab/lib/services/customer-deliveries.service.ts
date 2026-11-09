@@ -380,10 +380,6 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
   return out;
 }
 
-export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
-  return (await myPrimarySubscription(userId)) != null;
-}
-
 // Scoped to orders.userId = userId: a customer only ever sees their own delivery
 // rows here, across every subscription they own. Cancelled deliveries are
 // filtered by delivery status, not order status — cancelOrder() marks every
@@ -563,16 +559,6 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   return orderTiffinCounts(orderPublicId);
-}
-
-// The earliest start date a NEW plan may use without overlapping this customer's
-// currently active/paused subscriptions — the same reserved-band logic createCheckout's
-// server-side overlap guard enforces (see reservedEndDatesExclusive in order-window.ts),
-// surfaced here so /me/renew's date picker can float its minimum past it instead of only
-// discovering the conflict after the customer fills out the whole form and submits.
-// Returns null when the customer has no active/paused orders (no constraint to apply).
-export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string | null> {
-  return earliestNewPlanStart(db, userId);
 }
 
 /** When a new plan may start and why: the running plans' last tiffin date (null when nothing runs). */

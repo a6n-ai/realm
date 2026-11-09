@@ -53,24 +53,3 @@ async function installPaymentPluginUnsafe(pluginId: string) {
   await setPaymentConfig({ ...cfg, methods: [...cfg.methods, plugin.seed()] });
   revalidatePaymentPaths();
 }
-
-/** Uninstall a payment plugin and drop its method config. */
-export async function uninstallPaymentPlugin(pluginId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    await requireAdmin();
-    await uninstallPaymentPluginUnsafe(pluginId);
-  });
-}
-
-async function uninstallPaymentPluginUnsafe(pluginId: string) {
-  const plugin = findPaymentProvider(pluginId);
-  if (!plugin) throw new ValidationError("Unknown payment plugin");
-
-  const cfg = await getPaymentConfig();
-  await setPaymentConfig({
-    ...cfg,
-    methods: cfg.methods.filter((m) => m.id !== plugin.id),
-    defaultMethodId: cfg.defaultMethodId === plugin.id ? undefined : cfg.defaultMethodId,
-  });
-  revalidatePaymentPaths();
-}

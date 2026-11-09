@@ -1,16 +1,9 @@
-import { and, asc, eq, exists, inArray, sql, type SQL } from "drizzle-orm";
-import type { AnyColumn } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketOrgWhere } from "./complaint-filters";
-import { dateWhere, dateWhereCalendar, ordersScope, resolveAnalyticsScope } from "./metrics/scope";
-import {
-  parseAnalyticsFilters as parseAnalyticsFiltersSync,
-  type AnalyticsFilterOptions,
-  type AnalyticsFilters,
-  type AnalyticsSearchParams,
-} from "./shared-filter-params";
+import { resolveAnalyticsScope } from "./metrics/scope";
+import { parseAnalyticsFilters as parseAnalyticsFiltersSync, type AnalyticsFilterOptions, type AnalyticsFilters, type AnalyticsSearchParams } from "./shared-filter-params";
 
 export {
   ANALYTICS_FILTER_PARAMS,
@@ -43,26 +36,6 @@ export async function parseAnalyticsFilters(
 
 /** Dimension-only parse (no date default). Prefer `parseAnalyticsFilters` for pages. */
 export { parseAnalyticsFiltersSync };
-
-/** Epoch `createdAt`/`capturedAt`-style columns. */
-export function epochRangeWhere(col: AnyColumn, f: AnalyticsFilters): SQL | undefined {
-  return dateWhere(col, { fromMs: f.from, toMs: f.to });
-}
-
-/**
- * Calendar `date` columns (deliveries.delivery_date). Converts the epoch range
- * through the business timezone so a single picked day matches that wall day.
- */
-export async function calendarDateWhere(col: AnyColumn, f: AnalyticsFilters): Promise<SQL | undefined> {
-  if (f.from == null && f.to == null) return undefined;
-  const { timezone } = await getAppSettings();
-  return dateWhereCalendar(col, { fromMs: f.from, toMs: f.to, tz: timezone });
-}
-
-/** Restricts to orders in the filter's orgs and matching plan / meal size / zone. */
-export function ordersMatchFilters(f: AnalyticsFilters): SQL | undefined {
-  return ordersScope(f);
-}
 
 /** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(

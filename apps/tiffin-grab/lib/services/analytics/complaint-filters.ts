@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
+import { deliveryZones, mealSizes, orders, plans, tickets } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 import type { AnalyticsScope } from "./metrics/scope";
 
@@ -176,6 +176,3 @@ export function complaintWhere(
   const defined = parts.filter((p): p is SQL => p != null);
   return defined.length ? and(...defined) : undefined;
 }
-
-/** Shared join shape: tickets → their linked order → that order's plan/size/zone + customer. */
-export const complaintJoins = { orders, plans, mealSizes, users, deliveryZones };

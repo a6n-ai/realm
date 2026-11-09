@@ -1,7 +1,7 @@
 import { TruckIcon } from "lucide-react";
 import type { PluginMeta, PluginNavSection, PluginStatus } from "@foundry/commons/plugin";
 
-export const OPTIMOROUTE_PLUGIN_ID = "optimoroute" as const;
+const OPTIMOROUTE_PLUGIN_ID = "optimoroute" as const;
 
 export const OPTIMOROUTE_PLUGIN = {
   id: OPTIMOROUTE_PLUGIN_ID,

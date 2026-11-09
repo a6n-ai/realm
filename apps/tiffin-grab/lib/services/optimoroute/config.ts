@@ -5,14 +5,14 @@ import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/serv
 // App-local, not @foundry/clover: OptimoRoute is delivery routing for this client, and
 // nothing has proven it shared. It rides in the same integrations_config blob, which is
 // z.loose() precisely so an app-local key survives another plugin's save.
-export const OPTIMOROUTE_KEY = "optimoroute" as const;
+const OPTIMOROUTE_KEY = "optimoroute" as const;
 
 /**
  * Stop duration in minutes. Carried over from the Route Maker spreadsheet, where it is
  * real operational knowledge rather than a guess: downtown parking and stairs cost time,
  * and a route planned without that runs late by mid-afternoon.
  */
-export const optimoRouteDurationSchema = z.object({
+const optimoRouteDurationSchema = z.object({
   /** Anything not matched below. */
   base: z.number().int().min(1).max(120).default(1),
   /** Cities that are slow to park in, lowercased. */
@@ -27,7 +27,7 @@ export type OptimoRouteDuration = z.infer<typeof optimoRouteDurationSchema>;
 
 const DEFAULT_DURATION: OptimoRouteDuration = optimoRouteDurationSchema.parse({});
 
-export const optimoRouteConfigSchema = z.object({
+const optimoRouteConfigSchema = z.object({
   installed: z.boolean().default(false),
   /**
    * Send the tiffin count as load1. OFF until the owner confirms the (shared) OptimoRoute

@@ -12,6 +12,5 @@ export const googleAnalytics = createGoogleAnalytics({
 });
 
 export const googleAnalyticsPlugin = () => plugin(googleAnalytics);
-export const getGaConfig = googleAnalytics.getConfig;
 export const updateGaConfig = googleAnalytics.update;
 export const getGaStatus = googleAnalytics.status;

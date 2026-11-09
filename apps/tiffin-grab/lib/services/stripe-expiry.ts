@@ -47,7 +47,7 @@ export async function cancelOpenIntent(piId: string): Promise<"cancelled" | "in_
  * Each row is decided under the payment's charge lock: payByCard holds it while a PI is being created and has no
  * providerRef yet, so a locked row is mid-charge and is skipped.
  */
-export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "Unpaid card payment expired"): Promise<number> {
+async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "Unpaid card payment expired"): Promise<number> {
   const rows = await db
     .select({ id: orders.id, publicId: orders.publicId, payPublicId: payments.publicId })
     .from(orders)

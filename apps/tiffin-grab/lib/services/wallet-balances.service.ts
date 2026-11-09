@@ -41,7 +41,7 @@ const money = (coins: number, rate: number | null) => (rate == null ? null : Num
  * now: a live hold has not lapsed yet, so projecting a future range end would
  * wrongly release it.
  */
-export const asOfEnd = (range: Range) => Math.min(range.to, Date.now());
+const asOfEnd = (range: Range) => Math.min(range.to, Date.now());
 
 function perUserBalances(asOf: number) {
   return db

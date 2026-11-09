@@ -309,16 +309,3 @@ export function withConcurrency<T, R>(
 ): Promise<R[]> {
   return runLimited(items, worker, limit);
 }
-
-/** Connectivity + auth check for the settings screen. Never throws on a bad key. */
-export async function checkConnection(date: string): Promise<{ ok: boolean; message: string }> {
-  try {
-    const routes = await getRoutes(date);
-    return { ok: true, message: `Connected — ${routes.length} route(s) planned for ${date}` };
-  } catch (e) {
-    if (e instanceof OptimoRouteError || e instanceof ValidationError) {
-      return { ok: false, message: e.message };
-    }
-    throw e;
-  }
-}

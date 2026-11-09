@@ -3,13 +3,27 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  ArrowRightIcon, CircleDotIcon, ClipboardListIcon, CoinsIcon, CreditCardIcon, GiftIcon, MapPinIcon, MessageSquareTextIcon, PauseIcon,
-  PlayIcon, RepeatIcon, ScrollTextIcon, SearchIcon, TruckIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
+  ArrowRightIcon,
+  CircleDotIcon,
+  ClipboardListIcon,
+  CoinsIcon,
+  CreditCardIcon,
+  GiftIcon,
+  MapPinIcon,
+  MessageSquareTextIcon,
+  PauseIcon,
+  PlayIcon,
+  RepeatIcon,
+  ScrollTextIcon,
+  SearchIcon,
+  TruckIcon,
+  UtensilsIcon,
+  XCircleIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
@@ -219,19 +233,6 @@ export function OrderActivityLog({ activities, facets = ORDER_ACTIVITY_FACETS }:
       {days.length > shown && (
         <Button variant="outline" size="sm" onClick={() => setShown((n) => n + DAYS_PER_PAGE)}>Show older activity</Button>
       )}
-    </div>
-  );
-}
-
-export function OrderActivityLogSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex gap-3">
-          <Skeleton className="size-7 rounded-full" />
-          <div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/2" /></div>
-        </div>
-      ))}
     </div>
   );
 }

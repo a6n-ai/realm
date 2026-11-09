@@ -113,7 +113,7 @@ type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 // tx-aware payment recording: writes the payments row, and (unless creditLedger is
 // false) a matching ledger credit. Real-method checkouts defer the credit until
 // staff verify — they pass creditLedger: false and status: awaiting_payment.
-export async function recordPayment(
+async function recordPayment(
   tx: Tx,
   input: {
     orderId: bigint;
@@ -202,8 +202,8 @@ export interface CreateOrderInput {
   paymentMethodId?: string | null;
 }
 
-export const STRIPE_ORDER_TTL_MS = 48 * 3600_000;
-export const STRIPE_STAFF_ORDER_TTL_MS = 7 * 24 * 3600_000;
+const STRIPE_ORDER_TTL_MS = 48 * 3600_000;
+const STRIPE_STAFF_ORDER_TTL_MS = 7 * 24 * 3600_000;
 
 export interface CreateOrderOptions {
   // Who performed the action — stamped as createdBy (the acting user's public_id).

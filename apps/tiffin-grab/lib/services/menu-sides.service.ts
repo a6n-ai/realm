@@ -30,9 +30,6 @@ export type DaySide = {
 
 export type DaySideValue = null | { kind: "category"; key: string } | { kind: "dish"; dishPublicId: string };
 
-const ROLE_LABEL: Record<SideRole, string> = { side_1: "Side 1", side_2: "Side 2" };
-export const sideRoleLabel = (role: SideRole) => ROLE_LABEL[role];
-
 async function categoryId(key: string): Promise<bigint> {
   const [row] = await db.select({ id: dishCategories.id }).from(dishCategories).where(eq(dishCategories.key, key)).limit(1);
   if (!row) throw new ValidationError(`Unknown category: ${key}`);

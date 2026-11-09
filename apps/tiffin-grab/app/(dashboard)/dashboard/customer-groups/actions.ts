@@ -20,12 +20,7 @@ import {
   removeGroupMember,
   searchCustomerGroups,
 } from "@/lib/services/customer-groups.service";
-import {
-  listOrderCities,
-  listPayoutCandidates,
-  type PayoutCandidate,
-  type PayoutCandidateFilters,
-} from "@/lib/services/customer-payouts.service";
+import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters } from "@/lib/services/customer-payouts.service";
 
 export async function searchAccounts(query: string) {
   await requireAdmin();
@@ -47,11 +42,6 @@ export async function searchAccounts(query: string) {
 
 export async function searchGroupsAction(query: string) {
   return run(() => searchCustomerGroups(z.string().max(120).parse(query)));
-}
-
-export async function getOrderCities(): Promise<string[]> {
-  await requireAdmin();
-  return listOrderCities();
 }
 
 const payoutFiltersSchema = z.object({

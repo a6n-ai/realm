@@ -11,7 +11,7 @@ export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number
  * Order statuses that hold real calendar days. Cancelled, completed, waitlisted and
  * pending orders deliver nothing, so they never block another plan's start date.
  */
-export const DAY_RESERVING_STATUSES = ["active", "paused"] as const;
+const DAY_RESERVING_STATUSES = ["active", "paused"] as const;
 
 /**
  * A delivery row still holds its date: not cancelled, and its tiffin was not handed to

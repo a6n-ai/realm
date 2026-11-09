@@ -18,4 +18,3 @@ const GROUP: Record<DayDeliveryStatusRow["status"], Group> = {
 export const GROUP_LABEL: Record<Group, string> = { scheduled: "Scheduled", paused: "Paused", skipped: "On hold", cancelled: "Cancelled" };
 
 export const deliveryGroup = (r: Pick<DayDeliveryStatusRow, "status">): Group => GROUP[r.status];
-export const isScheduledStop = (r: Pick<DayDeliveryStatusRow, "status">) => deliveryGroup(r) === "scheduled";

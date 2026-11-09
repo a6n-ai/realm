@@ -398,14 +398,6 @@ async function persistCalc(pay: Payment, order: Order, snap: OrderPricingSnapsho
   await db.update(orders).set({ pricingSnapshot: { ...snap, tax: { source: "stripe", calculationId, expiresAt } } }).where(eq(orders.id, order.id));
 }
 
-export async function refreshTaxIfExpired(pay: Payment): Promise<Payment> {
-  if (pay.taxSource !== "stripe") return pay;
-  const [order] = await db.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
-  if (!order) return pay;
-  const { calcId } = await priceCharge(pay, order, 0, false);
-  return { ...pay, taxCalculationId: calcId };
-}
-
 const clearCard = (payId: bigint) =>
   db.update(payments).set({ surchargeAmount: "0", cardBrand: null, cardLast4: null }).where(eq(payments.id, payId));
 

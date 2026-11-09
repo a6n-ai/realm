@@ -87,7 +87,7 @@ export async function commitCoinRedemption(
  * e-Transfer can take days to land and be verified, and a hold that expires
  * before verification leaves that order's coin discount unfunded.
  */
-export const COIN_HOLD_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const COIN_HOLD_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** Debit-with-expiry for a deferred-settlement order. Throws on insufficient
  *  balance, same as commit. */

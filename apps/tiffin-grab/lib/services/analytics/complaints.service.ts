@@ -1,10 +1,9 @@
 import { ratePct } from "@/lib/money";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
-import { categoryLabel, subcategoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
+import { categoryLabel, subcategoryLabel, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import {
   COMPLAINT_CATEGORIES,
   IS_NEW,
@@ -347,18 +346,4 @@ export async function getNeedsAttention(scope: AnalyticsScope, now = Date.now())
     unanswered: row?.unanswered ?? 0,
     repeatCustomers: repeats.length,
   };
-}
-
-/** Options for the plan and zone filters. */
-export async function getFilterOptions() {
-  const [planRows, zoneRows] = await Promise.all([
-    db.select({ value: plans.key, label: plans.name }).from(plans).orderBy(asc(plans.name)),
-    db
-      .select({ value: deliveryZones.name, label: deliveryZones.name })
-      .from(deliveryZones)
-      .where(eq(deliveryZones.active, true))
-      .orderBy(asc(deliveryZones.name)),
-  ]);
-  const notLinked = { value: NOT_LINKED, label: "Not linked" };
-  return { plans: [...planRows, notLinked], zones: [...zoneRows, notLinked] };
 }

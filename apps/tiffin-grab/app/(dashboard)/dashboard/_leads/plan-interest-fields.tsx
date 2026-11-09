@@ -27,28 +27,6 @@ export function planPillLabel(name: string): string {
   return name;
 }
 
-export function labelPlanInterest(
-  value: string | null | undefined,
-  catalog: InterestCatalog,
-): string | null {
-  if (!value) return null;
-  const byKey = catalog.plans.find((p) => p.key === value);
-  if (byKey) return byKey.name;
-  const byName = catalog.plans.find((p) => p.name.toLowerCase() === value.trim().toLowerCase());
-  return byName?.name ?? value;
-}
-
-export function labelMealInterest(
-  value: string | null | undefined,
-  catalog: InterestCatalog,
-): string | null {
-  if (!value) return null;
-  const byId = catalog.mealSizes.find((m) => m.id === value);
-  if (byId) return byId.name;
-  const byName = catalog.mealSizes.find((m) => m.name.toLowerCase() === value.trim().toLowerCase());
-  return byName?.name ?? value;
-}
-
 type InterestValues = {
   planInterest?: string;
   mealSizeInterest?: string;

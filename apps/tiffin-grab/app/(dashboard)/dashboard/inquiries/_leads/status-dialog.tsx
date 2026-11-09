@@ -57,11 +57,6 @@ const LOOK: Record<SubStatus | "new", Look> = {
 
 export const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
-export function StatusIcon({ subStatus, className }: { subStatus: SubStatus | null; className?: string }) {
-  const { icon: Icon, text } = look(subStatus);
-  return <Icon className={cn("size-4 shrink-0", text, className)} aria-hidden />;
-}
-
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
   const { icon: Icon, pill } = look(subStatus);
   return (

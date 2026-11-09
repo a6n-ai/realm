@@ -38,9 +38,6 @@ export function orderStatusFilter(sp: Record<string, string | undefined>): {
   return { sp: { ...sp, status: undefined }, extra: inList("status", [...set]) };
 }
 
-/** @deprecated Use orderStatusFilter — kept for older call sites. */
-export const ongoingFilter = orderStatusFilter;
-
 export const ORDER_STATUS_PILLS = [
   { value: "ongoing", label: "Ongoing" },
   { value: "running", label: "Running" },

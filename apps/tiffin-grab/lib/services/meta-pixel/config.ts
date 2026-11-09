@@ -13,4 +13,3 @@ export const metaPixelPlugin = () => plugin(metaPixel);
 export const getMetaPixelConfig = metaPixel.getConfig;
 export const updateMetaPixelConfig = metaPixel.update;
 export const getMetaPixelStatus = metaPixel.status;
-export const openAccessToken = metaPixel.openAccessToken;
