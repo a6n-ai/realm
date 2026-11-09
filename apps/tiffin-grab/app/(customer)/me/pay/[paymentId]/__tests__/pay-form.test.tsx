@@ -18,6 +18,12 @@ vi.mock("@/components/payments/card-pay", () => ({
 
 import { PayForm } from "../pay-form";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 afterEach(() => {
   cleanup();
   panel.amount = null;

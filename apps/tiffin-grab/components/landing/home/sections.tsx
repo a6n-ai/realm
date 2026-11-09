@@ -1,3 +1,4 @@
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
@@ -164,11 +165,11 @@ function Mark({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon aria-hidden className="lp-tile__mark" strokeWidth={1.25} />;
 }
 
-const money = (n: number) => `$${n.toFixed(2)}`;
 
-export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, cutoff, fromRate, trial, photo }: {
+export async function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, cutoff, fromRate, trial, photo }: {
   plans: Plan[]; sizes: Size[]; sizePlanKey: string | null; sides: Side[]; frequencies: Frequency[]; lengths: Length[]; cutoff: string | null; fromRate: number | null; trial: TrialOffer | null; photo: StaticImageData;
 }) {
+  const money = await getMoneyFormatter();
   const maxOff = Math.max(0, ...lengths.map((l) => l.off));
   const names = ["Diet", "Size", ...(sides.length > 0 ? ["Sides"] : []), "Days", "Weeks", "Price", "Photo"];
   return (

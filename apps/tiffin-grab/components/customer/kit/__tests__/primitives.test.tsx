@@ -4,6 +4,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BottomBar, CoinChip, EmptyState, ListRow, NavPill, PageHeader, SelectableCard, StatTile, TabBar, ThemeToggle } from "..";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("@foundry/themes", () => ({ useTheme: () => ({ theme: "light", setTheme: vi.fn() }) }));
 

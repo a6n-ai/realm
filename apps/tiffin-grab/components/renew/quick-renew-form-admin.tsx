@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import { useState } from "react";
 import { CalendarIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { formatAddress } from "@foundry/address/ui";
@@ -20,6 +21,7 @@ const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", 
 
 /** Staff shell of quick renew: installed @foundry/ui + ReUI parts, semantic tokens, no customer kit. */
 export function QuickRenewFormAdmin(props: QuickRenewProps & { tagLabel: string | null }) {
+  const money = useFormatMoney();
   const q = useQuickRenew(props);
   const { sel, set, catalog, price } = q;
   const [dateOpen, setDateOpen] = useState(false);
@@ -130,7 +132,7 @@ export function QuickRenewFormAdmin(props: QuickRenewProps & { tagLabel: string 
             <Button size="sm" variant="outline" onClick={q.retry}>Retry</Button>
           </span>
         ) : (
-          <span className="text-sm font-semibold tabular-nums" aria-label={`Total $${price.result!.total.toFixed(2)}`}>${price.result!.total.toFixed(2)}</span>
+          <span className="text-sm font-semibold tabular-nums" aria-label={`Total ${money(price.result!.total)}`}>{money(price.result!.total)}</span>
         )}
         <Button disabled={!q.canSubmit} onClick={q.submit}>{props.submitLabel}</Button>
       </div>

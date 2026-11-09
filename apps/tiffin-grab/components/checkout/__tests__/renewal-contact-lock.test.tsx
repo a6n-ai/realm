@@ -10,6 +10,12 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { Checkout } from "../checkout";
 import "./address-helper";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 // Must be ONE stable object: Checkout's mount effect depends on [router], so a
 // fresh object per render re-runs the effect, which sets state and renders again

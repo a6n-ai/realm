@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { UploadIcon, XIcon } from "lucide-react";
 import { ResponsiveDialog } from "@foundry/design-system";
@@ -33,6 +34,8 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
   renderSubmitted: () => ReactNode;
   onClosedWithoutProof?: () => void;
 }) {
+  const currency = useAppCurrency();
+  const money = useFormatMoney();
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const orderSubmittedPixelFired = useRef(false);
-  const amount = `$${payment.amount.toFixed(2)}`;
+  const amount = money(payment.amount);
 
   function handleOpenChange(next: boolean) {
     if (pending) return;
@@ -78,13 +81,13 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
           const eventId = orderSubmittedEventId(payment.paymentPublicId);
           trackMeta(
             "order_submitted",
-            { value: payment.amount, currency: "CAD", num_items: 1 },
+            { value: payment.amount, currency, num_items: 1 },
             eventId,
           );
           gtagEvent("order_submitted", {
             transaction_id: payment.paymentPublicId,
             value: payment.amount,
-            currency: "CAD",
+            currency,
             payment_type: "etransfer",
           });
         }

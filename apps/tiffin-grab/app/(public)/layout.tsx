@@ -1,13 +1,21 @@
 import "@/app/styles/app.css";
 import type { ReactNode } from "react";
+import { AppCurrencyProvider } from "@/components/app-currency";
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 
 // Subscribe and checkout animate with motion; the landing and marketing pages don't, so
 // the provider lives here and in the app areas rather than in the root layout.
-export default function PublicLayout({ children }: { children: ReactNode }) {
+export default async function PublicLayout({ children }: { children: ReactNode }) {
+  const { currency, timezone } = await getAppSettings();
   return (
-    <MotionProvider>
-      {children}
-    </MotionProvider>
+    <AppCurrencyProvider currency={currency}>
+      <TimezoneProvider tz={timezone}>
+        <MotionProvider>
+          {children}
+        </MotionProvider>
+      </TimezoneProvider>
+    </AppCurrencyProvider>
   );
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
@@ -68,7 +69,8 @@ export async function removeGaSecret(): Promise<Result> {
 export async function sendGaTestEvent(): Promise<{ error?: string; problems?: string[] }> {
   await requireAdmin();
   const { gaClientId } = await requestBrowser();
-  const event = { name: "settings_test", params: { value: 1, currency: "CAD" } };
+  const { currency } = await getAppSettings();
+  const event = { name: "settings_test", params: { value: 1, currency } };
   const conn = await googleAnalytics.connection();
   const check = await sendGaEvent(conn, { clientId: gaClientId, event }, { validate: true });
   if (!check.ok) return { error: check.error };

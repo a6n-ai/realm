@@ -9,6 +9,12 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "@/lib/wizard/selections";
 import type { CurrentPlanSummary } from "../current-plan-hint";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 afterEach(cleanup);
 
 const currentPlan: CurrentPlanSummary = {

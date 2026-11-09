@@ -6,6 +6,12 @@ import { QUOTE_COINS_KEY, WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 // Coins control mirrors the coupon control (checkout.tsx:358-374): apply → reprice
 // → summary. Covers: hidden when signed out (coinBalance null), shown with a
 // balance, a successful apply re-prices and shows the discount, and requesting

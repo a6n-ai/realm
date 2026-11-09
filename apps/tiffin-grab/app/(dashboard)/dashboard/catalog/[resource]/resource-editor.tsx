@@ -1,4 +1,5 @@
 "use client";
+import { useFormatMoney } from "@/components/app-currency";
 /* eslint-disable */
 
 
@@ -95,8 +96,8 @@ function labelFor(f: FieldDef, value: string, options: Options): string {
   return options[f.key]?.find((o) => o.value === value)?.label ?? f.optionLabels?.[value] ?? value;
 }
 
-function formatNumber(f: FieldDef, n: number): string {
-  if (f.unit === "$") return `$${n.toFixed(2)}`;
+function formatNumber(f: FieldDef, n: number, money: (n: number) => string): string {
+  if (f.unit === "$") return money(n);
   if (f.unit === "%") return `${n}%`;
   if (f.unit) return `${n} ${f.unit}`;
   return String(n);
@@ -699,6 +700,7 @@ function EditorDialog({
 /* ─────────────────────────── List table ─────────────────────────── */
 
 function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Options }) {
+  const money = useFormatMoney();
   const isEmptyCategoryCounts = f.type === "categoryCounts" && value != null && typeof value === "object" && Object.keys(value).length === 0;
   if (value == null || value === "" || (Array.isArray(value) && value.length === 0) || isEmptyCategoryCounts) {
     return <span className="text-muted-foreground/50">—</span>;
@@ -734,7 +736,7 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
   }
   if (isNumberType(f)) {
-    return <span className="tabular-nums">{formatNumber(f, Number(value))}</span>;
+    return <span className="tabular-nums">{formatNumber(f, Number(value), money)}</span>;
   }
   return <span>{String(value)}</span>;
 }

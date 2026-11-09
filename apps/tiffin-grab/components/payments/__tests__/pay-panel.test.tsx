@@ -41,6 +41,12 @@ import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import { PaidPage } from "../paid-page";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo } from "../card-pay";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const receipt = (info: PaidInfo) => ({
   receipt: { title: "Veg thali", subtitle: "Regular", lines: [{ label: "Subtotal", amount: info.totalCents ?? 5000 }], total: info.totalCents ?? 5000, orderRef: "SUB-REF1", paidWith: info.paidWith, paidAt: Date.UTC(2026, 9, 21, 15, 0) },
 });

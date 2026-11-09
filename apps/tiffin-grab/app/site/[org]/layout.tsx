@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "@/app/styles/public.css";
 import type { ReactNode } from "react";
+import { AppCurrencyProvider } from "@/components/app-currency";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PublicShell } from "@/components/landing/public-shell";
 import { publicOrigin } from "@/lib/routing/apex";
 import { siteOrgId } from "@/lib/tenant/site-org";
@@ -18,5 +20,6 @@ export function generateStaticParams() {
 
 export default async function SiteLayout({ children, params }: { children: ReactNode; params: Promise<{ org: string }> }) {
   await siteOrgId((await params).org);
-  return <PublicShell>{children}</PublicShell>;
+  const { currency } = await getAppSettings();
+  return <AppCurrencyProvider currency={currency}><PublicShell>{children}</PublicShell></AppCurrencyProvider>;
 }

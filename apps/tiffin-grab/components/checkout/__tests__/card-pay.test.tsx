@@ -8,6 +8,12 @@ import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };

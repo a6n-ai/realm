@@ -10,6 +10,12 @@ vi.mock("@/components/ds", () => ({ makeImageThumbnail: async () => new File(["t
 
 import { EtransferDialog } from "../etransfer-dialog";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const payment = { paymentPublicId: "pay_1", deploymentId: "SUB-ABC123", amount: 84.5, payeeHandle: "pay@tiffin.ca", instructions: "Auto-deposit is on", requireProof: false };
 
 function setup(over: Partial<typeof payment> = {}) {

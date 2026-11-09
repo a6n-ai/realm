@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/providers/timezone-provider";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { toCents } from "@/lib/money";
 import { PaymentInstructions } from "@/components/payment-instructions";
@@ -50,7 +52,7 @@ function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
     return false;
   }
 }
-import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
+import { OrderSummary, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
@@ -213,6 +215,9 @@ export function Checkout({
   /** Stripe card context for the Pay step; null when Stripe isn't set up. */
   cardContext?: CardCheckoutContext | null;
 }) {
+  const currency = useAppCurrency();
+  const timeZone = useTimezone();
+  const money = useFormatMoney();
   const router = useRouter();
   const bouncing = useBounceAfterPaid();
   // Set once confirmSubscription placed an e-Transfer order: the dialog takes over from navigating to /activate.
@@ -323,7 +328,7 @@ export function Checkout({
     const eventId = crypto.randomUUID();
     const params = {
       value: result.total,
-      currency: "CAD",
+      currency,
       ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
       num_items: 1,
     };
@@ -336,7 +341,7 @@ export function Checkout({
     });
     gtagEvent("begin_checkout", {
       value: result.total,
-      currency: "CAD",
+      currency,
       ...(selections?.planKey
         ? { items: [{ item_id: selections.planKey, quantity: 1 }] }
         : {}),
@@ -354,7 +359,7 @@ export function Checkout({
       "order_submitted",
       {
         value,
-        currency: "CAD",
+        currency,
         ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
         num_items: 1,
       },
@@ -363,7 +368,7 @@ export function Checkout({
     gtagEvent("order_submitted", {
       transaction_id: etransfer.paymentPublicId,
       value,
-      currency: "CAD",
+      currency,
       payment_type: "etransfer",
     });
   }, [etransferDone, etransfer, selections?.planKey]);
@@ -702,7 +707,7 @@ export function Checkout({
       const eventId = crypto.randomUUID();
       const params = {
         value: pricedTotal,
-        currency: "CAD",
+        currency,
         content_name: id,
         ...(selections.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
         num_items: 1,
@@ -716,7 +721,7 @@ export function Checkout({
       });
       gtagEvent("add_payment_info", {
         value: pricedTotal,
-        currency: "CAD",
+        currency,
         payment_type: id,
       });
     }
@@ -1310,7 +1315,7 @@ export function Checkout({
   );
   const withDialog = etransfer && etransferDone ? paidLayout(
     "submitted",
-    <ReceiptPrinter stage="complete" receipt={etransfer.receipt} status="Submitted · we'll verify your e-Transfer" />,
+    <ReceiptPrinter currency={currency} timeZone={timeZone} stage="complete" receipt={etransfer.receipt} status="Submitted · we'll verify your e-Transfer" />,
     true,
     { label: "Go to my dashboard", href: "/me" },
   ) : (
@@ -1367,7 +1372,7 @@ export function Checkout({
             "Purchase",
             {
               value,
-              currency: "CAD",
+              currency,
               ...(selections?.planKey ? { content_ids: [selections.planKey], content_type: "product" } : {}),
               num_items: 1,
             },
@@ -1376,7 +1381,7 @@ export function Checkout({
           gtagEvent("purchase", {
             transaction_id: transactionId,
             value,
-            currency: "CAD",
+            currency,
             payment_type: "stripe",
           });
         }
@@ -1397,6 +1402,7 @@ function EtransferSubmitted({ deploymentId, onSent }: { deploymentId: string; on
 
 /** Mobile only: what's being ordered, above every step. Taps open the full summary. */
 function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: { title: string; baseline?: string | null; meta: string; address?: string; total?: number; saved?: number; onOpen: () => void }) {
+  const money = useFormatMoney();
   return (
     <button
       type="button"
@@ -1447,6 +1453,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
   appliedCount: number;
   onSwitchMethod: (methodId: string, code: string) => void;
 }) {
+  const money = useFormatMoney();
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
   const [focusField, setFocusField] = useState(false);
   const lastCount = useRef(appliedCount);

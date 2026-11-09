@@ -1,3 +1,4 @@
+import { useFormatMoney } from "@/components/app-currency";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -13,7 +14,6 @@ export function startLabel(iso: string) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export const money = (n: number) => `$${n.toFixed(2)}`;
 
 // Display only: every amount comes straight from the server's PricingResult.
 export function OrderSummary({
@@ -52,6 +52,7 @@ export function OrderSummary({
   deliverTo?: { address: string; window?: string | null; phone?: string | null; onChange: () => void };
   children?: ReactNode;
 }) {
+  const money = useFormatMoney();
   const days = [...(selections.eatingDays ?? [])].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b));
   const weeks = selections.durationWeeks;
   const perWeek = days.length;

@@ -27,7 +27,6 @@ export const PLAN_TYPES: { value: PlanType; label: string }[] = (
   Object.keys(PLAN_LABEL) as PlanType[]
 ).map((value) => ({ value, label: PLAN_LABEL[value] }));
 
-export const money = (s: string | null): string => (s == null ? "—" : `$${Number(s).toFixed(2)}`);
 export const pct = (s: string | null): string => (s == null ? "—" : `${Number(s)}%`);
 export const numOrNull = (s: string): number | null => {
   const t = s.trim();

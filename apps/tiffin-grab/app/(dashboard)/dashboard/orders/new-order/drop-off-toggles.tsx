@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -9,7 +10,8 @@ import {
 } from "@/lib/catalog/drop-off";
 
 function OptionLabel({ o }: { o: DropOffOption }) {
-  const fee = dropOffFee(o);
+  const money = useFormatMoney();
+  const fee = dropOffFee(o, money);
   return (
     <>
       {o.name}

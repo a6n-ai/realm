@@ -6,6 +6,12 @@ import { WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 // Guardrail (Spec-B): the visual revamp of the checkout MUST NOT alter any
 // validation gate. This locks the "Continue to payment" enable condition, the
 // out-of-zone waitlist path, and the bad-coupon error state so a restyle that

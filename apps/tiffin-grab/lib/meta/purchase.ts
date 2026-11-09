@@ -1,3 +1,4 @@
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { asc, eq } from "drizzle-orm";
 import { inStatuses, PAID } from "@/lib/payments/status";
 import { createLogger } from "@foundry/commons/logger";
@@ -87,6 +88,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
     if (!claimed) return;
 
     const value = Number(claimed.pay.amount) + Number(claimed.pay.surchargeAmount ?? 0);
+    const { currency } = await getAppSettings();
     const settledMs = claimed.pay.capturedAt ?? claimed.pay.claimedAt ?? claimed.claimedAt;
     const contentIds = [claimed.plan?.key, claimed.meal?.key ?? claimed.meal?.publicId].filter(
       (x): x is string => !!x,
@@ -114,7 +116,7 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
       },
       customData: {
         value,
-        currency: "CAD",
+        currency,
         order_id: claimed.order.publicId,
         ...(contentIds.length ? { content_ids: contentIds, content_type: "product" } : {}),
         num_items: claimed.order.tiffinCount,

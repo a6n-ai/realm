@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/providers/timezone-provider";
+import { useAppCurrency } from "@/components/app-currency";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { preconnect } from "react-dom";
@@ -169,9 +171,13 @@ function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, 
 
 function Printer() {
   const { paid, printed } = usePanel();
+  const currency = useAppCurrency();
+  const timeZone = useTimezone();
   if (!paid) return null;
   return (
     <ReceiptPrinter
+      currency={currency}
+      timeZone={timeZone}
       stage={paid.stage}
       receipt={paid.receipt}
       onPrinted={printed}

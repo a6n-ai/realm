@@ -23,7 +23,7 @@ import { PlanPicks } from "@/components/landing/pricing/plan-picks";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings, getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { isWeekendDay } from "@/lib/dates";
 
 // Plans live on this page too (/plans redirects here), so the copy names both.
@@ -40,12 +40,12 @@ export const revalidate = 300;
 export const dynamic = "error";
 
 
-const money = (n: number) => `$${n.toFixed(2)}`;
 const DIET_LABEL: Record<string, string> = { veg: "Veg", "non-veg": "Non-veg" };
 // Rows per plan before "Show N more sizes": the trial plus the cheapest few cover most choices.
 const VISIBLE_SIZES = 5;
 
 export default async function PricingPage() {
+  const money = await getMoneyFormatter();
   const [catalog, trialSettings, { currency }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
   const origin = publicOrigin();
   const offers = pricingJsonLd(catalog, origin, currency);

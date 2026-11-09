@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calculator, Hand } from "lucide-react";
@@ -16,7 +17,6 @@ const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" }, { key: "thu", short: "Thu" },
   { key: "fri", short: "Fri" }, { key: "sat", short: "Sat" }, { key: "sun", short: "Sun" },
 ];
-const money = (n: number) => `$${n.toFixed(2)}`;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** The days to eat on: the wanted ones the size serves, kept within the min and max a week (topped up in week order). */
@@ -81,6 +81,7 @@ function useTapHint() {
 }
 
 export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3, max: 7 }, maxPct = 25 }: { plans: MathPlan[]; lengths: MathLength[]; frequencies?: MathFrequency[]; bounds?: { min: number; max: number }; maxPct?: number }) {
+  const money = useFormatMoney();
   const [planKey, setPlanKey] = useState(plans[0]?.key ?? "");
   const plan = plans.find((p) => p.key === planKey) ?? plans[0];
   const [sizeId, setSizeId] = useState(plan?.sizes[0]?.id ?? "");

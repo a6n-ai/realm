@@ -5,6 +5,12 @@ import { StepBundle } from "../steps/step-bundle";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "@/lib/wizard/selections";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 function meal(key: string, opts: { trial?: boolean } = {}) {
   return {
     publicId: `msz_${key}`,

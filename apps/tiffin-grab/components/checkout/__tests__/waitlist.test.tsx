@@ -6,6 +6,12 @@ import { WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({

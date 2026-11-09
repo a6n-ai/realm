@@ -34,7 +34,7 @@ const plan = {
 } as unknown as PlanView;
 const holidayDot = (date: string, name: string): Agenda => ({ [date]: [{ orderId: "o", status: "paused", cutoffAt: NOW + 1000, deliveryDate: date, truck: false, units: 1, covers: [date], holiday: name }] });
 const view = (t: Trip[], sel: string, agenda: Agenda = {}) =>
-  render(<DeliveriesView plan={plan} subs={[plan.sub]} windows={{}} trips={t} agenda={agenda} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={sel} />);
+  render(<DeliveriesView currency="CAD" plan={plan} subs={[plan.sub]} windows={{}} trips={t} agenda={agenda} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={sel} />);
 
 describe("a holiday day on the customer deliveries page", () => {
   it("a closed, placed day reads the holiday name and where it went; no meal, no actions, no Out-to chip", () => {

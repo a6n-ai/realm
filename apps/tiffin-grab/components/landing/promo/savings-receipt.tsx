@@ -1,14 +1,15 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import { useEffect, useRef, useState } from "react";
 import type { PromoSavings } from "@/lib/landing/promo-types";
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
 const COUNT_MS = 900;
 
 /** A glass checkout receipt for one real plan: lines drop in once it is in view, then the
  *  saving counts up to its total. Reduced motion shows the finished receipt straight away. */
 export function SavingsReceipt({ savings, className }: { savings: PromoSavings; className?: string }) {
+  const usd = useFormatMoney();
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   const [total, setTotal] = useState(savings.total);

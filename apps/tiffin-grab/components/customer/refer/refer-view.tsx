@@ -81,7 +81,7 @@ export function ReferView({ summary, wallet, rate = null }: { summary: ReferralS
               label="In your wallet"
               value={wallet.coins}
               unit="coins"
-              worth={wallet.dollars == null ? null : worth(rate, wallet.coins) ?? `$${wallet.dollars.toFixed(2)}`}
+              worth={wallet.dollars == null ? null : worth(rate, wallet.coins)}
             hint="Ready to spend"
             />
           ) : null}

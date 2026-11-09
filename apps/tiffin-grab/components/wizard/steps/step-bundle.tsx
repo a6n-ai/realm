@@ -1,3 +1,4 @@
+import { useFormatMoney } from "@/components/app-currency";
 import { Fragment, useState } from "react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
@@ -196,10 +197,13 @@ function TierMark({ meal }: { meal: ClientMealSizeView }) {
 }
 
 /** What a screen reader hears for a meal card: the name and its per-tiffin price, not just "pressed". */
-const cardLabel = (meal: ClientMealSizeView) =>
-  `${meal.name}, $${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)} per tiffin`;
+function useCardLabel() {
+  const money = useFormatMoney();
+  return (meal: ClientMealSizeView) => `${meal.name}, ${money(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal))} per tiffin`;
+}
 
 function PopularOption({ meal, active, categoryLabels, onPick }: { meal: ClientMealSizeView; active: boolean; categoryLabels?: Record<string, string>; onPick: () => void }) {
+  const cardLabel = useCardLabel();
   return (
     <OptionCard badge selected={active} onClick={onPick} aria-label={cardLabel(meal)} className="flex min-w-0 flex-col gap-2 p-4">
       <Pill tone="up" size="sm" className="w-fit">Best seller</Pill>
@@ -237,6 +241,7 @@ function MealOption({
   trial?: boolean;
   onPick: () => void;
 }) {
+  const cardLabel = useCardLabel();
   // A trial is a feature card of its own: brand-tinted, a gift tile and "Try first", so it reads as an offer
   // rather than one more size in the grid. Selected it gets the same ring as every option.
   if (trial) {

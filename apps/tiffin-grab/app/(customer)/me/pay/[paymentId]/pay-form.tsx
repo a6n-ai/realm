@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney, useAppCurrency } from "@/components/app-currency";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import Link from "next/link";
@@ -17,9 +18,9 @@ import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } fro
 
 type Line = { label: string; amount: number };
 
-const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
 
 function Row({ label, amount, strong }: { label: string; amount: number; strong?: boolean }) {
+  const money = useFormatMoney();
   return (
     <div className={cn("flex items-baseline justify-between gap-3 py-1.5 text-sm", strong && "border-t border-border pt-3 text-base font-semibold")}>
       <span>{label}</span>
@@ -109,6 +110,7 @@ function LivePayForm(p: {
   lines: Line[];
   total: number;
 }) {
+  const currency = useAppCurrency();
   const purchasePixelFired = useRef(false);
   return (
     <CardPayProvider
@@ -130,13 +132,13 @@ function LivePayForm(p: {
           purchasePixelFired.current = true;
           trackMeta(
             "Purchase",
-            { value: p.total, currency: "CAD", num_items: 1 },
+            { value: p.total, currency, num_items: 1 },
             p.paymentId,
           );
           gtagEvent("purchase", {
             transaction_id: p.paymentId,
             value: p.total,
-            currency: "CAD",
+            currency,
             payment_type: "stripe",
           });
         }

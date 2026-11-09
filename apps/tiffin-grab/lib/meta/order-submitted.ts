@@ -1,3 +1,4 @@
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { eq } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type { MetaEventName } from "@foundry/meta-pixel";
@@ -54,6 +55,7 @@ export async function sendMetaOrderSubmitted(paymentPublicId: string): Promise<v
     const [plan] = await db.select({ key: plans.key }).from(plans).where(eq(plans.id, order.planId)).limit(1);
 
     const value = Number(pay.amount) + Number(pay.surchargeAmount ?? 0);
+    const { currency } = await getAppSettings();
     const contentIds = [plan?.key, meal?.key ?? meal?.publicId].filter((x): x is string => !!x);
     const eventTime = Math.floor((pay.claimedAt ?? Date.now()) / 1000);
 
@@ -79,7 +81,7 @@ export async function sendMetaOrderSubmitted(paymentPublicId: string): Promise<v
       },
       customData: {
         value,
-        currency: "CAD",
+        currency,
         order_id: order.publicId,
         ...(contentIds.length ? { content_ids: contentIds, content_type: "product" } : {}),
         num_items: order.tiffinCount,

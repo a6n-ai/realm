@@ -26,7 +26,8 @@ type Props = {
   action?: { label: string; href: string };
   secondary?: { label: string; href: string };
   onPrinted?: () => void;
-  timeZone?: string;
+  currency: string;
+  timeZone: string;
 };
 
 // Jagged tear along the bottom edge, drawn with clip-path so the hairline border is not needed there.
@@ -37,11 +38,11 @@ const TORN_EDGE =
 export const steppedEase = (rows: number) => (t: number) => Math.min(1, Math.floor(t * rows) / rows);
 const PER_ROW = 0.16;
 
-function Paper({ receipt, status, timeZone }: { receipt: Receipt; status: string; timeZone: string }) {
+function Paper({ receipt, status, timeZone, currency }: { receipt: Receipt; status: string; timeZone: string; currency: string }) {
   const date = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone }).format(
     receipt.paidAt,
   );
-  const money = (n: number) => formatMoney(n / 100, "CAD");
+  const money = (n: number) => formatMoney(n / 100, currency);
   return (
     <div
       className="flex flex-col gap-4 border border-border bg-card px-5 pb-6 pt-5 text-sm text-foreground tabular-nums"
@@ -91,7 +92,8 @@ export function ReceiptPrinter({
   action,
   secondary,
   onPrinted,
-  timeZone = "America/Toronto",
+  timeZone,
+  currency,
 }: Props) {
   const reduce = useReducedMotion();
   const [fed, setFed] = useState(false);
@@ -139,7 +141,7 @@ export function ReceiptPrinter({
                 transition={{ duration: rows * PER_ROW, ease: steppedEase(rows) }}
                 onAnimationComplete={stage === "printing" ? finish : undefined}
               >
-                <Paper receipt={receipt} status={status} timeZone={timeZone} />
+                <Paper receipt={receipt} status={status} timeZone={timeZone} currency={currency} />
               </m.div>
             </div>
           ) : (

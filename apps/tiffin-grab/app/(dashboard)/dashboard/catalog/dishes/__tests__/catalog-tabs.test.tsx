@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { TooltipProvider } from "@foundry/ui/tooltip";
+import { AppCurrencyProvider } from "@/components/app-currency";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CatalogTabs } from "../catalog-tabs";
@@ -11,9 +12,9 @@ import { ResourceEditor } from "../../[resource]/resource-editor";
 // The layouts provide TooltipProvider and TimezoneProvider in the app; row actions are icon
 // buttons with tooltips, and the list filters read the app timezone.
 const Providers = ({ children }: { children: ReactNode }) => (
-  <TimezoneProvider tz="America/Toronto">
+  <AppCurrencyProvider currency="CAD"><TimezoneProvider tz="America/Toronto">
     <TooltipProvider>{children}</TooltipProvider>
-  </TimezoneProvider>
+  </TimezoneProvider></AppCurrencyProvider>
 );
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper: Providers });
 

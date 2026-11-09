@@ -2,6 +2,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 vi.mock("next/navigation", () => ({ usePathname: () => "/me/refer", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth/client", () => ({ signOut: vi.fn() }));
 vi.mock("@foundry/themes", async (orig) => ({ ...(await orig<object>()), useTheme: () => ({ theme: "system", setTheme: vi.fn() }) }));

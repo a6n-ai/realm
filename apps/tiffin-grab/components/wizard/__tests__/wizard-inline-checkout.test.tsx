@@ -5,6 +5,12 @@ import { Wizard } from "../wizard";
 import type { WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const mockRouter = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));

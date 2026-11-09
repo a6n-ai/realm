@@ -1,3 +1,4 @@
+import { useAppCurrency } from "@/components/app-currency";
 /* eslint-disable */
 "use client";
 
@@ -76,6 +77,7 @@ export function Wizard({
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
+  const currency = useAppCurrency();
   const router = useRouter();
   const bouncing = useBounceAfterPaid();
   // A quote opens on the first step that still needs the customer, normally Start.
@@ -153,7 +155,7 @@ export function Wizard({
     const eventId = crypto.randomUUID();
     const params = {
       ...(contentIds.length ? { content_ids: contentIds, content_type: "product" } : {}),
-      ...(result ? { value: result.total, currency: "CAD" } : {}),
+      ...(result ? { value: result.total, currency } : {}),
       num_items: 1,
     };
     trackMeta("AddToCart", params, eventId);
@@ -164,7 +166,7 @@ export function Wizard({
       customData: params,
     });
     gtagEvent("add_to_cart", {
-      ...(result ? { value: result.total, currency: "CAD" } : {}),
+      ...(result ? { value: result.total, currency } : {}),
       items: contentIds.length
         ? contentIds.map((id) => ({ item_id: id, quantity: 1 }))
         : undefined,

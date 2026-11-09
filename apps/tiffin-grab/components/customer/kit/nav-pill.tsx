@@ -1,3 +1,4 @@
+import { useFormatMoney } from "@/components/app-currency";
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import type { ReactNode } from "react";
@@ -27,7 +28,8 @@ export function NavPill({ href, active, children, className }: { href: string; a
 
 /** Wallet chip: the only entry point to Finances (/me/wallet). Active while on it. */
 export function CoinChip({ href, balance, value, active }: { href: string; balance: number | string; /** Money value of the coins; null/absent = no coin rate, coins only. */ value?: number | null; active?: boolean }) {
-  const money = value == null ? null : `$${value.toFixed(2)}`;
+  const format = useFormatMoney();
+  const money = value == null ? null : format(value);
   return (
     <Link
       href={href}

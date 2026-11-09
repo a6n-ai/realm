@@ -9,6 +9,7 @@ import { usersService } from "@/lib/services/users.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
+import { AppCurrencyProvider } from "@/components/app-currency";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { Suspense } from "react";
@@ -50,6 +51,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
 
   return (
     <div className="crm-app customer-app">
+      <AppCurrencyProvider currency={currency}>
       <TimezoneProvider tz={timezone}>
         <MotionProvider>
           {/* Top-bar review request on every customer page; streams in, never blocks the shell. */}
@@ -69,6 +71,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
           </CustomerShell>
         </MotionProvider>
       </TimezoneProvider>
+      </AppCurrencyProvider>
     </div>
   );
 }

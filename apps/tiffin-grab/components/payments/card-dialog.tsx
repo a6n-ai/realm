@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
@@ -14,7 +15,6 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import type { PayOutcome } from "./card-pay";
 import { TrustLine } from "./trust-line";
 
-export const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 export function Spinner({ show }: { show: boolean }) {
   return show ? <Loader2 aria-hidden className="animate-spin" /> : null;
@@ -103,6 +103,7 @@ export function CardDialog(p: CommonProps & {
 }
 
 function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: CommonProps & { onLoadError: () => void }) {
+  const money = useFormatMoney();
   const stripe = useStripe();
   const elements = useElements();
   const [ready, setReady] = useState(false);
@@ -168,7 +169,7 @@ function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: Co
       footer={
         fee ? null : (
           <Button variant="primary" size="lg" pending={busy} disabled={!stripe || !ready || busy} onClick={() => run(false)}>
-            Pay {dollars(amountCents)}
+            Pay {money(amountCents / 100)}
           </Button>
         )
       }

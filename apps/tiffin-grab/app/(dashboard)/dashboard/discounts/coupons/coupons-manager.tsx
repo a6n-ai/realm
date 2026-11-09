@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatMoney } from "@/components/app-currency";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,7 +33,6 @@ import {
   ToggleRow,
   formatWindow,
   fromLocalInput,
-  money,
   numOrNull,
   pct,
   toLocalInput,
@@ -140,7 +140,7 @@ function toDraft(c: CouponRow, tz: string): Draft {
   };
 }
 
-function couponValue(c: CouponRow): string {
+function couponValue(c: CouponRow, money: (s: string | null) => string): string {
   switch (c.kind) {
     case "percentage":
       return pct(c.valuePct);
@@ -197,6 +197,8 @@ export function CouponsManager({
   pagination: { page: number; size: number };
   spec: FacetDef[];
 }) {
+  const fmt = useFormatMoney();
+  const money = (v: string | null) => (v == null ? "—" : fmt(Number(v)));
   const router = useRouter();
   const tz = useTimezone();
   const [pending, start] = React.useTransition();
@@ -297,7 +299,7 @@ export function CouponsManager({
             <TableCell>
               <Badge variant="secondary">{KIND_LABELS[c.kind]}</Badge>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{couponValue(c)}</TableCell>
+            <TableCell className="text-right tabular-nums">{couponValue(c, money)}</TableCell>
             <TableCell>
               <YesNo value={c.autoApply} />
             </TableCell>

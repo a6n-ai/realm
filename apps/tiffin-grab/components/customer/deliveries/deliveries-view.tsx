@@ -49,7 +49,7 @@ interface Props {
   /** Claim form for payment-review plans; null when settled or unavailable. */
   claimPayment?: ClaimPaymentContext | null;
   cardAvailable?: boolean;
-  currency?: string;
+  currency: string;
   initialTrip: string | null;
   initialAction?: string | null;
 }
@@ -61,7 +61,7 @@ function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
 

@@ -1,4 +1,5 @@
 "use client";
+import { useFormatMoney } from "@/components/app-currency";
 import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react";
 import { SparklesIcon } from "lucide-react";
 import { PillToggle } from "@/components/customer/kit";
@@ -30,7 +31,8 @@ const PILL =
 
 /** Name, then its fee as a quieter tag; a waived fee is struck through with the saving in green. */
 function StrategyLabel({ o, on }: { o: DropOffOption; on: boolean }) {
-  const fee = dropOffFee(o);
+  const money = useFormatMoney();
+  const fee = dropOffFee(o, money);
   const green = on ? "text-current" : "text-emerald-700 dark:text-emerald-400";
   return (
     <>

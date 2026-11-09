@@ -5,6 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DropOffCatalog } from "@/lib/catalog/drop-off";
 import { DropOffPicker } from "../drop-off";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 afterEach(cleanup);
 
 const catalog: DropOffCatalog = {

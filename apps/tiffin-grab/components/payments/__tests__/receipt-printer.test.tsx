@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe("ReceiptPrinter", () => {
   it("complete stage renders the whole receipt and action", () => {
-    render(<ReceiptPrinter stage="complete" receipt={receipt} action={action} />);
+    render(<ReceiptPrinter currency="CAD" timeZone="America/Toronto" stage="complete" receipt={receipt} action={action} />);
     expect(screen.getByText("Veg Regular plan")).toBeInTheDocument();
     expect(screen.getByText("Subtotal")).toBeInTheDocument();
     expect(screen.getByText("$226.00")).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe("ReceiptPrinter", () => {
   it("renders a custom status line and secondary link", () => {
     render(
       <ReceiptPrinter
-        stage="complete"
+        currency="CAD" timeZone="America/Toronto" stage="complete"
         receipt={receipt}
         status="Submitted · we'll verify your e-Transfer"
         action={action}
@@ -58,20 +58,20 @@ describe("ReceiptPrinter", () => {
   });
 
   it("processing shows the waiting body without paper", () => {
-    render(<ReceiptPrinter stage="processing" receipt={receipt} action={action} />);
+    render(<ReceiptPrinter currency="CAD" timeZone="America/Toronto" stage="processing" receipt={receipt} action={action} />);
     expect(screen.getByText("Processing your order")).toBeInTheDocument();
     expect(screen.queryByText("Total paid")).toBeNull();
   });
 
   it("printing hides the action until the feed ends", () => {
-    render(<ReceiptPrinter stage="printing" receipt={receipt} action={action} />);
+    render(<ReceiptPrinter currency="CAD" timeZone="America/Toronto" stage="printing" receipt={receipt} action={action} />);
     expect(screen.queryByRole("link", { name: "Go to my deliveries" })).toBeNull();
   });
 
   it("reduced motion shows the receipt fully printed and calls onPrinted", async () => {
     reduced = true;
     const onPrinted = vi.fn();
-    render(<ReceiptPrinter stage="printing" receipt={receipt} action={action} onPrinted={onPrinted} />);
+    render(<ReceiptPrinter currency="CAD" timeZone="America/Toronto" stage="printing" receipt={receipt} action={action} onPrinted={onPrinted} />);
     expect(screen.getByText("Total paid")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
     expect(onPrinted).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("ReceiptPrinter", () => {
 
   it("reduced motion under printing shows the full receipt and its action at once", () => {
     reduced = true;
-    render(<ReceiptPrinter stage="printing" receipt={receipt} action={action} onPrinted={() => {}} />);
+    render(<ReceiptPrinter currency="CAD" timeZone="America/Toronto" stage="printing" receipt={receipt} action={action} onPrinted={() => {}} />);
     expect(screen.getByText("$226.00")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to my deliveries" })).toBeInTheDocument();
   });

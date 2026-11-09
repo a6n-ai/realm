@@ -5,6 +5,12 @@ import { OrderSummary } from "../order-summary";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/lib/wizard/selections";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const sel = {
   mealSizeId: "m", frequencyKey: "f", eatingDays: ["mon", "wed", "fri"], persons: 1, mealSlots: [],
   includeSaturday: false, includeSunday: false, durationWeeks: 4, startDate: "2026-09-21", planKey: null,

@@ -49,8 +49,8 @@ export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | un
 }
 
 /** What a strategy adds before waivers: "+$1.50", "+$1.50 / delivery", "+5%", or null when free. */
-export function dropOffFee(o: Pick<DropOffOption, "chargeType" | "chargeValue" | "chargeBasis">): string | null {
-  if (o.chargeType === "fixed" && o.chargeValue > 0) return `+$${o.chargeValue.toFixed(2)}${o.chargeBasis === "per_delivery" ? " / delivery" : ""}`;
+export function dropOffFee(o: Pick<DropOffOption, "chargeType" | "chargeValue" | "chargeBasis">, money: (n: number) => string): string | null {
+  if (o.chargeType === "fixed" && o.chargeValue > 0) return `+${money(o.chargeValue)}${o.chargeBasis === "per_delivery" ? " / delivery" : ""}`;
   if (o.chargeType === "percent" && o.chargeValue > 0) return `+${o.chargeValue}%`;
   return null;
 }

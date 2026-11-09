@@ -52,6 +52,6 @@ describe("drop-off model", () => {
 
   it("labels a per-delivery price as such", () => {
     const door = catalog.options.find((o) => o.publicId === "door")!;
-    expect(dropOffFee(door)).toBe("+$1.50 / delivery");
+    expect(dropOffFee(door, (n) => `$${n.toFixed(2)}`)).toBe("+$1.50 / delivery");
   });
 });

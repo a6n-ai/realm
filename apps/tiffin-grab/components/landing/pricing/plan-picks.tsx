@@ -1,3 +1,4 @@
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { MON_FRI } from "@/lib/menu/delivery-days";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -8,7 +9,6 @@ import type { MathFrequency, MathLength } from "@/components/landing/price-math"
 export type PickSize = { id: string; name: string; rate: number; days: string[]; parts: string[]; kcalMin: number; kcalMax: number };
 export type PickPlan = { key: string; label: string; sizes: PickSize[] };
 
-const money = (n: number) => `$${n.toFixed(2)}`;
 
 // Cheapest, a middle and the dearest size; fewer than three sizes just show fewer cards.
 function picksFor(sizes: PickSize[], lengths: MathLength[]) {
@@ -20,7 +20,8 @@ function picksFor(sizes: PickSize[], lengths: MathLength[]) {
   return [...new Set([0, mid, n - 1])].map((i) => ({ size: ladder[i]!, length: i === n - 1 && n > 1 ? longest : four, good: n >= 3 && i === mid }));
 }
 
-export function PlanPicks({ plans, lengths, weekdayFreq, maxPct = 25 }: { plans: PickPlan[]; lengths: MathLength[]; weekdayFreq?: MathFrequency; maxPct?: number }) {
+export async function PlanPicks({ plans, lengths, weekdayFreq, maxPct = 25 }: { plans: PickPlan[]; lengths: MathLength[]; weekdayFreq?: MathFrequency; maxPct?: number }) {
+  const money = await getMoneyFormatter();
   const sets = plans.filter((p) => p.sizes.length > 0);
   if (sets.length === 0 || lengths.length === 0) return null;
   return (

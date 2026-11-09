@@ -19,6 +19,12 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 import { RenewCheckout } from "../../../app/(customer)/me/renew/quick-renew-client";
 
+vi.mock("@/components/app-currency", () => ({
+  useAppCurrency: () => "CAD",
+  useFormatMoney: () => (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`,
+}));
+vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
+
 const catalog = {
   plans: [{ key: "veg", name: "Veg", allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] }],
   mealSizes: [{ publicId: "msz_1", name: "Medium Tiffin", planKey: "veg" }],
