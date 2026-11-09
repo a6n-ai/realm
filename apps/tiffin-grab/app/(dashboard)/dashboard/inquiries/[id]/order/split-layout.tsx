@@ -1,5 +1,6 @@
 "use client";
 
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
@@ -24,12 +25,11 @@ export function useIsLg(): boolean {
   );
 }
 
-const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function daysLabel(days: readonly string[]): string {
-  const sorted = DAY_ORDER.filter((x) => days.includes(x));
-  if (sorted.length === 5 && sorted.join() === DAY_ORDER.slice(0, 5).join()) return "Mon–Fri";
+  const sorted = WEEK_DAYS.filter((x) => days.includes(x));
+  if (sorted.length === 5 && sorted.join() === WEEK_DAYS.slice(0, 5).join()) return "Mon–Fri";
   return sorted.map(cap).join(", ");
 }
 

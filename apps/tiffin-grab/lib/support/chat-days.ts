@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import type { ChatMessage } from "@foundry/design-system";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 
@@ -11,7 +12,7 @@ export const chatTime = (t: number, tz: string) =>
 export function chatDayLabel(t: number, tz: string, now = Date.now()): string {
   const key = dayKey(t, tz);
   if (key === dayKey(now, tz)) return "Today";
-  if (key === dayKey(now - 864e5, tz)) return "Yesterday";
+  if (key === dayKey(now - DAY_MS, tz)) return "Yesterday";
   const sameYear = key.slice(0, 4) === dayKey(now, tz).slice(0, 4);
   return dateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(t);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
 import { Button, Card, Notice, Pill } from "@/components/customer/kit";
@@ -11,7 +12,7 @@ import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const WEEK = Object.keys(DAY_LABEL);
+const WEEK: readonly string[] = WEEK_DAYS;
 
 /** "5 days a week · Mon–Fri"; a gap in the run lists the days ("3 days a week · Mon, Wed, Fri"). */
 function daysLine(days: readonly string[]): string {

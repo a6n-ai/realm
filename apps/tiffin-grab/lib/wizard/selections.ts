@@ -1,6 +1,6 @@
 import { effectivePrice, type PricingSelections } from "@/lib/pricing";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { eatingDaysError, frequencyFits, planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 
 export interface WizardSelections extends PricingSelections {
@@ -21,8 +21,7 @@ export type WizardOrigin = "subscribe" | "renew" | "trial";
  */
 export const FIXED_PERSONS = 1;
 
-export const WEEK_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-export const DEFAULT_EATING_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+export const DEFAULT_EATING_DAYS: DayOfWeek[] = [...MON_FRI];
 
 /** Frequencies a customer may pick: active rows (already filtered upstream) that define delivery days. With a
  *  cart, only those that deliver on the picked size's allowed days (e.g. MWF, not Mon-Fri, for non-veg only). */

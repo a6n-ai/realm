@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { PricingResult } from "@/lib/pricing";
@@ -5,7 +6,6 @@ import type { WizardSelections } from "@/lib/wizard/selections";
 import { Divider, Pill } from "@/components/customer/kit";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export function startLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -52,7 +52,7 @@ export function OrderSummary({
   deliverTo?: { address: string; window?: string | null; phone?: string | null; onChange: () => void };
   children?: ReactNode;
 }) {
-  const days = [...(selections.eatingDays ?? [])].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+  const days = [...(selections.eatingDays ?? [])].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b));
   const weeks = selections.durationWeeks;
   const perWeek = days.length;
   const start = startLabel(selections.startDate);

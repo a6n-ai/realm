@@ -1,3 +1,4 @@
+import { MON_FRI } from "@/lib/menu/delivery-days";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";
@@ -8,7 +9,6 @@ export type PickSize = { id: string; name: string; rate: number; days: string[];
 export type PickPlan = { key: string; label: string; sizes: PickSize[] };
 
 const money = (n: number) => `$${n.toFixed(2)}`;
-const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"];
 
 // Cheapest, a middle and the dearest size; fewer than three sizes just show fewer cards.
 function picksFor(sizes: PickSize[], lengths: MathLength[]) {
@@ -44,7 +44,7 @@ export function PlanPicks({ plans, lengths, weekdayFreq, maxPct = 25 }: { plans:
           return (
             <div key={p.key} className="lp-picks__set" data-plan={p.key}>
               {picksFor(p.sizes, lengths).map(({ size, length, good }) => {
-                const days = size.days.filter((d) => WEEKDAYS.includes(d));
+                const days = size.days.filter((d) => (MON_FRI as readonly string[]).includes(d));
                 const gross = size.rate * days.length * length.weeks;
                 const weekday = weekdayFreq && days.length === 5 ? weekdayFreq : null;
                 const delivery = weekday?.off[length.weeks] ?? 0;

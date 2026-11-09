@@ -1,7 +1,8 @@
 import { formatDateOnly } from "@/lib/format/datetime";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { MealSlot } from "@/lib/menu/meal-types";
-import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { buildPosterColumns, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import { popularThisWeek } from "@/lib/menu/customer-week";
 import { addDaysIso } from "@/lib/dates";
 
@@ -22,7 +23,7 @@ export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; item
   let weekend: BoardWeekend | null = null;
   const days = buildPosterColumns(pub.slots, pub.items).flatMap((col, i): BoardDay[] => {
     const keys = DAY_COLUMNS[i]!.days;
-    const today = keys.map((k) => addDaysIso(pub.weekStart, DAYS.indexOf(k))).includes(todayIso);
+    const today = keys.map((k) => addDaysIso(pub.weekStart, WEEK_DAYS.indexOf(k))).includes(todayIso);
     if (keys.length > 1) {
       const all = [...new Set(col.groups.flatMap((g) => g.dishes.map((d) => plain(d.name))))];
       if (all.length > 0) weekend = { date: `${dateOf(pub.weekStart, 5)} and ${dateOf(pub.weekStart, 6)}`, today, dishes: all };
@@ -39,7 +40,7 @@ export function buildWeekBoard(pub: { weekStart: string; slots: MealSlot[]; item
       popular.push(...names.filter((n) => top.has(n)));
     }
     if (Object.keys(dishes).length === 0) return [];
-    return [{ key: col.label, label: col.label, short: col.label.slice(0, 3), date: dateOf(pub.weekStart, DAYS.indexOf(keys[0]!)), today, dishes, popular }];
+    return [{ key: col.label, label: col.label, short: col.label.slice(0, 3), date: dateOf(pub.weekStart, WEEK_DAYS.indexOf(keys[0]!)), today, dishes, popular }];
   });
   return { days, rows, weekend };
 }

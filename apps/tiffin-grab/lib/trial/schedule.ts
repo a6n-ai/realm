@@ -1,21 +1,19 @@
-import { dayAllowed, type AllowedDays } from "@/lib/menu/delivery-days";
+import { dayAllowed, type AllowedDays, WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
 import { validateStartDate } from "@/lib/services/start-date";
-import { addDaysIso, isWeekendDay, utcIso } from "@/lib/dates";
+import { addDaysIso, isWeekendDay, utcIso, daysBetween } from "@/lib/dates";
 
-export const TRIAL_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-export type TrialWeekday = (typeof TRIAL_WEEKDAYS)[number];
 /** A trial runs inside one week: at most 5 days. */
 export const TRIAL_MAX_DAYS = 5;
 
-export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
+export function orderedTrialWeekdays(days: readonly string[]): DayOfWeek[] {
   const picked = new Set(days);
-  return TRIAL_WEEKDAYS.filter((d) => picked.has(d));
+  return WEEK_DAYS.filter((d) => picked.has(d));
 }
 
 /** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish, and days outside the
  *  meal size's allowed days (e.g. Tue/Thu for a non-veg-only size) drop out too. */
-export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean, allowed?: AllowedDays): TrialWeekday[] {
+export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean, allowed?: AllowedDays): DayOfWeek[] {
   return orderedTrialWeekdays(weekdays).filter((d) => (servesWeekends || (!isWeekendDay(d))) && dayAllowed(d, allowed));
 }
 
@@ -44,11 +42,11 @@ export function assertTrialMax(maxDays: number, weekdays: readonly string[]): vo
  * every allowed send day.
  */
 export function resolveTrialDays(
-  allowed: readonly TrialWeekday[],
+  allowed: readonly DayOfWeek[],
   maxDays: number,
   picks: readonly string[] | undefined,
   count: number | undefined,
-): { sendDays: TrialWeekday[]; length: number } {
+): { sendDays: DayOfWeek[]; length: number } {
   const picked = picks?.length ? orderedTrialWeekdays(picks) : null;
   if (picked) {
     const off = picked.filter((d) => !allowed.includes(d));
@@ -64,7 +62,7 @@ export function resolveTrialDays(
 }
 
 /** Toggle one trial day: never below 1 or above `maxDays`, only send days, in week order. */
-export function toggleTrialPick(prev: readonly string[], day: string, sendDays: readonly string[], maxDays: number): TrialWeekday[] {
+export function toggleTrialPick(prev: readonly string[], day: string, sendDays: readonly string[], maxDays: number): DayOfWeek[] {
   const next = prev.includes(day)
     ? (prev.length > 1 ? prev.filter((d) => d !== day) : prev)
     : prev.length < maxDays ? [...prev, day] : prev;
@@ -98,7 +96,7 @@ export function trialDeliveryDates(startDate: string, length: number, weekdays: 
 
 /** Weeks stored on the order so the overlap window covers the last trial delivery. */
 export function durationWeeksCovering(startDate: string, lastDate: string): number {
-  const spanDays = Math.round((parseIsoDateUtc(lastDate).getTime() - parseIsoDateUtc(startDate).getTime()) / 86_400_000) + 1;
+  const spanDays = daysBetween(startDate, lastDate) + 1;
   return Math.max(1, Math.ceil(spanDays / 7));
 }
 

@@ -1,13 +1,12 @@
 import { parseIsoDateUtc } from "@foundry/commons";
-import type { DayOfWeek } from "./delivery-days";
+import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
 import { addDaysIso } from "@/lib/dates";
 
-const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /** ISO dates of the eating days a trip carries; a carried day maps to the trip's date plus its weekday offset from the trip's own day. */
 export function tripCoverage(deliveryDate: string, tripDay: DayOfWeek, carriedDays: DayOfWeek[]): string[] {
-  const base = WEEK_ORDER.indexOf(tripDay);
-  return carriedDays.map((d) => addDaysIso(deliveryDate, WEEK_ORDER.indexOf(d) - base)).sort();
+  const base = WEEK_DAYS.indexOf(tripDay);
+  return carriedDays.map((d) => addDaysIso(deliveryDate, WEEK_DAYS.indexOf(d) - base)).sort();
 }
 
 /** NULL covers_dates is a legacy row: it covers only its own date. */

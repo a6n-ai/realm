@@ -6,7 +6,7 @@ import { getAppSettings } from "./app-settings.service";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "@/lib/orders/queries";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso, DAY_MS } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
 
 export type OrdersOverview = {
@@ -105,7 +105,6 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
   };
 }
 
-const DAY_MS = 86_400_000;
 // Same threshold as the Payments page overdue queue (payments/payment-queries.ts OVERDUE_DAYS).
 const OVERDUE_DAYS = 3;
 

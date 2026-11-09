@@ -1,4 +1,5 @@
 "use client";
+import { DAY_MS } from "@/lib/dates";
 import { useEffect, useRef } from "react";
 import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { ChevronDownIcon, MapPinIcon } from "lucide-react";
@@ -11,7 +12,7 @@ const EMPTY: Match[] = [];
 type Match = { publicId: string; sourceKey: string; sourceLabel: string; stage: string; createdAt: number };
 
 function ageLabel(ms: number): string {
-  const days = Math.floor((Date.now() - ms) / 86_400_000);
+  const days = Math.floor((Date.now() - ms) / DAY_MS);
   if (days <= 0) return "today";
   if (days === 1) return "1d ago";
   if (days < 7) return `${days}d ago`;

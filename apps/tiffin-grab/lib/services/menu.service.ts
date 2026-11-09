@@ -7,7 +7,8 @@ import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuI
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
-import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 import { mondayOfIso } from "@/lib/dates";

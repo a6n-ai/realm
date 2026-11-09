@@ -1,3 +1,4 @@
+import { daysBetween } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
@@ -1428,7 +1429,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
       if (order.userId != null) {
         // Bounded rows can run past durationWeeks; cover the span they actually occupy.
-        const spanDays = Math.round((parseIsoDateUtc(rows.at(-1)!.deliveryDate).getTime() - parseIsoDateUtc(startDate).getTime()) / 86_400_000) + 1;
+        const spanDays = daysBetween(startDate, rows.at(-1)!.deliveryDate) + 1;
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: Math.max(order.durationWeeks, Math.ceil(spanDays / 7)), excludeOrderId: order.id });
       }
 
@@ -1548,7 +1549,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         }
         if (bounded && placed.length) {
           // The overlap guard reads durationWeeks: keep it at the span these rows occupy.
-          const spanDays = Math.round((parseIsoDateUtc(placed.at(-1)!.deliveryDate).getTime() - parseIsoDateUtc(startDate).getTime()) / 86_400_000) + 1;
+          const spanDays = daysBetween(startDate, placed.at(-1)!.deliveryDate) + 1;
           await tx.update(orders).set({ durationWeeks: Math.max(1, Math.ceil(spanDays / 7)) }).where(eq(orders.id, order.id));
         }
       }
@@ -1670,7 +1671,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
       // The overlap guard reads durationWeeks; keep it covering a plan that now runs longer.
       const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => pulled.get(r.id) ?? r.deliveryDate)].sort().at(-1);
-      const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
+      const spanWeeks = last ? Math.ceil((daysBetween(order.startDate, last) + 1) / 7) : 0;
       const [relaid] = await tx.update(orders).set({
         frequencyId: freq.id,
         eatingDays: next,

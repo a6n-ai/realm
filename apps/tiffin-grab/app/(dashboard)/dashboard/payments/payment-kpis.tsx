@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { Suspense, type ReactNode } from "react";
 import {
   ActivityIcon,
@@ -37,7 +38,6 @@ const TAB_PATH: Record<PaymentsTab, PaymentsTabPath> = {
   logs: "logs",
 };
 
-const DAY_MS = 86_400_000;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Same order as Orders and Renewals: the date range and the cards it moves, then the tabs. */

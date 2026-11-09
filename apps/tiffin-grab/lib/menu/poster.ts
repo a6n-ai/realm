@@ -1,9 +1,7 @@
+import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
 import type { FileDetail } from "@foundry/storage/model";
 import type { MealSlot } from "./meal-types";
 import { isoToUtcDate } from "@/lib/dates";
-
-export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-export type DayOfWeek = (typeof DAYS)[number];
 
 export type PosterItem = {
   dayOfWeek: DayOfWeek;
@@ -110,5 +108,5 @@ export function buildHomeMenuColumns(slots: MealSlot[], items: PosterItem[]): Re
 /** `weekStart` and other date-only ISO strings are UTC calendar dates. */
 export function isoToDayOfWeek(iso: string): DayOfWeek {
   const jsDay = isoToUtcDate(iso).getUTCDay();
-  return DAYS[(jsDay + 6) % 7];
+  return WEEK_DAYS[(jsDay + 6) % 7];
 }

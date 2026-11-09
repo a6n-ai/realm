@@ -10,7 +10,8 @@ import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
-import { DAYS, DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { DAY_LABELS } from "@/lib/menu/poster";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };
 export type GridDish = { id: string; name: string; category: string | null; planId: string };
@@ -92,9 +93,9 @@ export function MenuGrid({
 
   return (
     <div className="bg-card overflow-x-auto rounded-xl border" data-testid="menu-grid">
-      <div className="grid min-w-[38rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${DAYS.length}, minmax(0, 1fr))` }}>
+      <div className="grid min-w-[38rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${WEEK_DAYS.length}, minmax(0, 1fr))` }}>
         <div className="text-muted-foreground border-e border-b p-2 text-xs font-medium">Category · Plan</div>
-        {DAYS.map((day) => (
+        {WEEK_DAYS.map((day) => (
           <div key={day} className="border-b p-2 text-xs font-semibold">{DAY_LABELS[day].slice(0, 3)}</div>
         ))}
 
@@ -106,7 +107,7 @@ export function MenuGrid({
                 <p className="text-sm font-medium text-pretty">{slot.categoryLabel}</p>
                 <p className="text-muted-foreground text-xs">{slot.planName}</p>
               </div>
-              {DAYS.map((day) => {
+              {WEEK_DAYS.map((day) => {
                 const cell = rowsOf(rows, dishById, day, slot);
                 const verdict = verdicts.get(`${day}:${slot.key}`);
                 const warning = cellWarning(slot, needed, cell.length, verdict);
@@ -155,7 +156,7 @@ export function MenuGrid({
               <p className="text-sm font-medium text-pretty">{side.label}</p>
               <p className="text-muted-foreground line-clamp-2 text-xs">{side.sub}</p>
             </div>
-            {DAYS.map((day) => {
+            {WEEK_DAYS.map((day) => {
               const { text, changed } = side.cell(day);
               const isSelected = selected?.day === day && selected.slotKey === side.key;
               return (

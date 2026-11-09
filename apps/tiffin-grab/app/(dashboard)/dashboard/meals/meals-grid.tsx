@@ -1,5 +1,6 @@
 "use client";
 
+import { type DayOfWeek } from "@/lib/menu/delivery-days";
 import { useState, useTransition } from "react";
 import { ChevronDownIcon, LockIcon } from "lucide-react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
@@ -14,7 +15,6 @@ import {
 import { pickDish } from "./actions";
 import type { GridCell } from "@/lib/menu/meals-grid";
 
-type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 const DAY_LABELS: Record<DayOfWeek, string> = {
   mon: "Mon",
   tue: "Tue",

@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { EmailEventType, EmailStream } from "@relay/email";
 import { db } from "@/db/client";
@@ -61,7 +62,7 @@ async function queryVolume(streams: EmailStream[], now: number): Promise<Record<
       rendering_failure: n(isNotNull(o.renderFailedAt)),
     })
     .from(o)
-    .where(and(eq(o.channel, "email"), gte(o.createdAt, now - 30 * 86_400_000)))
+    .where(and(eq(o.channel, "email"), gte(o.createdAt, now - 30 * DAY_MS)))
     .groupBy(o.event, sql`${o.campaignId} is not null`);
   return rollupVolume(rows, new Set(await getTrackedEmailEvents()), streams);
 }

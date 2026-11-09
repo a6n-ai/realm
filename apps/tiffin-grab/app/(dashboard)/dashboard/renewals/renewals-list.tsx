@@ -1,5 +1,6 @@
 "use client";
 
+import { daysBetween } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,7 +40,7 @@ const STATUS_VARIANT: Record<RenewalRowStatus, "success-light" | "warning-light"
 };
 
 function whenLabel(lastTiffin: string, today: string) {
-  const d = Math.round((Date.parse(lastTiffin) - Date.parse(today)) / 86_400_000);
+  const d = daysBetween(today, lastTiffin);
   if (d === 0) return "today";
   if (d === 1) return "tomorrow";
   if (d === -1) return "yesterday";

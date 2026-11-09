@@ -1,9 +1,10 @@
+import { DAY_MS } from "@/lib/dates";
 import { and, count, desc, eq, gte, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans } from "@/db/schema";
 import { sharedCache } from "@/lib/cache";
 
-const WINDOW_MS = 90 * 864e5;
+const WINDOW_MS = 90 * DAY_MS;
 // Rankings move over days, not minutes: an hour per franchise keeps the two count queries off every page view.
 const popularCache = sharedCache("popular-meal-sizes", 60 * 60_000);
 

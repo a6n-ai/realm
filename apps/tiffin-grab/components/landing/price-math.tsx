@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calculator, Hand } from "lucide-react";
-import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planWeek, type DayOfWeek, MON_FRI } from "@/lib/menu/delivery-days";
 import { consentMoment } from "@/components/consent/cookie-consent";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 
@@ -17,7 +17,6 @@ const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "fri", short: "Fri" }, { key: "sat", short: "Sat" }, { key: "sun", short: "Sun" },
 ];
 const money = (n: number) => `$${n.toFixed(2)}`;
-const MON_FRI: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** The days to eat on: the wanted ones the size serves, kept within the min and max a week (topped up in week order). */
@@ -86,7 +85,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
   const plan = plans.find((p) => p.key === planKey) ?? plans[0];
   const [sizeId, setSizeId] = useState(plan?.sizes[0]?.id ?? "");
   const size = plan?.sizes.find((s) => s.id === sizeId) ?? plan?.sizes[0];
-  const [eating, setEating] = useState<DayOfWeek[]>(() => (plans[0]?.sizes[0] ? fitDays(MON_FRI, plans[0].sizes[0], bounds) : MON_FRI));
+  const [eating, setEating] = useState<DayOfWeek[]>(() => (plans[0]?.sizes[0] ? fitDays([...MON_FRI], plans[0].sizes[0], bounds) : [...MON_FRI]));
   const [freqKey, setFreqKey] = useState("");
   // Opens on the first length that earns a discount (else the shortest): the useful comparison.
   const [weeks, setWeeks] = useState((lengths.find((l) => l.off > 0) ?? lengths[0])?.weeks ?? 4);

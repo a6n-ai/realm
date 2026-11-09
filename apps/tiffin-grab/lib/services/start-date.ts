@@ -1,3 +1,4 @@
+import { MON_FRI } from "@/lib/menu/delivery-days";
 import { cutoffMsFor, isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
 import { utcIso } from "@/lib/dates";
 
@@ -72,7 +73,7 @@ export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[],
  * they share none, or the frequency has no weekdays.
  */
 export function planStartDays(allowedStartDays: readonly string[] | null | undefined, frequencyWeekdays: readonly string[] | null | undefined): string[] {
-  const days = allowedStartDays?.length ? [...allowedStartDays] : ["mon", "tue", "wed", "thu", "fri"];
+  const days = allowedStartDays?.length ? [...allowedStartDays] : [...MON_FRI];
   const both = days.filter((d) => frequencyWeekdays?.includes(d));
   return both.length ? both : days;
 }

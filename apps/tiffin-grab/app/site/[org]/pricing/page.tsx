@@ -1,3 +1,4 @@
+import { MON_FRI, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LandingReviews } from "@/components/landing/landing-reviews";
@@ -67,7 +68,6 @@ export default async function PricingPage() {
 
   // Live calculator data: each size's real rate and the days it can be eaten (its allowed days; no
   // weekend for sizes without a weekend dish), and each plan length's best duration discount (Home's rule).
-  const ALL_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   // The calculator prices a plan, as the plan builder does: the trial has its own card (and its own
   // day rules, Mon to Fri), so it stays out, and the calculator opens on a size that serves every day.
   const mathPlans: MathPlan[] = plans.map((p) => ({
@@ -77,7 +77,7 @@ export default async function PricingPage() {
       id: m.publicId,
       name: dashless(m.name),
       rate: effectivePrice(m.basePrice, m),
-      days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
+      days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : WEEK_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
     })),
   }));
   const maxPct = catalog.maxDiscountPct ?? 25;
@@ -90,7 +90,7 @@ export default async function PricingPage() {
       id: f.publicId,
       key: f.key,
       name: f.name,
-      days: f.weekdays!.filter((d): d is DayOfWeek => (ALL_DAYS as string[]).includes(d)),
+      days: f.weekdays!.filter((d): d is DayOfWeek => (WEEK_DAYS as readonly string[]).includes(d)),
       off: Object.fromEntries(weeksList.map((w) => [w, savePct(catalog.discounts, "delivery", f.publicId, w)])),
     }));
   // Like the engine: every duration rule that applies is summed, then capped.
@@ -104,7 +104,7 @@ export default async function PricingPage() {
     }));
 
   const from = lowestRate(catalog);
-  const weekdayFreq = frequencies.find((f) => f.days.length === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => f.days.includes(d as DayOfWeek)));
+  const weekdayFreq = frequencies.find((f) => f.days.length === 5 && MON_FRI.every((d) => f.days.includes(d)));
 
   return (
     <>
@@ -140,7 +140,7 @@ export default async function PricingPage() {
             id: m.publicId,
             name: dashless(m.name),
             rate: effectivePrice(m.basePrice, m),
-            days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : ALL_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
+            days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : WEEK_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
             parts: m.components,
             kcalMin: m.kcalMin,
             kcalMax: m.kcalMax,

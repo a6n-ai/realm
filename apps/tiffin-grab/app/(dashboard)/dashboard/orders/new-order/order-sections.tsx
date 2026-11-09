@@ -24,7 +24,7 @@ import { DeliveryAreaNote } from "@/components/customer/address/delivery-area";
 import { ScheduleCard } from "@/components/wizard/schedule-card";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { CheckoutPaymentMethod } from "@/app/(public)/subscribe/actions";
 import type { useOrderDraft } from "../../inquiries/[id]/order/use-order-draft";
@@ -38,7 +38,6 @@ import { useFormatMoney } from "@/components/app-currency";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
-const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 const APP_NAME = "Tiffin Grab";
 
@@ -219,10 +218,10 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                 <Field label="Trial days" hint={`${d.pickedDays.length} of ${d.trialMax} days`}>
                   <ToggleGroup type="multiple" variant="outline" size="default" spacing={1} className="w-full" value={d.pickedDays}
                     onValueChange={(next) => {
-                      const changed = DAYS.find((x) => next.includes(x) !== d.pickedDays.includes(x));
+                      const changed = WEEK_DAYS.find((x) => next.includes(x) !== d.pickedDays.includes(x));
                       if (changed) d.setPickedDays((prev) => toggleTrialPick(prev, changed, d.trialWeekdays, d.trialMax) as DayOfWeek[]);
                     }}>
-                    {DAYS.map((x) => (
+                    {WEEK_DAYS.map((x) => (
                       <ToggleGroupItem key={x} value={x} className="flex-1" disabled={!d.pickedDays.includes(x) && (!d.trialWeekdays.includes(x) || d.pickedDays.length >= d.trialMax)}>{dayName(x)}</ToggleGroupItem>
                     ))}
                   </ToggleGroup>
@@ -258,10 +257,10 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
               >
                 <ToggleGroup type="multiple" variant="outline" size="default" spacing={1} className="w-full" value={eatingDays}
                   onValueChange={(next) => {
-                    const changed = DAYS.find((x) => next.includes(x) !== eatingDays.includes(x));
+                    const changed = WEEK_DAYS.find((x) => next.includes(x) !== eatingDays.includes(x));
                     if (changed) d.toggleEating(changed);
                   }}>
-                  {DAYS.map((x) => (
+                  {WEEK_DAYS.map((x) => (
                     <ToggleGroupItem key={x} value={x} className="flex-1" disabled={!eatingDays.includes(x) && (eatingDays.length >= bounds.max || !dayAllowed(x, sizeDays))}>{dayName(x)}</ToggleGroupItem>
                   ))}
                 </ToggleGroup>

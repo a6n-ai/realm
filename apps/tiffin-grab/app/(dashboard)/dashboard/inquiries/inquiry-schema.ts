@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { emailSchema } from "@foundry/commons";
 import { z } from "zod";
 
@@ -13,7 +14,7 @@ export const inquiryFormSchema = z.object({
   mealSizeInterest: z.string().optional(),
   personsInterest: z.coerce.number().int().min(1).max(20).optional(),
   frequencyKeyInterest: z.string().optional(),
-  eatingDaysInterest: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).optional(),
+  eatingDaysInterest: z.array(z.enum(WEEK_DAYS)).optional(),
   postalCode: z.string().optional(),
   preferredStart: z.string().optional(),
   quotedPrice: z.coerce.number().nonnegative().optional(),

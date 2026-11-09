@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { and, count, eq } from "drizzle-orm";
 import { notificationOutcomeWhere, parseNotificationOutcome } from "@/lib/notifications/outcome";
@@ -315,7 +316,7 @@ export function summarizeSuppressions(rows: { reason: string; createdAt: number 
     const kind = suppressionKind(r.reason);
     const reason = kind === "other" ? "manual" : kind;
     out.total[reason] += 1;
-    if (r.createdAt >= now - 30 * 86_400_000) out.last30[reason] += 1;
+    if (r.createdAt >= now - 30 * DAY_MS) out.last30[reason] += 1;
     if (r.createdAt >= monthStart) out.thisMonth[reason] += 1;
   }
   return out;

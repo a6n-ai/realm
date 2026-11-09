@@ -1,3 +1,4 @@
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { addDaysIso, isoToUtcDate, mondayIndex, mondayOfIso } from "@/lib/dates";
 import { deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
 
@@ -40,19 +41,17 @@ export function splitAgenda(all: Agenda, orderId: string, startDate?: string): {
 /** Stable colour per plan, by position in the customer's plan list. */
 export const PLAN_COLORS = ["#c2410c", "#2563eb", "#7c3aed", "#0d9488", "#be185d", "#4d7c0f"];
 
-const WEEKDAY = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-type Weekday = (typeof WEEKDAY)[number];
-const weekdayOf = (iso: string): Weekday => WEEKDAY[mondayIndex(iso)]!;
+const weekdayOf = (iso: string): DayOfWeek => WEEK_DAYS[mondayIndex(iso)]!;
 
 /** One week of the agenda as timeline trips: each truck day carries the eating days in its week, coloured by status. */
 export function weekTimeline(agenda: Agenda, monday: string): {
-  trips: { day: Weekday; units: number; days: Weekday[]; status: DeliveryStatus }[];
-  dayStatus: Partial<Record<Weekday, DeliveryStatus>>;
+  trips: { day: DayOfWeek; units: number; days: DayOfWeek[]; status: DeliveryStatus }[];
+  dayStatus: Partial<Record<DayOfWeek, DeliveryStatus>>;
 } {
   const days = weekDays(monday);
   const inWeek = new Set(days);
-  const dayStatus: Partial<Record<Weekday, DeliveryStatus>> = {};
-  const trips = new Map<string, { day: Weekday; units: number; days: Weekday[]; status: DeliveryStatus }>();
+  const dayStatus: Partial<Record<DayOfWeek, DeliveryStatus>> = {};
+  const trips = new Map<string, { day: DayOfWeek; units: number; days: DayOfWeek[]; status: DeliveryStatus }>();
   for (const iso of days) {
     for (const d of agenda[iso] ?? []) {
       dayStatus[weekdayOf(iso)] ??= deliveryTripState(d);

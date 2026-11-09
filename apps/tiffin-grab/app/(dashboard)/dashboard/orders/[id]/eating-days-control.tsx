@@ -6,11 +6,10 @@ import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { changeEatingDaysAction } from "./actions";
 import { isWeekendDay } from "@/lib/dates";
 
-const WEEK: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const cap = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 
 /** Admin: change the days a customer eats. Delivery days and the tiffin balance stay; the server reschedules what's still open. */
@@ -77,7 +76,7 @@ export function EatingDaysControl({
     >
       <div className="grid gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {WEEK.map((d) => {
+          {WEEK_DAYS.map((d) => {
             const on = value.includes(d);
             const noDish = !servesWeekends && (isWeekendDay(d));
             const offDay = !on && !dayAllowed(d, mealDays);
@@ -88,7 +87,7 @@ export function EatingDaysControl({
                 aria-pressed={on}
                 disabled={noDish || offDay}
                 title={noDish ? NO_WEEKEND_DISH : offDay && mealDays ? onlyOnMessage(mealDays) : undefined}
-                onClick={() => setValue(WEEK.filter((x) => (x === d ? !on : value.includes(x))))}
+                onClick={() => setValue(WEEK_DAYS.filter((x) => (x === d ? !on : value.includes(x))))}
                 className={cn(
                   "rounded-md border px-3 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
                   on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",

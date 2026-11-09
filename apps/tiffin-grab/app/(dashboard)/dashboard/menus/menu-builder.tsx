@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
-import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { DAY_LABELS, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { CellPanel, cellWarning, MenuGrid, problemsByCell, rowsOf, type CellRef, type Slot } from "./menu-grid";
@@ -217,7 +218,7 @@ export function MenuBuilder({
     setRows((prev) => {
       const source = prev.filter((r) => r.dayOfWeek === from && r.slot === slot);
       const untouched = prev.filter((r) => r.slot !== slot || r.dayOfWeek === from);
-      const copies = DAYS.filter((d) => d !== from).flatMap((day) =>
+      const copies = WEEK_DAYS.filter((d) => d !== from).flatMap((day) =>
         source.map((r) => ({ ...r, key: `new-${newKeyRef.current++}`, id: null, dayOfWeek: day })),
       );
       return [...untouched, ...copies];
@@ -325,9 +326,9 @@ export function MenuBuilder({
         : "Live on the website.";
 
   const verdicts = problemsByCell(isReleased ? [] : problems);
-  const firstGap = slots.flatMap((s) => DAYS.map((d) => ({ day: d, slotKey: s.key }))).find((c) => verdicts.get(`${c.day}:${c.slotKey}`)?.missing) ?? null;
+  const firstGap = slots.flatMap((s) => WEEK_DAYS.map((d) => ({ day: d, slotKey: s.key }))).find((c) => verdicts.get(`${c.day}:${c.slotKey}`)?.missing) ?? null;
   // The panel's cell: the admin's pick, else the first gap to fix, else Monday's first slot.
-  const cell = selected ?? firstGap ?? (slots[0] ? { day: DAYS[0]!, slotKey: slots[0].key } : null);
+  const cell = selected ?? firstGap ?? (slots[0] ? { day: WEEK_DAYS[0]!, slotKey: slots[0].key } : null);
   const cellSlot = cell ? slots.find((s) => s.key === cell.slotKey) ?? null : null;
   const sideSlot = cell ? sides.slots.find((s) => sideKey(s) === cell.slotKey) ?? null : null;
   const cellRows = cell && cellSlot ? rowsOf(rows, dishById, cell.day, cellSlot) : [];

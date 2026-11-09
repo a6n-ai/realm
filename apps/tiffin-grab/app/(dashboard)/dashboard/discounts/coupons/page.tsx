@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { couponStatus } from "@/lib/coupons/status";
 import { Suspense } from "react";
 import { and, asc, desc, eq, ilike, notInArray, or } from "drizzle-orm";
@@ -101,7 +102,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   // and expiring narrow the table only, so a card still matches its own drill.
   const { page } = parseFilterState(SPEC, sp);
   const now = requestNow();
-  const weekOut = now + 7 * 86_400_000;
+  const weekOut = now + 7 * DAY_MS;
   const isLive = (c: (typeof couponRows)[number]) => couponStatus(c, now) === "active";
   const isExpiring = (c: (typeof couponRows)[number]) => c.active && c.expiresAt != null && c.expiresAt > now && c.expiresAt <= weekOut;
   const live = couponRows.filter(isLive);

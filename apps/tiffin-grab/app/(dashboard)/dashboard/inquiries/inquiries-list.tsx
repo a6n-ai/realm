@@ -1,5 +1,6 @@
 "use client";
 
+import { DAY_MS } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
@@ -41,7 +42,6 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
   { key: "actions", label: "", align: "right", width: "w-32" },
 ];
 
-const DAY_MS = 86_400_000;
 
 // ponytail: only open sub-statuses plus Undeliverable; Lost needs a per-lead reason, took_* is convert-only.
 const BULK_STATUSES = SUB_STATUSES.filter((s) => (SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes) || s === "undeliverable");

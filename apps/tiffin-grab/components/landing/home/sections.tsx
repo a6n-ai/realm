@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
@@ -15,16 +16,15 @@ import { SwipeRow } from "@/components/landing/home/swipe-row";
 import { MenuBoard } from "@/components/landing/home/menu-board";
 import { TodayPicks } from "@/components/landing/home/today-picks";
 
-const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-const WEEK_LETTER: Record<(typeof WEEK)[number], string> = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" };
-const WEEK_SHORT: Record<(typeof WEEK)[number], string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+const WEEK_LETTER: Record<(typeof WEEK_DAYS)[number], string> = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" };
+const WEEK_SHORT: Record<(typeof WEEK_DAYS)[number], string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** "Mon to Fri" for a run of days, "Mon, Wed, Fri" otherwise. */
 function dayRange(days: string[]): string {
-  const idx = WEEK.flatMap((d, i) => (days.includes(d) ? [i] : []));
+  const idx = WEEK_DAYS.flatMap((d, i) => (days.includes(d) ? [i] : []));
   if (idx.length === 0) return "";
   const run = idx.length > 2 && idx.every((v, i) => i === 0 || v === idx[i - 1]! + 1);
-  return run ? `${WEEK_SHORT[WEEK[idx[0]!]!]} to ${WEEK_SHORT[WEEK[idx[idx.length - 1]!]!]}` : idx.map((i) => WEEK_SHORT[WEEK[i]!]).join(", ");
+  return run ? `${WEEK_SHORT[WEEK_DAYS[idx[0]!]!]} to ${WEEK_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => WEEK_SHORT[WEEK_DAYS[i]!]).join(", ");
 }
 
 /** The running promotion as a die-cut sticker on the hero: short headline in the middle,
@@ -239,7 +239,7 @@ export function Bento({ plans, sizes, sizePlanKey, sides, frequencies, lengths, 
                 <li key={f.id}>
                   <span className="lp-freq__head"><strong>{f.days.length} {f.days.length === 1 ? "day" : "days"}</strong><span>{dayRange(f.days)}</span></span>
                   <span className="lp-weekbar" aria-hidden>
-                    {WEEK.map((d) => <span key={d} data-on={f.days.includes(d)}><i />{WEEK_LETTER[d]}</span>)}
+                    {WEEK_DAYS.map((d) => <span key={d} data-on={f.days.includes(d)}><i />{WEEK_LETTER[d]}</span>)}
                   </span>
                 </li>
               ))}

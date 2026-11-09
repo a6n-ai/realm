@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { isStaffRole } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
@@ -54,7 +55,7 @@ export type CreateTicketInput = {
 // A ticket waiting on staff (open / in_progress) whose last activity is older
 // than this is "overdue" — surfaced in the queue so staff notice stale work.
 // waiting_on_customer is waiting on the customer, so it never counts.
-const OVERDUE_MS = 24 * 60 * 60 * 1000;
+export const OVERDUE_MS = DAY_MS;
 
 export function computeOverdue(status: string, lastMessageAt: number | null, now: number): boolean {
   if (status !== "open" && status !== "in_progress") return false;
@@ -315,7 +316,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       .select({ id: tickets.publicId, at: max(ticketMessages.createdAt) })
       .from(ticketMessages)
       .innerJoin(tickets, eq(tickets.id, ticketMessages.ticketId))
-      .where(and(eq(tickets.raisedBy, userId), eq(ticketMessages.authorType, "staff"), gt(ticketMessages.createdAt, now - 30 * 864e5)))
+      .where(and(eq(tickets.raisedBy, userId), eq(ticketMessages.authorType, "staff"), gt(ticketMessages.createdAt, now - 30 * DAY_MS)))
       .groupBy(tickets.publicId);
     return Object.fromEntries(rows.filter((r) => r.at != null).map((r) => [r.id, Number(r.at)]));
   }

@@ -9,7 +9,7 @@ import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/s
 import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";
-import type { DayOfWeek } from "@/lib/menu/delivery-dates";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";

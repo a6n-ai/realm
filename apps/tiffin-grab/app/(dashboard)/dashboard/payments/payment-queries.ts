@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
@@ -54,7 +55,7 @@ function attentionWhere(values: string[]): SQL | undefined {
       case "stuck":
         return sql`(${payments.status} = 'awaiting_payment' and ${payments.providerRef} is not null and ${payments.createdAt} < ${Date.now() - 120_000})`;
       case "failed":
-        return activityExists(sql`oa.type = 'payment_failed' and oa.created_at > ${Date.now() - 7 * 86_400_000}`);
+        return activityExists(sql`oa.type = 'payment_failed' and oa.created_at > ${Date.now() - 7 * DAY_MS}`);
       case "flagged":
         return activityExists(sql`oa.type = 'payment_failed' and (${sql.join(FLAGGED_NOTES.map((n) => sql`oa.note like ${n}`), sql` or `)})`);
       case "disputed":
@@ -74,7 +75,6 @@ const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
     .filter((x) => allowed.some((a) => a.value === x));
 
 export const OVERDUE_DAYS = 3;
-const DAY_MS = 86_400_000;
 
 export type PaymentKpis = {
   range: { from: number; to: number };

@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -46,7 +47,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export const revalidate = 300;
 export const dynamic = "error";
 
-const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 function weekRange(weekStart: string) {
   return `${formatDateOnly(weekStart, { mode: "short" })} to ${formatDateOnly(addDaysIso(weekStart, 6), { mode: "short" })}`;
@@ -120,7 +120,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
         fromRate={fromRate}
         trial={trialOffer(catalog, trialSettings)}
         sides={sides.map((a) => ({ key: a.key, name: a.name, note: a.portion ?? null }))}
-        frequencies={catalog.frequencies.map((f) => ({ id: f.publicId, name: f.name, days: f.weekdays ?? WEEK.slice(0, f.daysPerWeek) }))}
+        frequencies={catalog.frequencies.map((f) => ({ id: f.publicId, name: f.name, days: f.weekdays ?? WEEK_DAYS.slice(0, f.daysPerWeek) }))}
         lengths={lengths}
         cutoff={cutoff}
         photo={homeThali}

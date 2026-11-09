@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 // Shared by the server service and the "use client" queue. Kept out of any client file:
 // a server module importing a constant from a "use client" file crashes in production.
 
@@ -48,7 +49,7 @@ export type TodayItem =
 export function waitingLabel(since: number, now: number): string {
   const diff = now - since;
   const abs = Math.abs(diff);
-  const unit = abs < 36e5 ? `${Math.max(1, Math.round(abs / 6e4))}m` : abs < 864e5 ? `${Math.round(abs / 36e5)}h` : `${Math.round(abs / 864e5)}d`;
+  const unit = abs < 36e5 ? `${Math.max(1, Math.round(abs / 6e4))}m` : abs < DAY_MS ? `${Math.round(abs / 36e5)}h` : `${Math.round(abs / DAY_MS)}d`;
   return diff >= 0 ? `${unit} ago` : `in ${unit}`;
 }
 

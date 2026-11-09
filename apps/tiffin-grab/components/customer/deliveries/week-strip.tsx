@@ -1,4 +1,5 @@
 "use client";
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/deliveries/status";
@@ -9,7 +10,6 @@ import { ARROW, Legend } from "./week-timeline";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
-const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const WD = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
@@ -69,8 +69,8 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
         {...bind}
       >
         {isos.map((iso, i) => {
-          const s = dayStatus[DAYS[i]!];
-          const units = arrives.get(DAYS[i]!);
+          const s = dayStatus[WEEK_DAYS[i]!];
+          const units = arrives.get(WEEK_DAYS[i]!);
           const selected = iso === selectedDay;
           const holiday = s === "holiday" ? agenda[iso]?.find((x) => x.holiday)?.holiday : null;
           return (

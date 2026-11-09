@@ -6,7 +6,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso, daysBetween } from "@/lib/dates";
 
 /** Days before the last tiffin that a reminder goes out. */
 export const RENEWAL_REMINDER_DAYS = [5, 1] as const;
@@ -123,7 +123,7 @@ export async function sendRenewalReminderNow(orderPublicId: string, now = Date.n
   // The engine suffixes the channel onto the key, so match by prefix.
   const [sent] = await db.select({ id: notificationOutbox.id }).from(notificationOutbox).where(like(notificationOutbox.dedupeKey, `${dedupeKey}%`)).limit(1);
   if (sent) return "already-sent";
-  const daysLeft = Math.round((Date.parse(c.lastTiffin) - Date.parse(today)) / 86_400_000);
+  const daysLeft = daysBetween(today, c.lastTiffin);
   const m = renewalReminderMessage({ ...c, userId: c.userId, lastTiffin: c.lastTiffin }, daysLeft);
   await db.transaction((tx) =>
     enqueueNotification(tx, {

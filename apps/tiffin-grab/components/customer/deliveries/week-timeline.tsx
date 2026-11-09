@@ -1,4 +1,5 @@
 "use client";
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
 import { Popover } from "radix-ui";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
@@ -9,7 +10,6 @@ import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@/lib/dates";
 
-const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => isoToUtcDate(iso);
@@ -63,15 +63,15 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
         trips={trips.map((t) => ({ ...t, color: STATUS_COLOR[t.status] }))}
         dayColor={(d) => (dayStatus[d] ? STATUS_COLOR[dayStatus[d]!] : undefined)}
         pick={{
-          selected: selectedDay && mondayOfIso(selectedDay) === week ? DAYS[isos.indexOf(selectedDay)]! : null,
-          today: week === thisWeek ? DAYS[isos.indexOf(today)]! : null,
+          selected: selectedDay && mondayOfIso(selectedDay) === week ? WEEK_DAYS[isos.indexOf(selectedDay)]! : null,
+          today: week === thisWeek ? WEEK_DAYS[isos.indexOf(today)]! : null,
           dimBefore,
-          onPick: (d) => onPickDay(isos[DAYS.indexOf(d)]!),
-          disabled: isDisabled && ((d) => isDisabled(isos[DAYS.indexOf(d)]!)),
-          onDisabledTap: onDisabledTap && ((d) => onDisabledTap(isos[DAYS.indexOf(d)]!)),
-          deliveryDay: deliveryDay && ((d) => deliveryDay(isos[DAYS.indexOf(d)]!)),
+          onPick: (d) => onPickDay(isos[WEEK_DAYS.indexOf(d)]!),
+          disabled: isDisabled && ((d) => isDisabled(isos[WEEK_DAYS.indexOf(d)]!)),
+          onDisabledTap: onDisabledTap && ((d) => onDisabledTap(isos[WEEK_DAYS.indexOf(d)]!)),
+          deliveryDay: deliveryDay && ((d) => deliveryDay(isos[WEEK_DAYS.indexOf(d)]!)),
           label: (d) => {
-            const iso = isos[DAYS.indexOf(d)]!;
+            const iso = isos[WEEK_DAYS.indexOf(d)]!;
             const s = dayStatus[d];
             const trip = byDay.get(d);
             const holiday = s === "holiday" ? agenda[iso]?.find((x) => x.holiday)?.holiday : null;

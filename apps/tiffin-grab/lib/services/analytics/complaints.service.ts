@@ -1,3 +1,4 @@
+import { OVERDUE_MS } from "@/lib/services/tickets.service";
 import { ratePct } from "@/lib/money";
 import { zonedDateIso } from "@foundry/commons";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -308,7 +309,6 @@ export async function getByZone(scope: AnalyticsScope) {
 
 // A ticket waiting on staff whose last activity is older than this is overdue —
 // the same 24h rule the ticket queue already uses (tickets.service computeOverdue).
-const OVERDUE_MS = 24 * 60 * 60 * 1000;
 
 export type NeedsAttention = {
   urgent: number;

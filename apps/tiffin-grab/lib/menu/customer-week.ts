@@ -1,5 +1,6 @@
 import type { MealSlot } from "./meal-types";
-import { DAYS, type PosterItem } from "./poster";
+import { WEEK_DAYS } from "./delivery-days";
+import type { PosterItem } from "./poster";
 import { addDaysIso } from "@/lib/dates";
 import { deliveryTripState } from "@/lib/deliveries/status";
 
@@ -117,7 +118,7 @@ export function buildCustomerWeek(
   // The colour of a plan on the dish's side: a veg dish also served on the non-veg plan still reads veg.
   const popular = popularThisWeek(week.items, picks);
   const color = (name: string) => (servedBy.get(name) ?? []).find((it) => isNonVeg(it.planName) === nonVeg(name) && it.planColor)?.planColor ?? undefined;
-  return DAYS.map((day, i) => {
+  return WEEK_DAYS.map((day, i) => {
     const date = addDaysIso(week.weekStart, i);
     const items = week.items
       .filter((it) => it.dayOfWeek === day && (!plan || it.planName === plan))

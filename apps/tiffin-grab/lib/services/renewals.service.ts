@@ -9,7 +9,7 @@ import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { renewalMoney } from "./orders.service";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso, DAY_MS, daysBetween } from "@/lib/dates";
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -219,7 +219,7 @@ type RenewedCustomersOpts = { renewedWithin: number | null; q: string; from?: nu
 function renewedCustomersGrouped(visible: "all" | string[], opts: RenewedCustomersOpts) {
   const renewals = sql<number>`cast(count(*) filter (where ${notCancelled} and ${isRenewalSql}) as int)`;
   const lastRenewedAt = sql<number>`max(${orders.createdAt}) filter (where ${notCancelled} and ${isRenewalSql})`;
-  const since = opts.renewedWithin != null ? (opts.now ?? Date.now()) - opts.renewedWithin * 86_400_000 : null;
+  const since = opts.renewedWithin != null ? (opts.now ?? Date.now()) - opts.renewedWithin * DAY_MS : null;
   return db
     .select({
       userId: users.id,
@@ -360,8 +360,6 @@ export function reminderDelivery(status: string, deliveredAt: number | null, sen
   return after && block.reason === "bounce" ? "bounced" : "sent";
 }
 
-const dayDiff = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
-
 /** Everything about one customer's renewals, limited to plans in the staff member's organizations; null when none are visible. */
 export async function getCustomerRenewal(visible: "all" | string[], customerPublicId: string): Promise<CustomerRenewal | null> {
   if (visible !== "all" && visible.length === 0) return null;
@@ -408,7 +406,7 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     return {
       ...r,
       trial: trialLength != null,
-      gapDays: after && r.lastTiffin ? dayDiff(r.lastTiffin, after.startDate) : null,
+      gapDays: after && r.lastTiffin ? daysBetween(r.lastTiffin, after.startDate) : null,
       unpaidPaymentPublicId: unpaid.get(id.toString()) ?? null,
     };
   });

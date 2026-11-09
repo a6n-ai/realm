@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -14,7 +15,7 @@ import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCE_HOOKS, type CatalogLoadCtx } from "@/lib/catalog/resource-hooks";
-import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";
+import { RESOURCES, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";
 import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
 import { loadDiscountData } from "../discounts/load";
 
@@ -131,7 +132,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     if (f.optionsSource === "categories") {
       dynamicOptions[f.key] = categoryRows.map((c) => ({ value: c.key, label: c.label }));
     } else if (f.optionsSource === "weekdays") {
-      dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
+      dynamicOptions[f.key] = WEEK_DAYS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
     } else if (f.optionsSource === "plans") {
       dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
     } else if (f.optionsSource === "discount-targets" && targetRows) {

@@ -13,10 +13,9 @@ import { buildAnalyticsScope } from "./analytics/metrics/scope";
 import { getOrdersOverview } from "./orders-stats.service";
 import { getAppSettings } from "./app-settings.service";
 import { dayStartMs } from "./today.service";
-import { addDaysIso } from "@/lib/dates";
+import { addDaysIso, DAY_MS } from "@/lib/dates";
 
 type Visible = "all" | string[];
-const DAY = 864e5;
 
 export type OverviewDay = { date: string; revenue: number; orders: number; tiffins: number };
 export type OverviewSeries = {
@@ -45,8 +44,8 @@ export const getOverviewSeries = cache(async (visible: Visible, today: string, n
     getDailyScorecard(scope, { now }),
     getDeliveriesDaily(scope),
     countOrders({ ...scope, fromMs: 0 }, { status: ["active"] }),
-    getOrdersOverview({ from: now - 30 * DAY, to: now }, visible),
-    getOrdersOverview({ from: now - 60 * DAY, to: now - 30 * DAY - 1 }, visible),
+    getOrdersOverview({ from: now - 30 * DAY_MS, to: now }, visible),
+    getOrdersOverview({ from: now - 60 * DAY_MS, to: now - 30 * DAY_MS - 1 }, visible),
   ]);
   const byDate = new Map((rows ?? []).map((r) => [r.date, r]));
   const sched = new Map(deliveryDays.map((d) => [d.iso, d.scheduled]));

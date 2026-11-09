@@ -1,9 +1,9 @@
 "use client";
 
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { PillToggle } from "@/components/customer/kit";
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { WEEK_DAYS } from "@/lib/wizard/selections";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 

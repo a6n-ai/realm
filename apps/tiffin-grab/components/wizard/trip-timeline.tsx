@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { Truck } from "lucide-react";
@@ -6,7 +7,6 @@ import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { addDaysIso } from "@/lib/dates";
 
-const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const FULL: Record<DayOfWeek, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -64,7 +64,7 @@ export function TripTimeline({
   trips.forEach((t, i) => t.days.forEach((d) => tripOf.set(d, i)));
   const tripAt = new Map(trips.map((t) => [t.day, t]));
   const colorOf = (i: number | undefined) => (i == null ? PRIMARY : trips[i]?.color ?? PRIMARY);
-  const dateIso = (d: DayOfWeek) => addDaysIso(weekStart ?? "", DAYS.indexOf(d));
+  const dateIso = (d: DayOfWeek) => addDaysIso(weekStart ?? "", WEEK_DAYS.indexOf(d));
   const dateOf = (d: DayOfWeek) => (weekStart ? formatDateOnly(dateIso(d), { mode: "short" }) : null);
 
   return (
@@ -108,12 +108,12 @@ export function TripTimeline({
       {/* Wider screens (or pick mode): the whole week on one rail. */}
       <div aria-hidden={pick ? undefined : true} role={pick ? "group" : undefined} aria-label={pick ? "Delivery days" : undefined} className={pick || compact ? "block" : "hidden sm:block"}>
         <div className="grid grid-cols-7">
-          {DAYS.map((d, i) => {
+          {WEEK_DAYS.map((d, i) => {
             const trip = tripOf.get(d);
             const eats = trip != null;
             const delivery = tripAt.get(d);
-            const joinLeft = eats && i > 0 && tripOf.get(DAYS[i - 1]!) === trip;
-            const joinRight = eats && i < 6 && tripOf.get(DAYS[i + 1]!) === trip;
+            const joinLeft = eats && i > 0 && tripOf.get(WEEK_DAYS[i - 1]!) === trip;
+            const joinRight = eats && i < 6 && tripOf.get(WEEK_DAYS[i + 1]!) === trip;
             const tint = colorOf(trip);
             const sel = pick?.selected === d;
             const off = pick?.disabled?.(d) ?? false;

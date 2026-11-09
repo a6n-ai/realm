@@ -1,9 +1,10 @@
 import { isWeekendDay } from "@/lib/dates";
-export type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+/** The one week order (Monday first) and day type; every list of weekdays in the app derives from these. */
+export const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+export type DayOfWeek = (typeof WEEK_DAYS)[number];
 
-const FIVE_DAY: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+export const MON_FRI: readonly DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
-const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /** For a weekday set with fewer than 7 selected days, how many tiffins each
  * delivery day carries: itself plus every non-selected day up to (not
@@ -16,8 +17,8 @@ export function clubbedQuantities(weekdays: DayOfWeek[]): Record<DayOfWeek, numb
   const selected = new Set(weekdays);
   for (const day of weekdays) {
     let qty = 1;
-    let idx = (WEEK_ORDER.indexOf(day) + 1) % 7;
-    while (!selected.has(WEEK_ORDER[idx])) {
+    let idx = (WEEK_DAYS.indexOf(day) + 1) % 7;
+    while (!selected.has(WEEK_DAYS[idx])) {
       qty += 1;
       idx = (idx + 1) % 7;
     }
@@ -31,7 +32,7 @@ export function clubbedQuantities(weekdays: DayOfWeek[]): Record<DayOfWeek, numb
  * null when an eating day falls before the week's first delivery day (nothing
  * earlier in the plan could carry it) — callers reject that selection. */
 export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number; days: DayOfWeek[] }[] | null {
-  const idx = (d: DayOfWeek) => WEEK_ORDER.indexOf(d);
+  const idx = (d: DayOfWeek) => WEEK_DAYS.indexOf(d);
   const deliveries = [...deliveryDays].sort((a, b) => idx(a) - idx(b));
   const carried = new Map<DayOfWeek, DayOfWeek[]>();
   for (const eat of [...eatingDays].sort((a, b) => idx(a) - idx(b))) {
@@ -50,7 +51,7 @@ export function fullCarryWeekdays(deliveryDays: DayOfWeek[], eatingDays: DayOfWe
 /** Shared by the wizard and createOrder: null when the eating-day pick is valid for
  * this delivery frequency, otherwise the message to show. */
 export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], bounds: { min: number; max: number }): string | null {
-  if (new Set(eatingDays).size !== eatingDays.length || eatingDays.some((d) => !WEEK_ORDER.includes(d))) return "Invalid eating days";
+  if (new Set(eatingDays).size !== eatingDays.length || eatingDays.some((d) => !WEEK_DAYS.includes(d))) return "Invalid eating days";
   if (eatingDays.length < bounds.min || eatingDays.length > bounds.max) {
     return `Pick between ${bounds.min} and ${bounds.max} eating days a week`;
   }
@@ -73,7 +74,7 @@ const limited = (allowed: AllowedDays): allowed is readonly DayOfWeek[] => allow
 
 /** "Mon, Wed and Fri" in week order. */
 export function dayList(days: readonly DayOfWeek[]): string {
-  const names = WEEK_ORDER.filter((d) => days.includes(d)).map((d) => SHORT[d]);
+  const names = WEEK_DAYS.filter((d) => days.includes(d)).map((d) => SHORT[d]);
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
@@ -124,7 +125,7 @@ export function orderDeliveryDays(o: {
   // An explicit weekday set (delivery_frequencies.weekdays) wins over the two
   // hardcoded shapes — used for cadences that are neither 5-day nor MWF, e.g.
   // a legacy customer migrated on "Tuesday - Thursday" only.
-  const base = o.weekdays?.length ? [...o.weekdays] : o.frequencyKey === "mwf" ? [...MWF] : [...FIVE_DAY];
+  const base = o.weekdays?.length ? [...o.weekdays] : o.frequencyKey === "mwf" ? [...MWF] : [...MON_FRI];
   if (o.includeSaturday) base.push("sat");
   if (o.includeSunday) base.push("sun");
   return base;

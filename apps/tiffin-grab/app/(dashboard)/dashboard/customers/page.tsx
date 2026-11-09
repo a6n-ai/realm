@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
@@ -94,7 +95,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
   const sp = await withDefaultMonth(await searchParams);
 
   const now = requestNow();
-  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const weekAgo = now - 7 * DAY_MS;
   // Non-cancelled only — same definition as listCustomersPage customerType filters.
   const oc = db
     .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })

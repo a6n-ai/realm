@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@foundry/ui/button";
-import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { buildPosterColumns, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { addDaysIso } from "@/lib/dates";
@@ -11,7 +12,7 @@ function weekRangeLabel(weekStart: string): string {
 
 // Ticket header date: offset the column's first real weekday from weekStart (Monday).
 function columnDateLabel(weekStart: string, days: readonly string[]): string {
-  const offset = DAYS.indexOf(days[0] as (typeof DAYS)[number]);
+  const offset = WEEK_DAYS.indexOf(days[0] as (typeof WEEK_DAYS)[number]);
   return formatDateOnly(addDaysIso(weekStart, offset), { mode: "short" });
 }
 

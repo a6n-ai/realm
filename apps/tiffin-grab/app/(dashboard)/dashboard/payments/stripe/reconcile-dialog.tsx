@@ -10,10 +10,9 @@ import { Input } from "@foundry/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import type { ReconcileRow, SettleEffect } from "@/lib/services/payment-stripe";
 import { reconcileAction, settleFromReconcileAction } from "./actions";
-import { utcIso } from "@/lib/dates";
+import { utcIso, DAY_MS } from "@/lib/dates";
 
 const iso = (ms: number) => utcIso(new Date(ms));
-const DAY = 86_400_000;
 
 const LABEL: Record<ReconcileRow["kind"], string> = {
   unpaid_here: "Paid in Stripe, unpaid here",
@@ -40,7 +39,7 @@ function detail(r: ReconcileRow): string {
 export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [from, setFrom] = useState(() => iso(Date.now() - 7 * DAY));
+  const [from, setFrom] = useState(() => iso(Date.now() - 7 * DAY_MS));
   const [to, setTo] = useState(() => iso(Date.now()));
   const [rows, setRows] = useState<ReconcileRow[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);

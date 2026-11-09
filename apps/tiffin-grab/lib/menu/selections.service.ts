@@ -19,7 +19,7 @@ import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { swapAppliesTo } from "@/lib/menu/coverage";
-import { type DayOfWeek } from "@/lib/menu/delivery-dates";
+import { type DayOfWeek } from "@/lib/menu/delivery-days";
 import { rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addDaysIso } from "@/lib/dates";
 

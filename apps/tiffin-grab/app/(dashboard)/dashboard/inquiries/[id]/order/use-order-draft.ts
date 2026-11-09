@@ -16,7 +16,7 @@ import {
   type CheckoutPaymentMethod,
 } from "@/app/(public)/subscribe/actions";
 import type { AdminOrderCreated } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { eatingDaysError, frequencyFits, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS, quoteLinkQuery } from "@/lib/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
@@ -198,7 +198,7 @@ export function useOrderDraft({
     const next = eatingDays.includes(d)
       ? (eatingDays.length > bounds.min ? eatingDays.filter((x) => x !== d) : eatingDays)
       : eatingDays.length < bounds.max ? [...eatingDays, d] : eatingDays;
-    form.setValue("eatingDays", (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).filter((x) => next.includes(x)), { shouldDirty: true, shouldValidate: true });
+    form.setValue("eatingDays", WEEK_DAYS.filter((x) => next.includes(x)), { shouldDirty: true, shouldValidate: true });
   };
 
   const durations = [...new Map(catalog.durations.map((d) => [d.weeks, d])).values()].sort((a, b) => a.weeks - b.weeks);

@@ -1,4 +1,4 @@
-import { onlyOnMessage } from "@/lib/menu/delivery-days";
+import { onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
@@ -6,12 +6,12 @@ import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { appToday } from "@/lib/services/start-date";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays, type TrialWeekday } from "./schedule";
+import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays } from "./schedule";
 
 export type TrialQuote = {
   dates: string[];
   /** Weekdays of `dates`, in week order: the order's eating days, like a regular meal size. */
-  eatingDays: TrialWeekday[];
+  eatingDays: DayOfWeek[];
   length: number;
   weekdays: string[];
   frequencyKey: string;

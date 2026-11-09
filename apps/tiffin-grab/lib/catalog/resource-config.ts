@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { z } from "zod";
 import { CATEGORY_ICONS, CATEGORY_ICON_LABELS } from "@/lib/catalog/category-icons";
 
@@ -42,7 +43,6 @@ export interface ResourceDef {
   discountKind?: "delivery" | "duration" | "meal_size";
 }
 
-export const WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export const WEEKDAY_LABELS: Record<string, string> = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
 };
@@ -79,7 +79,7 @@ const plansSchema = z.object({
   // reads it to decide anything.
   tagLabel: z.string().trim().max(24).optional().nullable(),
   tagColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").optional().nullable(),
-  allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
+  allowedStartDays: z.array(z.enum(WEEK_DAYS)).default([]),
   active,
 });
 
@@ -119,7 +119,7 @@ const mealSizesSchema = z.object({
   basePrice: reqNum(z.coerce.number().nonnegative()),
   trial: z.boolean().optional(),
   // Days this size is made on (e.g. non-veg only, Tue/Thu veg-only). Empty = every day.
-  allowedDays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).optional(),
+  allowedDays: z.array(z.enum(WEEK_DAYS)).optional(),
   active,
 });
 
@@ -128,7 +128,7 @@ const deliveryFrequenciesSchema = z.object({
   daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7).optional()),
   // Every frequency names its delivery days: the catalog is the one source of which days it means, and a meal
   // size limited to some days only offers frequencies whose days all fit (frequencyFits).
-  weekdays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).min(1, "Pick at least one delivery day"),
+  weekdays: z.array(z.enum(WEEK_DAYS)).min(1, "Pick at least one delivery day"),
   active,
 }).transform((v) => ({ ...v, daysPerWeek: v.weekdays?.length ?? v.daysPerWeek }));
 

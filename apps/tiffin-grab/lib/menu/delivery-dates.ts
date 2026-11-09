@@ -1,8 +1,7 @@
 import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { addDaysIso, mondayOfIso, utcIso } from "@/lib/dates";
-import { planWeek, type DayOfWeek } from "./delivery-days";
+import { planWeek, WEEK_DAYS, type DayOfWeek } from "./delivery-days";
 
-export type { DayOfWeek };
 export type DeliveryDate = { dateIso: string; dayOfWeek: DayOfWeek; weekStartIso: string };
 
 // First durationWeeks × deliveryDays.length delivery dates on/after startDate.
@@ -44,7 +43,7 @@ export function subscriptionTrips(input: {
   const dates = subscriptionDeliveryDates({ startDate: input.startDate, durationWeeks: input.durationWeeks, deliveryDays: week.map((t) => t.day) });
   if (!dates.length) return null;
   const monday = mondayOfIso(input.startDate);
-  const shifted = week.some((t) => addDaysIso(monday, WEEK.indexOf(t.day)) < input.startDate);
+  const shifted = week.some((t) => addDaysIso(monday, WEEK_DAYS.indexOf(t.day)) < input.startDate);
   return { trips: dates.map((d) => ({ dateIso: d.dateIso, ...byDay.get(d.dayOfWeek)! })), shifted };
 }
 
@@ -57,8 +56,6 @@ export function tripsByWeek(trips: DatedTrip[]): { weekStart: string; trips: Dat
   }
   return [...weeks].map(([weekStart, trips]) => ({ weekStart, trips }));
 }
-
-const WEEK: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 // Monday of the calendar week containing `nowMs`, in app-settings `timezone`.
 // Menu weeks are stored by this Monday — meal matching must use the same key.

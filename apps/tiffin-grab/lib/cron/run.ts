@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dates";
 import { pageOffset } from "@/lib/list/pagination";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
@@ -26,7 +27,7 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     // for days already settled — pullCompletions only loads scheduled/skipped rows.
     const { timezone } = await getAppSettings();
     const now = Date.now();
-    const dates = only ? [only] : [zonedDateIso(now - 86_400_000, timezone), zonedDateIso(now, timezone)];
+    const dates = only ? [only] : [zonedDateIso(now - DAY_MS, timezone), zonedDateIso(now, timezone)];
     const summary = { dates: dates.join(", "), confirmed: 0, notDelivered: 0, awaiting: 0, unmatched: 0, ambiguous: 0 };
     for (const date of dates) {
       const r = await pullCompletions(date, actorId);

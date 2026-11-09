@@ -1,5 +1,6 @@
 "use client";
 
+import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { cn } from "@foundry/ui/cn";
 import { pillClass } from "./pill";
 import { FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
@@ -16,7 +17,6 @@ export type InterestCatalog = {
   frequencies?: { key: string; name: string; weekdays?: string[] | null }[];
 };
 
-const EATING_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 /** Short pill label — Veg / Non-veg / Healthy from catalog plan names. */
 export function planPillLabel(name: string): string {
@@ -187,7 +187,7 @@ export function PlanInterestFields({
       <FormItem className="grid gap-2 sm:col-span-2">
         <FormLabel>Eating days</FormLabel>
         <div role="group" aria-label="Eating days" className="flex flex-wrap gap-2">
-          {EATING_DAYS.map((d) => {
+          {WEEK_DAYS.map((d) => {
             const on = eating.includes(d);
             return (
               <button
@@ -195,7 +195,7 @@ export function PlanInterestFields({
                 type="button"
                 aria-pressed={on}
                 onClick={() =>
-                  onChange({ eatingDaysInterest: EATING_DAYS.filter((x) => (x === d ? !on : eating.includes(x))) })
+                  onChange({ eatingDaysInterest: WEEK_DAYS.filter((x) => (x === d ? !on : eating.includes(x))) })
                 }
                 className={pillClass(on, "capitalize")}
               >
