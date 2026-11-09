@@ -1,7 +1,8 @@
-import { RUNNING } from "@/lib/orders/status";
+import { coveredDates } from "@/lib/menu/coverage";
+import { ONGOING, RUNNING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { parseIsoDateUtc, ValidationError } from "@foundry/commons";
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders } from "@/db/schema";
 import type { Tx } from "./deliveries.service";
@@ -147,16 +148,53 @@ export async function lastRunningTiffinDate(tx: Tx | typeof db, userId: bigint):
   return row?.last ?? null;
 }
 
+export type OtherPlanDays = {
+  /** Start date of the other plan that delivers on `date`, or null. */
+  onTrip(date: string): string | null;
+  /** True when another plan eats on `date`. */
+  onEat(date: string): boolean;
+};
+
+/**
+ * What the customer's other plans hold, under one of two rules that disagree at the edges:
+ * "band" (active/paused plans, every day from start to last held delivery, so a day between two trips counts and
+ * a pending plan does not) or "rows" (pending/active/paused plans, only days a live delivery row sits on, and
+ * their covered eating days through `onEat`).
+ */
+export async function otherPlanDays(
+  tx: Tx | typeof db,
+  args: { userId: bigint; excludeOrderId?: bigint; rule: "band" | "rows" },
+): Promise<OtherPlanDays> {
+  if (args.rule === "band") {
+    const bands = await reservedBands(tx, args.userId, args.excludeOrderId);
+    const hit = (date: string) => {
+      const day = parseIsoDateUtc(date);
+      return bands.find((b) => b.start <= day && day < b.endExclusive);
+    };
+    return { onTrip: (date) => { const b = hit(date); return b ? utcIso(b.start) : null; }, onEat: (date) => hit(date) != null };
+  }
+  const rows = await tx.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates, startDate: orders.startDate })
+    .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(and(
+      eq(orders.userId, args.userId),
+      args.excludeOrderId == null ? undefined : ne(orders.id, args.excludeOrderId),
+      orderStatusIn(ONGOING),
+      inArray(deliveries.status, ["scheduled", "paused"]),
+      isNull(deliveries.mergedIntoDeliveryId),
+    ));
+  const trips = new Map<string, string>();
+  for (const r of rows) if (!trips.has(r.deliveryDate)) trips.set(r.deliveryDate, r.startDate);
+  const eats = new Set(rows.flatMap(coveredDates));
+  return { onTrip: (date) => trips.get(date) ?? null, onEat: (date) => eats.has(date) };
+}
+
 /** Rejects a single day that falls inside another active/paused plan of this customer. */
 export async function assertDayOutsideOtherPlans(
   tx: Tx | typeof db,
   args: { userId: bigint; date: string; excludeOrderId: bigint },
 ): Promise<void> {
-  const day = parseIsoDateUtc(args.date);
-  for (const b of await reservedBands(tx, args.userId, args.excludeOrderId)) {
-    if (b.start <= day && day < b.endExclusive) {
-      throw new ValidationError(`This customer has another plan running on ${args.date}. Give the tiffin on that plan instead.`);
-    }
+  if ((await otherPlanDays(tx, { ...args, rule: "band" })).onTrip(args.date)) {
+    throw new ValidationError(`This customer has another plan running on ${args.date}. Give the tiffin on that plan instead.`);
   }
 }
 
@@ -181,16 +219,4 @@ export async function assertNoPlanOverlap(
       );
     }
   }
-}
-
-/** The given days that fall inside another active/paused plan of this customer (same band rule as assertDayOutsideOtherPlans). */
-export async function datesInsideOtherPlans(
-  tx: Tx | typeof db,
-  args: { userId: bigint; dates: string[]; excludeOrderId: bigint },
-): Promise<string[]> {
-  const bands = await reservedBands(tx, args.userId, args.excludeOrderId);
-  return args.dates.filter((date) => {
-    const day = parseIsoDateUtc(date);
-    return bands.some((b) => b.start <= day && day < b.endExclusive);
-  });
 }

@@ -3,6 +3,7 @@ import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { NO_WEEKEND_DISH, dayAllowed, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDaysAfter } from "@/lib/deliveries/next-open-day";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
 import { daysBetween, utcIso } from "@foundry/commons/util/dates";
 
@@ -10,13 +11,7 @@ import { daysBetween, utcIso } from "@foundry/commons/util/dates";
 /** First plan delivery weekday after the plan's last delivery: where "Move to end" sends a tiffin. */
 export function planEndDate(ctx: Pick<PlanContext, "lastDeliveryDate" | "deliveryWeekdays">): string | null {
   if (!ctx.lastDeliveryDate) return null;
-  const weekdays = ctx.deliveryWeekdays;
-  const cursor = parseIsoDateUtc(ctx.lastDeliveryDate);
-  for (let i = 0; i < 7; i++) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    if (weekdays.includes(weekdayKey(cursor))) return utcIso(cursor);
-  }
-  return null;
+  return planDaysAfter(ctx.lastDeliveryDate, new Set(ctx.deliveryWeekdays), 7).next().value ?? null;
 }
 
 /** Move goes up to the plan's last delivery plus a week of slack (always reaching planEndDate); 28 days when the plan has no end (legacy) or the maths ends up negative/tiny. */

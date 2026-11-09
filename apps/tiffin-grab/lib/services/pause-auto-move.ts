@@ -1,11 +1,10 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { ONGOING } from "@/lib/orders/status";
-import { orderStatusIn } from "@/lib/orders/status-sql";
-import { NotFoundError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, inArray, isNull, ne, not } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, not } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
+import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { coveredDates, dateCounts } from "@/lib/menu/coverage";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -13,8 +12,8 @@ import { loadExtraDates } from "./delivery-extras";
 import { getAppSettings } from "./app-settings.service";
 import { holidayForOrderDate } from "./holiday-dates";
 import { loadPlanDays, rescheduleDelivery, type Tx } from "./deliveries.service";
+import { otherPlanDays } from "./order-window";
 import { MOVED_AWAY, isLapsedPause, lapsedPauseDates, type Reader } from "./pause-state";
-import { utcIso } from "@foundry/commons/util/dates";
 
 const log = createLogger("pause-auto-move");
 
@@ -37,15 +36,14 @@ export async function nextEndOfPlanDate(
   isOpen: (trip: string) => boolean,
   isBlocked: (eat: string, trip: string) => Promise<boolean>,
 ): Promise<string | null> {
-  const d = parseIsoDateUtc(tail);
-  for (let guard = 0; guard < 400; guard++) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    if (!eatingDays.has(weekdayKey(d))) continue;
-    const eat = utcIso(d);
-    const trip = tripFor(eat);
-    if (trip && isOpen(trip) && !(await isBlocked(eat, trip))) return eat;
-  }
-  return null;
+  return nextOpenPlanDay(tail, {
+    days: eatingDays,
+    maxCalendarDays: 400,
+    skip: async (eat) => {
+      const trip = tripFor(eat);
+      return !trip || !isOpen(trip) || (await isBlocked(eat, trip));
+    },
+  });
 }
 
 /** Eating days covered by these rows (covers_dates, or the row's own date on a legacy row). */
@@ -66,17 +64,13 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
   const own = eatDates(await db.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries).where(and(eq(deliveries.orderId, orderId), live)));
   const last = own.reduce((m, d) => (d > m ? d : m), today);
-  const others = order.userId == null ? [] : await db.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
-    .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId))
-    .where(and(eq(orders.userId, order.userId), ne(orders.id, orderId), orderStatusIn(ONGOING), live));
-  const takenTrips = new Set(others.map((r) => r.deliveryDate));
-  const takenEats = new Set(eatDates(others));
+  const others = order.userId == null ? null : await otherPlanDays(db, { userId: order.userId, excludeOrderId: orderId, rule: "rows" });
   return nextEndOfPlanDate(
     last,
     eating,
     (eat) => carryTripDateIso(eat, trips),
     (trip) => trip >= today && !isCutoffPassed(cutoffMsFor(trip, cutoffHour, timezone), now),
-    async (eat, trip) => takenTrips.has(trip) || takenEats.has(eat)
+    async (eat, trip) => others?.onTrip(trip) != null || others?.onEat(eat) === true
       || (await holidayForOrderDate(db, orderId, trip)) != null || (await holidayForOrderDate(db, orderId, eat)) != null,
   );
 }

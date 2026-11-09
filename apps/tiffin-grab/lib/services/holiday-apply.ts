@@ -4,11 +4,12 @@ import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
+import { openPlanDays } from "@/lib/deliveries/next-open-day";
 import { humanDate } from "@/lib/deliveries-view";
 import { getAppSettings } from "./app-settings.service";
-import { loadPlanDays, nextDeliveryDateAfter, type OptimoSyncedRow, type Tx } from "./deliveries.service";
+import { loadPlanDays, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
-import { datesInsideOtherPlans } from "./order-window";
+import { otherPlanDays } from "./order-window";
 import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
 import { addDaysIso, isRealDate } from "@foundry/commons/util/dates";
 
@@ -38,18 +39,14 @@ export type HolidayUndone = { restored: string[]; left: string[]; owed: string[]
  */
 async function freePlanDays(tx: Tx, order: Order, after: string, n: number, holidays: ReadonlyMap<string, HolidayDay>, cut: Cutoff): Promise<string[] | null> {
   const weekdays = await loadPlanDays(tx, order, { trial: "sendDays", weekdaysOnly: true });
-  if (weekdays.size === 0) return null;
   const taken = new Set((await tx.select({ date: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.orderId, order.id))).map((r) => r.date));
   const now = Date.now();
-  const out: string[] = [];
-  let cursor = after;
-  for (let guard = 0; guard < 120 && out.length < n; guard++) {
-    cursor = nextDeliveryDateAfter(cursor, weekdays);
-    if (taken.has(cursor) || holidays.has(cursor)) continue;
-    if (isCutoffPassed(cutoffMsFor(cursor, cut.cutoffHour, cut.timezone), now)) continue;
-    out.push(cursor);
-  }
-  return out.length === n ? out : null;
+  const { found } = await openPlanDays(after, n, {
+    days: weekdays,
+    maxPlanDays: 120,
+    skip: (date) => taken.has(date) || holidays.has(date) || isCutoffPassed(cutoffMsFor(date, cut.cutoffHour, cut.timezone), now),
+  });
+  return found.length === n ? found : null;
 }
 
 /** Ordinary scheduled deliveries, one eating day each, standing in for `sourceId`. Never make-ups. */
@@ -109,7 +106,8 @@ export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint
       const [{ tail }] = await tx.select({ tail: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
         .where(and(eq(deliveries.orderId, order.id), ne(deliveries.status, "cancelled")));
       const dates = await freePlanDays(tx, order, tail, row.tiffinUnits / per, holidays, cut);
-      const clash = dates && order.userId != null ? await datesInsideOtherPlans(tx, { userId: order.userId, dates, excludeOrderId: order.id }) : [];
+      const others = dates && order.userId != null ? await otherPlanDays(tx, { userId: order.userId, excludeOrderId: order.id, rule: "band" }) : null;
+      const clash = dates && others ? dates.filter((d) => others.onTrip(d)) : [];
       if (!dates) needsPlacing = "no free delivery day found";
       else if (clash.length > 0) needsPlacing = `another plan runs on ${humanDate(clash[0]!)}`;
       else {

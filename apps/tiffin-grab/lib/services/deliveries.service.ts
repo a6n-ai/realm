@@ -1,7 +1,5 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { ONGOING } from "@/lib/orders/status";
-import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
@@ -23,7 +21,8 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
-import { assertDayOutsideOtherPlans } from "./order-window";
+import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
+import { assertDayOutsideOtherPlans, otherPlanDays } from "./order-window";
 import { holidayForOrderDate } from "./holiday-dates";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -511,16 +510,6 @@ export async function completeFinishedOrders(): Promise<{ checked: number; compl
   return { checked: active.length, completed };
 }
 
-/** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
-export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string>): string {
-  const d = parseIsoDateUtc(afterIso);
-  for (let guard = 0; guard < 30; guard++) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    if (deliveryDays.has(weekdayKey(d))) return utcIso(d);
-  }
-  throw new ValidationError("Could not find a make-up slot within 30 days");
-}
-
 /**
  * The days this order can get a delivery on (planDeliveryDays), limited to the meal size's allowed days: a
  * non-veg-only size never gets a make-up, redelivery, holiday extra or complimentary tiffin on a veg-only day,
@@ -802,8 +791,13 @@ export async function shiftMissedDeliveries(
       .from(deliveries)
       .where(and(eq(deliveries.orderId, orderId), eq(deliveries.status, "scheduled"), isNull(deliveries.mergedIntoDeliveryId)));
     const tail = max && max > floor ? max : floor;
-    let target = nextDeliveryDateAfter(tail, weekdays);
-    for (let guard = 0; guard < 30 && (await holidayForOrderDate(tx, orderId, target)); guard++) target = nextDeliveryDateAfter(target, weekdays);
+    const target = await nextOpenPlanDay(tail, {
+      days: weekdays,
+      skip: async (d) => (await holidayForOrderDate(tx, orderId, d)) != null,
+      maxPlanDays: 31,
+      exhausted: "last",
+    });
+    if (!target) throw new ValidationError("Could not find a make-up slot within 30 days");
 
     await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
     // ponytail: a multi-day bundle (Mon+Tue, Fri+Sat+Sun) still keeps its old eating days, since
@@ -912,14 +906,9 @@ export async function rescheduleDelivery(
     const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
     if (isCutoffPassed(newCutoff, Date.now())) throw new ValidationError("That day's cutoff has already passed");
     // Plans never overlap: a day another live plan of this customer delivers on is not a move target.
-    const [other] = order.userId == null ? [] : await tx.select({ startDate: orders.startDate }).from(deliveries)
-      .innerJoin(orders, eq(orders.id, deliveries.orderId))
-      .where(and(
-        eq(orders.userId, order.userId), ne(orders.id, orderId), orderStatusIn(ONGOING),
-        eq(deliveries.deliveryDate, carriedOn), inArray(deliveries.status, ["scheduled", "paused"]), isNull(deliveries.mergedIntoDeliveryId),
-      )).limit(1);
+    const other = order.userId == null ? null : (await otherPlanDays(tx, { userId: order.userId, excludeOrderId: orderId, rule: "rows" })).onTrip(carriedOn);
     if (other) {
-      const kind = other.startDate < order.startDate ? "earlier plan" : "renewal";
+      const kind = other < order.startDate ? "earlier plan" : "renewal";
       throw new ValidationError(`Your ${kind} already delivers on ${humanDate(carriedOn)}. Pick another day.`);
     }
 
@@ -1062,28 +1051,19 @@ export async function redeliverTrip(
     if (!order || order.status === "cancelled" || order.status === "completed") {
       throw new ValidationError("This subscription can no longer be re-delivered");
     }
-    const deliveryDays = await loadPlanDays(tx, order);
     const { timezone, cutoffHour } = await getAppSettings();
     const today = appTodayIso(timezone);
 
-    let targetDate: string | null = null;
-    let targetCutoff = 0;
-    let cursor = row.deliveryDate;
-    for (let guard = 0; guard < 30 && !targetDate; guard++) {
-      try {
-        cursor = nextDeliveryDateAfter(cursor, deliveryDays);
-      } catch {
-        break;
-      }
-      if (isWeekendDay(weekdayKey(parseIsoDateUtc(cursor)))) continue;
-      if (await holidayForOrderDate(tx, orderId, cursor)) continue;
-      const cutoff = cutoffMsFor(cursor, cutoffHour, timezone);
-      if (cursor < today || isCutoffPassed(cutoff, Date.now())) continue;
-      const occupant = await moveTripPreflight(tx, orderId, cursor);
-      if (occupant && occupant.status !== "scheduled") continue;
-      targetDate = cursor;
-      targetCutoff = cutoff;
-    }
+    const targetDate = await nextOpenPlanDay(row.deliveryDate, {
+      days: await loadPlanDays(tx, order, { weekdaysOnly: true }),
+      maxPlanDays: 30,
+      skip: async (cursor) => {
+        if (await holidayForOrderDate(tx, orderId, cursor)) return true;
+        if (cursor < today || isCutoffPassed(cutoffMsFor(cursor, cutoffHour, timezone), Date.now())) return true;
+        const occupant = await moveTripPreflight(tx, orderId, cursor);
+        return occupant != null && occupant.status !== "scheduled";
+      },
+    });
     if (!targetDate) throw new ValidationError("No upcoming delivery day to re-deliver on");
 
     const skipped = await tx.update(deliveries).set({ status: "skipped" })
@@ -1091,7 +1071,7 @@ export async function redeliverTrip(
       .returning({ id: deliveries.id });
     if (skipped.length === 0) throw new ValidationError("Cannot re-deliver a delivery that is no longer scheduled");
 
-    const moved = await moveTrip(tx, row, targetDate, targetCutoff, null, order.persons, false);
+    const moved = await moveTrip(tx, row, targetDate, cutoffMsFor(targetDate, cutoffHour, timezone), null, order.persons, false);
     await tx.insert(orderActivities).values([
       { orderId, deliveryId: row.id, type: "skipped", note: `Re-delivered on ${targetDate} (driver could not deliver)`, createdBy: actorId },
       { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Re-delivery of ${row.deliveryDate}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },
