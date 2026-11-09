@@ -563,6 +563,7 @@ body:has(.xl):not(:has(.crm-app)) {
   .xl-nav-link {
     position: relative;
     padding-block: 6px;
+    white-space: nowrap;
     transition: color var(--duration-fast) ease;
   }
 
@@ -694,7 +695,8 @@ body:has(.xl):not(:has(.crm-app)) {
     }
   }
 
-  @media (min-width: 1024px) {
+  /* Six nav items need ~1200px; below that the burger sheet carries them. */
+  @media (min-width: 1200px) {
     .xl-nav,
     .xl-account {
       display: flex;
@@ -1448,6 +1450,73 @@ body:has(.xl):not(:has(.crm-app)) {
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--xl-navy-800);
+  }
+
+  /* ---------- About (founder page) ---------- */
+
+  .xl-about-hero {
+    padding-block: clamp(40px, 6vw, 72px) 32px;
+  }
+
+  .xl-about-title {
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  .xl-about-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-block: 40px;
+    border-top: 1px solid var(--card-line, #e1e7f2);
+  }
+
+  .xl-about-h2 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 2.8vw, 32px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--xl-navy-800);
+  }
+
+  .xl-about-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 16px clamp(24px, 4vw, 48px);
+  }
+
+  .xl-growth {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .xl-growth li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 12px;
+    border-radius: 20px;
+    background: var(--surface-pink);
+    font-weight: 700;
+    color: var(--xl-navy-800);
+  }
+
+  .xl-growth img {
+    width: auto;
+    height: 72px;
+    object-fit: contain;
+  }
+
+  .xl-about-close {
+    align-items: flex-start;
+    padding-bottom: 72px;
   }
 
   /* ---------- Quotes ---------- */

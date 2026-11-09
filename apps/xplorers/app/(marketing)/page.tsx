@@ -180,9 +180,14 @@ export default function HomePage({
               ))}
             </ul>
             <p className="xl-founder-motto">Connection first. Growth follows.</p>
-            <Button href="/contact" variant="secondary">
-              Talk to {FOUNDER.short}
-            </Button>
+            <div className="xl-row">
+              <Button href="/founder" icon="arrow-right">
+                Read {FOUNDER.short}&rsquo;s story
+              </Button>
+              <Button href="/contact" variant="secondary">
+                Talk to {FOUNDER.short}
+              </Button>
+            </div>
           </div>
         </div>
       </section>

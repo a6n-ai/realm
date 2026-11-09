@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/families",
     "/schools",
     "/birthdays",
+    "/founder",
     "/the-place",
     "/contact",
     "/membership",

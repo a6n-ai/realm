@@ -2,6 +2,7 @@ export const NAV = [
   { href: "/classes", label: "Classes" },
   { href: "/whats-on", label: "What's on" },
   { href: "/#pricing", label: "Pricing" },
+  { href: "/founder", label: "Meet the educator" },
   { href: "/the-place", label: "Our little space" },
   { href: "/contact", label: "Find us" },
 ] as const;
@@ -26,6 +27,22 @@ export const FOUNDER = {
     "My journey began almost three decades ago as a recreational and competitive figure skating coach. Life had other plans, leading me to homeschool my child with autism (2e, twice exceptional) and support children with diverse learning needs and their families.",
   ],
   credential: "Specialist Diploma in teaching children with special needs",
+  calling: [
+    "What began as a personal journey became a calling: to help as many children as possible discover their strengths, build confidence and thrive in their own ways.",
+    "With a Specialist Diploma in teaching children with special needs, I embrace each child's unique abilities and interests.",
+  ],
+  connection: [
+    "Every child learns differently. I begin by building trust, understanding their interests and creating a space where they feel comfortable exploring, belonging and discovering what they can do.",
+    "The goal isn't for children to depend on me. It's to help them develop the confidence and skills to keep growing independently.",
+  ],
+  /** The Blue Morpho life cycle the founder uses for the studio's five values. */
+  growth: [
+    { word: "Connect", src: "/studio/morpho-egg.webp", alt: "Blue Morpho eggs on a green leaf" },
+    { word: "Explore", src: "/studio/morpho-caterpillar.webp", alt: "Blue Morpho caterpillar" },
+    { word: "Belong", src: "/studio/morpho-chrysalis.webp", alt: "Green Blue Morpho chrysalis" },
+    { word: "Create", src: "/studio/morpho-emerging.webp", alt: "Blue Morpho emerging from its chrysalis" },
+    { word: "Grow", src: "/studio/morpho-butterfly.webp", alt: "Adult Blue Morpho butterfly with blue wings" },
+  ],
   approach: [
     { title: "Observe", body: "Interests, pace, strengths, preferences and sensory needs, without expecting a child to fit a fixed class." },
     { title: "Spark", body: "STEAM, sensory play and creative making to spark curiosity and thoughtfully introduce new challenges." },

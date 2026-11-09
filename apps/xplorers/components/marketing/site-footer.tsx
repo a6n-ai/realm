@@ -10,6 +10,7 @@ const PAGES = [
   { href: "/membership", label: "Membership" },
   { href: "/birthdays", label: "Birthdays" },
   { href: "/schools", label: "Schools & teams" },
+  { href: "/founder", label: "Meet the educator" },
   { href: "/the-place", label: "Our little space" },
   { href: "/faq", label: "FAQ" },
 ];
