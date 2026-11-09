@@ -14,11 +14,11 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
-import { couponsService } from "@/lib/services/coupons.service";
+import { applyDiscountLane } from "@/lib/services/discount-lane";
 import { userIdByPublicId } from "@/lib/services/session-service";
 import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
-import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
@@ -161,13 +161,15 @@ async function quote(
   const session = await getSession();
   const userId = session?.user?.id ? await userIdByPublicId(session.user.id) : null;
 
-  const best = await couponsService.resolveBestCoupons({
-    subtotal: postCatalog,
+  const lane = await applyDiscountLane({
+    postCatalog,
     planType,
     userId,
     paymentMethodId: methodId,
     manualCodes: typeof couponCodes === "string" ? [couponCodes] : couponCodes,
+    strict: false,
   });
+  const { best } = lane;
 
   // Coins mirror the coupon lane: resolved against the remaining PRE-TAX
   // subtotal (after coupon lines), never a client-sent amount, and capped with
@@ -175,8 +177,8 @@ async function quote(
   // how the preview and the charged order end up disagreeing by a cent.
   // Signed out, a first-order coupon is priced in (most visitors are new) but labelled, since sign-in can
   // still drop it for a returning customer; checkout then names why. Lines and redemptions share an index.
-  const newOnly = (i: number) => userId == null && best.redemptions[i]?.coupon.kind === "first_order";
-  const lines = best.lines.map((l, i) => (newOnly(i) ? { ...l, label: `${l.label} (new customers)` } : l));
+  const newOnly = (i: number) => userId == null && lane.applied[i]?.coupon.kind === "first_order";
+  const lines = lane.lines.map((l, i) => (newOnly(i) ? { ...l, label: `${l.label} (new customers)` } : l));
   let coinBalance: number | null = null;
   let coinsError: string | undefined;
   let coinCap: RepriceResult["coinCap"] = null;
@@ -207,7 +209,7 @@ async function quote(
         // quote would show more coins than createOrder spends (it refuses over that limit).
         coinsError = `You can use up to ${maxRedeemPctOfBalance}% of your coins at once — up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
-        const pctCap = maxPct == null ? Infinity : round2(postCatalog * (maxPct / 100));
+        const { pctCap } = coinLimits({ subtotal: postCatalog, balance: coinBalance, maxPct, maxRedeemPctOfBalance });
         const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
         if (redemption.currencyValue > 0) {
           coinsSpent = redemption.coinsSpent;
@@ -236,7 +238,7 @@ async function quote(
     balance: coinBalance - coinsSpent,
     cap: await getMaxWalletBalance(),
   });
-  const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r, i) => ({
+  const appliedCoupons: AppliedCoupon[] = lane.applied.map((r, i) => ({
     code: r.coupon.code,
     name: r.coupon.name,
     amount: r.amount,
