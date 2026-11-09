@@ -1,5 +1,6 @@
 "use client";
 
+import { initials } from "@/lib/format/initials";
 import { ADMIN_ROLES, ALL_ROLES, STAFF_ROLES, isAdmin } from "@/lib/auth/roles";
 import * as React from "react";
 import {
@@ -179,7 +180,7 @@ export function AppSidebar({
     window.addEventListener(SECTION_READ_EVENT, onRead);
     return () => window.removeEventListener(SECTION_READ_EVENT, onRead);
   }, [activity]);
-  const initials = (user.name?.trim() || user.email).slice(0, 2).toUpperCase();
+  const userInitials = initials(user.name?.trim() || user.email);
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
@@ -266,7 +267,7 @@ export function AppSidebar({
                 <SidebarMenuButton size="lg">
                   <Avatar className="size-8 rounded-md">
                     <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} className="rounded-md" />
-                    <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+                    <AvatarFallback className="rounded-md">{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col leading-tight">
                     <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>

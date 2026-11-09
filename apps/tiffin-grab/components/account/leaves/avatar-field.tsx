@@ -1,5 +1,6 @@
 "use client";
 
+import { initials } from "@/lib/format/initials";
 import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
 import type { ComponentType } from "react";
 import { useRef, useState, useCallback } from "react";
@@ -27,15 +28,6 @@ import { updateMyAvatar, removeMyAvatar } from "@/lib/account/avatar-actions";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
-
-function initials(name: string | null): string {
-  if (!name?.trim()) return "U";
-  const words = name.trim().split(/\s+/);
-  return words
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-}
 
 export function AvatarField({
   image,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { avatarColour, initials } from "../action-pill";
+import { initials } from "@/lib/format/initials";
+import { avatarColour } from "../action-pill";
 
 describe("initials", () => {
   it("takes first and last word", () => expect(initials("hrithik raj kumar")).toBe("HK"));

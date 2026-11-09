@@ -1,5 +1,6 @@
 "use client";
 
+import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
@@ -29,8 +30,6 @@ const COLUMNS: readonly Column<GroupColumn>[] = [
   { key: "created", label: "Created" },
   { key: "actions", label: "", align: "right" },
 ];
-
-const ACTION_LABEL: Record<string, string> = { coins: "Coins given", email: "Emailed", discount: "Coupon applied" };
 
 export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTableRow[]; spec: FacetDef[]; total: number; page: number; size: number }) {
   const tz = useTimezone();

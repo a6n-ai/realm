@@ -1,5 +1,6 @@
 "use client";
 
+import { CONSENT_LABEL } from "@/lib/notifications/consent-labels";
 import { pageOffset } from "@/lib/list/pagination";
 import { AppDate } from "@/components/dashboard/app-date";
 import { ListIcon } from "lucide-react";
@@ -21,13 +22,6 @@ export type ContactListRow = {
   memberCount: number;
   createdAt: number;
   isSegment: boolean;
-};
-
-const CONSENT_LABEL: Record<string, string> = {
-  purchase: "Purchase (expires after 24 months)",
-  express_optin: "Express opt-in",
-  event_signup: "Event signup",
-  import_other: "Other",
 };
 
 const COLUMNS: readonly Column<ContactListSortColumn | "consent" | "actions">[] = [

@@ -1,5 +1,6 @@
 "use client";
 
+import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -37,8 +38,6 @@ const ACTIVITY_COLUMNS = [
   { key: "by", label: "By" },
   { key: "result", label: "Result" },
 ] as const satisfies readonly { key: ActivityColumn; label: string }[];
-
-const ACTION_LABEL: Record<string, string> = { coins: "Gave coins", email: "Emailed", campaign: "Campaign", discount: "Applied coupon" };
 
 function summary(a: GroupActionRow): string {
   const ids = (k: string) => (Array.isArray(a.result[k]) ? (a.result[k] as unknown[]).length : 0);

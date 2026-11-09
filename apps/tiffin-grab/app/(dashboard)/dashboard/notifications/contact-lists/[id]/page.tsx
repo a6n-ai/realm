@@ -1,3 +1,4 @@
+import { CONSENT_LABEL } from "@/lib/notifications/consent-labels";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { BackButton, SectionCard, StatCard } from "@foundry/design-system";
@@ -15,13 +16,6 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { convertContactToCustomer } from "../actions";
 
 export const dynamic = "force-dynamic";
-
-const CONSENT_LABEL: Record<string, string> = {
-  purchase: "Purchase (expires after 24 months)",
-  express_optin: "Express opt-in",
-  event_signup: "Event signup",
-  import_other: "Other",
-};
 
 export default async function ContactListPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

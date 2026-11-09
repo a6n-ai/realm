@@ -1,3 +1,4 @@
+import { initials } from "@/lib/format/initials";
 /* eslint-disable */
 "use client";
 
@@ -88,7 +89,6 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
  * the first client frame show a dashed placeholder, so hydration never sees a clock. */
 /** The account's photo, or its initials, as a round glass button to Account — the iOS profile corner. */
 function AccountAvatar({ name, image, active }: { name: string | null; image: string | null; active: boolean }) {
-  const initials = (name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
   return (
     <Link
       href="/me/account"
@@ -100,7 +100,7 @@ function AccountAvatar({ name, image, active }: { name: string | null; image: st
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image} alt="" className="size-full object-cover" />
       ) : (
-        <span aria-hidden>{initials}</span>
+        <span aria-hidden>{initials(name)}</span>
       )}
     </Link>
   );

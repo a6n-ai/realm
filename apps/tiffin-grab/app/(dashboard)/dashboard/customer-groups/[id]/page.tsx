@@ -1,3 +1,4 @@
+import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CoinsIcon, HistoryIcon, MailIcon, PlayIcon, UsersIcon } from "lucide-react";
@@ -9,8 +10,6 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getCustomerGroup, groupStats, listGroupActions } from "@/lib/services/customer-groups.service";
 import { GroupView } from "./group-view";
-
-const ACTION_LABEL: Record<string, string> = { coins: "Coins given", email: "Emailed", discount: "Coupon applied", campaign: "Campaign" };
 
 export default function CustomerGroupPage({ params }: { params: Promise<{ id: string }> }) {
   return (

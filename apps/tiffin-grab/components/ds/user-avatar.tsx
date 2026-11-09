@@ -1,12 +1,6 @@
+import { initials } from "@/lib/format/initials";
 import { Avatar, AvatarBadge, AvatarFallback } from "@foundry/ui/avatar";
 import { cn } from "@foundry/ui/cn";
-
-function initials(name: string | null, fallback: string | null): string {
-  const source = (name?.trim() || fallback?.trim() || "?").split(/\s+/);
-  const first = source[0]?.[0] ?? "";
-  const last = source.length > 1 ? (source[source.length - 1]?.[0] ?? "") : "";
-  return (first + last).toUpperCase() || "?";
-}
 
 const PRESENCE_CLASS: Record<"active" | "idle" | "off", string> = {
   active: "bg-ok",
@@ -33,7 +27,7 @@ export function UserAvatar({
 }) {
   return (
     <Avatar size={size} className={cn(className)}>
-      <AvatarFallback>{initials(name, fallbackText ?? null)}</AvatarFallback>
+      <AvatarFallback>{initials(name?.trim() || fallbackText)}</AvatarFallback>
       {presence && <AvatarBadge className={PRESENCE_CLASS[presence]} />}
     </Avatar>
   );
