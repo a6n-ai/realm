@@ -24,6 +24,7 @@ import {
 import { ledgerService } from "./ledger.service";
 import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { getAppSettings } from "./app-settings.service";
 import { settleAddonPayment } from "./order-addons.service";
 import { verifyPayment, refundPaymentInTx } from "@/lib/payments/verification";
 import { resolveUserId } from "@/lib/services/session-service";
@@ -156,14 +157,15 @@ export async function settleStripePayment(
     return "order_cancelled";
   }
 
+  const { currency } = await getAppSettings();
   const expected = toCents(pay.amount) + toCents(pay.surchargeAmount ?? 0);
-  if (st.amountReceivedCents !== expected || st.currency !== "cad") {
+  if (st.amountReceivedCents !== expected || st.currency !== currency.toLowerCase()) {
     await activityOnce(
       pay.orderId,
       "payment_failed",
       NOTE_AMOUNT_MISMATCH,
       piId,
-      `- received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} CAD, not settled`,
+      `- received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} ${currency.toUpperCase()}, not settled`,
     );
     if (order) {
       await db.transaction((tx) => enqueueStaffNotification(tx, {
@@ -524,8 +526,9 @@ export async function payByCard(i: {
     const customerId = await ensureCustomer(rt.stripe, customerStore, who);
 
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
+    const { currency } = await getAppSettings();
     const createIntent = (cid: string) => createAndConfirmIntent(rt.stripe, {
-      amountCents: baseCents + extraCents, surchargeCents: fee, customerId: cid, paymentRef: pay.publicId,
+      amountCents: baseCents + extraCents, surchargeCents: fee, currency, customerId: cid, paymentRef: pay.publicId,
       ...(saved ? { paymentMethodId: saved, attempt: String(pay.chargeAttempt) } : { confirmationTokenId: (i.source as { confirmationTokenId: string }).confirmationTokenId }),
       orgRef: order.organizationId, taxCalculationId: calcId, returnUrl: i.returnUrl, description: `Order ${order.publicId}`,
     });
@@ -604,7 +607,7 @@ async function chargeSavedCardLocked(paymentPublicId: string, actorPublicId: str
     let r;
     try {
       r = await chargeSavedCard(rt.stripe, {
-        amountCents: baseCents + extraCents, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
+        amountCents: baseCents + extraCents, currency: (await getAppSettings()).currency, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
         orgRef: order.organizationId, taxCalculationId: calcId, attempt: String(pay.chargeAttempt),
       });
     } catch (e) {

@@ -14,7 +14,7 @@ import {
 import { requirePermission } from "@/lib/auth/guards";
 import { runAction } from "@/lib/actions/action-result";
 import { clearStripeCustomers, stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
-import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
+import { ensurePaymentCatalog, getAppSettings, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/settings/payments";
 
@@ -96,7 +96,7 @@ export async function saveStripeSettingsAction(
     if (patch.tax?.enabled) {
       const rt = await stripeRuntime();
       if (!rt || !patch.tax.taxCode) throw new ValidationError("Connect Stripe and pick a tax code first");
-      const ready = await taxReadiness(rt.stripe, patch.tax.taxCode);
+      const ready = await taxReadiness(rt.stripe, patch.tax.taxCode, (await getAppSettings()).currency);
       if (!ready.ok) {
         throw new ValidationError("Stripe Tax is not ready: check head office, registrations and the test calculation");
       }
@@ -113,7 +113,7 @@ export async function checkTaxReadinessAction(taxCode: string) {
     const rt = await stripeRuntime();
     if (!rt) throw new ValidationError("Connect Stripe first");
     try {
-      return await taxReadiness(rt.stripe, taxCode);
+      return await taxReadiness(rt.stripe, taxCode, (await getAppSettings()).currency);
     } catch (e) {
       if (isStripeKeyRejected(e)) throw new ValidationError(REJECTED);
       throw e;
@@ -131,7 +131,7 @@ export async function sendTestEventAction() {
     try {
       await rt.stripe.paymentIntents.create({
         amount: 50,
-        currency: "cad",
+        currency: (await getAppSettings()).currency.toLowerCase(),
         confirm: true,
         payment_method: "pm_card_visa",
         automatic_payment_methods: { enabled: true, allow_redirects: "never" },

@@ -86,6 +86,7 @@ export function useWarmStripe(key: string | null | undefined) {
 
 export function CardPayProvider(props: Props) {
   const { resolvedTheme } = useTheme();
+  const currency = useAppCurrency();
   const key = props.ctx.publishableKey;
   useWarmStripe(key);
   const stripePromise = useMemo(() => (key ? stripeFor(key) : null), [key]);
@@ -96,7 +97,7 @@ export function CardPayProvider(props: Props) {
       stripe={stripePromise}
       // Only the wallet button lives in this Elements (the card form has its own), so it can take the capsule
       // radius every other bar button has without rounding the card fields.
-      options={{ mode: "payment", amount: props.amountCents, currency: "cad", setupFutureUsage: "off_session", appearance: { ...appearance, variables: { ...appearance.variables, borderRadius: "999px" } } }}
+      options={{ mode: "payment", amount: props.amountCents, currency: currency.toLowerCase(), setupFutureUsage: "off_session", appearance: { ...appearance, variables: { ...appearance.variables, borderRadius: "999px" } } }}
     >
       <Runner {...props} stripePromise={stripePromise} appearance={appearance} />
     </Elements>

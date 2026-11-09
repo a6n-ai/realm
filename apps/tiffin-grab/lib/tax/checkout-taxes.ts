@@ -1,5 +1,5 @@
 import type { TaxLine } from "@foundry/payments";
-import { getProvinceTaxes } from "@/lib/services/app-settings.service";
+import { getAppSettings, getProvinceTaxes } from "@/lib/services/app-settings.service";
 import { calculateTax, type TaxAddress, type TaxQuote } from "@foundry/payments/stripe";
 import { createLogger } from "@foundry/commons/logger";
 import { sharedCache } from "@/lib/cache";
@@ -56,7 +56,7 @@ export async function stripeTaxFor(
     if (hit && (hit.expiresAt ?? Infinity) > Date.now() + 5 * 60_000) return hit;
   }
   try {
-    const q = await calculateTax(rt.stripe, { amountCents: i.taxableCents, taxCode: rt.cfg.tax.taxCode, reference: i.reference, address: i.address });
+    const q = await calculateTax(rt.stripe, { amountCents: i.taxableCents, currency: (await getAppSettings()).currency, taxCode: rt.cfg.tax.taxCode, reference: i.reference, address: i.address });
     if (opts.cache) await quotes().set(key, q);
     return q;
   } catch (e) {

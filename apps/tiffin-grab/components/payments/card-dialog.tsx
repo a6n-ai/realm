@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatMoney } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
@@ -73,6 +73,7 @@ export function CardDialog(p: CommonProps & {
   loadSession?: () => Promise<string | null>;
 }) {
   const { open, loadSession, stripePromise, appearance, amountCents } = p;
+  const currency = useAppCurrency();
   const [session, setSession] = useState<Session | null>(null);
   const count = useRef(0);
   useEffect(() => {
@@ -90,7 +91,7 @@ export function CardDialog(p: CommonProps & {
       key={session.key}
       stripe={stripePromise}
       options={{
-        mode: "payment", amount: amountCents, currency: "cad", setupFutureUsage: "off_session", appearance,
+        mode: "payment", amount: amountCents, currency: currency.toLowerCase(), setupFutureUsage: "off_session", appearance,
         ...(session.secret ? { customerSessionClientSecret: session.secret } : {}),
       }}
     >
