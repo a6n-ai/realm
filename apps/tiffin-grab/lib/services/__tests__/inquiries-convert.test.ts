@@ -104,6 +104,14 @@ describe("inquiriesService.convert quick adds", () => {
       .rejects.toThrow("Add the customer's real name before converting");
   });
 
+  it("rejects generated-looking names in other case, spacing or number", async () => {
+    const q = await inquiriesService.create({ phone: "+16475556010", sourceKey: "manual" });
+    for (const name of [q.fullName!.toLowerCase(), q.fullName!.replace(" ", "  "), "Lead 99999"]) {
+      await expect(inquiriesService.convert(q.publicId, await orderInput(name, "+16475556010")))
+        .rejects.toThrow("Add the customer's real name before converting");
+    }
+  });
+
   it("rejects a quick add with a blank name", async () => {
     const q = await inquiriesService.create({ phone: "+16475556002", sourceKey: "manual" });
     await expect(inquiriesService.convert(q.publicId, await orderInput("  ", "+16475556002"))).rejects.toThrow("Name is required");

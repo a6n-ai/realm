@@ -23,7 +23,7 @@ import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { generatedLeadName, isQuickAdd } from "@/lib/inquiries/quick-add";
+import { generatedLeadName, isQuickAdd, looksGeneratedName } from "@/lib/inquiries/quick-add";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 /** Reject inquiry→order convert when this phone already has a live subscription. */
@@ -554,7 +554,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
     // A generated "Lead <n>" must never become a customer's name.
     const quick = isQuickAdd(inq);
-    if (quick && orderInput.contact.fullName.trim() === inq.fullName) {
+    if (looksGeneratedName(orderInput.contact.fullName)) {
       throw new ValidationError("Add the customer's real name before converting");
     }
     if (!contactPhone) throw new ValidationError("Phone is required");
