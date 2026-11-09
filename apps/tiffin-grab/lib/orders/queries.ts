@@ -25,6 +25,14 @@ export const laterOrderSql = sql<boolean>`${laterOrder()}`;
 /** Trial conversion: a later plan that is not itself a trial. */
 export const laterPaidOrderSql = sql<boolean>`${laterOrder(sql`next_order.trial_length is null`)}`;
 
+const laterBookedAt = (extra?: SQL) => sql<number | null>`(select min(next_order.created_at) from ${orders} as next_order where ${laterOrderWhere}${extra ? sql` and ${extra}` : sql``})`;
+
+/** When the first plan counted by `laterOrderSql` was booked (epoch ms), or null. */
+export const laterOrderBookedAtSql = laterBookedAt();
+
+/** When the first plan counted by `laterPaidOrderSql` was booked (epoch ms), or null. */
+export const laterPaidOrderBookedAtSql = laterBookedAt(sql`next_order.trial_length is null`);
+
 export type RenewalStatus = "renewed" | "unpaid" | "waitlisted" | "none";
 
 /**

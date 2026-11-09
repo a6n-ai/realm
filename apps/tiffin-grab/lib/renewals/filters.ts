@@ -15,12 +15,16 @@ export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed"
 /** Pills. `booked_unpaid` is the KPI drill (unpaid + waitlisted) and is not a pill. */
 export const RENEWAL_STATUSES: readonly Exclude<RenewalStatusFilter, "booked_unpaid">[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
 
-/** What the top date range filters on: the plan's last tiffin (default), its order date, or any delivery in range. */
-export type DateBy = "last" | "ordered" | "running";
+/**
+ * What the top date range filters on: the plan's last tiffin (default), its order date, any delivery
+ * in range, or when the customer booked the next plan (renewal / trial conversion date).
+ */
+export type DateBy = "last" | "ordered" | "running" | "renewed";
 export const DATE_BY: readonly { value: DateBy; label: string }[] = [
   { value: "last", label: "Last tiffin in range" },
   { value: "ordered", label: "Ordered in range" },
   { value: "running", label: "Running in range" },
+  { value: "renewed", label: "Next plan booked in range" },
 ];
 
 /**

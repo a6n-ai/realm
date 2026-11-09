@@ -1,13 +1,11 @@
 /**
- * Trial → plan conversion for Analytics Overview.
- *
- * Eligible: trials whose last tiffin falls in the selected range AND whose conversion window has
- * closed (`endDate + windowDays <= today`), so a customer still deciding is not counted as lost.
- * Trials still inside the window come back as `open` and stay out of the rate.
- * Whether a trial converted is decided in SQL by the same "later plan" rule the Renewals desk uses.
+ * Trial → plan conversion for Analytics Overview, dated by when each trial was decided:
+ * - converted: on the day its first later plan was booked (`laterPaidOrderBookedAtSql`), so a
+ *   conversion shows in the month the customer bought, not the month the trial ended;
+ * - lost: on the day its conversion window closed (`endDate + windowDays`) with no later plan;
+ * - open: ended in range, no plan yet, window still running. Open trials stay out of the rate.
+ * A trial is counted in at most one bucket for a given range, so the rate never passes 100%.
  */
-import { ratePct } from "@/lib/money";
-import { addDaysIso } from "@foundry/commons/util/dates";
 
 export const TRIAL_CONVERT_WINDOW_DAYS = 14;
 
@@ -15,8 +13,8 @@ export type TrialEndRow = {
   orderId: string;
   /** ISO calendar date of the last trial delivery. */
   endDate: string;
-  /** A later non-trial plan exists for the customer (`laterPaidOrderSql`). */
-  converted: boolean;
+  /** ISO calendar date the first later non-trial plan was booked, or null. */
+  convertedOn: string | null;
 };
 
 export type TrialConversionStats = {
@@ -27,34 +25,52 @@ export type TrialConversionStats = {
   windowDays: number;
 };
 
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 /** Last calendar day on which a trial can still convert. */
 export function conversionDeadline(endDate: string, windowDays: number): string {
   return addDaysIso(endDate, windowDays);
 }
 
-/** `todayIso` is the current calendar day in the business timezone. */
+/** First trial end date whose window can close inside a range starting `fromIso`. */
+export function earliestRelevantEnd(fromIso: string, windowDays = TRIAL_CONVERT_WINDOW_DAYS): string {
+  return addDaysIso(fromIso, -windowDays);
+}
+
+/** All dates are ISO calendar days in the business timezone; the range is inclusive. */
 export function summarizeTrialConversion(input: {
   trials: TrialEndRow[];
+  fromIso: string;
+  toIso: string;
   todayIso: string;
   windowDays?: number;
 }): TrialConversionStats {
   const windowDays = input.windowDays ?? TRIAL_CONVERT_WINDOW_DAYS;
-  let eligible = 0;
+  const inRange = (iso: string) => iso >= input.fromIso && iso <= input.toIso;
   let converted = 0;
+  let lost = 0;
   let open = 0;
   for (const trial of input.trials) {
-    if (conversionDeadline(trial.endDate, windowDays) > input.todayIso) {
-      open += 1;
+    if (trial.convertedOn) {
+      if (inRange(trial.convertedOn)) converted += 1;
       continue;
     }
-    eligible += 1;
-    if (trial.converted) converted += 1;
+    const deadline = conversionDeadline(trial.endDate, windowDays);
+    if (deadline > input.todayIso) {
+      if (inRange(trial.endDate)) open += 1;
+    } else if (inRange(deadline)) {
+      lost += 1;
+    }
   }
+  const eligible = converted + lost;
   return {
     eligible,
     converted,
     open,
-    conversionRatePct: eligible > 0 ? ratePct(converted, eligible) : null,
+    conversionRatePct: eligible > 0 ? Math.round((converted / eligible) * 1000) / 10 : null,
     windowDays,
   };
 }

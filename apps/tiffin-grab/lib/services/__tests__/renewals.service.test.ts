@@ -82,6 +82,17 @@ describe("renewals service (integration)", () => {
     expect(await by({ by: "running", fromIso: addDays(p.last, 1), toIso: addDays(p.last, 5) })).toEqual([]);
   });
 
+  it("top date range: next plan booked in range dates the plan by its renewal", async () => {
+    const p = await plan();
+    const by = (r: Partial<RenewalRange>) => listRenewals("all", f0, p.last, page, { ...open, by: "renewed", ...r }).then(ids);
+    expect(await by({})).toEqual([]);
+    const next = await plan();
+    const bookedAt = Date.parse("2099-01-01T15:00:00Z");
+    await db.update(orders).set({ userId: p.userId, startDate: "2099-01-05", status: "pending", createdAt: bookedAt }).where(eq(orders.id, next.id));
+    expect(await by({ fromMs: bookedAt - 1000, toMs: bookedAt + 1000 })).toEqual([p.publicId]);
+    expect(await by({ fromMs: bookedAt + 1000, toMs: bookedAt + 2000 })).toEqual([]);
+  });
+
   it("ended window lists plans that are over; Status narrows to lapsed or renewed", async () => {
     const running = await plan();
     const done = await plan("completed");

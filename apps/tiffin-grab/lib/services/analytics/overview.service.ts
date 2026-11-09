@@ -4,11 +4,12 @@ import { orders, payments } from "@/db/schema";
 import { clampToToday } from "@/lib/analytics/clamp";
 import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
 import {
+  earliestRelevantEnd,
   summarizeTrialConversion,
   TRIAL_CONVERT_WINDOW_DAYS,
   type TrialConversionStats,
 } from "@/lib/analytics/trial-conversion";
-import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/orders/queries";
+import { lastTiffinSql, laterPaidOrderBookedAtSql, ordersListWhere } from "@/lib/orders/queries";
 import { getComplaintDaily } from "./complaints.service";
 import { getProfitabilityReport, type ProfitabilityReport } from "./profitability.service";
 import { getSignupDaily } from "./customers.service";
@@ -22,15 +23,17 @@ export type { TrialConversionStats };
 export { TRIAL_CONVERT_WINDOW_DAYS };
 
 /**
- * One row per trial order in scope whose last tiffin falls in the range. A cancelled trial nobody
- * paid for never ran, so it is not a trial that could convert. `converted` is `laterPaidOrderSql`:
- * the Renewals desk rule (any later non-trial plan, unpaid and waitlisted included, cancelled never).
+ * Trials decided in range (see `summarizeTrialConversion`). A cancelled trial nobody paid for never
+ * ran, so it is not a trial that could convert. "Converted" is the Renewals desk rule
+ * (`laterPaidOrderSql`: any later non-trial plan, unpaid and waitlisted included, cancelled never),
+ * dated by when that plan was booked.
  */
 export async function getTrialToPlanConversion(scope: AnalyticsScope, now = Date.now()): Promise<TrialConversionStats> {
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = isoDateInZone(scope.toMs, scope.tz);
+  const convertedOn = sql<string | null>`${localDay(laterPaidOrderBookedAtSql, scope.tz)}::text`;
   const rows = await db
-    .select({ orderId: orders.id, endDate: sql<string>`${lastTiffinSql}`, converted: sql<boolean>`${laterPaidOrderSql}` })
+    .select({ orderId: orders.id, endDate: sql<string>`${lastTiffinSql}`, convertedOn })
     .from(orders)
     .where(
       and(
@@ -40,13 +43,14 @@ export async function getTrialToPlanConversion(scope: AnalyticsScope, now = Date
         sql`not (${orders.status} = 'cancelled' and not exists (
           select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} in ('paid', 'simulated_paid')
         ))`,
-        sql`${lastTiffinSql} >= ${from}`,
-        sql`${lastTiffinSql} <= ${to}`,
+        sql`(${lastTiffinSql} between ${earliestRelevantEnd(from)} and ${to} or ${convertedOn} between ${from} and ${to})`,
       ),
     );
   return summarizeTrialConversion({
+    fromIso: from,
+    toIso: to,
     todayIso: isoDateInZone(now, scope.tz),
-    trials: rows.map((r) => ({ orderId: String(r.orderId), endDate: String(r.endDate).slice(0, 10), converted: r.converted })),
+    trials: rows.map((r) => ({ orderId: String(r.orderId), endDate: String(r.endDate).slice(0, 10), convertedOn: r.convertedOn })),
   });
 }
 

@@ -29,7 +29,7 @@ async function makeUser() {
   return u!;
 }
 
-async function makeOrder(userId: bigint, over: { trial?: boolean; status?: string; startDate: string; lastDelivery: string; paid?: boolean }) {
+async function makeOrder(userId: bigint, over: { trial?: boolean; status?: string; startDate: string; lastDelivery: string; paid?: boolean; bookedAt?: string }) {
   const [[plan], [mealSize], [freq]] = await Promise.all([
     db.select({ id: plans.id }).from(plans).limit(1),
     db.select({ id: mealSizes.id }).from(mealSizes).limit(1),
@@ -55,6 +55,7 @@ async function makeOrder(userId: bigint, over: { trial?: boolean; status?: strin
       addressLine: "1 St",
       city: "Toronto",
       postalCode: "M5V 2T6",
+      ...(over.bookedAt ? { createdAt: at(over.bookedAt) } : {}),
     })
     .returning();
   await db.insert(deliveries).values({ orderId: o!.id, deliveryDate: over.lastDelivery, status: "scheduled", cutoffAt: NOW, tiffinUnits: 1 });
@@ -74,8 +75,9 @@ describe("trial to plan conversion", () => {
     await makeOrder(open.id, { trial: true, startDate: "2026-03-30", lastDelivery: "2026-03-31", paid: true });
     const stats = await getTrialToPlanConversion(scope, at("2026-04-10T16:00:00Z"));
     expect(stats).toMatchObject({ eligible: 1, open: 1, converted: 0, conversionRatePct: 0 });
+    // By Apr 15 the second window has closed, but on Apr 14: that loss belongs to April, not March.
     const later = await getTrialToPlanConversion(scope, NOW);
-    expect(later).toMatchObject({ eligible: 2, open: 0 });
+    expect(later).toMatchObject({ eligible: 1, open: 0 });
   });
 
   it("counts an unpaid later plan as converted but not a cancelled one", async () => {
@@ -83,8 +85,8 @@ describe("trial to plan conversion", () => {
     const cancelled = await makeUser();
     const none = await makeUser();
     for (const u of [unpaid, cancelled, none]) await makeOrder(u.id, { trial: true, startDate: "2026-03-02", lastDelivery: "2026-03-04", paid: true });
-    await makeOrder(unpaid.id, { status: "pending", startDate: "2026-03-09", lastDelivery: "2026-03-20" });
-    await makeOrder(cancelled.id, { status: "cancelled", startDate: "2026-03-09", lastDelivery: "2026-03-20" });
+    await makeOrder(unpaid.id, { status: "pending", startDate: "2026-03-09", lastDelivery: "2026-03-20", bookedAt: "2026-03-06T16:00:00Z" });
+    await makeOrder(cancelled.id, { status: "cancelled", startDate: "2026-03-09", lastDelivery: "2026-03-20", bookedAt: "2026-03-06T16:00:00Z" });
     const stats = await getTrialToPlanConversion(scope, NOW);
     expect(stats).toMatchObject({ eligible: 3, converted: 1, open: 0 });
   });
@@ -95,5 +97,20 @@ describe("trial to plan conversion", () => {
     await makeOrder(u.id, { trial: true, startDate: "2026-02-02", lastDelivery: "2026-02-04", paid: true });
     const stats = await getTrialToPlanConversion(scope, NOW);
     expect(stats).toMatchObject({ eligible: 0, open: 0, conversionRatePct: null });
+  });
+});
+
+describe("trial to plan conversion by booking date", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("counts a February trial whose plan was booked in March, not one booked in February", async () => {
+    const march = await makeUser();
+    const feb = await makeUser();
+    for (const u of [march, feb]) await makeOrder(u.id, { trial: true, startDate: "2026-02-23", lastDelivery: "2026-02-25", paid: true });
+    await makeOrder(march.id, { startDate: "2026-03-09", lastDelivery: "2026-03-20", bookedAt: "2026-03-03T16:00:00Z" });
+    await makeOrder(feb.id, { startDate: "2026-03-02", lastDelivery: "2026-03-13", bookedAt: "2026-02-26T16:00:00Z" });
+    const stats = await getTrialToPlanConversion(scope, NOW);
+    expect(stats).toMatchObject({ eligible: 1, converted: 1, open: 0, conversionRatePct: 100 });
   });
 });

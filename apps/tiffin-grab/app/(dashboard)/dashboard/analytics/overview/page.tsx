@@ -108,12 +108,12 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
       title="What share of trials became a plan?"
       subtitle={
         has
-          ? "Ended trials that went on to a later plan"
+          ? `Trials decided in range${t.open > 0 ? ` · ${t.open} still open` : ""}`
           : t.open > 0
             ? `${t.open} still open`
-            : "No trials ended in range"
+            : "No trials decided in range"
       }
-      info={has ? `Trials that ended ${t.windowDays}+ days ago and went on to a later plan.` : undefined}
+      info={has ? `Converted counts on the day the plan was booked; not converted counts when the ${t.windowDays}-day window closed with no plan.` : undefined}
     >
       <GaugeChart
         caption="converted"
@@ -190,8 +190,8 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
             trialConv.eligible === 0
               ? trialConv.open > 0
                 ? `${trialConv.open} still open`
-                : "No trials ended in range"
-              : `Trials that ended ${trialConv.windowDays}+ days ago; converted = any later plan (same rule as Renewals)${trialConv.open > 0 ? ` · ${trialConv.open} still open` : ""}`,
+                : "No trials decided in range"
+              : `Converted by plan booking date; lost when the ${trialConv.windowDays}-day window closed (same rule as Renewals)${trialConv.open > 0 ? ` · ${trialConv.open} still open` : ""}`,
           href: analyticsHref("/dashboard/analytics/customers", sp),
           badge: "Conversion",
           badgeTone: "brand",

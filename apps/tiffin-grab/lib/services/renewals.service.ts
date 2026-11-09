@@ -8,7 +8,7 @@ import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, 
 import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { renewalMoney } from "./orders.service";
-import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
+import { lastTiffinSql, laterOrderBookedAtSql, laterPaidOrderBookedAtSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 
 export type RenewalRow = {
@@ -49,8 +49,15 @@ const endingWhere = (today: string, days: number) => and(running, sql`${lastTiff
 /** Plans whose last tiffin was in the last `days` days (over, renewed or not; Status narrows to the lapsed ones). */
 const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDaysIso(today, -days)} and ${addDaysIso(today, -1)}`);
 
-/** The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start. */
-function rangeWhere(r: RenewalRange) {
+/**
+ * The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start.
+ * Renewed = the next plan was booked inside it (on Trials, the next non-trial plan: the conversion date).
+ */
+function rangeWhere(r: RenewalRange, tab: RenewalsTab) {
+  if (r.by === "renewed") {
+    const bookedAt = tab === "trials" ? laterPaidOrderBookedAtSql : laterOrderBookedAtSql;
+    return and(sql`${bookedAt} is not null`, r.fromMs != null ? sql`${bookedAt} >= ${r.fromMs}` : undefined, r.toMs != null ? sql`${bookedAt} <= ${r.toMs}` : undefined);
+  }
   if (r.by === "ordered") return and(r.fromMs != null ? gte(orders.createdAt, r.fromMs) : undefined, r.toMs != null ? lte(orders.createdAt, r.toMs) : undefined);
   if (r.by === "running") return and(r.toIso ? sql`${orders.startDate} <= ${r.toIso}` : undefined, r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined);
   return and(r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined, r.toIso ? sql`${lastTiffinSql} <= ${r.toIso}` : undefined);
@@ -75,7 +82,7 @@ function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: stri
     tabWhere(f.tab),
     visibleOrgWhere(visible),
     runningOrDone,
-    rangeWhere(range),
+    rangeWhere(range, f.tab),
     f.ending != null || f.ended != null
       ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
       : undefined,
@@ -190,7 +197,7 @@ export async function countRenewals(visible: "all" | string[], tab: RenewalsTab,
       lapsed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} < ${today}) as int)`,
     })
     .from(orders)
-    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, rangeWhere(range)));
+    .where(and(tabWhere(tab), visibleOrgWhere(visible), runningOrDone, rangeWhere(range, tab)));
   return r;
 }
 
