@@ -51,9 +51,22 @@ export const databaseUrl = () => process.env.DATABASE_URL ?? DEFAULT_DATABASE_UR
 // Dev fallbacks keep local .env files without BETTER_AUTH_SECRET working; production must set it.
 const DEV_SECRETS = { "receipt-link": "dev-receipt-secret", "magic-link": "dev-magic-link-secret" } as const;
 
+/**
+ * What .github/workflows/deploy-worker.yml sets for `next build` only, so importing lib/auth while
+ * collecting page data doesn't throw. It is public, so nothing may ever be signed with it.
+ */
+export const BUILD_PLACEHOLDER_SECRET = "build-time-placeholder-not-used-at-runtime";
+
 /** BETTER_AUTH_SECRET, the app's one server signing secret, for `purpose`. Each purpose derives its own key from it. */
 export function authSecret(purpose: "auth" | "review-nudge" | keyof typeof DEV_SECRETS): string | undefined {
   const secret = process.env.BETTER_AUTH_SECRET;
+  if (secret === BUILD_PLACEHOLDER_SECRET) {
+    // Better Auth's config reads the secret at import; it only signs per request, which a build never serves.
+    // Anything else asking during the build is a prerendered page signing a link: fail the build instead.
+    // At runtime it means the Worker secret is missing: fail loudly rather than sign with a public string.
+    if (purpose === "auth" && process.env.NEXT_PHASE === "phase-production-build") return secret;
+    throw new Error(`BETTER_AUTH_SECRET is the build placeholder; refusing to use it for "${purpose}"`);
+  }
   if (secret || isProduction() || !(purpose in DEV_SECRETS)) return secret;
   return DEV_SECRETS[purpose as keyof typeof DEV_SECRETS];
 }
