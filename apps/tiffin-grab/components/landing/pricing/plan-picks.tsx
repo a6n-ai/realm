@@ -57,14 +57,15 @@ export async function PlanPicks({ plans, lengths, weekdayFreq, maxPct = 25 }: { 
                   <article key={size.id} className="lp-tile lp-pick" data-good={good || undefined}>
                     {good ? <span className="lp-pick__flag">A good place to start</span> : null}
                     <h3 className="lp-tile__title">{size.name}</h3>
-                    <p className="lp-pick__rate"><strong>{money(size.rate)}</strong><small>a tiffin</small></p>
+                    <p className="lp-pick__rate"><strong>{money(size.rate)}</strong>{" "}<small>a tiffin</small></p>
                     <MealParts parts={size.parts} look={look} />
                     <small className="lp-pick__kcal">{size.kcalMin} to {size.kcalMax} kcal</small>
+                    {/* {" "} between flex items: invisible here, but keeps "Total, before tax $186" apart in search snippets. */}
                     <dl className="lp-pick__math">
-                      <div><dt>Plan</dt><dd>{days.length} {days.length === 1 ? "day" : "days"} × {length.weeks} wk</dd></div>
-                      {length.off > 0 ? <div><dt>Length discount</dt><dd>{length.off}% off</dd></div> : null}
-                      {delivery > 0 ? <div><dt>Delivery discount</dt><dd>{delivery}% off</dd></div> : null}
-                      <div className="lp-pick__total"><dt>Total, before tax</dt><dd>{money(total)}</dd></div>
+                      <div><dt>Plan</dt>{" "}<dd>{days.length} {days.length === 1 ? "day" : "days"} × {length.weeks} wk</dd></div>
+                      {length.off > 0 ? <div><dt>Length discount</dt>{" "}<dd>{length.off}% off</dd></div> : null}
+                      {delivery > 0 ? <div><dt>Delivery discount</dt>{" "}<dd>{delivery}% off</dd></div> : null}
+                      <div className="lp-pick__total"><dt>Total, before tax</dt>{" "}<dd>{money(total)}</dd></div>
                     </dl>
                     <Link prefetch={false} href={`/subscribe?${q}`} className="lp-cta">Start this plan<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>
                   </article>

@@ -27,7 +27,7 @@
 .lp-steps__step:nth-child(n + 4) { padding-top: 72px; }
 .lp-steps__off { font-size: clamp(44px, 5vw, 64px); line-height: 1; font-weight: 700; letter-spacing: -0.04em; color: var(--primary-text, var(--primary)); font-variant-numeric: tabular-nums; }
 .lp-steps__label { font-size: 14px; color: var(--muted-foreground); }
-.lp-steps__weeks { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.lp-steps__weeks { order: 1; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 @media (max-width: 640px) {
   .lp-steps { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
   .lp-steps__step, .lp-steps__step:nth-child(n) { padding: 16px 12px; }

@@ -221,22 +221,23 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
         </section>
       </div>
 
-      {/* A till receipt: each term its own line, the total adds up underneath. Read aloud once per change, not per animation frame. */}
+      {/* A till receipt: each term its own line, the total adds up underneath. Read aloud once per change, not per animation frame.
+          The {" "} between flex items is invisible on screen; without it, search snippets read "Subtotal$186". */}
       <div className="lp-receipt">
-        <p className="lp-receipt__head"><span>Estimate, before tax</span><span>{plan.label}, {size.name}</span></p>
+        <p className="lp-receipt__head"><span>Estimate, before tax</span>{" "}<span>{plan.label}, {size.name}</span></p>
         <dl className="lp-receipt__lines">
-          <div><dt>Per tiffin</dt><dd>{money(rate)}</dd></div>
-          <div><dt>Tiffins <small>{eating.length} {eating.length === 1 ? "day" : "days"} × {length.weeks} wk</small></dt><dd>× {tiffins}</dd></div>
+          <div><dt>Per tiffin</dt>{" "}<dd>{money(rate)}</dd></div>
+          <div><dt>Tiffins <small>{eating.length} {eating.length === 1 ? "day" : "days"} × {length.weeks} wk</small></dt>{" "}<dd>× {tiffins}</dd></div>
           {pct > 0 || lenOff > 0 || delOff > 0 ? (
             <>
-              <div><dt>Subtotal</dt><dd>{money(gross)}</dd></div>
-              {lenOff > 0 ? <div className="lp-receipt__off"><dt>{length.weeks}-week discount <small>{lenOff}%</small></dt><dd>−{money(round2(gross * lenOff / 100))}</dd></div> : null}
-              {delOff > 0 ? <div className="lp-receipt__off"><dt>Delivery discount <small>{delOff}%</small></dt><dd>−{money(round2(gross * delOff / 100))}</dd></div> : null}
-              {capped ? <div><dt>Capped at <small>{maxPct}%</small></dt><dd>+{money(round2(gross * (lenOff + delOff) / 100) - off)}</dd></div> : null}
+              <div><dt>Subtotal</dt>{" "}<dd>{money(gross)}</dd></div>
+              {lenOff > 0 ? <div className="lp-receipt__off"><dt>{length.weeks}-week discount <small>{lenOff}%</small></dt>{" "}<dd>−{money(round2(gross * lenOff / 100))}</dd></div> : null}
+              {delOff > 0 ? <div className="lp-receipt__off"><dt>Delivery discount <small>{delOff}%</small></dt>{" "}<dd>−{money(round2(gross * delOff / 100))}</dd></div> : null}
+              {capped ? <div><dt>Capped at <small>{maxPct}%</small></dt>{" "}<dd>+{money(round2(gross * (lenOff + delOff) / 100) - off)}</dd></div> : null}
             </>
           ) : null}
         </dl>
-        <p className="lp-receipt__total"><span>Total <small>before tax</small></span><strong className="tabular-nums">{money(total)}</strong></p>
+        <p className="lp-receipt__total"><span>Total <small>before tax</small></span>{" "}<strong className="tabular-nums">{money(total)}</strong></p>
       </div>
       <p className="sr-only" aria-live="polite">Estimated total {money(gross - off)}, before tax.</p>
       <div className="lp-math__foot">

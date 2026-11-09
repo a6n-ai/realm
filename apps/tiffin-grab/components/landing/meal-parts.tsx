@@ -19,7 +19,7 @@ export function MealParts({ parts, look }: { parts: string[]; look: ReturnType<t
         return (
           <li key={c}>
             <IconTile tint={l.tint} className="lp-parts__icon"><l.icon /></IconTile>
-            {part.count ? <b>{part.count}</b> : null}
+            {part.count ? <><b>{part.count}</b>{" "}</> : null}
             {part.name}
           </li>
         );

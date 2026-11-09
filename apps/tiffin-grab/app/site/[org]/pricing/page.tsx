@@ -240,10 +240,12 @@ export default async function PricingPage() {
           {/* A staircase: each longer plan takes more off every tiffin, read left to right. */}
           <ol className="lp-steps">
             {weeksOff.map((d) => (
+              // Weeks first in the markup so the text (search snippets, screen readers) reads "4 weeks 7% off every
+              // tiffin"; CSS order still draws it under the number. The {" "} keep the words apart in plain text.
               <li key={d.key} className="lp-tile lp-steps__step">
-                <span className="lp-steps__off">{d.percent}%</span>
-                <span className="lp-steps__label">off every tiffin</span>
-                <strong className="lp-steps__weeks">{d.label}</strong>
+                <strong className="lp-steps__weeks">{d.label}</strong>{" "}
+                <span className="lp-steps__off">{d.percent}%</span>{" "}
+                <span className="lp-steps__label">off every tiffin </span>
               </li>
             ))}
           </ol>
