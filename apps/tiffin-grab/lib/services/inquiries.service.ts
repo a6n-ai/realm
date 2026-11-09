@@ -23,7 +23,7 @@ import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { generatedLeadName } from "@/lib/inquiries/quick-add";
+import { generatedLeadName, isQuickAdd } from "@/lib/inquiries/quick-add";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 /** Reject inquiry→order convert when this phone already has a live subscription. */
@@ -387,6 +387,61 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async create(values: Record<string, unknown>) {
     return (await this.createOrFold(values)).inquiry;
+  }
+
+  /**
+   * Edits who the lead is. An absent key is unchanged; null/blank clears it. A blank name keeps a
+   * generated one, or gets a new "Lead <n>" when a phone remains — a lead always has a name or phone.
+   */
+  async updateContact(
+    publicId: string,
+    input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
+  ): Promise<typeof inquiries.$inferSelect> {
+    const inq = await this.read(publicId);
+    if (inq.stage === "converted") throw new ValidationError("A converted inquiry cannot be edited");
+    const clean = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
+    const pick = <K extends keyof typeof input>(k: K, parse: (raw: string) => string, current: string | null) => {
+      if (!(k in input)) return current;
+      const raw = clean(input[k]);
+      return raw ? parse(raw) : null;
+    };
+    const phone = pick("phone", parsePhone, inq.phone);
+    const whatsappPhone = pick("whatsappPhone", parsePhone, inq.whatsappPhone);
+    const email = pick("email", parseEmail, inq.email);
+
+    let fullName = "fullName" in input ? clean(input.fullName) : inq.fullName;
+    let leadNumber = inq.leadNumber;
+    if (!fullName) {
+      if (isQuickAdd(inq)) fullName = inq.fullName;
+      else if (phone) {
+        leadNumber = await this.nextLeadNumber(inq.organizationId);
+        fullName = generatedLeadName(leadNumber);
+      } else throw new ValidationError("Enter a name or phone number");
+    }
+
+    const other = await this.findOpenMatch(phone, email, inq.id, whatsappPhone);
+    const collision = (o: { publicId: string }) =>
+      new ValidationError(`Another open lead has this phone or email (${o.publicId}). Open that lead instead.`);
+    if (other) throw collision(other);
+
+    const labels = { fullName: "Name", phone: "Phone", whatsappPhone: "WhatsApp", email: "Email" } as const;
+    const next = { fullName, phone, whatsappPhone, email };
+    const changes = (Object.keys(labels) as (keyof typeof labels)[])
+      .filter((k) => (inq[k] ?? null) !== (next[k] ?? null))
+      .map((k) => `${labels[k]} changed from ${inq[k] ?? "blank"} to ${next[k] ?? "blank"}`);
+    if (!changes.length) return inq;
+
+    try {
+      await this.update(publicId, { ...next, leadNumber });
+    } catch (e) {
+      if (isOpenLeadConflict(e)) {
+        const winner = await this.findOpenMatch(phone, email, inq.id, whatsappPhone);
+        if (winner) throw collision(winner);
+      }
+      throw e;
+    }
+    await inquiryActivitiesService.create({ inquiryId: inq.id, type: "note", note: changes.join(" · ") });
+    return this.read(publicId);
   }
 
   async addNote(publicId: string, note: string, nextFollowUpAt?: number) {

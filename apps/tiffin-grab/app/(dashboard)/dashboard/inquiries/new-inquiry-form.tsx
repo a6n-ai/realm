@@ -106,6 +106,7 @@ export function AddInquirySheet({
   const emptyValues = (sourceKey: string, subSourceKey = ""): InquiryFormInput => ({
     fullName: "",
     phone: "",
+    whatsappPhone: "",
     email: "",
     sourceKey,
     subSourceKey,
@@ -162,6 +163,7 @@ export function AddInquirySheet({
       const res = await unwrapAction(createInquiry({
         fullName: values.fullName || undefined,
         phone: e164 ?? (values.phone || undefined),
+        whatsappPhone: values.whatsappPhone || undefined,
         email: values.email || undefined,
         nextFollowUpAt: followUp?.at,
         sourceKey: values.sourceKey,
@@ -270,6 +272,31 @@ export function AddInquirySheet({
                           <Link className="text-foreground underline" href={`/dashboard/inquiries/${leadMatches[0].publicId}`}>Open</Link>
                         </p>
                       )}
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="whatsappPhone"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>WhatsApp (if different)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="off"
+                          placeholder="Same as phone"
+                          onBlur={() => {
+                            field.onBlur();
+                            const r = phoneSchema(defaultCountry as never).safeParse(field.value ?? "");
+                            if (r.success) form.setValue("whatsappPhone", formatPhone(r.data), { shouldValidate: false });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

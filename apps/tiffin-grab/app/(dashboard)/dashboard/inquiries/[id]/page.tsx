@@ -134,7 +134,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         createdAt={inq.createdAt}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
+        contact={{ fullName: inq.fullName, phone: inq.phone, whatsappPhone: inq.whatsappPhone, email: inq.email, leadNumber: inq.leadNumber }}
+        canEditContact={inq.stage !== "converted"}
         sourceLabel={source?.label ?? ""}
         owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}
         reassign={mayReassign ? { staff: await listAssignableStaff(), action: reassignInquiry } : null}

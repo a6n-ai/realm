@@ -18,6 +18,7 @@ import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
 export async function createInquiry(input: {
   fullName?: string;
   phone?: string;
+  whatsappPhone?: string;
   email?: string;
   sourceKey: string;
   subSourceKey?: string;
@@ -67,6 +68,19 @@ export async function quickAddInquiries(input: { text: string; sourceKey: string
     }
     revalidatePath("/dashboard/inquiries");
     return { added, folded, failed };
+  });
+}
+
+export async function updateInquiryContact(
+  inquiryId: string,
+  input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
+): Promise<ActionResult<{ fullName: string | null }>> {
+  return runAction(async () => {
+    await requireStaff();
+    const inq = await inquiriesService.updateContact(inquiryId, input);
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    return { fullName: inq.fullName };
   });
 }
 

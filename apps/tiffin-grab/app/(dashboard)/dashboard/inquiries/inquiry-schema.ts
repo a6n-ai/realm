@@ -7,6 +7,7 @@ export const inquiryFormSchema = z.object({
   // Lead capture takes whatever number they give — deliverability is judged by
   // postal/zone later, not by phone shape.
   phone: z.string().trim().optional(),
+  whatsappPhone: z.string().trim().optional(),
   email: emailSchema.optional().or(z.literal("")),
   sourceKey: z.string().min(1),
   subSourceKey: z.string().optional(),

@@ -5,6 +5,10 @@ describe("inquiryFormSchema", () => {
   it("accepts a name alone", () => {
     expect(inquiryFormSchema.safeParse({ fullName: "A", sourceKey: "x" }).success).toBe(true);
   });
+  it("keeps an optional whatsapp number", () => {
+    expect(inquiryFormSchema.parse({ sourceKey: "x", phone: "1", whatsappPhone: " 2 " }).whatsappPhone).toBe("2");
+  });
+
   it("accepts a phone alone", () => {
     expect(inquiryFormSchema.safeParse({ phone: "6475551000", sourceKey: "x" }).success).toBe(true);
   });
