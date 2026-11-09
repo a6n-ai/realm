@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/purity */
 "use client";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
 import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
@@ -95,7 +96,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx);
   const pickAv = av.pick;
-  const closed = now >= trip.cutoffAt;
+  const closed = isCutoffPassed(trip.cutoffAt, now);
   const reason = !pickAv.ok
     ? pickAv.why
     : closed

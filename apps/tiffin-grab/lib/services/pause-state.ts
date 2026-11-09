@@ -1,3 +1,5 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
+import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, not, sql } from "drizzle-orm";
@@ -44,7 +46,7 @@ export async function pauseRows(tx: Tx, ids: bigint[], now: number, holidayId: b
   return tx.update(deliveries).set({ status: "paused", ...(holidayId == null ? {} : { holidayId }) }).where(and(
     inArray(deliveries.id, ids),
     eq(deliveries.status, "scheduled"),
-    holidayId == null ? gt(deliveries.cutoffAt, now) : sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
+    holidayId == null ? cutoffOpenSql(now) : sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
   )).returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt, deliveryDate: deliveries.deliveryDate });
 }
 
@@ -82,7 +84,7 @@ export async function lapsePausedRows(tx: Tx, orderId: bigint): Promise<number> 
   const lapsed = await tx.update(deliveries).set({ status: "skipped" }).where(and(
     eq(deliveries.orderId, orderId),
     CUSTOMER_PAUSED,
-    lte(deliveries.cutoffAt, Date.now()),
+    cutoffPassedSql(Date.now()),
   )).returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate, movedAway: sql<boolean>`${MOVED_AWAY}` });
   const held = lapsed.filter((r) => !r.movedAway);
   if (held.length > 0) {
@@ -136,7 +138,7 @@ export async function isOrderFullyPaused(exec: Reader, orderId: bigint, today: s
     movedAway: sql<boolean>`${MOVED_AWAY}`,
   }).from(deliveries).where(and(eq(deliveries.orderId, orderId), inArray(deliveries.status, ["scheduled", "paused"])));
   const goingOut = rows.some((r) => r.status === "scheduled" && !r.movedAway && r.deliveryDate >= today);
-  const stillPaused = rows.some((r) => isCustomerPaused(r) && r.cutoffAt > now && !r.movedAway);
+  const stillPaused = rows.some((r) => isCustomerPaused(r) && !isCutoffPassed(r.cutoffAt, now) && !r.movedAway);
   return stillPaused && !goingOut;
 }
 
@@ -150,7 +152,7 @@ export async function releasePausedRows(tx: Tx, orderId: bigint, wanted: string[
   const conds = [
     eq(deliveries.orderId, orderId),
     CUSTOMER_PAUSED,
-    gt(deliveries.cutoffAt, Date.now()),
+    cutoffOpenSql(Date.now()),
     not(MOVED_AWAY),
   ];
   if (wanted) conds.push(inArray(deliveries.deliveryDate, wanted));

@@ -1,7 +1,8 @@
 "use server";
 
+import { appTodayIso } from "@/lib/dates/today";
 import { revalidatePath } from "next/cache";
-import { ValidationError, zonedDateIso } from "@foundry/commons";
+import { ValidationError } from "@foundry/commons";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { requireStaff } from "@/lib/auth/guards";
@@ -21,7 +22,7 @@ async function ownAllowance() {
   const staffId = publicId ? await userIdByPublicId(publicId) : null;
   const allowance = publicId ? repAllowanceFor(await getDiscountPolicy(), publicId) : null;
   if (!staffId || !allowance) throw new ValidationError("Staff discounts are not enabled for your account");
-  const istDate = zonedDateIso(Date.now(), await repAllowanceZone());
+  const istDate = appTodayIso(await repAllowanceZone());
   return { staffId, allowance, istDate };
 }
 

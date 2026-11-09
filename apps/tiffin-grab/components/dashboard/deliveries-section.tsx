@@ -1,3 +1,4 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { isLiveOrder } from "@/lib/deliveries/status";
 import { isAdmin } from "@/lib/auth/roles";
 import { eq } from "drizzle-orm";
@@ -8,7 +9,6 @@ import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
 import type { OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
-import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { isOrderFullyPaused } from "@/lib/services/pause-state";
@@ -51,7 +51,7 @@ export async function loadSubscription(
   const paymentReview = displayStatus === "payment_review";
 
   const live = isLiveOrder(order.status);
-  const fullyPaused = live && (await isOrderFullyPaused(db, order.id, zonedDateIso(Date.now(), (await getAppSettings()).timezone)));
+  const fullyPaused = live && (await isOrderFullyPaused(db, order.id, appTodayIso((await getAppSettings()).timezone)));
   // A finished plan still shows its days, read-only.
   const finished = order.status === "completed";
   const subscription: Subscription | null =

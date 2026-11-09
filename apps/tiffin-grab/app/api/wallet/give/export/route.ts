@@ -1,4 +1,4 @@
-import { zonedDateIso } from "@foundry/commons";
+import { appTodayIso } from "@/lib/dates/today";
 import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { epochRange, withListDates } from "@/lib/list/default-month";
@@ -29,7 +29,7 @@ export const GET = handler(async (req: Request): Promise<Response> => {
     timezone,
   );
   if (!result.ok) return problem(500, result.error);
-  const dateIso = zonedDateIso(Date.now(), timezone);
+  const dateIso = appTodayIso(timezone);
   return new Response(result.csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",

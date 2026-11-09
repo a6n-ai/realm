@@ -1,4 +1,5 @@
-import { cutoffMsFor, ValidationError, zonedDateIso } from "@foundry/commons";
+import { appTodayIso } from "@/lib/dates/today";
+import { cutoffMsFor, ValidationError } from "@foundry/commons";
 import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -623,7 +624,7 @@ export const menuService = {
         resolvedWeekStart = ref.weekStart;
       } else {
         const { timezone } = await getAppSettings();
-        const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+        const thisMonday = mondayOfIso(appTodayIso(timezone));
         const current = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
           .where(and(base, eq(menuWeeks.weekStart, thisMonday)))
           .limit(1);

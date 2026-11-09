@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
@@ -71,7 +72,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     else if (ctx.otherPlanDays?.[carriedOn]) disabledReason = `Your ${ctx.otherPlanDays[carriedOn]} already delivers on ${humanDate(carriedOn)}. Pick another day.`;
     else if (ctx.servesWeekends === false && (weekdayKey(cursor) === "sat" || weekdayKey(cursor) === "sun")) disabledReason = `${NO_WEEKEND_DISH}.`;
     else if (ctx.mealDays?.length && !dayAllowed(weekdayKey(cursor) as DayOfWeek, ctx.mealDays)) disabledReason = `${onlyOnMessage(ctx.mealDays)}.`;
-    else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
+    else if (carriedOn < today || isCutoffPassed(cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone), now)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (carriedOn === trip.date) {
       if (trip.status !== "upcoming") disabledReason = "This delivery isn't going out. Pick another day.";
       else {

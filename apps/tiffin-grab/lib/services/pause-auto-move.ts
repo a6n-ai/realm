@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { NotFoundError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
@@ -74,7 +75,7 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
     last,
     eating,
     (eat) => carryTripDateIso(eat, trips),
-    (trip) => trip >= today && cutoffMsFor(trip, cutoffHour, timezone) > now,
+    (trip) => trip >= today && !isCutoffPassed(cutoffMsFor(trip, cutoffHour, timezone), now),
     async (eat, trip) => takenTrips.has(trip) || takenEats.has(eat)
       || (await holidayForOrderDate(db, orderId, trip)) != null || (await holidayForOrderDate(db, orderId, eat)) != null,
   );

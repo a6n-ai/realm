@@ -2,9 +2,9 @@
 // broadcast. A manual, admin-picks-people-right-now action with no
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
+import { appTodayIso } from "@/lib/dates/today";
 import { RUNNING_OR_DONE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
-import { zonedDateIso } from "@foundry/commons";
 import { unexpired } from "@foundry/wallet";
 import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -108,7 +108,7 @@ export async function listPayoutCandidates(
   if (filters.lastTiffinFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lastTiffinFrom));
   if (filters.lastTiffinTo) conditions.push(lte(latestPlan.lastTiffin, filters.lastTiffinTo));
   if (filters.lapsed || filters.lapsedFrom || filters.lapsedTo) {
-    const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    const today = appTodayIso((await getAppSettings()).timezone);
     conditions.push(sql`${latestPlan.lastTiffin} < ${today}`, sql`not ${latestPlan.renewed}`);
     if (filters.lapsedFrom) conditions.push(gte(latestPlan.lastTiffin, filters.lapsedFrom));
     if (filters.lapsedTo) conditions.push(lte(latestPlan.lastTiffin, filters.lapsedTo));

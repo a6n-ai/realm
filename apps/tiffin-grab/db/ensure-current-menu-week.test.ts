@@ -4,9 +4,10 @@
  * resolve meal options (avoids "Menu not released yet" when Menu page still
  * shows an older published week).
  */
+import { appTodayIso } from "@/lib/dates/today";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { zonedDateIso, parseIsoDateUtc } from "@foundry/commons";
+import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuItems, menuWeeks } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -18,7 +19,7 @@ const DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 describe("ensure current menu week", () => {
   it("creates/releases this Monday's tiffin week with selectable items", async () => {
     const { timezone } = await getAppSettings();
-    const today = zonedDateIso(Date.now(), timezone);
+    const today = appTodayIso(timezone);
     // Also cover next Monday — QA orders often start on the coming weekday.
     const thisMonday = mondayOfIso(today);
     const nextMondayDate = parseIsoDateUtc(thisMonday);

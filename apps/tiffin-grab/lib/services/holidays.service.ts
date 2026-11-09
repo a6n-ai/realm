@@ -1,6 +1,8 @@
+import { appTodayIso } from "@/lib/dates/today";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING, RUNNING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
-import { NotFoundError, ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, ValidationError, cutoffMsFor } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, not, sql } from "drizzle-orm";
@@ -62,7 +64,7 @@ const scope = (visible: Visible) => (visible === "all" ? undefined : inArray(hol
 const sees = (visible: Visible) => visible === "all" || visible.length > 0;
 
 async function today(): Promise<string> {
-  return zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  return appTodayIso((await getAppSettings()).timezone);
 }
 
 async function scopedHoliday(publicId: string, visible: Visible): Promise<Holiday> {
@@ -227,7 +229,7 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
   if (holiday.date <= (await today())) throw new ValidationError("Only a future holiday can be removed");
   // A day whose cutoff has passed cannot be put back on the schedule, so removal would strand its tiffin.
   const { cutoffHour, timezone } = await getAppSettings();
-  if (cutoffMsFor(holiday.date, cutoffHour, timezone) <= Date.now()) {
+  if (isCutoffPassed(cutoffMsFor(holiday.date, cutoffHour, timezone), Date.now())) {
     throw new ValidationError(`This holiday can no longer be removed: the cutoff for ${humanDate(holiday.date)} has passed.`);
   }
 

@@ -1,4 +1,4 @@
-import { zonedDateIso } from "@foundry/commons";
+import { appTodayIso } from "@/lib/dates/today";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteConfig, optimoRouteApiKey } from "./config";
 import { pushDay, type PushResult } from "./push";
@@ -61,7 +61,7 @@ export async function runScheduledSync(opts: {
   if (!optimoRouteApiKey()) return { mode, ran: false, skipped: "OPTIMOROUTE_API_KEY not set", days: [] };
 
   const { timezone } = await getAppSettings();
-  const dates = opts.dates?.length ? opts.dates : syncDates(zonedDateIso(Date.now(), timezone), daysAhead);
+  const dates = opts.dates?.length ? opts.dates : syncDates(appTodayIso(timezone), daysAhead);
 
   const days: SyncDay[] = [];
   for (const date of dates) {

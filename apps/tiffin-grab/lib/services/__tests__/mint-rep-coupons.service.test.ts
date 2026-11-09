@@ -1,6 +1,7 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { ValidationError, nextWeekday, zonedDateIso } from "@foundry/commons";
+import { ValidationError, nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -12,7 +13,7 @@ const { createOrder } = await import("../orders.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 const IST = "Asia/Kolkata";
-const istDate = zonedDateIso(Date.now(), IST);
+const istDate = appTodayIso(IST);
 
 async function reset() {
   await db.delete(ledgerEntries);

@@ -1,6 +1,7 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, eq, inArray, isNull, like } from "drizzle-orm";
-import { cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { cutoffMsFor } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
@@ -76,7 +77,7 @@ const declare = async (org: string, over: Partial<{ date: string; name: string; 
   if (!res.created) throw new Error("expected a created holiday");
   return res;
 };
-const todayIso = async () => zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+const todayIso = async () => appTodayIso((await getAppSettings()).timezone);
 
 describe("holidays.service", () => {
   beforeEach(reset);

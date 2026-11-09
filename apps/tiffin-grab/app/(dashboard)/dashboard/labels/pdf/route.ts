@@ -1,9 +1,8 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { requireStaff } from "@/lib/auth/guards";
 import { dailyLabelSheet } from "@/lib/services/daily-labels.service";
 import { renderDailyLabelsPdf } from "@/lib/menu/labels-pdf";
 import { formatMenuWeekRange } from "@/lib/format/datetime";
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function labelsIndexUrl(request: Request, date: string): URL {
   const url = new URL("/dashboard/labels", request.url);
@@ -19,8 +18,8 @@ function unreleasedMessage(weekStart: string): string {
 export async function GET(request: Request) {
   await requireStaff();
 
-  const date = new URL(request.url).searchParams.get("date");
-  if (!date || !ISO_DATE.test(date)) {
+  const date = parseIsoDate(new URL(request.url).searchParams.get("date"));
+  if (!date) {
     if (request.headers.get("sec-fetch-dest") === "document") {
       return Response.redirect(new URL("/dashboard/labels", request.url), 303);
     }

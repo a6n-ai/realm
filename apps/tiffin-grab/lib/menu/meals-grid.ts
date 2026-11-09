@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { asc, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
@@ -149,7 +150,7 @@ export async function buildMealsGrid(
       dayOfWeek: weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek,
       weekStartIso: weekStart,
       lockMs: trip.cutoffAt,
-      locked: Date.now() > trip.cutoffAt,
+      locked: isCutoffPassed(trip.cutoffAt, Date.now()),
       carriedBy: carried ? trip.deliveryDate : null,
       lockNote: carried ? `Locks with ${fullDayName(trip.deliveryDate)}'s delivery` : null,
     };

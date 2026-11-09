@@ -1,4 +1,4 @@
-import { zonedDateIso } from "@foundry/commons";
+import { appTodayIso } from "@/lib/dates/today";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { dispatchReviewNudge, getGoogleReviewsConfig } from "@foundry/google-reviews";
 import { db } from "@/db/client";
@@ -23,7 +23,7 @@ export async function runReviewNudges(): Promise<Response> {
     return Response.json({ error: "BETTER_AUTH_SECRET/BETTER_AUTH_URL not configured" }, { status: 500 });
   }
 
-  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  const today = appTodayIso((await getAppSettings()).timezone);
 
   // deliveries has no userId — it hangs off orders, and orders.userId is nullable
   // (guest/legacy rows), so candidates without a joined user are dropped below.

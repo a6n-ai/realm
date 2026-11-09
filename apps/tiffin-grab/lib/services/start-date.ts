@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { MON_FRI } from "@/lib/menu/delivery-days";
 import { cutoffMsFor, isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
 import { utcIso } from "@foundry/commons/util/dates";
@@ -13,7 +14,7 @@ export function appToday(timezone = "America/Toronto", cutoffHour?: number, now 
   if (cutoffHour == null) return today;
   const tomorrow = new Date(today);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  return now >= cutoffMsFor(utcIso(tomorrow), cutoffHour, timezone) ? tomorrow : today;
+  return isCutoffPassed(cutoffMsFor(utcIso(tomorrow), cutoffHour, timezone), now) ? tomorrow : today;
 }
 
 // Validate a customer-chosen subscription start date.

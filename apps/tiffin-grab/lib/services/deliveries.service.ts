@@ -1,3 +1,5 @@
+import { appTodayIso } from "@/lib/dates/today";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
@@ -205,7 +207,7 @@ export async function listDeliveries(orderId: bigint): Promise<Delivery[]> {
 
 /** Rows past their snapshotted cutoff are immutable. cutoff_at is never re-derived. */
 export function assertMutable(row: Delivery): void {
-  if (Date.now() > row.cutoffAt) {
+  if (isCutoffPassed(row.cutoffAt, Date.now())) {
     throw new ValidationError("This delivery is locked — its cutoff has passed");
   }
 }
@@ -302,7 +304,7 @@ export async function adminSetDeliveryStatus(
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     let row = await loadByPublicId(tx, deliveryPublicId);
     // A paused day past its cutoff did not go out: it is a hold first, then the rules for a hold apply.
-    if (isCustomerPaused(row) && row.cutoffAt <= Date.now()) {
+    if (isCustomerPaused(row) && isCutoffPassed(row.cutoffAt, Date.now())) {
       await lapsePausedRows(tx, orderId);
       row = await loadByPublicId(tx, deliveryPublicId);
     }
@@ -365,7 +367,7 @@ export async function adminSetDeliveryStatus(
     switch (status) {
       case "upcoming":
         patch = { status: "scheduled", optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null };
-        label = row.cutoffAt <= now ? "Awaiting confirmation" : "Upcoming";
+        label = isCutoffPassed(row.cutoffAt, now) ? "Awaiting confirmation" : "Upcoming";
         break;
       case "delivered":
         patch = { status: "scheduled", optimoCompletionStatus: "success", optimoCompletedAt: row.optimoCompletedAt ?? now, optimoCompletionNote: null };
@@ -464,7 +466,7 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
     const { timezone } = await getAppSettings();
-    const today = zonedDateIso(Date.now(), timezone);
+    const today = appTodayIso(timezone);
 
     const [{ n: outstanding }] = await tx.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
       eq(deliveries.orderId, orderId),
@@ -802,7 +804,7 @@ export async function shiftMissedDeliveries(
   if (!order) return [];
 
   const { timezone, cutoffHour } = await getAppSettings();
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = appTodayIso(timezone);
 
   const missed = await tx.select().from(deliveries).where(and(
     eq(deliveries.orderId, orderId),
@@ -935,10 +937,10 @@ export async function rescheduleDelivery(
     }) ?? allowedDaysError([weekdayKey(parseIsoDateUtc(carriedOn)) as DayOfWeek], allowed);
     if (daysErr) throw new ValidationError(daysErr);
 
-    const today = zonedDateIso(Date.now(), timezone);
+    const today = appTodayIso(timezone);
     if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
     const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
-    if (Date.now() > newCutoff) throw new ValidationError("That day's cutoff has already passed");
+    if (isCutoffPassed(newCutoff, Date.now())) throw new ValidationError("That day's cutoff has already passed");
     // Plans never overlap: a day another live plan of this customer delivers on is not a move target.
     const [other] = order.userId == null ? [] : await tx.select({ startDate: orders.startDate }).from(deliveries)
       .innerJoin(orders, eq(orders.id, deliveries.orderId))
@@ -1092,7 +1094,7 @@ export async function redeliverTrip(
     }
     const deliveryDays = await orderDeliveryDaySet(tx, order);
     const { timezone, cutoffHour } = await getAppSettings();
-    const today = zonedDateIso(Date.now(), timezone);
+    const today = appTodayIso(timezone);
 
     let targetDate: string | null = null;
     let targetCutoff = 0;
@@ -1106,7 +1108,7 @@ export async function redeliverTrip(
       if (isWeekendDay(weekdayKey(parseIsoDateUtc(cursor)))) continue;
       if (await holidayForOrderDate(tx, orderId, cursor)) continue;
       const cutoff = cutoffMsFor(cursor, cutoffHour, timezone);
-      if (cursor < today || Date.now() > cutoff) continue;
+      if (cursor < today || isCutoffPassed(cutoff, Date.now())) continue;
       const occupant = await moveTripPreflight(tx, orderId, cursor);
       if (occupant && occupant.status !== "scheduled") continue;
       targetDate = cursor;
@@ -1172,7 +1174,7 @@ export async function grantComplimentaryTiffin(
       throw new ValidationError("Pick one of this plan's delivery days");
     }
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);
-    if (Date.now() >= cutoffAt) throw new ValidationError("That day's cutoff has passed. Pick a later day.");
+    if (isCutoffPassed(cutoffAt, Date.now())) throw new ValidationError("That day's cutoff has passed. Pick a later day.");
     await assertNotHoliday(tx, order.id, input.date);
     await dropVoidRows(tx, order.id, [input.date]);
     const [taken] = await tx.select({ id: deliveries.id }).from(deliveries)
@@ -1185,7 +1187,7 @@ export async function grantComplimentaryTiffin(
       const [m] = await tx.select().from(deliveries)
         .where(and(eq(deliveries.publicId, input.forDeliveryPublicId), eq(deliveries.orderId, order.id))).limit(1);
       if (!m) throw new ValidationError("That missed delivery isn't on this plan");
-      if (m.status === "cancelled" || m.mergedIntoDeliveryId != null || m.deliveryDate > zonedDateIso(Date.now(), timezone)) {
+      if (m.status === "cancelled" || m.mergedIntoDeliveryId != null || m.deliveryDate > appTodayIso(timezone)) {
         throw new ValidationError("Pick a past delivery of this plan");
       }
       const [given] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.complimentaryForDeliveryId, m.id)).limit(1);

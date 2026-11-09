@@ -1,5 +1,6 @@
 "use client";
 
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useMemo } from "react";
 import { Truck } from "lucide-react";
 import { EventCalendar } from "@foundry/design-system/event-calendar/event-calendar";
@@ -29,7 +30,7 @@ const CHIP_LABEL: Partial<Record<BoxStatus, string>> = { awaiting: "To confirm",
 export function boxStatus(d: AgendaDot, now: number): BoxStatus {
   const s = deliveryTripState(d);
   if (s === "hold") return d.optimoCompletionStatus === "failed" ? "not-delivered" : "hold";
-  return s === "upcoming" && d.cutoffAt <= now ? "awaiting" : s;
+  return s === "upcoming" && isCutoffPassed(d.cutoffAt, now) ? "awaiting" : s;
 }
 
 

@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
@@ -226,7 +227,7 @@ export function holdAwaitingReconcile(
   // A lapsed pause never had a stop on the route, so there is nothing to reconcile and Move is open.
   // Every other hold waits until its day is over.
   if (d.lapsedPause) return false;
-  return d.optimoCompletionStatus !== "failed" && now >= d.cutoffAt && d.date >= zonedDateIso(now, timezone);
+  return d.optimoCompletionStatus !== "failed" && isCutoffPassed(d.cutoffAt, now) && d.date >= zonedDateIso(now, timezone);
 }
 
 const no = (why: string): Availability => ({ ok: false, why, sub: "" });

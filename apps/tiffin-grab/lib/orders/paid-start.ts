@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { earliestPlanStart, firstStartOnOrAfter, validateStartDate } from "@/lib/services/start-date";
 import { assertTrialStart, earliestTrialIso } from "@/lib/trial/schedule";
@@ -34,6 +35,6 @@ export function nextCutoffMs(now: number, cutoffHour: number, timezone: string):
   for (;;) {
     day.setUTCDate(day.getUTCDate() + 1);
     const cut = cutoffMsFor(utcIso(day), cutoffHour, timezone);
-    if (cut > now) return cut;
+    if (!isCutoffPassed(cut, now)) return cut;
   }
 }

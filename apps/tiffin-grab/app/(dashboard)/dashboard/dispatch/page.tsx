@@ -1,3 +1,4 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
 import { TruckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -19,11 +20,9 @@ import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 export default async function DispatchPage({ searchParams }: { searchParams: SearchParams }) {
   const { date: dateParam } = await searchParams;
-  const dateKey = dateParam && ISO_DATE.test(dateParam) ? dateParam : "today";
+  const dateKey = parseIsoDate(dateParam) ?? "today";
 
   return (
     <PageShell>
@@ -45,7 +44,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   const [{ timezone }, status] = await Promise.all([getAppSettings(), getOptimoRouteStatus()]);
 
   const today = zonedDateIso(requestNow(), timezone);
-  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
+  const date = parseIsoDate(dateParam) ?? today;
   const closed = await holidaysOn(date, await resolveSessionVisibleOrgIds(await getSession()));
 
   if (!status.hasApiKey) {

@@ -1,3 +1,5 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
+import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -93,7 +95,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     const missing = wanted.filter((d) => !byEat.has(d));
     if (missing.length) throw new ValidationError("That date is not a delivery on this plan");
     const now = Date.now();
-    const open = (r: CarrierRow) => r.status === "scheduled" && r.cutoffAt > now && !r.movedAway;
+    const open = (r: CarrierRow) => r.status === "scheduled" && !isCutoffPassed(r.cutoffAt, now) && !r.movedAway;
     const picked = new Map<bigint, { row: CarrierRow; days: string[] }>();
     for (const d of wanted) {
       const row = byEat.get(d)!;
@@ -290,7 +292,7 @@ export async function lapseElapsedPausesSafe(orderId: bigint): Promise<number> {
  */
 export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed: number; failed: number }> {
   const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
-    .leftJoin(deliveries, and(eq(deliveries.orderId, orders.id), CUSTOMER_PAUSED, lte(deliveries.cutoffAt, Date.now())))
+    .leftJoin(deliveries, and(eq(deliveries.orderId, orders.id), CUSTOMER_PAUSED, cutoffPassedSql(Date.now())))
     .where(or(eq(orders.status, "paused"), isNotNull(deliveries.id)));
   let lapsed = 0;
   let failed = 0;
@@ -321,8 +323,8 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
       eq(deliveries.orderId, orderId),
       not(MOVED_AWAY),
       or(
-        and(or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED), gt(deliveries.cutoffAt, now)),
-        and(CUSTOMER_PAUSED, lte(deliveries.cutoffAt, now)),
+        and(or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED), cutoffOpenSql(now)),
+        and(CUSTOMER_PAUSED, cutoffPassedSql(now)),
         and(eq(deliveries.status, "skipped"), isNull(deliveries.holidayId)),
       ),
     )).orderBy(asc(deliveries.deliveryDate));
@@ -333,7 +335,7 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
   return rows.flatMap((r): PauseDay[] => {
     const state: Omit<PauseDay, "date"> | null =
       r.status === "skipped" ? (isLapsedPause({ status: r.status, deliveryDate: r.date, routeSyncedAt: r.routeSyncedAt }, lapsed) ? { paused: true, lapsed: true } : null)
-      : r.cutoffAt <= now ? { paused: true, lapsed: true }
+      : isCutoffPassed(r.cutoffAt, now) ? { paused: true, lapsed: true }
       : { paused: r.status === "paused" };
     if (!state) return [];
     return [...dateCounts({ deliveryDate: r.date, coversDates: r.coversDates }, extras.get(r.id) ?? []).keys()]

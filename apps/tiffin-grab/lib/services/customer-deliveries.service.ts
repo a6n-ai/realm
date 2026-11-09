@@ -1,8 +1,11 @@
+import { appTodayIso } from "@/lib/dates/today";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
+import { cutoffPassedSql } from "@/lib/dates/cutoff-sql";
 import { RUNNING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
-import { NotFoundError, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, ValidationError, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -162,7 +165,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   // timeline and Move see the same row. Each conversion takes the order's lock and runs once.
   const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
     .innerJoin(deliveries, eq(deliveries.orderId, orders.id))
-    .where(and(eq(orders.userId, userId), CUSTOMER_PAUSED, lte(deliveries.cutoffAt, Date.now())));
+    .where(and(eq(orders.userId, userId), CUSTOMER_PAUSED, cutoffPassedSql(Date.now())));
   await Promise.all(stranded.map((o) => lapseElapsedPausesSafe(o.id)));
   // Legacy range pauses: close an elapsed window and return an order that has nothing paused left to active.
   const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
@@ -204,7 +207,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
   const addonsByOrder = await loadSubscriptionAddons(rows.map((r) => r.id));
   const { timezone } = await getAppSettings();
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = appTodayIso(timezone);
   const fullyPaused = new Set<bigint>();
   for (const r of rows) if (r.status === "active" && (await isOrderFullyPaused(db, r.id, today))) fullyPaused.add(r.id);
   return rows
@@ -254,7 +257,7 @@ export async function myPrimarySubscription(userId: bigint): Promise<Subscriptio
   // The default is the plan that delivers next; only when nothing is left to deliver do we fall
   // back to the newest (myActiveSubscriptions has no createdAt, hence the re-query).
   const { timezone } = await getAppSettings();
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = appTodayIso(timezone);
   const upcoming = await db
     .select({ publicId: orders.publicId, next: sql<string>`min(${deliveries.deliveryDate})` })
     .from(deliveries)
@@ -1012,7 +1015,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       return {
         date: row.deliveryDate,
         status: row.status as CalendarDay["status"],
-        locked: row.cutoffAt <= Date.now(),
+        locked: isCutoffPassed(row.cutoffAt, Date.now()),
         isMakeup: row.isMakeup,
         menuWeekId: null,
         meal: null,
@@ -1040,7 +1043,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     return {
       date: row.deliveryDate,
       status: row.status as CalendarDay["status"],
-      locked: row.cutoffAt <= Date.now(),
+      locked: isCutoffPassed(row.cutoffAt, Date.now()),
       isMakeup: row.isMakeup,
       menuWeekId: week.publicId,
       meal,

@@ -1,3 +1,4 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { zonedDateIso } from "@foundry/commons";
 import { handler } from "@foundry/routes";
 import {
@@ -26,7 +27,7 @@ export const GET = handler(async (request: Request): Promise<Response> => {
   const columns = parseExportColumns(sp.columns ?? null, f.tab);
 
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(await getSession()), getAppSettings()]);
-  const today = zonedDateIso(Date.now(), timezone);
+  const today = appTodayIso(timezone);
   const range: RenewalRange = {
     by: f.dateBy,
     fromMs: f.from,
@@ -50,7 +51,7 @@ export const GET = handler(async (request: Request): Promise<Response> => {
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-  const dateIso = zonedDateIso(Date.now(), timezone);
+  const dateIso = appTodayIso(timezone);
   const fileStem = f.tab === "customers" ? "renewed-customers" : f.tab === "trials" ? "trial-conversions" : "renewals";
   return new Response(new Uint8Array(buffer), {
     status: 200,

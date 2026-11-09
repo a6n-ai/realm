@@ -1,6 +1,6 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { inArray } from "drizzle-orm";
-import { zonedDateIso } from "@foundry/commons";
 import { OVERVIEW_KINDS, TODAY_KINDS } from "@/lib/today/types";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -74,7 +74,7 @@ describe("today queue (integration)", () => {
   beforeAll(async () => {
     [{ id: orgA }] = await db.insert(organization).values({ name: "Today A", clientCode: `TA-${suffix}` }).returning({ id: organization.id });
     [{ id: orgB }] = await db.insert(organization).values({ name: "Today B", clientCode: `TB-${suffix}` }).returning({ id: organization.id });
-    today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+    today = appTodayIso((await getAppSettings()).timezone);
 
     let [source] = await db.select({ id: leadSources.id }).from(leadSources).limit(1);
     source ??= (await db.insert(leadSources).values({ key: `src-${suffix}`, label: "Src" }).returning({ id: leadSources.id }))[0]!;

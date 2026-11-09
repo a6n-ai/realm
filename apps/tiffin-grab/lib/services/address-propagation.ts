@@ -1,3 +1,4 @@
+import { cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { and, eq, gt, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import type { AddressHooks, AddressSnapshot, AddressTx } from "@foundry/address";
@@ -11,7 +12,7 @@ async function editable(tx: AddressTx, where: SQL | undefined): Promise<{ id: bi
   return tx
     .select({ id: deliveries.id, orderId: deliveries.orderId, deliveryDate: deliveries.deliveryDate })
     .from(deliveries)
-    .where(and(where, eq(deliveries.status, "scheduled"), gt(deliveries.cutoffAt, Date.now())));
+    .where(and(where, eq(deliveries.status, "scheduled"), cutoffOpenSql(Date.now())));
 }
 
 /** Same lock every delivery mutation takes, so an address edit can't race a skip/reschedule. */

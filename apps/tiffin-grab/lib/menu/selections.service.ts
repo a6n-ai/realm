@@ -2,6 +2,7 @@
 // resolveCategoriesForDay (resolve-delivery-meal.ts). buildMealsGrid consumes it, and any
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -154,7 +155,7 @@ export const selectionsService = {
     if (!deliveryRow) {
       throw new ValidationError("That day isn't part of your order");
     }
-    if (Date.now() > deliveryRow.cutoffAt) {
+    if (isCutoffPassed(deliveryRow.cutoffAt, Date.now())) {
       throw new ValidationError("Selections are locked — the cutoff for that day has passed");
     }
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
@@ -18,8 +19,6 @@ import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 import { assignDriver } from "@/lib/services/optimoroute/drivers";
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 /**
  * Sends the day's stops to OptimoRoute. Staff-only and idempotent — re-running after a
  * partial failure re-sends everything, which OptimoRoute treats as a no-op for stops that
@@ -27,7 +26,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export async function pushDayAction(date: string): Promise<PushResult> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pushDay(date, await currentUserId());
   revalidatePath("/dashboard/dispatch");
@@ -42,7 +41,7 @@ export async function pushDayAction(date: string): Promise<PushResult> {
  */
 export async function pushUnassignedAction(date: string, orderNos: string[]): Promise<PushResult> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
   if (orderNos.length === 0) throw new ValidationError("No unassigned deliveries to push");
 
   const result = await pushDay(date, await currentUserId(), orderNos);
@@ -62,7 +61,7 @@ export async function pushUnassignedAction(date: string, orderNos: string[]): Pr
  */
 export async function removeStopsAction(date: string, orderNos: string[]): Promise<RemoveResult> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
   if (orderNos.length === 0) throw new ValidationError("Select at least one stop to remove");
 
   const result = await removeStops(date, orderNos, await currentUserId());
@@ -76,7 +75,7 @@ export async function removeStopsAction(date: string, orderNos: string[]): Promi
  */
 export async function pullRoutesAction(date: string): Promise<PullResult> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pullRoutes(date);
   revalidatePath("/dashboard/dispatch");
@@ -92,7 +91,7 @@ export async function pullRoutesAction(date: string): Promise<PullResult> {
  */
 export async function pullCompletionsAction(date: string): Promise<PullCompletionsResult> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pullCompletions(date, await currentUserId());
   revalidatePath("/dashboard/dispatch");
@@ -112,7 +111,7 @@ export async function reassignDriverAction(
   driverSerial: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
 
   try {
     await assignDriver(orderNo, date, driverSerial, await currentUserId());
@@ -134,7 +133,7 @@ export async function reassignDriverAction(
 /** Manual "redo the push" for one delivery, from the Dispatch table's own row actions. */
 export async function pushDeliveryAction(orderNo: string, date: string): Promise<{ ok: true } | { ok: false; message: string }> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
   try {
     await pushOneDelivery(orderNo, date, await currentUserId());
     try {
@@ -161,7 +160,7 @@ export async function getDeliveryActivitiesAction(orderNo: string): Promise<Deli
 /** Manual per-row removal from the Dispatch table — force-removes regardless of the day-level stale check. */
 export async function removeDeliveryAction(orderNo: string, date: string): Promise<{ ok: true } | { ok: false; message: string }> {
   await requireStaff();
-  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (parseIsoDate(date) == null) throw new ValidationError("A YYYY-MM-DD date is required");
   try {
     await removeOneDelivery(orderNo, date, await currentUserId());
     try {

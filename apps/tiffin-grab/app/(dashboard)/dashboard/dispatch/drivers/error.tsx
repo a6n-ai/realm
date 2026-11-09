@@ -1,14 +1,13 @@
 "use client";
+import { parseIsoDate } from "@/lib/dates/iso-date";
+import { appTodayIso } from "@/lib/dates/today";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { zonedDateIso } from "@foundry/commons";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { AlertTriangleIcon, TruckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DispatchTabs } from "../dispatch-tabs";
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Scoped to this route segment so a render crash here doesn't bounce staff out of
 // Dispatch entirely — they keep the tab bar and can jump to another tab instead of
@@ -22,9 +21,9 @@ export default function DriversError({
 }) {
   const params = useSearchParams();
   const tz = useTimezone();
-  const [today] = useState(() => zonedDateIso(Date.now(), tz));
+  const [today] = useState(() => appTodayIso(tz));
   const dateParam = params.get("date");
-  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
+  const date = parseIsoDate(dateParam) ?? today;
 
   return (
     <PageShell>

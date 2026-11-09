@@ -1,3 +1,4 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -57,7 +58,7 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
   "optimoroute-sync": async ({ date, mode = "push" }): Promise<Summary> => {
     const { runScheduledSync, syncDates } = await import("@/lib/services/optimoroute/sync");
     const { timezone } = await getAppSettings();
-    const day = date ?? syncDates(zonedDateIso(Date.now(), timezone), 1)[0]!;
+    const day = date ?? syncDates(appTodayIso(timezone), 1)[0]!;
     const r = await runScheduledSync({ mode, dates: [day] });
     if (!r.ran) throw new Error(`Not run: ${r.skipped}`);
     const d = r.days[0]!;

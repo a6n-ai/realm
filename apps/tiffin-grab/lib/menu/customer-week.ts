@@ -1,3 +1,4 @@
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import type { MealSlot } from "./meal-types";
 import { WEEK_DAYS } from "./delivery-days";
 import type { PosterItem } from "./poster";
@@ -92,7 +93,7 @@ function mine(rows: DeliveryRow[], date: string, today: string, nowMs: number): 
   const live = rows.filter((r) => r.status === "scheduled");
   if (live.length) {
     if (date < today) return "delivered";
-    return live.some((r) => r.cutoffAt > nowMs) ? "pick" : "locked";
+    return live.some((r) => !isCutoffPassed(r.cutoffAt, nowMs)) ? "pick" : "locked";
   }
   const states = rows.map((r) => deliveryTripState({ status: r.status }));
   if (states.includes("paused")) return "paused";
@@ -129,7 +130,7 @@ export function buildCustomerWeek(
       .filter((g) => g.dishes.length > 0);
     const rows = deliveries.filter((d) => d.deliveryDate === date);
     const state = mine(rows, date, today, nowMs);
-    const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > nowMs).map((r) => r.cutoffAt);
+    const open = rows.filter((r) => r.status === "scheduled" && !isCutoffPassed(r.cutoffAt, nowMs)).map((r) => r.cutoffAt);
     return { date, groups, mine: state, cutoffAt: state === "pick" ? Math.min(...open) : null };
   });
 }

@@ -1,5 +1,5 @@
+import { appTodayIso } from "@/lib/dates/today";
 import { and, eq, inArray, lt } from "drizzle-orm";
-import { zonedDateIso } from "@foundry/commons";
 import { getGoogleReviewsConfig, shouldNudge, writeReviewUrl } from "@foundry/google-reviews";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
@@ -12,7 +12,7 @@ import { markReviewNudgeDone } from "./review-nudge-actions";
 
 /** Only customers who have actually eaten with us get asked: one past, still-scheduled delivery. */
 async function hasHadATiffin(userId: bigint): Promise<boolean> {
-  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  const today = appTodayIso((await getAppSettings()).timezone);
   const [row] = await db
     .select({ id: deliveries.id })
     .from(deliveries)

@@ -1,9 +1,10 @@
 "use server";
 
+import { appTodayIso } from "@/lib/dates/today";
 import { round2 } from "@foundry/commons/util/money";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
-import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
+import { ValidationError, emailSchema, phoneSchema } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
@@ -62,7 +63,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
   const actorId = await actingStaffId();
   if (actorId == null) return { available: false, reason: "none-today" };
 
-  const istDate = zonedDateIso(Date.now(), await repAllowanceZone());
+  const istDate = appTodayIso(await repAllowanceZone());
   const [c] = await db
     .select({
       code: coupons.code,

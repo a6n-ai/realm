@@ -4,6 +4,7 @@
 // Every read of "what does this subscriber receive" goes through resolveDeliveryMeal —
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -82,7 +83,7 @@ export function labelDeliveryStatus(
     case "scheduled":
       if (row.optimoCompletionStatus === "success") return "Delivered";
       // Past the cutoff the kitchen has it, but only OptimoRoute or an admin confirms it went out.
-      return row.cutoffAt <= now ? "Awaiting confirmation" : "To be delivered";
+      return isCutoffPassed(row.cutoffAt, now) ? "Awaiting confirmation" : "To be delivered";
     default: {
       const unreachable: never = row.status;
       return unreachable;

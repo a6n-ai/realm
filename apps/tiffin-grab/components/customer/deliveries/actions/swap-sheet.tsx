@@ -1,4 +1,5 @@
 "use client";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { NETWORK_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import { ArrowLeftRight, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -100,7 +101,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [now] = useState(() => Date.now());
 
   const av = actionAvailability(trip, now, plan.ctx).swap;
-  const closed = now >= trip.cutoffAt;
+  const closed = isCutoffPassed(trip.cutoffAt, now);
   const lockReason = !av.ok ? av.why : closed ? "Changes closed. This trip is being prepared." : null;
 
   const source = plan.days.find((d) => d.date === trip.date);

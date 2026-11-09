@@ -1,10 +1,13 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
+import { appTodayIso } from "@/lib/dates/today";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { daysBetween } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
-import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, cutoffMsFor } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -1401,7 +1404,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   async startMigrated(publicId: string, startDate: string): Promise<void> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || startDate < zonedDateIso(Date.now(), timezone)) {
+    if (parseIsoDate(startDate) == null || startDate < appTodayIso(timezone)) {
       throw new ValidationError("Pick today or a later date");
     }
     await db.transaction(async (tx) => {
@@ -1425,7 +1428,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         targetTiffinCount: order.tiffinCount,
       }).map((r) => ({ ...r, cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone) }));
       if (!rows.length) throw new ValidationError("This plan has no tiffins left to schedule");
-      if (rows[0]!.cutoffAt <= Date.now()) {
+      if (isCutoffPassed(rows[0]!.cutoffAt, Date.now())) {
         throw new ValidationError(`The cutoff for ${rows[0]!.deliveryDate} has passed. Pick a later start date`);
       }
       if (order.userId != null) {
@@ -1470,7 +1473,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const now = Date.now();
     // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
     const rows = all.filter((d) => !(d.status === "paused" && d.holidayId != null));
-    if (rows.some((d) => d.cutoffAt <= now)) return "This plan has started: its first delivery is past the cutoff";
+    if (rows.some((d) => isCutoffPassed(d.cutoffAt, now))) return "This plan has started: its first delivery is past the cutoff";
     if (rows.some((d) => d.status !== "scheduled")) return "The customer has already skipped or paused a delivery";
     const ids = all.map((d) => d.id);
     const touched = await Promise.all([
@@ -1545,7 +1548,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         const placed = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
           .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
         const first = placed[0];
-        if (first && first.cutoffAt <= Date.now()) {
+        if (first && isCutoffPassed(first.cutoffAt, Date.now())) {
           throw new ValidationError(`The cutoff for ${first.deliveryDate} has passed. Pick a later start date`);
         }
         if (bounded && placed.length) {
@@ -1612,14 +1615,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const edited = new Set([...swaps.map((x) => x.id), ...extras.map((x) => x.id)]);
       const tied = new Set([...edited, ...moves.flatMap((x) => [x.a, x.b]), ...rows.flatMap(linked)]);
       const now = Date.now();
-      const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > now && !r.routeSyncedAt && !r.optimoCompletionStatus
+      const open = rows.filter((r) => r.status === "scheduled" && !isCutoffPassed(r.cutoffAt, now) && !r.routeSyncedAt && !r.optimoCompletionStatus
         && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
         && linked(r).every((x) => x == null) && !tied.has(r.id)
         // A day a holiday added keeps its link to the closed day; the ordinary rows are laid around it.
         && r.holidayExtraForDeliveryId == null);
       const units = open.reduce((n, r) => n + r.tiffinUnits, 0);
       // A tiffin moved to its own later day and not touched since: it can follow the plan's end.
-      const movable = rows.filter((r) => r.makeupForDeliveryId != null && r.status === "scheduled" && r.cutoffAt > now
+      const movable = rows.filter((r) => r.makeupForDeliveryId != null && r.status === "scheduled" && !isCutoffPassed(r.cutoffAt, now)
         && !r.routeSyncedAt && !r.optimoCompletionStatus && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
         && r.mergedIntoDeliveryId == null && r.complimentaryForDeliveryId == null && !edited.has(r.id)
         && (r.coversDates == null || (r.coversDates.length === 1 && r.coversDates[0] === r.deliveryDate))
@@ -1795,7 +1798,7 @@ export async function countMigratedWaiting(): Promise<number> {
 // nothing now, so it does not wait for paused days to clear).
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await lapseElapsedPausesSafe(orderId);
-  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  const today = appTodayIso((await getAppSettings()).timezone);
   let changed = false;
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);

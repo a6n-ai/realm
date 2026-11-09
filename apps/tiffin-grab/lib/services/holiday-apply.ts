@@ -1,3 +1,5 @@
+import { appTodayIso } from "@/lib/dates/today";
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
@@ -50,7 +52,7 @@ async function freePlanDays(tx: Tx, order: Order, after: string, n: number, holi
   for (let guard = 0; guard < 120 && out.length < n; guard++) {
     cursor = nextDeliveryDateAfter(cursor, weekdays);
     if (taken.has(cursor) || holidays.has(cursor)) continue;
-    if (cutoffMsFor(cursor, cut.cutoffHour, cut.timezone) <= now) continue;
+    if (isCutoffPassed(cutoffMsFor(cursor, cut.cutoffHour, cut.timezone), now)) continue;
     out.push(cursor);
   }
   return out.length === n ? out : null;
@@ -139,7 +141,7 @@ const ADDRESS_OVERRIDES = ["addressId", "fullName", "addressLine", "addressUnit"
 /** An added day is "as the holiday left it" only while nothing about it changed: any doubt keeps it. */
 async function extrasUntouched(tx: Tx, extras: Delivery[], per: number, now: number): Promise<boolean> {
   if (extras.length === 0) return true;
-  const plain = extras.every((e) => e.status === "scheduled" && e.mergedIntoDeliveryId == null && e.cutoffAt > now && e.optimoCompletionStatus == null
+  const plain = extras.every((e) => e.status === "scheduled" && e.mergedIntoDeliveryId == null && !isCutoffPassed(e.cutoffAt, now) && e.optimoCompletionStatus == null
     && e.tiffinUnits === per && e.coversDates?.length === 1 && e.coversDates[0] === e.deliveryDate && ADDRESS_OVERRIDES.every((col) => e[col] == null) && e.deliveryStrategyIds.length === 0);
   if (!plain) return false;
   const ids = extras.map((e) => e.id);
@@ -180,7 +182,7 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
     }
     const extras = await tx.select().from(deliveries).where(eq(deliveries.holidayExtraForDeliveryId, source.id));
     const whole = extras.length === 0 || extras.reduce((n, e) => n + e.tiffinUnits, 0) === source.tiffinUnits;
-    if (source.cutoffAt > now && whole && (await extrasUntouched(tx, extras, per, now))) {
+    if (!isCutoffPassed(source.cutoffAt, now) && whole && (await extrasUntouched(tx, extras, per, now))) {
       if (extras.length > 0) await tx.delete(deliveries).where(inArray(deliveries.id, extras.map((e) => e.id)));
       await tx.update(deliveries).set({ status: "scheduled", holidayId: null }).where(eq(deliveries.id, source.id));
       await tx.insert(orderActivities).values({
@@ -211,7 +213,7 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
  */
 export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint, fromDate: string, actorId: bigint | null): Promise<string[]> {
   const cut = await getAppSettings();
-  const today = zonedDateIso(Date.now(), cut.timezone);
+  const today = appTodayIso(cut.timezone);
   if (!isRealDate(fromDate)) throw new ValidationError("Pick a valid date");
   if (fromDate < today) throw new ValidationError("Pick today or a later date");
   if (!inOrderStatuses(RUNNING, order.status)) throw new ValidationError(`Cannot add a delivery to an order that is ${order.status}`);

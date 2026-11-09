@@ -1,3 +1,4 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { TruckIcon } from "lucide-react";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -12,14 +13,12 @@ import { DispatchExportButton } from "../dispatch-export-button";
 import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 export default async function DriversPage({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const { date: dateParam } = await searchParams;
   const { timezone } = await getAppSettings();
   const today = zonedDateIso(requestNow(), timezone);
-  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
+  const date = parseIsoDate(dateParam) ?? today;
 
   let dispatchRows, drivers;
   try {

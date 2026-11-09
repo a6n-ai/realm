@@ -16,9 +16,10 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
+import { appTodayIso } from "@/lib/dates/today";
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
-import { emailSchema, zonedDateIso } from "@foundry/commons";
+import { emailSchema } from "@foundry/commons";
 import { db } from "./client";
 import { deliveries, orderActivities, orders, users } from "./schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
@@ -602,7 +603,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
 
 async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapshot: CatalogSnapshot): Promise<void> {
   const orgId = await getBrandOrgId();
-  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  const today = appTodayIso((await getAppSettings()).timezone);
   const counts: Record<Outcome, number> = { created: 0, refreshed: 0, "unchanged (already started)": 0, failed: 0 };
   for (const r of planned) {
     let outcome: Outcome;

@@ -1,5 +1,6 @@
 "use client";
 
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useState, useTransition, type ReactNode } from "react";
 import { Check, Undo2 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ export function DeliveryStatusCard({
 }) {
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<Confirm>(null);
-  const cutoffPassed = trip.cutoffAt <= now;
+  const cutoffPassed = isCutoffPassed(trip.cutoffAt, now);
   const save = (next: "upcoming" | "delivered" | "not_delivered", message: string) =>
     startTransition(async () => {
       if (!deliveryId) return;

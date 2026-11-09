@@ -1,3 +1,4 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
 import { BoxIcon, CalendarDaysIcon, LayoutListIcon, PackageIcon, TagIcon, TruckIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -25,14 +26,12 @@ import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 export default async function LabelsPage({ searchParams }: { searchParams: SearchParams }) {
   const { date: dateParam } = await searchParams;
   // Remount the Suspense tree when the day changes. Without this, soft-nav via the
   // date picker can leave packing-sheet <tr>s from the previous day in the client
   // Table while the Orders stat already reflects the new sheet.
-  const dateKey = dateParam && ISO_DATE.test(dateParam) ? dateParam : "today";
+  const dateKey = parseIsoDate(dateParam) ?? "today";
 
   return (
     <PageShell>
@@ -55,7 +54,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
 
   // Default to today in the app timezone, the same clock the rest of the app runs on.
   const today = zonedDateIso(requestNow(), timezone);
-  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
+  const date = parseIsoDate(dateParam) ?? today;
 
   const [sheet, packing, deliveries, closed] = await Promise.all([
     dailyLabelSheet(date),

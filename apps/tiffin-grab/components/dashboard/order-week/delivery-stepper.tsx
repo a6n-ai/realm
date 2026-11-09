@@ -1,5 +1,6 @@
 "use client";
 
+import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { CalendarCheck, Check, House, Truck } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle } from "@/components/reui/stepper";
@@ -15,7 +16,7 @@ export function DeliveryStepper({ trip, now, tz, driver }: { trip: Trip; now: nu
   if (stage == null) return null;
   const delivered = stage === 2;
   const stops = [
-    { label: "Scheduled", Icon: CalendarCheck, detail: trip.cutoffAt > now ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : "Changes closed" },
+    { label: "Scheduled", Icon: CalendarCheck, detail: !isCutoffPassed(trip.cutoffAt, now) ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : "Changes closed" },
     { label: "On the way", Icon: Truck, detail: driver ? `Driver ${driver}` : delivered ? "Done" : trip.routePushed ? "On a route" : "Not on a route yet" },
     { label: "Delivered", Icon: House, detail: delivered ? humanDate(trip.date) : `Due ${humanDate(trip.date)}` },
   ];

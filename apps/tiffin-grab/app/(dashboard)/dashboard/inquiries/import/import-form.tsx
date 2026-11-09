@@ -2,7 +2,7 @@
 /* eslint-disable */
 
 
-import { zonedDateIso } from "@foundry/commons";
+import { appTodayIso } from "@/lib/dates/today";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useState } from "react";
 import { DownloadIcon, Loader2Icon, UploadIcon } from "lucide-react";
@@ -124,7 +124,7 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, kind);
-    XLSX.writeFile(wb, `inquiries-import-${kind.toLowerCase()}-${zonedDateIso(Date.now(), tz)}.xlsx`);
+    XLSX.writeFile(wb, `inquiries-import-${kind.toLowerCase()}-${appTodayIso(tz)}.xlsx`);
   }
 
   return (

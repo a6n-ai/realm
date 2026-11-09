@@ -1,3 +1,4 @@
+import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
@@ -8,8 +9,6 @@ import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/supp
 import { SupportHoursSlot } from "@/components/customer/support/support-hours";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import { humanDate } from "@/lib/deliveries-view";
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type SearchParams = Promise<{ orderId?: string; date?: string }>;
 
@@ -50,7 +49,7 @@ async function TicketFormData({ searchParams }: { searchParams: SearchParams }) 
       orders={orderOptions}
       defaultOrderId={preselected}
       // A delivery card's "Need help?" passes its date; only a real YYYY-MM-DD becomes the subject.
-      defaultSubject={preselected && date && ISO_DATE.test(date) ? `Delivery on ${humanDate(date)}` : undefined}
+      defaultSubject={preselected && parseIsoDate(date) ? `Delivery on ${humanDate(parseIsoDate(date)!)}` : undefined}
       {...(preselected ? { defaultCategory: "order" as const } : {})}
     />
   );

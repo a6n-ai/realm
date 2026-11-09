@@ -9,6 +9,8 @@
 // "failed" completion flips the row to `skipped`. Paused, skipped, and cancelled rows never count
 // as delivered: a failed drop's tiffin is moved to another day, a cancelled one is void.
 
+import { isCutoffPassed } from "@/lib/dates/cutoff";
+
 export type DeliveryForCounts = {
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   cutoffAt: number;
@@ -47,7 +49,7 @@ export type DeliveryForOpenCount = {
 export function openTiffinCount(tiffinCount: number, rows: DeliveryForOpenCount[], nowMs: number): number {
   let locked = 0;
   for (const r of rows) {
-    if (r.status !== "scheduled" || r.cutoffAt > nowMs) continue;
+    if (r.status !== "scheduled" || !isCutoffPassed(r.cutoffAt, nowMs)) continue;
     if (r.complimentaryNote != null || r.mergedIntoDeliveryId != null) continue;
     locked += r.tiffinUnits;
   }

@@ -5,8 +5,9 @@
 // stop never sent to OptimoRoute, or one sent with no completion back. An OptimoRoute `failed`
 // already turns the row into a hold with its tiffin in the pool, so it is not listed here.
 // A row a free tiffin was given for is settled and drops off.
+import { appTodayIso } from "@/lib/dates/today";
 import { and, asc, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
-import { ValidationError, zonedDateIso } from "@foundry/commons";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -29,7 +30,7 @@ export type MissedDeliveryRow = {
 };
 
 async function appToday(): Promise<string> {
-  return zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  return appTodayIso((await getAppSettings()).timezone);
 }
 
 export async function countMissedDeliveries(visible: "all" | string[]): Promise<number> {

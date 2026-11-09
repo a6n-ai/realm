@@ -1,3 +1,4 @@
+import { cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { UpdatableRepository } from "@foundry/database";
 import { z } from "zod";
 import { ValidationError, cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
@@ -144,7 +145,7 @@ export async function setAppSettings(input: {
   // One write per delivery date, not per row: prod holds thousands of future rows, and a
   // row-by-row loop could outrun the request.
   const dates = await db.selectDistinct({ deliveryDate: deliveries.deliveryDate })
-    .from(deliveries).where(gt(deliveries.cutoffAt, now));
+    .from(deliveries).where(cutoffOpenSql(now));
   for (const { deliveryDate } of dates) {
     // Re-check cutoffAt > now (same captured `now`) on the write itself: if a row's
     // cutoff lapsed between the SELECT and here, it may have already spawned a make-up
@@ -152,7 +153,7 @@ export async function setAppSettings(input: {
     // a new future cutoff would un-terminal-ize it and double-count a paid drop.
     await db.update(deliveries)
       .set({ cutoffAt: cutoffMsFor(deliveryDate, patch.cutoffHour, patch.timezone) })
-      .where(and(eq(deliveries.deliveryDate, deliveryDate), gt(deliveries.cutoffAt, now)));
+      .where(and(eq(deliveries.deliveryDate, deliveryDate), cutoffOpenSql(now)));
   }
 }
 
