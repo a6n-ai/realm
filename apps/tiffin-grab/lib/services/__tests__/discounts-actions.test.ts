@@ -53,6 +53,11 @@ describe("discounts settings actions", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("rejects creating a free_delivery coupon", async () => {
+    await expect(saveCoupon(null, { ...basePatch, kind: "free_delivery" })).rejects.toBeInstanceOf(ValidationError);
+    expect(await db.select().from(coupons)).toHaveLength(0);
+  });
+
   it("creates a percentage coupon and toggles active via public_id", async () => {
     await saveCoupon(null, { ...basePatch, kind: "percentage", valuePct: 10 });
     const [row] = await db.select().from(coupons).where(eq(coupons.code, "WELCOME10"));

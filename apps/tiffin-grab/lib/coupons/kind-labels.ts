@@ -11,4 +11,5 @@ export const KIND_LABELS: Record<CouponKind, string> = {
   rep_code: "Staff code",
 };
 export const ALL_KINDS = Object.keys(KIND_LABELS) as CouponKind[];
-export const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily" && k !== "rep_code");
+// free_delivery always resolves to $0, so staff can no longer pick it; the enum value stays for old rows.
+export const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily" && k !== "rep_code" && k !== "free_delivery");

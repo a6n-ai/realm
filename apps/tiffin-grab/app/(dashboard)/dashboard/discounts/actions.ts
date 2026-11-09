@@ -55,6 +55,10 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     throw new ValidationError("Rep coupons are issued through the rep allowance and cannot be created here");
   }
 
+  if (data.kind === "free_delivery") {
+    throw new ValidationError("Free delivery coupons are not supported yet: they would take off $0. Use a fixed or percentage coupon");
+  }
+
   // Creation-time gating: a kind disabled in the policy may not be created or edited
   // from this surface (honor-time enforcement at checkout is a later WF).
   const policy = await getDiscountPolicy();
