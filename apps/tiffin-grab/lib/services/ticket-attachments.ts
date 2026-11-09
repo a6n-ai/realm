@@ -1,19 +1,14 @@
-import { nanoid } from "nanoid";
 import { AuthError, ForbiddenError, ValidationError } from "@foundry/commons";
-import { filesSecuredAccess, securedFilesService } from "@/lib/files";
-import { protectThumbnail } from "@/lib/files/protect-thumbnail";
+import { filesSecuredAccess } from "@/lib/files";
+import { storeImageUpload, validatedImageUpload } from "@/lib/files/validated-image-upload";
 import { requirePermission } from "@/lib/auth/guards";
 import type { Attachment } from "@/db/schema";
-import { sniffUploadImage } from "@foundry/commons/util/image-sniff";
 
-const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_FILES = 4;
 const HREF_TTL_SECONDS = 3600;
 
 const files = (entries: FormDataEntryValue[]): File[] =>
   entries.filter((e): e is File => e instanceof File && e.size > 0);
-const safe = (name: string): string => name.replace(/[^\w.\-]+/g, "_") || "image";
-const bytesOf = async (f: File): Promise<Uint8Array> => new Uint8Array(await f.arrayBuffer());
 
 // Upload each reply image as a secured original + a static thumbnail, paired by
 // index (the composer appends attachment[i] and attachment_thumb[i] in step).
@@ -30,31 +25,12 @@ export async function uploadAttachments(
   if (origs.length > MAX_FILES) throw new ValidationError(`Attach up to ${MAX_FILES} images`);
   if (thumbs.length !== origs.length) throw new ValidationError("Attachment thumbnails missing");
 
-  // Check every file before storing any, so one bad photo leaves no orphans. Judge the
-  // bytes, not File.type (that only reflects the file name).
+  // Check every file before storing any, so one bad photo leaves no orphans.
   const checked = [];
-  for (let i = 0; i < origs.length; i++) {
-    const orig = origs[i];
-    const thumb = thumbs[i];
-    if (orig.size > MAX_BYTES) throw new ValidationError("Each image must be 5 MB or smaller");
-    if (thumb.size > MAX_BYTES) throw new ValidationError("Bad thumbnail");
-    const origBytes = await bytesOf(orig);
-    const thumbBytes = await bytesOf(thumb);
-    const origType = sniffUploadImage(origBytes);
-    const thumbType = sniffUploadImage(thumbBytes);
-    if (!origType) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
-    if (!thumbType) throw new ValidationError("Bad thumbnail");
-    const prot = await protectThumbnail(thumbBytes, thumbType);
-    checked.push({ name: orig.name, thumbName: thumb.name, origBytes, thumbBytes: prot.bytes, origType, thumbType: prot.contentType });
-  }
+  for (let i = 0; i < origs.length; i++) checked.push(await validatedImageUpload(origs[i], thumbs[i], "Each image must be 5 MB or smaller"));
 
   const out: Attachment[] = [];
-  for (const c of checked) {
-    const base = `tickets/${ticketId}/${nanoid()}`;
-    const origDetail = await securedFilesService().create(`${base}/orig-${safe(c.name)}`, c.origBytes, { contentType: c.origType });
-    const thumbDetail = await securedFilesService().create(`${base}/thumb-${safe(c.thumbName)}`, c.thumbBytes, { contentType: c.thumbType });
-    out.push({ path: origDetail.filePath, thumbPath: thumbDetail.filePath, name: c.name });
-  }
+  for (const c of checked) out.push(await storeImageUpload(`tickets/${ticketId}`, c));
   return out;
 }
 

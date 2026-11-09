@@ -1,3 +1,5 @@
+import { resolveUserId } from "@/lib/services/session-service";
+import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
@@ -50,13 +52,7 @@ export async function provisionCustomerByPhone(
   contact: { fullName: string; phone: string; email: string; addressLine?: string; city?: string; postalCode?: string },
   createdBy: bigint | null,
 ): Promise<bigint> {
-  // Email is mandatory: it is the login path and the only channel for
-  // verification, password reset and security alerts. The checkout UI disables
-  // Continue without one, but that is a client-side rule — this is the trust
-  // boundary, so re-check rather than assume.
-  const parsedEmail = emailSchema.safeParse(contact.email?.trim());
-  if (!parsedEmail.success) throw new ValidationError("An email address is required");
-  const email = parsedEmail.data;
+  const email = requireEmail(contact.email);
 
   const [existing] = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.phone, contact.phone)).limit(1);
   if (existing) {
@@ -109,30 +105,17 @@ export async function provisionCustomerByEmail(contact: { fullName: string; emai
   return inserted.length > 0;
 }
 
-// Resolve the acting user's public_id to the internal id used for createdBy.
-async function resolveActorId(tx: Tx, actorId: string | null | undefined): Promise<bigint | null> {
-  if (!actorId) return null;
-  const [row] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, actorId)).limit(1);
-  return row?.id ?? null;
-}
-
 // Customer-only creation (no order). Idempotent by phone.
 export async function createCustomer(
   contact: { fullName: string; phone: string; email: string },
   opts: { actorId?: string | null },
 ): Promise<{ publicId: string }> {
-  const parsedPhone = phoneSchema().safeParse(contact.phone);
-  if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-  // Email is required — provisionCustomerByPhone re-validates, this gives the
-  // caller the clearer message.
-  const parsedEmail = emailSchema.safeParse(contact.email?.trim());
-  if (!parsedEmail.success) throw new ValidationError("An email address is required");
-  const email = parsedEmail.data;
+  const { phone, email } = parseCustomerContact(contact);
   return db.transaction(async (tx) => {
-    const createdBy = await resolveActorId(tx, opts.actorId);
+    const createdBy = await resolveUserId(tx, opts.actorId);
     const id = await provisionCustomerByPhone(
       tx,
-      { fullName: contact.fullName, phone: parsedPhone.data, email },
+      { fullName: contact.fullName, phone, email },
       createdBy,
     );
     const [row] = await tx.select({ publicId: users.publicId }).from(users).where(eq(users.id, id)).limit(1);

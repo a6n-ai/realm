@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "@/lib/db/errors";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
@@ -63,10 +64,7 @@ describe("autoResumeIfElapsed + one-open-pause index (integration)", () => {
       caught = e;
     }
     expect(caught).toBeDefined();
-    type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-    const err = caught as PgErr;
-    const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-    expect(layers.some((l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_unique"))).toBe(true);
+    expect(isUniqueViolation(caught, "subscription_pauses_one_open_unique")).toBe(true);
   });
 
   it("autoResumeIfElapsed flips a fully-paused order whose open pause is elapsed back to active", async () => {

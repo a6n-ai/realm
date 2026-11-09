@@ -1,3 +1,5 @@
+import { paymentMethodLabel } from "@/lib/payments/method-label";
+
 // Client-safe: imported by both the server queries and the "use client" tables. Never import db here.
 export type PaymentRow = {
   publicId: string;
@@ -43,15 +45,9 @@ export const PAYMENT_STATUS_OPTIONS = [
   { value: "refunded", label: "Refunded" },
 ] as const;
 
-export const PAYMENT_METHOD_OPTIONS = [
-  { value: "etransfer", label: "e-Transfer" },
-  { value: "cash", label: "Cash" },
-  { value: "manual", label: "Manual" },
-  { value: "simulated", label: "Simulated" },
-  { value: "stripe", label: "Stripe" },
-] as const;
+export const PAYMENT_METHOD_OPTIONS = (["etransfer", "cash", "manual", "simulated", "stripe"] as const).map((value) => ({ value, label: paymentMethodLabel(value) }));
 
-export const methodLabel = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
+export { paymentMethodLabel as methodLabel };
 
 export const LEDGER_SORT_KEYS = ["time", "customer", "type", "order", "amount"] as const;
 export type LedgerSortKey = (typeof LEDGER_SORT_KEYS)[number];

@@ -1,3 +1,4 @@
+import { isUniqueViolation, pgErrorLayers } from "@/lib/db/errors";
 import { UpdatableRepository } from "@foundry/database";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
@@ -18,14 +19,8 @@ function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
 
 /** Postgres unique-violation on category_swap_pairs (from, to[, plan[, meal size]]) — drizzle wraps cause. */
 function isDuplicateSwapPair(err: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr; message?: string };
-  const layers = [err, (err as PgErr)?.cause, (err as PgErr)?.cause?.cause].filter(Boolean) as PgErr[];
   const names = ["category_swap_pairs_pair_unique", "category_swap_pairs_pair_null_plan_unique", "category_swap_pairs_pair_meal_size_unique"];
-  return layers.some(
-    (l) =>
-      (l.code === "23505" && names.some((n) => (l.constraint ?? l.constraint_name ?? "").includes(n))) ||
-      (typeof l.message === "string" && names.some((n) => l.message!.includes(n))),
-  );
+  return isUniqueViolation(err, names) || pgErrorLayers(err).some((l) => typeof l.message === "string" && names.some((n) => l.message!.includes(n)));
 }
 
 class DishCategoriesService extends SessionUpdatableService<typeof dishCategories> {

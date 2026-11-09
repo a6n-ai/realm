@@ -1,3 +1,5 @@
+import { parseEmail, parsePhone } from "@/lib/services/contact";
+import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
@@ -165,19 +167,7 @@ function inquiriesResolver() {
   };
 }
 
-// True when a Postgres unique-violation (23505) hit an open-lead partial index.
-// drizzle wraps the driver error, so the real PostgresError (with code +
-// constraint_name) sits on .cause; postgres.js names the field constraint_name.
-function isOpenLeadConflict(e: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-  const err = e as PgErr;
-  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-  return layers.some(
-    (l) =>
-      l.code === "23505" &&
-      /^inquiries_open_(phone|email)_unique$/.test(l.constraint ?? l.constraint_name ?? ""),
-  );
-}
+const isOpenLeadConflict = (e: unknown) => isUniqueViolation(e, /^inquiries_open_(phone|email)_unique$/);
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   private async resolveSource(sourceKey: string, subSourceKey?: string) {
@@ -295,15 +285,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
     let phone: string | null = null;
     if (rawPhone) {
-      const parsedPhone = phoneSchema().safeParse(rawPhone);
-      if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-      phone = parsedPhone.data;
+      phone = parsePhone(rawPhone);
     }
     let email: string | null = null;
     if (rawEmail) {
-      const parsedEmail = emailSchema.safeParse(rawEmail);
-      if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
-      email = parsedEmail.data;
+      email = parseEmail(rawEmail);
     }
 
     const { sourceKey, subSourceKey, subStatus: rawSub, ...rest } = values as {

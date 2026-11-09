@@ -1,3 +1,4 @@
+import { csvCell } from "@/lib/csv-cell";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
@@ -417,12 +418,6 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
     return { ...u, coins: coins.get(id) ?? 0, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
   });
 }
-
-const csvCell = (v: string | null) => {
-  const raw = v ?? "";
-  const t = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-  return /[",\r\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t;
-};
 
 export async function groupMembersCsv(groupPublicId: string): Promise<string> {
   const detail = await getCustomerGroup(groupPublicId);

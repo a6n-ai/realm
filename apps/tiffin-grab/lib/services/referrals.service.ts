@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "@/lib/db/errors";
 import type { ReferralStatus } from "@/db/schema/enums";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
@@ -41,7 +42,7 @@ export async function getOrCreateReferralCode(userId: bigint): Promise<string> {
       await db.update(users).set({ referralCode: newCode() }).where(and(eq(users.id, userId), isNull(users.referralCode)));
     } catch (e) {
       // Unique clash with another customer's code: roll again.
-      if ((e as { cause?: { code?: string } }).cause?.code !== "23505" && (e as { code?: string }).code !== "23505") throw e;
+      if (!isUniqueViolation(e)) throw e;
     }
   }
   throw new Error("Could not make a referral code");

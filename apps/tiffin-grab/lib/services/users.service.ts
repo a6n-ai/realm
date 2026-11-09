@@ -1,3 +1,5 @@
+import { parseEmail, parsePhone } from "@/lib/services/contact";
+import { isUniqueViolation } from "@/lib/db/errors";
 import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
 import { UpdatableRepository } from "@foundry/database";
 import { AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
@@ -5,7 +7,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { SessionUpdatableService, recordAudit } from "./session-service";
+import { SessionUpdatableService, recordAudit, requireUserId } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
 import { createLogger } from "@foundry/commons/logger";
@@ -15,15 +17,7 @@ import { createLogger } from "@foundry/commons/logger";
 // written to the users table — only the audit `changes` is redacted.
 const REDACT_FIELDS = new Set(["pinHash", "password"]);
 
-// True when a unique-violation (23505) hit the username unique constraint.
-function isUsernameConflict(e: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-  const err = e as PgErr;
-  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-  return layers.some(
-    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("users_username_unique"),
-  );
-}
+const isUsernameConflict = (e: unknown) => isUniqueViolation(e, "users_username_unique");
 
 // A transaction handle (the callback arg of db.transaction), for helpers that
 // must write inside a caller's tx.
@@ -67,8 +61,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
    */
   async setRole(userId: string, role: RoleValue) {
     const actorId = await this.currentUserId();
-    const [target] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
-    if (!target) throw new ValidationError("User not found");
+    const target = { id: await requireUserId(userId) };
     if (actorId && target.id === actorId) {
       throw new ValidationError("You cannot change your own role.");
     }
@@ -109,9 +102,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
 
   /** Delete every session row for a user — "sign out everywhere". */
   async revokeSessions(publicId: string) {
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    if (!u) throw new ValidationError("User not found");
-    await db.delete(session).where(eq(session.userId, u.id));
+    await db.delete(session).where(eq(session.userId, await requireUserId(publicId)));
   }
 
   /**
@@ -168,10 +159,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
         if (isCustomerRole(current.role) && !opts.removePhone) throw new ValidationError("Phone is required for customers");
         patch.phone = null;
       } else {
-        const p = phoneSchema().safeParse(phone);
-        if (!p.success) throw new ValidationError("Enter a valid phone number");
-        await this.assertFree(userId, "phone", p.data, opts.nameClash);
-        patch.phone = p.data;
+        const p = parsePhone(phone);
+        await this.assertFree(userId, "phone", p, opts.nameClash);
+        patch.phone = p;
       }
     }
 
@@ -181,10 +171,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
         if (!isCustomerRole(current.role)) throw new ValidationError("Email is required for staff");
         patch.email = null;
       } else {
-        const e = emailSchema.safeParse(raw);
-        if (!e.success) throw new ValidationError("Enter a valid email");
-        await this.assertFree(userId, "email", e.data, opts.nameClash);
-        patch.email = e.data;
+        const e = parseEmail(raw);
+        await this.assertFree(userId, "email", e, opts.nameClash);
+        patch.email = e;
       }
     }
 
@@ -410,12 +399,11 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   private async assertPassword(userId: string, currentPassword: string): Promise<void> {
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
-    if (!u) throw new ValidationError("User not found");
+    const uid = await requireUserId(userId);
     const [acct] = await db
       .select({ password: account.password })
       .from(account)
-      .where(and(eq(account.userId, u.id), eq(account.providerId, "credential")))
+      .where(and(eq(account.userId, uid), eq(account.providerId, "credential")))
       .limit(1);
     if (!acct?.password || !(await verifyPassword(currentPassword, acct.password))) {
       throw new ValidationError("Password is incorrect");

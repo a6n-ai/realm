@@ -1,5 +1,6 @@
 import { BaseService, UpdatableService, stripManaged } from "@foundry/database";
 import { createLogger } from "@foundry/commons/logger";
+import { ValidationError } from "@foundry/commons";
 import { cache } from "react";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
@@ -20,6 +21,13 @@ export const userIdByPublicId = cache(async (publicId: string): Promise<bigint |
   const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
   return row?.id ?? null;
 });
+
+/** The internal id for a public id, or a ValidationError("User not found"). */
+export async function requireUserId(publicId: string): Promise<bigint> {
+  const id = await userIdByPublicId(publicId);
+  if (id == null) throw new ValidationError("User not found");
+  return id;
+}
 
 export async function resolveUserId(
   tx: { select: typeof db.select },

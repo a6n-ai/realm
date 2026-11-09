@@ -1,3 +1,4 @@
+import { parseCustomerContact } from "@/lib/services/contact";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
@@ -337,16 +338,7 @@ export async function createOrder(
   input.contact = { ...input.contact, postalCode: parseCanadianPostalCode(input.contact.postalCode) };
   let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
-  const parsedPhone = phoneSchema().safeParse(input.contact.phone);
-  if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-  const phone = parsedPhone.data;
-  // Email is required on every account: it is the login path and the only
-  // channel for verification, reset and security alerts. The checkout UI
-  // already disables Continue without one — this is the server-side enforcement
-  // of that rule, which a direct POST would otherwise bypass.
-  const parsedEmail = emailSchema.safeParse(input.contact.email?.trim());
-  if (!parsedEmail.success) throw new ValidationError("An email address is required");
-  const email = parsedEmail.data;
+  const { phone, email } = parseCustomerContact(input.contact);
 
   const deploymentId = generateCode("SUB", 6);
 

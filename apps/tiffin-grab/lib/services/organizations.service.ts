@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "@/lib/db/errors";
 import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { OrgLocation } from "@foundry/commons";
 import { resolveVisibleOrgIds } from "@foundry/auth";
@@ -6,7 +7,6 @@ import { member, organization, users } from "@/db/schema";
 import { userIdByPublicId } from "./session-service";
 
 // Per-request memoized: the dashboard shell resolves the same actor several times.
-const resolveUserId = userIdByPublicId;
 
 export type MemberOrganization = { id: string; name: string; clientCode: string };
 
@@ -16,7 +16,7 @@ export type MemberOrganization = { id: string; name: string; clientCode: string 
 // switcher (it isn't: OrgSwitcher hides itself below 2).
 export async function getMemberOrganizations(session: { user: { id: string } } | null): Promise<MemberOrganization[]> {
   if (!session) return [];
-  const userId = await resolveUserId(session.user.id);
+  const userId = await userIdByPublicId(session.user.id);
   if (!userId) return [];
   return db
     .select({ id: organization.id, name: organization.name, clientCode: organization.clientCode })
@@ -108,16 +108,7 @@ export async function getOrganization(id: string) {
 export type UpdateOrganizationInput = { name: string; clientCode: string; region: string | null } & OrgLocation;
 export type UpdateOrganizationResult = { ok: true } | { ok: false; error: string };
 
-// Same wrapped-error shape as isMemberConflict below, but keyed to the
-// organization_client_code_unique index instead of the member org+user one.
-function isClientCodeConflict(e: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-  const err = e as PgErr;
-  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-  return layers.some(
-    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "") === "organization_client_code_unique",
-  );
-}
+const isClientCodeConflict = (e: unknown) => isUniqueViolation(e, "organization_client_code_unique");
 
 export async function updateOrganization(
   id: string,
@@ -154,24 +145,14 @@ export async function listMembers(organizationId: string): Promise<MemberRow[]> 
   return rows.map((r) => ({ userId: r.userId, email: r.email ?? "", role: r.role }));
 }
 
-// True when a Postgres unique-violation (23505) hit the member org+user unique
-// index. drizzle wraps the driver error, so the real PostgresError (with code +
-// constraint_name) sits on .cause; postgres.js names the field constraint_name.
-function isMemberConflict(e: unknown): boolean {
-  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
-  const err = e as PgErr;
-  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-  return layers.some(
-    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("member_org_user_unique"),
-  );
-}
+const isMemberConflict = (e: unknown) => isUniqueViolation(e, "member_org_user_unique");
 
 // The only two roles anything in this codebase writes to member.role (see
 // createFranchise's owner-member insert and db/seed-brand-org.ts's admin backfill).
 export type MemberRole = "owner" | "admin";
 
 export async function addMember(organizationId: string, userPublicId: string, role: MemberRole): Promise<void> {
-  const userId = await resolveUserId(userPublicId);
+  const userId = await userIdByPublicId(userPublicId);
   if (!userId) throw new Error("User not found");
   try {
     await db.transaction(async (tx) => {
@@ -192,7 +173,7 @@ export async function addMember(organizationId: string, userPublicId: string, ro
 }
 
 export async function removeMember(organizationId: string, userPublicId: string): Promise<void> {
-  const userId = await resolveUserId(userPublicId);
+  const userId = await userIdByPublicId(userPublicId);
   if (!userId) return;
   await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
 }
@@ -245,7 +226,7 @@ export async function updateMemberRole(
   userPublicId: string,
   role: MemberRole,
 ): Promise<void> {
-  const userId = await resolveUserId(userPublicId);
+  const userId = await userIdByPublicId(userPublicId);
   if (!userId) throw new Error("User not found");
   await db
     .update(member)
@@ -256,7 +237,7 @@ export async function updateMemberRole(
 export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };
 
 export async function listMembershipsForUser(userPublicId: string): Promise<UserMembershipRow[]> {
-  const userId = await resolveUserId(userPublicId);
+  const userId = await userIdByPublicId(userPublicId);
   if (!userId) return [];
   return db
     .select({ organizationId: organization.id, organizationName: organization.name, role: member.role })

@@ -145,16 +145,7 @@ export function grainUnitForRange(fromMs: number, toMs: number, tz: string): (ty
   return GRAIN_UNIT[grainForRange(isoDateInZone(fromMs, tz), isoDateInZone(toMs, tz))];
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  simulated: "Simulated",
-  cash: "Cash",
-  etransfer: "e-Transfer",
-  manual: "Manual",
-};
-
-export function methodLabel(method: string): string {
-  return METHOD_LABELS[method] ?? method;
-}
+export { paymentMethodLabel as methodLabel } from "@/lib/payments/method-label";
 
 const STAFF_LABEL = "Staff discounts";
 

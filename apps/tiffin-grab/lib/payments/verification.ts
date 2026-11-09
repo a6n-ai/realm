@@ -1,3 +1,4 @@
+import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveUserId } from "@/lib/services/session-service";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -36,14 +37,6 @@ const log = createLogger("payments.verification");
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
-  etransfer: "Interac e-Transfer",
-  cash: "Cash",
-  manual: "Manual",
-  simulated: "Simulated",
-  stripe: "Card (Stripe)",
-};
-
 /** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
 export function receiptVars(
   pay: Pick<typeof payments.$inferSelect, "method" | "amount" | "cardBrand" | "cardLast4" | "surchargeAmount">,
@@ -60,7 +53,7 @@ export function receiptVars(
   ].filter(Boolean);
   return {
     receiptLines: parts.join(" · "),
-    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : METHOD_LABEL[pay.method],
+    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : paymentMethodLabel(pay.method, "full"),
     cardFee: fee > 0 ? formatMoney(fee) : "",
     totalCharged: total,
   };
@@ -76,7 +69,7 @@ export function paymentTemplateVars(
     amount: formatMoney(Number(pay.amount)),
     orderCode,
     customerName: customerName || "there",
-    method: METHOD_LABEL[pay.method],
+    method: paymentMethodLabel(pay.method, "full"),
   };
 }
 

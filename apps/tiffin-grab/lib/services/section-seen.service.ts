@@ -2,15 +2,10 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, payments, sectionSeen, tickets, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { userIdByPublicId } from "./session-service";
+import { currentUserId as actorId } from "./session-service";
 
 export type Section = "tickets" | "inquiries" | "customers" | "payments";
 const SECTIONS: Section[] = ["tickets", "inquiries", "customers", "payments"];
-
-async function actorId(): Promise<bigint | null> {
-  const publicId = (await getSession())?.user?.id;
-  return publicId ? userIdByPublicId(publicId) : null;
-}
 
 async function seenMap(userId: bigint): Promise<Record<Section, number>> {
   const rows = await db

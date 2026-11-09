@@ -1,3 +1,4 @@
+import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
@@ -53,7 +54,6 @@ export function rankTodayItems(items: TodayItem[]): TodayItem[] {
 
 // ---- payments under review: one row per payment ----
 
-const METHOD_LABEL: Record<string, string> = { etransfer: "e-Transfer", cash: "Cash", manual: "Manual", stripe: "Card", simulated: "Simulated" };
 const PAYMENT_STATUS_LABEL: Record<string, string> = { pending_verification: "claimed, to verify", awaiting_payment: "awaiting payment" };
 
 const reviewPaymentWhere = (visible: Visible) =>
@@ -130,7 +130,7 @@ const SOURCES: Record<TodayKind, Source> = {
   async payment(visible) {
     const rows = await listReviewPayments(visible, TODAY_LIMIT);
     return rows.map((r): TodayItem => {
-      const method = METHOD_LABEL[r.method] ?? r.method;
+      const method = paymentMethodLabel(r.method);
       return {
         kind: "payment", key: `payment:${r.paymentId}`, who: r.customer,
         what: `${method} ${formatMoney(Number(r.amount))} · ${PAYMENT_STATUS_LABEL[r.status] ?? r.status}`,
