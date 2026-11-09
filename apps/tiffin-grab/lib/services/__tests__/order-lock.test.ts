@@ -1,3 +1,4 @@
+// @vitest-db
 import { describe, expect, it } from "vitest";
 
 const { withOrderLock } = await import("../order-lock");
