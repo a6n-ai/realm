@@ -78,7 +78,7 @@ import {
   type Tone,
 } from "@/components/analytics/chart-math";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { useAppCurrency } from "@/components/app-currency";
 
 // A string, not a formatter function: these charts are rendered from server

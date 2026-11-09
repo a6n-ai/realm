@@ -3,7 +3,7 @@ import type { Line } from "@/lib/billing/pay-lines";
 import type { Receipt } from "./receipt";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 import { STRIPE_MARK_PATH } from "@/lib/payments/stripe-mark-path";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 // Built-in Helvetica only covers WinAnsi: no U+2212 minus, so negatives use "-".
 const SAFFRON = "#E8590C";

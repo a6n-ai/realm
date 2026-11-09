@@ -13,7 +13,7 @@ import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { configCache } from "@/lib/cache";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
 import { APP_DEFAULTS, app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";

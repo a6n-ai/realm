@@ -2,7 +2,7 @@ import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import { effectivePrice } from "@/lib/pricing";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 export const hourLabel = (h: number) =>
   dateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();

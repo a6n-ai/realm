@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { buttonClass } from "@/components/customer/kit";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 export type Receipt = {
   title: string;

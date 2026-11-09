@@ -13,7 +13,7 @@ import { MethodName } from "@/components/payments/stripe-mark";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIcon }> = {
   payment: { tint: "green", Icon: CreditCard },

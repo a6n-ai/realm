@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateOrder } from "@/lib/revalidate";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatMoney, ValidationError } from "@foundry/commons";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { db } from "@/db/client";
@@ -108,7 +109,7 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
     // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
     const fresh = await quoteOrderAddons(orderId, selections, methodId);
     if (fresh.amountDue.toFixed(2) !== expectedAmountDue.toFixed(2)) {
-      throw new ValidationError(`The amount changed to ${formatMoney(fresh.amountDue)}. Check with the customer and try again.`);
+      throw new ValidationError(`The amount changed to ${formatMoney(fresh.amountDue, (await getAppSettings()).currency)}. Check with the customer and try again.`);
     }
     const actorId = await currentUserId();
     // The first argument only names the storage folder; the payment row does not exist yet.

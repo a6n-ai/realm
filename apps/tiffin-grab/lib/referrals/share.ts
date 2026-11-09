@@ -1,5 +1,5 @@
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 export type CoinRate = { perCoin: number; currency: string } | null;
 

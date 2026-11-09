@@ -28,7 +28,7 @@ import {
   type Catalog,
 } from "./order-draft";
 import { utcIso } from "@foundry/commons/util/dates";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { useAppCurrency } from "@/components/app-currency";
 
 export type EnabledSlot = { key: string; label: string };

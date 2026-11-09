@@ -3,7 +3,7 @@
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/create-order";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 type Catalog = {
   plans: { key: string; name: string }[];

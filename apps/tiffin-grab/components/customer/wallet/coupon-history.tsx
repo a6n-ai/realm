@@ -9,7 +9,7 @@ import type { CustomerCouponUse } from "@/lib/services/customer-finances.service
 import { QuietPagination } from "./finance-kit";
 import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
 import { H2Skeleton, ListGroupSkeleton } from "@/components/customer/skeleton-parts";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const money = (amount: string | number, currency: string) => formatMoney(Number(amount), currency, { narrow: true });
 

@@ -6,7 +6,7 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   listWalletBalances,

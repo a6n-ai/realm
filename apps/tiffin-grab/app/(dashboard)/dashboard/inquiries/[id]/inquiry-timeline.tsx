@@ -11,7 +11,7 @@ import { cn } from "@foundry/ui/cn";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { stageLabel } from "@/components/ds";
 import { statusLabel, type SubStatus } from "@/lib/inquiries/status";
 import { look } from "../_leads/status-dialog";

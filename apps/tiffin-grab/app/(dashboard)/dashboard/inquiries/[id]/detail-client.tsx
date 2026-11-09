@@ -12,7 +12,7 @@ import { cn } from "@foundry/ui/cn";
 import { formatPhone, zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { displayName } from "@/lib/inquiries/display";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";

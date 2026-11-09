@@ -5,7 +5,7 @@ import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/refer
 import { friendOffer } from "@/lib/referrals/share";
 import { ShareCard } from "./share-card";
 import { EnterCodeCard } from "./enter-code-card";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const STATUS: Record<ReferralFriendStatus, { label: string; tone: Tone }> = {
   joined: { label: "Joined", tone: "up" },

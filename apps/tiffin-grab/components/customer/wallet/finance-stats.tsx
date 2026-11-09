@@ -2,7 +2,7 @@ import { PiggyBank, Wallet } from "lucide-react";
 import { IconTile, StatGroup, StatTile } from "@/components/customer/kit";
 import type { UsageSummary } from "@/lib/services/customer-usage.service";
 import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const money = (amount: string, currency: string) => formatMoney(Number(amount), currency, { narrow: true });
 

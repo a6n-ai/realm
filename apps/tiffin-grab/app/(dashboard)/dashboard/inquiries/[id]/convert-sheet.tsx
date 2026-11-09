@@ -5,7 +5,7 @@ import { AlertTriangleIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { displayName } from "@/lib/inquiries/display";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";

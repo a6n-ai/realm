@@ -24,7 +24,7 @@ import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
 import { MethodName } from "@/components/payments/stripe-mark";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 type PayStatus = CustomerBill["payments"][number]["status"];
 

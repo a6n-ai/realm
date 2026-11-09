@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { createContext, useContext, type ReactNode } from "react";
 
 const AppCurrencyContext = createContext<string | null>(null);

@@ -16,7 +16,7 @@ import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;

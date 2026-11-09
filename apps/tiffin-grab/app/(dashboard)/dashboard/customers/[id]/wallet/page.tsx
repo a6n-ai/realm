@@ -7,7 +7,7 @@ import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { customerWalletStats } from "@/lib/services/wallet-balances.service";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";

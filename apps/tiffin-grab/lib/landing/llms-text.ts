@@ -1,5 +1,5 @@
 import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@foundry/commons";
 
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
