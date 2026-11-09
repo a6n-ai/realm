@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
 import { usePublicSession } from "@/lib/auth/public-session";
-import { localStore, sessionStore } from "@/lib/storage";
+import { localStore, sessionStore } from "@foundry/ui/safe-storage";
 import { SavingsReceipt } from "@/components/landing/promo/savings-receipt";
 
 export function CopyCode({ code }: { code: string }) {

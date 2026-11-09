@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { localStore } from "@/lib/storage";
+import { localStore } from "@foundry/ui/safe-storage";
 
 // Per-device read state for support tickets: ticket publicId → when the customer last opened it.
 // ponytail: localStorage, so "seen" doesn't follow the customer across devices; move to a

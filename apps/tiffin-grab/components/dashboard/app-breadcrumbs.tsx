@@ -7,7 +7,7 @@ import { deriveBreadcrumbs } from "@foundry/design-system";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@foundry/ui/breadcrumb";
-import { sessionStore } from "@/lib/storage";
+import { sessionStore } from "@foundry/ui/safe-storage";
 import { labelForSegment } from "@/components/ds/route-labels";
 
 // Detail pages name their id segment (e.g. inq_abc → "Riya Anand") so the trail reads

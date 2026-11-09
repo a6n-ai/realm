@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { hasConsentAnswer, saveConsent } from "@/components/consent/cookie-consent";
-import { localStore } from "@/lib/storage";
+import { localStore } from "@foundry/ui/safe-storage";
 import { SwipeBanner } from "./review-banner";
 
 // A customer who never answered the site's cookie question is asked once while using the app, the way

@@ -1,4 +1,4 @@
-import { initials } from "@/lib/format/initials";
+import { initials } from "@foundry/ui/initials";
 import { Avatar, AvatarBadge, AvatarFallback } from "@foundry/ui/avatar";
 import { cn } from "@foundry/ui/cn";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { promptReloadIfStale, isStaleActionResponse } from "@/lib/stale-deploy";
+import { promptReloadIfStale, isStaleActionResponse } from "@foundry/ui/stale-deploy";
 
 export function StaleDeployReloader() {
   useEffect(() => {

@@ -4,7 +4,7 @@ import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
 import { ThemeProvider, themeInitScript } from "@foundry/themes";
-import { InlineScript } from "@/components/inline-script";
+import { InlineScript } from "@foundry/ui/inline-script";
 import { Toaster } from "@foundry/ui/sonner";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";

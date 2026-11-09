@@ -1,5 +1,5 @@
 import type { ActionResult } from "@/lib/actions/action-result";
-import { promptReloadIfStale } from "@/lib/stale-deploy";
+import { promptReloadIfStale } from "@foundry/ui/stale-deploy";
 
 /**
  * Server actions return `{ error }` instead of throwing (production redacts thrown errors).

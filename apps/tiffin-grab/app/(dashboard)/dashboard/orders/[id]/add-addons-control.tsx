@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
+import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";

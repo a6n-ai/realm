@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CONSENT_COOKIE, CONSENT_VERSION, consentCookieDomain, parseConsent, type Consent } from "@/lib/consent";
-import { sessionStore } from "@/lib/storage";
+import { sessionStore } from "@foundry/ui/safe-storage";
 import { consentCardOn } from "./card-visible";
 
 // Cookie consent for Canadian rules (PIPEDA; Quebec Law 25 s. 8.1): anything that tracks a

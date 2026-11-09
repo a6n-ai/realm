@@ -1,4 +1,4 @@
-import { initials } from "@/lib/format/initials";
+import { initials } from "@foundry/ui/initials";
 /* eslint-disable */
 "use client";
 
@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, RefreshCw, Wallet, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries-view/cutoff";
-import { useTimezone } from "@/components/providers/timezone-provider";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { AnimatedIcon, CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";

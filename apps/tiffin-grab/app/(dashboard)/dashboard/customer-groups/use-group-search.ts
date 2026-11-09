@@ -1,4 +1,4 @@
-import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
+import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
 import { searchGroupsAction } from "./actions";
 
 const FAILED = { ok: false as const, error: "The request did not finish." };

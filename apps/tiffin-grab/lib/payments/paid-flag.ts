@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { sessionStore } from "@/lib/storage";
+import { sessionStore } from "@foundry/ui/safe-storage";
 import { wizardSession } from "@/lib/wizard/session";
 
 export const PAID_KEY = "tg:paid";

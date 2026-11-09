@@ -1,6 +1,6 @@
 "use client";
 
-import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
+import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
 import { useEffect, useState } from "react";
 import { UserRoundIcon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";

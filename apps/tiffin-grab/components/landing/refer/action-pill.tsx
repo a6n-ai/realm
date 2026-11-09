@@ -1,6 +1,6 @@
 "use client";
 
-import { initials } from "@/lib/format/initials";
+import { initials } from "@foundry/ui/initials";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent } from "react";

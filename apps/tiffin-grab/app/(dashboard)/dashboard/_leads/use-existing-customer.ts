@@ -1,6 +1,6 @@
 "use client";
 
-import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
+import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
 import { findCustomerByContact } from "./match-actions";
 
 export type ExistingCustomer = { publicId: string; fullName: string };

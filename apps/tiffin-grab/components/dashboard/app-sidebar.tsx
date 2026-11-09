@@ -1,6 +1,6 @@
 "use client";
 
-import { initials } from "@/lib/format/initials";
+import { initials } from "@foundry/ui/initials";
 import { ADMIN_ROLES, ALL_ROLES, STAFF_ROLES, isAdmin } from "@/lib/auth/roles";
 import * as React from "react";
 import {

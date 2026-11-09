@@ -1,4 +1,4 @@
-import { initials } from "@/lib/format/initials";
+import { initials } from "@foundry/ui/initials";
 import { cn } from "@/components/customer/kit/cn";
 
 /** Same look as the top-bar avatar: the photo, or initials on a clear-glass round. `className` sets size and type. */

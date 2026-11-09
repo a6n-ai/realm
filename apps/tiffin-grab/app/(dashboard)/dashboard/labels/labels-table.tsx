@@ -6,9 +6,9 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry
 import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { FilterBar, ListPagination, SearchInput, useListNavPending, useSortNav } from "@/components/ds";
-import { sortRows } from "@/lib/list/sort";
+import { sortRows } from "@foundry/design-system/list-sort";
 import type { KitchenPackingSheet, KitchenPackingRow } from "@/lib/services/kitchen-packing-sheet.service";
-import { localStore } from "@/lib/storage";
+import { localStore } from "@foundry/ui/safe-storage";
 import { useTableParams } from "./use-table-params";
 
 type ColKey = string;
