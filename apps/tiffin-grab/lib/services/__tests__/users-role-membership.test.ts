@@ -12,7 +12,7 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { usersService } = await import("../users.service");
-const { getBrandOrganizationId } = await import("../organizations.service");
+const { getBrandOrgId } = await import("../organizations.service");
 
 const P = "rolemembertest";
 
@@ -32,7 +32,7 @@ async function user(role: "admin" | "member" | "user") {
 }
 
 async function brandId(): Promise<string> {
-  const existing = await getBrandOrganizationId();
+  const existing = await getBrandOrgId();
   if (existing) return existing;
   const [o] = await db
     .insert(organization)

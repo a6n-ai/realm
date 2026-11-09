@@ -28,6 +28,7 @@ const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, users } = await import("@/db/schema");
 const { notificationTables } = await import("@/lib/notifications/tables");
 const { getAppSettings } = await import("../app-settings.service");
+const { getBrandOrgId } = await import("../organizations.service");
 const {
   checkoutHolidayDates, createHoliday, dismissHolidayDay, getHolidayDetail, holidayNamesForUser, holidayOutcome, holidaysOn, listDeclarableOrganizations, listHolidays, listNeedsPlacing, placeHolidayDay,
   previewHoliday, reapplyHoliday, removeHoliday, renameHoliday,
@@ -299,7 +300,11 @@ describe("holidays.service", () => {
     expect(await holidayNamesForUser(order.userId!, "2030-01-01")).toEqual({ "2030-01-09": `${PFX} Diwali` });
     expect(await holidayNamesForUser(order.userId!, "2030-01-10")).toEqual({});
     expect(res.created).toBe(true);
-    expect(await checkoutHolidayDates("2030-01-01")).toContain("2030-01-09");
+    // Checkout closes only the org new orders are stamped to, not every top-level org.
+    expect(await checkoutHolidayDates("2030-01-01")).not.toContain("2030-01-09");
+    const brand = (await getBrandOrgId())!;
+    await declare(brand, { name: `${PFX} Brand`, date: "2031-03-03" });
+    expect(await checkoutHolidayDates("2030-01-01")).toContain("2031-03-03");
   });
   it("an organization that does not exist is the same not-found as one the caller cannot see", async () => {
     await expect(createHoliday({ organizationId: "no_such_org", date: "2030-01-09", name: `${PFX} x`, notify: false }, 1n, "all")).rejects.toThrow("Organization not found");

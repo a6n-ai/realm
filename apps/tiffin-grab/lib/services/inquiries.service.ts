@@ -12,7 +12,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { assertOnePerson, createOrder, resolveBrandOrgId, type CreateOrderInput } from "./orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "./orders.service";
+import { getBrandOrgId } from "./organizations.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
@@ -329,8 +330,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const { sourceId, subSourceId } = await this.resolveSource(sourceKey, subSourceKey);
     const currentOwner = await this.resolveOwner(sourceId, sourceKey);
     const zoneId = await zoneIdP;
-    // Stamped like orders (resolveBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
-    const organizationId = await resolveBrandOrgId(db);
+    // Stamped like orders (getBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
+    const organizationId = await getBrandOrgId(db);
 
     let inq: typeof inquiries.$inferSelect;
     try {

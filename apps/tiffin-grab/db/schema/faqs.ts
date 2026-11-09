@@ -12,7 +12,7 @@ import { organization } from "./organizations";
  * Read as an override, not a union: an org with its own rows sees only
  * those; one with none falls back to the brand's null-org rows. See
  * listPublicFaqs in faqs.service.ts. This app has exactly one org today (see
- * resolveBrandOrgId in orders.service.ts), so the override path is inert
+ * getBrandOrgId in organizations.service.ts), so the override path is inert
  * until franchise creation ships — same column, ready either way.
  */
 export const publicFaqs = pgTable("public_faqs", {

@@ -10,7 +10,7 @@ import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/databas
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { unexpired } from "@foundry/wallet";
 import { inStatuses, PAID } from "@/lib/payments/status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -18,6 +18,7 @@ import { db } from "@/db/client";
 import { startPaidStripeOrder, type Tx } from "@/lib/payments/verification";
 import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import { defaultOwner } from "./default-owner";
+import { getBrandOrgId } from "./organizations.service";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
@@ -33,7 +34,6 @@ import {
   orderActivities,
   orderAddons,
   orders,
-  organization,
   payments,
   plans,
   subscriptionPauses,
@@ -216,7 +216,7 @@ export interface CreateOrderOptions {
   ownerUserId?: string | null;
   // Franchise the checkout resolved to (resolveRequestOrg), so the priced
   // catalog snapshot matches the one the customer's wizard/checkout priced
-  // against. NOT the org the order is stamped to — see resolveBrandOrgId.
+  // against. NOT the org the order is stamped to — see getBrandOrgId.
   orgId?: string | null;
   // Staff-only (set by dashboard server actions, never from client input): may
   // order a hidden custom meal size for any customer.
@@ -238,20 +238,13 @@ export interface CreateOrderOptions {
   metaPurchaseEligible?: boolean;
 }
 
-// Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
-// the id is absent or doesn't match a user.
-// This app has exactly one org (the seeded brand org) until franchise creation
-// ships (spec §1/migration path) — resolving "the org new orders belong to" is
-// unambiguous today, so orders are stamped directly rather than left NULL and
-// read-side-tolerated. Revisit once a second (franchise) org can exist: this will
-// need to become a resolved-context lookup (checkout zone/region -> org), not "the
-// only brand org".
-// Prefer the seeded brand org (client code TG, db/seed-brand-org.ts), then the oldest: with several
-// top-level orgs (test DBs have many) a bare limit(1) returns whichever row Postgres reads first.
-export async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
-  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId))
-    .orderBy(sql`${organization.clientCode} is distinct from 'TG'`, asc(organization.createdAt)).limit(1);
-  return row?.id ?? null;
+/**
+ * New plans are for one person: one phone, one running plan, one eater. Checkout and the staff
+ * order path call this before createOrder; createOrder itself still builds the few multi-person
+ * plans migrated from WordPress (and their tests).
+ */
+export function assertOnePerson(input: Pick<CreateOrderInput, "selections">): void {
+  if (input.selections.persons !== 1) throw new ValidationError("A plan is for one person. Each person needs their own account.");
 }
 
 // The single authoritative order-creation path: prices server-side, attaches the
@@ -263,15 +256,6 @@ export async function resolveBrandOrgId(tx: { select: typeof db.select }): Promi
 // public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
 // resolves each to the internal bigint id before writing the FK columns, and
 // returns the order's public_id (ord_…) — never a bigint.
-/**
- * New plans are for one person: one phone, one running plan, one eater. Checkout and the staff
- * order path call this before createOrder; createOrder itself still builds the few multi-person
- * plans migrated from WordPress (and their tests).
- */
-export function assertOnePerson(input: Pick<CreateOrderInput, "selections">): void {
-  if (input.selections.persons !== 1) throw new ValidationError("A plan is for one person. Each person needs their own account.");
-}
-
 export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
@@ -505,7 +489,7 @@ export async function createOrder(
       if (movedPostal) zoneRow = await findZone(snapshot.zones, input.contact, orgId);
     }
 
-    const organizationId = await resolveBrandOrgId(tx);
+    const organizationId = await getBrandOrgId(tx);
     await assertStartNotHoliday(tx, organizationId, input.selections.startDate);
 
     // Reject a new order whose delivery window overlaps a subscription this

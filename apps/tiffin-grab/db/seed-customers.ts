@@ -16,11 +16,11 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
-import { deliveries, orderActivities, orders, organization, users } from "./schema";
+import { deliveries, orderActivities, orders, users } from "./schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
@@ -29,6 +29,7 @@ import { nextTripDate, tripsFor } from "../lib/orders/bounded-deliveries";
 import { matchZone, parseCanadianPostalCode } from "../lib/catalog/postal";
 import { getAppSettings } from "../lib/services/app-settings.service";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
+import { getBrandOrgId } from "../lib/services/organizations.service";
 import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
 import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
@@ -486,11 +487,6 @@ function printReport(totalRows: number, results: PlanResult[], duplicates: Migra
 
 type Outcome = "created" | "refreshed" | "unchanged (already started)" | "failed";
 
-async function brandOrgId(): Promise<string | null> {
-  const [row] = await db.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
-  return row?.id ?? null;
-}
-
 export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null, today: string): Promise<Outcome> {
   const x = r.record;
   const deploymentId = wordpressDeploymentId(x.wpOrderId);
@@ -617,7 +613,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
 }
 
 async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapshot: CatalogSnapshot): Promise<void> {
-  const orgId = await brandOrgId();
+  const orgId = await getBrandOrgId();
   const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   const counts: Record<Outcome, number> = { created: 0, refreshed: 0, "unchanged (already started)": 0, failed: 0 };
   for (const r of planned) {

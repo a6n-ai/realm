@@ -11,8 +11,7 @@ import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { Role } from "@foundry/commons";
 import { db } from "./client";
 import { orders, organization, member, users, app } from "./schema";
-
-const BRAND_CLIENT_CODE = "TG";
+import { BRAND_CLIENT_CODE } from "../lib/services/organizations.service";
 
 async function main() {
   const [existing] = await db

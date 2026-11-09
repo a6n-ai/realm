@@ -8,6 +8,7 @@ import { humanDate } from "@/lib/deliveries-view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { notificationTables } from "@/lib/notifications/tables";
 import { getAppSettings } from "./app-settings.service";
+import { getBrandOrgId } from "./organizations.service";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
@@ -436,8 +437,9 @@ export async function holidayNamesForUser(userId: bigint, from: string): Promise
 
 /** Dates a new checkout cannot start on. New orders are stamped with the brand organization. */
 export async function checkoutHolidayDates(from: string): Promise<string[]> {
+  const brandId = await getBrandOrgId();
+  if (!brandId) return [];
   const rows = await db.select({ date: holidays.date }).from(holidays)
-    .innerJoin(organization, eq(organization.id, holidays.organizationId))
-    .where(and(isNull(organization.parentOrganizationId), gte(holidays.date, from)));
+    .where(and(eq(holidays.organizationId, brandId), gte(holidays.date, from)));
   return rows.map((r) => r.date);
 }

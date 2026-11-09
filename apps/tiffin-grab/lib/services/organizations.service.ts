@@ -1,4 +1,4 @@
-import { and, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { OrgLocation } from "@foundry/commons";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { db } from "@/db/client";
@@ -41,13 +41,10 @@ export async function resolveMemberVisibleOrgIds(
   });
 }
 
-/** The one brand-level org (parentOrganizationId null) — seeded once per app. */
 export async function getBrandOrganizationAddress(): Promise<string | null> {
-  const [row] = await db
-    .select({ address: organization.address })
-    .from(organization)
-    .where(sql`${organization.parentOrganizationId} is null`)
-    .limit(1);
+  const brandId = await getBrandOrgId();
+  if (!brandId) return null;
+  const [row] = await db.select({ address: organization.address }).from(organization).where(eq(organization.id, brandId)).limit(1);
   return row?.address ?? null;
 }
 
@@ -200,14 +197,16 @@ export async function removeMember(organizationId: string, userPublicId: string)
   await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
 }
 
-/** The brand-level org (parentOrganizationId null); oldest wins if tests left extras. */
-export async function getBrandOrganizationId(): Promise<string | null> {
-  const [row] = await db
-    .select({ id: organization.id })
-    .from(organization)
-    .where(sql`${organization.parentOrganizationId} is null`)
-    .orderBy(organization.createdAt)
-    .limit(1);
+export const BRAND_CLIENT_CODE = "TG";
+
+/**
+ * The org new orders, leads, holidays and staff memberships belong to: the top-level org with the
+ * brand client code, else the oldest top-level org (test DBs have several; a bare limit(1) would
+ * return whichever row Postgres reads first).
+ */
+export async function getBrandOrgId(tx: { select: typeof db.select } = db): Promise<string | null> {
+  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId))
+    .orderBy(sql`${organization.clientCode} is distinct from ${BRAND_CLIENT_CODE}`, asc(organization.createdAt)).limit(1);
   return row?.id ?? null;
 }
 
@@ -223,7 +222,7 @@ export async function syncStaffMembership(userId: bigint, role: string): Promise
   }
   const [existing] = await db.select({ id: member.id }).from(member).where(eq(member.userId, userId)).limit(1);
   if (existing) return;
-  const brandId = await getBrandOrganizationId();
+  const brandId = await getBrandOrgId();
   if (!brandId) return;
   await db.insert(member).values({ organizationId: brandId, userId, role }).onConflictDoNothing();
 }

@@ -21,7 +21,7 @@ const faqService = new FaqService(new UpdatableRepository(db, publicFaqs, public
  * sees only those, not the brand's rows in addition. Falls back to the
  * brand's null-org rows when the given org (the franchise the page is
  * rendered for) has none of its own. This app has
- * exactly one org today (see resolveBrandOrgId in orders.service.ts), so the
+ * exactly one org today (see getBrandOrgId in organizations.service.ts), so the
  * override branch is inert until franchise creation ships — same shape as
  * apps/puchkaman/lib/services/faqs.service.ts either way.
  */

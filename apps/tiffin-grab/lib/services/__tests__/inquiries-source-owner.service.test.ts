@@ -8,7 +8,7 @@ const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { inquiriesService } = await import("../inquiries.service");
-const { resolveBrandOrgId } = await import("../orders.service");
+const { getBrandOrgId } = await import("../organizations.service");
 
 function testEmail() {
   return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
@@ -53,7 +53,7 @@ describe("inquiriesService source + owner resolution", () => {
   });
 
   it("stamps the brand org so the lead counts in org-scoped analytics", async () => {
-    const brand = await resolveBrandOrgId(db);
+    const brand = await getBrandOrgId(db);
     expect(brand).not.toBeNull();
     const inq = await inquiriesService.create({ fullName: "Lead O", phone: "+16475552003", sourceKey: "website", email: testEmail() });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
