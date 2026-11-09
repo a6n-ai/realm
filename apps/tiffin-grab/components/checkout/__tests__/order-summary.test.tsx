@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { OrderSummary } from "../order-summary";
 import type { PricingResult } from "@/lib/pricing";
-import type { WizardSelections } from "@/components/wizard/selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 
 const sel = {
   mealSizeId: "m", frequencyKey: "f", eatingDays: ["mon", "wed", "fri"], persons: 1, mealSlots: [],

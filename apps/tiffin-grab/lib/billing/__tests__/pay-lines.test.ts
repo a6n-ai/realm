@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AddonRequest } from "@/db/schema";
-import { payPageLines } from "../lines";
+import { payPageLines } from "../pay-lines";
 
 const snapshot = {
   lineItems: [{ label: "Veg plan", amount: 100 }],

@@ -2,7 +2,7 @@ import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { IconTile, Stepper } from "@/components/customer/kit";
 import { makeCategoryLook } from "@/components/customer/meals/category-look";
-import type { WizardSelections } from "./selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 
 /**
  * The add-on picker: inline under the picked meal on desktop, inside the "Add to every tiffin?" drawer on

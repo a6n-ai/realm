@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { referHeadline } from "../refer-content";
+import { referHeadline } from "@/lib/referrals/headline";
 
 const base = { on: true, maxPerReferrer: 30, pillLabel: null, friendCoins: 60, referrerCoins: 60 };
 const f = (big: string) => ({ big, small: "" });

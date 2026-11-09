@@ -26,7 +26,7 @@ import type { SortState } from "@/lib/list/sort";
 import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
-} from "../resource-config";
+} from "@/lib/catalog/resource-config";
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";

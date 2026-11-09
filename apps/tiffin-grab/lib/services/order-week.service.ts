@@ -4,7 +4,7 @@ import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "./address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
-import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
+import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries-view/adapter";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

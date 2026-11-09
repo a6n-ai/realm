@@ -3,7 +3,7 @@ import { buildTrips, type CalendarDayInput, type PlanContext } from "../index";
 import { buildEatingDays, dayNote, deliveryLine } from "../eating";
 import { moveOptions } from "../move";
 import { moveChips, rowMeta } from "@/components/customer/deliveries/trip-parts";
-import { buildPlanContext } from "@/components/customer/deliveries/adapter";
+import { buildPlanContext } from "@/lib/deliveries-view/adapter";
 
 const plan: PlanContext = { cutoffHour: 18, timezone: "America/Toronto", lastDeliveryDate: "2030-01-14", deliveryWeekdays: ["mon", "wed", "fri"] };
 const now = Date.parse("2030-01-01T12:00:00Z");

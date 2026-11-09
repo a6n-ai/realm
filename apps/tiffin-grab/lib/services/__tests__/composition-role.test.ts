@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveCompositionRows } = await import("../catalog.service");

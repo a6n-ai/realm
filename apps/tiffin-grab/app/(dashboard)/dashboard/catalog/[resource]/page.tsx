@@ -15,7 +15,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
+import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";
 import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
 import { loadDiscountData } from "../discounts/load";
 import { catalogListScope } from "../list-scope";

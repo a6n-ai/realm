@@ -1,5 +1,5 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import { selectablePlans } from "../plan-filter";
 import { SelectableCard } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";

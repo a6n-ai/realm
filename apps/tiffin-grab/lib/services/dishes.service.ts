@@ -4,7 +4,7 @@ import { UpdatableRepository } from "@foundry/database";
 import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, plans } from "@/db/schema";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 import { dishNameKey } from "@/lib/menu/similar-dishes";
 import { SessionUpdatableService } from "./session-service";
 import { parsePatch } from "./parse-patch";

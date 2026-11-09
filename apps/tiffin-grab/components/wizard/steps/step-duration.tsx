@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
-import type { WizardSelections } from "../selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { durationSavings } from "@/lib/pricing/recommend";

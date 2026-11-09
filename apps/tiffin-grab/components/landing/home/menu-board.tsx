@@ -2,8 +2,7 @@
 
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Heart } from "lucide-react";
-import type { BoardDay } from "@/components/landing/week-board";
-import type { BoardWeekend } from "@/lib/landing/week-board";
+import type { BoardDay, BoardWeekend } from "@/lib/landing/week-board";
 import { LazyMenuPickDemo as MenuPickDemo } from "@/components/landing/stage/lazy";
 import { Tilt } from "@/components/landing/home/tilt";
 

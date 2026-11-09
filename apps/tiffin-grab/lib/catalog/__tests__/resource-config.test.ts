@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCES, catalogIndexEntries, slug, rowToForm } from "../resource-config";
+import { RESOURCES, catalogIndexEntries, slug, rowToForm } from "@/lib/catalog/resource-config";
 
 const FOLDED = ["dish-categories", "addons", "duration-packages"];
 

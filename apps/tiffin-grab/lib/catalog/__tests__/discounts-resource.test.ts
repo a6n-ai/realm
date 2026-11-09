@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCES } from "../resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 
 const s = RESOURCES.discounts.schema;
 const base = { name: "Early bird", kind: "duration", percent: "5" };

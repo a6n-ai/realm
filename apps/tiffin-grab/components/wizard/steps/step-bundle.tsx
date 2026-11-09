@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
-import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "../selections";
+import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { AddonsPanel } from "../addons-panel";
 import { ChevronDown, Gift } from "lucide-react";
 import { IconTile, OptionCard, Pill } from "@/components/customer/kit";

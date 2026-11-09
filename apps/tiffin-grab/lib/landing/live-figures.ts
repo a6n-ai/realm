@@ -1,4 +1,4 @@
-import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
+import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { effectivePrice } from "@/lib/pricing";

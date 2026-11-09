@@ -1,4 +1,3 @@
-import type { BoardDay } from "@/components/landing/week-board";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import type { MealSlot } from "@/lib/menu/meal-types";
@@ -11,6 +10,7 @@ export const dateOf = (weekStart: string, offset: number) => formatDateOnly(addD
 // Each dish is listed once per plan; the plan suffix only doubles the list.
 const plain = (name: string) => name.replace(/\s*\((?:Non-Veg|Veg)\)$/i, "");
 
+export type BoardDay = { key: string; label: string; short: string; date: string; today: boolean; dishes: Record<string, string[]>; popular?: string[] };
 export type BoardWeekend = { date: string; today: boolean; dishes: string[] };
 
 /** The released week as Mon to Fri board columns with their dish-type rows; Sat and Sun come apart as one weekend line.

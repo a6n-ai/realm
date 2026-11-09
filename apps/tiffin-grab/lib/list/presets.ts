@@ -1,4 +1,4 @@
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 
 /** Owner facet value for records nobody owns yet. */
 export const UNASSIGNED_OWNER = "none";

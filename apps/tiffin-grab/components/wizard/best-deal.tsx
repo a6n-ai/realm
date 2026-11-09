@@ -9,7 +9,7 @@ import { buttonClass } from "@/components/customer/kit/button-class";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
 import { bundleDeal, frequencyOrDurationDeal } from "./best-deal-state";
-import type { WizardSelections } from "./selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 
 type Vary = "bundle" | "frequency" | "duration";
 type Set = (patch: Partial<WizardSelections>) => void;

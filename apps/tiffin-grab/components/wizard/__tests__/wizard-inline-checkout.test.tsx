@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Wizard } from "../wizard";
-import type { WizardSelections } from "../selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 const mockRouter = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
@@ -20,8 +20,8 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
 // The builder's steps are covered elsewhere; this only needs the last step's button to be live.
-vi.mock("../selections", async (orig) => ({
-  ...(await orig<typeof import("../selections")>()),
+vi.mock("@/lib/wizard/selections", async (orig) => ({
+  ...(await orig<typeof import("@/lib/wizard/selections")>()),
   nextBlockedReason: () => null,
   firstBlockedStep: () => null,
   reconcileSelections: (_c: unknown, s: unknown) => s,

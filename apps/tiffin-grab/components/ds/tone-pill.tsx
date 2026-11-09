@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@foundry/ui/cn";
+import type { Tone } from "@/lib/deliveries/tone";
 
-export type Tone = "neutral" | "ok" | "warn" | "bad" | "brand" | "faint";
+export type { Tone };
 
 const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground border",

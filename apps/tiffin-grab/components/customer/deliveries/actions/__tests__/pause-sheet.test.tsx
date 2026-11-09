@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PlanView } from "../../adapter";
+import type { PlanView } from "@/lib/deliveries-view/adapter";
 import { PauseSheet } from "../pause-sheet";
 
 const a = vi.hoisted(() => ({ load: vi.fn(), pause: vi.fn(), release: vi.fn(), auto: vi.fn() }));

@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/ds/tone-pill";
+import type { Tone } from "./tone";
 import type { LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
 
 // One colour per label status, shared by Daily labels and the Dispatch Day table so the

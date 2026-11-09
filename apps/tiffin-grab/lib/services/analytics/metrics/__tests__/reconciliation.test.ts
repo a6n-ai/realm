@@ -21,7 +21,7 @@ const { needsReviewRows } = await import("../needs-review");
 const { getRevenueReport } = await import("../../revenue.service");
 const { recordStripeRefund } = await import("@/lib/services/payment-stripe");
 const { buildOrdersSpec } = await import("@/app/(dashboard)/dashboard/orders/orders-spec");
-const { parseFilterState } = await import("@/components/ds");
+const { parseFilterState } = await import("@foundry/design-system");
 const { eq, inArray } = await import("drizzle-orm");
 
 const TZ = "America/Toronto";

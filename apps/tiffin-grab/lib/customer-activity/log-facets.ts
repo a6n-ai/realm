@@ -1,4 +1,4 @@
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 
 export const CUSTOMER_ACTIVITY_CATEGORY_ACTIONS = {
   meals: ["meal_saved", "meal_customization_saved"],

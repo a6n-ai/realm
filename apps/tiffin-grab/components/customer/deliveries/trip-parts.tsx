@@ -6,7 +6,7 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { dateTimeFormat } from "@/lib/intl/date-format";
-import type { PlanView } from "./adapter";
+import type { PlanView } from "@/lib/deliveries-view/adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 import { isoToUtcDate } from "@/lib/dates";
 

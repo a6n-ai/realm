@@ -6,10 +6,11 @@ import { eventLabel } from "@relay/engine/ui/template-status";
 import { db } from "@/db/client";
 import { campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { parseFilterState, type FacetDef } from "@/components/ds";
+import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { withListDates } from "@/lib/list/default-month";
-import type { LogSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/logs-table";
-import type { SuppressedSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/suppressed-table";
+
+export type LogSortColumn = "time" | "event" | "channel" | "recipient" | "status";
+export type SuppressedSortColumn = "time" | "address" | "channel" | "scope" | "reason";
 
 const SORT_COL = {
   time: notificationOutbox.createdAt,

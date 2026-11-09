@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, ListChecksIcon, UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
-import { catalogIndexEntries } from "./resource-config";
+import { catalogIndexEntries } from "@/lib/catalog/resource-config";
 
 export default async function CatalogIndexPage() {
   await requireAdmin();

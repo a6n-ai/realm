@@ -1,8 +1,8 @@
 "use client";
 
-import type { WizardSelections } from "@/components/wizard/selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import { QuickRenewFormAdmin } from "./quick-renew-form-admin";
-import type { QuickRenewData } from "./types";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 
 export type QuickRenewFormProps = QuickRenewData & {
   /** Customers renew inside Checkout (`RenewCheckout`); this form is the staff one. */

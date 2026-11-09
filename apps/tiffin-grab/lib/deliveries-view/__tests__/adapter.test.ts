@@ -1,6 +1,6 @@
 import { buildTrips } from "@/lib/deliveries-view";
 import { describe, expect, it } from "vitest";
-import { buildPlanContext, pickDefaultTrip, planLines, renewDays, toCalendarInputs } from "../adapter";
+import { buildPlanContext, pickDefaultTrip, planLines, renewDays, toCalendarInputs } from "@/lib/deliveries-view/adapter";
 
 const counts = { total: 20, complimentary: 0, delivered: 4, remaining: 16, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
 const day = (date: string, o: Record<string, unknown> = {}) => ({

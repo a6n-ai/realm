@@ -1,4 +1,4 @@
-import { referHeadline } from "@/components/landing/refer/refer-content";
+import { referHeadline } from "@/lib/referrals/headline";
 import { buildFaq, type FaqGroup } from "@/lib/landing/faq-list";
 import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { loadReferralOffer } from "@/lib/referrals/offer";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adjacentWizardStep, initialSelections, nextBlockedReason, type WizardSelections } from "../selections";
+import { adjacentWizardStep, initialSelections, nextBlockedReason, type WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 const catalog = {

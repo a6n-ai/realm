@@ -1,6 +1,6 @@
 import "server-only";
 import type { ComponentProps } from "react";
-import { listCheckoutPaymentMethods } from "@/app/(public)/subscribe/actions";
+import { checkoutPaymentMethods } from "@/lib/checkout/payment-methods";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -13,7 +13,7 @@ import { resolveProvince } from "@/lib/tax/canada";
 import { myRenewalWindow } from "@/lib/services/customer-deliveries.service";
 import { pendingFriendGift } from "@/lib/services/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
-import type { Checkout } from "@/components/checkout/checkout";
+import type { Checkout } from "./checkout";
 import { isProduction } from "@/lib/runtime/env";
 
 export type CheckoutProps = Omit<ComponentProps<typeof Checkout>, "plan" | "closeHref">;
@@ -46,7 +46,7 @@ export async function loadCheckoutProps(userId: bigint, sessionUserId: string, o
   ]);
 
   // Simulated payment is local-only; prod with no rail enabled can't take an order.
-  if (isProduction() && (await listCheckoutPaymentMethods()).length === 0) return null;
+  if (isProduction() && (await checkoutPaymentMethods()).length === 0) return null;
 
   return { defaultCountry, prefill, catalog, savedAddresses, addressDropOffs, suggestedCoupons, lastTiffin, cardContext, referralGift };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { FIXED_PERSONS, firstBlockedStep, scheduleError, selectableFrequencies } from "@/components/wizard/selections";
+import { FIXED_PERSONS, firstBlockedStep, scheduleError, selectableFrequencies } from "@/lib/wizard/selections";
 import { renewPageMode, renewSelections, type RenewSource } from "../renew-selections";
 
 const catalog: ClientCatalogSnapshot = {

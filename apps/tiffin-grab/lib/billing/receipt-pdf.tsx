@@ -1,5 +1,5 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { Line } from "@/app/(customer)/me/pay/[paymentId]/lines";
+import type { Line } from "@/lib/billing/pay-lines";
 import type { Receipt } from "./receipt";
 import { isoToUtcDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/format/money";

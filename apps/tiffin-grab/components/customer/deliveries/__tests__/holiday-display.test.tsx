@@ -6,7 +6,7 @@ import type { Trip } from "@/lib/deliveries-view";
 import type { Agenda } from "@/lib/deliveries-view/week";
 import { DeliveriesView } from "../deliveries-view";
 import { MoveSheet } from "../actions/move-sheet";
-import type { PlanView } from "../adapter";
+import type { PlanView } from "@/lib/deliveries-view/adapter";
 
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));

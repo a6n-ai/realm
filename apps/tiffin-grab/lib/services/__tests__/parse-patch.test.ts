@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 import { parsePatch } from "../parse-patch";
 
 describe("parsePatch", () => {

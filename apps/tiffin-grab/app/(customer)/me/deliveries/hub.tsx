@@ -11,7 +11,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
 import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";
 import { NoPlan } from "@/components/customer/deliveries/no-plan";
-import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
+import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries-view/adapter";
 import { buildTrips } from "@/lib/deliveries-view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

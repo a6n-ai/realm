@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 import {
   activePresetKey,
   applyPreset,

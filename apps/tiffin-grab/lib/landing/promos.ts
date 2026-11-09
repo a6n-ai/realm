@@ -9,7 +9,7 @@ import type { LandingPromo, LandingPromos } from "@/lib/landing/promo-types";
 
 export type { LandingPromo, LandingPromos, PromoPlacement } from "@/lib/landing/promo-types";
 
-// `c` is the estimate-link coupon key (components/wizard/selections.ts QUOTE_PARAMS): it rides
+// `c` is the estimate-link coupon key (lib/wizard/selections.ts QUOTE_PARAMS): it rides
 // through sign-in to checkout, which re-validates it server side.
 export const subscribeHref = (code: string | null) => (code ? `/subscribe?c=${encodeURIComponent(code)}` : "/subscribe");
 

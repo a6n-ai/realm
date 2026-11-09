@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { quoteCodes, quoteCoins, quoteLinkQuery, quoteQuery, selectionsFromQuote } from "../selections";
+import { quoteCodes, quoteCoins, quoteLinkQuery, quoteQuery, selectionsFromQuote } from "@/lib/wizard/selections";
 
 const catalog = {
   plans: [{ publicId: "pln_veg", key: "veg", name: "Veg", description: "", planType: "tiffin", offeredSlots: ["lunch"], allowedStartDays: ["mon"] }],

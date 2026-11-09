@@ -1,7 +1,7 @@
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { compareOptions, type DealComparison } from "@/lib/pricing/recommend";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
-import { scheduleError, type WizardSelections } from "./selections";
+import { scheduleError, type WizardSelections } from "@/lib/wizard/selections";
 
 export function frequencyOrDurationDeal(catalog: ClientCatalogSnapshot, selections: WizardSelections, vary: "frequency" | "duration"): DealComparison {
   const ready = selections.mealSizeId !== "" && selections.frequencyKey !== "" && scheduleError(catalog, selections) === null;

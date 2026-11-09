@@ -9,7 +9,7 @@ import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@/components/ds";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
 import { ALL_TARGETS_LABEL, type DiscountDto, type DiscountKind } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
 import { DateInput } from "@/components/dashboard/date-fields";

@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
-import type { PlanView } from "../../adapter";
+import type { PlanView } from "@/lib/deliveries-view/adapter";
 import { SwapSheet } from "../swap-sheet";
 
 const apply = vi.fn();

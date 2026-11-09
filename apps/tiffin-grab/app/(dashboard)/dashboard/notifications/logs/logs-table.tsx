@@ -10,8 +10,7 @@ import { eventLabel } from "@relay/engine/ui/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
-
-export type LogSortColumn = "time" | "event" | "channel" | "recipient" | "status";
+import type { LogSortColumn } from "@/lib/notifications/logs-query";
 
 type Row = {
   publicId: string;

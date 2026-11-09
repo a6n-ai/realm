@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like } from "drizzle-orm";
-import { RESOURCES } from "../resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 

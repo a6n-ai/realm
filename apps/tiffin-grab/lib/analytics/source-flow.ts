@@ -1,4 +1,4 @@
-import { slotTone, type Tone } from "@/components/analytics/chart-math";
+import { slotTone, type Tone } from "@/lib/analytics/tone";
 
 export type SourceOutcomes = { key: string; source: string; total: number; converted: number; lost: number };
 

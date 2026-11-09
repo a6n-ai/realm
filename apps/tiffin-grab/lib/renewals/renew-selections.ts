@@ -1,6 +1,6 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { DEFAULT_EATING_DAYS, FIXED_PERSONS, firstBlockedStep, reconcileSelections, type WizardSelections } from "@/components/wizard/selections";
+import { DEFAULT_EATING_DAYS, FIXED_PERSONS, firstBlockedStep, reconcileSelections, type WizardSelections } from "@/lib/wizard/selections";
 import { isWeekendDay } from "@/lib/dates";
 
 export type RenewSource = {

@@ -1,4 +1,4 @@
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 
 // Run history filters on a job's page. Client-safe: rendered by runs-table.tsx.
 export const CRON_RUN_FACETS: FacetDef[] = [

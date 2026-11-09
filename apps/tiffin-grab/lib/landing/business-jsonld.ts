@@ -1,5 +1,5 @@
 import type { CatalogSnapshot } from "@/lib/catalog/types";
-import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
+import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { SUPPORT_E164 } from "@/lib/landing/contact";
 import { shortMoney } from "@/lib/landing/live-figures";

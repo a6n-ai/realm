@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { initialSelections, selectionsFromPriorOrder, reconcileSelections } from "../selections";
+import { initialSelections, selectionsFromPriorOrder, reconcileSelections } from "@/lib/wizard/selections";
 
 const catalog: ClientCatalogSnapshot = {
   plans: [

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/components/wizard/selections";
+import { QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY } from "@/lib/wizard/selections";
 
 export const PAID_KEY = "tg:paid";
 const SEEN = "tgSeen";

@@ -17,7 +17,7 @@ import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
-import { planLines, renewDays, type PlanView } from "./adapter";
+import { planLines, renewDays, type PlanView } from "@/lib/deliveries-view/adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";

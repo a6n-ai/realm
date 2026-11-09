@@ -7,8 +7,8 @@ import { getSession } from "@/lib/auth/session";
 import { stripePayLink } from "@/lib/payments/stripe";
 import { assertOnePerson, assertOrderVisible, createOrder, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { defaultPaymentMethodId, findUnpaidRenewal, loadQuickRenewForOrder, loadRenewContext, loadRenewSourceSelections } from "@/lib/services/quick-renew.service";
-import type { QuickRenewData } from "@/components/renew/types";
-import type { WizardSelections } from "@/components/wizard/selections";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { AdminOrderCreated } from "../admin-order-created-dialog";
 

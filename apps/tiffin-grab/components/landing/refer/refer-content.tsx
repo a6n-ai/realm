@@ -4,6 +4,7 @@ import tiffinImg from "@/public/refer-card/tiffin.png";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
+import { referHeadline } from "@/lib/referrals/headline";
 import type { OfferFigure, ReferralOffer } from "@/lib/referrals/offer";
 import { rewardOf, tagFaces } from "./friend-copy";
 import { ReferCta } from "./refer-cta";
@@ -11,14 +12,6 @@ import { ReferDock } from "./refer-dock";
 import { ReferFlow } from "./refer-flow";
 import { ReferSticker } from "./refer-sticker";
 import { ReferTag } from "./refer-tag";
-
-/** "Give $15, get $15." with each side's own figure; one figure when only one side pays. */
-export function referHeadline(offer: ReferralOffer): string {
-  const { friend, referrer } = offer;
-  if (friend && referrer) return `Give ${friend.big}, get ${referrer.big}.`;
-  if (friend) return `Give your friends ${friend.big}.`;
-  return `Get ${referrer!.big} for every friend.`;
-}
 
 /** The program as a two-part ticket: the friend's half and yours, joined at a tear line. */
 // `friendLabel` set = the friend is reading (their own half, their own wallet).

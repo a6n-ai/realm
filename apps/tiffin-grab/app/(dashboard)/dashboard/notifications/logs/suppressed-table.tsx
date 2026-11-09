@@ -11,8 +11,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import { ResubscribeLinkButton } from "../resubscribe-link-button";
-
-export type SuppressedSortColumn = "time" | "address" | "channel" | "scope" | "reason";
+import type { SuppressedSortColumn } from "@/lib/notifications/logs-query";
 
 type Row = {
   publicId: string;

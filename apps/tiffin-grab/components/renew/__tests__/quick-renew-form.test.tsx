@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { initialSelections, type WizardSelections } from "@/components/wizard/selections";
-import type { QuickRenewData } from "../types";
+import { initialSelections, type WizardSelections } from "@/lib/wizard/selections";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 
 const { repriceMock } = vi.hoisted(() => ({ repriceMock: vi.fn() }));
 vi.mock("@/app/(public)/subscribe/actions", () => ({ reprice: repriceMock }));

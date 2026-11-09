@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useState } from "react";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StepDuration } from "../steps/step-duration";
-import { initialSelections, type WizardSelections } from "../selections";
+import { initialSelections, type WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 const catalog = {

@@ -4,7 +4,7 @@ import { isCustomerRole } from "@/lib/auth/roles";
 import { round2 } from "@foundry/discounts";
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
-import { enabledMethods, findMethod } from "@foundry/payments";
+import { findMethod } from "@foundry/payments";
 import { emailSchema, ValidationError } from "@foundry/commons";
 import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { findZone } from "@/lib/catalog/zone-match";
@@ -25,7 +25,7 @@ import { findReferrerByCode } from "@/lib/services/referrals.service";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth/session";
-import { stripeMethodAvailable } from "@/lib/payments/stripe";
+import { checkoutPaymentMethods, type CheckoutPaymentMethod } from "@/lib/checkout/payment-methods";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 
@@ -39,13 +39,7 @@ export interface AppliedCoupon {
   auto: boolean;
 }
 
-export interface CheckoutPaymentMethod {
-  id: string;
-  label: string;
-  instructions?: string;
-  payeeHandle?: string;
-  requireProof?: boolean;
-}
+export type { CheckoutPaymentMethod };
 
 // reprice always returns a valid PricingResult with the BEST valid combination of
 // auto-apply coupons already folded into adjustments. When the customer also
@@ -79,21 +73,8 @@ export interface RepriceResult {
   coinsApplied?: { coins: number; amount: number };
 }
 
-// Card is offered only while Stripe is actually usable, so a half-configured account never strands a customer.
-async function checkoutRails(cfg: Awaited<ReturnType<typeof getPaymentConfig>>) {
-  const card = await stripeMethodAvailable();
-  return enabledMethods(cfg).filter((m) => m.id === "cash" || m.id === "etransfer" || (m.id === "stripe" && card));
-}
-
 export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
-  const cfg = await getPaymentConfig();
-  return (await checkoutRails(cfg)).map((m) => ({
-    id: m.id,
-    label: m.label,
-    instructions: m.instructions,
-    payeeHandle: m.payeeHandle,
-    requireProof: m.requireProof,
-  }));
+  return checkoutPaymentMethods();
 }
 
 export type RepriceOutcome = RepriceResult | { error: string };
@@ -157,13 +138,7 @@ async function quote(
   const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
 
   const paymentCfg = await getPaymentConfig();
-  const paymentMethods = (await checkoutRails(paymentCfg)).map((m) => ({
-    id: m.id,
-    label: m.label,
-    instructions: m.instructions,
-    payeeHandle: m.payeeHandle,
-    requireProof: m.requireProof,
-  }));
+  const paymentMethods = await checkoutPaymentMethods(paymentCfg);
   const methodId = paymentMethodId?.trim() || "simulated";
   const method = methodId !== "simulated" ? findMethod(paymentCfg, methodId) : undefined;
   const methodTaxes = method?.enabled ? method.taxes : [];

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { AddonsPanel } from "../addons-panel";
-import { initialSelections, offeredAddons, pickedAddons, type WizardSelections } from "../selections";
+import { initialSelections, offeredAddons, pickedAddons, type WizardSelections } from "@/lib/wizard/selections";
 
 afterEach(cleanup);
 

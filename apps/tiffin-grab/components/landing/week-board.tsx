@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import { Heart } from "lucide-react";
 import { IconTile } from "@/components/customer/kit/icon-tile";
 import { makeCategoryLook } from "@/components/customer/meals/category-look";
-
-export type BoardDay = { key: string; label: string; short: string; date: string; today: boolean; dishes: Record<string, string[]>; popular?: string[] };
+import type { BoardDay } from "@/lib/landing/week-board";
 
 /** A dish name, tagged when customers pick it most in its row that day. */
 function Dish({ name, popular }: { name: string; popular: boolean }) {

@@ -14,13 +14,13 @@ import { appToday, earliestPlanStart, planStartDays } from "@/lib/services/start
 import { PageShell } from "@/components/ds";
 import { RenewCheckout } from "./quick-renew-client";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
-import { loadCheckoutProps } from "@/lib/checkout/load-checkout-props";
+import { loadCheckoutProps } from "@/components/checkout/load-checkout-props";
 import { getSession } from "@/lib/auth/session";
 import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
 import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/services/quick-renew.service";
-import { renewPageMode } from "@/components/renew/renew-selections";
+import { renewPageMode } from "@/lib/renewals/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
-import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
+import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 import { utcIso } from "@/lib/dates";
 

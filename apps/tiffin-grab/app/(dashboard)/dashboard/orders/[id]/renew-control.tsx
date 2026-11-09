@@ -7,7 +7,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { ResponsiveDialog } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { QuickRenewForm } from "@/components/renew/quick-renew-form";
-import type { QuickRenewData } from "@/components/renew/types";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { AdminOrderCreatedDialog, type AdminOrderCreated } from "../admin-order-created-dialog";
 import { loadRenewAction, renewOrderAction } from "./renew-actions";
 

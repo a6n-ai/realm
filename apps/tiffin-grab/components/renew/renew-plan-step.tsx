@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
 import { Button, Card, Notice, Pill } from "@/components/customer/kit";
-import { pickedAddons } from "@/components/wizard/selections";
+import { pickedAddons } from "@/lib/wizard/selections";
 import { StepDuration } from "@/components/wizard/steps/step-duration";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 import type { useQuickRenew } from "./use-quick-renew";
-import type { QuickRenewData } from "./types";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };

@@ -9,7 +9,7 @@ import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { loadLandingPromos } from "@/lib/landing/promos";
-import { referHeadline } from "@/components/landing/refer/refer-content";
+import { referHeadline } from "@/lib/referrals/headline";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
 import { WebMcpTools } from "@/components/landing/web-mcp-tools";

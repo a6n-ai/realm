@@ -6,7 +6,7 @@ import {
   mealRuleCategoryMessage,
   unknownPlanCategoryMessage,
 } from "@/lib/menu/admin-config-guards";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 
 describe("admin-config-guards (Phase 8)", () => {
   it("rejects Max TU below summed base composition for a category", () => {

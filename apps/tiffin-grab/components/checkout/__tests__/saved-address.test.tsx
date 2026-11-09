@@ -2,7 +2,7 @@
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import type { SavedAddress } from "@foundry/address";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/lib/wizard/selections";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 

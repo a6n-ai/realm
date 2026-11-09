@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { addons, categoryPlans, categorySwapPairs, dishCategories, dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
 import { swapPairFits, type ExchangeOverride, type SwapCategory, type SwapPairRule } from "@/lib/menu/swap-rules";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES } from "@/lib/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { parsePatch } from "./parse-patch";

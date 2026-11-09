@@ -8,7 +8,7 @@ import { cardPayClosed } from "@/lib/orders/display-status";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { resolveProvince } from "@/lib/tax/canada";
 import { PayForm } from "./pay-form";
-import { payPageLines } from "./lines";
+import { payPageLines } from "@/lib/billing/pay-lines";
 
 export default async function PayPage({
   params,

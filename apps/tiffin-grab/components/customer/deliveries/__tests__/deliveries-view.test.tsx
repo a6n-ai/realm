@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import { ACTION_SHEETS } from "../actions/registry";
 import { DeliveriesView } from "../deliveries-view";
-import type { PlanView } from "../adapter";
+import type { PlanView } from "@/lib/deliveries-view/adapter";
 import type { Agenda } from "@/lib/deliveries-view/week";
 
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));

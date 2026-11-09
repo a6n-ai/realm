@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import type { Option } from "@/components/ds";
+import type { Option } from "@foundry/design-system";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 
 // Owner facet: readable public ids in the URL, resolved to internal ids by the

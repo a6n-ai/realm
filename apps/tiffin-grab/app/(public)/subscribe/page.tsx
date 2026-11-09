@@ -10,7 +10,7 @@ import { isStaffRole } from "@/lib/auth/roles";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
-import { newOrderHref, type QuoteParams } from "@/components/wizard/selections";
+import { newOrderHref, type QuoteParams } from "@/lib/wizard/selections";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 import { referCardPath } from "@/lib/referrals/share";

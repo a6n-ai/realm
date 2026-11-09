@@ -11,7 +11,7 @@ import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } fro
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
-import { newOrderHref } from "./selections";
+import { newOrderHref } from "@/lib/wizard/selections";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the

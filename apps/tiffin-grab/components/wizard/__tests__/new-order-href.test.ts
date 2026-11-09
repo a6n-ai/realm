@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newOrderHref } from "../selections";
+import { newOrderHref } from "@/lib/wizard/selections";
 
 describe("newOrderHref", () => {
   it("opens the full stepper, never Quick Renew", () => {

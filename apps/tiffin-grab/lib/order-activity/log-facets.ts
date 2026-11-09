@@ -1,4 +1,4 @@
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 
 /**
  * Settings → Logs categories. Splits address / moved-tiffin actions out of the

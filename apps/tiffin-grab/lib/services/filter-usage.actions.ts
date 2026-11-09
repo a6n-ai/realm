@@ -1,6 +1,6 @@
 "use server";
 
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 import type { FilterPreset } from "@/lib/list/presets";
 import { filterRecommendations, recordFilterUse } from "./filter-usage.service";
 

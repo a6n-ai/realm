@@ -6,7 +6,7 @@ import { StepBundle } from "../steps/step-bundle";
 import { StepDuration } from "../steps/step-duration";
 import { StepBaseline } from "../steps/step-baseline";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import type { CurrentPlanSummary } from "../current-plan-hint";
 
 afterEach(cleanup);

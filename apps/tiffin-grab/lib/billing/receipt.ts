@@ -4,7 +4,7 @@ import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
-import { payPageLines, type Line } from "@/app/(customer)/me/pay/[paymentId]/lines";
+import { payPageLines, type Line } from "@/lib/billing/pay-lines";
 import { paymentMethodLabel } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";

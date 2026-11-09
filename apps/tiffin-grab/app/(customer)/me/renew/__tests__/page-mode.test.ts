@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renewPageMode } from "@/components/renew/renew-selections";
+import { renewPageMode } from "@/lib/renewals/renew-selections";
 
 describe("renewPageMode", () => {
   const data = {};

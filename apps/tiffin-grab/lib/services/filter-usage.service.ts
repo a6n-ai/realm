@@ -2,7 +2,7 @@ import { isStaffRole } from "@/lib/auth/roles";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listFilterUsage, member } from "@/db/schema";
-import type { FacetDef } from "@/components/ds";
+import type { FacetDef } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
 import { canonicalParams, presetFromCanonical, type FilterPreset } from "@/lib/list/presets";
 import { userIdByPublicId } from "./session-service";

@@ -6,7 +6,7 @@ import {
   WIZARD_STORAGE_KEY,
   initialSelections,
   type WizardSelections,
-} from "@/components/wizard/selections";
+} from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { Checkout } from "../checkout";
 import "./address-helper";

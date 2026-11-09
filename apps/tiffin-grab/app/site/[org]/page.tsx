@@ -5,7 +5,7 @@ import { preload } from "react-dom";
 import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
 import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
-import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
+import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { PromoPopup } from "@/components/landing/promo-popup";
 import { PhoneReveal } from "@/components/landing/home/phone-reveal";
 import { LazyPauseDemo as PauseDemo } from "@/components/landing/stage/lazy";

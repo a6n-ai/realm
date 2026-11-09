@@ -6,7 +6,7 @@ import type { z } from "zod";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
-import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { RESOURCES, slug } from "@/lib/catalog/resource-config";
 import {
   emptyActiveCompositionMessage,
   maxTuBelowBaseMessage,

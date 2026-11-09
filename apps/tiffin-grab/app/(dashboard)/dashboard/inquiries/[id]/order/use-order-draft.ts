@@ -16,7 +16,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import type { AdminOrderCreated } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
 import { eatingDaysError, frequencyFits, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { DEFAULT_EATING_DAYS, quoteLinkQuery } from "@/components/wizard/selections";
+import { DEFAULT_EATING_DAYS, quoteLinkQuery } from "@/lib/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { PricingResult } from "@/lib/pricing";
-import type { WizardSelections } from "@/components/wizard/selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 import { Divider, Pill } from "@/components/customer/kit";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };

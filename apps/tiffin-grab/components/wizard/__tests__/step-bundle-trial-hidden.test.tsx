@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { StepBundle } from "../steps/step-bundle";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import type { WizardSelections } from "@/lib/wizard/selections";
 
 function meal(key: string, opts: { trial?: boolean } = {}) {
   return {

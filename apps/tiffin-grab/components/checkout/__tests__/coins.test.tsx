@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { QUOTE_COINS_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { QUOTE_COINS_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/lib/wizard/selections";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";
 

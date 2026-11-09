@@ -14,7 +14,7 @@ import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -29,7 +29,7 @@ import { Checkout } from "@/components/checkout/checkout";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
-import type { CheckoutProps } from "@/lib/checkout/load-checkout-props";
+import type { CheckoutProps } from "@/components/checkout/load-checkout-props";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start"] as const;
 const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;

@@ -5,7 +5,7 @@ import { isStaffRole } from "@/lib/auth/roles";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Checkout } from "@/components/checkout/checkout";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
-import { loadCheckoutProps } from "@/lib/checkout/load-checkout-props";
+import { loadCheckoutProps } from "@/components/checkout/load-checkout-props";
 
 export const dynamic = "force-dynamic";
 

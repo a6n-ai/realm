@@ -6,8 +6,8 @@ import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, 
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { renewSelections } from "@/components/renew/renew-selections";
-import type { QuickRenewData } from "@/components/renew/types";
+import { renewSelections } from "@/lib/renewals/renew-selections";
+import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getPaymentConfig } from "./app-settings.service";
 import { addressService } from "./addresses.service";
