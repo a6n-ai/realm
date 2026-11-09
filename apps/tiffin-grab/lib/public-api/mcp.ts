@@ -1,6 +1,6 @@
 // A read-only MCP server (Streamable HTTP, stateless): each POST is one JSON-RPC message, answered with JSON.
 // No sessions, no streaming, no auth: every tool returns what the public pages already show (lib/public-api/load.ts).
-// ponytail: tools hit the loaders per call (POST skips the edge cache); add a short in-memory cache if traffic grows.
+// Tool calls are POSTs, which the edge cache skips; loadPublic shares each answer through Workers KV for 60 s instead.
 import { normalizePostal, POSTAL_HINT } from "@/lib/public-api/postal";
 import type { loadPublic } from "@/lib/public-api/load";
 
@@ -46,7 +46,8 @@ const fail = (id: Rpc["id"], code: number, message: string) => ({ jsonrpc: "2.0"
 export async function handleMcp(msg: Rpc, load: Loaders): Promise<object | null> {
   if (msg?.jsonrpc !== "2.0" || typeof msg.method !== "string") return fail(msg?.id, -32600, "Invalid Request");
   if (msg.id === undefined) return null;
-  const { id, method, params = {} } = msg;
+  const { id, method } = msg;
+  const params = msg.params && typeof msg.params === "object" && !Array.isArray(msg.params) ? msg.params : {};
   const ok = (result: object) => ({ jsonrpc: "2.0", id, result });
   switch (method) {
     case "initialize": {
@@ -62,7 +63,7 @@ export async function handleMcp(msg: Rpc, load: Loaders): Promise<object | null>
     case "tools/list": return ok({ tools: TOOLS });
     case "tools/call": {
       const name = String(params.name ?? "");
-      const args = (params.arguments ?? {}) as Record<string, unknown>;
+      const args = (params.arguments && typeof params.arguments === "object" ? params.arguments : {}) as Record<string, unknown>;
       if (!TOOLS.some((t) => t.name === name)) return fail(id, -32602, `Unknown tool: ${name}`);
       const out = await callTool(name, args, load);
       if (out && typeof out === "object" && "error" in out && Object.keys(out).length === 1) return ok({ content: [{ type: "text", text: (out as { error: string }).error }], isError: true });

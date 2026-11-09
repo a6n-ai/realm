@@ -12,10 +12,16 @@ const CORS = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "content-type": "application/json", "cache-control": "no-store" } });
 
+// A JSON-RPC message here is well under 1 KB; refuse anything big before parsing it.
+const MAX_BODY = 64 * 1024;
+
 export async function POST(req: Request) {
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Request too large" } }, 413);
   let msg: unknown;
   try {
-    msg = await req.json();
+    const text = await req.text();
+    if (text.length > MAX_BODY) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Request too large" } }, 413);
+    msg = JSON.parse(text);
   } catch {
     return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, 400);
   }

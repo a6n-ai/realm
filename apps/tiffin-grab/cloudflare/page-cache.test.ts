@@ -19,6 +19,14 @@ const page = (headers: Record<string, string> = {}) =>
   new Response("<html>", { status: 200, headers: { "cache-control": "public, max-age=0, must-revalidate, s-maxage=60", ...headers } });
 
 describe("isCacheablePage", () => {
+  it("caches the public API and discovery docs, query included, cookies or not", () => {
+    expect(isCacheablePage(req("https://tiffingrab.ca/api/public/v1/delivery/check?postal=M5V"))).toBe(true);
+    expect(isCacheablePage(req("https://tiffingrab.ca/.well-known/ai-catalog.json", { cookie: "franchise=x" }))).toBe(true);
+    expect(isCacheablePage(req("https://tiffingrab.ca/api/public/mcp", {}, "POST"))).toBe(false);
+    expect(isCacheablePage(req("https://tiffingrab.ca/api/plans"))).toBe(false);
+    expect(isCacheablePage(req("https://app.tiffingrab.ca/api/public/v1/plans"))).toBe(false);
+  });
+
   it("accepts a plain GET of a public apex page", () => {
     expect(isCacheablePage(req("https://tiffingrab.ca/pricing"))).toBe(true);
     expect(isCacheablePage(req("https://tiffingrab.ca/"))).toBe(true);

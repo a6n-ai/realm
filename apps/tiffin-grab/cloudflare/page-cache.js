@@ -13,8 +13,14 @@ const ROUTER_HEADERS = ["rsc", "next-router-prefetch", "next-router-state-tree",
 const EDGE_TTL_S = 60;
 const ORIGIN_CC = "x-origin-cache-control";
 
+// The public API and the discovery documents read no cookies and no headers, so one copy serves everyone.
+// The query stays in the key (/delivery/check?postal=...).
+const PUBLIC_DATA = /^\/(?:api\/public\/v1\/|\.well-known\/)/;
+
 export function isCacheablePage(request) {
   if (request.method !== "GET") return false;
+  const { host, pathname } = new URL(request.url);
+  if (host === HOST && PUBLIC_DATA.test(pathname)) return true;
   // The key ignores headers, so an agent's markdown request (proxy.ts serves it) must not share the page's HTML.
   if (/text\/markdown/i.test(request.headers.get("accept") ?? "")) return false;
   const url = new URL(request.url);

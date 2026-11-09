@@ -12,7 +12,7 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { referHeadline } from "@/components/landing/refer/refer-content";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
-import { WebMcpTools } from "@/components/landing/webmcp-tools";
+import { WebMcpTools } from "@/components/landing/web-mcp-tools";
 import { areaSlug } from "@/lib/landing/areas";
 
 // One shell for every public page: the landing header, the ink close band and

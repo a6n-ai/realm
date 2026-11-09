@@ -58,3 +58,11 @@ describe("agent discovery documents", async () => {
     }
   });
 });
+
+describe("MCP robustness", () => {
+  it("null params do not throw", async () => {
+    const load = {} as never;
+    expect(await handleMcp({ jsonrpc: "2.0", id: 1, method: "initialize", params: null as never }, load)).toMatchObject({ result: { protocolVersion: "2025-11-25" } });
+    expect(await handleMcp({ jsonrpc: "2.0", id: 2, method: "tools/call", params: null as never }, load)).toMatchObject({ error: { code: -32602 } });
+  });
+});

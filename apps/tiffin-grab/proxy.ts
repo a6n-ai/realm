@@ -197,6 +197,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
     return NextResponse.rewrite(new URL(target, request.url), forwardedRequest);
   }
 
+  // The public API answers its own CORS (any origin, no credentials) and its own preflight.
+  if (onApi && pathname.startsWith("/api/public/")) return NextResponse.next(forwardedRequest);
+
   if (onApi) {
     const origin = request.headers.get("origin");
     const cors = corsHeaders(origin);

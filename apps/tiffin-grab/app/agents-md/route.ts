@@ -7,7 +7,7 @@ import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { publicOrigin } from "@/lib/routing/apex";
 
 // Internal: proxy.ts rewrites a public page asked for as text/markdown here, naming it in x-md-path. Not linked,
-// and the apex 404s it if requested directly. Per request like the sitemap; the edge keeps it 5 minutes.
+// and the apex 404s it if requested directly. Rendered per request: page-cache.js skips markdown requests.
 export const dynamic = "force-dynamic";
 
 async function markdownFor(path: string): Promise<string | null> {
