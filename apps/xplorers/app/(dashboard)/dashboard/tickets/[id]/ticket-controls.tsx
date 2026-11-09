@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@foundry/ui/skeleton";
 import { useMessageComposer } from "@foundry/design-system";
 import type { RealtimeRole } from "@foundry/realtime";
+import { useTyping } from "@foundry/realtime/client";
 import { ChatComposer } from "@/components/support/chat-composer";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { replyTicket, setStatus } from "../actions";
@@ -98,7 +99,8 @@ export function ReplyBox({
   channel?: string;
   peerRole?: RealtimeRole;
 }) {
-  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), channel, peerRole });
+  const typing = useTyping(channel ?? null, peerRole ?? "staff");
+  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), typing: channel ? typing : undefined });
   if (closed) {
     return (
       <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">

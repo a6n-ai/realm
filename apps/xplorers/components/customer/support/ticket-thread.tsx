@@ -1,6 +1,6 @@
 "use client";
 
-import { usePresence } from "@foundry/realtime/client";
+import { usePresence, useTyping } from "@foundry/realtime/client";
 import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -86,7 +86,8 @@ export function TicketThread({
 }
 
 function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boolean; channel: string }) {
-  const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), channel, peerRole: "staff" });
+  const typing = useTyping(channel, "staff");
+  const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), typing });
 
   if (closed) {
     return (
