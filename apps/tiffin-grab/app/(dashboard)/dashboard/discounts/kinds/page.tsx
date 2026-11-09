@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons } from "@/db/schema";
 import { getDiscountPolicy, getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
-import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
+import { KIND_LABELS, POLICY_KINDS } from "@/lib/coupons/kind-labels";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { KindsForm, KindsFormSkeleton } from "./form";
 import { requestNow } from "@/lib/dates/request-now";
@@ -62,7 +62,7 @@ async function KindsData({ searchParams }: { searchParams: SearchParams }) {
   const top = byKind[0];
   const liveTotal = liveByKind.reduce((n, k) => n + k.n, 0);
   const stats = [
-    { label: "Kinds enabled", value: `${policy.enabledKinds.length} of ${ALL_KINDS.length}` },
+    { label: "Kinds enabled", value: `${POLICY_KINDS.filter((k) => policy.enabledKinds.includes(k)).length} of ${POLICY_KINDS.length}` },
     { label: "Live coupons", value: liveTotal.toLocaleString(), hint: "Active and not expired" },
     { label: "Redemptions", value: byKind.reduce((n, k) => n + k.uses, 0).toLocaleString() },
     { label: "Total discounted", value: usd(byKind.reduce((n, k) => n + Number(k.discounted), 0)) },
@@ -70,7 +70,7 @@ async function KindsData({ searchParams }: { searchParams: SearchParams }) {
   ];
 
   const q = sp.q?.trim().toLowerCase() ?? "";
-  const rows = ALL_KINDS.map((k) => {
+  const rows = POLICY_KINDS.map((k) => {
     const used = byKind.find((r) => r.kind === k);
     return {
       kind: k,
