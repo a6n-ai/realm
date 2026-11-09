@@ -109,7 +109,7 @@ export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint
       const [{ tail }] = await tx.select({ tail: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
         .where(and(eq(deliveries.orderId, order.id), ne(deliveries.status, "cancelled")));
       const dates = await freePlanDays(tx, order, tail, row.tiffinUnits / per, holidays, cut);
-      const others = dates && order.userId != null ? await otherPlanDays(tx, { userId: order.userId, excludeOrderId: order.id, rule: "band" }) : null;
+      const others = dates && order.userId != null ? await otherPlanDays(tx, { userId: order.userId, excludeOrderId: order.id }) : null;
       const clash = dates && others ? dates.filter((d) => others.onTrip(d)) : [];
       if (!dates) needsPlacing = "no free delivery day found";
       else if (clash.length > 0) needsPlacing = `another plan runs on ${humanDate(clash[0]!)}`;

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, asc, eq, like, sql } from "drizzle-orm";
+import { and, asc, eq, like, ne, sql } from "drizzle-orm";
 import { cutoffMsFor } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -164,7 +164,8 @@ describe("applyHolidaysToOrder", () => {
     const { order, wed, org } = await orderWithOrg();
     // The renewal: same customer, starts the Monday after this plan's last delivery.
     const next = await makeTripOrder(DEP2, PFX);
-    await db.delete(deliveries).where(eq(deliveries.orderId, next.order.id));
+    await db.delete(deliveries).where(and(eq(deliveries.orderId, next.order.id), ne(deliveries.deliveryDate, "2030-01-07")));
+    await db.update(deliveries).set({ deliveryDate: "2030-01-14", coversDates: ["2030-01-14"] }).where(eq(deliveries.orderId, next.order.id));
     await db.update(orders).set({ userId: order.userId, startDate: "2030-01-14", organizationId: org }).where(eq(orders.id, next.order.id));
     const h = await addHoliday(org, "2030-01-09");
 

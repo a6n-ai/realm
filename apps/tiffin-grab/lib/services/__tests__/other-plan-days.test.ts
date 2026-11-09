@@ -19,25 +19,21 @@ async function twoPlans(otherStatus: "active" | "pending") {
   return { mine, other };
 }
 
-describe("otherPlanDays: band and rows disagree", () => {
+describe("otherPlanDays", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("a pending plan holds its trip days by rows but reserves no band", async () => {
+  it("a pending plan holds its trip days", async () => {
     const { mine, other } = await twoPlans("pending");
-    const args = { userId: mine.userId!, excludeOrderId: mine.id };
-    expect((await otherPlanDays(db, { ...args, rule: "band" })).onTrip("2030-01-07")).toBeNull();
-    expect((await otherPlanDays(db, { ...args, rule: "rows" })).onTrip("2030-01-07")).toBe(other.startDate);
+    const days = await otherPlanDays(db, { userId: mine.userId!, excludeOrderId: mine.id });
+    expect(days.onTrip("2030-01-07")).toBe(other.startDate);
   });
 
-  it("an active plan's band covers a day between its trips; rows hold only trip days and the days they carry", async () => {
+  it("an active plan holds trip days and the days they carry, not a day between trips", async () => {
     const { mine, other } = await twoPlans("active");
-    const args = { userId: mine.userId!, excludeOrderId: mine.id };
-    const band = await otherPlanDays(db, { ...args, rule: "band" });
-    const rows = await otherPlanDays(db, { ...args, rule: "rows" });
-    expect(band.onTrip("2030-01-08")).toBe(other.startDate);
-    expect(rows.onTrip("2030-01-08")).toBeNull();
-    expect(rows.onEat("2030-01-08")).toBe(true);
-    expect(rows.onTrip("2030-01-09")).toBe(other.startDate);
+    const days = await otherPlanDays(db, { userId: mine.userId!, excludeOrderId: mine.id });
+    expect(days.onTrip("2030-01-08")).toBeNull();
+    expect(days.onEat("2030-01-08")).toBe(true);
+    expect(days.onTrip("2030-01-09")).toBe(other.startDate);
   });
 });

@@ -871,7 +871,7 @@ export async function rescheduleDelivery(
     const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
     if (isCutoffPassed(newCutoff, Date.now())) throw new ValidationError("That day's cutoff has already passed");
     // Plans never overlap: a day another live plan of this customer delivers on is not a move target.
-    const other = order.userId == null ? null : (await otherPlanDays(tx, { userId: order.userId, excludeOrderId: orderId, rule: "rows" })).onTrip(carriedOn);
+    const other = order.userId == null ? null : (await otherPlanDays(tx, { userId: order.userId, excludeOrderId: orderId })).onTrip(carriedOn);
     if (other) {
       const kind = other < order.startDate ? "earlier plan" : "renewal";
       throw new ValidationError(`Your ${kind} already delivers on ${humanDate(carriedOn)}. Pick another day.`);

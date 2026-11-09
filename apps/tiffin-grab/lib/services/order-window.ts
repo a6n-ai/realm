@@ -146,23 +146,13 @@ export type OtherPlanDays = {
 };
 
 /**
- * What the customer's other plans hold, under one of two rules that disagree at the edges:
- * "band" (active/paused plans, every day from start to last held delivery, so a day between two trips counts and
- * a pending plan does not) or "rows" (pending/active/paused plans, only days a live delivery row sits on, and
- * their covered eating days through `onEat`).
+ * What the customer's other plans hold: pending, active and paused plans, only the days a live delivery row sits on
+ * (`onTrip`) and the eating days those rows cover (`onEat`).
  */
 export async function otherPlanDays(
   tx: Tx | typeof db,
-  args: { userId: bigint; excludeOrderId?: bigint; rule: "band" | "rows" },
+  args: { userId: bigint; excludeOrderId?: bigint },
 ): Promise<OtherPlanDays> {
-  if (args.rule === "band") {
-    const bands = await reservedBands(tx, args.userId, args.excludeOrderId);
-    const hit = (date: string) => {
-      const day = parseIsoDateUtc(date);
-      return bands.find((b) => b.start <= day && day < b.endExclusive);
-    };
-    return { onTrip: (date) => { const b = hit(date); return b ? utcIso(b.start) : null; }, onEat: (date) => hit(date) != null };
-  }
   const rows = await tx.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates, startDate: orders.startDate })
     .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId))
     .where(and(
@@ -178,12 +168,12 @@ export async function otherPlanDays(
   return { onTrip: (date) => trips.get(date) ?? null, onEat: (date) => eats.has(date) };
 }
 
-/** Rejects a single day that falls inside another active/paused plan of this customer. */
+/** Rejects a single day another plan of this customer holds of this customer. */
 export async function assertDayOutsideOtherPlans(
   tx: Tx | typeof db,
   args: { userId: bigint; date: string; excludeOrderId: bigint },
 ): Promise<void> {
-  if ((await otherPlanDays(tx, { ...args, rule: "band" })).onTrip(args.date)) {
+  if ((await otherPlanDays(tx, args)).onTrip(args.date)) {
     throw new ValidationError(`This customer has another plan running on ${args.date}. Give the tiffin on that plan instead.`);
   }
 }

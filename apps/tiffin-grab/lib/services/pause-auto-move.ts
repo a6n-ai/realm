@@ -65,7 +65,7 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
   const own = eatDates(await db.select({ deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries).where(and(eq(deliveries.orderId, orderId), live)));
   const last = own.reduce((m, d) => (d > m ? d : m), today);
-  const others = order.userId == null ? null : await otherPlanDays(db, { userId: order.userId, excludeOrderId: orderId, rule: "rows" });
+  const others = order.userId == null ? null : await otherPlanDays(db, { userId: order.userId, excludeOrderId: orderId });
   return nextEndOfPlanDate(
     last,
     eating,
