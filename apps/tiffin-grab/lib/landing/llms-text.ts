@@ -4,7 +4,15 @@ import { formatMoney } from "@/lib/format/money";
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 export function deliveryLine(f: SiteFacts) {
-  return f.free ? "Delivery is free." : "Delivery has a charge, shown at checkout before you pay.";
+  if (!f.free) return "Delivery has a charge, shown at checkout before you pay.";
+  return `Delivery is free.${dropOffNote(f)}`;
+}
+
+/** " An upstairs drop-off is optional, at $1.50 a delivery." or "": the one paid extra, said next to "free". */
+export function dropOffNote(f: SiteFacts) {
+  if (!f.dropOff) return "";
+  const name = f.dropOff.name.toLowerCase();
+  return ` ${/^[aeiou]/.test(name) ? "An" : "A"} ${name} drop-off is optional, at ${formatMoney(f.dropOff.charge, f.currency)} a delivery.`;
 }
 
 /** /llms.txt: what an AI assistant needs to answer "what is Tiffin Grab, what does it cost, do you deliver to me". */
@@ -39,6 +47,7 @@ export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }
     `- [Menu](${u("/menu")}): this week's dishes day by day and every meal size`,
     `- [Delivery areas](${u("/locations")}): areas served, delivery windows and a postal code check`,
     `- [FAQ](${u("/faq")}): delivery, pausing, plans, food, payments and refunds`,
+    `- [About](${u("/about")}): how a tiffin is cooked, packed and delivered, with live kitchen counts`,
   );
   if (opts.reviews) lines.push(`- [Reviews](${u("/reviews")}): Google reviews from customers`);
   lines.push(

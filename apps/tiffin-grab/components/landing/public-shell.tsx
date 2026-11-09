@@ -66,6 +66,7 @@ async function PublicFooter() {
             <Link href="/pricing">Pricing</Link>
             {showReviews ? <Link href="/reviews">Reviews</Link> : null}
             <Link href="/faq">FAQ</Link>
+            <Link href="/about">About</Link>
           </nav>
           <nav aria-label="Help">
             <strong>Help</strong>

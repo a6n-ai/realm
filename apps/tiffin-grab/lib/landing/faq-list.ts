@@ -1,5 +1,6 @@
 import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
 import { shortMoney } from "@/lib/landing/live-figures";
+import { dropOffNote } from "@/lib/landing/llms-text";
 
 export type FaqGroup = { heading: string; items: { q: string; a: string }[] };
 
@@ -26,7 +27,7 @@ export function buildFaq(f: SiteFacts, referral: string | null): FaqGroup[] {
   if (f.runs.length) delivery.push({ q: "What time does my tiffin arrive?", a: `${f.runs.length === 1 ? `Tiffins arrive between ${f.runs[0]!.label}.` : `There are ${f.runs.length} delivery windows: ${and(f.runs.map((r) => r.label))}. Your postal code decides which one you get.`} Windows are estimates, not fixed times, because routes change daily with traffic, weather and volume. We share your window the evening before or the morning of delivery.` });
   delivery.push({ q: "Which days do you deliver?", a: "Standard deliveries run Monday to Friday. Saturday and Sunday tiffins, on meal sizes that include the weekend dish, come with your Friday delivery. Delivery days may change as we grow. For public holidays, we tell active subscribers at least 48 hours ahead by email or WhatsApp, so you know about any off-day before it happens." });
   delivery.push({ q: "How much is delivery?", a: f.free
-    ? "Delivery is free. The price per tiffin is all you pay for it, and we add no fuel or hidden fees, except clearly disclosed custom or out-of-area arrangements. Your checkout shows every line of the total before you pay, so you can confirm the final amount first."
+    ? `Delivery is free. The price per tiffin is all you pay for it, and we add no fuel or hidden fees, except clearly disclosed custom or out-of-area arrangements.${dropOffNote(f)} Your checkout shows every line of the total before you pay, so you can confirm the final amount first.`
     : "Delivery carries a charge, shown as its own line at checkout before you pay. The amount depends on your address, so you always see it first. We add no fuel or other hidden fees, except clearly disclosed custom or out-of-area arrangements." });
   delivery.push({ q: "What if I am not home?", a: "We make one delivery attempt in your window. If you will be out, tell us a safe drop-off spot, like your doorstep or concierge, at least 12 hours ahead. Share buzzer or access codes 24 hours ahead. Without that, the delivery can be recorded as failed and is not refunded." });
   delivery.push({ q: "What if a delivery fails or the weather is bad?", a: "If a delivery fails because of our error, we credit that day to your plan within 24 hours. Severe weather, road closures or other emergencies can delay or cancel deliveries. Those days are credited too, and we tell you by email or WhatsApp as soon as we can." });

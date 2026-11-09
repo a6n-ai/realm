@@ -41,11 +41,19 @@ export function trialOffer(catalog: CatalogSnapshot, settings: { maxDays: number
   return { href: `/subscribe?${q}`, maxDays: settings.maxDays, rate: best.rate };
 }
 
-/** Free for every customer: no base charge and no active strategy that adds one. Conditional
+/** Free when there is no base charge. A paid drop-off (Upstairs) is an option the customer picks at checkout,
+ *  so delivery stays free; copy names it through paidDropOff so nobody meets it by surprise. Conditional
  *  waivers don't count, so copy never promises free delivery to someone who would pay it. */
 export function deliveryIsFree(catalog: CatalogSnapshot): boolean {
   const dc = catalog.deliveryCharges;
-  return !dc || (dc.baseCharge <= 0 && dc.deliveryStrategies.every((s) => !s.active || s.chargeValue <= 0));
+  return !dc || dc.baseCharge <= 0;
+}
+
+/** The cheapest optional paid drop-off ({ name: "Upstairs", charge: 1.5 }), or null when every drop-off is free. */
+export function paidDropOff(catalog: CatalogSnapshot): { name: string; charge: number } | null {
+  const paid = (catalog.deliveryCharges?.deliveryStrategies ?? []).filter((s) => s.active && s.chargeValue > 0);
+  const cheapest = paid.sort((a, b) => a.chargeValue - b.chargeValue)[0];
+  return cheapest ? { name: cheapest.name, charge: cheapest.chargeValue } : null;
 }
 
 /** "$10" or "$10.40" in the market's currency: short enough for a page title. */

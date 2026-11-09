@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
-import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "./live-figures";
+import { biggestDurationOff, deliveryIsFree, lowestRate, paidDropOff, shortMoney, trialLength, trialOffer } from "./live-figures";
 
 const cat = (c: Partial<CatalogSnapshot>) => c as CatalogSnapshot;
 const strategy = (active: boolean, chargeValue: number) => ({ active, chargeValue }) as CatalogSnapshot["deliveryCharges"] extends infer D ? D extends { deliveryStrategies: (infer S)[] } ? S : never : never;
@@ -11,7 +11,8 @@ describe("deliveryIsFree", () => {
   });
   it("is not free when a base charge or an active strategy charges", () => {
     expect(deliveryIsFree(cat({ deliveryCharges: { baseCharge: 3, deliveryStrategies: [] } as never }))).toBe(false);
-    expect(deliveryIsFree(cat({ deliveryCharges: { baseCharge: 0, deliveryStrategies: [strategy(true, 4)] } as never }))).toBe(false);
+    // A paid drop-off is the customer's pick at checkout: delivery itself is still free (named via paidDropOff).
+    expect(deliveryIsFree(cat({ deliveryCharges: { baseCharge: 0, deliveryStrategies: [strategy(true, 4)] } as never }))).toBe(true);
   });
 });
 
@@ -49,5 +50,13 @@ describe("shortMoney", () => {
   it("drops cents on whole amounts", () => {
     expect(shortMoney(10, "CAD")).toBe("$10");
     expect(shortMoney(10.4, "CAD")).toBe("$10.40");
+  });
+});
+
+describe("paidDropOff", () => {
+  it("names the cheapest active paid drop-off, or null", () => {
+    const s = (name: string, active: boolean, chargeValue: number) => ({ name, active, chargeValue });
+    expect(paidDropOff(cat({ deliveryCharges: { baseCharge: 0, deliveryStrategies: [s("Frontdoor", true, 0), s("Upstairs", true, 1.5), s("Old", false, 0.5)] } as never }))).toEqual({ name: "Upstairs", charge: 1.5 });
+    expect(paidDropOff(cat({ deliveryCharges: { baseCharge: 0, deliveryStrategies: [s("Frontdoor", true, 0)] } as never }))).toBeNull();
   });
 });

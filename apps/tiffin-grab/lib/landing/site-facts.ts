@@ -3,7 +3,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { CONTACT_EMAIL, SUPPORT_E164 } from "@/lib/landing/contact";
 import { runsOf } from "@/lib/landing/areas";
-import { biggestDurationOff, deliveryIsFree, hourLabel, lowestRate, trialLength, trialOffer } from "@/lib/landing/live-figures";
+import { biggestDurationOff, deliveryIsFree, hourLabel, paidDropOff, lowestRate, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { effectivePrice } from "@/lib/pricing";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
@@ -22,6 +22,8 @@ export type SiteFacts = {
   biggestOff: number | null;
   weeksOff: { weeks: number; percent: number; label: string }[];
   free: boolean;
+  /** Optional paid drop-off, named wherever delivery is called free. */
+  dropOff: { name: string; charge: number } | null;
   cutoff: string | null;
   areas: string[];
   runs: { label: string; areas: string[] }[];
@@ -60,6 +62,7 @@ export function buildFacts(catalog: CatalogSnapshot, currency: string, trialSett
     biggestOff: biggestDurationOff(catalog),
     weeksOff,
     free: deliveryIsFree(catalog),
+    dropOff: paidDropOff(catalog),
     cutoff: catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null,
     areas: zones.map((z) => z.name).sort((a, b) => a.localeCompare(b)),
     runs: runsOf(zones).map((r) => ({ label: r.label, areas: r.zones.map((z) => z.name).sort((a, b) => a.localeCompare(b)) })),

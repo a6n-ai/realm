@@ -70,6 +70,7 @@ export const ROUTES: RouteSpec[] = [
   // marketing
   { path: "/", label: "marketing-home" },
   { path: "/contact", label: "marketing-contact" },
+  { path: "/about", label: "marketing-about" },
   { path: "/pricing", label: "marketing-pricing" },
   { path: "/menu", label: "marketing-menu" },
   { path: "/menu/weekly", label: "marketing-menu-weekly" },
