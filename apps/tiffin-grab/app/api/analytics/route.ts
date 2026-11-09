@@ -1,5 +1,5 @@
 import { gaScript } from "@foundry/google-analytics";
-import { pixelScript } from "@foundry/meta-pixel";
+import { metaPixelBootstrap } from "@/lib/meta/pixel-bootstrap";
 import { googleAnalytics } from "@/lib/services/google-analytics/config";
 import { getMetaPixelConfig } from "@/lib/services/meta-pixel/config";
 
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const [ga, pixel] = await Promise.all([googleAnalytics.getConfig().catch(() => null), getMetaPixelConfig().catch(() => null)]);
   const body =
-    gaScript(ga ? googleAnalytics.effectiveMeasurementId(ga) : googleAnalytics.legacyMeasurementId()) + pixelScript(pixel?.installed ? pixel.pixelId : null);
+    gaScript(ga ? googleAnalytics.effectiveMeasurementId(ga) : googleAnalytics.legacyMeasurementId()) +
+    metaPixelBootstrap(pixel?.installed ? pixel.pixelId : null);
   return new Response(body, {
     headers: {
       "content-type": "application/javascript; charset=utf-8",

@@ -6,6 +6,7 @@ import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { RegionLegend, RegionMap, type MapDistrict, type Region } from "@foundry/region-map";
 import { parseWindow } from "@/lib/landing/areas";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { sendMetaClientEvent } from "@/lib/meta/actions";
 
 type Point = { lat: number; lng: number };
 type Area = { name: string; slotWindow: string | null; group: number; point: Point | null };
@@ -33,7 +34,13 @@ export function DeliveryCheck({ origin, rings, areas, region, districts, runs }:
   const pick = (id: string) => {
     setPicked(id);
     setRun(null);
-    trackMeta("FindLocation", {}, crypto.randomUUID());
+    const eventId = crypto.randomUUID();
+    trackMeta("FindLocation", {}, eventId);
+    void sendMetaClientEvent({
+      eventName: "FindLocation",
+      eventId,
+      eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+    });
   };
 
   return (

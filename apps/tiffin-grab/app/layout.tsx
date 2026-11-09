@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MetaPixelPageViews } from "@foundry/meta-pixel/client";
+import { MetaPageViews } from "@/components/meta/meta-page-views";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
@@ -67,7 +67,7 @@ export default function RootLayout({
           <CookieConsent />
           <AreaBoundary />
         </ThemeProvider>
-        <MetaPixelPageViews />
+        <MetaPageViews />
       </body>
     </html>
   );

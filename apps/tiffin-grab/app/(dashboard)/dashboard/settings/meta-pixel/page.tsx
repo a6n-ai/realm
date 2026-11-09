@@ -6,9 +6,9 @@ import { getMetaPixelStatus } from "@/lib/services/meta-pixel/config";
 import { MetaPixelForm, SendTestEvent } from "./meta-pixel-form";
 
 const EVENTS = [
-  { name: "PageView", where: "Every public and customer page. Browser." },
+  { name: "PageView", where: "Every public and customer page. Browser and server share one event_id." },
   { name: "ViewContent", where: "Menu, weekly menu, and plans. Browser and server." },
-  { name: "FindLocation", where: "Delivery postal check. Browser and server." },
+  { name: "FindLocation", where: "Delivery area tap on the map. Browser and server share one event_id." },
   { name: "AddToCart", where: "Plan chosen in the subscribe wizard. Browser and server." },
   { name: "InitiateCheckout", where: "Checkout opens with the priced total. Browser and server." },
   { name: "AddPaymentInfo", where: "Customer picks Stripe or e-Transfer. Browser and server, with the full priced total." },

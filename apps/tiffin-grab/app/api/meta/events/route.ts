@@ -25,9 +25,15 @@ function sameOrigin(request: Request): boolean {
   return site === "same-origin" || site === "none" || site == null;
 }
 
+type BeaconEvent = "Contact" | "PageView";
+
+function isBeaconEvent(name: string): name is BeaconEvent {
+  return name === "Contact" || name === "PageView";
+}
+
 /**
- * Locked-down beacon for WhatsApp Contact clicks (page navigates away).
- * Accepts only event_name "Contact", UUID event_id; ignores any client user_data.
+ * Locked-down beacon for Pixel companions that cannot await a server action
+ * (WhatsApp leave, analytics bootstrap). UUID event_id only; ignores client user_data.
  */
 export async function POST(request: Request) {
   if (!sameOrigin(request)) {
@@ -38,7 +44,7 @@ export async function POST(request: Request) {
     trustedIpHeaders()
       .map((h) => request.headers.get(h)?.trim())
       .find(Boolean) || "unknown";
-  if (isRateLimited(ip, 30, 60_000, "meta-events-beacon")) {
+  if (isRateLimited(ip, 60, 60_000, "meta-events-beacon")) {
     return new Response(null, { status: 429 });
   }
 
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
       ? String((body as { eventSourceUrl: unknown }).eventSourceUrl ?? "").trim() || undefined
       : undefined;
 
-  if (eventName !== "Contact" || !UUID_RE.test(eventId)) {
+  if (!isBeaconEvent(eventName) || !UUID_RE.test(eventId)) {
     return new Response(null, { status: 400 });
   }
 
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
 
   const ctx = await liveMetaRequestContext({ eventSourceUrl });
   sendMetaEvent({
-    eventName: "Contact",
+    eventName,
     eventId,
     eventSourceUrl: ctx.eventSourceUrl ?? eventSourceUrl,
     userData: {
