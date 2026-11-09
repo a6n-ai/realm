@@ -148,7 +148,7 @@ function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, 
         case "requires_action": {
           const { error } = await stripe.handleNextAction({ clientSecret: r.clientSecret });
           if (error) {
-            await abandon().catch(() => undefined);
+            await abandon().catch((err) => console.error("card-pay: abandon failed", err));
             return { kind: "error", message: error.message ?? "Authentication failed" };
           }
           const settled = await afterAction().catch((): Awaited<ReturnType<typeof afterAction>> => ({ outcome: "processing" }));

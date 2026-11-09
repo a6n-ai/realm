@@ -417,6 +417,13 @@ export function Checkout({
     }
   };
 
+  // An unpriceable cart already put its reason in priceError; anything else is a failed read the customer must be able to retry.
+  const repriceFailed = (err: unknown) => {
+    if (err instanceof UnpriceableCart) return;
+    console.error("checkout: reprice failed", err);
+    setPriceFailed(true);
+  };
+
   // The page redirects signed-out visitors; this covers a bfcache restore after signing out
   // (Back into a stale checkout). `replace` keeps the checkout out of the history.
   useEffect(() => {
@@ -477,12 +484,12 @@ export function Checkout({
           setCoinsState(coins ? { status: "applied", message: "Your estimate's coins are applied" } : { status: "error", message: r.coinsError ?? "Your estimate's coins couldn't be applied" });
         }
         if (!quoted.length) {
-          if (coins !== quotedCoins) await refreshPrice(s, quoted, null, undefined).catch(() => undefined);
+          if (coins !== quotedCoins) await refreshPrice(s, quoted, null, undefined).catch(repriceFailed);
           return;
         }
         wizardSession.clearQuoteCodes();
         const kept = quoted.filter((c) => r.appliedCoupons.some((a) => a.code.toUpperCase() === c));
-        if (kept.length !== quoted.length || coins !== quotedCoins) await refreshPrice(s, kept, null, coins || undefined).catch(() => undefined);
+        if (kept.length !== quoted.length || coins !== quotedCoins) await refreshPrice(s, kept, null, coins || undefined).catch(repriceFailed);
         setAppliedCodes(kept);
         const dropped = quoted.filter((c) => !kept.includes(c));
         // Name why, not just that: "Add $40.00 more…" tells the customer how to still get the code.
@@ -517,7 +524,7 @@ export function Checkout({
     setZone(res.served ? { served: true, name: res.zone!.name, slotWindow: res.zone!.slotWindow } : { served: false });
     // A served address fixes the province, so the total shown from here on includes its tax.
     if (res.served && withPrice && selections) {
-      void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined, postalCode, addr).catch(() => undefined);
+      void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined, postalCode, addr).catch(repriceFailed);
     }
   };
 
@@ -813,7 +820,7 @@ export function Checkout({
     });
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.
-      if (res.error === TOTAL_CHANGED) void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
+      if (res.error === TOTAL_CHANGED) void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(repriceFailed);
       return { error: res.error };
     }
     placed.current = { paymentPublicId: res.paymentPublicId, deploymentId: res.deploymentId };
