@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { OTP_TTL_SECONDS } from "@foundry/commons";
 import { openCode, sealCode } from "../magic-code";
 
 beforeAll(() => {
@@ -14,7 +15,7 @@ describe("magic-link code token", () => {
 
   it("expires after 10 minutes", () => {
     const now = Date.now();
-    expect(openCode(sealCode("443075", now), now + 10 * 60 * 1000 + 1)).toBeNull();
+    expect(openCode(sealCode("443075", now), now + OTP_TTL_SECONDS * 1000 + 1)).toBeNull();
   });
 
   it("rejects a tampered token", () => {

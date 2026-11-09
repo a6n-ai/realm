@@ -9,7 +9,7 @@ import {
   LAST_USER_COOKIE, SIGN_IN_METHOD, authAuditAction, createOrganizationPlugin, encodeLastUser, googleAccountHooks, googleOneTapPlugins,
   googleSocialProviders, lastUserCookieOptions, signInPath,
 } from "@foundry/auth";
-import { Role } from "@foundry/commons";
+import { OTP_LENGTH, OTP_TTL_SECONDS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
@@ -93,8 +93,8 @@ export const auth = betterAuth({
     password: betterAuthPassword,
     // Enforced on sign-up / change / reset only — never on sign-in, so raising
     // this cannot lock out an existing account with a shorter password.
-    minPasswordLength: 12,
-    maxPasswordLength: 256,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: PASSWORD_MAX_LENGTH,
     // Accounts are provisioned by /subscribe's email step (provisionCustomerByEmail)
     // or by an admin, never by better-auth's own sign-up route.
     // better-auth still mounts /sign-up/email whenever email+password is
@@ -182,8 +182,8 @@ export const auth = betterAuth({
     // stored hashed and expire in 10 min. The single sendVerificationOTP callback
     // routes each type to the shared @foundry/auth copy via SES.
     emailOTP({
-      otpLength: 6,
-      expiresIn: 600,
+      otpLength: OTP_LENGTH,
+      expiresIn: OTP_TTL_SECONDS,
       allowedAttempts: 5,
       storeOTP: "hashed",
       // Without this, /sign-in/email-otp CREATES an account for any address

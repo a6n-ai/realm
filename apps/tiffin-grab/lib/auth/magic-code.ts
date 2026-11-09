@@ -1,10 +1,11 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { OTP_TTL_SECONDS } from "@foundry/commons";
 import { authSecret } from "@/lib/runtime/env";
 
 // The code email's "Copy code" button opens /magic-link?t=<token>. The token is
 // the code sealed with AES-256-GCM, so the URL (history, logs, link scanners)
 // never carries the code itself, and no table is needed to look it up.
-const TTL_MS = 10 * 60 * 1000; // matches emailOTP expiresIn
+const TTL_MS = OTP_TTL_SECONDS * 1000;
 
 function key(): Buffer {
   const secret = authSecret("magic-link");

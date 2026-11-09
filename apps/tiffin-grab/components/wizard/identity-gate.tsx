@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
+import { OTP_CODE_REGEX, OTP_LENGTH, OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
@@ -112,7 +113,7 @@ export function IdentityGate({
   }
 
   async function verify(otp: string) {
-    if (!/^\d{6}$/.test(otp)) return setError({ field: "code", message: "Enter all 6 digits." });
+    if (!OTP_CODE_REGEX.test(otp)) return setError({ field: "code", message: `Enter all ${OTP_LENGTH} digits.` });
     const result = await signIn.emailOtp({ email, otp });
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
     // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
@@ -275,7 +276,7 @@ export function IdentityGate({
                 {error?.field === "code" ? (
                   <p role="alert" className="text-footnote font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
                 ) : (
-                  <p className="c-caption">It works for 10 minutes. Not in your inbox? Check your spam folder.</p>
+                  <p className="c-caption">{`It works for ${OTP_TTL_MINUTES} minutes. Not in your inbox? Check your spam folder.`}</p>
                 )}
                 <ResendCode onResend={resend} className="items-start" />
               </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { OTP_TTL_MINUTES } from "@foundry/commons";
 import { AUTH_LINK, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { AuthLogo } from "@/components/auth/auth-kit";
@@ -10,7 +11,7 @@ import { IOS_BUTTON } from "@/components/customer/ios-button";
 
 /**
  * Email can't run JS, so the code email's "Copy code" button links here.
- * `code` is null when the link is forged, damaged or older than 10 minutes.
+ * `code` is null when the link is forged, damaged or older than the code lifetime.
  */
 export function CopyCode({ code }: { code: string | null }) {
   const [copied, setCopied] = useState(false);
@@ -31,8 +32,8 @@ export function CopyCode({ code }: { code: string | null }) {
         title={code ? "Use this code to continue" : "This link has expired"}
         tagline={
           code
-            ? "Enter it where you first tried to sign in. It expires in 10 minutes."
-            : "Codes last 10 minutes. Ask for a new one where you're signing in."
+            ? `Enter it where you first tried to sign in. It expires in ${OTP_TTL_MINUTES} minutes.`
+            : `Codes last ${OTP_TTL_MINUTES} minutes. Ask for a new one where you're signing in.`
         }
       >
         <div className="flex flex-1 flex-col gap-5">

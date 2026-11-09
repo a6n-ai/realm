@@ -9,6 +9,7 @@
  */
 import type { ReactNode } from "react";
 import { Body, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
+import { OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailBaseUrl } from "@/lib/runtime/env";
 
 // Links must be absolute and must never point at a dev host once seeded into prod.
@@ -363,12 +364,12 @@ export const TEMPLATES: EmailTemplate[] = [
     event: "email_otp_password_reset",
     subject: "{{otp}} is your Tiffin Grab password reset code",
     element: (
-      <Layout preview="Your code is {{otp}}. It expires in 10 minutes.">
+      <Layout preview={`Your code is {{otp}}. It expires in ${OTP_TTL_MINUTES} minutes.`}>
         <Eyebrow>Password reset</Eyebrow>
         <Title lead="Reset your" accent="password." />
         <P>Enter this code to choose a new password.</P>
         <Code value="{{otp}}" />
-        <Note>It expires in 10 minutes. Didn't ask for this? Ignore it — your password stays the same.</Note>
+        <Note>{`It expires in ${OTP_TTL_MINUTES} minutes. Didn't ask for this? Ignore it — your password stays the same.`}</Note>
       </Layout>
     ),
   },
@@ -376,12 +377,12 @@ export const TEMPLATES: EmailTemplate[] = [
     event: "email_otp_verification",
     subject: "{{otp}} is your Tiffin Grab verification code",
     element: (
-      <Layout preview="Your code is {{otp}}. It expires in 10 minutes.">
+      <Layout preview={`Your code is {{otp}}. It expires in ${OTP_TTL_MINUTES} minutes.`}>
         <Eyebrow>Verification</Eyebrow>
         <Title lead="Here's your" accent="code." />
         <P>Enter this code to continue.</P>
         <Code value="{{otp}}" />
-        <Note>It expires in 10 minutes. Didn't request it? You can ignore this email.</Note>
+        <Note>{`It expires in ${OTP_TTL_MINUTES} minutes. Didn't request it? You can ignore this email.`}</Note>
       </Layout>
     ),
   },
