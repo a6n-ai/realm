@@ -2,6 +2,7 @@ import { onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
+import { assertPersons, buildDeliveryChargeConfig, catalogWaivers } from "@/lib/pricing/build-catalog";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { appToday } from "@/lib/services/start-date";
@@ -49,9 +50,7 @@ export async function quoteTrial(
   if (!frequency) throw new ValidationError("Trials aren't available right now");
 
   const persons = selections.persons;
-  if (!Number.isInteger(persons) || persons < 1 || persons > 5) {
-    throw new ValidationError("Persons must be an integer 1–5");
-  }
+  assertPersons(persons);
 
   const pricingSelections: PricingSelections = {
     ...selections,
@@ -84,41 +83,6 @@ function trialCatalog(
   length: number,
   selections: PricingSelections,
 ): PricingCatalog {
-  let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"];
-  if (snapshot.deliveryCharges) {
-    const dc = snapshot.deliveryCharges;
-    const picks: unknown = selections.deliveryStrategyIds ?? [];
-    const tagPick: unknown = selections.deliveryTagId ?? null;
-    if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string") || (tagPick !== null && typeof tagPick !== "string")) {
-      throw new ValidationError("Invalid delivery options");
-    }
-    if (tagPick && !dc.strategyGroups?.some((g) => g.publicId === tagPick)) throw new ValidationError("That place type isn't available");
-    const sets = new Set<string>();
-    const strategies = (picks as string[]).map((id) => {
-      const s = dc.deliveryStrategies.find((o) => o.publicId === id && o.active);
-      if (!s) throw new ValidationError("That delivery strategy isn't available");
-      if (s.groupPublicId !== (tagPick ?? (dc.deliveryStrategies.find((o) => o.publicId === picks[0])?.groupPublicId ?? null))) {
-        throw new ValidationError("Delivery strategies must all be for the chosen place");
-      }
-      if (s.connectionPublicId) {
-        if (sets.has(s.connectionPublicId)) throw new ValidationError("Pick only one of those connected strategies");
-        sets.add(s.connectionPublicId);
-      }
-      const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
-      return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue, basis: s.chargeBasis ?? "once" as const };
-    });
-    const at = selections.addressTagId
-      ? dc.addressTags.find((a) => a.publicId === selections.addressTagId && a.active)
-      : null;
-    if (selections.addressTagId && !at) throw new ValidationError("Invalid address tag");
-    deliveryChargeConfig = {
-      baseCharge: dc.baseCharge,
-      deliveryStrategies: strategies,
-      deliveryCount: length,
-      addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
-    };
-  }
-
   return {
     mealSize: { id: meal.publicId, basePrice: effectivePrice(meal.basePrice, meal) },
     frequency: { key: "trial", daysPerWeek: length },
@@ -126,7 +90,7 @@ function trialCatalog(
     discounts: [],
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
     deliveryCount: length,
-    waivers: (snapshot.waivers ?? []).map((w) => ({ key: w.key, name: w.name, kind: w.kind, strategyId: w.targetPublicId, percent: w.percent })),
-    deliveryChargeConfig,
+    waivers: catalogWaivers(snapshot),
+    deliveryChargeConfig: buildDeliveryChargeConfig(snapshot, selections, length),
   };
 }

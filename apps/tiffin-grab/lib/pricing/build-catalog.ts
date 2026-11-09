@@ -32,9 +32,7 @@ export function resolveAddonSelections(
 }
 
 export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: PricingSelections): PricingCatalog {
-  if (!Number.isInteger(selections.persons) || selections.persons < MIN_PERSONS || selections.persons > MAX_PERSONS) {
-    throw new ValidationError(`Persons must be an integer ${MIN_PERSONS}–${MAX_PERSONS}`);
-  }
+  assertPersons(selections.persons);
   if (!Array.isArray(selections.mealSlots) || selections.mealSlots.length === 0) {
     throw new ValidationError("At least one category is required");
   }
@@ -67,50 +65,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   }));
 
   const deliveryCount = planDeliveryCount(frequency, selections);
-  let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
-  if (snapshot.deliveryCharges) {
-    const dc = snapshot.deliveryCharges;
-    const picks: unknown = selections.deliveryStrategyIds ?? [];
-    const tagPick: unknown = selections.deliveryTagId ?? null;
-    // Server-action input: the shape is not guaranteed by the type.
-    if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string") || (tagPick !== null && typeof tagPick !== "string")) {
-      throw new ValidationError("Invalid delivery options");
-    }
-    if (tagPick && !dc.strategyGroups?.some((g) => g.publicId === tagPick)) throw new ValidationError("That place type isn't available");
-    const sets = new Set<string>();
-    const strategies = (picks as string[]).map((id) => {
-      const s = dc.deliveryStrategies.find((o) => o.publicId === id && o.active);
-      if (!s) throw new ValidationError("That delivery strategy isn't available");
-      // Every pick sits under the one place type the customer chose.
-      if (s.groupPublicId !== (tagPick ?? (dc.deliveryStrategies.find((o) => o.publicId === picks[0])?.groupPublicId ?? null))) {
-        throw new ValidationError("Delivery strategies must all be for the chosen place");
-      }
-      // One pick per connected set: they are alternatives, each with its own price.
-      if (s.connectionPublicId) {
-        if (sets.has(s.connectionPublicId)) {
-          const set = dc.strategyConnections?.find((c) => c.publicId === s.connectionPublicId);
-          throw new ValidationError(`Pick only one of ${set?.name || "those connected strategies"}`);
-        }
-        sets.add(s.connectionPublicId);
-      }
-      const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
-      return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue, basis: s.chargeBasis ?? "once" };
-    });
-
-    const at = selections.addressTagId
-      ? snapshot.deliveryCharges.addressTags.find((a) => a.publicId === selections.addressTagId && a.active)
-      : null;
-    if (selections.addressTagId && !at) {
-      throw new ValidationError("Invalid address tag");
-    }
-
-    deliveryChargeConfig = {
-      baseCharge: snapshot.deliveryCharges.baseCharge,
-      deliveryStrategies: strategies,
-      deliveryCount,
-      addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
-    };
-  }
+  const deliveryChargeConfig = buildDeliveryChargeConfig(snapshot, selections, deliveryCount);
 
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
@@ -119,8 +74,64 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     discounts,
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
     deliveryCount,
-    waivers: (snapshot.waivers ?? []).map((w) => ({ key: w.key, name: w.name, kind: w.kind, strategyId: w.targetPublicId, percent: w.percent })),
+    waivers: catalogWaivers(snapshot),
     deliveryChargeConfig,
+  };
+}
+
+export function catalogWaivers(snapshot: CatalogSnapshot): NonNullable<PricingCatalog["waivers"]> {
+  return (snapshot.waivers ?? []).map((w) => ({ key: w.key, name: w.name, kind: w.kind, strategyId: w.targetPublicId, percent: w.percent }));
+}
+
+export function assertPersons(persons: number): void {
+  if (!Number.isInteger(persons) || persons < MIN_PERSONS || persons > MAX_PERSONS) {
+    throw new ValidationError(`Persons must be an integer ${MIN_PERSONS}–${MAX_PERSONS}`);
+  }
+}
+
+/** Validates the delivery picks against the catalog and prices them; undefined when the catalog has no delivery charges. */
+export function buildDeliveryChargeConfig(
+  snapshot: CatalogSnapshot,
+  selections: Pick<PricingSelections, "deliveryStrategyIds" | "deliveryTagId" | "addressTagId">,
+  deliveryCount: number,
+): PricingCatalog["deliveryChargeConfig"] {
+  const dc = snapshot.deliveryCharges;
+  if (!dc) return undefined;
+  const picks: unknown = selections.deliveryStrategyIds ?? [];
+  const tagPick: unknown = selections.deliveryTagId ?? null;
+  // Server-action input: the shape is not guaranteed by the type.
+  if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string") || (tagPick !== null && typeof tagPick !== "string")) {
+    throw new ValidationError("Invalid delivery options");
+  }
+  if (tagPick && !dc.strategyGroups?.some((g) => g.publicId === tagPick)) throw new ValidationError("That place type isn't available");
+  const sets = new Set<string>();
+  const strategies = (picks as string[]).map((id) => {
+    const s = dc.deliveryStrategies.find((o) => o.publicId === id && o.active);
+    if (!s) throw new ValidationError("That delivery strategy isn't available");
+    // Every pick sits under the one place type the customer chose.
+    if (s.groupPublicId !== (tagPick ?? (dc.deliveryStrategies.find((o) => o.publicId === picks[0])?.groupPublicId ?? null))) {
+      throw new ValidationError("Delivery strategies must all be for the chosen place");
+    }
+    // One pick per connected set: they are alternatives, each with its own price.
+    if (s.connectionPublicId) {
+      if (sets.has(s.connectionPublicId)) {
+        const set = dc.strategyConnections?.find((c) => c.publicId === s.connectionPublicId);
+        throw new ValidationError(`Pick only one of ${set?.name || "those connected strategies"}`);
+      }
+      sets.add(s.connectionPublicId);
+    }
+    const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
+    return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue, basis: s.chargeBasis ?? "once" };
+  });
+
+  const at = selections.addressTagId ? dc.addressTags.find((a) => a.publicId === selections.addressTagId && a.active) : null;
+  if (selections.addressTagId && !at) throw new ValidationError("Invalid address tag");
+
+  return {
+    baseCharge: dc.baseCharge,
+    deliveryStrategies: strategies,
+    deliveryCount,
+    addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
   };
 }
 
