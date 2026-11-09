@@ -70,7 +70,6 @@ export function priceSubscription(
     taxableBase = round2(taxableBase - taxWaiver.amount);
   }
 
-  // No taxes => taxTotal 0 => total == taxableBase.
   const { lines: taxLines, taxTotal } = computeTax(taxableBase, taxes);
   const total = round2(taxableBase + taxTotal);
 

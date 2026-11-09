@@ -81,7 +81,6 @@ export function nextTrialStart(fromIso: string, days: readonly string[]): string
   return null;
 }
 
-/** Next `length` dates from `startDate` whose weekday is allowed, including the start date. */
 export function trialDeliveryDates(startDate: string, length: number, weekdays: readonly string[]): string[] {
   if (!Number.isInteger(length) || length < 1) throw new ValidationError("Choose at least 1 trial day");
   const allowed = new Set(weekdays);

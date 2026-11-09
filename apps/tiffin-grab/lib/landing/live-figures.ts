@@ -4,7 +4,6 @@ import { dateTimeFormat } from "@/lib/intl/date-format";
 import { effectivePrice } from "@/lib/pricing";
 import { formatMoney } from "@/lib/format/money";
 
-/** "11 PM" for an hour of the day. */
 export const hourLabel = (h: number) =>
   dateTimeFormat("en-CA", { hour: "numeric", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, h)).replace(/\./g, "").toUpperCase();
 

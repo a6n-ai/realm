@@ -16,7 +16,6 @@ type Cutoff = { cutoffHour: number; timezone: string };
 export type HolidayApplied = {
   deliveryPublicId: string;
   routeSyncedAt: number | null;
-  /** The closed date. */
   date: string;
   holidayId: bigint;
   holidayName: string;

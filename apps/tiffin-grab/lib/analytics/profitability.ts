@@ -44,7 +44,6 @@ export function parseAssumptions(raw: unknown): ProfitabilityAssumptions {
 
 export type Grain = "daily" | "weekly" | "monthly";
 
-/** Calendar days in a 1-indexed month. */
 export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }

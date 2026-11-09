@@ -16,10 +16,8 @@ export function appOrigin(): string {
   return stripSlash(process.env.BETTER_AUTH_URL ?? publicAuthUrl() ?? "");
 }
 
-/** BETTER_AUTH_URL as set (better-auth's baseURL). */
 export const authBaseUrl = () => process.env.BETTER_AUTH_URL;
 
-/** BETTER_AUTH_URL, or `fallback` when unset or empty. */
 export const appUrlOr = (fallback: string) => process.env.BETTER_AUTH_URL || fallback;
 
 export const siteOrigin = () => process.env.SITE_URL ?? DEFAULT_ORIGIN;

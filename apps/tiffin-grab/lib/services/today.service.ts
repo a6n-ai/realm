@@ -95,8 +95,6 @@ export async function listReviewPayments(visible: Visible, limit: number) {
   return Promise.all(rows.map(async ({ proof, ...r }) => ({ ...r, proofUrl: (await proofView(proof, [`payments/${r.paymentId}`, `payments/${r.orderId}`]))?.href ?? null })));
 }
 
-// ---- sources ----
-
 /** Plans ending in 2 days or less with no later plan: the renewals still winnable. */
 const ENDING_FILTER: RenewalsFilter = { tab: "renewals", dateBy: "last", ending: 2, ended: null, status: "not_renewed", renewed: null, from: null, to: null, q: "" };
 const NO_RANGE = { by: "last", fromIso: null, toIso: null, fromMs: null, toMs: null } as const;
@@ -192,8 +190,6 @@ export async function getTodayQueue(visible: Visible, now: number, kinds: readon
     : items;
   return { items: rankTodayItems(shown).slice(0, TODAY_LIMIT), failed };
 }
-
-// ---- totals ----
 
 export type TodayCounts = {
   /** Exact total per queue type; null when that count failed. */

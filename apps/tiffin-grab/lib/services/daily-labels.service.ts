@@ -163,7 +163,6 @@ export type DayDeliveryRow = {
   driverNote: string | null;
 };
 
-/** Drop-off first, then the note; null when neither is set. */
 export function driverNote(dropOff: string | null, instructions: string | null | undefined): string | null {
   return [dropOff, instructions?.trim()].filter(Boolean).join(" · ") || null;
 }

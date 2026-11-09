@@ -17,9 +17,7 @@ export type AnalyticsFilters = {
   from?: number;
   /** Inclusive range end, epoch ms. */
   to?: number;
-  /** Plan keys. */
   plans: string[];
-  /** Meal size keys. */
   mealSizes: string[];
   /** Delivery zone names. */
   zones: string[];

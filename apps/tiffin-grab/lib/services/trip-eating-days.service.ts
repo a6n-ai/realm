@@ -218,7 +218,6 @@ export async function loadTripEatingDays(
   return out;
 }
 
-/** Map deliveryPublicId → eating-day cards for UI lookup. */
 export function eatingDaysByDeliveryPublicId(
   trips: TripWithEatingDays[],
 ): Map<string, TripEatingDay[]> {

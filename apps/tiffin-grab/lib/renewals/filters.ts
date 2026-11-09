@@ -60,7 +60,6 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, owner: sp.owner || undefined, from, to, q };
 }
 
-/** The query string for a filter. */
 export function renewalsQuery(f: RenewalsFilter): string {
   const sp = new URLSearchParams();
   if (f.tab !== "renewals") sp.set("tab", f.tab);
