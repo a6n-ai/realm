@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition, type ReactNode } from "react";
@@ -125,7 +126,7 @@ export function StripeTable({
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

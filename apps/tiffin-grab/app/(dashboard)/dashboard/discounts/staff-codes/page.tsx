@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { couponStatus } from "@/lib/coupons/status";
 import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
 import { STAFF_ROLES } from "@/lib/auth/roles";
@@ -155,7 +156,7 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], coupons.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({
         issued: sql<number>`cast(count(*) as int)`,

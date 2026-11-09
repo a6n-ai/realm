@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
@@ -36,7 +37,7 @@ export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTabl
   return (
     <>
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         serial={false}
         columns={COLUMNS}
         rows={rows}

@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -172,7 +173,7 @@ export async function listCronRunsPage(job: string, condition: Condition | undef
       .where(where)
       .orderBy(desc(cronRuns.startedAt), desc(cronRuns.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(cronRuns).where(where),
   ]);
   return { items, total: count, page: page.page, size: page.size };

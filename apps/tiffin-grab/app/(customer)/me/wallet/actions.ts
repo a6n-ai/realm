@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidateOrder } from "@/lib/revalidate";
 import { revalidatePath } from "next/cache";
 import { NotFoundError } from "@foundry/commons";
 import {
@@ -35,8 +36,7 @@ async function claimPaymentUnsafe(paymentPublicId: string, form: FormData) {
   await claimPayment(paymentPublicId, { reference, proof }, await currentUserId());
   revalidatePath("/me");
   revalidatePath("/me/wallet");
-  revalidatePath(`/dashboard/orders/${ctx.orderPublicId}`);
-  revalidatePath("/dashboard/orders");
+  revalidateOrder(ctx.orderPublicId, { orderList: true });
   revalidatePath("/dashboard/payments/requests");
 }
 

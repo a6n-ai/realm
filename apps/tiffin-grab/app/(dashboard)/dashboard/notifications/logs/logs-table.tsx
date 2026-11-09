@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import { useState, type ReactNode } from "react";
 import { BellIcon } from "lucide-react";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
@@ -93,7 +94,7 @@ export function LogsTable({
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { and, count, eq } from "drizzle-orm";
 import { notificationOutcomeWhere, parseNotificationOutcome } from "@/lib/notifications/outcome";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -165,7 +166,7 @@ export async function loadNotificationLogs(
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ n: count() })
       .from(notificationOutbox)
@@ -286,7 +287,7 @@ export async function loadSuppressedAddresses(
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ n: count() }).from(messageSuppression).where(where),
   ]);
 

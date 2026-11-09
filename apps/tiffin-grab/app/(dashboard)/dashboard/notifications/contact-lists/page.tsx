@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import Link from "next/link";
 import { and, count, isNotNull, notInArray, sql } from "drizzle-orm";
@@ -152,7 +153,7 @@ async function ContactListsData({ searchParams }: { searchParams: SearchParams }
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ n: count() }).from(contactList).where(where),
     getAppSettings(),
   ]);

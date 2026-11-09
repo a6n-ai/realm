@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { and, eq, gte, ilike, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
@@ -151,7 +152,7 @@ export async function walletLedgerRows({ q, userId, sourceType, direction, range
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], walletLedger.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ total: sql<number>`cast(count(*) as int)` })
       .from(walletLedger)

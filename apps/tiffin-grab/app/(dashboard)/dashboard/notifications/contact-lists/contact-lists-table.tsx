@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import { AppDate } from "@/components/dashboard/app-date";
 import { ListIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
@@ -57,7 +58,7 @@ export function ContactListsTable({
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

@@ -1,5 +1,6 @@
 "use client";
 
+import { parsePagination } from "@/lib/list/pagination";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -7,7 +8,7 @@ import { toast } from "sonner";
 import { ListChecksIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, TonePill, type Column, type Tone } from "@/components/ds";
+import { DataTable, ResponsiveDialog, TonePill, type Column, type Tone } from "@/components/ds";
 import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { GROUP_LABEL, type ReasonGroup } from "@/lib/services/optimoroute/reconcile-reason";
 import type { DayLedger, LedgerRow } from "@/lib/services/optimoroute/ledger";
@@ -36,12 +37,6 @@ const GROUP_TONE: Record<ReasonGroup, Tone> = {
   not_today: "neutral",
   not_ours: "faint",
 };
-
-function pagination(sp: URLSearchParams) {
-  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
-  const raw = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
-  return { page, size: (PAGE_SIZES as readonly number[]).includes(raw) ? raw : DEFAULT_SIZE };
-}
 
 export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger }) {
   const router = useRouter();
@@ -108,7 +103,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
         rows={rows}
         rowKey={(r) => r.key}
         serial
-        pagination={pagination(params)}
+        pagination={parsePagination(params)}
         search={{ placeholder: "Search customer, phone or delivery ID…", keys: ["customerName", "phone", "deliveryPublicId", "optimoOrderNo"] }}
         emptyIcon={ListChecksIcon}
         emptyMessage="Nothing in this group for the date."

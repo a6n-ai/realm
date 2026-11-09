@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrder } from "@/lib/revalidate";
 import { ValidationError } from "@foundry/commons";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -76,8 +76,7 @@ export async function renewOrderAction(input: {
       },
       { actorId: session?.user?.id ?? null, ownerUserId: src.ownerPublicId, orgId: src.organizationId, staffCreated: true },
     );
-    revalidatePath(`/dashboard/orders/${input.orderPublicId}`);
-    revalidatePath("/dashboard/orders");
+    revalidateOrder(input.orderPublicId, { orderList: true });
     return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
   });
 }

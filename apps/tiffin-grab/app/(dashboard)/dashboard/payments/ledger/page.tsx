@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
@@ -78,7 +79,7 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
       .where(where)
       .orderBy(...pageOrder(sort.dir, col, ledgerEntries.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
   ]);
 
   return <MoneyLedgerTable rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;

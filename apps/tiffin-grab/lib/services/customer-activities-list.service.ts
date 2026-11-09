@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -411,7 +412,7 @@ export async function listCustomerActivitiesPage(
     return sort.dir === "asc" ? ordered : -ordered;
   });
 
-  const start = page.page * page.size;
+  const start = pageOffset(page.page, page.size);
   return {
     items: rows.slice(start, start + page.size),
     page: page.page,

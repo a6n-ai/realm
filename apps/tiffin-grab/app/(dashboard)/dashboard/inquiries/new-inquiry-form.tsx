@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { toast } from "sonner";
 import { ChevronDownIcon, HelpCircleIcon, Loader2Icon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -64,21 +65,8 @@ function readLastSource(): { source?: string; sub?: string } {
 
 /** Debounced open-lead lookup for a full phone number; carries its key so a stale hit never lingers. */
 function useOpenLeadMatches(e164: string | null): Match[] {
-  const [found, setFound] = useState<{ key: string; hits: Match[] }>({ key: "", hits: [] });
-  useEffect(() => {
-    if (!e164) return;
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      try {
-        const hits = await findInquiryMatches(e164);
-        if (!cancelled) setFound({ key: e164, hits });
-      } catch {
-        if (!cancelled) setFound({ key: e164, hits: [] });
-      }
-    }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [e164]);
-  return found.key === e164 ? found.hits : [];
+  const found = useDebouncedAsync<Match[]>(e164, () => findInquiryMatches(e164!), 400, []);
+  return found.key === e164 ? found.value : [];
 }
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import { useState } from "react";
 import Link from "next/link";
 import { CoinsIcon, WalletIcon } from "lucide-react";
@@ -47,7 +48,7 @@ export function BalancesTable({ rows, spec, sort, total, page, size }: {
   return (
     <>
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

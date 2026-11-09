@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -183,7 +184,7 @@ export function InquiriesList({
         <BulkBar selectedIds={onPage} pageIds={rows.map((r) => r.publicId)} staff={staff} onChange={setSelected} />
       ) : null}
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
@@ -153,7 +154,7 @@ export async function listRenewals(visible: "all" | string[], f: RenewalsFilter,
       // Upcoming endings first, soonest on top; then lapsed plans, most recent first.
       .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(orders).leftJoin(users, eq(orders.userId, users.id)).where(where),
   ]);
 
@@ -283,7 +284,7 @@ export async function listRenewedCustomers(
   const grouped = renewedCustomersGrouped(visible, opts);
 
   const [rows, [{ count }]] = await Promise.all([
-    db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId)).limit(page.size).offset(page.page * page.size),
+    db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId)).limit(page.size).offset(pageOffset(page.page, page.size)),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(grouped),
   ]);
 

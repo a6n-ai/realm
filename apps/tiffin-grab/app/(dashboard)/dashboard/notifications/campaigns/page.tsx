@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { and, count, desc, isNull } from "drizzle-orm";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
@@ -133,7 +134,7 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ n: count() }).from(campaign).where(where),
     db
       .select({

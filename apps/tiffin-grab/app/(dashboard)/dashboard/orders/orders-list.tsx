@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
@@ -62,7 +63,7 @@ export function OrdersList({
   return (
     <div className="space-y-4">
     <DataTable
-      serialOffset={page * size}
+      serialOffset={pageOffset(page, size)}
       columns={COLUMNS}
       rows={rows}
       rowKey={(o) => o.publicId}

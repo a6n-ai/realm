@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -118,7 +119,7 @@ export function StaffCodes({
             rows={codes}
             rowKey={(c) => c.publicId}
             sort={sort}
-            serialOffset={page * size}
+            serialOffset={pageOffset(page, size)}
             filters={<ListSearchFilters spec={spec} placeholder="Search code, staff, customer or order…" shortPlaceholder="Search…" />}
             emptyIcon={TicketIcon}
             emptyMessage="No codes issued in these dates. Staff create them from Estimate or Create coupon."

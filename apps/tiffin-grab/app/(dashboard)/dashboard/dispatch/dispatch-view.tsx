@@ -1,5 +1,6 @@
 "use client";
 
+import { parsePagination } from "@/lib/list/pagination";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -15,8 +16,6 @@ import {
 import { Button } from "@foundry/ui/button";
 import {
   DataTable,
-  DEFAULT_SIZE,
-  PAGE_SIZES,
   ResponsiveDialog,
   type Column,
 } from "@/components/ds";
@@ -33,15 +32,6 @@ import type {
 import type { DeliveryActivity } from "@/lib/services/optimoroute/push";
 
 const UNASSIGNED = "__unassigned__";
-
-function dispatchPagination(sp: URLSearchParams) {
-  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
-  const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
-  const size = (PAGE_SIZES as readonly number[]).includes(rawSize)
-    ? rawSize
-    : DEFAULT_SIZE;
-  return { page, size };
-}
 
 // Same unassigned-last, driver-alphabetical, stop-ascending order the old
 // per-driver grouping produced — just a flat sort instead of a grouping step.
@@ -81,7 +71,7 @@ export function DispatchView({
   drivers: KnownDriver[];
 }) {
   const params = useSearchParams();
-  const { page, size } = dispatchPagination(params);
+  const { page, size } = parsePagination(params);
   const [pending, startTransition] = useTransition();
   const [errorFor, setErrorFor] = useState<{
     orderNo: string;

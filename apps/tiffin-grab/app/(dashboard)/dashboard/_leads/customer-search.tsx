@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { useEffect, useState } from "react";
 import { UserRoundIcon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -16,18 +17,9 @@ export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void })
   const [q, setQ] = useState("");
   // Results carry the query they belong to, so "no results yet" is derived rather
   // than written synchronously in the effect — and a stale list can never show.
-  const [found, setFound] = useState<{ q: string; items: CustomerHit[] }>({ q: "", items: [] });
   const term = q.trim().replace(/\s+/g, " ");
-  const hits = found.q === term ? found.items : [];
-
-  useEffect(() => {
-    if (term.length < 2) return;
-    const t = setTimeout(async () => {
-      try { setFound({ q: term, items: await searchCustomers(term) }); }
-      catch { setFound({ q: term, items: [] }); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [term]);
+  const found = useDebouncedAsync<CustomerHit[]>(term.length < 2 ? null : term, () => searchCustomers(term), 300, []);
+  const hits = found.key === term ? found.value : [];
 
   return (
     // A plain field, not a panel: Command's popover chrome and the input wrapper's padding are stripped so

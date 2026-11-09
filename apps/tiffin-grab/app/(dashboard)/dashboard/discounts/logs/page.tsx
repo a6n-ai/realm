@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
@@ -99,7 +100,7 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
       .where(where)
       .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], couponRedemptions.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ total: sql<number>`cast(count(*) as int)` })
       .from(couponRedemptions)

@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -78,7 +79,7 @@ export function LogsTable({
   return (
     <div className="space-y-4">
     <DataTable
-      serialOffset={page * size}
+      serialOffset={pageOffset(page, size)}
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.key}

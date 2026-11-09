@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
@@ -249,7 +250,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size) as Promise<Record<string, unknown>[]>,
+      .offset(pageOffset(page.page, page.size)) as Promise<Record<string, unknown>[]>,
   ]);
   const rows = raw.map((r) => {
     const dto: Record<string, unknown> & { publicId: string } = {

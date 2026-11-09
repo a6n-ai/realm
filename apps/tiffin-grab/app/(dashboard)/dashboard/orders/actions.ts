@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateOrder } from "@/lib/revalidate";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
@@ -113,9 +114,7 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
     );
   });
   if ("ok" in res) {
-    revalidatePath("/dashboard/orders");
-    revalidatePath(`/dashboard/orders/${orderPublicId}`);
-    revalidatePath("/dashboard/payments", "layout");
+    revalidateOrder(orderPublicId, { orderList: true, payments: true });
   }
   return res;
 }
@@ -128,7 +127,7 @@ export async function emailPaymentLinkAction(orderPublicId: string, paymentPubli
     await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     await sendPaymentReminder(orderPublicId, paymentPublicId ?? (await findUnpaidPayment(orderPublicId)), await currentUserId());
   });
-  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderPublicId}`);
+  if ("ok" in res) revalidateOrder(orderPublicId);
   return res;
 }
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrder } from "@/lib/revalidate";
 import { formatMoney, ValidationError } from "@foundry/commons";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { db } from "@/db/client";
@@ -40,7 +40,7 @@ export async function activate(orderId: string) {
   await requireStaff();
   await assertOrderVisible(orderId, await visibleOrgs());
   await activateOrder(orderId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
 }
 
 export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
@@ -49,7 +49,7 @@ export async function startMigrated(orderId: string, startDate: string): Promise
     await assertOrderVisible(orderId, await visibleOrgs());
     await startMigratedOrder(orderId, startDate);
   });
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
   return res;
 }
 
@@ -59,7 +59,7 @@ export async function changeStartDateAction(orderId: string, startDate: string):
     await assertOrderVisible(orderId, await visibleOrgs());
     await changeOrderStartDate(orderId, startDate);
   });
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
   return res;
 }
 
@@ -69,7 +69,7 @@ export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[])
     await assertOrderVisible(orderId, await visibleOrgs());
     await changeOrderEatingDays(orderId, days);
   });
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
   return res;
 }
 
@@ -77,7 +77,7 @@ export async function cancel(orderId: string) {
   await requireStaff();
   await assertOrderVisible(orderId, await visibleOrgs());
   await cancelOrderAndOpenPayments(orderId, await currentUserId());
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
 }
 
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
@@ -88,11 +88,7 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
     await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
-    revalidatePath("/dashboard/payments", "layout");
-    revalidatePath("/me/wallet");
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/orders");
+    revalidateOrder(orderId, { payments: true, wallet: true, dashboard: true, orderList: true });
 
     // Trigger customer shell SSE refresh
     const order = await db
@@ -164,8 +160,7 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
     );
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
-    revalidatePath("/dashboard/payments", "layout");
+    revalidateOrder(orderId, { payments: true });
   }
   return res;
 }
@@ -177,9 +172,7 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
     await rejectPayment(paymentPublicId, note, await currentUserId());
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
-    revalidatePath("/dashboard/payments", "layout");
-    revalidatePath("/me/wallet");
+    revalidateOrder(orderId, { payments: true, wallet: true });
     
     // Trigger customer shell SSE refresh
     const order = await db
@@ -203,8 +196,7 @@ export async function updatePaymentReferenceAction(orderId: string, paymentPubli
     await updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId());
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
-    revalidatePath("/dashboard/payments", "layout");
+    revalidateOrder(orderId, { payments: true });
   }
   return res;
 }
@@ -217,8 +209,7 @@ export async function setLookOutAction(orderId: string, on: boolean, note: strin
     await setOrderLookOut(orderId, on, note, await currentUserId());
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
-    revalidatePath("/dashboard/orders");
+    revalidateOrder(orderId, { orderList: true });
   }
   return res;
 }
@@ -229,7 +220,7 @@ export async function sendPaymentReminderAction(orderId: string, paymentPublicId
     await assertOrderVisible(orderId, await visibleOrgs());
     await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
   });
-  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  if ("ok" in res) revalidateOrder(orderId);
   return res;
 }
 
@@ -240,7 +231,7 @@ export async function regenerateAddonLinkAction(orderId: string, paymentPublicId
     await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     return { paymentPublicId: (await regenerateAddonPayment(paymentPublicId, await currentUserId())).paymentPublicId };
   });
-  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  if ("ok" in res) revalidateOrder(orderId);
   return res;
 }
 
@@ -251,7 +242,7 @@ export async function cancelAddonLinkAction(orderId: string, paymentPublicId: st
     await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     await cancelAddonPayment(paymentPublicId, await currentUserId());
   });
-  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  if ("ok" in res) revalidateOrder(orderId);
   return res;
 }
 
@@ -259,7 +250,7 @@ export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublic
   await requireStaff();
   await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await pushOneDelivery(deliveryPublicId, date, await currentUserId());
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
 }
 
 /** Manual removal — deletes this one delivery's stop from OptimoRoute regardless of whether
@@ -268,7 +259,7 @@ export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPu
   await requireStaff();
   await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await removeOneDelivery(deliveryPublicId, date, await currentUserId());
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidateOrder(orderId);
 }
 
 /** Admin-only correction of one delivery's outcome. Customers and members cannot call this. */
@@ -291,8 +282,7 @@ export async function setDeliveryStatusAction(
       .where(eq(deliveries.publicId, deliveryPublicId))
       .limit(1);
     if (order) {
-      revalidatePath(`/dashboard/orders/${order.publicId}`);
-      revalidatePath("/me", "layout");
+      revalidateOrder(order.publicId, { customerApp: true });
     }
   }
   return res;
@@ -307,7 +297,7 @@ export async function redeliverTripAction(orderId: string, deliveryPublicId: str
     return `Re-delivering on ${targetDate}`;
   });
   if ("ok" in res) {
-    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidateOrder(orderId);
   }
   return res;
 }
@@ -331,6 +321,6 @@ export async function grantComplimentaryAction(
     );
     return reopened ? `Plan reopened with a free tiffin on ${input.date}` : `Free tiffin added on ${input.date}`;
   });
-  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  if ("ok" in res) revalidateOrder(orderId);
   return res;
 }

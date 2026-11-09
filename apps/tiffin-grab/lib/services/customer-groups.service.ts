@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
 import { addContactListMembers, createCampaign, createContactList, setCampaignContent } from "@relay/engine";
@@ -187,7 +188,7 @@ export async function listCustomerGroups(page: {
       .where(where)
       .orderBy(desc(customerGroups.createdAt), desc(customerGroups.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ n: sql<number>`count(*)::int` }).from(customerGroups).where(where),
   ]);
   return { rows: rows.map(toRow), total: n };
@@ -316,7 +317,7 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
       .where(where)
       .orderBy(...pageOrder(f.sort.dir, order[f.sort.column], walletLedger.id))
       .limit(f.page.size)
-      .offset(f.page.page * f.page.size),
+      .offset(pageOffset(f.page.page, f.page.size)),
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(walletLedger)

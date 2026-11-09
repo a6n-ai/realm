@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidateOrder } from "@/lib/revalidate";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { revalidatePath } from "next/cache";
 import type { AddressInput } from "@foundry/address";
@@ -21,9 +22,7 @@ import { runAction, type ActionResult } from "@/lib/actions/action-result";
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
 
 async function revalidateDeliverySurfaces(orderPublicId: string) {
-  revalidatePath("/me", "layout");
-  revalidatePath(`/dashboard/orders/${orderPublicId}`);
-  revalidatePath("/dashboard/orders");
+  revalidateOrder(orderPublicId, { customerApp: true, orderList: true });
 }
 
 async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<string | null> {

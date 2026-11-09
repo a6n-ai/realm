@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import { useMemo, useState } from "react";
 import { TagIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
@@ -159,7 +160,7 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
 
   const pageCount = Math.max(1, Math.ceil(shown.length / pagination.size));
   const page = Math.min(pagination.page, pageCount - 1);
-  const pageLabels = shown.slice(page * pagination.size, (page + 1) * pagination.size);
+  const pageLabels = shown.slice(pageOffset(page, pagination.size), (page + 1) * pagination.size);
 
   return (
     <div className="space-y-3">

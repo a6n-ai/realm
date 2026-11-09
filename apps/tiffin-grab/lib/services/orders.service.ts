@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -1852,7 +1853,7 @@ export async function listOrdersPage(
       .where(where)
       .orderBy(...pageOrder(sort.dir, col, orders.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(orders)

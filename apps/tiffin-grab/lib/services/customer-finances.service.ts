@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import type { Condition } from "@foundry/commons/model/condition";
@@ -85,7 +86,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       .where(where)
       .orderBy(desc(orders.createdAt), desc(orders.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(orders)
@@ -200,7 +201,7 @@ export async function myMoneyLedgerPage(
       .where(where)
       .orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(ledgerEntries)
@@ -250,7 +251,7 @@ export async function myCouponsPage(userId: bigint, page: PageRequest): Promise<
       .where(where)
       .orderBy(desc(couponRedemptions.createdAt), desc(couponRedemptions.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(couponRedemptions).where(where),
   ]);
   return {

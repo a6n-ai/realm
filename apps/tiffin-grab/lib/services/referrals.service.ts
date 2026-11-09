@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { CAPTURED } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
@@ -370,7 +371,7 @@ export async function listReferrals(opts: { status?: ReferralFriendStatus; searc
       .leftJoin(orders, eq(orders.id, referrals.qualifyingOrderId))
       .where(where);
   const [rows, [{ total }]] = await Promise.all([
-    base().orderBy(desc(referrals.createdAt), desc(referrals.id)).limit(opts.pageSize).offset(opts.page * opts.pageSize),
+    base().orderBy(desc(referrals.createdAt), desc(referrals.id)).limit(opts.pageSize).offset(pageOffset(opts.page, opts.pageSize)),
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(referrals)

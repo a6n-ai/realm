@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -13,6 +14,8 @@ export type AddonOption = { key: string; name: string; pricePerTiffin: number; m
 export type AddonMethodOption = { id: string; label: string; requireProof: boolean };
 
 /** Staff add add-ons to a running plan and record the payment they already hold for them. */
+type QuoteResult = { quote: AddonQuote | null; error: string | null };
+
 export function AddAddonsControl({
   orderId,
   options,
@@ -35,8 +38,6 @@ export function AddAddonsControl({
   const [methodId, setMethodId] = useState(defaultMethod);
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  // Keyed by the inputs it answers, so a result for older inputs is never shown or saved.
-  const [result, setResult] = useState<{ key: string; quote: AddonQuote | null; error: string | null } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   // Bumped to ask for a fresh quote for the same inputs (after a refused save or a failed quote).
   const [refresh, setRefresh] = useState(0);
@@ -48,32 +49,15 @@ export function AddAddonsControl({
   // Card: nothing is recorded now; the customer pays a link and the add-ons apply when it settles.
   const isCard = methodId === "stripe";
   const inputKey = `${methodId}|${selectionKey}|${refresh}`;
-  const current = open && selections.length > 0 && result?.key === inputKey ? result : null;
+  const priced = open && selections.length > 0 && !!methodId;
+  // Keyed by the inputs it answers, so a result for older inputs is never shown or saved.
+  const found = useDebouncedAsync<QuoteResult>(priced ? inputKey : null, async () => {
+    const res = await quoteOrderAddonsAction(orderId, selections, methodId);
+    return "error" in res ? { quote: null, error: res.error } : { quote: res.quote, error: null };
+  }, 250, { quote: null, error: "Could not get a price. Try again." });
+  const current = priced && found.key === inputKey ? found.value : null;
   const quote = current?.quote ?? null;
   const error = formError ?? current?.error ?? null;
-
-  // The quote is the server's: price, open tiffins and tax are never worked out in the browser.
-  useEffect(() => {
-    if (!open || selections.length === 0 || !methodId) return;
-    let stale = false;
-    const timer = setTimeout(async () => {
-      let next: { key: string; quote: AddonQuote | null; error: string | null };
-      try {
-        const res = await quoteOrderAddonsAction(orderId, selections, methodId);
-        next = "error" in res ? { key: inputKey, quote: null, error: res.error } : { key: inputKey, quote: res.quote, error: null };
-      } catch {
-        next = { key: inputKey, quote: null, error: "Could not get a price. Try again." };
-      }
-      if (stale) return;
-      setResult(next);
-    }, 250);
-    return () => {
-      stale = true;
-      clearTimeout(timer);
-    };
-    // selectionKey stands in for `selections`, which is a new array every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, orderId, inputKey]);
 
   function step(option: AddonOption, delta: number) {
     const room = option.maxQty - option.existingQty;
@@ -87,7 +71,6 @@ export function AddAddonsControl({
     setMethodId(defaultMethod);
     setReference("");
     setFile(null);
-    setResult(null);
     setFormError(null);
     setRefresh(0);
   }

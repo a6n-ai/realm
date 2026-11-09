@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CoinsIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -10,7 +10,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { NewGroupWizard } from "../../customer-groups/new/new-group-wizard";
 import { GiveCoinsDialog } from "../../customer-groups/[id]/give-coins-dialog";
-import { searchGroupsAction } from "../../customer-groups/actions";
+import { useGroupSearch } from "../../customer-groups/use-group-search";
 
 type Group = { publicId: string; name: string; memberCount: number };
 type Stage = "pick" | "create";
@@ -62,24 +62,7 @@ export function GiveCoinsFlowDialog({ cities, maxRows, presetGroup = null }: { c
 
 function PickGroup({ onPick, onCreate }: { onPick: (g: Group) => void; onCreate: () => void }) {
   const [q, setQ] = useState("");
-  const [groups, setGroups] = useState<Group[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async (query: string) => {
-    setError(null);
-    try {
-      const res = await searchGroupsAction(query);
-      if (res.ok) setGroups(res.data);
-      else setError(res.error);
-    } catch {
-      setError("The request did not finish.");
-    }
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => void load(q), q ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [q, load]);
+  const { groups, error, reload } = useGroupSearch(q);
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,7 +76,7 @@ function PickGroup({ onPick, onCreate }: { onPick: (g: Group) => void; onCreate:
         <Alert variant="destructive">
           <AlertDescription className="flex items-center justify-between gap-2">
             {error}
-            <Button type="button" size="sm" variant="outline" onClick={() => void load(q)}>Retry</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => reload()}>Retry</Button>
           </AlertDescription>
         </Alert>
       ) : groups === null ? (

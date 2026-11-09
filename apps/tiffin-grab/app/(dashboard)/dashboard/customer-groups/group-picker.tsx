@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@foundry/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { cn } from "@foundry/ui/cn";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { searchGroupsAction } from "./actions";
+import { useGroupSearch } from "./use-group-search";
 
 export type PickedGroup = { publicId: string; name: string; memberCount: number };
 
@@ -27,25 +27,7 @@ export function GroupPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [groups, setGroups] = useState<PickedGroup[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async (query: string) => {
-    setError(null);
-    try {
-      const res = await searchGroupsAction(query);
-      if (res.ok) setGroups(res.data);
-      else setError(res.error);
-    } catch {
-      setError("The request did not finish.");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => void load(q), q ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [open, q, load]);
+  const { groups, error, reload } = useGroupSearch(q, open);
 
   const pick = (g: PickedGroup | null) => {
     onChange(g);
@@ -68,7 +50,7 @@ export function GroupPicker({
               <Alert variant="destructive">
                 <AlertDescription className="flex items-center justify-between gap-2">
                   {error}
-                  <Button type="button" size="sm" variant="outline" onClick={() => void load(q)}>Retry</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => reload()}>Retry</Button>
                 </AlertDescription>
               </Alert>
             ) : groups === null ? (

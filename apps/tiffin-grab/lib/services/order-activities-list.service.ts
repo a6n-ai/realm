@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -110,7 +111,7 @@ export async function listOrderActivitiesPage(
       .where(where)
       .orderBy(...orderBy)
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(orderActivities)

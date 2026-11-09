@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrder } from "@/lib/revalidate";
 import { AppError, NotFoundError } from "@foundry/commons";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -34,8 +34,7 @@ export async function pickMyDish(input: {
       personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
       actorId,
     });
-    revalidatePath("/me", "layout");
-    revalidatePath(`/dashboard/orders/${input.orderId}`);
+    revalidateOrder(input.orderId, { customerApp: true });
   });
 }
 
@@ -81,8 +80,7 @@ export async function saveMyMealSelections(input: {
       });
     }
 
-    revalidatePath("/me", "layout");
-    revalidatePath(`/dashboard/orders/${input.orderId}`);
+    revalidateOrder(input.orderId, { customerApp: true });
     return { saved: input.picks.length };
   });
 }

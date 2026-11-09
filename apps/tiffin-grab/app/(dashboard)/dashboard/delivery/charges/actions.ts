@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateDelivery } from "@/lib/revalidate";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { DeliveryTypeInput, ZoneInput } from "@foundry/delivery";
 import { resolveAndPersist } from "@foundry/places";
@@ -18,9 +18,7 @@ export async function updateBaseChargeAction(amount: number): Promise<number> {
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.updateBaseDeliveryCharge(amount, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -29,9 +27,7 @@ export async function saveDeliveryStrategyAction(input: DeliveryChargeRuleInput)
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.saveDeliveryStrategy(input, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -40,9 +36,7 @@ export async function deleteDeliveryStrategyAction(id: string) {
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.deleteDeliveryStrategy(id, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -51,9 +45,7 @@ export async function saveDeliveryStrategyGroupAction(input: DeliveryStrategyGro
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.saveDeliveryStrategyGroup(input, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -62,9 +54,7 @@ export async function deleteDeliveryStrategyGroupAction(id: string) {
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.deleteDeliveryStrategyGroup(id, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -73,8 +63,7 @@ export async function connectDeliveryStrategyAction(id: string, connectedTo: str
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.connectDeliveryStrategy(id, connectedTo, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/checkout");
+  revalidateDelivery({ frequencies: false });
   return result;
 }
 
@@ -83,9 +72,7 @@ export async function saveAddressTagAction(input: DeliveryChargeRuleInput) {
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.saveAddressTag(input, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -94,9 +81,7 @@ export async function deleteAddressTagAction(id: string) {
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.deleteAddressTag(id, orgId);
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery();
   return result;
 }
 
@@ -109,8 +94,7 @@ async function adminOrg() {
 
 async function refreshDelivery() {
   await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/catalog/delivery-frequencies");
-  revalidatePath("/checkout");
+  revalidateDelivery({ charges: false });
 }
 
 const failure = (err: unknown, fallback: string) => ({ error: err instanceof Error ? err.message : fallback });

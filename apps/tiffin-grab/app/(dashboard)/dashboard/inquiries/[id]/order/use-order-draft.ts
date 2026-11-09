@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { round2 } from "@foundry/discounts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -132,9 +133,6 @@ export function useOrderDraft({
   const [successOpen, setSuccessOpen] = useState(false);
   const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
-  // First free day after the customer's running plans; the new plan renews from there.
-  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>(NO_CUSTOMER);
-  const renewFrom = customerCtx.renewFrom;
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOptions | null>(null);
   // A picked saved address (its fields and notes come from the address book), or null for a typed one.
   const [addressPublicId, setAddressPublicId] = useState<string | null>(null);
@@ -186,6 +184,10 @@ export function useOrderDraft({
   const email = form.watch("email");
   const phone = form.watch("phone");
   const deliveryArea = useDeliveryArea(postalCode);
+  // First free day after the customer's running plans; the new plan renews from there.
+  const customerFound = useDebouncedAsync(`${email ?? ""}|${contact.phone}`, () => customerOrderContext(email ?? "", contact.phone), 300, NO_CUSTOMER);
+  const customerCtx = customerFound.key == null ? NO_CUSTOMER : customerFound.value;
+  const renewFrom = customerCtx.renewFrom;
 
   // The picked size's allowed days: only frequencies that deliver on them are offered (non-veg only, Tue/Thu veg-only).
   const sizeDays = catalog.mealSizes.find((m) => m.id === mealSizeId)?.allowedDays ?? null;
@@ -255,16 +257,6 @@ export function useOrderDraft({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trialKey]);
-
-  useEffect(() => {
-    let live = true;
-    const t = setTimeout(() => {
-      customerOrderContext(email ?? "", contact.phone)
-        .then((c) => { if (live) setCustomerCtx(c); })
-        .catch(() => { if (live) setCustomerCtx(NO_CUSTOMER); });
-    }, 300);
-    return () => { live = false; clearTimeout(t); };
-  }, [email, contact.phone]);
 
   // An estimate switches customer without remounting, so the plan picked so far survives.
   useEffect(() => {

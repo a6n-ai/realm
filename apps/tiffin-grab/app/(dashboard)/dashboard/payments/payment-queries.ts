@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
@@ -291,7 +292,7 @@ export async function listPayments(
       .where(where)
       .orderBy(...pageOrder(sort.dir, col, payments.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
   ]);
 
   return {

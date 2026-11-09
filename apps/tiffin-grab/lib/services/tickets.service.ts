@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { isStaffRole } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
 import { AuthError, ForbiddenError, NotFoundError, ValidationError, type RoleValue } from "@foundry/commons";
@@ -419,7 +420,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
         .where(where)
         .orderBy(...pageOrder(sort.dir, col, tickets.id))
         .limit(opts.page.size)
-        .offset(opts.page.page * opts.page.size),
+        .offset(pageOffset(opts.page.page, opts.page.size)),
       counted(where),
       counted(and(base, isOverdue)),
     ]);

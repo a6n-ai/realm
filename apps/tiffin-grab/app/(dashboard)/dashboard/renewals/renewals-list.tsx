@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RefreshCwIcon, UsersIcon } from "lucide-react";
@@ -54,7 +55,7 @@ export function RenewalsList({ rows, total, page, size, tab, today, spec }: { ro
   return (
     <div className="flex flex-col gap-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.orderPublicId}
@@ -123,7 +124,7 @@ export function RenewedCustomersList({ rows, total, page, size, today, spec }: {
   return (
     <div className="flex flex-col gap-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={CUSTOMER_COLUMNS}
         rows={rows}
         rowKey={(r) => r.customerPublicId}

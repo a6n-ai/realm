@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { ScrollTextIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
@@ -62,7 +63,7 @@ export function LogsTable({
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

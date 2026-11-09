@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidateOrder } from "@/lib/revalidate";
 import { isStaffRole } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
 import { AuthError, ValidationError } from "@foundry/commons";
@@ -53,5 +54,5 @@ export async function pickDish(input: {
     actorId,
   });
   revalidatePath("/dashboard/meals");
-  revalidatePath(`/dashboard/orders/${input.orderId}`);
+  revalidateOrder(input.orderId);
 }

@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import type { Condition } from "@foundry/commons/model/condition";
 import { getSession } from "@/lib/auth/session";
@@ -116,7 +117,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   filtered.sort((a, b) => String(a[sortField] ?? "").localeCompare(String(b[sortField] ?? "")) * dir);
 
   const total = filtered.length;
-  const rows = filtered.slice(page.page * page.size, page.page * page.size + page.size);
+  const rows = filtered.slice(pageOffset(page.page, page.size), pageOffset(page.page, page.size) + page.size);
 
   return (
     <>

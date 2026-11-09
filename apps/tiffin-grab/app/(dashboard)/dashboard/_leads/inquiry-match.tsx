@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
 import { ChevronDownIcon, MapPinIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { findInquiryMatches } from "./match-actions";
 
+const EMPTY: Match[] = [];
 type Match = { publicId: string; sourceKey: string; sourceLabel: string; stage: string; createdAt: number };
 
 function ageLabel(ms: number): string {
@@ -26,20 +28,10 @@ export function InquiryMatch({
   /** One button beside a search bar instead of a card; the list opens in a popover. */
   compact?: boolean;
 }) {
-  // Keyed by phone so the empty state is derived, not set synchronously.
-  const [found, setFound] = useState<{ phone: string; items: Match[] }>({ phone: "", items: [] });
   const autoPicked = useRef<string | null>(null);
   const term = phone.trim();
-  const matches = found.phone === term ? found.items : [];
-
-  useEffect(() => {
-    if (term.length < 6) return;
-    const t = setTimeout(async () => {
-      try { setFound({ phone: term, items: await findInquiryMatches(term) }); }
-      catch { setFound({ phone: term, items: [] }); }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [term]);
+  const found = useDebouncedAsync<Match[]>(term.length < 6 ? null : term, () => findInquiryMatches(term), 400, []);
+  const matches = found.key === term ? found.value : EMPTY;
 
   // Always-reuse: a same-source open match auto-selects once.
   useEffect(() => {

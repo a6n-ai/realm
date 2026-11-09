@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { and, desc, eq, gt, gte, ilike, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
@@ -134,7 +135,7 @@ export async function listWalletBalances({ q, filter, sort, page, range }: {
       .where(where)
       .orderBy(...pageOrder(sort.dir, col, users.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     from(db),
     currentRate(),
   ]);

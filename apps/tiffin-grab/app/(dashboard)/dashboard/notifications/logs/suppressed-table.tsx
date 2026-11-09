@@ -1,5 +1,6 @@
 "use client";
 
+import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { ShieldOffIcon } from "lucide-react";
 import { ClearSuppressionButton } from "../unsubscribed/suppression-actions";
@@ -55,7 +56,7 @@ export function SuppressedTable({
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={page * size}
+        serialOffset={pageOffset(page, size)}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

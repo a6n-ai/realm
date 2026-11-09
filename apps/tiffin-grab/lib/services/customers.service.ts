@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
@@ -381,7 +382,7 @@ export async function listCustomersPage(
       .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
       .orderBy(...pageOrder(sort.dir, col, users.id))
       .limit(page.size)
-      .offset(page.page * page.size),
+      .offset(pageOffset(page.page, page.size)),
     db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(users)

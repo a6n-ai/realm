@@ -1,3 +1,4 @@
+import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { asc, desc, eq, ilike, inArray, and, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -138,7 +139,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   const key = CMP[sort.column];
   const sign = sort.dir === "asc" ? 1 : -1;
   merged.sort((a, b) => (key(a) < key(b) ? -sign : key(a) > key(b) ? sign : 0));
-  const rows = merged.slice(page.page * page.size, take);
+  const rows = merged.slice(pageOffset(page.page, page.size), take);
 
   return <LogsTable rows={rows} total={actCount[0]!.total + evCount[0]!.total} page={page.page} size={page.size} sort={sort} />;
 }
