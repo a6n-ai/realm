@@ -8,7 +8,7 @@ vi.mock("@/lib/services/coupons.service", () => ({ couponsService: { resolveBest
 import { applyDiscountLane } from "../discount-lane";
 import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 
-// Pre-refactor lanes, verbatim in behavior: createOrder (orders.service) and the inquiries order preview.
+// Pre-refactor lanes, verbatim in behavior: createOrder (create-order.ts) and the inquiries order preview.
 async function oldCreate(postCatalog: number, rep: { code: string; amount: number } | null) {
   const best = await resolve();
   const adjustments: { label: string; amount: number }[] = [];

@@ -26,7 +26,7 @@ import { appOrigin } from "@/lib/runtime/env";
 
 // Shown whenever checkout resolves an existing account whose role isn't
 // "user" — a staff/admin account must never become an order's owner, whether
-// via a signed-in staff session (checked in orders.service.ts) or a guest
+// via a signed-in staff session (checked in create-order.ts) or a guest
 // checkout that happens to share their phone/email (checked here).
 export const STAFF_ACCOUNT_MESSAGE = "This phone or email belongs to a staff account — please sign in to the Tiffin Grab dashboard instead.";
 

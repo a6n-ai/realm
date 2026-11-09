@@ -317,7 +317,7 @@ describe("refundOrder", () => {
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
 
     // M9V 1A1 — Etobicoke zone (prefix M9): lands "active" immediately, which
-    // is what fires createOrder's award() call site (orders.service.ts:487).
+    // is what fires createOrder's award call site (create-order.ts).
     const { publicId } = await svc.createOrder({
       planKey: snap.plans[0].key,
       selections: {

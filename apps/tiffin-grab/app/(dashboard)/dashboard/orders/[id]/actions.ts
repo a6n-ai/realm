@@ -50,7 +50,6 @@ export async function cancel(orderId: string) {
   revalidateOrder(orderId);
 }
 
-// Customer shell SSE refresh.
 async function refreshCustomerOf(orderId: string) {
   const [row] = await db
     .select({ userPublicId: users.publicId })

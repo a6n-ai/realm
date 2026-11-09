@@ -1,7 +1,7 @@
 // Which container a given pick goes in. Pure, so the mapping is testable without a DB.
 //
 // orders.categoryCounts is built by COUNTING meal_size_items rows per category
-// (orders.service.ts) — one row is one pick, unrelated to portion size. The portion
+// (create-order.ts) — one row is one pick, unrelated to portion size. The portion
 // itself lives in tuAmount (tiffin units) and is rendered via formatTuHuman using the
 // category's own unit conversion: each meal_size_item IS one slot in sortOrder, and
 // pickIndex N is the Nth row. A sabzi category with two rows @ 1 TU each gives picks

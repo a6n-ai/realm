@@ -1143,8 +1143,7 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
   }).from(deliveryZones).where(eq(deliveryZones.active, true));
   const zones = rows.map((z) => ({ ...z, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm) }));
   const hit = await findZone(zones, { postalCode });
-  // Deliberately asymmetric with createOrder, which WAITLISTS an unmatched postal code
-  // (orders.service.ts ~line 248): an active subscription may not redirect a drop to an
+  // Deliberately asymmetric with createOrder, which WAITLISTS an unmatched postal code: an active subscription may not redirect a drop to an
   // unserviced address, whereas a brand-new order can simply wait for coverage.
   if (!hit) throw new ValidationError("We don't deliver to that postal code");
   return hit.id;
