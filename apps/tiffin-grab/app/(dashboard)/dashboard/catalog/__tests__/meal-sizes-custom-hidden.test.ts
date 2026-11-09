@@ -6,7 +6,8 @@ import { mealSizeItems, mealSizes } from "@/db/schema";
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const { catalogListScope } = await import("../list-scope");
+const { RESOURCE_HOOKS } = await import("@/lib/catalog/resource-hooks");
+const catalogListScope = (resource: string) => RESOURCE_HOOKS[resource]?.scope;
 const { mealSizeService } = await import("@/lib/services/catalog.service");
 const { findOrCreateCustomMealSize } = await import("@/lib/services/custom-meal.service");
 

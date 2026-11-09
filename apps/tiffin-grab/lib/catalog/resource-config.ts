@@ -36,6 +36,10 @@ export interface ResourceDef {
   statusField?: string;
   // One-line pointer shown at the top of the edit dialog.
   note?: string;
+  // The edit dialog needs more room (composition rows).
+  wideDialog?: boolean;
+  // Which central discount kind this resource's rows get a "Discounts" panel for.
+  discountKind?: "delivery" | "duration" | "meal_size";
 }
 
 export const WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -254,7 +258,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     ],
   },
   "meal-sizes": {
-    key: "meal-sizes", label: "Meal sizes", singular: "meal size", keyed: true, schema: mealSizesSchema,
+    key: "meal-sizes", label: "Meal sizes", singular: "meal size", keyed: true, wideDialog: true, discountKind: "meal_size", schema: mealSizesSchema,
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, section: "Basics" },
       { key: "name", label: "Name", type: "text", section: "Basics" },
@@ -274,7 +278,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     note: "Discounts are managed in Discounts",
   },
   "delivery-frequencies": {
-    key: "delivery-frequencies", label: "Delivery frequencies", singular: "delivery frequency", keyed: true, schema: deliveryFrequenciesSchema as unknown as z.ZodObject,
+    key: "delivery-frequencies", label: "Delivery frequencies", singular: "delivery frequency", keyed: true, discountKind: "delivery", schema: deliveryFrequenciesSchema as unknown as z.ZodObject,
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
@@ -283,7 +287,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     note: "Discounts are managed in Discounts",
   },
   "duration-packages": {
-    key: "duration-packages", label: "Duration packages", singular: "duration package", keyed: false, schema: durationPackagesSchema,
+    key: "duration-packages", label: "Duration packages", singular: "duration package", keyed: false, discountKind: "duration", schema: durationPackagesSchema,
     fields: [
       { key: "weeks", label: "Weeks", type: "number" },
       { key: "maxPauses", label: "Max pauses (blank = app default)", type: "number", optional: true, tableHidden: true },

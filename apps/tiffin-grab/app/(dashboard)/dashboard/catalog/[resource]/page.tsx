@@ -2,35 +2,21 @@ import { pageOffset } from "@/lib/list/pagination";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { and, asc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
-import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { deliveryFrequencies, durationPackages, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { dishesService } from "@/lib/services/dishes.service";
 import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
-import { zonedDateIso } from "@foundry/commons";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
+import { RESOURCE_HOOKS, type CatalogLoadCtx } from "@/lib/catalog/resource-hooks";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";
 import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
 import { loadDiscountData } from "../discounts/load";
-import { catalogListScope } from "../list-scope";
-
-const TABLES: Record<string, PgTable> = {
-  dishes,
-  "dish-categories": dishCategories,
-  plans,
-  "meal-sizes": mealSizes,
-  "delivery-frequencies": deliveryFrequencies,
-  "duration-packages": durationPackages,
-  discounts,
-  addons,
-};
 
 // Synthetic column exposed to sorting that isn't a plain field: maps to `active`.
 const STATUS_SORT_KEY = "status";
@@ -111,14 +97,15 @@ export default async function CatalogResourcePage({
 export async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
   await requireAdmin();
   const def: ResourceDef | undefined = RESOURCES[resource];
-  const table = TABLES[resource];
-  if (!def || !table) notFound();
+  const hooks = RESOURCE_HOOKS[resource];
+  if (!def || !hooks) notFound();
+  const { table } = hooks;
 
   const needsCategories = def.fields.some((f) => f.optionsSource === "categories");
   // "plans" is needed either for a dynamicOptions field or for meal-sizes'
   // categoriesByPlan — fetched once and shared between both, instead of once
   // per consumer.
-  const needsPlans = def.fields.some((f) => f.optionsSource === "plans") || resource === "meal-sizes";
+  const needsPlans = def.fields.some((f) => f.optionsSource === "plans") || hooks.needsPlans;
   // meal-sizes also needs every plan (active or not) to resolve a row's planId
   // FK to a publicId below — fetch the superset once and derive the
   // active-only dropdown options from it, rather than two separate queries.
@@ -134,7 +121,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       ? Promise.all([
           db.select({ id: deliveryFrequencies.id, publicId: deliveryFrequencies.publicId, name: deliveryFrequencies.name }).from(deliveryFrequencies),
           db.select({ id: durationPackages.id, publicId: durationPackages.publicId, weeks: durationPackages.weeks }).from(durationPackages).orderBy(asc(durationPackages.weeks)),
-          db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(asc(mealSizes.name)),
+          db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).where(RESOURCE_HOOKS["meal-sizes"].scope).orderBy(asc(mealSizes.name)),
         ])
       : Promise.resolve(null),
   ]);
@@ -158,52 +145,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   }
 
   const sp = await searchParams;
-  // Dishes: category options are scoped by the dish's own plan, so a category not
-  // attached to that plan is never offered. Sent as a map rather than fetched per
-  // change, so switching the plan dropdown is instant.
-  let categoriesByPlan: Record<string, { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[]> | undefined;
-  if (resource === "dishes") {
-    const entries = await Promise.all(
-      planRows.map(async (p) => [
-        p.publicId,
-        (await dishCategoriesService.forPlan(p.id)).map((c) => ({
-          value: c.key,
-          label: c.label,
-          tuUnitType: c.tuUnitType,
-          tuUnitSize: Number(c.tuUnitSize),
-          tuUnitLabel: c.tuUnitLabel,
-        })),
-      ] as const),
-    );
-    categoriesByPlan = Object.fromEntries(entries);
-  }
-
-  // The table is paginated, so the duplicate hint needs the whole catalog, not
-  // just this page's rows. Inactive included: the server rejects those too.
-  const dishNames = resource === "dishes"
-    ? (await db.select({ id: dishes.publicId, name: dishes.name, planName: plans.name, active: dishes.active })
-        .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId)))
-    : undefined;
-
-  // Meal-size composition rows: category comes FIRST (not every category is
-  // attached to every plan), then the plan select is scoped to whichever plans
-  // that category actually belongs to (category_plans, via plansByCategoryKey).
-  let compositionCategories: { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[] | undefined;
-  let plansByCategory: Record<string, { value: string; label: string }[]> | undefined;
-  if (resource === "meal-sizes") {
-    compositionCategories = categoryRows.map((c) => ({
-      value: c.key, label: c.label, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel,
-    }));
-    const planPublicIdsByCategoryKey = await dishCategoriesService.plansByCategoryKey();
-    const planByPublicId = new Map(planRows.map((p) => [p.publicId, p]));
-    plansByCategory = {};
-    for (const c of categoryRows) {
-      plansByCategory[c.key] = (planPublicIdsByCategoryKey.get(c.key) ?? []).flatMap((pubId) => {
-        const p = planByPublicId.get(pubId);
-        return p ? [{ value: p.publicId, label: p.name }] : [];
-      });
-    }
-  }
+  const ctx: CatalogLoadCtx = { categoryRows, allPlanRows, planRows, targetRows };
+  const extras = (await hooks.extras?.(ctx)) ?? {};
 
   const allowed = sortableColumns(def);
   const sort = parseSort(sp, allowed, { column: allowed[0], dir: "asc" });
@@ -228,20 +171,12 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       if (vals.length !== 1) return undefined; // both or neither → no constraint
       return eq(columns[statusField], vals[0] === "active");
     }
-    if (f.field === "planIds" && resource === "dish-categories") {
-      const vals = (Array.isArray(f.value) ? f.value : [f.value]) as string[];
-      if (!vals.length) return undefined;
-      return sql`exists (
-        select 1 from category_plans j
-        join plans p on p.id = j.plan_id
-        where j.category_id = ${columns.id}
-          and p.public_id in ${vals}
-      )`;
-    }
+    const own = hooks.filter?.(f, columns);
+    if (own) return own.sql;
     return baseResolver(f);
   };
 
-  const where = and(conditionToSql(condition, resolver), catalogListScope(resource));
+  const where = and(conditionToSql(condition, resolver), hooks.scope);
   const [[{ count: total }], raw] = await Promise.all([
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(table).where(where),
     db
@@ -263,66 +198,10 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     return dto;
   });
 
-  if (resource === "discounts" && targetRows) {
-    const { timezone } = await getAppSettings();
-    const publicById = new Map<bigint, string>([...targetRows[0], ...targetRows[1]].map((t) => [t.id, t.publicId]));
-    rows.forEach((dto, i) => {
-      const r = raw[i];
-      dto.targetId = r.targetId == null ? "all" : (publicById.get(r.targetId as bigint) ?? "");
-      dto.startsAt = r.startsAt == null ? "" : zonedDateIso(Number(r.startsAt), timezone);
-      dto.endsAt = r.endsAt == null ? "" : zonedDateIso(Number(r.endsAt), timezone);
-    });
-  }
-
-  // Meal sizes carry two things the generic flatten can't: the plan reference is
-  // stored as a bigint FK but the editor works in plan publicId space, and the
-  // composition lives in a second table. Resolve planId → publicId (so the plan
-  // dropdown preselects) and attach each row's items ordered by sortOrder.
-  if (resource === "meal-sizes") {
-    const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
-    const mealSizeIds = raw.map((r) => r.id as bigint);
-    const itemRows = mealSizeIds.length
-      ? await db.select().from(mealSizeItems).where(inArray(mealSizeItems.mealSizeId, mealSizeIds)).orderBy(asc(mealSizeItems.sortOrder))
-      : [];
-    const itemsByMealSize = new Map<bigint, Record<string, unknown>[]>();
-    for (const it of itemRows) {
-      const bucket = itemsByMealSize.get(it.mealSizeId) ?? [];
-      bucket.push({
-        name: it.name,
-        category: it.category,
-        planId: planPublicById.get(it.planId) ?? "",
-        // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
-        tuAmount: String(it.tuAmount),
-        maxTuAmount: it.maxTuAmount == null ? "" : String(it.maxTuAmount),
-        role: it.role,
-      });
-      itemsByMealSize.set(it.mealSizeId, bucket);
-    }
-    rows.forEach((dto, i) => {
-      const id = raw[i].id as bigint;
-      dto.planId = planPublicById.get(raw[i].planId as bigint) ?? "";
-      dto.items = itemsByMealSize.get(id) ?? [];
-    });
-  }
-
-  // Dishes and add-ons store planId as a bigint FK, so hydrate it to the publicId
-  // space the select dropdown uses — same pattern as meal-sizes' planId above.
-  if (resource === "dishes" || resource === "addons") {
-    const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
-    rows.forEach((dto, i) => {
-      dto.planId = raw[i].planId == null ? "" : (planPublicById.get(raw[i].planId as bigint) ?? "");
-      if (resource === "addons") dto.fallbackPlanIds = ((raw[i].fallbackPlanIds as bigint[] | null) ?? []).flatMap((id) => planPublicById.get(id) ?? []);
-    });
-  }
-  // Slots carry plan membership in a join table, so the generic column flatten
-  // can't see it. Hydrate planIds (plan publicIds) so the multiselect preselects.
-  if (resource === "dish-categories") {
-    const byRow = await dishCategoriesService.plansByCategory();
-    for (const dto of rows) dto.planIds = byRow.get(dto.publicId) ?? [];
-  }
+  await hooks.hydrate?.(rows, raw, ctx);
 
   let discountCtx: DiscountCtx | undefined;
-  const discountKind = ({ "delivery-frequencies": "delivery", "duration-packages": "duration", "meal-sizes": "meal_size" } as const)[resource as string];
+  const discountKind = def.discountKind;
   if (discountKind) {
     const { freqs, durs, sizes, dtos } = await loadDiscountData();
     const kind = discountKind;
@@ -338,10 +217,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       rows={rows}
       dynamicOptions={dynamicOptions}
       sort={sort}
-      categoriesByPlan={categoriesByPlan}
-      compositionCategories={compositionCategories}
-      plansByCategory={plansByCategory}
-      dishNames={dishNames}
+      {...extras}
       spec={spec}
       total={total}
       page={page.page}
