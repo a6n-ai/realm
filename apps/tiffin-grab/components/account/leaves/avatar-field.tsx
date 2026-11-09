@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
 import type { ComponentType } from "react";
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -103,7 +104,7 @@ export function AvatarField({
         router.refresh();
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_CLIENT_ERROR);
     } finally {
       setPending(false);
     }
@@ -120,7 +121,7 @@ export function AvatarField({
         router.refresh();
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_CLIENT_ERROR);
     } finally {
       setPending(false);
     }

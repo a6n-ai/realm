@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-import { sanitizeClientError } from "@/lib/format/client-error";
+import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@/lib/format/client-error";
 
 type Result = { ok: true; message?: string } | { error: string };
 
@@ -17,7 +17,7 @@ export function useCommit(onDone: (message?: string) => void) {
       if ("error" in r) setError(sanitizeClientError(r.error));
       else onDone(success(r));
     } catch {
-      setError("Couldn't reach the server. Try again.");
+      setError(NETWORK_CLIENT_ERROR);
     } finally {
       setPending(false);
     }

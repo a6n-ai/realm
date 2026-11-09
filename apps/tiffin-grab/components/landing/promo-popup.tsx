@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
 import { usePublicSession } from "@/lib/auth/public-session";
+import { localStore, sessionStore } from "@/lib/storage";
 import { SavingsReceipt } from "@/components/landing/promo/savings-receipt";
 
 export function CopyCode({ code }: { code: string }) {
@@ -96,21 +97,14 @@ export function PromoHtml({ html, title }: { html: string; title: string }) {
   );
 }
 
-const seen = (id: string) => {
-  try { return localStorage.getItem(PROMO_POPUP_SEEN_KEY) === id; } catch { return true; }
-};
-const markSeen = (id: string) => {
-  try { localStorage.setItem(PROMO_POPUP_SEEN_KEY, id); } catch { /* private mode: it may show again */ }
-};
+// Unreadable storage counts as seen; unwritable storage means it may show again.
+const seen = (id: string) => localStore.get(PROMO_POPUP_SEEN_KEY, id) === id;
+const markSeen = (id: string) => localStore.set(PROMO_POPUP_SEEN_KEY, id);
 
 // Signed-in customers: once per browser session (a new visit shows it again).
 const SESSION_KEY = "tg.promo.popup.session";
-const seenThisSession = (id: string) => {
-  try { return sessionStorage.getItem(SESSION_KEY) === id; } catch { return true; }
-};
-const markSession = (id: string) => {
-  try { sessionStorage.setItem(SESSION_KEY, id); } catch { /* storage blocked: it may show again */ }
-};
+const seenThisSession = (id: string) => sessionStore.get(SESSION_KEY, id) === id;
+const markSession = (id: string) => sessionStore.set(SESSION_KEY, id);
 
 /** The running offer as a popup.
  *  - Signed in: opens 3 s after load on any device, once per browser session, unless the

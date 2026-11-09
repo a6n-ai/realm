@@ -7,6 +7,7 @@ import { deriveBreadcrumbs } from "@foundry/design-system";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@foundry/ui/breadcrumb";
+import { sessionStore } from "@/lib/storage";
 import { labelForSegment } from "@/components/ds/route-labels";
 
 // Detail pages name their id segment (e.g. inq_abc → "Riya Anand") so the trail reads
@@ -44,9 +45,7 @@ export function BreadcrumbLabel({ segment, label }: { segment: string; label: st
 // Last full URL (with ?filters/tab/sort/page) seen per path, so a crumb back to a
 // list lands where staff left it. Per tab session; storage may throw (private mode).
 const KEY = (path: string) => `crumb:${path}`;
-function remembered(path: string): string {
-  try { return sessionStorage.getItem(KEY(path)) ?? path; } catch { return path; }
-}
+const remembered = (path: string) => sessionStore.get(KEY(path)) ?? path;
 
 export function AppBreadcrumbs() {
   const overrides = useContext(Ctx)?.overrides;
@@ -54,7 +53,7 @@ export function AppBreadcrumbs() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   useEffect(() => {
-    try { sessionStorage.setItem(KEY(pathname), search ? `${pathname}?${search}` : pathname); } catch { /* ignore */ }
+    sessionStore.set(KEY(pathname), search ? `${pathname}?${search}` : pathname);
   }, [pathname, search]);
 
   const crumbs = deriveBreadcrumbs(pathname, labelForSegment, overrides);

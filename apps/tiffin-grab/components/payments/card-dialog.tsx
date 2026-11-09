@@ -1,5 +1,6 @@
 "use client";
 
+import { sanitizeClientError } from "@/lib/format/client-error";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import type { Appearance, Stripe } from "@stripe/stripe-js";
@@ -150,7 +151,7 @@ function CardForm({ open, onOpenChange, ctx, amountCents, pay, onLoadError }: Co
       setFee(null);
       setError(r.message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      setError(sanitizeClientError(e));
     } finally {
       inFlight.current = false;
       setBusy(false);

@@ -1,3 +1,4 @@
+import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
 import { useEffect, useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { reprice } from "@/app/(public)/subscribe/actions";
@@ -74,7 +75,7 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
       // On success the page navigates away; keep the button locked so a second tap cannot place a second order.
       if (err) { setSubmitError(err); setSubmitting(false); }
     } catch {
-      setSubmitError("Something went wrong. Please try again.");
+      setSubmitError(GENERIC_CLIENT_ERROR);
       setSubmitting(false);
     }
   };

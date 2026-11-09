@@ -1,4 +1,5 @@
 "use client";
+import { NETWORK_CLIENT_ERROR } from "@/lib/format/client-error";
 import { ArrowLeftRight, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
@@ -162,7 +163,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         else onDone(msg);
       }
     } catch {
-      setError("Couldn't reach the server. Try again.");
+      setError(NETWORK_CLIENT_ERROR);
       reloadOptions();
     } finally {
       setPending(null);

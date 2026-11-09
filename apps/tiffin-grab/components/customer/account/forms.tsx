@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
@@ -122,13 +123,13 @@ function AvatarEditor({ image, name }: { image: string | null; name: string | nu
     setError(null);
     try {
       const res = await fn();
-      if (!res.ok) setError(res.error ?? "Something went wrong.");
+      if (!res.ok) setError(res.error ?? GENERIC_CLIENT_ERROR);
       else {
         done?.();
         router.refresh();
       }
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(GENERIC_CLIENT_ERROR);
     } finally {
       setPending(false);
     }

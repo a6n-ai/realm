@@ -1,4 +1,5 @@
 "use client";
+import { sanitizeClientError } from "@/lib/format/client-error";
 import "react-phone-number-input/style.css";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,7 +41,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
       });
       setDone({ waitlisted: res.waitlisted });
     } catch (e) {
-      form.setError("root", { message: e instanceof Error ? e.message : "Something went wrong" });
+      form.setError("root", { message: sanitizeClientError(e) });
     }
   }
 

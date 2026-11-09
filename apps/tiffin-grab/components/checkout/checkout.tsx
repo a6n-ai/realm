@@ -1,5 +1,6 @@
 "use client";
 
+import { sanitizeClientError } from "@/lib/format/client-error";
 import { toCents } from "@/lib/money";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -785,7 +786,7 @@ export function Checkout({
       }
       router.push(paymentMethodId === "stripe" ? `/me/pay/${res.paymentPublicId}` : `/activate/${res.deploymentId}`, { transitionTypes: ["nav-forward"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      toast.error(sanitizeClientError(err));
     } finally {
       setSubmitting(false);
     }

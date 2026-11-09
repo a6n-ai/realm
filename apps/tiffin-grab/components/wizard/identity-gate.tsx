@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_CLIENT_ERROR } from "@/lib/format/client-error";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
@@ -132,7 +133,7 @@ export function IdentityGate({
       else if (phase === "name") await submitName();
       else if (phase === "otp") await verify(otp);
     } catch {
-      setError({ field: "form", message: "Something went wrong on our side. Try again." });
+      setError({ field: "form", message: GENERIC_CLIENT_ERROR });
     } finally {
       setPending(false);
     }

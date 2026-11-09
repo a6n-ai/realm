@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CONSENT_COOKIE, CONSENT_VERSION, consentCookieDomain, parseConsent, type Consent } from "@/lib/consent";
+import { sessionStore } from "@/lib/storage";
 import { consentCardOn } from "./card-visible";
 
 // Cookie consent for Canadian rules (PIPEDA; Quebec Law 25 s. 8.1): anything that tracks a
@@ -40,7 +41,7 @@ const question = (path: string) => QUESTIONS[path] ?? "Help us see which pages h
 
 /** Pages call this at a meaningful moment (a first tap in a tool) to ask then instead of on scroll depth. */
 export function consentMoment() { dispatchEvent(new Event(MOMENT_EVENT)); }
-const snoozed = () => { try { return sessionStorage.getItem(SNOOZE_KEY) === "1"; } catch { return false; } };
+const snoozed = () => sessionStore.get(SNOOZE_KEY) === "1";
 
 function readConsent(): Consent | null {
   const raw = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`))?.slice(CONSENT_COOKIE.length + 1);
@@ -152,7 +153,7 @@ export function CookieConsent() {
         if (done) return;
         done = true;
         disarm();
-        try { sessionStorage.setItem(SNOOZE_KEY, "1"); } catch {}
+        sessionStore.set(SNOOZE_KEY, "1");
         setOpen(true);
       };
       const onScroll = () => { if (scrollY > innerHeight * ASK_DEPTH) show(); };

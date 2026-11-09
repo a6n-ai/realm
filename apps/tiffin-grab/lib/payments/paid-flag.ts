@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { sessionStore } from "@/lib/storage";
 import { wizardSession } from "@/lib/wizard/session";
 
 export const PAID_KEY = "tg:paid";
@@ -19,7 +20,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 export function markPaid(deploymentId: string) {
   try {
     wizardSession.clearAll();
-    sessionStorage.setItem(PAID_KEY, JSON.stringify({ deploymentId, at: Date.now() }));
+    sessionStore.setJson(PAID_KEY, { deploymentId, at: Date.now() });
   } catch { /* storage unavailable: the cleared wizard still redirects to /subscribe */ }
 }
 
@@ -27,7 +28,7 @@ export function markPaid(deploymentId: string) {
 let firstMount = true;
 
 export const isPaid = () => {
-  try { return sessionStorage.getItem(PAID_KEY) != null; } catch { return false; }
+  return sessionStore.get(PAID_KEY) != null;
 };
 
 /**
@@ -54,7 +55,7 @@ export function useBounceAfterPaid() {
     })();
     if (isPaid()) {
       if (revisit) { bounce(); return; }
-      try { sessionStorage.removeItem(PAID_KEY); } catch { /* storage unavailable */ }
+      sessionStore.remove(PAID_KEY);
     }
     try { window.history.replaceState({ ...window.history.state, [SEEN]: true }, ""); } catch { /* no history API */ }
     const onShow = (e: PageTransitionEvent) => { if (e.persisted && isPaid()) bounce(); };

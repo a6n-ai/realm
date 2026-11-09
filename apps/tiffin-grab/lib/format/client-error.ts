@@ -2,6 +2,8 @@ const REACT_FRAMEWORK_ERROR_RE =
   /Minified React error|Server Components render|error-decoder\.html|invariant=\d+|NEXT_REDIRECT/i;
 
 const DEFAULT_FALLBACK = "Something went wrong. Please try again.";
+export const GENERIC_CLIENT_ERROR = DEFAULT_FALLBACK;
+export const NETWORK_CLIENT_ERROR = "Couldn't reach the server. Try again.";
 
 // A page loaded before a deploy calls server action ids the new build no longer has.
 // Retrying never helps; only a reload does.

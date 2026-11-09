@@ -1,5 +1,6 @@
 "use client";
 
+import { sanitizeClientError } from "@/lib/format/client-error";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { preconnect } from "react-dom";
 import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
@@ -156,7 +157,7 @@ function Runner({ ctx, amountCents, stripePromise, appearance, customerSession, 
         }
       }
     } catch (e) {
-      return { kind: "error", message: e instanceof Error ? e.message : "Something went wrong. Please try again." };
+      return { kind: "error", message: sanitizeClientError(e) };
     } finally {
       inFlight.current = false;
       setBusy(false);

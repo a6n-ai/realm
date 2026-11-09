@@ -8,6 +8,7 @@ import { cn } from "@foundry/ui/cn";
 import { FilterBar, ListPagination, SearchInput, useListNavPending, useSortNav } from "@/components/ds";
 import { sortRows } from "@/lib/list/sort";
 import type { KitchenPackingSheet, KitchenPackingRow } from "@/lib/services/kitchen-packing-sheet.service";
+import { localStore } from "@/lib/storage";
 import { useTableParams } from "./use-table-params";
 
 type ColKey = string;
@@ -64,18 +65,12 @@ function cellValue(r: KitchenPackingRow, column: ColKey, itemHeaders: string[]):
 const customerKey = (r: KitchenPackingRow) => r.phone || r.customerName;
 
 function loadStoredWidths(): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(WIDTHS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const out: Record<string, number> = {};
-    for (const [k, v] of Object.entries(parsed)) {
-      if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = v;
-    }
-    return out;
-  } catch {
-    return {};
+  const parsed = localStore.getJson<Record<string, unknown> | null>(WIDTHS_STORAGE_KEY, null) ?? {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = v;
   }
+  return out;
 }
 
 function useColumnWidths(cols: ColDef[]) {
@@ -117,11 +112,7 @@ function useColumnWidths(cols: ColDef[]) {
       /* already released */
     }
     setWidths((prev) => {
-      try {
-        localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(prev));
-      } catch {
-        /* private mode */
-      }
+      localStore.setJson(WIDTHS_STORAGE_KEY, prev);
       return prev;
     });
   }, []);

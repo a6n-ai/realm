@@ -34,6 +34,7 @@ import {
 } from "../_leads/plan-interest-fields";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import type { SubStatus } from "@/lib/inquiries/status";
+import { localStore } from "@/lib/storage";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Match = { publicId: string; sourceLabel: string; stage: string };
@@ -58,11 +59,7 @@ const pillClass = (active: boolean) =>
   );
 
 function readLastSource(): { source?: string; sub?: string } {
-  try {
-    return JSON.parse(localStorage.getItem(LAST_SOURCE_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
+  return localStore.getJson(LAST_SOURCE_KEY, {});
 }
 
 /** Debounced open-lead lookup for a full phone number; carries its key so a stale hit never lingers. */
@@ -192,9 +189,7 @@ export function AddInquirySheet({
         quotedPrice: values.quotedPrice,
         notes: values.notes || undefined,
       }));
-      try {
-        localStorage.setItem(LAST_SOURCE_KEY, JSON.stringify({ source: values.sourceKey, sub: values.subSourceKey || "" }));
-      } catch {}
+      localStore.setJson(LAST_SOURCE_KEY, { source: values.sourceKey, sub: values.subSourceKey || "" });
       toast.success(res.folded ? `Added to ${res.fullName ?? "their"} open lead` : "Lead added", {
         action: { label: "Open", onClick: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
       });
