@@ -4,6 +4,7 @@ import { computeSiteNextAt } from "@/lib/landing/site-boundaries";
 import { runInBackground } from "@foundry/cloud/background";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { purgeEdgePages } from "@/lib/landing/edge-purge";
 
 const WEEK_MS = 7 * 24 * 3600_000;
 
@@ -23,6 +24,7 @@ export function revalidateSitePaths(): void {
   } catch {
     // outside a request scope (seed scripts, services called from tests)
   }
+  runInBackground(() => purgeEdgePages(), "edge purge");
 }
 
 // Other isolates may still hold the old data in their L1 when this regenerates; the public-site check revalidates once

@@ -11,11 +11,18 @@ const PAGES = new Set(publicPages);
 const ROUTER_HEADERS = ["rsc", "next-router-prefetch", "next-router-state-tree", "next-url"];
 // Matches next.config.ts s-maxage. Cache API ignores s-maxage, so the stored copy carries max-age.
 const EDGE_TTL_S = 60;
+// With a purge token, site edits purge the pages (lib/landing/edge-purge.ts), so they can stay an hour.
+const PAGE_TTL_S = 3600;
 const ORIGIN_CC = "x-origin-cache-control";
 
 // The public API and the discovery documents read no cookies and no headers, so one copy serves everyone.
 // The query stays in the key (/delivery/check?postal=...).
 const PUBLIC_DATA = /^\/(?:api\/public\/v1\/|\.well-known\/)/;
+
+/** Seconds to keep this response. The public API keys on its query, which purge-by-URL can't list, so it stays short. */
+export function edgeTtl(request, env) {
+  return env?.CF_CACHE_PURGE_TOKEN && !PUBLIC_DATA.test(new URL(request.url).pathname) ? PAGE_TTL_S : EDGE_TTL_S;
+}
 
 export function isCacheablePage(request) {
   if (request.method !== "GET") return false;
@@ -42,7 +49,7 @@ function cookieNames(header) {
   return out;
 }
 
-export async function cachedPage(request, ctx, render, cache = caches.default) {
+export async function cachedPage(request, ctx, render, cache = caches.default, ttl = EDGE_TTL_S) {
   const key = new Request(request.url, { method: "GET" });
   const hit = await cache.match(key);
   if (hit) {
@@ -58,7 +65,9 @@ export async function cachedPage(request, ctx, render, cache = caches.default) {
   if (res.status !== 200 || !/\bpublic\b/.test(cc) || res.headers.has("set-cookie")) return res;
   const stored = new Response(res.clone().body, res);
   stored.headers.set(ORIGIN_CC, cc);
-  stored.headers.set("cache-control", `public, max-age=${EDGE_TTL_S}`);
+  // A STALE render is the old page while OpenNext regenerates it: keep it only briefly.
+  const keep = res.headers.get("x-opennext-cache") === "STALE" ? EDGE_TTL_S : ttl;
+  stored.headers.set("cache-control", `public, max-age=${keep}`);
   ctx.waitUntil(cache.put(key, stored));
   return res;
 }

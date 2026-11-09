@@ -78,3 +78,24 @@ describe("cachedPage", () => {
     expect(cache.store.size).toBe(0);
   });
 });
+
+describe("edge TTL", () => {
+  it("keeps pages an hour only when site edits can purge them", async () => {
+    const { edgeTtl } = await import("./page-cache.js");
+    expect(edgeTtl(req("https://tiffingrab.ca/menu"), {})).toBe(60);
+    expect(edgeTtl(req("https://tiffingrab.ca/menu"), { CF_CACHE_PURGE_TOKEN: "t" })).toBe(3600);
+    expect(edgeTtl(req("https://tiffingrab.ca/api/public/v1/plans"), { CF_CACHE_PURGE_TOKEN: "t" })).toBe(60);
+  });
+
+  it("never keeps a STALE render for the long TTL", async () => {
+    const cache = fakeCache();
+    const c = ctx();
+    await cachedPage(req("https://tiffingrab.ca/menu"), c, async () => page({ "x-opennext-cache": "STALE" }), cache, 3600);
+    await Promise.all(c.pending);
+    expect(cache.store.get("https://tiffingrab.ca/menu")?.headers.get("cache-control")).toBe("public, max-age=60");
+    const c2 = ctx();
+    await cachedPage(req("https://tiffingrab.ca/faq"), c2, async () => page({ "x-opennext-cache": "HIT" }), cache, 3600);
+    await Promise.all(c2.pending);
+    expect(cache.store.get("https://tiffingrab.ca/faq")?.headers.get("cache-control")).toBe("public, max-age=3600");
+  });
+});

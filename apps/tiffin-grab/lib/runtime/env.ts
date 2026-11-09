@@ -26,6 +26,8 @@ export const emailBaseUrl = () => stripSlash(process.env.EMAIL_BASE_URL ?? DEFAU
 export const filesPublicBaseUrl = () => process.env.FILES_PUBLIC_BASE_URL ?? "/api/files";
 
 export const cronSecret = () => process.env.CRON_SECRET;
+/** Cloudflare token (Cache Purge on tiffingrab.ca only). Set: pages stay in the edge cache an hour and are purged on edit. */
+export const edgePurgeToken = () => process.env.CF_CACHE_PURGE_TOKEN;
 export const awsRegion = () => process.env.AWS_REGION;
 export const cookieDomain = () => process.env.AUTH_COOKIE_DOMAIN;
 export const databaseUrl = () => process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL;

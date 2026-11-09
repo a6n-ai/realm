@@ -6,7 +6,7 @@ export * from "../.open-next/worker.js";
 export { CampaignWake, SiteRefreshWake } from "./workflows.js";
 import { bootOnce } from "./bootstrap.js";
 import { consume } from "./queue-consumer.js";
-import { cachedPage, isCacheablePage } from "./page-cache.js";
+import { cachedPage, edgeTtl, isCacheablePage } from "./page-cache.js";
 import probePath from "../lib/routing/probe-path.json";
 
 const POLL_MS = 30_000;
@@ -91,7 +91,7 @@ export default {
     if (PROBE.test(path)) return new Response(null, { status: 404 });
     if (!STATIC_EXT.test(path)) bootOnce(env, ctx, armPoller);
     if (request.method === "GET" && path === "/_next/image") return cachedImage(request, env, ctx);
-    if (isCacheablePage(request)) return cachedPage(request, ctx, () => openNext.fetch(request, env, ctx));
+    if (isCacheablePage(request)) return cachedPage(request, ctx, () => openNext.fetch(request, env, ctx), caches.default, edgeTtl(request, env));
     return openNext.fetch(request, env, ctx);
   },
   async queue(batch, env) {
