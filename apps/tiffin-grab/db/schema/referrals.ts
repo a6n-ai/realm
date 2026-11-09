@@ -1,9 +1,10 @@
+import { REFERRAL_STATUSES } from "./enums";
 import { updatableColumns } from "@foundry/database";
 import { bigint, index, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 
-export const referralStatus = pgEnum("referral_status", ["joined", "ordered", "rewarded", "reversed"]);
+export const referralStatus = pgEnum("referral_status", REFERRAL_STATUSES);
 
 // One row per referred friend. The wallet ledger is the money truth; this row is
 // the referral's state and what each side got, for the Refer tab and admin list.

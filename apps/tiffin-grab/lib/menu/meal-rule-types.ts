@@ -3,21 +3,10 @@
  * the validator stays a pure function over plain data — it is unit-tested that
  * way today and should remain testable without a database.
  */
+import type { MealRuleAction, MealRuleField, MealRuleOperator } from "@/db/schema/enums";
 
-export type MealRuleField = "dish_plan" | "category" | "dish" | "dish_name";
 
-export type MealRuleOperator =
-  | "is"
-  | "is_not"
-  | "is_one_of"
-  | "is_not_one_of"
-  | "contains"
-  | "not_contains"
-  | "equals"
-  | "starts_with"
-  | "ends_with";
-
-export type MealRuleAction = "max_qualifying" | "forbid" | "cannot_coexist";
+export type { MealRuleField, MealRuleOperator, MealRuleAction };
 
 export type MealRuleCondition = {
   field: MealRuleField;

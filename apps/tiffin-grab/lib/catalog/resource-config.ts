@@ -1,3 +1,4 @@
+import { MEAL_ITEM_ROLES, MEAL_TIERS, PLAN_TYPES } from "@/db/schema/enums";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { z } from "zod";
 import { CATEGORY_ICONS, CATEGORY_ICON_LABELS } from "@/lib/catalog/category-icons";
@@ -74,7 +75,7 @@ const optNum = <T extends z.ZodTypeAny>(inner: T) =>
 const plansSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
-  planType: z.enum(["tiffin", "healthy"]),
+  planType: z.enum(PLAN_TYPES),
   // Display tag shown against dishes on this plan. Rendered verbatim — no code
   // reads it to decide anything.
   tagLabel: z.string().trim().max(24).optional().nullable(),
@@ -99,13 +100,13 @@ const compositionItem = z.object({
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
   maxTuAmount: optNum(z.coerce.number().positive().transform((n) => n.toFixed(2))),
   // main = the category's main pick; side_1/side_2 take the day's side dish (Menus → side defaults).
-  role: z.enum(["main", "side_1", "side_2"]).default("main"),
+  role: z.enum(MEAL_ITEM_ROLES).default("main"),
 });
 
 const mealSizesSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
-  tier: z.enum(["budget", "medium", "premium"]),
+  tier: z.enum(MEAL_TIERS),
   // Plan dropdown value is the plan publicId/key; the service resolves it to
   // plans.id on write (mirrors menu.service). `components` is no longer hand-edited
   // — it is derived from `items` on save.
@@ -251,7 +252,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
-      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
+      { key: "planType", label: "Plan type", type: "select", options: [...PLAN_TYPES], optionLabels: ENUM_LABELS },
       { key: "tagLabel", label: "Tag", type: "text", optional: true },
       { key: "tagColor", label: "Tag colour", type: "color", optional: true },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
@@ -263,7 +264,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, section: "Basics" },
       { key: "name", label: "Name", type: "text", section: "Basics" },
       { key: "planId", label: "Plan", type: "select", optionsSource: "plans", section: "Basics" },
-      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS, section: "Basics" },
+      { key: "tier", label: "Tier", type: "select", options: [...MEAL_TIERS], optionLabels: ENUM_LABELS, section: "Basics" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true, section: "Basics" },
       { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true, section: "Composition" },
       { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal", section: "Nutrition" },

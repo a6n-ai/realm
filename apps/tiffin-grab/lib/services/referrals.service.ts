@@ -1,3 +1,4 @@
+import type { ReferralStatus } from "@/db/schema/enums";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
 import { CAPTURED } from "@/lib/payments/status";
@@ -290,7 +291,7 @@ function shortName(name: string | null): string {
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0];
 }
 
-export type ReferralFriendStatus = "joined" | "ordered" | "rewarded" | "reversed";
+export type ReferralFriendStatus = ReferralStatus;
 export type ReferralSummary = {
   code: string;
   settings: ReferralSettings;

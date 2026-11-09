@@ -1,3 +1,4 @@
+import { OPEN_TICKET_STATUSES } from "@/db/schema/enums";
 import { OVERDUE_MS } from "@/lib/services/tickets.service";
 import { ratePct } from "@/lib/money";
 import { zonedDateIso } from "@foundry/commons";
@@ -39,8 +40,6 @@ export type ComplaintKpis = {
   perHundredTiffins: number | null;
   deliveredTiffins: number;
 };
-
-const OPEN_STATUSES = ["open", "in_progress", "waiting_on_customer"] as const;
 
 /**
  * Delivered tiffins in the filtered window — the denominator that makes
@@ -85,7 +84,7 @@ export async function getComplaintKpis(scope: AnalyticsScope): Promise<Complaint
     db
     .select({
       total: intCount,
-      open: sql<number>`cast(count(*) filter (where ${inArray(tickets.status, OPEN_STATUSES)}) as int)`,
+      open: sql<number>`cast(count(*) filter (where ${inArray(tickets.status, OPEN_TICKET_STATUSES)}) as int)`,
       resolved: sql<number>`cast(count(*) filter (where ${inArray(tickets.status, ["resolved", "closed"])}) as int)`,
       avgMs: sql<number | null>`avg(${tickets.closedAt} - ${tickets.createdAt}) filter (where ${tickets.closedAt} is not null)`,
     })
@@ -327,7 +326,7 @@ export async function getNeedsAttention(scope: AnalyticsScope, now = Date.now())
   const [[row], repeats] = await Promise.all([
     db
       .select({
-        urgent: sql<number>`cast(count(*) filter (where ${inArray(tickets.priority, ["high", "urgent"])} and ${inArray(tickets.status, OPEN_STATUSES)}) as int)`,
+        urgent: sql<number>`cast(count(*) filter (where ${inArray(tickets.priority, ["high", "urgent"])} and ${inArray(tickets.status, OPEN_TICKET_STATUSES)}) as int)`,
         overdue: sql<number>`cast(count(*) filter (where ${inArray(tickets.status, ["open", "in_progress"])} and ${lastMessage} < ${now - OVERDUE_MS}) as int)`,
         unanswered: sql<number>`cast(count(*) filter (where ${IS_NEW}) as int)`,
       })

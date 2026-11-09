@@ -2,6 +2,7 @@
 // category on the day's menu, or from one fixed dish: "sabzi side_1 -> daal" packs the day's
 // dal as the 8oz side of a 5 Item thali while the 12oz main stays the day's sabzi.
 // menu_side_defaults is the standing rule; menu_day_sides overrides it for one menu day.
+import type { MealItemRole } from "@/db/schema/enums";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -9,7 +10,7 @@ import { dishCategories, dishes, menuDaySides, menuSideDefaults } from "@/db/sch
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { foldSwaps, type SwapRow } from "@/lib/menu/swap-rules";
 
-export type MealItemRole = "main" | "side_1" | "side_2";
+export type { MealItemRole };
 
 type SideItem = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string; planId: bigint };
 

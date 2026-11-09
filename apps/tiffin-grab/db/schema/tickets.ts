@@ -1,3 +1,4 @@
+import { TICKET_PRIORITIES, TICKET_STATUSES } from "./enums";
 import { sql } from "drizzle-orm";
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, check, index, integer, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
@@ -5,9 +6,7 @@ import { users } from "./auth";
 import { orders } from "./orders";
 import { organization } from "./organizations";
 
-export const ticketStatus = pgEnum("ticket_status", [
-  "open", "in_progress", "waiting_on_customer", "resolved", "closed",
-]);
+export const ticketStatus = pgEnum("ticket_status", TICKET_STATUSES);
 // "catering" is retired from the customer picker but kept in the type — historical
 // rows still carry it, and Postgres cannot drop an enum value without rewriting
 // every dependent column. "order" / "billing" / "general" are deliberately reused
@@ -17,7 +16,7 @@ export const ticketCategory = pgEnum("ticket_category", [
   "order", "billing", "catering", "general",
   "food_meal", "delivery", "plan_subscription", "packaging", "account_website", "feedback",
 ]);
-export const ticketPriority = pgEnum("ticket_priority", ["low", "normal", "high", "urgent"]);
+export const ticketPriority = pgEnum("ticket_priority", TICKET_PRIORITIES);
 export const ticketMessageAuthor = pgEnum("ticket_message_author", ["customer", "staff", "system"]);
 
 export const tickets = pgTable("tickets", {

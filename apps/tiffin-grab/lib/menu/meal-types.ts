@@ -1,8 +1,8 @@
+import { PLAN_TYPES, type PlanType } from "@/db/schema/enums";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 
-export const PLAN_TYPES = ["tiffin", "healthy"] as const;
-export type PlanType = (typeof PLAN_TYPES)[number];
+export { PLAN_TYPES, type PlanType };
 export type MealSlot = { key: string; label: string; icon?: string | null };
 
 const configSchema = z.object({

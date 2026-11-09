@@ -1,14 +1,15 @@
+import { MEAL_ITEM_ROLES, MEAL_TIERS, MON_FRI, PLAN_TYPES } from "./enums";
 import { updatableColumns } from "@foundry/database";
 import type { FileDetail } from "@foundry/storage/model";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 
-export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
-export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
+export const mealTier = pgEnum("meal_tier", MEAL_TIERS);
+export const planType = pgEnum("plan_type", PLAN_TYPES);
 // Which of a meal's items of one category this is: the 1st is the main, the 2nd and 3rd
 // are sides. A side can follow another category on the day's menu (menu_side_defaults).
-export const mealItemRole = pgEnum("meal_item_role", ["main", "side_1", "side_2"]);
+export const mealItemRole = pgEnum("meal_item_role", MEAL_ITEM_ROLES);
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
@@ -16,7 +17,7 @@ export const plans = pgTable("plans", {
   name: text("name").notNull(),
   description: text("description"),
   planType: planType("plan_type").notNull().default("tiffin"),
-  allowedStartDays: text("allowed_start_days").array().notNull().default(["mon", "tue", "wed", "thu", "fri"]),
+  allowedStartDays: text("allowed_start_days").array().notNull().default([...MON_FRI]),
   // Display only. A dish shows the tags of the plans it is attached to, which is
   // what replaced the old veg/non-veg dot. Both are admin-set and rendered
   // verbatim — the code never reads them to decide anything, so renaming a plan

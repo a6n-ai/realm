@@ -1,3 +1,4 @@
+import { MEAL_RULE_ACTIONS, MEAL_RULE_FIELDS } from "@/db/schema/enums";
 import { ValidationError } from "@foundry/commons";
 import { OPERATORS_BY_FIELD, type MealRuleAction, type MealRuleField, type MealRuleOperator } from "./meal-rule-types";
 
@@ -29,8 +30,8 @@ export type RuleInput = {
   conditions: RuleConditionInput[];
 };
 
-const FIELDS: MealRuleField[] = ["dish_plan", "category", "dish", "dish_name"];
-const ACTIONS: MealRuleAction[] = ["max_qualifying", "forbid", "cannot_coexist"];
+const FIELDS = MEAL_RULE_FIELDS;
+const ACTIONS = MEAL_RULE_ACTIONS;
 
 /** Which value column a field uses — one, never more. */
 export function valueKindFor(field: MealRuleField): "ids" | "keys" | "text" {

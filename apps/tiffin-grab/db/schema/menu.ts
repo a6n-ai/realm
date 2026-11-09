@@ -1,3 +1,4 @@
+import { WEEK_DAYS } from "./enums";
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -132,7 +133,7 @@ export const categoryPlans = pgTable(
 // released — live and orderable. Editing one requires an explicit amend, because live
 //            orders already hold meal_selections against its items.
 export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "ready", "released"]);
-export const dayOfWeek = pgEnum("day_of_week", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+export const dayOfWeek = pgEnum("day_of_week", WEEK_DAYS);
 
 /**
  * One menu week per week_start, for every plan.

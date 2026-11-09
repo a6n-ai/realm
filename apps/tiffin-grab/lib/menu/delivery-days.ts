@@ -1,9 +1,7 @@
+import { MON_FRI, WEEK_DAYS, type DayOfWeek } from "@/db/schema/enums";
 import { isWeekendDay } from "@foundry/commons/util/dates";
 /** The one week order (Monday first) and day type; every list of weekdays in the app derives from these. */
-export const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-export type DayOfWeek = (typeof WEEK_DAYS)[number];
-
-export const MON_FRI: readonly DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+export { WEEK_DAYS, MON_FRI, type DayOfWeek } from "@/db/schema/enums";
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
 
 /** For a weekday set with fewer than 7 selected days, how many tiffins each

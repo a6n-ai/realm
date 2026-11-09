@@ -1,5 +1,6 @@
 "use server";
 
+import { MEAL_RULE_ACTIONS, MEAL_RULE_FIELDS, MEAL_RULE_MATCH_MODES, MEAL_RULE_OPERATORS } from "@/db/schema/enums";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { AppError } from "@foundry/commons";
@@ -18,11 +19,8 @@ const idSchema = z.object({ id: z.string().trim().min(1) });
 // legal for its field) belong to assertValidRuleInput, which explains exactly
 // what to fix — a zod failure here would replace that with a generic message.
 const conditionSchema = z.object({
-  field: z.enum(["dish_plan", "category", "dish", "dish_name"]),
-  operator: z.enum([
-    "is", "is_not", "is_one_of", "is_not_one_of",
-    "contains", "not_contains", "equals", "starts_with", "ends_with",
-  ]),
+  field: z.enum(MEAL_RULE_FIELDS),
+  operator: z.enum(MEAL_RULE_OPERATORS),
   valuePublicIds: z.array(z.string()).optional().nullable(),
   valueKeys: z.array(z.string()).optional().nullable(),
   valueText: z.string().optional().nullable(),
@@ -34,8 +32,8 @@ const ruleSchema = z.object({
   description: z.string().optional().nullable(),
   scopePlanPublicId: z.string().optional().nullable(),
   scopeMealSizePublicId: z.string().optional().nullable(),
-  matchMode: z.enum(["all", "any"]),
-  action: z.enum(["max_qualifying", "forbid", "cannot_coexist"]),
+  matchMode: z.enum(MEAL_RULE_MATCH_MODES),
+  action: z.enum(MEAL_RULE_ACTIONS),
   actionValue: z.coerce.number().int().optional().nullable(),
   enabled: z.boolean().optional(),
   conditions: z.array(conditionSchema),

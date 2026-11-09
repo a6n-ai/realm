@@ -1,3 +1,4 @@
+import { MEAL_RULE_ACTIONS, MEAL_RULE_CONDITIONS, MEAL_RULE_FIELDS, MEAL_RULE_MATCH_MODES, MEAL_RULE_OPERATORS } from "./enums";
 import { updatableColumns } from "@foundry/database";
 import { bigint, boolean, index, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { mealSizes, plans } from "./catalog";
@@ -22,19 +23,12 @@ import { organization } from "./organizations";
  *   category_swap_pairs ................... swap eligibility
  *   meal-size/plan dish allowlists ........ serving safety
  */
-export const mealRuleCondition = pgEnum("meal_rule_condition", ["exclusive_to_plan"]);
+export const mealRuleCondition = pgEnum("meal_rule_condition", MEAL_RULE_CONDITIONS);
 
 /** AND / OR across a rule's conditions. Flat by design — no nested expressions. */
-export const mealRuleMatchMode = pgEnum("meal_rule_match_mode", ["all", "any"]);
+export const mealRuleMatchMode = pgEnum("meal_rule_match_mode", MEAL_RULE_MATCH_MODES);
 
-export const mealRuleAction = pgEnum("meal_rule_action", [
-  /** At most `actionValue` picks may match the conditions. */
-  "max_qualifying",
-  /** No pick may match (max 0, with a clearer message). */
-  "forbid",
-  /** At most one DISTINCT matching dish may appear in the meal. */
-  "cannot_coexist",
-]);
+export const mealRuleAction = pgEnum("meal_rule_action", MEAL_RULE_ACTIONS);
 
 /**
  * Which property of a pick a condition tests.
@@ -44,25 +38,9 @@ export const mealRuleAction = pgEnum("meal_rule_action", [
  * not always the ORDER's plan (a non-veg meal size can carry a veg sabzi slot),
  * which is exactly why scope and conditions are separate.
  */
-export const mealRuleField = pgEnum("meal_rule_field", [
-  "dish_plan",
-  "category",
-  "dish",
-  "dish_name",
-]);
+export const mealRuleField = pgEnum("meal_rule_field", MEAL_RULE_FIELDS);
 
-export const mealRuleOperator = pgEnum("meal_rule_operator", [
-  "is",
-  "is_not",
-  "is_one_of",
-  "is_not_one_of",
-  // dish_name only — matching is case-insensitive.
-  "contains",
-  "not_contains",
-  "equals",
-  "starts_with",
-  "ends_with",
-]);
+export const mealRuleOperator = pgEnum("meal_rule_operator", MEAL_RULE_OPERATORS);
 
 export const mealRules = pgTable("meal_rules", {
   ...updatableColumns("mlr"),
