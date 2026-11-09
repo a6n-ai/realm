@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, users } from "@/db/schema";
+import { inquiries, notificationOutbox, users } from "@/db/schema";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -49,6 +49,7 @@ describe("inquiriesService.reassign", () => {
 
   afterAll(async () => {
     if (seededInquiryIds.length) await db.delete(inquiries).where(inArray(inquiries.id, seededInquiryIds));
+    if (seededUserIds.length) await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, seededUserIds));
     if (seededUserIds.length) await db.delete(users).where(inArray(users.id, seededUserIds));
     session.user = null;
   });

@@ -9,7 +9,9 @@ import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
+import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { deliveryZones, inquiries, inquiryActivities, leadCounters, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -298,6 +300,24 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return row.n;
   }
 
+  /** In-app note to the lead's owner, or to all staff when nobody owns it. Keyed so a retry adds nothing. */
+  private notifyOwner(tx: Tx, inq: typeof inquiries.$inferSelect, n: { event: "inquiry_created" | "inquiry_follow_up" | "inquiry_converted"; title: string; body: string; data?: Record<string, unknown>; dedupeKey: string }) {
+    const note = { ...n, channels: ["in_app" as const], href: `/dashboard/inquiries/${inq.publicId}` };
+    return inq.currentOwner != null ? enqueueNotification(tx, { ...note, recipientId: inq.currentOwner }) : enqueueStaffNotification(tx, note);
+  }
+
+  private followUp(inq: typeof inquiries.$inferSelect, at: number | null | undefined) {
+    if (at == null) return;
+    const date = new Date(at).toISOString().slice(0, 10);
+    return db.transaction((tx) => this.notifyOwner(tx, inq, {
+      event: "inquiry_follow_up",
+      title: "Follow-up scheduled",
+      body: `Follow up with ${inq.fullName ?? "this lead"} on ${date}.`,
+      data: { inquiry: { customerName: inq.fullName ?? "" } },
+      dedupeKey: `inquiry_follow_up:${inq.publicId}:${date}`,
+    }));
+  }
+
   /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
   async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -383,6 +403,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       toStage: inq.stage,
       toSubStatus: subStatus,
     });
+    await db.transaction((tx) => this.notifyOwner(tx, inq, {
+      event: "inquiry_created",
+      title: "New inquiry",
+      body: `${inq.fullName ?? "A new lead"} just came in.`,
+      data: { inquiry: { customerName: inq.fullName ?? "" } },
+      dedupeKey: `inquiry_created:${inq.publicId}`,
+    }));
     return { inquiry: inq, folded: false };
   }
 
@@ -457,7 +484,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       note,
       nextFollowUpAt: nextFollowUpAt ?? null,
     });
-    if (nextFollowUpAt != null) await this.update(publicId, { nextFollowUpAt });
+    if (nextFollowUpAt != null) {
+      await this.update(publicId, { nextFollowUpAt });
+      await this.followUp(inq, nextFollowUpAt);
+    }
   }
 
   async logActivity(
@@ -477,6 +507,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     });
     if (input.nextFollowUpAt != null) {
       await this.update(publicId, { nextFollowUpAt: input.nextFollowUpAt });
+      await this.followUp(inq, input.nextFollowUpAt);
     }
   }
 
@@ -519,6 +550,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       note,
       nextFollowUpAt,
     });
+    if (input.nextFollowUpAt != null) await this.followUp(current, nextFollowUpAt);
     return { previous };
   }
 
@@ -589,7 +621,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, staffCreated: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
-      .select({ id: orders.id, trialLength: orders.trialLength })
+      .select({ id: orders.id, trialLength: orders.trialLength, userId: orders.userId })
       .from(orders)
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
@@ -610,6 +642,24 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       toStage: "converted",
       fromSubStatus: inq.subStatus,
       toSubStatus: subStatus,
+    });
+    await db.transaction(async (tx) => {
+      await this.notifyOwner(tx, inq, {
+        event: "inquiry_converted",
+        title: "Inquiry converted",
+        body: `${orderInput.contact.fullName.trim()} is now a customer: order ${result.deploymentId}.`,
+        data: { order: { code: result.deploymentId, customerName: orderInput.contact.fullName.trim() } },
+        dedupeKey: `inquiry_converted:${inq.publicId}:staff`,
+      });
+      if (order.userId != null) {
+        await enqueueOrderNotice(tx, order.id, {
+          event: "inquiry_converted",
+          channels: ["email", "in_app"],
+          title: "Welcome to Tiffin Grab",
+          body: "Your order {code} is set up. Manage your tiffins from your account.",
+          dedupeKey: `inquiry_converted:${inq.publicId}:customer`,
+        });
+      }
     });
     return result;
   }

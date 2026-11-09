@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { app, inquiries, inquiryActivities, ownerPool, leadSources, users } from "@/db/schema";
+import { app, inquiries, inquiryActivities, notificationOutbox, ownerPool, leadSources, users } from "@/db/schema";
 import type { LeadAssignmentConfig } from "../assignment";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -70,6 +70,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiries);
     if (seededUserIds.length) {
       await db.delete(ownerPool).where(inArray(ownerPool.userId, seededUserIds));
+      await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, seededUserIds));
       await db.delete(users).where(inArray(users.id, seededUserIds));
     }
     await setLeadAssignment(originalLeadAssignment ?? { strategy: "creator", perSource: {}, cursor: {} });
