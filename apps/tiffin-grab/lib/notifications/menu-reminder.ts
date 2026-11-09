@@ -1,10 +1,9 @@
-import { RUNNING } from "@/lib/orders/status";
-import { orderStatusIn } from "@/lib/orders/status-sql";
 import { and, desc, eq } from "drizzle-orm";
 import { ensureSystemCampaign, runSystemCampaign } from "@relay/engine";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { menuWeeks, orders, users } from "@/db/schema";
+import { menuWeeks, users } from "@/db/schema";
+import { activeCustomers } from "./active-customers";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { notificationTables, usersRef } from "./tables";
 import { signalOutbox } from "./outbox-signal";
@@ -49,18 +48,6 @@ async function releasedWeek(weekPublicId?: string) {
     .limit(1);
   if (!week) throw new ValidationError(weekPublicId ? "Release this week before sending a reminder" : "No menu week is released yet");
   return week.weekStart;
-}
-
-/** Customers with a running plan: the people who have meals to pick. */
-async function activeCustomers() {
-  const rows = await db
-    .selectDistinct({ userId: users.id, name: users.name })
-    .from(users)
-    .innerJoin(orders, eq(orders.userId, users.id))
-    .where(
-and(orderStatusIn(RUNNING), eq(users.status, "active")),
-    );
-  return rows.map((r) => ({ userId: r.userId, name: r.name }));
 }
 
 async function run(weekStart: string, runKey: string, recipients: { userId: bigint; name: string | null }[]) {

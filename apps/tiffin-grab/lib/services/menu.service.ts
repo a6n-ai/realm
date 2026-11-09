@@ -4,6 +4,12 @@ import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { enqueueMany } from "@relay/engine";
+import { activeCustomers } from "@/lib/notifications/active-customers";
+import { EVENTS } from "@/lib/notifications/events";
+import { markOutboxDirty } from "@/lib/notifications/outbox-dirty";
+import { notificationTables, usersRef } from "@/lib/notifications/tables";
+import { formatDateOnly } from "@/lib/format/datetime";
 import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
@@ -83,6 +89,26 @@ export type DraftMenuItem = {
 };
 
 export type SavedMenuItem = DraftMenuItem & { id: string; position: number };
+
+/** Marketing mail: the engine drops it for anyone unsubscribed, suppressed or opted out of marketing. */
+async function announceRelease(weekPublicId: string, weekStart: string) {
+  const weekLabel = formatDateOnly(weekStart, { mode: "long" });
+  const customers = await activeCustomers();
+  await db.transaction(async (tx) => {
+    await enqueueMany(tx, notificationTables, usersRef, customers.map((c) => ({
+      event: "menu_released",
+      kind: "marketing" as const,
+      channels: EVENTS.menu_released.channels,
+      recipientId: c.userId,
+      title: "This week's menu is out",
+      body: `The menu for the week of ${weekLabel} is live. Pick your meals before the cutoff.`,
+      href: "/me/deliveries",
+      data: { menuWeek: { weekStartIso: weekLabel } },
+      dedupeKey: `menu_released:${weekPublicId}:${c.userId}`,
+    })));
+    markOutboxDirty();
+  });
+}
 
 export const menuService = {
   async upsertWeek(input: { weekStart: string }) {
@@ -447,7 +473,7 @@ export const menuService = {
   },
 
   async release(weekPublicId: string) {
-    const [week] = await db.select({ status: menuWeeks.status }).from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
+    const [week] = await db.select({ status: menuWeeks.status, weekStart: menuWeeks.weekStart }).from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) throw new ValidationError("Week not found");
     if (week.status === "released") throw new ValidationError("This menu is already released");
     // Release is the second step: staff mark the week ready (reviewed and frozen) first, so a
@@ -459,6 +485,7 @@ export const menuService = {
     // on purpose (e.g. weekends empty for some plans).
 
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
+    await announceRelease(weekPublicId, week.weekStart);
     await publishedCache.evictAll();
     revalidatePublicSite();
   },
