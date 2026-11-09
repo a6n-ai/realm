@@ -1,4 +1,5 @@
-export const QUICK_ADD_MAX = 200;
+// shortcut: small cap keeps one paste a quick synchronous request; raise with background batching.
+export const QUICK_ADD_MAX = 20;
 
 /** Rush-time paste: one number per line or comma-separated. Duplicates (by digits) count once. */
 export function parsePastedPhones(text: string): { phones: string[]; tooMany: boolean } {

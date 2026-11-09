@@ -13,7 +13,7 @@ describe("parsePastedPhones", () => {
   it("flags more than the cap", () => {
     const text = Array.from({ length: QUICK_ADD_MAX + 1 }, (_, i) => `64755${String(i).padStart(5, "0")}`).join("\n");
     expect(parsePastedPhones(text).tooMany).toBe(true);
-    expect(QUICK_ADD_MAX).toBe(200);
+    expect(QUICK_ADD_MAX).toBe(20);
   });
 
   it("returns nothing for whitespace", () => {

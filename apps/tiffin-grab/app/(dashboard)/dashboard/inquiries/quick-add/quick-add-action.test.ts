@@ -36,9 +36,9 @@ describe("quickAddInquiries", () => {
     expect(res).toMatchObject({ ok: true, added: 1, folded: 0, failed: [{ phone: "abc", error: "Enter a valid phone number" }] });
   });
 
-  it("rejects an empty paste and more than 200 numbers", async () => {
+  it("rejects an empty paste and more than 20 numbers", async () => {
     expect(await quickAddInquiries({ text: "  ", sourceKey: "facebook" })).toHaveProperty("error");
-    const many = Array.from({ length: 201 }, (_, i) => `+1647556${String(i).padStart(4, "0")}`).join("\n");
-    expect(await quickAddInquiries({ text: many, sourceKey: "facebook" })).toMatchObject({ error: "Paste at most 200 numbers at a time" });
+    const many = Array.from({ length: 21 }, (_, i) => `+1647556${String(i).padStart(4, "0")}`).join("\n");
+    expect(await quickAddInquiries({ text: many, sourceKey: "facebook" })).toMatchObject({ error: "Paste at most 20 numbers at a time" });
   });
 });
