@@ -12,6 +12,7 @@ import { db, type Tx } from "@/db/client";
 import { deliveries, holidays, orderActivities, orders, organization, users } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { orderTemplateVars } from "@/lib/notifications/events";
 import { notificationTables } from "@/lib/notifications/tables";
 import { getAppSettings } from "./app-settings.service";
 import { getBrandOrgId } from "./organizations.service";
@@ -111,7 +112,7 @@ async function announceDeclared(tx: Tx, order: Order, holiday: Holiday, own: Hol
     title: `Closed on ${date}: ${holiday.name}`,
     body: outcome,
     href: "/me/deliveries",
-    data: { order: { code: order.deploymentId, customerName: user?.name ?? "", holidayName: holiday.name, date, movedTo, lastDate, outcome } },
+    data: { order: orderTemplateVars(order.deploymentId, user?.name, { holidayName: holiday.name, date, movedTo, lastDate, outcome }) },
     dedupeKey: `holiday:${holiday.publicId}:${order.publicId}`,
   });
 }
@@ -141,7 +142,7 @@ async function announceRemoved(tx: Tx, orderId: bigint, holiday: Holiday, undone
     title: `Update on ${date}`,
     body: outcome,
     href: "/me/deliveries",
-    data: { order: { code: order.code, customerName: user?.name ?? "", holidayName: holiday.name, date, outcome } },
+    data: { order: orderTemplateVars(order.code, user?.name, { holidayName: holiday.name, date, outcome }) },
     dedupeKey: `holiday_removed:${holiday.publicId}:${order.publicId}`,
   });
 }

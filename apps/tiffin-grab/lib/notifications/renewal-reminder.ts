@@ -9,6 +9,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
+import { orderTemplateVars } from "./events";
 import { addDaysIso, daysBetween } from "@foundry/commons/util/dates";
 
 /** Days before the last tiffin that a reminder goes out. */
@@ -32,13 +33,11 @@ export function renewalReminderMessage(c: RenewalCandidate, daysLeft: number) {
     body: "Renew in one tap to keep your tiffins coming.",
     // The plan's end moves when a holiday or pause adds days, so a moved end earns a fresh reminder.
     dedupeKey: `renewal:${c.orderPublicId}:${c.lastTiffin}:${daysLeft}`,
-    order: {
-      code: c.code,
-      customerName: c.customerName ?? "",
+    order: orderTemplateVars(c.code, c.customerName, {
       mealSize: c.mealSize ?? "tiffin",
       lastTiffin: formatDateOnly(c.lastTiffin, { mode: "weekday" }),
       lastTiffinWhen: when,
-    },
+    }),
   };
 }
 

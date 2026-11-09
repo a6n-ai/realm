@@ -19,7 +19,7 @@ describe("renewalReminderMessage", () => {
 
   it("fills the template fields", () => {
     expect(renewalReminderMessage(plan, 5).order).toMatchObject({ code: "SUB-ABC123", customerName: "Asha", mealSize: "Large" });
-    expect(renewalReminderMessage({ ...plan, customerName: null, mealSize: null }, 5).order).toMatchObject({ customerName: "", mealSize: "tiffin" });
+    expect(renewalReminderMessage({ ...plan, customerName: null, mealSize: null }, 5).order).toMatchObject({ customerName: "there", mealSize: "tiffin" });
   });
 
   it("runs at 9 AM Toronto", () => {

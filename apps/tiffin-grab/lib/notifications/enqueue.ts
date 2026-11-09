@@ -3,42 +3,20 @@ import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } fr
 import { db, type Tx } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { markOutboxDirty } from "./outbox-dirty";
+import { EVENTS, type AppEvent } from "./events";
 
-type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[number];
-type Channel = (typeof notificationTables.notificationOutbox.channel.enumValues)[number];
-
-/** Default channels per event. Events not listed here fall back to in_app only. */
-const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
-  order_created: ["email", "in_app"],
-  order_activated: ["email", "in_app"],
-  order_cancelled: ["email", "in_app"],
-  order_complimentary: ["email", "in_app"],
-  holiday_declared: ["email", "in_app"],
-  holiday_removed: ["email", "in_app"],
-  menu_released: ["email", "in_app"],
-  payment_received: ["email", "in_app"],
-  payment_approved: ["email", "in_app"],
-  wallet_credited: ["in_app"],
-  ticket_reply: ["email", "in_app"],
-  inquiry_follow_up: ["in_app"],
-  review_nudge: ["email"],
-  staff_invitation: ["email"],
-  customer_invitation: ["email"],
-  payment_reminder: ["email"],
-  order_renewal_reminder: ["email"],
-  order_receipt: ["email"],
-};
+type Event = AppEvent;
 
 export type { EnqueueInput };
 
 /**
- * App-side enqueue: applies tiffin-grab's per-event channel defaults, then flags
+ * App-side enqueue: applies the per-event channel defaults from EVENTS, then flags
  * the outbox; db.transaction signals the consumer once the transaction commits.
  */
 export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
   await enqueue(tx, notificationTables, usersRef, {
     ...input,
-    channels: input.channels ?? EVENT_CHANNELS[input.event],
+    channels: input.channels ?? EVENTS[input.event].channels,
   });
   markOutboxDirty();
 }
@@ -48,7 +26,7 @@ export async function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRole
   await enqueueToRole(tx, notificationTables, usersRef, {
     ...input,
     roles: STAFF_ROLES,
-    channels: input.channels ?? (input.event ? EVENT_CHANNELS[input.event] : undefined),
+    channels: input.channels ?? (input.event ? EVENTS[input.event].channels : undefined),
   });
   markOutboxDirty();
 }

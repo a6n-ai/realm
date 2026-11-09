@@ -5,7 +5,7 @@ import { eventLabel } from "@relay/engine/ui/template-status";
 import { requireAdmin } from "@/lib/auth/guards";
 import { emailStreams } from "@/lib/email/provider";
 import { CATEGORY_LABEL, eventCategory } from "@/lib/notifications/event-categories";
-import { NOTIFICATION_EVENTS } from "@/lib/notifications/event-list";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { emailVolumeByStream } from "@/lib/notifications/email-volume";
 import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
 import type { EmailTypeRow } from "./email-tracking-section";

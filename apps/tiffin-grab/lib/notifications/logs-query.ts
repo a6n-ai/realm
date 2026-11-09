@@ -5,6 +5,7 @@ import { notificationOutcomeWhere, parseNotificationOutcome } from "@/lib/notifi
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canClearSuppression, suppressionKind } from "@relay/engine";
 import { eventLabel } from "@relay/engine/ui/template-status";
+import { NOTIFICATION_EVENTS } from "./events";
 import { db } from "@/db/client";
 import { campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
@@ -36,30 +37,8 @@ const CHANNEL_OPTIONS = [
   { value: "whatsapp", label: "WhatsApp" },
 ] as const;
 
-// Events that land in the outbox. Labels match eventLabel() so chips read like
-// the Event column.
-const EVENT_OPTIONS = [
-  "order_created",
-  "order_activated",
-  "order_completed",
-  "order_cancelled",
-  "order_paused",
-  "payment_received",
-  "payment_reminder",
-  "payment_approved",
-  "refund_issued",
-  "menu_released",
-  "wallet_credited",
-  "wallet_redeemed",
-  "inquiry_created",
-  "inquiry_follow_up",
-  "inquiry_converted",
-  "ticket_created",
-  "ticket_reply",
-  "ticket_resolved",
-  "signup",
-  "manual_adjustment",
-].map((value) => ({ value, label: eventLabel(value) }));
+// Labels match eventLabel() so chips read like the Event column.
+const EVENT_OPTIONS = NOTIFICATION_EVENTS.map((value) => ({ value, label: eventLabel(value) }));
 
 /** Shared by the top-level Logs page and a campaign's own Logs tab, so both render the same table/filters. */
 export const LOGS_SPEC: FacetDef[] = [

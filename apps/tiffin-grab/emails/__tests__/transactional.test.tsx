@@ -22,4 +22,19 @@ describe("transactional email templates", () => {
       for (const m of `${t.subject}${html}`.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) expect(known).toContain(m[1]);
     }
   });
+
+  it.each([
+    ["order_complimentary", "Hi {{order.customerName}}, we added a free tiffin to your plan."],
+    ["holiday_declared", "Hi {{order.customerName}}, our kitchen is closed on {{order.date}}."],
+    ["holiday_removed", "Hi {{order.customerName}}, we told you our kitchen would be closed on {{order.date}} for {{order.holidayName}}."],
+    ["order_renewal_reminder", "Hi {{order.customerName}}, your {{order.mealSize}} plan ends {{order.lastTiffinWhen}}."],
+    ["order_receipt", "Hi {{order.customerName}}, your receipt for order {{order.code}} ({{order.mealSize}}) is attached as a PDF."],
+  ])("%s keeps its greeting line", async (event, line) => {
+    const t = TEMPLATES.find((x) => x.event === event)!;
+    expect((await render(t.element, { plainText: true })).replace(/\s+/g, " ")).toContain(line);
+  });
+
+  it("order_receipt keeps its subject", () => {
+    expect(TEMPLATES.find((x) => x.event === "order_receipt")!.subject).toBe("Your Tiffin Grab receipt for order {{order.code}}");
+  });
 });

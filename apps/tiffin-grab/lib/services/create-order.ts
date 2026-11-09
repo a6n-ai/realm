@@ -39,6 +39,7 @@ import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { orderTemplateVars } from "@/lib/notifications/events";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { scheduleWrite } from "./schedule-write";
 import { ledgerService } from "./ledger.service";
@@ -667,11 +668,9 @@ export async function createOrder(
         body: `We've got order ${deploymentId}. Payment of ${formatMoney(pricing.total)} is due in cash on delivery.`,
         href: "/me/deliveries",
         data: {
-          order: {
-            code: deploymentId,
-            customerName: input.contact.fullName || "there",
+          order: orderTemplateVars(deploymentId, input.contact.fullName, {
             paymentNote: `Payment of ${formatMoney(pricing.total)} is due in cash on delivery.`,
-          },
+          }),
         },
         dedupeKey: `order_created:${order.publicId}`,
       });

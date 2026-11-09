@@ -8,7 +8,7 @@ import { emailStreams } from "@/lib/email/provider";
 import { parseRoutingInput } from "@/lib/email/routing-input";
 import { setTrackedEmailEvents } from "@/lib/services/app-settings.service";
 import { eventCategory } from "@/lib/notifications/event-categories";
-import { NOTIFICATION_EVENTS } from "@/lib/notifications/event-list";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 
 const PATH = "/dashboard/settings/email-tracking";
 const log = createLogger("email-events");

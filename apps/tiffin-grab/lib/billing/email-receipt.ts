@@ -3,6 +3,7 @@ import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, orders, users } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { orderTemplateVars } from "@/lib/notifications/events";
 import { signedReceiptUrl } from "./receipt-link";
 
 /** Queue the order's receipt email (PDF attached) to the order's owner. Callers do the access check. */
@@ -22,7 +23,7 @@ export async function emailOrderReceipt(orderPublicId: string, now = Date.now())
       title: "Your receipt",
       body: `Receipt for order ${o.deploymentId}`,
       href: "/me/wallet?tab=bills",
-      data: { order: { code: o.deploymentId, customerName: o.name ?? "there", mealSize: o.mealSize } },
+      data: { order: orderTemplateVars(o.deploymentId, o.name, { mealSize: o.mealSize }) },
       // Throws without an origin: a receipt email with no receipt is worse than an error.
       attachments: [{ filename: `TiffinGrab-receipt-${o.deploymentId}.pdf`, url: signedReceiptUrl(o.publicId), contentType: "application/pdf" }],
       // One per order per minute, so repeat taps don't send a stack of the same email.

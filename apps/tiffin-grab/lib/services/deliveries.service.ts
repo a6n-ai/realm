@@ -22,6 +22,7 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { refreshStopBestEffort, removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { orderTemplateVars } from "@/lib/notifications/events";
 import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "./order-window";
@@ -1121,7 +1122,7 @@ export async function grantComplimentaryTiffin(
         title: "A free tiffin is on us",
         body: `We added a complimentary tiffin on ${humanDate(input.date)}. ${note}`,
         href: "/me/deliveries",
-        data: { order: { code: order.deploymentId, customerName: user?.name ?? "", date: humanDate(input.date), reason: note } },
+        data: { order: orderTemplateVars(order.deploymentId, user?.name, { date: humanDate(input.date), reason: note }) },
         dedupeKey: `order_complimentary:${row!.publicId}`,
       });
     }
