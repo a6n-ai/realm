@@ -1,3 +1,4 @@
+import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING, RUNNING } from "@/lib/orders/status";
@@ -17,7 +18,7 @@ import { getBrandOrgId } from "./organizations.service";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
-import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE, MOVED_AWAY } from "./pause-state";
+import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE } from "./pause-state";
 import { isRealDate } from "@foundry/commons/util/dates";
 
 const log = createLogger("holidays.service");

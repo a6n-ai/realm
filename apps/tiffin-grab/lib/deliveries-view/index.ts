@@ -62,17 +62,12 @@ export type PlanContext = {
   lastDeliveryDate: string | null;
   /** Mon-Fri only: weekend food rides Friday. */
   deliveryWeekdays: string[];
-  eatingWeekdays?: string[] | null;
   /** Closed dates for this plan's organization (ISO date to holiday name); Move never offers them. */
   holidays?: Record<string, string>;
   /** Delivery days another live plan of this customer already has (date to "renewal" / "earlier plan"); Move never offers them. */
   otherPlanDays?: Record<string, string>;
   /** This plan's first delivery date; Move never offers dates before it. */
   startDate?: string;
-  active?: boolean;
-  onPause?: boolean;
-  pausesLeft?: number | null;
-  frequencyKey?: string | null;
   /** False: the meal has no weekend dish, so Move can't target Sat/Sun. */
   servesWeekends?: boolean;
   /** The meal size's allowed days (e.g. non-veg only, Tue/Thu veg-only); unset/null = every day. */

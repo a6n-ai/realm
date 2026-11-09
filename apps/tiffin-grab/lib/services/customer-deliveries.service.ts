@@ -14,6 +14,7 @@ import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
+import { handedOnIds } from "@/lib/deliveries/row-state";
 import { planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
@@ -335,9 +336,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
   const lapsed = await lapsedPauseDates(db, [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))]);
   // A whole-trip reschedule leaves the old row skipped and inserts a makeup.
   // The old day is no longer a delivery, so it must not keep a status dot.
-  const replacedByMakeup = new Set(
-    rows.flatMap(({ d }) => [d.makeupForDeliveryId, d.holidayExtraForDeliveryId].flatMap((id) => (id == null ? [] : [id.toString()]))),
-  );
+  const replacedByMakeup = handedOnIds(rows.map(({ d }) => d));
   // A merged source's OWN date is now moved: mark it on the target's dot instead of showing the target's live status there.
   const movedDatesByTarget = new Map<string, Set<string>>();
   for (const { d } of rows) {
@@ -355,7 +354,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
       }
       continue;
     }
-    if (d.mergedIntoDeliveryId != null || replacedByMakeup.has(d.id.toString())) continue;
+    if (d.mergedIntoDeliveryId != null || replacedByMakeup.has(d.id)) continue;
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
@@ -531,10 +530,10 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .where(eq(deliveries.orderId, order.id));
 
   const delivered = deliveredTiffinCount(rows as DeliveryForCounts[], Date.now());
-  // Same rule as order-window `holdsDay`: a day whose tiffin went to another row is not the last one.
-  const handedOn = new Set(rows.flatMap((r) => [r.makeupForDeliveryId, r.holidayExtraForDeliveryId]).filter((id) => id != null).map(String));
+  // A day whose tiffin went to another row is not the last one (HOLDS_DAY).
+  const handedOn = handedOnIds(rows);
   const lastDeliveryDate = rows.reduce<string | null>(
-    (max, r) => (r.status === "cancelled" || r.mergedIntoDeliveryId != null || handedOn.has(String(r.id)) || (max != null && r.deliveryDate <= max) ? max : r.deliveryDate),
+    (max, r) => (r.status === "cancelled" || r.mergedIntoDeliveryId != null || handedOn.has(r.id) || (max != null && r.deliveryDate <= max) ? max : r.deliveryDate),
     null,
   );
   const deliveryWeekdays = planDeliveryDays(order, { key: order.frequencyKey, weekdays: order.weekdays as DayOfWeek[] | null }, { weekdaysOnly: true });
@@ -859,11 +858,6 @@ export type CalendarDay = {
   movesOut?: { from: string | null; to: string }[];
   /** One entry per covered eating day, in date order. Swaps here apply only to that day; lock follows the trip's cutoff (`locked`). */
   eatingDays?: EatingDaySwaps[];
-  /**
-   * Swap allowance summary. Config only has per-category caps (maxTuAmount / maxPicksPerTiffin), no
-   * per-day or per-trip swap count, so this is always null until such a limit exists.
-   */
-  swapAllowance?: null;
   /** Resolved meal per covered eating day other than the trip's own date (a carried day has no row of its own). */
   carriedMeals?: Record<string, ResolvedMeal>;
   /** Eating days this trip carries (covers_dates length); 1 for legacy single-day rows. */
@@ -913,7 +907,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     loadExtraDates(db, rowIds),
     db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
       .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds))),
-    db.select({ src: deliveries.makeupForDeliveryId, extraFor: deliveries.holidayExtraForDeliveryId, deliveryDate: deliveries.deliveryDate }).from(deliveries)
+    db.select({ makeupForDeliveryId: deliveries.makeupForDeliveryId, holidayExtraForDeliveryId: deliveries.holidayExtraForDeliveryId, deliveryDate: deliveries.deliveryDate }).from(deliveries)
       .where(or(inArray(deliveries.makeupForDeliveryId, rowIds), inArray(deliveries.holidayExtraForDeliveryId, rowIds))).orderBy(asc(deliveries.deliveryDate)),
     dishCategoriesService.swapPairsForMealSize(order.mealSizeId),
     db
@@ -926,9 +920,9 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
-  const replaced = new Set(replacedRows.flatMap((r) => [r.src, r.extraFor]));
+  const replaced = handedOnIds(replacedRows);
   const extrasBySource = new Map<bigint, string[]>();
-  for (const r of replacedRows) if (r.extraFor != null) extrasBySource.set(r.extraFor, [...(extrasBySource.get(r.extraFor) ?? []), r.deliveryDate]);
+  for (const r of replacedRows) if (r.holidayExtraForDeliveryId != null) extrasBySource.set(r.holidayExtraForDeliveryId, [...(extrasBySource.get(r.holidayExtraForDeliveryId) ?? []), r.deliveryDate]);
 
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
@@ -959,7 +953,6 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         .filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date))
         .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow, receiveTu }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow, receiveTu })),
     })),
-    swapAllowance: null,
   });
 
   const loadWeek = weekLoader(); // memoizes the week promise, so concurrent days share one read

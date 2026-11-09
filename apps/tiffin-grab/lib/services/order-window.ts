@@ -1,3 +1,4 @@
+import { HOLDS_DAY } from "@/lib/deliveries/row-state";
 import { coveredDates } from "@/lib/menu/coverage";
 import { ONGOING, RUNNING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
@@ -11,18 +12,6 @@ import { utcIso } from "@foundry/commons/util/dates";
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
 
 /**
- * Order statuses that hold real calendar days. Cancelled, completed, waitlisted and
- * pending orders deliver nothing, so they never block another plan's start date.
- */
-/**
- * A delivery row still holds its date: not cancelled, and its tiffin was not handed to
- * another row (merged, made up, or given a holiday's extra day). A skipped day made up
- * earlier must not stretch the plan past its real last tiffin.
- */
-export const holdsDay = sql`(${deliveries.status} <> 'cancelled' and ${deliveries.mergedIntoDeliveryId} is null and not exists (
-  select 1 from deliveries c where c.makeup_for_delivery_id = ${deliveries.id} or c.holiday_extra_for_delivery_id = ${deliveries.id}))`;
-
-/**
  * The calendar band an active/paused order actually reserves, keyed by order id, as an
  * exclusive end date (the first day NOT reserved).
  *
@@ -31,7 +20,7 @@ export const holdsDay = sql`(${deliveries.status} <> 'cancelled' and ${deliverie
  * delivery dates later than that naive window (see `TiffinCounts.lastDeliveryDate` in
  * customer-deliveries.service.ts, which this mirrors), so an order whose deliveries have
  * shifted later still reserves through its true last delivery, not just its original
- * calendar window. Rows that no longer hold their day (`holdsDay`) are ignored.
+ * calendar window. Rows that no longer hold their day (`HOLDS_DAY`) are ignored.
  * The naive calc is only a fallback for an order with no delivery rows yet.
  */
 export async function reservedEndDatesExclusive(
@@ -45,7 +34,7 @@ export async function reservedEndDatesExclusive(
   const lastDeliveryRows = await tx
     .select({ orderId: deliveries.orderId, lastDeliveryDate: sql<string>`max(${deliveries.deliveryDate})` })
     .from(deliveries)
-    .where(and(inArray(deliveries.orderId, orderIds), holdsDay))
+    .where(and(inArray(deliveries.orderId, orderIds), HOLDS_DAY))
     .groupBy(deliveries.orderId);
   const lastDeliveryByOrder = new Map(lastDeliveryRows.map((r) => [r.orderId.toString(), r.lastDeliveryDate]));
 
@@ -144,7 +133,7 @@ export async function lastRunningTiffinDate(tx: Tx | typeof db, userId: bigint):
     .select({ last: sql<string | null>`max(${deliveries.deliveryDate})` })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
-    .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING), holdsDay));
+    .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING), HOLDS_DAY));
   return row?.last ?? null;
 }
 

@@ -41,7 +41,11 @@ type StateInput = {
   optimoCompletionStatus?: string | null;
 };
 
-/** What one delivery day is, as the customer sees it. The only place a row's status is interpreted. */
+/**
+ * What one delivery day is, as the customer sees it (six states). Staff wording lives in label-status.ts
+ * (labelDeliveryStatus) and the trip strip's finer states in deliveries-view buildTrips; they read the same
+ * columns but disagree at the edges (see the disagreement test).
+ */
 export function deliveryTripState(d: StateInput): DeliveryStatus {
   if (d.holiday) return "holiday";
   if (d.moved) return "combined";

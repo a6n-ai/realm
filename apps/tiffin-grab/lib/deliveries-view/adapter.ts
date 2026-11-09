@@ -70,23 +70,17 @@ export function toCalendarInputs(a: {
   });
 }
 
-export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; cutoffHour: number; timezone: string; pause: PausePanel; startDate?: string; holidays?: Record<string, string>; otherPlanDays?: Record<string, string> }): PlanContext {
-  const max = a.pause.limits.maxPauses;
+export function buildPlanContext(a: { counts: TiffinCounts; cutoffHour: number; timezone: string; startDate?: string; holidays?: Record<string, string>; otherPlanDays?: Record<string, string> }): PlanContext {
   return {
     cutoffHour: a.cutoffHour,
     timezone: a.timezone,
     lastDeliveryDate: a.counts.lastDeliveryDate,
     deliveryWeekdays: a.counts.deliveryWeekdays,
-    eatingWeekdays: a.counts.eatingWeekdays,
     servesWeekends: a.counts.servesWeekends,
     mealDays: a.counts.mealDays,
     startDate: a.startDate,
     holidays: a.holidays ?? {},
     otherPlanDays: a.otherPlanDays ?? {},
-    active: true,
-    onPause: a.sub.status === "paused" || !!a.sub.fullyPaused,
-    pausesLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),
-    frequencyKey: a.sub.frequencyKey ?? null,
   };
 }
 

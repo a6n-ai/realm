@@ -40,10 +40,9 @@ describe("toCalendarInputs", () => {
 });
 
 describe("plan context", () => {
-  const sub = { status: "paused" } as never;
-  it("derives pause flags and pause budget", () => {
-    const ctx = buildPlanContext({ sub, counts, cutoffHour: 18, timezone: "America/Toronto", pause: { limits: { maxPauses: 3 }, usage: { count: 3, daysUsed: 0 } } as never });
-    expect(ctx).toMatchObject({ onPause: true, pausesLeft: 0, lastDeliveryDate: "2026-10-02", active: true });
+  it("carries the delivery weekdays and last delivery", () => {
+    const ctx = buildPlanContext({ counts, cutoffHour: 18, timezone: "America/Toronto" });
+    expect(ctx).toMatchObject({ deliveryWeekdays: ["mon", "wed", "fri"], lastDeliveryDate: "2026-10-02" });
   });
   it("renew countdown counts days from today to the last tiffin", () => {
     expect(renewDays("2026-10-02", "2026-09-21")).toBe(11);

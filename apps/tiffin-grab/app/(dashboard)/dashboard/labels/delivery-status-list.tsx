@@ -9,8 +9,9 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, TonePill, type Column } from "@/components/ds";
 import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { sortRows } from "@foundry/design-system/list-sort";
-import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
-import { GOING_OUT } from "./label-tab";
+import type { DayDeliveryStatusRow } from "@/lib/services/daily-labels.service";
+import type { LabelDeliveryStatus } from "@/lib/deliveries/label-status";
+import { isGoingOut } from "@/lib/deliveries/label-status";
 import { useTableParams } from "./use-table-params";
 
 type Key = "customer" | "deliveryId" | "orderId" | "planName" | "mealSize" | "tiffins" | "status";
@@ -37,7 +38,7 @@ const VALUE: Record<Key, (r: DayDeliveryStatusRow) => string | number> = {
 
 export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
   const goingOut = useSearchParams().get("out") === "1";
-  const pool = useMemo(() => (goingOut ? rows.filter((r) => GOING_OUT.has(r.status)) : rows), [rows, goingOut]);
+  const pool = useMemo(() => (goingOut ? rows.filter(isGoingOut) : rows), [rows, goingOut]);
   const [statusFilter, setStatusFilter] = useState<LabelDeliveryStatus | "all">("all");
   const { sort, pagination } = useTableParams(
     COLUMNS.map((c) => c.key),

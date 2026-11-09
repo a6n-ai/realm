@@ -1,3 +1,4 @@
+import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
@@ -13,7 +14,7 @@ import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from 
 import { loadExtraDates } from "./delivery-extras";
 import { dateCounts } from "@/lib/menu/coverage";
 import type { Reader } from "./pause-state";
-import { CUSTOMER_PAUSED, MOVED_AWAY, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -163,15 +164,10 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   return { paused: result.paused.filter((d) => !back.includes(d)), skipped: [...result.skipped, ...back].sort() };
 }
 
-/** Put paused days back on the same dates. "all" is every paused day still before cutoff. */
-export async function releasePausedDays(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<string[]> {
-  return (await releasePausedDaysDetailed(orderPublicId, dates, actorId)).resumed;
-}
-
 /** A resumed day that landed on a declared holiday and was closed again in the same step. */
 export type ReclosedDay = { date: string; holidayName: string; placed: boolean };
 
-/** `releasePausedDays` plus the days a holiday closed again, so the caller can say so instead of "nothing resumed". */
+/** Put paused days back on the same dates ("all" is every paused day still before cutoff), plus the days a holiday closed again, so the caller can say so instead of "nothing resumed". */
 export async function releasePausedDaysDetailed(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<{ resumed: string[]; reclosed: ReclosedDay[] }> {
   const order = await orderByPublicId(orderPublicId);
   if (!inOrderStatuses(RUNNING, order.status)) {

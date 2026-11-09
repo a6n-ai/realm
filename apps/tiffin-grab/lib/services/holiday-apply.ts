@@ -1,3 +1,4 @@
+import { MOVED_AWAY, hasAddressOverride } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
@@ -10,7 +11,7 @@ import { getAppSettings } from "./app-settings.service";
 import { loadPlanDays, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { otherPlanDays } from "./order-window";
-import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
+import { HOLIDAY_DISMISSED, pauseRows } from "./pause-state";
 import { addDaysIso, isRealDate } from "@foundry/commons/util/dates";
 
 type Order = typeof orders.$inferSelect;
@@ -127,14 +128,11 @@ export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint
   return applied;
 }
 
-/** Every per-delivery address / drop-off override on a delivery row; any of them set means the customer or staff changed this day. */
-const ADDRESS_OVERRIDES = ["addressId", "fullName", "addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions", "deliveryStrategyId", "deliveryTagId", "addressTagId", "zoneId"] as const;
-
 /** An added day is "as the holiday left it" only while nothing about it changed: any doubt keeps it. */
 async function extrasUntouched(tx: Tx, extras: Delivery[], per: number, now: number): Promise<boolean> {
   if (extras.length === 0) return true;
   const plain = extras.every((e) => e.status === "scheduled" && e.mergedIntoDeliveryId == null && !isCutoffPassed(e.cutoffAt, now) && e.optimoCompletionStatus == null
-    && e.tiffinUnits === per && e.coversDates?.length === 1 && e.coversDates[0] === e.deliveryDate && ADDRESS_OVERRIDES.every((col) => e[col] == null) && e.deliveryStrategyIds.length === 0);
+    && e.tiffinUnits === per && e.coversDates?.length === 1 && e.coversDates[0] === e.deliveryDate && !hasAddressOverride(e));
   if (!plain) return false;
   const ids = extras.map((e) => e.id);
   const touched = await Promise.all([

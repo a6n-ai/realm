@@ -1,3 +1,4 @@
+import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { NotFoundError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -13,7 +14,7 @@ import { getAppSettings } from "./app-settings.service";
 import { holidayForOrderDate } from "./holiday-dates";
 import { loadPlanDays, rescheduleDelivery, type Tx } from "./deliveries.service";
 import { otherPlanDays } from "./order-window";
-import { MOVED_AWAY, isLapsedPause, lapsedPauseDates, type Reader } from "./pause-state";
+import { isLapsedPause, lapsedPauseDates, type Reader } from "./pause-state";
 
 const log = createLogger("pause-auto-move");
 

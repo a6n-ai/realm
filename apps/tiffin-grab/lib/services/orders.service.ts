@@ -1791,16 +1791,14 @@ export async function countMigratedWaiting(): Promise<number> {
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await lapseElapsedPausesSafe(orderId);
   const today = appTodayIso((await getAppSettings()).timezone);
-  let changed = false;
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
       .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
     const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
     if (elapsed.length > 0) {
-      changed = true;
       await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
     }
-    if (await retireLegacyPaused(tx, orderId)) changed = true;
+    await retireLegacyPaused(tx, orderId);
   });
 }

@@ -1,3 +1,4 @@
+import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
@@ -10,16 +11,6 @@ const log = createLogger("pause-state");
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Reader = Pick<typeof db, "select">;
-
-/** An ordinary delivery a holiday added at plan end points back at this row: its tiffins are already re-homed. */
-export const HAS_HOLIDAY_EXTRA = sql`exists (select 1 from deliveries hx where hx.holiday_extra_for_delivery_id = ${deliveries.id})`;
-
-/**
- * A row whose tiffin already left: merged into another trip, replaced by a make-up, or stood in
- * for by the days a holiday added. It keeps its date (and its status) but carries nothing, so it
- * must never be put back on the schedule.
- */
-export const MOVED_AWAY = sql`(${deliveries.mergedIntoDeliveryId} is not null or exists (select 1 from deliveries mv where mv.makeup_for_delivery_id = ${deliveries.id} or mv.holiday_extra_for_delivery_id = ${deliveries.id}))`;
 
 /** Activity note that marks a holiday-closed day staff wrote off instead of placing. */
 export const HOLIDAY_DISMISSED_NOTE = "Holiday day dismissed:";

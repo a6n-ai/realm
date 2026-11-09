@@ -1,7 +1,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
-import { labelDeliveryStatus, loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
+import { labelDeliveryStatus } from "@/lib/deliveries/label-status";
+import { loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { missedPublicIdsOn } from "@/lib/services/missed-where";

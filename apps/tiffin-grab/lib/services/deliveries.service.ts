@@ -1,8 +1,9 @@
+import { CLEAR_ADDRESS_OVERRIDE, HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -21,13 +22,14 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "./order-window";
 import { holidayForOrderDate } from "./holiday-dates";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
-import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
+import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
 import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 
 const log = createLogger("deliveries.service");
@@ -176,23 +178,8 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
 }
 
 /**
- * Visible deliveries for an order within [from, until] (inclusive), ordered by date.
- * Only `status = 'scheduled'` rows are visible — paused/skipped/cancelled rows vanish.
- * Read-only: this must NEVER reconcile or write. Callers (grid, selection validation) rely
- * on that to run safely inside async Server Components.
- */
-export async function visibleDeliveries(orderId: bigint, from: string, until: string): Promise<Delivery[]> {
-  return db.select().from(deliveries).where(and(
-    eq(deliveries.orderId, orderId),
-    eq(deliveries.status, "scheduled"),
-    gte(deliveries.deliveryDate, from),
-    lte(deliveries.deliveryDate, until),
-  )).orderBy(asc(deliveries.deliveryDate));
-}
-
-/**
  * Every delivery row for an order (all statuses, originals and make-ups alike), for the admin
- * panel. Unlike visibleDeliveries this is not customer-facing and must not hide paused/skipped/
+ * panel. Not customer-facing: it does not hide paused/skipped/
  * cancelled rows. Read-only: never reconciles.
  */
 export async function listDeliveries(orderId: bigint): Promise<Delivery[]> {
@@ -291,7 +278,6 @@ export async function adminSetDeliveryStatus(
   actorId: bigint | null,
 ): Promise<void> {
   let syncedRow: OptimoSyncedRow | null = null;
-  let changed = false;
   let resumed = null as { orderId: bigint; dates: string[] } | null;
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -327,7 +313,6 @@ export async function adminSetDeliveryStatus(
     if (row.status === "paused") {
       if (status !== "upcoming") throw new ValidationError("Resume this day first");
       resumed = { orderId, dates: await releasePausedRows(tx, orderId, [row.deliveryDate], actorId) };
-      changed = true;
       return;
     }
 
@@ -361,7 +346,7 @@ export async function adminSetDeliveryStatus(
     switch (status) {
       case "upcoming":
         patch = { status: "scheduled", optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null };
-        label = isCutoffPassed(row.cutoffAt, now) ? "Awaiting confirmation" : "Upcoming";
+        label = isCutoffPassed(row.cutoffAt, now) ? LABEL_STATUS.awaitingConfirmation : "Upcoming";
         break;
       case "delivered":
         patch = { status: "scheduled", optimoCompletionStatus: "success", optimoCompletedAt: row.optimoCompletedAt ?? now, optimoCompletionNote: null };
@@ -379,7 +364,7 @@ export async function adminSetDeliveryStatus(
               ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
               : {}),
           };
-        label = dayCame ? "Not delivered" : "On hold";
+        label = dayCame ? LABEL_STATUS.notDelivered : LABEL_STATUS.onHold;
         syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
         break;
       default: {
@@ -393,7 +378,6 @@ export async function adminSetDeliveryStatus(
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: activityType, note: `Admin set delivery status to ${label}`, createdBy: actorId,
     });
-    changed = true;
   });
   if (syncedRow) await deleteFromOptimoRouteBestEffort([syncedRow]);
   if (resumed) await restoreStopsBestEffort(resumed.orderId, resumed.dates, actorId);
@@ -576,7 +560,7 @@ export async function dropVoidRows(tx: Tx, orderId: bigint, dates: string[]): Pr
     eq(deliveries.orderId, orderId),
     eq(deliveries.status, "cancelled"),
     inArray(deliveries.deliveryDate, dates),
-    sql`not exists (select 1 from deliveries c where c.makeup_for_delivery_id = ${deliveries.id} or c.merged_into_delivery_id = ${deliveries.id} or c.holiday_extra_for_delivery_id = ${deliveries.id})`,
+    not(POINTED_AT),
     sql`not exists (select 1 from delivery_moves m where m.from_delivery_id = ${deliveries.id} or m.to_delivery_id = ${deliveries.id})`,
   )).returning({ id: deliveries.id });
   return new Set(gone.map((r) => r.id));
@@ -1023,12 +1007,6 @@ async function refreshStopBestEffort(deliveryId: bigint): Promise<void> {
   }
 }
 
-async function moveTripPreflight(tx: Tx, orderId: bigint, date: string): Promise<Delivery | undefined> {
-  const [row] = await tx.select().from(deliveries)
-    .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, date))).limit(1);
-  return row;
-}
-
 /**
  * Staff-only (the caller enforces it): OUR failure — the driver could not deliver — so the whole
  * trip is re-delivered on the order's next delivery day and merged there. Rejects with a
@@ -1060,7 +1038,8 @@ export async function redeliverTrip(
       skip: async (cursor) => {
         if (await holidayForOrderDate(tx, orderId, cursor)) return true;
         if (cursor < today || isCutoffPassed(cutoffMsFor(cursor, cutoffHour, timezone), Date.now())) return true;
-        const occupant = await moveTripPreflight(tx, orderId, cursor);
+        const [occupant] = await tx.select().from(deliveries)
+          .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, cursor))).limit(1);
         return occupant != null && occupant.status !== "scheduled";
       },
     });
@@ -1278,10 +1257,7 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
     const updated = await tx.update(deliveries)
-      .set({
-        addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
-        deliveryInstructions: null, deliveryTagId: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
-      })
+      .set(CLEAR_ADDRESS_OVERRIDE)
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);

@@ -106,7 +106,6 @@ describe("per-eating-day swaps", () => {
     expect(day.eatingDays![1].appliedSwaps).toHaveLength(1);
     expect(day.eatingDays![1].appliedSwaps[0]).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 1 });
     expect(day.eatingDays![0].swapPairs.some((p) => p.fromCategory === "rice" && p.toCategory === "roti")).toBe(true);
-    expect(day.swapAllowance).toBeNull();
     await expect(myCalendar(order.userId! + 999999n, publicId, range)).rejects.toThrow();
   });
 });

@@ -210,7 +210,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
     }
   });
 
-  it("a scheduled make-up delivery appears in the grid (visibleDeliveries has no makeupForDeliveryId filter)", async () => {
+  it("a scheduled make-up delivery appears in the grid", async () => {
     const snap = await loadCatalogSnapshot();
     const vegPlan = snap.plans.find((p) => p.key === "veg")!;
     const { order, mealOrder } = await makeOrder(vegPlan.id);

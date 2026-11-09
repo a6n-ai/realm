@@ -68,7 +68,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     holidayNamesForUser(userId, today),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first, holidays, otherPlanDays });
+  const ctx = buildPlanContext({ counts, cutoffHour, timezone, startDate: window.first, holidays, otherPlanDays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const plan: PlanView = {
     orderId: sub.publicId,

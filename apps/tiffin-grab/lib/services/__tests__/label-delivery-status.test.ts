@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { labelDeliveryStatus } from "../daily-labels.service";
+import { labelDeliveryStatus } from "@/lib/deliveries/label-status";
 
 const NOW = Date.parse("2026-10-02T13:00:00Z");
 const BEFORE = NOW + 60_000;

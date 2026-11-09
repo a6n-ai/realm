@@ -13,7 +13,7 @@ const { deliveries, holidays, ledgerEntries, orders, organization, payments, sub
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, ordersService } = await import("../orders.service");
 const { applyHolidaysToOrder, undoHolidayForOrder } = await import("../holiday-apply");
-const { releasePausedDays, releasePausedDaysDetailed } = await import("../pause-days.service");
+const { releasePausedDaysDetailed } = await import("../pause-days.service");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { adminSetDeliveryStatus } = await import("../deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
@@ -254,7 +254,7 @@ describe("a customer pause that meets a holiday", () => {
     expect((await getPauseUsage(order.id)).daysUsed).toBe(1);
 
     // Nothing is back on the schedule, so no date is reported as resumed.
-    expect(await releasePausedDays(order.publicId, ["2030-01-09"], null)).toEqual([]);
+    expect((await releasePausedDaysDetailed(order.publicId, ["2030-01-09"], null)).resumed).toEqual([]);
 
     const rows = await rowsOf(order.id);
     const closed = rows.find((r) => r.id === wed.id)!;
@@ -269,7 +269,7 @@ describe("a customer pause that meets a holiday", () => {
     await db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(eq(deliveries.id, wed.id));
     vi.mocked(deleteOrder).mockClear();
 
-    await releasePausedDays(order.publicId, ["2030-01-09"], null);
+    (await releasePausedDaysDetailed(order.publicId, ["2030-01-09"], null)).resumed;
 
     expect(deleteOrder).toHaveBeenCalledWith(wed.publicId);
     expect((await db.select().from(deliveries).where(eq(deliveries.id, wed.id)))[0]!.routeSyncedAt).toBeNull();

@@ -1,5 +1,6 @@
 "use client";
 
+import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useState, useTransition, type ReactNode } from "react";
 import { Check, Undo2 } from "lucide-react";
@@ -83,7 +84,7 @@ export function DeliveryStatusCard({
           };
         }
         return {
-          badge: <Badge variant="primary-light">Awaiting confirmation</Badge>,
+          badge: <Badge variant="primary-light">{LABEL_STATUS.awaitingConfirmation}</Badge>,
           line: "The driver hasn't confirmed this delivery yet.",
           actions: (
             <div className="flex flex-wrap gap-2">

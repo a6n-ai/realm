@@ -4,7 +4,7 @@
 // Every read of "what does this subscriber receive" goes through resolveDeliveryMeal —
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
-import { isCutoffPassed } from "@/lib/dates/cutoff";
+import { labelDeliveryStatus, type LabelDeliveryStatus } from "@/lib/deliveries/label-status";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -56,40 +56,6 @@ export type LabelLine = {
   /** Count category (roti, rice, weekend dish): portion is the box total ("8 roti"), add-ons folded in (packLines). */
   count?: boolean;
 };
-
-/** Words on the Deliveries section. Same words as the order page. */
-export type LabelDeliveryStatus = "To be delivered" | "Awaiting confirmation" | "Delivered" | "On hold" | "Not delivered" | "Paused" | "Holiday" | "Cancelled";
-
-/**
- * Scheduled and still before cutoff, with no driver confirmation, is waiting to go out.
- * After cutoff — or once OptimoRoute says success — the row counts as delivered while it
- * stays scheduled. A skipped day is "On hold" (staff or the customer held it; the tiffin went
- * to their pool) unless OptimoRoute reported the drop failed — only then "Not delivered".
- * Paused, holiday and cancelled keep their own words.
- */
-export function labelDeliveryStatus(
-  row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; optimoCompletionStatus: string | null; holidayId?: bigint | null },
-  now: number,
-): LabelDeliveryStatus {
-  // Closed by a holiday, whatever happened to the row since: staff must not read it as a customer pause or a hold.
-  if (row.holidayId != null && row.status !== "scheduled" && row.status !== "cancelled") return "Holiday";
-  switch (row.status) {
-    case "paused":
-      return "Paused";
-    case "skipped":
-      return row.optimoCompletionStatus === "failed" ? "Not delivered" : "On hold";
-    case "cancelled":
-      return "Cancelled";
-    case "scheduled":
-      if (row.optimoCompletionStatus === "success") return "Delivered";
-      // Past the cutoff the kitchen has it, but only OptimoRoute or an admin confirms it went out.
-      return isCutoffPassed(row.cutoffAt, now) ? "Awaiting confirmation" : "To be delivered";
-    default: {
-      const unreachable: never = row.status;
-      return unreachable;
-    }
-  }
-}
 
 export type DeliveryLabel = {
   deliveryPublicId: string;

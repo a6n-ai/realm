@@ -20,7 +20,7 @@ import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { groupKitchenCounts } from "./kitchen-groups";
 import { KitchenCounts, LabelList } from "./labels-view";
-import { GOING_OUT } from "./label-tab";
+import { isGoingOut } from "@/lib/deliveries/label-status";
 import { LabelsTabs } from "./labels-tabs";
 import { requestNow } from "@/lib/dates/request-now";
 
@@ -95,7 +95,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         items={[
           { icon: PackageIcon, label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)", href: `/dashboard/labels?date=${date}&tab=packing` },
           // Same number Dispatch shows as stops: held, paused and cancelled rows are listed but not going out.
-          { icon: TruckIcon, label: "Stops", value: deliveries.filter((d) => GOING_OUT.has(d.status)).length, hint: `going out · ${deliveries.length} listed`, href: `/dashboard/labels?date=${date}&tab=deliveries&out=1` },
+          { icon: TruckIcon, label: "Stops", value: deliveries.filter(isGoingOut).length, hint: `going out · ${deliveries.length} listed`, href: `/dashboard/labels?date=${date}&tab=deliveries&out=1` },
           { icon: LayoutListIcon, label: "Item slots", value: packing.itemHeaders.length, hint: "columns on the packing sheet" },
           { icon: BoxIcon, label: "Containers", value: containers, hint: "to pack for this day" },
           sheet.menuWeekPublicId
@@ -109,7 +109,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         counts={{
           packing: packing.rows.length,
           // Same number Dispatch shows as stops: held, paused and cancelled rows are listed but not going out.
-          deliveries: deliveries.filter((d) => GOING_OUT.has(d.status)).length,
+          deliveries: deliveries.filter(isGoingOut).length,
           kitchen: sheet.counts.length,
           labels: sheet.labels.length,
         }}

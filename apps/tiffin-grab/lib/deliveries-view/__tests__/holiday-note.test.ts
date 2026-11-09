@@ -67,9 +67,8 @@ describe("the Move sheet", () => {
 
   it("buildPlanContext carries the holidays through", () => {
     const ctx = buildPlanContext({
-      sub: { status: "active" } as never,
       counts: { lastDeliveryDate: null, deliveryWeekdays: ["mon"], eatingWeekdays: null, servesWeekends: true } as never,
-      cutoffHour: 18, timezone: "UTC", pause: { limits: { maxPauses: null }, usage: { count: 0 } } as never,
+      cutoffHour: 18, timezone: "UTC",
       holidays: { "2030-01-11": "Lohri" },
     });
     expect(ctx.holidays).toEqual({ "2030-01-11": "Lohri" });

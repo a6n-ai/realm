@@ -11,7 +11,8 @@ vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, subscriptionPauses } = await import("@/db/schema");
 const { isOrderFullyPaused, lapsedPauseDates, pauseRows } = await import("../pause-state");
-const { lapseAllElapsedPauses, lapseElapsedPauses, listPauseDays, releasePausedDays } = await import("../pause-days.service");
+const { lapseAllElapsedPauses, lapseElapsedPauses, listPauseDays, releasePausedDaysDetailed } = await import("../pause-days.service");
+const releasePausedDays = async (...a: Parameters<typeof releasePausedDaysDetailed>) => (await releasePausedDaysDetailed(...a)).resumed;
 const { getPauseUsage } = await import("../pause-limits.service");
 const { adminSetDeliveryStatus, maybeComplete, rescheduleDelivery } = await import("../deliveries.service");
 const { makeupSourceIdsForOrder, myActiveSubscriptions, myAgendaDots, myDeliveries } = await import("../customer-deliveries.service");
