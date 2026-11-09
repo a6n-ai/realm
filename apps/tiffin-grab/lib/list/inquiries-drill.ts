@@ -12,12 +12,13 @@ export function parseInquiryBucket(value: string | undefined): InquiryDrillBucke
 }
 
 export function inquiriesListHref(
-  sp: { from?: string; to?: string },
+  sp: { from?: string; to?: string; owner?: string },
   bucket?: InquiryDrillBucket,
 ): string {
   const qs = new URLSearchParams();
   if (sp.from) qs.set("from", sp.from);
   if (sp.to) qs.set("to", sp.to);
+  if (sp.owner) qs.set("owner", sp.owner);
   if (bucket) qs.set("bucket", bucket);
   const s = qs.toString();
   return s ? `/dashboard/inquiries?${s}` : "/dashboard/inquiries";

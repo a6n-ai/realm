@@ -10,6 +10,12 @@ describe("inquiries drill", () => {
     expect(inquiriesListHref({})).toBe("/dashboard/inquiries");
   });
 
+  it("carries the owner filter so the list matches the card", () => {
+    expect(inquiriesListHref({ from: "10", owner: "me" }, "lead")).toBe(
+      "/dashboard/inquiries?from=10&owner=me&bucket=lead",
+    );
+  });
+
   it("accepts only the four card buckets plus their union", () => {
     expect(parseInquiryBucket("lost")).toBe("lost");
     expect(parseInquiryBucket("due")).toBeNull();

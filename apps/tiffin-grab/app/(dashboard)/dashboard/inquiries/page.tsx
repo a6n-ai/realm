@@ -37,6 +37,10 @@ import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
 import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth/session";
+import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
+import { eq as facetEq } from "@foundry/commons/model/condition";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // "none" is New (sub_status is null); the resolver maps it to `is null`.
@@ -54,7 +58,9 @@ const EMPTY_COPY: Record<QueueTab, string> = {
   closed: "No closed inquiries.",
 };
 
-export default function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
+  // A bare landing shows the viewer's own inquiries; links that carry filters (cards, drill-downs) keep their meaning.
+  if (Object.keys(await searchParams).length === 0) redirect(`/dashboard/inquiries?owner=${ME}`);
   return (
     <PageShell>
       <MarkSectionRead section="inquiries" />
@@ -151,7 +157,8 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
   const where = epochBoundsWhere(inquiries.createdAt, sp);
-  const g = await inquiriesService.groupCounts(where);
+  const owner = resolveOwnerParam(sp.owner, (await getSession())?.user.id);
+  const g = await inquiriesService.groupCounts(where, owner ? facetEq("owner", owner) : undefined);
   const total = g.lead + g.followUp + g.took + g.lost;
   const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
   const href = (bucket: "all" | "lead" | "follow_up" | "took" | "lost") => inquiriesListHref(sp, bucket);
@@ -197,7 +204,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   // the condition here.
   const spec: FacetDef[] = [
     { kind: "pills", field: "subStatus", label: "Status", options: SUB_STATUS_FACET_OPTIONS },
-    { kind: "select", field: "owner", label: "Owner", options: owners },
+    { kind: "select", field: "owner", label: "Owner", options: [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners] },
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
     ...(zoneOptions.length ? [{ kind: "multi" as const, field: "zone", label: "Zone", options: zoneOptions }] : []),
@@ -206,7 +213,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "search", fields: ["fullName", "phone", "email"] },
   ];
 
-  const { condition, page } = parseFilterState(spec, sp);
+  const viewer = (await getSession())?.user.id;
+  const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
   const [result, counts] = await Promise.all([

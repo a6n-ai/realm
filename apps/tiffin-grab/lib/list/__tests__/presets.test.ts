@@ -3,7 +3,17 @@ import { facetFields, type FacetDef } from "@foundry/design-system";
 import {
   canonicalParams,
   presetFromCanonical,
+  resolveOwnerParam,
 } from "../presets";
+
+describe("resolveOwnerParam", () => {
+  it("maps me to the viewer, all to no filter, and keeps an explicit owner", () => {
+    expect(resolveOwnerParam("me", "usr_me")).toBe("usr_me");
+    expect(resolveOwnerParam("all", "usr_me")).toBeUndefined();
+    expect(resolveOwnerParam("usr_b", "usr_me")).toBe("usr_b");
+    expect(resolveOwnerParam(undefined, "usr_me")).toBeUndefined();
+  });
+});
 
 const spec: FacetDef[] = [
   { kind: "pills", field: "status", label: "Status", options: [{ value: "active", label: "Active" }, { value: "paused", label: "Paused" }] },

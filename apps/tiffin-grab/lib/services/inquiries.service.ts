@@ -633,7 +633,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return row;
   }
 
-  async groupCounts(where: SQL | undefined): Promise<{ lead: number; followUp: number; took: number; lost: number }> {
+  /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
+  async groupCounts(where: SQL | undefined, condition?: Condition): Promise<{ lead: number; followUp: number; took: number; lost: number }> {
     const cnt = (p: SQL) => sql<number>`cast(count(*) filter (where ${p}) as int)`;
     const [row] = await db
       .select({
@@ -643,7 +644,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         lost: cnt(inquiryBucketWhere("lost")),
       })
       .from(inquiries)
-      .where(where);
+      .where(and(where, conditionToSql(condition, inquiriesResolver())));
     return row;
   }
 

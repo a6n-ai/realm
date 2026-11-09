@@ -4,6 +4,15 @@ import type { FacetDef, FilterPreset } from "@foundry/design-system";
 export const UNASSIGNED_OWNER = "none";
 /** Stored in place of the viewer's own owner id, so "my …" pools across staff. */
 export const ME = "me";
+/** Owner facet value that turns the owner filter off, so a list that defaults to "me" can show everyone. */
+export const ALL_OWNERS = "all";
+
+/** URL owner value to the value the query filters on: "me" is the viewer, "all" is no owner filter. */
+export function resolveOwnerParam(owner: string | undefined, viewer: string | undefined): string | undefined {
+  if (owner === ME) return viewer;
+  if (owner === ALL_OWNERS) return undefined;
+  return owner;
+}
 
 export type { FilterPreset };
 
