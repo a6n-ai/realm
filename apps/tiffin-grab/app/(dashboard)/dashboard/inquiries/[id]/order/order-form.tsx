@@ -5,7 +5,7 @@ import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
-import type { CreateOrderInput } from "@/lib/services/orders.service";
+import type { CreateOrderInput } from "@/lib/services/create-order";
 import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,

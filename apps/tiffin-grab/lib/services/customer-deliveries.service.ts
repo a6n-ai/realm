@@ -9,6 +9,7 @@ import { NotFoundError, ValidationError, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
@@ -23,14 +24,12 @@ import {
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
 import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
-import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
+import { PAYMENT_REJECTED_STATUS, isHiddenFromCustomer, isPaymentReviewStatus, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/roles";
-import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
-import { autoResumeIfElapsed } from "./orders.service";
-import { lapseElapsedPausesSafe } from "./pause-days.service";
+import { autoResumeIfElapsed, lapseElapsedPausesSafe } from "./pause-days.service";
 import { CUSTOMER_PAUSED, isLapsedPause, isOrderFullyPaused, lapsedPauseDates } from "./pause-state";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
@@ -75,7 +74,7 @@ export async function orderPaymentLocked(orderPublicId: string): Promise<boolean
     .from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId))
     .where(and(eq(orders.publicId, orderPublicId), isNull(payments.addonRequest)));
-  return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === "rejected");
+  return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === PAYMENT_REJECTED_STATUS);
 }
 
 // A customer's plan is read-only until payment is confirmed (meal picks included); staff can always act.
@@ -146,21 +145,6 @@ export type Subscription = {
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
 
-async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint, string[]>> {
-  const map = new Map<bigint, string[]>();
-  if (orderIds.length === 0) return map;
-  const rows = await db
-    .select({ orderId: payments.orderId, status: payments.status })
-    .from(payments)
-    .where(and(inArray(payments.orderId, orderIds), isNull(payments.addonRequest)));
-  for (const r of rows) {
-    const list = map.get(r.orderId) ?? [];
-    list.push(r.status);
-    map.set(r.orderId, list);
-  }
-  return map;
-}
-
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
   // A paused day past its cutoff did not go out: make it a hold before anything reads it, so the
   // timeline and Move see the same row. Each conversion takes the order's lock and runs once.
@@ -205,7 +189,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .where(and(eq(orders.userId, userId), orderStatusIn(RUNNING)));
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
-  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  const payByOrder = await orderPaymentStatuses(db, rows.map((r) => r.id));
   const addonsByOrder = await loadSubscriptionAddons(rows.map((r) => r.id));
   const { timezone } = await getAppSettings();
   const today = appTodayIso(timezone);
@@ -747,7 +731,7 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
 
-  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  const payByOrder = await orderPaymentStatuses(db, rows.map((r) => r.id));
   return rows
     .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
     .map((r) => ({

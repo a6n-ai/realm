@@ -1,7 +1,7 @@
 "use client";
 
 import type { PricingResult } from "@/lib/pricing";
-import type { CreateOrderInput } from "@/lib/services/orders.service";
+import type { CreateOrderInput } from "@/lib/services/create-order";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
 import { formatMoney } from "@/lib/format/money";
 

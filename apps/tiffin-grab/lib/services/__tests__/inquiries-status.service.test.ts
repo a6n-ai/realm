@@ -5,14 +5,14 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, ledgerEntries, orders, payments, users } from "@/db/schema";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import type { CreateOrderInput } from "../orders.service";
+import type { CreateOrderInput } from "../create-order";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 const makeTrial = { on: false };
-vi.mock("../orders.service", async (orig) => {
-  const actual = await orig<typeof import("../orders.service")>();
+vi.mock("../create-order", async (orig) => {
+  const actual = await orig<typeof import("../create-order")>();
   return {
     ...actual,
     createOrder: async (...args: Parameters<typeof actual.createOrder>) => {

@@ -26,6 +26,7 @@ import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "./order-window";
 import { holidayForOrderDate } from "./holiday-dates";
+import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
@@ -1055,8 +1056,7 @@ export async function grantComplimentaryTiffin(
     await lockOrder(tx, found.id);
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
     if (!order) throw new ValidationError("Order not found");
-    const pays = await tx.select({ status: payments.status }).from(payments).where(and(eq(payments.orderId, order.id), isNull(payments.addonRequest)));
-    const blocked = complimentaryBlocker(order.status, pays.map((p) => p.status));
+    const blocked = complimentaryBlocker(order.status, (await orderPaymentStatuses(tx, [order.id])).get(order.id) ?? []);
     if (blocked) throw new ValidationError(blocked);
 
     const { timezone, cutoffHour } = await getAppSettings();

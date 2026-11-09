@@ -4,10 +4,10 @@ import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
+import { unexpired } from "@foundry/wallet";
 import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { renewalMoney } from "./orders.service";
 import { lastTiffinSql, laterOrderBookedAtSql, laterPaidOrderBookedAtSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 
@@ -472,4 +472,74 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     walletCoins: money.walletByUser.get(user.id.toString()) ?? 0,
     totalSpent: money.spentByUser.get(user.id.toString()) ?? "0.00",
   };
+}
+
+/** Batch wallet / lifetime spend / previous-plan total for Renewals rows. */
+export async function renewalMoney(
+  rows: { id: bigint; userId: bigint | null }[],
+): Promise<{
+  walletByUser: Map<string, number>;
+  spentByUser: Map<string, string>;
+  prevTotalByOrder: Map<string, string | null>;
+}> {
+  const walletByUser = new Map<string, number>();
+  const spentByUser = new Map<string, string>();
+  const prevTotalByOrder = new Map<string, string | null>();
+
+  const userIds = [...new Set(rows.map((r) => r.userId).filter((id): id is bigint => id != null))];
+  if (userIds.length === 0) {
+    for (const r of rows) prevTotalByOrder.set(r.id.toString(), null);
+    return { walletByUser, spentByUser, prevTotalByOrder };
+  }
+
+  const now = Date.now();
+  const [wallets, spends, history] = await Promise.all([
+    db
+      .select({
+        userId: walletLedger.userId,
+        balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`,
+      })
+      .from(walletLedger)
+      .where(and(inArray(walletLedger.userId, userIds), unexpired(walletLedger, now)))
+      .groupBy(walletLedger.userId),
+    db
+      .select({
+        userId: ledgerEntries.userId,
+        // Same formula as ledgerService.totalSpent — payment credits minus refund debits.
+        spent: sql<string>`(coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0))::text`,
+      })
+      .from(ledgerEntries)
+      .where(inArray(ledgerEntries.userId, userIds))
+      .groupBy(ledgerEntries.userId),
+    db
+      .select({
+        id: orders.id,
+        userId: orders.userId,
+        total: orders.total,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(inArray(orders.userId, userIds))
+      .orderBy(asc(orders.userId), asc(orders.createdAt), asc(orders.id)),
+  ]);
+
+  for (const w of wallets) walletByUser.set(w.userId.toString(), Number(w.balance) || 0);
+  for (const s of spends) spentByUser.set(s.userId.toString(), Number(s.spent).toFixed(2));
+
+  // Walk each customer's plans in created order; lag(total) is the previous plan.
+  let lastUser: string | null = null;
+  let lastTotal: string | null = null;
+  const prevById = new Map<string, string | null>();
+  for (const h of history) {
+    const uid = h.userId!.toString();
+    if (uid !== lastUser) {
+      lastUser = uid;
+      lastTotal = null;
+    }
+    prevById.set(h.id.toString(), lastTotal);
+    lastTotal = h.total;
+  }
+  for (const r of rows) prevTotalByOrder.set(r.id.toString(), prevById.get(r.id.toString()) ?? null);
+
+  return { walletByUser, spentByUser, prevTotalByOrder };
 }

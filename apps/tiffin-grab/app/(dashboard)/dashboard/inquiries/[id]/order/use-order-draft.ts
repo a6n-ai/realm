@@ -10,7 +10,7 @@ import { useDeliveryArea } from "@/components/customer/address/delivery-area";
 import { dropOffCatalog, NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { PricingResult } from "@/lib/pricing";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import type { CreateOrderInput } from "@/lib/services/orders.service";
+import type { CreateOrderInput } from "@/lib/services/create-order";
 import {
   listCheckoutPaymentMethods,
   type CheckoutPaymentMethod,

@@ -37,6 +37,13 @@ export function validateStartDate(startDate: string, allowedStartDays: string[],
   }
 }
 
+/** The first delivery of a (re)built schedule must still be ahead of its cutoff. */
+export function assertFirstDeliveryOpen(first: { deliveryDate: string; cutoffAt: number } | undefined, now = Date.now()): void {
+  if (first && isCutoffPassed(first.cutoffAt, now)) {
+    throw new ValidationError(`The cutoff for ${first.deliveryDate} has passed. Pick a later start date`);
+  }
+}
+
 /**
  * Earliest start a weekly plan can take: the next weekday after `today`, or `minStartDate`
  * when later (the day after a running plan), moved forward to a day the plan starts on

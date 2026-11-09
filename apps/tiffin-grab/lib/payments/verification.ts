@@ -26,7 +26,7 @@ import { scheduleWrite } from "@/lib/services/schedule-write";
 import { upcomingHolidays } from "@/lib/services/holiday-dates";
 import { paidStartDate } from "@/lib/orders/paid-start";
 import { ledgerService } from "@/lib/services/ledger.service";
-import { assertNoPlanOverlap } from "@/lib/services/order-window";
+import { assertStartable } from "@/lib/services/order-window";
 import { appToday } from "@/lib/services/start-date";
 import { commitCoinRedemption, settleCoinReservation, recollectLapsedCoins, reverseCoinRedemption, reverseCoinAward, awardOrderCoins } from "@/lib/services/wallet.service";
 import { awardReferral, reverseReferral } from "@/lib/services/referrals.service";
@@ -109,7 +109,7 @@ export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSe
     closed,
   });
   try {
-    await assertNoPlanOverlap(tx, { userId: order.userId!, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
+    await assertStartable(tx, { userId: order.userId!, organizationId: order.organizationId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id, holiday: false });
   } catch (e) {
     if (!(e instanceof ValidationError)) throw e;
     await flagPaidNotStarted(tx, order, `Paid, but could not start: ${e.message}`, actorId);

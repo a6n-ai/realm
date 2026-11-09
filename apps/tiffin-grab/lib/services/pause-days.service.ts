@@ -1,10 +1,12 @@
 import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
+import { appTodayIso } from "@/lib/dates/today";
+import { getAppSettings } from "./app-settings.service";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, desc, eq, getTableColumns, gt, gte, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "./optimoroute/stops";
@@ -15,7 +17,7 @@ import { loadExtraDates } from "./delivery-extras";
 import { dateCounts } from "@/lib/menu/coverage";
 import type { Reader } from "./pause-state";
 import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, retireLegacyPaused } from "./pause-state";
-import { lockOrder } from "./order-lock";
+import { lockOrder, withOrderLock } from "./order-lock";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -325,4 +327,22 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
       .filter((date) => !seen.has(date) && seen.add(date))
       .map((date) => ({ date, ...state }));
   }).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
+// closed, and an order those pauses flipped to "paused" goes back to active (that status means
+// nothing now, so it does not wait for paused days to clear).
+export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
+  await lapseElapsedPausesSafe(orderId);
+  const today = appTodayIso((await getAppSettings()).timezone);
+  await withOrderLock(orderId, async (tx) => {
+    const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
+      .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+    const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
+    if (elapsed.length > 0) {
+      await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
+    }
+    await retireLegacyPaused(tx, orderId);
+  });
 }

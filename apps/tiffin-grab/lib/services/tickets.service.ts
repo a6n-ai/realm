@@ -13,7 +13,7 @@ import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
 import { defaultOwner } from "./default-owner";
-import { clearTicketLookOut, lookOutForTicket } from "./orders.service";
+import { clearTicketLookOut, lookOutForTicket } from "@/lib/orders/look-out";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { createLogger } from "@foundry/commons/logger";

@@ -10,7 +10,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, deliveries, subscriptionPauses } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const svc = await import("../orders.service");
-const { autoResumeIfElapsed } = await import("../orders.service");
+const { autoResumeIfElapsed } = await import("../pause-days.service");
 
 async function reset() {
   await db.delete(subscriptionPauses);

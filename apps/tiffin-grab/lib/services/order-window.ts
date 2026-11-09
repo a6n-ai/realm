@@ -8,6 +8,7 @@ import { db } from "@/db/client";
 import { deliveries, mealSizes, orders } from "@/db/schema";
 import type { Tx } from "@/db/client";
 import { utcIso } from "@foundry/commons/util/dates";
+import { assertStartNotHoliday } from "./holiday-dates";
 
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
 
@@ -208,4 +209,17 @@ export async function assertNoPlanOverlap(
       );
     }
   }
+}
+
+/**
+ * Whether a plan can occupy [startDate, startDate + durationWeeks*7): not on a declared holiday
+ * (unless the date was already placed, `holiday: false`), and clear of the customer's other plans.
+ * Every path that starts or moves a plan runs this one check.
+ */
+export async function assertStartable(
+  tx: Tx | typeof db,
+  args: { userId: bigint | null; organizationId: string | null; startDate: string; durationWeeks: number; excludeOrderId?: bigint; holiday?: boolean },
+): Promise<void> {
+  if (args.holiday !== false) await assertStartNotHoliday(tx, args.organizationId, args.startDate);
+  if (args.userId != null) await assertNoPlanOverlap(tx, { userId: args.userId, startDate: args.startDate, durationWeeks: args.durationWeeks, excludeOrderId: args.excludeOrderId });
 }

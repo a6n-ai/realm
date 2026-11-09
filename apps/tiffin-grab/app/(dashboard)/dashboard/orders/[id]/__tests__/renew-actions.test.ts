@@ -16,10 +16,12 @@ vi.mock("@/lib/payments/stripe", () => ({ stripePayLink: async (id: string) => `
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: m.requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("@/lib/services/orders.service", () => ({
+vi.mock("@/lib/services/create-order", () => ({
   createOrder: m.createOrder,
-  assertOrderVisible: m.assertOrderVisible,
   assertOnePerson: (i: { selections: { persons: number } }) => { if (i.selections.persons !== 1) throw new ValidationError("one person"); },
+}));
+vi.mock("@/lib/services/orders.service", () => ({
+  assertOrderVisible: m.assertOrderVisible,
   resolveSessionVisibleOrgIds: async () => "all",
 }));
 vi.mock("@/lib/services/quick-renew.service", () => ({

@@ -16,7 +16,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { assertOnePerson, createOrder, type CreateOrderInput } from "./orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "./create-order";
 import { getBrandOrgId } from "./organizations.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
