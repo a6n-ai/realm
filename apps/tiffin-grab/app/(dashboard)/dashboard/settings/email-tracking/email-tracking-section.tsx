@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SaveIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
+import { Card } from "@foundry/ui/card";
+import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
+import { Field, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 
 export interface EmailTypeRow {
@@ -25,6 +28,43 @@ const groupByCategory = (rows: EmailTypeRow[]) => {
   return groups;
 };
 
+/** Save bar shared by both tabs: status on the left, Reset + Save on the right. */
+export function SaveBar({
+  status,
+  dirty,
+  pending,
+  error,
+  onReset,
+  onSave,
+}: {
+  status: string;
+  dirty: boolean;
+  pending: boolean;
+  error?: string;
+  onReset: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-medium">{status}</p>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+      <div className="flex items-center gap-2">
+        {dirty && (
+          <Button variant="ghost" disabled={pending} onClick={onReset}>
+            Reset
+          </Button>
+        )}
+        <Button onClick={onSave} disabled={pending || !dirty} className="gap-2">
+          <SaveIcon className="size-4" />
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function TrackedEmailsForm({
   types,
   onSave,
@@ -37,7 +77,8 @@ export function TrackedEmailsForm({
   const [draft, setDraft] = useState(saved);
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
-  const unchanged = draft.length === saved.length && draft.every((e) => saved.includes(e));
+  const dirty = draft.length !== saved.length || draft.some((e) => !saved.includes(e));
+  const trackable = types.filter((t) => !t.locked).length;
 
   const save = () =>
     start(async () => {
@@ -52,33 +93,50 @@ export function TrackedEmailsForm({
 
   return (
     <div className="flex flex-col gap-6">
-      {[...groupByCategory(types)].map(([group, rows]) => (
-        <div key={group} className="flex flex-col gap-3">
-          <p className="text-xs font-medium uppercase text-muted-foreground">{group}</p>
-          {rows[0]?.locked && <p className="text-xs text-muted-foreground">{LOCKED_COPY}</p>}
-          {rows.map((r) => (
-            <label key={r.event} className="flex items-center justify-between gap-4">
-              <span className="text-sm">{r.label}</span>
-              <Switch
-                checked={draft.includes(r.event)}
-                disabled={r.locked || pending}
-                onCheckedChange={(on) => setDraft((d) => (on ? [...d, r.event] : d.filter((e) => e !== r.event)))}
-              />
-            </label>
-          ))}
-        </div>
-      ))}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={save} disabled={pending || unchanged} className="gap-2">
-          <SaveIcon className="size-4" />
-          Save
-        </Button>
-        {!unchanged && (
-          <Button variant="ghost" size="sm" disabled={pending} onClick={() => setDraft(saved)}>
-            Reset
-          </Button>
-        )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
+      <SaveBar
+        status={`${draft.length} of ${trackable} emails tracked${dirty ? " · unsaved changes" : ""}`}
+        dirty={dirty}
+        pending={pending}
+        error={error}
+        onReset={() => setDraft(saved)}
+        onSave={save}
+      />
+      <div className="grid items-start gap-6 md:grid-cols-2">
+        {[...groupByCategory(types)].map(([group, rows]) => {
+          const on = rows.filter((r) => draft.includes(r.event)).length;
+          return (
+            <section key={group} className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="text-sm font-medium">{group}</h3>
+                {!rows[0]?.locked && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {on} of {rows.length} tracked
+                  </span>
+                )}
+              </div>
+              {rows[0]?.locked && <p className="text-xs text-muted-foreground">{LOCKED_COPY}</p>}
+              <Card className="p-0">
+                <FieldGroup className="gap-0">
+                  {rows.map((r, i) => (
+                    <Fragment key={r.event}>
+                      {i > 0 && <Separator />}
+                      <Field data-disabled={r.locked || undefined}>
+                        <FieldLabel className="justify-between px-4 py-3">
+                          <FieldTitle>{r.label}</FieldTitle>
+                          <Switch
+                            checked={draft.includes(r.event)}
+                            disabled={r.locked || pending}
+                            onCheckedChange={(v) => setDraft((d) => (v ? [...d, r.event] : d.filter((e) => e !== r.event)))}
+                          />
+                        </FieldLabel>
+                      </Field>
+                    </Fragment>
+                  ))}
+                </FieldGroup>
+              </Card>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { SectionCard } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { saveTrackedTypes } from "../actions";
 import { loadEmailTypes, trackingAvailable } from "../data";
@@ -8,19 +7,22 @@ import { LoadErrorAlert, TrackedEmailsForm } from "../email-tracking-section";
 
 export default function TrackedEmailsPage() {
   return (
-    <SectionCard title="Tracked emails" subtitle="Turn on the emails that should also record opens and clicks. Applies to emails sent from now on.">
+    <div className="flex flex-col gap-6">
+      <p className="text-sm text-muted-foreground">
+        Turn on the emails that should also record opens and clicks. Applies to emails sent from now on.
+      </p>
       <Suspense fallback={<FormSkeleton />}>
         <TrackedData />
       </Suspense>
-    </SectionCard>
+    </div>
   );
 }
 
 function FormSkeleton() {
   return (
-    <div className="flex flex-col gap-3" role="status" aria-label="Loading tracked emails">
-      {Array.from({ length: 6 }, (_, i) => (
-        <Skeleton key={i} className="h-6 w-full" />
+    <div className="grid gap-6 md:grid-cols-2" role="status" aria-label="Loading tracked emails">
+      {Array.from({ length: 4 }, (_, i) => (
+        <Skeleton key={i} className="h-40 w-full" />
       ))}
     </div>
   );
