@@ -691,18 +691,6 @@ export const TEMPLATES: EmailTemplate[] = [
     ),
   },
   {
-    event: "menu_released",
-    subject: "This week's Tiffin Grab menu is out",
-    element: (
-      <Layout preview="The menu for the week of {{menuWeek.weekStartIso}} is live.">
-        <Eyebrow>This week's menu</Eyebrow>
-        <Title lead="Your menu is" accent="out." />
-        <P>The menu for the week of {"{{menuWeek.weekStartIso}}"} is live. Pick your meals before the cutoff, or keep the default and we'll cook that.</P>
-        <Cta href={`${BASE}/me/deliveries`}>Choose my meals</Cta>
-      </Layout>
-    ),
-  },
-  {
     event: "ticket_reply",
     subject: "New reply on your Tiffin Grab ticket",
     element: (

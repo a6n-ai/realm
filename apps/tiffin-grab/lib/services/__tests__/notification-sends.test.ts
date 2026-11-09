@@ -135,20 +135,17 @@ describe("order sends", () => {
 });
 
 describe("menu_released", () => {
-  it("fans out to running-plan customers, skips marketing opt-outs, and never repeats", async () => {
+  it("tells running-plan customers in-app (the menu reminder button sends the email), never twice", async () => {
     const { order: a } = await makeTripOrder(`ns-${R}-e`, "nse");
-    const { order: b } = await makeTripOrder(`ns-${R}-f`, "nsf");
-    await db.insert(notificationPrefs).values({ userId: b.userId!, channel: "email", kind: "marketing", enabled: false });
     const week = await menuService.upsertWeek({ weekStart: "2099-12-07" });
     await menuService.markReady(week.publicId);
     await menuService.release(week.publicId);
     const sent = await rowsFor("menu_released", a.userId!);
-    expect(channelsOf(sent)).toEqual(["email", "in_app"]);
-    expect(sent.every((r) => r.kind === "marketing" && r.dedupeKey?.startsWith(`menu_released:${week.publicId}:${a.userId}`))).toBe(true);
-    expect(channelsOf(await rowsFor("menu_released", b.userId!))).toEqual(["in_app"]);
+    expect(channelsOf(sent)).toEqual(["in_app"]);
+    expect(sent[0].dedupeKey?.startsWith(`menu_released:${week.publicId}:${a.userId}`)).toBe(true);
     await db.update(menuWeeks).set({ status: "ready" }).where(eq(menuWeeks.publicId, week.publicId));
     await menuService.release(week.publicId);
-    expect(await rowsFor("menu_released", a.userId!)).toHaveLength(2);
+    expect(await rowsFor("menu_released", a.userId!)).toHaveLength(1);
   });
 });
 

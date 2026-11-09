@@ -102,7 +102,7 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   menu_released: {
     category: "marketing",
-    channels: ["email", "in_app"],
+    channels: ["in_app"],
     vars: {
       entity: "menuWeek",
       fields: [
