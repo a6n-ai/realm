@@ -73,6 +73,7 @@ async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof 
   try {
     if (toCents(pay.surchargeAmount ?? 0) !== 0) return;
     const pi = await rt.stripe.paymentIntents.retrieve(piId, { expand: ["latest_charge"] });
+    if (pi.metadata?.offSession === "1") return; // staff charges carry no fee by policy
     const charge = pi.latest_charge;
     const card = charge && typeof charge !== "string" ? charge.payment_method_details?.card : undefined;
     if (card?.wallet || card?.funding !== "credit") return; // wallets carry no fee by policy
@@ -524,7 +525,7 @@ export async function payByCard(i: {
 
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
     const createIntent = (cid: string) => createAndConfirmIntent(rt.stripe, {
-      amountCents: baseCents + extraCents, customerId: cid, paymentRef: pay.publicId,
+      amountCents: baseCents + extraCents, surchargeCents: fee, customerId: cid, paymentRef: pay.publicId,
       ...(saved ? { paymentMethodId: saved, attempt: String(pay.chargeAttempt) } : { confirmationTokenId: (i.source as { confirmationTokenId: string }).confirmationTokenId }),
       orgRef: order.organizationId, taxCalculationId: calcId, returnUrl: i.returnUrl, description: `Order ${order.publicId}`,
     });
@@ -596,8 +597,8 @@ async function chargeSavedCardLocked(paymentPublicId: string, actorPublicId: str
     if (!customerId || !card) return { kind: "no_card" };
 
     const baseCents = toCents(pay.amount);
-    const fee = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
-    const { calcId, extraCents } = await priceCharge(pay, order, fee, rt.cfg.tax.surchargeTaxable);
+    // No surcharge: the customer cannot see or decline the fee before a staff charge runs.
+    const { calcId, extraCents } = await priceCharge(pay, order, 0, rt.cfg.tax.surchargeTaxable);
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
 
     let r;
