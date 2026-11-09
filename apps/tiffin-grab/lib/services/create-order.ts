@@ -56,7 +56,8 @@ import {
 import { awardReferral } from "./referrals.service";
 import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
-import { quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { applyDiscountLane } from "@/lib/services/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
 import { lockOrder } from "./order-lock";
 
@@ -463,54 +464,22 @@ export async function createOrder(
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
 
-    // Customer lane: the best valid combination of auto-apply coupons plus an
-    // optional manual code, re-resolved server-side (never trusting a client
-    // amount). Method-gated coupons are filtered via paymentMethodId.
-    const best = await couponsService.resolveBestCoupons({
-      subtotal: postCatalog,
+    // Customer lane then the staff lane, shared with the staff price preview. An explicitly
+    // entered code that is invalid fails the order with the reason; auto-apply coupons never do.
+    const lane = await applyDiscountLane({
+      postCatalog,
       planType: plan.planType,
       userId,
       paymentMethodId,
       manualCode: input.couponCode,
       manualCodes: input.couponCodes,
+      rep: input.repCoupon ? { code: input.repCoupon.code, requestedAmount: input.repCoupon.requestedAmount, actorId: createdBy } : undefined,
+      strict: true,
     });
-    // A code that was explicitly entered but is invalid / expired / ineligible
-    // fails the order with the reason — the auto set would otherwise silently drop
-    // it. Auto-apply coupons never trigger this.
-    const typedError = best.manualErrors[0];
-    if (typedError) throw new ValidationError(`${typedError.code}: ${typedError.error}`);
-
-    // Re-distribute every kept line against the running remaining subtotal so the
-    // summed redemption amounts can never exceed the order subtotal.
-    const remainingAfter = () => Math.max(0, round2(postCatalog - adjustments.reduce((sum, a) => sum + a.amount, 0)));
-    for (const r of best.redemptions) {
-      const amount = Math.min(r.amount, remainingAfter());
-      if (amount <= 0) continue;
-      adjustments.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
-      redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
-    }
-
-    // Staff lane last: it stacks on every coupon, and its ceilings are judged against
-    // what the customer still pays.
-    if (input.repCoupon) {
-      // One staff discount per order: each lane is capped per discount, so a staff code and a
-      // rep discount together would give the customer two ceilings' worth.
-      if (best.redemptions.some((r) => r.coupon.kind === "rep_code")) {
-        throw new ValidationError("Only one staff discount per order: remove the staff code or the rep discount");
-      }
-      // Hard gate: a discount amount with no acting staff member is rejected.
-      if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
-      const line = await couponsService.validateRepCoupon(input.repCoupon.code, {
-        subtotal: remainingAfter(),
-        requestedAmount: input.repCoupon.requestedAmount,
-        actorId: createdBy,
-        planType: plan.planType,
-        userId,
-      });
-      if (line.amount > 0) {
-        adjustments.push(line);
-        redemptions.push({ coupon: await couponsService.findByCode(input.repCoupon.code), amount: line.amount, redeemedBy: createdBy });
-      }
+    adjustments.push(...lane.lines);
+    for (const r of lane.applied) redemptions.push({ coupon: r.coupon, amount: r.amount, redeemedBy: createdBy });
+    if (lane.rep && input.repCoupon) {
+      redemptions.push({ coupon: await couponsService.findByCode(input.repCoupon.code), amount: lane.rep.amount, redeemedBy: createdBy });
     }
 
     // Coins are a discount like any other: resolved server-side against the
@@ -530,9 +499,6 @@ export async function createOrder(
         // take the order below zero. capRedemption clamps rather than rejects:
         // asking for more coins than the cap allows spends only what the cap buys.
         const maxPct = await getMaxCoinPctOfSubtotal();
-        const pctCap = maxPct == null
-          ? Infinity
-          : round2(postCatalog * (maxPct / 100));
 
         // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
         // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
@@ -540,7 +506,7 @@ export async function createOrder(
         await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
         const walletBalance = await balanceInTx(tx, userId);
         const maxRedeemPct = await getMaxCoinRedeemPctOfBalance();
-        const walletPctCap = maxRedeemPct == null ? Infinity : Math.floor(walletBalance * (maxRedeemPct / 100));
+        const { pctCap, walletPctCap } = coinLimits({ subtotal: postCatalog, balance: walletBalance, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
         // Same rule as the checkout quote: refuse only when the share-of-balance limit is what binds. A
         // count over it that the order wouldn't use anyway (it needs fewer coins) still clamps below;
         // checkout sends back the number the customer typed. When it does bind here but the quote

@@ -10,6 +10,14 @@ export type CoinCapQuote = {
   limitedBy: "balance" | "admin_pct" | "order_total" | "wallet_pct" | "none";
 };
 
+/** The two ceilings on coin redemption, in currency (share of subtotal) and coins (share of balance). */
+export function coinLimits(args: { subtotal: number; balance: number; maxPct: number | null; maxRedeemPctOfBalance: number | null }) {
+  return {
+    pctCap: args.maxPct == null ? Infinity : round2(args.subtotal * (args.maxPct / 100)),
+    walletPctCap: args.maxRedeemPctOfBalance == null ? Infinity : Math.floor(args.balance * (args.maxRedeemPctOfBalance / 100)),
+  };
+}
+
 /**
  * The one definition of "how many coins can this order take", shared by
  * createOrder (enforcement) and checkout (explanation), so the number a customer
@@ -34,9 +42,8 @@ export function quoteCoinCap(args: {
     return { maxValue: 0, maxCoins: 0, limitedBy: balance <= 0 ? "balance" : "order_total" };
   }
 
-  const pctCap = maxPct == null ? Infinity : round2(subtotal * (maxPct / 100));
+  const { pctCap, walletPctCap } = coinLimits({ subtotal, balance, maxPct, maxRedeemPctOfBalance });
   const valueCap = Math.min(remaining, pctCap);
-  const walletPctCap = maxRedeemPctOfBalance == null ? Infinity : Math.floor(balance * (maxRedeemPctOfBalance / 100));
   // Floor so the customer is never offered a coin count worth a cent more than the cap.
   const rawCoinsForCap = coinsFor(valueCap, rate);
   const coinsForCap = Math.min(rawCoinsForCap, walletPctCap);

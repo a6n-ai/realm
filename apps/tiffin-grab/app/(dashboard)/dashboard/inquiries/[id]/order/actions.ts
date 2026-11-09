@@ -1,7 +1,6 @@
 "use server";
 
 import { appTodayIso } from "@/lib/dates/today";
-import { round2 } from "@foundry/commons/util/money";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema } from "@foundry/commons";
@@ -20,7 +19,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { capRedemption } from "@foundry/wallet";
-import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { applyDiscountLane } from "@/lib/services/discount-lane";
 import { walletService } from "@/lib/services/wallet.service";
 import { repAllowanceZone } from "@/lib/services/rep-allowance";
 import { findMethod } from "@foundry/payments";
@@ -36,7 +36,7 @@ import type { SavedAddress } from "@foundry/address";
 import { stripePayLink } from "@/lib/payments/stripe";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
-import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
+import { type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 
@@ -245,48 +245,26 @@ async function quotePrice(
     (await priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true })).pricing;
   const base = await quote([]);
   const plan = snap.plans.find((p) => p.key === input.planKey);
-  const lines: PricingLine[] = [];
 
-  // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts.
-  const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
+  // Customer coupons, then the rep discount on top: the lane createOrder prices through, against
+  // the subtotal after catalog discounts.
+  const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
   const customerId = await previewCustomerId(input.contact);
-  const best = await couponsService.resolveBestCoupons({
-    subtotal: postCatalog,
+  const code = couponCode?.trim();
+  const repAmount = requestedAmount ?? 0;
+  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
+  const lane = await applyDiscountLane({
+    postCatalog,
     planType: plan?.planType,
     userId: customerId,
     paymentMethodId: method?.enabled ? method.id : "simulated",
     manualCode: input.couponCode,
     manualCodes: input.couponCodes,
+    rep: code ? { code, requestedAmount: repAmount, actorId } : undefined,
+    strict: false,
   });
-  let error: string | undefined;
-  const applied: AppliedCoupon[] = [];
-  for (const r of best.redemptions) {
-    const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
-    if (amount <= 0) continue;
-    lines.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
-    applied.push({ code: r.coupon.code, name: r.coupon.name, amount, auto: r.coupon.autoApply });
-  }
-
-  // The rep discount goes on top of the coupons, judged against what is left, as in createOrder.
-  const code = couponCode?.trim();
-  const repAmount = requestedAmount ?? 0;
-  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
-  const hasStaffCode = best.redemptions.some((r) => r.coupon.kind === "rep_code");
-  if (code && actorId != null && hasStaffCode) {
-    error = "Only one staff discount per order: remove the staff code or the rep discount";
-  } else if (code && actorId != null) {
-    try {
-      const line = await couponsService.validateRepCoupon(code, {
-        subtotal: postCatalogSubtotal(postCatalog, lines),
-        requestedAmount: repAmount,
-        actorId,
-        planType: plan?.planType,
-      });
-      if (line.amount > 0) lines.push(line);
-    } catch {
-      // A rep coupon that no longer validates leaves the price undiscounted; createOrder is the gate.
-    }
-  }
+  const { best, error, lines } = lane;
+  const applied: AppliedCoupon[] = lane.applied.map((r) => ({ code: r.coupon.code, name: r.coupon.name, amount: r.amount, auto: r.coupon.autoApply }));
 
   // Coins last, against what the coupons left, with the cap and clamp checkout and createOrder
   // use. Only a matched account has a wallet; unset `coins` (the order create forms) skips them.
@@ -298,7 +276,7 @@ async function quotePrice(
     const rate = await walletService.activeRate(currency);
     const cap = quoteCoinCap({ subtotal: postCatalog, remaining, balance, rate, maxPct, maxRedeemPctOfBalance });
     const want = Math.max(0, Math.min(coins === "max" ? cap.maxCoins : Math.floor(coins), cap.maxCoins));
-    const pctCap = maxPct == null ? Infinity : round2(postCatalog * (maxPct / 100));
+    const { pctCap } = coinLimits({ subtotal: postCatalog, balance, maxPct, maxRedeemPctOfBalance });
     const redemption = want > 0 ? capRedemption(want, rate, Math.min(remaining, pctCap)) : { coinsSpent: 0, currencyValue: 0 };
     if (redemption.currencyValue > 0) lines.push({ label: `Coins (${redemption.coinsSpent})`, amount: redemption.currencyValue });
     coinPreview = {
