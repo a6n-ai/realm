@@ -12,6 +12,7 @@ import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { formatMoney } from "@/lib/format/money";
 
 const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIcon }> = {
   payment: { tint: "green", Icon: CreditCard },
@@ -19,14 +20,6 @@ const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIc
   discount: { tint: "yellow", Icon: Percent },
   adjustment: { tint: "gray", Icon: SlidersHorizontal },
 };
-
-function formatDollars(amount: string, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-  }).format(Number(amount));
-}
 
 function typeLabel(type: MoneyLedgerTx["type"]): string {
   switch (type) {
@@ -97,7 +90,7 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
           <span className="flex shrink-0 items-center gap-1">
             <span className={`text-subhead font-semibold tabular-nums ${toCustomer ? "text-ok" : "text-foreground"}`}>
               {toCustomer ? "+" : "−"}
-              {formatDollars(tx.amount, currency)}
+              {formatMoney(Number(tx.amount), currency, { narrow: true })}
             </span>
             <ChevronDown aria-hidden className="text-muted-foreground size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
           </span>

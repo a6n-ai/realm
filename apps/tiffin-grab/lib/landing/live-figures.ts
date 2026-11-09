@@ -2,6 +2,7 @@ import { isComingSoon, publicPlans } from "@/components/landing/plan-options";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { effectivePrice } from "@/lib/pricing";
+import { formatMoney } from "@/lib/format/money";
 
 /** "11 PM" for an hour of the day. */
 export const hourLabel = (h: number) =>
@@ -50,6 +51,5 @@ export function deliveryIsFree(catalog: CatalogSnapshot): boolean {
 
 /** "$10" or "$10.40" in the market's currency: short enough for a page title. */
 export function shortMoney(amount: number, currency: string): string {
-  const whole = Number.isInteger(amount);
-  return new Intl.NumberFormat("en-CA", { style: "currency", currency, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(amount);
+  return formatMoney(amount, currency, { whole: Number.isInteger(amount) });
 }

@@ -1,4 +1,5 @@
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
+import { formatMoney } from "@/lib/format/money";
 
 export type CoinRate = { perCoin: number; currency: string } | null;
 
@@ -29,7 +30,7 @@ function offerParts(v: number, settings: ReferralSettings, rate: CoinRate): { bi
   if (settings.mode === "pct") return { big: `${v}%`, small: "back in coins" };
   const coins = `${v} ${v === 1 ? "coin" : "coins"}`;
   if (!rate) return { big: coins, small: "in your wallet" };
-  const money = new Intl.NumberFormat("en-CA", { style: "currency", currency: rate.currency }).format(v * rate.perCoin);
+  const money = formatMoney(v * rate.perCoin, rate.currency);
   return { big: money, small: `${coins} in your wallet` };
 }
 
@@ -38,7 +39,7 @@ export function friendOffer(settings: ReferralSettings, rate: CoinRate): string 
   const v = settings.friendValue;
   if (v <= 0) return null;
   if (settings.mode === "pct") return `${v}% back on your first plan`;
-  const money = rate ? new Intl.NumberFormat("en-CA", { style: "currency", currency: rate.currency }).format(v * rate.perCoin) : null;
+  const money = rate ? formatMoney(v * rate.perCoin, rate.currency) : null;
   return `${v} ${v === 1 ? "coin" : "coins"}${money ? ` (${money})` : ""} on your first plan`;
 }
 

@@ -20,6 +20,7 @@ import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { createQuoteLink, estimateFormData, estimatePrefill } from "./estimate-actions";
 import { CustomerCodeField } from "./customer-code-field";
 import { CoinsField } from "./coins-field";
+import { useFormatMoney } from "@/components/app-currency";
 
 type FormData = Awaited<ReturnType<typeof estimateFormData>>;
 
@@ -203,6 +204,7 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
 // The coupon lane as checkout runs it: auto-applied ones, typed codes with why one did not land,
 // and the codes this customer could use.
 function CouponsField({ estimate }: { estimate: EstimateState }) {
+  const fmtMoney = useFormatMoney();
   const [input, setInput] = useState("");
   const { coupons, codes, apply, remove, applyAll } = estimate;
   const open = coupons?.available.filter((c) => !codes.includes(c.code.toUpperCase())) ?? [];
@@ -222,7 +224,7 @@ function CouponsField({ estimate }: { estimate: EstimateState }) {
             <span className="text-muted-foreground text-xs">{c.auto ? "Applied automatically" : c.name}</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="tabular-nums">−${c.amount.toFixed(2)}</span>
+            <span className="tabular-nums">−{fmtMoney(c.amount)}</span>
             {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => remove(c.code)}>Remove</Button>}
           </span>
         </div>

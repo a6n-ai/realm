@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { buttonClass } from "@/components/customer/kit";
+import { formatMoney } from "@/lib/format/money";
 
 export type Receipt = {
   title: string;
@@ -36,14 +37,11 @@ const TORN_EDGE =
 export const steppedEase = (rows: number) => (t: number) => Math.min(1, Math.floor(t * rows) / rows);
 const PER_ROW = 0.16;
 
-// Amounts are CAD minor units; en-CA renders "$" rather than "CA$".
-const cad = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
-
 function Paper({ receipt, status, timeZone }: { receipt: Receipt; status: string; timeZone: string }) {
   const date = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone }).format(
     receipt.paidAt,
   );
-  const money = (n: number) => cad.format(n / 100);
+  const money = (n: number) => formatMoney(n / 100, "CAD");
   return (
     <div
       className="flex flex-col gap-4 border border-border bg-card px-5 pb-6 pt-5 text-sm text-foreground tabular-nums"

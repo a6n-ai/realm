@@ -15,17 +15,10 @@ import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
+import { formatMoney } from "@/lib/format/money";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
-
-function formatDollars(amount: string, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-  }).format(Number(amount));
-}
 
 /**
  * Manual payment claim: instructions + optional/required reference & screenshot.
@@ -33,11 +26,11 @@ function formatDollars(amount: string, currency: string) {
  */
 export function ClaimPayment({
   ctx,
-  currency = "CAD",
+  currency,
   onDone,
 }: {
   ctx: ClaimPaymentContext;
-  currency?: string;
+  currency: string;
   onDone?: () => void;
 }) {
   const router = useRouter();
@@ -60,7 +53,7 @@ export function ClaimPayment({
           <p className="font-semibold">Payment under review</p>
           <p className="text-muted-foreground text-sm">
             We&apos;ve received your {ctx.methodLabel} details for{" "}
-            <span className="text-foreground font-medium tabular-nums">{formatDollars(ctx.amount, currency)}</span>.
+            <span className="text-foreground font-medium tabular-nums">{formatMoney(Number(ctx.amount), currency, { narrow: true })}</span>.
             Your plan starts as soon as we confirm it. Nothing else is needed from you.
           </p>
         </div>
@@ -141,7 +134,7 @@ export function ClaimPayment({
       <div className="space-y-1">
         <p className="font-medium">{ctx.methodLabel}</p>
         <p className="text-muted-foreground text-sm">
-          Amount due: <span className="text-foreground font-semibold tabular-nums">{formatDollars(ctx.amount, currency)}</span>
+          Amount due: <span className="text-foreground font-semibold tabular-nums">{formatMoney(Number(ctx.amount), currency, { narrow: true })}</span>
         </p>
       </div>
 

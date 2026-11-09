@@ -2,6 +2,7 @@ import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-p
 import type { Line } from "@/app/(customer)/me/pay/[paymentId]/lines";
 import type { Receipt } from "./receipt";
 import { isoToUtcDate } from "@/lib/dates";
+import { formatMoney } from "@/lib/format/money";
 
 // Built-in Helvetica only covers WinAnsi: no U+2212 minus, so negatives use "-".
 const SAFFRON = "#E8590C";
@@ -26,7 +27,7 @@ const s = StyleSheet.create({
 
 export async function renderReceiptPdf(r: Receipt): Promise<Uint8Array> {
   const money = (n: number) => {
-    const f = new Intl.NumberFormat("en-CA", { style: "currency", currency: r.currency, currencyDisplay: "narrowSymbol" }).format(Math.abs(n));
+    const f = formatMoney(Math.abs(n), r.currency, { narrow: true });
     return n < 0 ? `-${f}` : f;
   };
   const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: r.timezone, year: "numeric", month: "short", day: "numeric" }).format(ms);

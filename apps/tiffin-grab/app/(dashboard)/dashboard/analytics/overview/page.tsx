@@ -24,10 +24,7 @@ import { getSubscriptionMix } from "@/lib/services/analytics/customers.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
 import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
-
-function money(n: number) {
-  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 
 type SearchParams = Promise<AnalyticsSearchParams>;
@@ -131,6 +128,7 @@ async function TrialRate({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const [revenue, activePlans, customers, complaints, profit, trialConv] = await Promise.all([
     loadReport(scope),
     countOrders(scope, { status: ["active"] }),

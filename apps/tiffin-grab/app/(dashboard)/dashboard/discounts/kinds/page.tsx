@@ -3,10 +3,10 @@ import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons } from "@/db/schema";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy, getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
-import { DiscountStats, DiscountStatsSkeleton, usd } from "../discount-stats";
+import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { KindsForm, KindsFormSkeleton } from "./form";
 import { requestNow } from "@/lib/dates/request-now";
 
@@ -33,6 +33,7 @@ export default function KindsPage({ searchParams }: { searchParams: SearchParams
 }
 
 async function KindsData({ searchParams }: { searchParams: SearchParams }) {
+  const usd = await getMoneyFormatter();
   const sp = await withDefaultMonth(await searchParams);
   const now = requestNow();
 

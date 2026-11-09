@@ -34,6 +34,7 @@ import { CoinsField } from "../../discounts/coins-field";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
 import { DropOffToggles } from "./drop-off-toggles";
 import { addDaysIso, daysBetween, isoToUtcDate, utcIso } from "@/lib/dates";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
@@ -66,13 +67,14 @@ export function Field({ label, hint, error, children }: { label: React.ReactNode
   );
 }
 
-function chargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }): string {
+function chargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }, fmtMoney: (n: number) => string): string {
   if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
-  return item.chargeType === "fixed" ? `+$${item.chargeValue.toFixed(2)}` : `+${item.chargeValue}%`;
+  return item.chargeType === "fixed" ? `+${fmtMoney(item.chargeValue)}` : `+${item.chargeValue}%`;
 }
 
 /** Diet, meal size, add-ons, duration, start date, days and the delivery calendar. */
 export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
+  const fmtMoney = useFormatMoney();
   const [addonPickerOpen, setAddonPickerOpen] = useState(false);
   const { form, planKey, mealSizeId, frequencyKey, eatingDays, startDate, bounds, sizeDays, isTrial, deliveryFrequencies, durations, eligibleAddons, estimateOnly } = d;
   const errors = form.formState.errors;
@@ -151,7 +153,7 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                           {eligibleAddons.filter((a) => d.qtyFor(a.key) === 0).map((a) => (
                             <CommandItem key={a.key} value={a.name} onSelect={() => { d.setAddonQty(a.key, 1); setAddonPickerOpen(false); }}>
                               <span className="flex-1">{a.name}</span>
-                              <span className="text-muted-foreground tabular-nums">${a.pricePerTiffin.toFixed(2)}</span>
+                              <span className="text-muted-foreground tabular-nums">{fmtMoney(a.pricePerTiffin)}</span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -285,6 +287,7 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
 }
 
 export function DeliverySection({ d }: { d: Draft }) {
+  const fmtMoney = useFormatMoney();
   const { form, estimateOnly, customerCtx, deliveryOptions, addressLine, city, postalCode, submitting } = d;
   const errors = form.formState.errors;
   const savedAddress = d.addressPublicId != null;
@@ -339,7 +342,7 @@ export function DeliverySection({ d }: { d: Draft }) {
                 <Field label="Address type">
                   <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="flex-wrap" value={d.addressTagId ?? ""} onValueChange={(v) => d.setAddressTagId(v || null)}>
                     {addressTags.map((t) => (
-                      <ToggleGroupItem key={t.id} value={t.id}>{t.name}<span className="text-muted-foreground text-xs">{chargeHint(t)}</span></ToggleGroupItem>
+                      <ToggleGroupItem key={t.id} value={t.id}>{t.name}<span className="text-muted-foreground text-xs">{chargeHint(t, fmtMoney)}</span></ToggleGroupItem>
                     ))}
                   </ToggleGroup>
                 </Field>
@@ -355,11 +358,12 @@ export function DeliverySection({ d }: { d: Draft }) {
 }
 
 export function PaymentSection({ d, customerName, extra }: { d: Draft; customerName: string; extra?: React.ReactNode }) {
+  const fmtMoney = useFormatMoney();
   const { shownPreview } = d;
   const selectedMethod = d.paymentMethods.find((m) => m.id === d.paymentMethodId);
   // Staff paste this into WhatsApp/SMS; the order code isn't known until create.
   async function copyPaymentDetails(m: CheckoutPaymentMethod) {
-    const amount = shownPreview ? `$${shownPreview.total.toFixed(2)}` : "the order total";
+    const amount = shownPreview ? `${fmtMoney(shownPreview.total)}` : "the order total";
     const lines = [
       `Hi ${customerName.split(" ")[0] || "there"}, your ${APP_NAME} order total is ${amount}.`,
       m.id === "etransfer"
@@ -407,6 +411,7 @@ export function PaymentSection({ d, customerName, extra }: { d: Draft; customerN
 }
 
 export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel: string }) {
+  const fmtMoney = useFormatMoney();
   const { coupons, couponCodes, repInfo, discount, shownPreview } = d;
   const discountCount = (coupons?.applied.length ?? 0) + (discount > 0 ? 1 : 0) + ((d.coinPreview?.used ?? 0) > 0 ? 1 : 0);
   const savedTotal = (shownPreview?.adjustments ?? []).reduce((sum, a) => sum + a.amount, 0);
@@ -418,7 +423,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
               <span className="flex items-center gap-2">
                 Discounts
                 {discountCount > 0 && <Badge variant="success-light">{discountCount}</Badge>}
-                {savedTotal > 0 && <span className="text-muted-foreground font-normal tabular-nums">−${savedTotal.toFixed(2)}</span>}
+                {savedTotal > 0 && <span className="text-muted-foreground font-normal tabular-nums">−{fmtMoney(savedTotal)}</span>}
               </span>
               <ChevronDownIcon />
             </Button>
@@ -430,7 +435,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                 <div key={c.code} className="flex items-center justify-between gap-2 rounded-lg border p-2.5 text-sm">
                   <span><span className="font-medium tabular-nums">{c.code}</span> <span className="text-muted-foreground">{c.auto ? "Applied automatically" : c.name}</span></span>
                   <span className="flex items-center gap-2">
-                    <span className="tabular-nums">−${c.amount.toFixed(2)}</span>
+                    <span className="tabular-nums">−{fmtMoney(c.amount)}</span>
                     {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => d.removeCoupon(c.code)}>Remove</Button>}
                   </span>
                 </div>
@@ -476,7 +481,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                 <div className="grid gap-2 rounded-lg border p-3">
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="text-muted-foreground">{repInfo.name} <span className="tabular-nums">({repInfo.code})</span></span>
-                    <span className="text-muted-foreground text-xs">Up to {repInfo.capPct}% or ${repInfo.capAmount.toFixed(2)}, whichever is lower</span>
+                    <span className="text-muted-foreground text-xs">Up to {repInfo.capPct}% or {fmtMoney(repInfo.capAmount)}, whichever is lower</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <div className="grid flex-1 gap-1.5">
@@ -490,7 +495,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                     <Button type="button" variant="outline" onClick={() => d.setDiscount(d.ceiling)} disabled={d.ceiling <= 0}>Max</Button>
                     {discount > 0 && <Button type="button" variant="ghost" onClick={() => d.setDiscount(0)}>Clear</Button>}
                   </div>
-                  <p className="text-muted-foreground text-xs tabular-nums">Ceiling for this order: ${d.ceiling.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs tabular-nums">Ceiling for this order: {fmtMoney(d.ceiling)}</p>
                 </div>
               ) : (
                 <p className="text-muted-foreground text-xs">

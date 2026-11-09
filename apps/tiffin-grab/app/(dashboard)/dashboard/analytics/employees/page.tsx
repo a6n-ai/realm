@@ -15,6 +15,7 @@ import { Badge } from "@/components/reui/badge";
 import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -77,9 +78,9 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
   );
 }
 
-const usd = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const usd = await getMoneyFormatter({ whole: true });
   const { rows, unassignedRevenue } = await getEmployeeRollup(scope);
   const worked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const converted = rows.reduce((s, r) => s + r.leadsConverted, 0);
@@ -118,6 +119,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function RepCards({ scope }: { scope: AnalyticsScope }) {
+  const usd = await getMoneyFormatter({ whole: true });
   const { rows } = await getEmployeeRollup(scope);
   if (rows.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No rep activity in this range.</p>;
   return (

@@ -11,11 +11,13 @@ import { Label } from "@foundry/ui/label";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "./rep-code-actions";
+import { useFormatMoney } from "@/components/app-currency";
 
 // Issues a one-off code on the rep's own allowance, capped against this order, and applies it to
 // the estimate so the total shown is what the customer pays after entering it at checkout.
 /** `onOrder`: staff create the order themselves, so the code is redeemed on it, not typed at checkout. */
 export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { subtotal: number; apply?: (code: string) => void; note: string; onOrder?: boolean }) {
+  const fmtMoney = useFormatMoney();
   const tz = useTimezone();
   const [allowance, setAllowance] = useState<RepCodeAllowance | null>(null);
   const [amount, setAmount] = useState("");
@@ -71,7 +73,7 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
           <CardHeader>
             <CardTitle className="tabular-nums tracking-wider select-all">{issued.code}</CardTitle>
             <CardDescription className="tabular-nums">
-              ${issued.amount.toFixed(2)} off until {formatEpoch(issued.expiresAt, { mode: "datetime", timeZone: tz })}. {onOrder ? "Applied to this order." : "Included in the price; the customer enters it at checkout."}
+              {fmtMoney(issued.amount)} off until {formatEpoch(issued.expiresAt, { mode: "datetime", timeZone: tz })}. {onOrder ? "Applied to this order." : "Included in the price; the customer enters it at checkout."}
             </CardDescription>
             <CardAction>
               <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
@@ -99,7 +101,7 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
             <Button type="button" variant="outline" disabled={ceiling <= 0} onClick={() => setAmount(String(ceiling))}>Max</Button>
           </div>
           <p className="text-muted-foreground text-xs tabular-nums">
-            {subtotal > 0 ? `Up to $${ceiling.toFixed(2)} on this order` : "Price the order first"} · {allowance.left} of {allowance.total} left today
+            {subtotal > 0 ? `Up to ${fmtMoney(ceiling)} on this order` : "Price the order first"} · {allowance.left} of {allowance.total} left today
           </p>
           <Button type="button" variant="outline" disabled={!valid || busy} onClick={() => void generate()}>
             {busy ? "Creating…" : "Generate code"}

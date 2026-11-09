@@ -78,20 +78,17 @@ import {
   type Tone,
 } from "@/components/analytics/chart-math";
 import { isoToUtcDate } from "@/lib/dates";
+import { formatMoney } from "@/lib/format/money";
+import { useAppCurrency } from "@/components/app-currency";
 
 // A string, not a formatter function: these charts are rendered from server
 // components, and functions cannot cross that boundary as props.
 type ValueFormat = "number" | "currency";
 type Row = Record<string, string | number>;
 
-const CURRENCY = new Intl.NumberFormat("en-CA", {
-  style: "currency",
-  currency: "CAD",
-});
-
-function formatValue(v: unknown, format: ValueFormat): string {
+function formatValue(v: unknown, format: ValueFormat, currency: string): string {
   if (typeof v !== "number") return String(v);
-  return format === "currency" ? CURRENCY.format(v) : v.toLocaleString();
+  return format === "currency" ? formatMoney(v, currency) : v.toLocaleString();
 }
 
 type TooltipFormatter = NonNullable<
@@ -99,7 +96,7 @@ type TooltipFormatter = NonNullable<
 >;
 
 const valueFormatter =
-  (format: ValueFormat, suffix = ""): TooltipFormatter =>
+  (format: ValueFormat, currency: string, suffix = ""): TooltipFormatter =>
   (value, name, item) => (
     <div className="flex w-full items-center justify-between gap-2">
       <div className="flex items-center gap-1.5">
@@ -110,7 +107,7 @@ const valueFormatter =
         <span className="text-muted-foreground">{name}</span>
       </div>
       <span className="text-foreground font-semibold tabular-nums">
-        {formatValue(value, format)}
+        {formatValue(value, format, currency)}
         {suffix}
       </span>
     </div>
@@ -152,6 +149,7 @@ export function TrendLineChart({
   format?: ValueFormat;
   height?: number;
 }) {
+  const currency = useAppCurrency();
   const uid = useId().replace(/:/g, "");
   if (data.length === 0) return <EmptyChart />;
   const lines = [{ key: yKey, label }];
@@ -202,7 +200,7 @@ export function TrendLineChart({
               indicator="dot"
               className="min-w-40 gap-2.5"
               labelFormatter={headerLabel}
-              formatter={valueFormatter(format)}
+              formatter={valueFormatter(format, currency)}
             />
           }
         />
@@ -242,6 +240,7 @@ function AverageTrend({
   tipKey?: string;
   dashed?: boolean;
 }) {
+  const currency = useAppCurrency();
   const values = data.map((r) => Number(r[yKey]) || 0);
   if (values.every((v) => !v)) return <EmptyChart />;
   const avg = trailingAverage(values);
@@ -263,7 +262,7 @@ function AverageTrend({
               indicator="dot"
               className="min-w-40 gap-2.5"
               labelFormatter={tipHeader(tipKey)}
-              formatter={valueFormatter(format)}
+              formatter={valueFormatter(format, currency)}
             />
           }
         />
@@ -340,6 +339,7 @@ export function BreakdownBarChart({
   /** Horizontal charts only: rows kept before the tail folds into "Other". */
   limit?: number;
 }) {
+  const currency = useAppCurrency();
   const router = useRouter();
   if (data.length === 0) return <EmptyChart />;
   const config = {
@@ -353,7 +353,7 @@ export function BreakdownBarChart({
           indicator="dot"
           className="min-w-40 gap-2.5"
           labelFormatter={headerLabel}
-          formatter={valueFormatter(format)}
+          formatter={valueFormatter(format, currency)}
         />
       }
     />
@@ -442,7 +442,7 @@ export function BreakdownBarChart({
               dataKey={yKey}
               position="right"
               className="fill-foreground text-xs font-medium tabular-nums"
-              formatter={(v: unknown) => formatValue(v, format)}
+              formatter={(v: unknown) => formatValue(v, format, currency)}
             />
           </Bar>
         </BarChart>
@@ -456,7 +456,7 @@ export function BreakdownBarChart({
               <Link
                 key={i}
                 href={r[hrefKey]}
-                aria-label={`${r[xKey]}: ${formatValue(r[yKey], format)}`}
+                aria-label={`${r[xKey]}: ${formatValue(r[yKey], format, currency)}`}
                 className="focus-visible:ring-ring/60 absolute inset-x-0 rounded-sm outline-none focus-visible:ring-2"
                 style={{ top: `${(i / ranked.length) * 100}%`, height: `${100 / ranked.length}%` }}
               />
@@ -523,6 +523,7 @@ export function SegmentedBar({
   /** Name, value and share per part under the bar, in BreakdownList's row style. */
   withList?: boolean;
 }) {
+  const currency = useAppCurrency();
   const [hover, setHover] = useState<number | null>(null);
   const folded = foldParts(parts, max);
   if (folded.length === 0) return <EmptyChart />;
@@ -535,7 +536,7 @@ export function SegmentedBar({
           onMouseLeave={() => setHover(null)}
         >
           {folded.map((p, i) => {
-            const text = `${p.label}: ${formatValue(p.value, format)} (${fmtPct(p.share)})`;
+            const text = `${p.label}: ${formatValue(p.value, format, currency)} (${fmtPct(p.share)})`;
             return (
               <Tooltip key={`${p.label}-${i}`}>
                 <TooltipTrigger asChild>
@@ -586,7 +587,7 @@ export function SegmentedBar({
                 />
                 <span className="min-w-0 flex-1 truncate">{p.label}</span>
                 <span className="font-semibold tabular-nums">
-                  {formatValue(p.value, format)}
+                  {formatValue(p.value, format, currency)}
                 </span>
                 <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">
                   {fmtPct(p.share)}
@@ -726,6 +727,7 @@ export function PartsDonut({
   label?: string;
   footnote?: ReactNode;
 }) {
+  const currency = useAppCurrency();
   const router = useRouter();
   const folded = foldParts(parts, max);
   if (folded.length === 0) return emptyLabel ? <ChartEmpty message={emptyLabel} /> : <EmptyChart />;
@@ -740,16 +742,16 @@ export function PartsDonut({
         tip: p.tip,
         href: undefined as string | undefined,
         color: folded.find((f) => f.label === p.label)?.color ?? otherColor,
-        text: p.aside ?? formatValue(p.value, format),
+        text: p.aside ?? formatValue(p.value, format, currency),
         share: listTotal > 0 ? Math.round((p.value / listTotal) * 100) : 0,
       }))
-    : folded.map((p) => ({ label: p.label, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format), share: p.share }));
+    : folded.map((p) => ({ label: p.label, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format, currency), share: p.share }));
   return (
     <div className="flex h-full flex-col items-center gap-4">
       <ChartContainer config={config} className="aspect-square shrink-0" style={{ height: DONUT_PX }}>
         <PieChart accessibilityLayer>
           <ChartTooltip
-            content={<ChartTooltipContent hideLabel className="min-w-40 gap-2.5" formatter={valueFormatter(format)} />}
+            content={<ChartTooltipContent hideLabel className="min-w-40 gap-2.5" formatter={valueFormatter(format, currency)} />}
           />
           <Pie
             data={folded.map((p) => ({ ...p, fill: p.color }))}
@@ -786,6 +788,7 @@ const TREEMAP_PAD = 6;
 const onFill = (fill: string) => `oklch(from ${fill} clamp(0.15, calc((0.62 - l) * 100), 0.98) 0 0)`;
 
 function TreemapCell({ node, format }: { node: TreemapNode; format: ValueFormat }) {
+  const currency = useAppCurrency();
   if (node.depth !== 2) return <g />;
   const { x, y, width, height, name, value } = node;
   const fill = String(node.color);
@@ -802,7 +805,7 @@ function TreemapCell({ node, format }: { node: TreemapNode; format: ValueFormat 
             {fitLabel(name, inner)}
           </text>
           <text x={x + TREEMAP_PAD} y={y + TREEMAP_PAD + 16} dominantBaseline="hanging" className={`${textClass} tabular-nums`} style={{ fill: onFill(fill) }}>
-            {formatValue(value, format)}
+            {formatValue(value, format, currency)}
           </text>
         </>
       ) : null}
@@ -820,6 +823,7 @@ export function TreemapChart({
   format?: ValueFormat;
   height?: number;
 }) {
+  const currency = useAppCurrency();
   if (data.length === 0) return <EmptyChart />;
   const total = data.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0);
   const nodes = data.map((g, gi) => ({
@@ -852,7 +856,7 @@ export function TreemapChart({
                     <span className="font-medium">{name}</span>
                     <span className="text-muted-foreground">{item?.payload?.plan}</span>
                     <span className="text-foreground font-semibold tabular-nums">
-                      {formatValue(value, format)} · {fmtPct(total > 0 ? Math.round((Number(value) / total) * 100) : 0)}
+                      {formatValue(value, format, currency)} · {fmtPct(total > 0 ? Math.round((Number(value) / total) * 100) : 0)}
                     </span>
                   </div>
                 )}
@@ -886,6 +890,7 @@ export function HeatmapGrid({
   cells: (number | null)[][];
   format?: ValueFormat;
 }) {
+  const currency = useAppCurrency();
   const values = cells
     .flat()
     .filter((v): v is number => typeof v === "number" && v > 0);
@@ -926,7 +931,7 @@ export function HeatmapGrid({
               {columns.map((c, ci) => {
                 const v = cells[ri]?.[ci] ?? null;
                 const b = heatBucket(v, min, max);
-                const shown = v == null ? "\u2014" : formatValue(v, format);
+                const shown = v == null ? "\u2014" : formatValue(v, format, currency);
                 const text = `${r} / ${c}: ${v == null ? "no data" : shown}`;
                 return (
                   <Tooltip key={`${c}-${ci}`}>
@@ -970,7 +975,7 @@ export function HeatmapGrid({
           className="text-muted-foreground flex items-center gap-2 text-xs"
           aria-hidden
         >
-          <span>{formatValue(min, format)}</span>
+          <span>{formatValue(min, format, currency)}</span>
           <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
             {Array.from({ length: HEAT_STEPS }, (_, i) => (
               <span
@@ -983,7 +988,7 @@ export function HeatmapGrid({
               />
             ))}
           </div>
-          <span>{formatValue(max, format)}</span>
+          <span>{formatValue(max, format, currency)}</span>
         </div>
       </div>
     </TooltipProvider>
@@ -1013,6 +1018,7 @@ export function CalendarHeatmap({
   label?: string;
   format?: ValueFormat;
 }) {
+  const currency = useAppCurrency();
   // Days after today are not cells (blank), so they never read as a $0 day.
   const weeks = calendarWeeks(from, today && today < to ? today : to);
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -1046,8 +1052,8 @@ export function CalendarHeatmap({
                 const entry = byDate.get(date);
                 const v = entry?.value ?? 0;
                 const b = heatBucket(v, min, max);
-                const parts = (entry?.breakdown ?? []).map((p) => `${p.label} ${formatValue(p.value, format)}`);
-                const shown = v > 0 ? formatValue(v, format) : zeroText;
+                const parts = (entry?.breakdown ?? []).map((p) => `${p.label} ${formatValue(p.value, format, currency)}`);
+                const shown = v > 0 ? formatValue(v, format, currency) : zeroText;
                 const text = `${calDate(CAL_DAY, date)}: ${shown}${parts.length ? ` (${parts.join(", ")})` : ""}`;
                 return (
                   <Tooltip key={date}>
@@ -1075,7 +1081,7 @@ export function CalendarHeatmap({
                         </span>
                         {(entry?.breakdown ?? []).map((p) => (
                           <span key={p.label}>
-                            {p.label}: {formatValue(p.value, format)}
+                            {p.label}: {formatValue(p.value, format, currency)}
                           </span>
                         ))}
                       </div>
@@ -1118,6 +1124,7 @@ export function DivergingBarChart({
   height?: number;
   tipKey?: string;
 }) {
+  const currency = useAppCurrency();
   if (data.length === 0) return <EmptyChart />;
   const rows = data.map((r) => {
     const s0 = Number(r[yKey]) || 0;
@@ -1159,7 +1166,7 @@ export function DivergingBarChart({
               indicator="dot"
               className="min-w-40 gap-2.5"
               labelFormatter={tipHeader(tipKey)}
-              formatter={valueFormatter(format)}
+              formatter={valueFormatter(format, currency)}
             />
           }
         />
@@ -1195,6 +1202,7 @@ export function GaugeChart({
   footnote?: ReactNode;
   format?: ValueFormat;
 }) {
+  const currency = useAppCurrency();
   if (!(total > 0)) return <EmptyChart />;
   const pct = (value / total) * 100;
   const fill = toneColor(tone);
@@ -1225,7 +1233,7 @@ export function GaugeChart({
                     <div className="flex w-full items-center justify-between gap-2">
                       <span className="text-muted-foreground">{caption}</span>
                       <span className="text-foreground font-semibold tabular-nums">
-                        {formatValue(value, format)} of {formatValue(total, format)}
+                        {formatValue(value, format, currency)} of {formatValue(total, format, currency)}
                       </span>
                     </div>
                   )}
@@ -1246,7 +1254,7 @@ export function GaugeChart({
           label: r.label,
           href: r.href,
           color: toneColor(r.tone),
-          text: formatValue(r.value, format),
+          text: formatValue(r.value, format, currency),
           share: listTotal > 0 ? Math.round((r.value / listTotal) * 100) : 0,
         }))}
       />
@@ -1375,6 +1383,7 @@ export function SankeyChart({ nodes, links, height = 300 }: { nodes: FlowNode[];
 
 /** Start bar, signed steps, end bar on one y axis. Bars are floating ranges, so a running total that dips below zero still draws. */
 export function WaterfallChart({ start, steps, end, format = "currency", height = 300 }: WaterfallData & { format?: ValueFormat; height?: number }) {
+  const currency = useAppCurrency();
   if (start.value === 0 && steps.length === 0 && end.value === 0) return <EmptyChart />;
   let run = start.value;
   const bars = [
@@ -1420,7 +1429,7 @@ export function WaterfallChart({ start, steps, end, format = "currency", height 
                     <div className="h-2.5 w-2.5 shrink-0 rounded-xs" style={{ background: item?.payload?.fill }} />
                     <span className="text-muted-foreground">{item?.payload?.label}</span>
                   </div>
-                  <span className="text-foreground font-semibold tabular-nums">{formatValue(item?.payload?.delta, format)}</span>
+                  <span className="text-foreground font-semibold tabular-nums">{formatValue(item?.payload?.delta, format, currency)}</span>
                 </div>
               )}
             />

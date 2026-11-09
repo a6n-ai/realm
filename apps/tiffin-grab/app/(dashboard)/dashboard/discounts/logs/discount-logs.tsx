@@ -10,6 +10,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import type { DiscountLogSortColumn } from "./page";
+import { useFormatMoney } from "@/components/app-currency";
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
@@ -52,6 +53,7 @@ export function DiscountLogs({
   page: number;
   size: number;
 }) {
+  const fmtMoney = useFormatMoney();
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
@@ -73,7 +75,7 @@ export function DiscountLogs({
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
             <TableCell className="font-mono text-xs">{r.code ?? "—"}</TableCell>
             <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
-            <TableCell className="text-right tabular-nums text-ok">−${Number(r.amountApplied).toFixed(2)}</TableCell>
+            <TableCell className="text-right tabular-nums text-ok">−{fmtMoney(Number(r.amountApplied))}</TableCell>
             <TableCell>
               {r.orderPublicId ? (
                 <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">

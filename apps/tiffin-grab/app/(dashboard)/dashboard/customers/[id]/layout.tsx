@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { and, eq, max } from "drizzle-orm";
 import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, CalendarClockIcon } from "lucide-react";
-import { formatMoney, formatPhone } from "@foundry/commons";
+import { formatPhone } from "@foundry/commons";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { PageShell, PageHeader } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
-import { formatMinor as formatMoneyIn } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentRate } from "@/lib/services/wallet-balances.service";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -50,14 +50,14 @@ async function CustomerHeader({ id }: { id: string }) {
   const lifetimeSpend = data.orders.reduce((sum, o) => sum + Number(o.total), 0);
   const contact = [data.profile.phone ? formatPhone(data.profile.phone) : null, data.profile.email].filter(Boolean).join(" · ");
   const who = data.profile.name || data.profile.email || "this customer";
-  const usd = (v: number) => formatMoneyIn(Math.round(v * 100), currency);
+  const usd = (v: number) => formatMoney(v, currency);
   // Orders arrive newest first.
   const last = data.orders[0];
   const first = data.orders[data.orders.length - 1];
   const cards: StatCardItem[] = [
     { label: "Orders", value: data.orders.length, icon: PackageIcon, hint: `${activeOrders} active`, href: `/dashboard/customers/${id}/orders` },
     { label: "Active", value: activeOrders, icon: ActivityIcon, hint: activeOrders && planEnd ? `ends ${formatDateOnly(planEnd)}` : "No active plan", href: `/dashboard/customers/${id}/orders?status=active` },
-    { label: "Lifetime spend", value: formatMoney(lifetimeSpend), icon: WalletIcon, hint: first ? `since ${formatEpoch(first.createdAt, { mode: "date", timeZone: timezone })}` : "no orders yet" },
+    { label: "Lifetime spend", value: usd(lifetimeSpend), icon: WalletIcon, hint: first ? `since ${formatEpoch(first.createdAt, { mode: "date", timeZone: timezone })}` : "no orders yet" },
     { label: "Wallet coins", value: coinBalance, icon: CoinsIcon, hint: rate == null ? undefined : `≈ ${usd(coinBalance * rate)}` },
     { label: "Last order", value: last ? formatEpoch(last.createdAt, { mode: "date", timeZone: timezone }) : "—", icon: CalendarClockIcon, hint: last ? last.status : "no orders yet" },
   ];

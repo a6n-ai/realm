@@ -21,10 +21,7 @@ import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
 import { isoDateInZone } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
-
-function money(n: number) {
-  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 function pct(n: number | null) {
   return n == null ? "—" : `${n.toFixed(1)}%`;
@@ -125,9 +122,10 @@ async function Nav({ view }: { view: View }) {
 }
 
 async function Headline({ view }: { view: View }) {
-  const report = await reportFrom(view);
+  const [report, money] = await Promise.all([reportFrom(view), getMoneyFormatter()]);
   return (
     <HeadlineCards
+      money={money}
       kpis={report.kpis}
       range={`${report.from} to ${report.to}`}
       toDate={report.to > isoDateInZone(requestNow(), view.scope.tz)}
@@ -136,7 +134,7 @@ async function Headline({ view }: { view: View }) {
   );
 }
 
-function HeadlineCards({ kpis, range, cashHref, toDate }: { kpis: ProfitabilityKpis; range: string; cashHref: string; toDate: boolean }) {
+function HeadlineCards({ kpis, range, cashHref, toDate, money }: { kpis: ProfitabilityKpis; range: string; cashHref: string; toDate: boolean; money: (n: number) => string }) {
   const rangeHint = toDate ? `${range}, to date` : range;
 
   const items: AnalyticsStatCardItem[] = [

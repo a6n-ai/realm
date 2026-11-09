@@ -35,6 +35,7 @@ import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } f
 import { PaymentProofField, type PaymentProofValue } from "../payment-proof-field";
 import { FormDrawer } from "../form-drawer";
 import { DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField, Section } from "./order-sections";
+import { useFormatMoney } from "@/components/app-currency";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Props = {
@@ -46,7 +47,7 @@ type Props = {
   sources: Src[];
   catalog: Catalog;
   categories: { key: string; label: string }[];
-  currency?: string;
+  currency: string;
 };
 
 const STEPS = ["Order", "Delivery & payment"] as const;
@@ -95,9 +96,10 @@ export function NewOrderWorkspace({ triggerLabel, open: controlledOpen, onOpenCh
 }
 
 function WorkspaceBody({
-  defaultCountry, sources, catalog, categories, currency = "CAD", setBusy, onClose, onNew,
+  defaultCountry, sources, catalog, categories, currency, setBusy, onClose, onNew,
   onSaved,
 }: Omit<Props, "triggerLabel" | "open" | "onOpenChange"> & { setBusy: (b: boolean) => void; onClose: () => void; onNew: () => void; onSaved: () => void }) {
+  const fmtMoney = useFormatMoney();
   const router = useRouter();
   const enabledSlots = categories.map((c) => ({ key: c.key, label: c.label }));
 
@@ -308,7 +310,7 @@ function WorkspaceBody({
           key={created.publicId}
           result={created}
           heading
-          whatsappText={facts ? (payUrl) => whatsAppOrderMessage(facts, shownPreview, payUrl) : undefined}
+          whatsappText={facts ? (payUrl) => whatsAppOrderMessage(facts, shownPreview, payUrl, currency) : undefined}
         />
         {facts && <CreatedOrderDetails facts={facts} preview={shownPreview} currency={currency} />}
         <div className="flex justify-end gap-2">
@@ -441,7 +443,7 @@ function WorkspaceBody({
           <div className="mr-auto grid text-sm">
             <span>
               <span className="text-muted-foreground">Total </span>
-              <span className="font-medium tabular-nums">{shownPreview ? `$${shownPreview.total.toFixed(2)}` : "—"}</span>
+              <span className="font-medium tabular-nums">{shownPreview ? `${fmtMoney(shownPreview.total)}` : "—"}</span>
               {shownPreview && <span className="text-muted-foreground tabular-nums"> · {shownPreview.tiffinCount} {shownPreview.tiffinCount === 1 ? "tiffin" : "tiffins"}</span>}
             </span>
             {step === 1 && mealLabel && <span className="text-muted-foreground text-xs">{mealLabel}</span>}

@@ -9,7 +9,7 @@ import { parseFilterState, type FacetDef } from "@/components/ds";
 import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
-import { usd } from "../discount-stats";
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -43,6 +43,7 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 }
 
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
+  const usd = await getMoneyFormatter();
   const sp = await withListDates(await searchParams);
   const sort: SortState<DiscountLogSortColumn> = parseSort(
     sp,

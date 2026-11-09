@@ -17,6 +17,7 @@ import { mintRealtimeTokens } from "@/lib/realtime/mint";
 import { notifyChannel } from "@/lib/realtime/notify";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "@/lib/realtime/inbox";
 import { AppBrand } from "@/components/app-brand";
+import { AppCurrencyProvider } from "@/components/app-currency";
 import {
   DashboardActions,
   DashboardBottomNav,
@@ -110,7 +111,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const realtimeChannels = [notify, TICKETS_INBOX, ...(isAdmin(role) ? [PAYMENTS_INBOX] : [])];
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
-  const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
+  const [{ timezone, cutoffHour, currency }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
     await Promise.all([
       timed("settings", getAppSettings()),
       timed("orgs", getMemberOrganizations(session)),
@@ -125,6 +126,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <div className={`crm-app ${geistSansAdmin.variable}`}>
       <DashboardProviders tz={timezone}>
+        <AppCurrencyProvider currency={currency}>
         <CrmShell
           hideSidebarOnMobile
           brand={<AppBrand href="/dashboard" subtitle="Operations" />}
@@ -171,6 +173,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           {/* Room to scroll the last row out from under the floating button. */}
           {hasRepAllowance && <div aria-hidden className="h-20" />}
         </CrmShell>
+        </AppCurrencyProvider>
       </DashboardProviders>
     </div>
   );

@@ -3,6 +3,7 @@
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
+import { formatMoney } from "@/lib/format/money";
 
 type Catalog = {
   plans: { key: string; name: string }[];
@@ -23,7 +24,6 @@ export type CreatedOrderFacts = {
 };
 
 const DAY: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const money = (n: number) => `$${n.toFixed(2)}`;
 
 export function createdOrderFacts(
   deploymentId: string,
@@ -52,7 +52,8 @@ export function createdOrderFacts(
 }
 
 /** A WhatsApp-ready recap (*bold* renders there): what was ordered, when it starts, the price, and how to pay. */
-export function whatsAppOrderMessage(facts: CreatedOrderFacts, preview: PricingResult | null, payUrl: string | null): string {
+export function whatsAppOrderMessage(facts: CreatedOrderFacts, preview: PricingResult | null, payUrl: string | null, currency: string): string {
+  const money = (n: number) => formatMoney(n, currency);
   const first = facts.customer.fullName.trim().split(/\s+/)[0];
   return [
     `Hi${first ? ` ${first}` : ""}! Your Tiffin Grab order *${facts.deploymentId}* is created.`,

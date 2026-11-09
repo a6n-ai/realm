@@ -4,11 +4,10 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { cn } from "@foundry/ui/cn";
+import { useFormatMoney } from "@/components/app-currency";
 
-const CAD = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
-export const cad = (n: number) => CAD.format(n);
 // The sign carries the meaning, so colour is never the only cue.
-export const signedCad = (n: number) => (n > 0 ? `+${cad(n)}` : n < 0 ? `−${cad(-n)}` : cad(0));
+export const signedMoney = (n: number, fmt: (n: number) => string) => (n > 0 ? `+${fmt(n)}` : n < 0 ? `−${fmt(-n)}` : fmt(0));
 
 /** One day, week or month: title, a few headline figures, a signed profit, and a popover with the full breakdown. */
 export function DayCard({
@@ -29,6 +28,7 @@ export function DayCard({
   href?: string;
   muted?: boolean;
 }) {
+  const fmt = useFormatMoney();
   const tone = profit == null || profit === 0 ? "text-muted-foreground" : profit < 0 ? "text-destructive" : "text-success-foreground dark:text-success";
   return (
     <Popover>
@@ -50,7 +50,7 @@ export function DayCard({
               </div>
             ))}
           </dl>
-          <span className={cn("text-sm font-semibold tabular-nums", tone)}>{profit == null ? "—" : signedCad(profit)}</span>
+          <span className={cn("text-sm font-semibold tabular-nums", tone)}>{profit == null ? "—" : signedMoney(profit, fmt)}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 border">

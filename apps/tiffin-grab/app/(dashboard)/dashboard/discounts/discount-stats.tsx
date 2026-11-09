@@ -21,4 +21,3 @@ export function DiscountStatsSkeleton() {
   return <SkeletonStatCards count={5} className="md:grid-cols-2 lg:grid-cols-5" />;
 }
 
-export const usd = (n: number) => `$${n.toFixed(2)}`;

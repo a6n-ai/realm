@@ -12,6 +12,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { saveDiscountPolicy } from "../actions";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type KindRow = { kind: CouponKind; label: string; live: number; uses: number; discounted: number };
 
@@ -36,6 +37,7 @@ export function KindsForm({
   spec: FacetDef[];
   pagination: { page: number; size: number };
 }) {
+  const fmtMoney = useFormatMoney();
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [kinds, setKinds] = React.useState<CouponKind[]>(policy.enabledKinds);
@@ -86,7 +88,7 @@ export function KindsForm({
             <TableCell className="font-medium">{r.label}</TableCell>
             <TableCell className="text-right tabular-nums">{r.live.toLocaleString()}</TableCell>
             <TableCell className="text-right tabular-nums">{r.uses.toLocaleString()}</TableCell>
-            <TableCell className="text-right tabular-nums">${r.discounted.toFixed(2)}</TableCell>
+            <TableCell className="text-right tabular-nums">{fmtMoney(r.discounted)}</TableCell>
             <TableCell>
               <Switch aria-label={`${r.label} enabled`} checked={kinds.includes(r.kind)} onCheckedChange={(on) => toggle(r.kind, on)} />
             </TableCell>

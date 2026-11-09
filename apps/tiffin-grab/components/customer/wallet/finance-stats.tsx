@@ -2,10 +2,9 @@ import { PiggyBank, Wallet } from "lucide-react";
 import { IconTile, StatGroup, StatTile } from "@/components/customer/kit";
 import type { UsageSummary } from "@/lib/services/customer-usage.service";
 import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { formatMoney } from "@/lib/format/money";
 
-function money(amount: string, currency: string) {
-  return new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amount));
-}
+const money = (amount: string, currency: string) => formatMoney(Number(amount), currency, { narrow: true });
 
 export function FinanceStats({ usage, currency }: { usage: UsageSummary; currency: string }) {
   return (

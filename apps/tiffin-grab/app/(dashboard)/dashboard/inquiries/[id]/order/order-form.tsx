@@ -14,10 +14,12 @@ import {
   DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField,
 } from "@/app/(dashboard)/dashboard/orders/new-order/order-sections";
 import { estimatePrefill } from "@/app/(dashboard)/dashboard/discounts/estimate-actions";
+import { useAppCurrency } from "@/components/app-currency";
 import type { OrderFormInput } from "../order-schema";
 import { useOrderDraft, type EstimateState, type EnabledSlot } from "./use-order-draft";
 import type { Catalog } from "./order-draft";
 import { SummaryRow, sectionSummaries, sectionsNeedingInput, useIsLg } from "./split-layout";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type { EstimateState };
 
@@ -65,6 +67,8 @@ export function OrderForm({
   /** Called after success dialog is shown (e.g. close parent sheet). */
   onCreated?: (result: AdminOrderCreated) => void;
 }) {
+  const fmtMoney = useFormatMoney();
+  const currency = useAppCurrency();
   // A lead with no name gets a Name field here; the server refuses an order without one.
   const nameMissing = !contact.fullName.trim();
   const [name, setName] = useState(contact.fullName);
@@ -74,7 +78,7 @@ export function OrderForm({
   const split = layout === "split" && isLg && !estimateOnly && !page;
   // Summaries watch the whole form; only the split layout reads them.
   const need = split ? sectionsNeedingInput(d) : null;
-  const sums = split ? sectionSummaries(d, catalog, enabledSlots) : null;
+  const sums = split ? sectionSummaries(d, catalog, enabledSlots, fmtMoney) : null;
   const [renewedFrom, setRenewedFrom] = useState<string | null>(null);
   const [renewingId, setRenewingId] = useState<string | null>(null);
 
@@ -116,7 +120,7 @@ export function OrderForm({
   const total = (
     <span className="text-sm">
       <span className="text-muted-foreground">Total </span>
-      <span className="font-medium tabular-nums">{shownPreview ? `$${shownPreview.total.toFixed(2)}` : "—"}</span>
+      <span className="font-medium tabular-nums">{shownPreview ? `${fmtMoney(shownPreview.total)}` : "—"}</span>
       {shownPreview && <span className="text-muted-foreground tabular-nums"> · {shownPreview.tiffinCount} {shownPreview.tiffinCount === 1 ? "tiffin" : "tiffins"}</span>}
     </span>
   );
@@ -156,7 +160,7 @@ export function OrderForm({
               </SummaryRow>
             </div>
             <aside className="sticky top-0 flex flex-col gap-4">
-              <PriceSection d={d} currency="CAD" />
+              <PriceSection d={d} currency={currency} />
               <div className="flex flex-col gap-3 border-t pt-3">
                 {total}
                 {stillNeeded}
@@ -184,7 +188,7 @@ export function OrderForm({
             <PaymentSection d={d} customerName={contact.fullName} />
             {!estimateOnly && <DiscountsSection d={d} customerLabel={contact.fullName || contact.email} />}
           </div>
-          {!estimateOnly && !page && <PriceSection d={d} currency="CAD" />}
+          {!estimateOnly && !page && <PriceSection d={d} currency={currency} />}
         </div>
 
         {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}

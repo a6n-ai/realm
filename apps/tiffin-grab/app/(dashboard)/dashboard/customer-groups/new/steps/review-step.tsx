@@ -7,6 +7,7 @@ import { Badge } from "@/components/reui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { AccountSearch, type AccountResult } from "../account-search";
 import type { Candidate } from "../types";
+import { useFormatMoney } from "@/components/app-currency";
 
 const COLUMNS = [
   { key: "pick", label: "", width: "3rem" },
@@ -18,7 +19,6 @@ const COLUMNS = [
   { key: "last", label: "Last tiffin" },
 ] as const;
 
-const money = (v: string) => `$${Number(v).toFixed(2)}`;
 
 export function toCandidate(a: AccountResult): Candidate {
   return {
@@ -49,6 +49,7 @@ export function ReviewStep({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const fmtMoney = useFormatMoney();
   const toggle = (id: string) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
@@ -94,7 +95,7 @@ export function ReviewStep({
             </TableCell>
             <TableCell className="font-medium">{r.name ?? "Customer"}</TableCell>
             <TableCell className="text-muted-foreground">{r.phone ?? r.email ?? "-"}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : money(r.revenue)}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : fmtMoney(Number(r.revenue))}</TableCell>
             <TableCell className="text-right tabular-nums">{r.walletCoins}</TableCell>
             <TableCell className="tabular-nums">{r.added ? "" : r.firstOrderDate}</TableCell>
             <TableCell className="tabular-nums">{r.added ? "" : (r.lastTiffin ?? "-")}</TableCell>

@@ -18,6 +18,7 @@ import { AccountSearch } from "../new/account-search";
 import { addGroupMemberAction, removeGroupMemberAction } from "../actions";
 import { GroupHeaderActions } from "../group-quick-actions";
 import { MemberStatuses } from "./member-statuses";
+import { useFormatMoney } from "@/components/app-currency";
 
 type MemberColumn = "name" | "coins" | "revenue" | "since" | "last" | "remove";
 const MEMBER_COLUMNS = [
@@ -76,6 +77,7 @@ export function GroupView({
   members: GroupMember[];
   actions: GroupActionRow[];
 }) {
+  const fmtMoney = useFormatMoney();
   const router = useRouter();
   const tz = useTimezone();
   const [adding, setAdding] = useState(false);
@@ -237,7 +239,7 @@ export function GroupView({
                       <Link href={`/dashboard/customers/${m.publicId}`} className="hover:underline">{m.name ?? "Unnamed"}</Link>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>
-                    <TableCell className="text-right tabular-nums">${Number(m.revenue).toFixed(2)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtMoney(Number(m.revenue))}</TableCell>
                     <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>
                     <TableCell className="tabular-nums">{m.lastTiffin ?? ""}</TableCell>
                     <TableCell className="text-right">

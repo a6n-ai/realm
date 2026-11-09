@@ -5,6 +5,7 @@ import { UsersIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { inquiriesHref } from "@/lib/analytics/drill";
+import { useFormatMoney } from "@/components/app-currency";
 import type { EmployeeRow } from "@/lib/services/analytics/employees.service";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 
@@ -23,6 +24,7 @@ const COLUMNS: readonly Column<"rep" | "revenue" | "orders" | "renewal" | "actio
 ];
 
 export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scope: AnalyticsScope }) {
+  const money = useFormatMoney();
   return (
     <DataTable
       pagination="client"
@@ -37,7 +39,7 @@ export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scop
           <TableCell className="font-medium">
             {r.publicId ? <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{r.revenueOwned.toLocaleString("en-CA", { style: "currency", currency: "CAD" })}</TableCell>
+          <TableCell className="text-right tabular-nums">{money(r.revenueOwned)}</TableCell>
           <TableCell className="text-right tabular-nums">{r.ordersOwned}</TableCell>
           <TableCell className="text-right tabular-nums">{r.renewalRatePct != null ? `${r.renewalRatePct}%` : "—"}</TableCell>
           <TableCell className="text-right tabular-nums">{r.actions}</TableCell>

@@ -12,6 +12,7 @@ import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { configCache } from "@/lib/cache";
+import { formatMoney } from "@/lib/format/money";
 import { db } from "@/db/client";
 import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
@@ -83,6 +84,11 @@ export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: 
       defaultCountry: (row?.defaultCountry as CountryCode | null) ?? tzToDefaultCountry(timezone),
     };
   });
+}
+
+export async function getMoneyFormatter(opts?: { whole?: boolean; narrow?: boolean }): Promise<(amount: number) => string> {
+  const { currency } = await getAppSettings();
+  return (amount) => formatMoney(amount, currency, opts);
 }
 
 export async function setAppSettings(input: {

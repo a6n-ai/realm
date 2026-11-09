@@ -20,10 +20,7 @@ import { grainUnitForRange, SETTLED_STATUSES, type DiscountLine, type DiscountSo
 import { NeedsReview } from "./needs-review";
 import { isoDateInZone, isoToUtcDate } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
-
-function money(n: number) {
-  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 const RANGE_LABEL = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
@@ -141,6 +138,7 @@ function links(scope: AnalyticsScope) {
 }
 
 async function Kpis({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const { kpis: k, free } = await loadReport(scope);
   const href = links(scope);
   const paid = href();
@@ -299,6 +297,7 @@ const SOURCE_LABEL: Record<DiscountSource, string> = {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 async function Discounts({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const { discounts } = await loadReport(scope);
   const staff = discounts.find((d) => d.source === "staff");
   const meta = (d: DiscountLine) =>
@@ -336,6 +335,7 @@ async function Discounts({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function FreeTiffinsCard({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const { free } = await loadReport(scope);
   // Already ranked by count; fold the tail like topWithOther, keeping its count and value together.
   const head = free.byReason.length <= 9 ? free.byReason : free.byReason.slice(0, 8);

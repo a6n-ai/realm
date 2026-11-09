@@ -8,9 +8,9 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
-import { usd } from "../discount-stats";
 import { StaffCodes, StaffCodesSkeleton, type IssuedCode } from "./staff-codes";
 import { requestNow } from "@/lib/dates/request-now";
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 const customer = alias(users, "customer");
 const searchUser = alias(users, "search_user");
@@ -61,6 +61,7 @@ export default function StaffCodesPage({ searchParams }: { searchParams: SearchP
 }
 
 async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) {
+  const usd = await getMoneyFormatter();
   const sp = await withListDates(await searchParams);
   const sort: SortState<StaffCodeSortColumn> = parseSort(sp, ["code", "amount", "created", "expires"], { column: "created", dir: "desc" });
   const now = requestNow();

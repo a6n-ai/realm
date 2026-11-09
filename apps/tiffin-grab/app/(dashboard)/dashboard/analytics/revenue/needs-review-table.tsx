@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FileSearchIcon } from "lucide-react";
 import { DataTable, OrderStatusBadge, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type NeedsReviewTableRow = {
   id: string;
@@ -27,9 +28,8 @@ const COLUMNS: readonly Column<"order" | "customer" | "status" | "paid" | "total
   { key: "reason", label: "Reason" },
 ];
 
-const money = (n: number) => n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-
 export function NeedsReviewTable({ rows }: { rows: NeedsReviewTableRow[] }) {
+  const money = useFormatMoney();
   return (
     <DataTable
       pagination="client"

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Coins } from "lucide-react";
 import { IconTile, StatGroup, StatTile } from "@/components/customer/kit";
 import { AnimatedNumber } from "@/components/motion";
+import { formatMoney } from "@/lib/format/money";
 
 export function WalletHero({
   coins,
@@ -25,19 +26,19 @@ export function WalletHero({
 }) {
   // Money is display-only; format with the app's actual currency symbol
   // (₹ for INR, $ for USD/CAD, …) — never a hardcoded "$".
-  const fmt = new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol" });
+  const fmt = (n: number) => formatMoney(n, currency, { narrow: true });
 
   return (
     <div className="flex flex-col gap-3">
       <StatGroup>
-        <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="Coins" value={<AnimatedNumber value={coins} />} worth={money != null ? fmt.format(money) : null} />
+        <StatTile bare icon={<IconTile tint="brown"><Coins /></IconTile>} label="Coins" value={<AnimatedNumber value={coins} />} worth={money != null ? fmt(money) : null} />
         <StatTile bare icon={<IconTile tint="teal"><ArrowDownLeft /></IconTile>} label="Earned" value={earned} />
         <StatTile bare icon={<IconTile tint="indigo"><ArrowUpRight /></IconTile>} label="Used" value={spent} />
       </StatGroup>
       {coins === 0 && earnPct > 0 && (
         <p className="c-caption px-1 text-pretty">
           Earn {earnPct}% back as coins on every paid order
-          {coinWorth != null ? `; each coin is worth ${fmt.format(coinWorth)}` : ""}.{" "}
+          {coinWorth != null ? `; each coin is worth ${fmt(coinWorth)}` : ""}.{" "}
           <Link href="/me/refer" className="text-[var(--primary-text,var(--primary))] inline-flex min-h-11 items-center font-semibold underline underline-offset-2">
             Refer a friend
           </Link>

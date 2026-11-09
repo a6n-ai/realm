@@ -5,6 +5,7 @@ import type { ReferralFriendStatus, ReferralSummary } from "@/lib/services/refer
 import { friendOffer } from "@/lib/referrals/share";
 import { ShareCard } from "./share-card";
 import { EnterCodeCard } from "./enter-code-card";
+import { formatMoney } from "@/lib/format/money";
 
 const STATUS: Record<ReferralFriendStatus, { label: string; tone: Tone }> = {
   joined: { label: "Joined", tone: "up" },
@@ -18,7 +19,7 @@ type Rate = { perCoin: number; currency: string } | null;
 
 /** What coins are worth in money, so every card answers "how much is that?". Null without a rate. */
 const worth = (rate: Rate, coins: number) =>
-  rate ? new Intl.NumberFormat("en-CA", { style: "currency", currency: rate.currency }).format(coins * rate.perCoin) : null;
+  rate ? formatMoney(coins * rate.perCoin, rate.currency) : null;
 
 /** "20" + "coins", or "5%" + "back" for percentage rewards. */
 const reward = (s: ReferralSettings, v: number) => (s.mode === "pct" ? { value: `${v}%`, unit: "back" } : { value: v, unit: v === 1 ? "coin" : "coins" });

@@ -10,11 +10,13 @@ import { Label } from "@foundry/ui/label";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "@/app/(dashboard)/dashboard/discounts/rep-code-actions";
+import { useFormatMoney } from "@/components/app-currency";
 
 // The quick path beside Estimate: a one-off code on the staff member's own allowance, without
 // pricing an order first. Limits are enforced by the server action.
 // Mounted only while open, so every open starts fresh.
 export function QuickCodeDialog({ onOpenChange: setOpen }: { onOpenChange: (o: boolean) => void }) {
+  const fmtMoney = useFormatMoney();
   const tz = useTimezone();
   const [allowance, setAllowance] = useState<RepCodeAllowance | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export function QuickCodeDialog({ onOpenChange: setOpen }: { onOpenChange: (o: b
                 </Button>
               </div>
               <p className="text-muted-foreground text-sm">
-                <span className="nums">${issued.amount.toFixed(2)}</span> off · valid until{" "}
+                <span className="nums">{fmtMoney(issued.amount)}</span> off · valid until{" "}
                 {formatEpoch(issued.expiresAt, { mode: "datetime", timeZone: tz })}
               </p>
               {allowance && <p className="text-muted-foreground nums text-xs">{allowance.left} of {allowance.total} left today</p>}
@@ -104,7 +106,7 @@ export function QuickCodeDialog({ onOpenChange: setOpen }: { onOpenChange: (o: b
                 />
                 {allowance && (
                   <p className="text-muted-foreground nums text-xs">
-                    Up to ${allowance.capAmount.toFixed(2)}, and no more than {allowance.capPct}% of the order · {allowance.left} of {allowance.total} left today
+                    Up to {fmtMoney(allowance.capAmount)}, and no more than {allowance.capPct}% of the order · {allowance.left} of {allowance.total} left today
                   </p>
                 )}
               </div>

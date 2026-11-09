@@ -2,7 +2,8 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
-import { DayCard, DayGridView, cad, signedCad } from "@/components/analytics/day-card";
+import { DayCard, DayGridView, signedMoney } from "@/components/analytics/day-card";
+import { useFormatMoney } from "@/components/app-currency";
 import { dayGrid } from "@/lib/analytics/day-grid";
 import { addDaysIso, isoToUtcDate, mondayIndex } from "@/lib/dates";
 
@@ -30,7 +31,6 @@ const COLUMNS: Column[] = [
   { key: "profit", label: "Profit", money: true },
 ];
 
-const CAD = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
 const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const WEEKDAY = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" });
 
@@ -71,23 +71,25 @@ export function weekLabel(start: string, end: string) {
 
 const num = (n: number) => n.toLocaleString();
 
-function figures(r: Figures): [string, string][] {
+type Fmt = (n: number) => string;
+
+function figures(r: Figures, fmt: Fmt): [string, string][] {
   return COLUMNS.map((c) => {
     const v = r[c.key];
-    return [c.label, v === null ? "—" : c.key === "profit" ? signedCad(v) : c.money ? cad(v) : num(v)];
+    return [c.label, v === null ? "—" : c.key === "profit" ? signedMoney(v, fmt) : c.money ? fmt(v) : num(v)];
   });
 }
 
-function figureCard(title: string, r: Figures, extra: { href?: string; muted?: boolean }) {
+function figureCard(fmt: Fmt, title: string, r: Figures, extra: { href?: string; muted?: boolean }) {
   return (
     <DayCard
       title={title}
       stats={[
-        ["Net revenue", cad(r.revenue)],
+        ["Net revenue", fmt(r.revenue)],
         ["Deliveries", num(r.deliveries)],
       ]}
       profit={r.profit}
-      details={figures(r)}
+      details={figures(r, fmt)}
       {...extra}
     />
   );
@@ -95,6 +97,7 @@ function figureCard(title: string, r: Figures, extra: { href?: string; muted?: b
 
 /** Per-day figures as Mon–Sun cards; "By week" shows week totals. A day's popover links to that day's orders. */
 export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
+  const fmt = useFormatMoney();
   if (rows.length === 0) return <ChartEmpty message="No days in this range." />;
   const weeks = groupByWeek(rows);
   return (
@@ -107,14 +110,14 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
         <DayGridView
           columns={7}
           weeks={dayGrid(rows).map((w) =>
-            w.map((r) => (r ? <div key={r.date}>{figureCard(dayLabel(r.date).split(" · ")[0]!, r, { href: r.href, muted: mondayIndex(r.date) >= 5 || r.deliveries === 0 })}</div> : null)),
+            w.map((r) => (r ? <div key={r.date}>{figureCard(fmt, dayLabel(r.date).split(" · ")[0]!, r, { href: r.href, muted: mondayIndex(r.date) >= 5 || r.deliveries === 0 })}</div> : null)),
           )}
         />
       </TabsContent>
       <TabsContent value="week">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
           {weeks.map((w) => (
-            <div key={w.start}>{figureCard(weekLabel(w.start, w.end), w, {})}</div>
+            <div key={w.start}>{figureCard(fmt, weekLabel(w.start, w.end), w, {})}</div>
           ))}
         </div>
       </TabsContent>

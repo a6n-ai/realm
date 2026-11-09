@@ -60,6 +60,7 @@ import {
   DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };
@@ -325,6 +326,7 @@ export function AppSidebar({
 // button, plus a used/remaining count against their daily budget. Hidden entirely
 // when the rail is collapsed to icons (the detail would not fit).
 function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
+  const fmtMoney = useFormatMoney();
   const [copied, setCopied] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -344,7 +346,7 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
   const reached = coupon.used >= coupon.total;
   const ceiling = [
     coupon.capPct != null ? `${coupon.capPct}%` : null,
-    coupon.capAmount != null ? `$${coupon.capAmount.toFixed(2)}` : null,
+    coupon.capAmount != null ? `${fmtMoney(coupon.capAmount)}` : null,
   ].filter(Boolean).join(" / ");
 
   return (

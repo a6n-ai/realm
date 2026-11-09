@@ -63,7 +63,7 @@ export function sectionsNeedingInput(d: Draft): Record<SectionKey, boolean> {
 }
 
 /** One-line summaries read from the draft's current values; display only. */
-export function sectionSummaries(d: Draft, catalog: Catalog, enabledSlots: EnabledSlot[]) {
+export function sectionSummaries(d: Draft, catalog: Catalog, enabledSlots: EnabledSlot[], fmtMoney: (n: number) => string) {
   const v = d.form.watch();
   const planName = catalog.plans.find((p) => p.key === v.planKey)?.name;
   const size = catalog.mealSizes.find((s) => s.id === v.mealSizeId)?.name;
@@ -88,7 +88,7 @@ export function sectionSummaries(d: Draft, catalog: Catalog, enabledSlots: Enabl
   const parts = [
     ...d.couponCodes,
     (d.coinPreview?.used ?? 0) > 0 && `${d.coinPreview?.used} coins`,
-    d.discount > 0 && `$${d.discount.toFixed(2)} off`,
+    d.discount > 0 && `${fmtMoney(d.discount)} off`,
   ].filter(Boolean);
   const discounts = parts.length ? parts.join(", ") : "None";
 

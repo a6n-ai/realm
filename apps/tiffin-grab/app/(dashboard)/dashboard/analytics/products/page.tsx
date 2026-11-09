@@ -27,6 +27,7 @@ import {
 import { revenueTotals } from "@/lib/services/analytics/metrics/money";
 import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
 const productStats = cache(getProductStats);
@@ -147,6 +148,7 @@ async function ContextLine({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const [sales, totals, pickers] = await Promise.all([sizeSales(scope), revenueTotals(scope), getPickers(scope)]);
   const tiffins = sales.reduce((s, r) => s + r.tiffins, 0);
   const top = sales.filter((r) => !r.custom && r.revenue > 0).sort((a, b) => b.revenue - a.revenue)[0];
@@ -162,7 +164,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
         },
         {
           label: "Net revenue per tiffin",
-          value: tiffins === 0 ? "—" : (totals.net / tiffins).toLocaleString("en-CA", { style: "currency", currency: "CAD" }),
+          value: tiffins === 0 ? "—" : money(totals.net / tiffins),
           hint: `Net revenue ${DATE_BASIS_LABEL.money} ÷ tiffins ${DATE_BASIS_LABEL.deliveries}`,
           badge: "Average",
           badgeTone: "neutral",
@@ -269,6 +271,7 @@ const WEEK_SLOTS = ["1", "2", "4", "8", "12"];
 const productSales = cache(getProductSales);
 
 async function PlanLengthDonut({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const byWeeks = new Map<number, { orders: number; revenue: number }>();
   for (const r of await productSales(scope)) {
     const b = byWeeks.get(r.weeks) ?? { orders: 0, revenue: 0 };
@@ -286,11 +289,11 @@ async function PlanLengthDonut({ scope }: { scope: AnalyticsScope }) {
   );
 }
 
-const money = (v: number) => v.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const sum = (rows: { orders: number; revenue: number }[], k: "orders" | "revenue") => round2(rows.reduce((t, r) => t + r[k], 0));
 
 async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
+  const money = await getMoneyFormatter();
   const all = await productSales(scope);
   if (all.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No orders in this range.</p>;
   return (

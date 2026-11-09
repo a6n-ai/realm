@@ -27,6 +27,8 @@ import {
   type Catalog,
 } from "./order-draft";
 import { utcIso } from "@/lib/dates";
+import { formatMoney } from "@/lib/format/money";
+import { useAppCurrency } from "@/components/app-currency";
 
 export type EnabledSlot = { key: string; label: string };
 
@@ -88,6 +90,7 @@ export function useOrderDraft({
   inquiryId, contact, catalog, enabledSlots, prefill, onCreate, onReview, page, onContinue, hasSummary,
   estimateOnly = false, onEstimate,
 }: OrderDraftParams) {
+  const currency = useAppCurrency();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -473,7 +476,7 @@ export function useOrderDraft({
     const freq = catalog.frequencies.find((f) => f.key === frequencyKey)?.name;
     // A WhatsApp-ready quote (*bold* renders there): what to pick on the website, the codes to
     // type at checkout, and the exact total they will see.
-    const money = (n: number) => `$${n.toFixed(2)}`;
+    const money = (n: number) => formatMoney(n, currency);
     const days = eatingDays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
     const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
     const firstName = contact.fullName.trim().split(/\s+/)[0];

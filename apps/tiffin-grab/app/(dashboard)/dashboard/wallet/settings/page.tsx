@@ -3,6 +3,7 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coinRate } from "@/db/schema";
 import {
+  getAppSettings,
   getCoinEarnPct,
   getMaxCoinPctOfSubtotal,
   getMaxCoinRedeemPctOfBalance,
@@ -25,8 +26,9 @@ export default function WalletSettingsPage() {
 }
 
 async function WalletSettingsData() {
-  const [[latestRate], maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
+  const [[latestRate], { currency }, maxWalletBalance, earnPct, maxCoinPct, maxRedeemPct] = await Promise.all([
     db.select({ valuePerCoin: coinRate.valuePerCoin }).from(coinRate).orderBy(desc(coinRate.createdAt)).limit(1),
+    getAppSettings(),
     getMaxWalletBalance(),
     getCoinEarnPct(),
     getMaxCoinPctOfSubtotal(),
@@ -36,7 +38,7 @@ async function WalletSettingsData() {
   return (
     <div className="grid gap-6">
       <CoinRateForm
-        currency="CAD"
+        currency={currency}
         current={latestRate ? { valuePerCoin: latestRate.valuePerCoin } : null}
         onSave={saveCoinRate}
       />

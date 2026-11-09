@@ -15,6 +15,7 @@ import type { SortState } from "@/lib/list/sort";
 import { setCouponActive } from "../actions";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import type { StaffCodeSortColumn } from "./page";
+import { useFormatMoney } from "@/components/app-currency";
 
 export type IssuedCode = {
   publicId: string;
@@ -62,9 +63,9 @@ const COLUMNS: readonly Column<StaffCodeSortColumn | "type" | "issuer" | "uses" 
 ];
 
 // What the code is worth: a staff code is a fixed amount; a daily coupon is a ceiling.
-function worth(c: IssuedCode): string {
-  if (c.kind === "rep_code") return `$${(c.amount ?? 0).toFixed(2)}`;
-  return `Up to ${c.capPct ?? 0}% · $${(c.capAmount ?? 0).toFixed(2)}`;
+function worth(c: IssuedCode, fmtMoney: (n: number) => string): string {
+  if (c.kind === "rep_code") return fmtMoney(c.amount ?? 0);
+  return `Up to ${c.capPct ?? 0}% · ${fmtMoney(c.capAmount ?? 0)}`;
 }
 
 function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
@@ -104,6 +105,7 @@ export function StaffCodes({
   page: number;
   size: number;
 }) {
+  const fmtMoney = useFormatMoney();
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
@@ -132,9 +134,9 @@ export function StaffCodes({
                 </TableCell>
                 <TableCell>{c.issuer}</TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {c.applied != null ? `$${c.applied.toFixed(2)}` : worth(c)}
+                  {c.applied != null ? fmtMoney(c.applied) : worth(c, fmtMoney)}
                   {c.applied != null && (c.kind === "rep_daily" || c.applied < (c.amount ?? 0)) && (
-                    <span className="text-muted-foreground block text-xs">of {worth(c)}</span>
+                    <span className="text-muted-foreground block text-xs">of {worth(c, fmtMoney)}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{c.uses} / {c.maxUses}</TableCell>

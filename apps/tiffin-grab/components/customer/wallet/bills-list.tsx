@@ -22,14 +22,7 @@ import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
-
-function formatDollars(amount: string, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-  }).format(Number(amount));
-}
+import { formatMoney } from "@/lib/format/money";
 
 type PayStatus = CustomerBill["payments"][number]["status"];
 
@@ -83,15 +76,16 @@ function isClaimable(p: CustomerBill["payments"][number]): boolean {
   return p.status === "awaiting_payment" || p.status === "rejected" || p.status === "pending_verification";
 }
 
-function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number]): string | null {
+function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number], currency: string): string | null {
+  const fmt = (n: number) => formatMoney(n, currency, { narrow: true });
   if (p.method !== "stripe") return null;
   const fee = Number(p.surchargeAmount);
   const parts = [
     p.cardLast4 ? `${cardBrandLabel(p.cardBrand)} ••${p.cardLast4}` : null,
-    fee > 0 ? `Credit card fee $${fee.toFixed(2)}` : null,
+    fee > 0 ? `Credit card fee ${fmt(fee)}` : null,
     ...(p.addonLines
-      ? p.addonLines.map((l) => `${l.label} $${l.amount.toFixed(2)}`)
-      : bill.taxLines.map((t) => `${t.name} ${t.ratePct}% $${t.amount.toFixed(2)}`)),
+      ? p.addonLines.map((l) => `${l.label} ${fmt(l.amount)}`)
+      : bill.taxLines.map((t) => `${t.name} ${t.ratePct}% ${fmt(t.amount)}`)),
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -133,7 +127,7 @@ function BillRow({
   const claimable = bill.payments.find(isClaimable);
   const payable = cardAvailable ? bill.payments.find((p) => p.cardPayable) : undefined;
   const hints = [...new Set(bill.payments.map((p) => paymentPill(p.status).hint).filter((h): h is string => !!h))];
-  const details = bill.payments.map((p) => cardDetail(bill, p)).filter(Boolean);
+  const details = bill.payments.map((p) => cardDetail(bill, p, currency)).filter(Boolean);
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">
@@ -188,7 +182,7 @@ function BillRow({
         ))}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
-        <span className="text-subhead font-semibold tabular-nums">{formatDollars(bill.total, currency)}</span>
+        <span className="text-subhead font-semibold tabular-nums">{formatMoney(Number(bill.total), currency, { narrow: true })}</span>
         <ReceiptActions orderPublicId={bill.publicId} />
       </div>
     </div>
@@ -250,7 +244,7 @@ export function BillsList({
       {loadError && <p className="text-destructive text-sm">{loadError}</p>}
       {groups.map((g) => (
         <section key={g.key} aria-label={g.label}>
-          <GroupHeader note={g.paid > 0 ? `Paid ${formatDollars(String(g.paid), currency)}` : undefined}>{g.label}</GroupHeader>
+          <GroupHeader note={g.paid > 0 ? `Paid ${formatMoney(Number(String(g.paid)), currency, { narrow: true })}` : undefined}>{g.label}</GroupHeader>
           <ListGroup>
             {g.items.map((bill) => (
               <BillRow key={bill.publicId} bill={bill} currency={currency} cardAvailable={cardAvailable} onClaim={openClaim} />

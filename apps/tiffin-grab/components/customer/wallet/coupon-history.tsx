@@ -9,10 +9,9 @@ import type { CustomerCouponUse } from "@/lib/services/customer-finances.service
 import { QuietPagination } from "./finance-kit";
 import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
 import { H2Skeleton, ListGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { formatMoney } from "@/lib/format/money";
 
-function money(amount: string | number, currency: string) {
-  return new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amount));
-}
+const money = (amount: string | number, currency: string) => formatMoney(Number(amount), currency, { narrow: true });
 
 export function CouponStats({ available, saved, currency }: { available: number; saved: string; currency: string }) {
   return (

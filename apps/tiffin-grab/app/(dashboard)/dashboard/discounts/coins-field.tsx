@@ -5,10 +5,12 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import type { StaffCoinPreview } from "../inquiries/[id]/order/actions";
+import { useFormatMoney } from "@/components/app-currency";
 
 // The matched customer's wallet. An estimate starts on every coin the order allows; a staff order
 // starts on none (`onOrder`). The server clamps whatever is typed to the order's maximum.
 export function CoinsField({ coins, setCoins, onOrder = false }: { coins: StaffCoinPreview; setCoins: (coins: number | "max") => void; onOrder?: boolean }) {
+  const fmtMoney = useFormatMoney();
   const [draft, setDraft] = useState(String(coins.used));
   useEffect(() => setDraft(String(coins.used)), [coins.used]);
   const submit = () => {
@@ -40,7 +42,7 @@ export function CoinsField({ coins, setCoins, onOrder = false }: { coins: StaffC
           </div>
           <p className="text-muted-foreground text-xs tabular-nums">
             {coins.balance} in wallet · up to {coins.maxCoins} on this order
-            {coins.used > 0 ? ` · ${coins.used} used, −$${coins.value.toFixed(2)}` : onOrder ? " · none used unless you add them" : ""}
+            {coins.used > 0 ? ` · ${coins.used} used, −${fmtMoney(coins.value)}` : onOrder ? " · none used unless you add them" : ""}
           </p>
           {coins.message && <p className="text-muted-foreground text-xs">{coins.message}</p>}
         </div>

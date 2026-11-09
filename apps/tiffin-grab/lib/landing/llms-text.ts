@@ -1,7 +1,7 @@
 import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
+import { formatMoney } from "@/lib/format/money";
 
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
-const money = (n: number, currency: string) => new Intl.NumberFormat("en-CA", { style: "currency", currency, minimumFractionDigits: 2 }).format(n);
 
 export function deliveryLine(f: SiteFacts) {
   return f.free ? "Delivery is free." : "Delivery has a charge, shown at checkout before you pay.";
@@ -9,7 +9,7 @@ export function deliveryLine(f: SiteFacts) {
 
 /** /llms.txt: what an AI assistant needs to answer "what is Tiffin Grab, what does it cost, do you deliver to me". */
 export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }): string {
-  const m = (n: number) => money(n, f.currency);
+  const m = (n: number) => formatMoney(n, f.currency);
   const u = (p: string) => `${origin}${p}`;
   const range = f.plans.flatMap((p) => p.sizes.filter((s) => !s.trial).map((s) => s.rate));
   const lines = [
@@ -60,7 +60,7 @@ export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }
 
 /** /pricing.md: the price list as markdown, one table per diet. */
 export function pricingMd(f: SiteFacts, origin: string): string {
-  const m = (n: number) => money(n, f.currency);
+  const m = (n: number) => formatMoney(n, f.currency);
   const cell = (s: string) => s.replace(/\|/g, "/");
   const lines = ["# Tiffin Grab pricing", "", `Prices are per tiffin, in ${f.currency}. A plan costs the per-tiffin rate times the number of tiffins in it. Live prices: ${origin}/pricing`, ""];
   for (const p of f.plans) {

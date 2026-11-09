@@ -1,7 +1,8 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import { DayCard, DayGridView, cad } from "@/components/analytics/day-card";
+import { DayCard, DayGridView } from "@/components/analytics/day-card";
+import { useFormatMoney } from "@/components/app-currency";
 import { weekLabel } from "@/components/analytics/daily-scorecard";
 import { groupProfitWeeks } from "@/lib/analytics/profit-weeks";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
@@ -11,22 +12,23 @@ import { periodLabel, type Grain, type ProfitRow } from "@/lib/analytics/profita
 const pct = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 
 function Card({ row, title }: { row: ProfitRow; title: string }) {
+  const fmt = useFormatMoney();
   return (
     <DayCard
       title={title}
       sub={`${row.tiffins} ${row.tiffins === 1 ? "tiffin" : "tiffins"}`}
       stats={[
-        ["Earned", cad(row.revenue)],
-        ["Cost", cad(row.costs)],
+        ["Earned", fmt(row.revenue)],
+        ["Cost", fmt(row.costs)],
       ]}
       profit={row.profit}
       details={[
-        ["Kitchen", cad(row.kitchen)],
-        ["Driver", cad(row.driver)],
-        ["Marketing", cad(row.marketing)],
-        ["Salaries", cad(row.salaries)],
-        ["Other", cad(row.other)],
-        ["Cash collected", cad(row.cashCollected)],
+        ["Kitchen", fmt(row.kitchen)],
+        ["Driver", fmt(row.driver)],
+        ["Marketing", fmt(row.marketing)],
+        ["Salaries", fmt(row.salaries)],
+        ["Other", fmt(row.other)],
+        ["Cash collected", fmt(row.cashCollected)],
         ["Margin", pct(row.marginPct)],
       ]}
     />
