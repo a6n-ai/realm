@@ -17,12 +17,12 @@ export type ZoneLocation = {
 /**
  * The zone serving an address: a postal zone match first, else the smallest circle around
  * the store covering it. Geocodes only when circles exist and no postal zone matched, so a
- * postal-only setup never calls the geocoder.
+ * postal-only setup never calls the geocoder. `geocode: false` (unauthenticated callers) never calls it: postal zones only.
  */
-export async function findZone<Z extends Zone>(zones: Z[], at: ZoneLocation, orgId?: string | null): Promise<Z | null> {
+export async function findZone<Z extends Zone>(zones: Z[], at: ZoneLocation, orgId?: string | null, opts: { geocode?: boolean } = {}): Promise<Z | null> {
   const [postal] = coveringZones({ postalCode: at.postalCode }, zones);
   if (postal) return postal;
-  if (!hasCircleZones(zones)) return null;
+  if (opts.geocode === false || !hasCircleZones(zones)) return null;
 
   const origin = await deliveryService.getStoreOrigin(orgId);
   if (!origin) return null;

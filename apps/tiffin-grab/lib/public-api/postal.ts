@@ -18,8 +18,8 @@ export const windowOf = (slot: string | null) => {
   return w ? { from: w.from, to: w.to } : null;
 };
 
-/** Same zone match checkout uses (postal prefix, then radius circles), so this answer agrees with what an order gets. */
+/** Checkout's postal zone match. Never geocodes (the API is unauthenticated, a geocode is a paid call), so a radius-only area reads as not served here; checkout still decides. */
 export async function deliveryCheck<Z extends Zone>(zones: Z[], postal: string, orgId?: string | null) {
-  const z = await findZone(zones.filter((x) => x.active), { postalCode: postal }, orgId);
+  const z = await findZone(zones.filter((x) => x.active), { postalCode: postal }, orgId, { geocode: false });
   return { postal, served: !!z, area: z?.name ?? null, window: z ? (windowOf(z.slotWindow) ?? z.slotWindow) : null };
 }

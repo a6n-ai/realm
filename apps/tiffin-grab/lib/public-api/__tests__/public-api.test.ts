@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const resolve = vi.hoisted(() => vi.fn());
+vi.mock("@foundry/places", () => ({ awsPlaceProvider: () => ({ resolve }) }));
 import { apiCatalog, docsMarkdown, openApi } from "@/lib/public-api/openapi";
 import { deliveryCheck, normalizePostal } from "@/lib/public-api/postal";
 
@@ -20,6 +23,14 @@ describe("deliveryCheck", () => {
   });
   it("ignores inactive zones and unknown codes", async () => {
     expect(await deliveryCheck(zones, "L9T")).toEqual({ postal: "L9T", served: false, area: null, window: null });
+  });
+});
+
+describe("deliveryCheck without a geocoder", () => {
+  it("never geocodes, even with a radius zone and no postal match", async () => {
+    const circle = { name: "Near", active: true, radiusKm: 7, postalPrefixes: [], slotWindow: null };
+    expect(await deliveryCheck([...zones, circle], "L9T")).toMatchObject({ served: false });
+    expect(resolve).not.toHaveBeenCalled();
   });
 });
 
