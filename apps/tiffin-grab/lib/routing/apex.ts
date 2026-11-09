@@ -15,12 +15,17 @@ const APEX_PUBLIC_EXACT = new Set([
 ]);
 const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/api/public/", "/.well-known/agent-skills/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 // First path segments the app host really serves: its own route folders under app/ (the (auth),
-// (customer), (dashboard) and (public) groups, minus anything the apex answers) plus /api. Keep it
-// current: when you add a top-level folder to those groups, add its segment here, or the apex 404s it.
-const APP_ROOTS = new Set([
-  "api", "dashboard", "me", "login", "signup", "lock", "verify-email", "forgot-password", "set-password", "magic-link",
-  "accept-invitation", "resubscribe", "unsubscribe", "subscribe", "checkout", "activate", "q",
-]);
+// (customer), (dashboard) and (public) groups, minus anything the apex answers) plus /api. This is the
+// one list: the proxy (apex redirect, org resolution) and the cross-area link guard both read it, so
+// when you add a top-level folder to those groups, add its segment here and nowhere else.
+// NO_ORG_ROOTS never carry a URL-segment clientCode, so the proxy skips org resolution for them;
+// ORG_ROOTS are public app pages that still resolve the visitor's org.
+const NO_ORG_ROOTS = [
+  "api", "dashboard", "me", "login", "signup", "lock", "verify-email", "forgot-password", "set-password", "magic-link", "resubscribe",
+];
+const ORG_ROOTS = ["accept-invitation", "unsubscribe", "subscribe", "checkout", "activate", "q", "r", "trial"];
+const APP_ROOTS = new Set([...NO_ORG_ROOTS, ...ORG_ROOTS]);
+const rootOf = (pathname: string) => pathname.split("/")[1] ?? "";
 const APEX_SVG = /^\/[^/]*\.svg$/;
 
 /** Origin search engines should index the public pages under: the apex (tiffingrab.ca), derived
@@ -41,5 +46,16 @@ export function apexServes(pathname: string): boolean {
 
 /** A path that lives on app.: the apex 308s it there. Case-sensitive, as the app's routes are. */
 export function appServes(pathname: string): boolean {
-  return APP_ROOTS.has(pathname.split("/")[1] ?? "");
+  return APP_ROOTS.has(rootOf(pathname));
+}
+
+/** Proxy: this path never has a client-code segment, so org resolution is skipped. */
+export function skipsOrgResolution(pathname: string): boolean {
+  return NO_ORG_ROOTS.includes(rootOf(pathname));
+}
+
+/** A page in the app Tailwind build (public pages are the other build); /api is neither. */
+export function isAppPath(pathname: string): boolean {
+  const root = rootOf(pathname);
+  return root !== "api" && APP_ROOTS.has(root);
 }

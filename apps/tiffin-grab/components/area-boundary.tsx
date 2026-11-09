@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { isAppPath } from "@/lib/routing/apex";
 
 // The public site and the signed-in app ship separate Tailwind builds (app/styles/public.css, app/styles/app.css).
 // Two builds in one document fight over the same utilities (`hidden` vs `md:block`, in load order), so a link
 // that crosses between them loads the page fresh instead of navigating in place.
-const APP = ["/me", "/dashboard", "/login", "/signup", "/forgot-password", "/set-password", "/verify-email", "/magic-link",
-  "/accept-invitation", "/lock", "/no-access", "/subscribe", "/checkout", "/activate", "/trial", "/q", "/r", "/resubscribe", "/unsubscribe"];
-
-export const isAppPath = (path: string) => APP.some((p) => path === p || path.startsWith(`${p}/`));
-
 export function AreaBoundary() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

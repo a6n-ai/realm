@@ -6,7 +6,7 @@ import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
 import probePath from "./lib/routing/probe-path.json";
 import publicPages from "./lib/routing/public-pages.json";
-import { AREA_PAGE, apexServes, appServes } from "./lib/routing/apex";
+import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
 import { appUrlOr, isTest } from "@/lib/runtime/env";
@@ -34,12 +34,6 @@ const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "
 // Vuln scanners (.env, .git, next.config, IDE mcp files, …). 404 before org resolution / Next.
 // The pattern lives in lib/routing/probe-path.json, which cloudflare/worker.js also imports.
 const PROBE_PATH = new RegExp(probePath.source, probePath.flags);
-
-// Prefixes that never carry a URL-segment clientCode: the console, the API,
-// the customer account area, and the (auth) route group's own pages (all
-// single-segment, e.g. /login, /signup — none of these are ever a tenant's
-// client code). Resolution is skipped for these paths.
-const RESOLUTION_EXEMPT = ["/api", "/dashboard", "/me", "/login", "/signup", "/lock", "/verify-email", "/forgot-password", "/set-password", "/magic-link", "/resubscribe"];
 
 // Cross-origin allowlist, comma-separated env. Empty = same-origin only
 // (browsers block cross-origin by default — this stays locked until set).
@@ -161,7 +155,7 @@ async function route(request: NextRequest): Promise<NextResponse> {
 
   const onApi = pathname.startsWith("/api");
   const onDashboard = pathname.startsWith("/dashboard");
-  const resolutionExempt = RESOLUTION_EXEMPT.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const resolutionExempt = skipsOrgResolution(pathname);
 
   // Set on the forwarded request when a URL-segment/default org resolves, so
   // NextResponse.next() below can carry it through via the `request.headers`
