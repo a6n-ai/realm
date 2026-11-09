@@ -347,8 +347,9 @@ async function voidExpiredLinks(orderPublicId: string, actorId: bigint | null): 
 }
 
 // Add-on money that is in but not applied: an activity note alone is easy to miss.
-async function notifyStaff(tx: Tx, order: { publicId: string; deploymentId: string }, text: string, key: string) {
+async function notifyStaff(tx: Tx, order: { publicId: string; deploymentId: string; organizationId: string | null }, text: string, key: string) {
   await enqueueStaffNotification(tx, {
+    organizationId: order.organizationId,
     title: "Add-on payment needs attention",
     body: `${text} · order ${order.deploymentId}`,
     href: `/dashboard/orders/${order.publicId}`,

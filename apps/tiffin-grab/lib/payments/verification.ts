@@ -79,6 +79,7 @@ export function paymentTemplateVars(
 async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
   await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
   await enqueueStaffNotification(tx, {
+    organizationId: order.organizationId,
     title: "Card payment needs attention",
     body: `${note} · order ${order.deploymentId}`,
     href: `/dashboard/orders/${order.publicId}`,
@@ -483,6 +484,7 @@ export async function claimPayment(
 
     if (pay.method === "etransfer") {
       await enqueueStaffNotification(tx, {
+        organizationId: pay.organizationId,
         // No event on purpose: in-app rows for an event render from an admin-authored DB
         // template and are skipped when none exists. Without one the payload copy is used.
         title: "New e-Transfer request",

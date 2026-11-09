@@ -300,10 +300,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return row.n;
   }
 
-  /** In-app note to the lead's owner, or to all staff when nobody owns it. Keyed so a retry adds nothing. */
+  /** In-app note to the lead's owner, or to the franchise's staff when nobody owns it. Keyed so a retry adds nothing. */
   private notifyOwner(tx: Tx, inq: typeof inquiries.$inferSelect, n: { event: "inquiry_created" | "inquiry_follow_up" | "inquiry_converted"; title: string; body: string; data?: Record<string, unknown>; dedupeKey: string }) {
     const note = { ...n, channels: ["in_app" as const], href: `/dashboard/inquiries/${inq.publicId}` };
-    return inq.currentOwner != null ? enqueueNotification(tx, { ...note, recipientId: inq.currentOwner }) : enqueueStaffNotification(tx, note);
+    return inq.currentOwner != null ? enqueueNotification(tx, { ...note, recipientId: inq.currentOwner }) : enqueueStaffNotification(tx, { ...note, organizationId: inq.organizationId });
   }
 
   private followUp(inq: typeof inquiries.$inferSelect, at: number | null | undefined) {

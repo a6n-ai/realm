@@ -109,6 +109,7 @@ async function flagDuplicateCharge(pay: Payment, piId: string, source: string) {
   const [order] = await db.select({ publicId: orders.publicId, deploymentId: orders.deploymentId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (order) {
     await db.transaction((tx) => enqueueStaffNotification(tx, {
+      organizationId: pay.organizationId,
       title: "Card charged twice",
       body: `Refund the duplicate charge ${piId} · order ${order.deploymentId}`,
       href: `/dashboard/orders/${order.publicId}`,
@@ -149,6 +150,7 @@ export async function settleStripePayment(
   if (order?.status === "cancelled" && !pay.addonRequest) {
     await activityOnce(pay.orderId, "payment_failed", NOTE_CANCELLED_ORDER, piId, "- refund it in Stripe");
     await db.transaction((tx) => enqueueStaffNotification(tx, {
+      organizationId: pay.organizationId,
       title: "Card payment needs attention",
       body: `Paid on a cancelled order — refund needed · order ${order.deploymentId}`,
       href: `/dashboard/orders/${order.publicId}`,
@@ -170,6 +172,7 @@ export async function settleStripePayment(
     );
     if (order) {
       await db.transaction((tx) => enqueueStaffNotification(tx, {
+      organizationId: pay.organizationId,
         title: "Card payment not settled",
         body: `Stripe amount differs from the order · order ${order.deploymentId}`,
         href: `/dashboard/orders/${order.publicId}`,
@@ -488,6 +491,7 @@ async function recordIntentError(pay: Payment, order: Order, e: unknown) {
   log.error({ paymentId: pay.publicId, err: e }, "stripe intent create failed");
   await activity(pay.orderId, "payment_failed", `Card payment could not start: ${msg.slice(0, 300)}`);
   await db.transaction((tx) => enqueueStaffNotification(tx, {
+      organizationId: pay.organizationId,
     title: "Card payments failing",
     body: `Stripe rejected a card payment · order ${order.deploymentId}`,
     href: `/dashboard/orders/${order.publicId}`,

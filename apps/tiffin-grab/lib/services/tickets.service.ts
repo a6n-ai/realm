@@ -144,6 +144,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);
     await db.transaction((tx) => enqueueStaffNotification(tx, {
+      organizationId: ticket.organizationId,
       event: "ticket_created",
       title: "New support ticket",
       body: subject,
@@ -199,7 +200,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       }
       const staffNote = { ...note, title: "Customer replied", channels: ["in_app" as const], href: `/dashboard/tickets/${ticket.publicId}` };
       if (ticket.currentOwner != null && (await this.hasStaffOwner(ticket))) await enqueueNotification(tx, { ...staffNote, recipientId: ticket.currentOwner });
-      else await enqueueStaffNotification(tx, staffNote);
+      else await enqueueStaffNotification(tx, { ...staffNote, organizationId: ticket.organizationId });
     });
 
     // A staff reply on an in-progress ticket hands the ball back to the customer.
