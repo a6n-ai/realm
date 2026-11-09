@@ -1,5 +1,5 @@
 import { and, eq, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
-import { inStatuses, UNPAID } from "@/lib/payments/status";
+import { inStatuses, UNPAID, VOID_EXPIRY } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { db } from "@/db/client";
@@ -131,7 +131,7 @@ export function expireUnpaidStripeOrders(scope: { userId?: bigint; orderId?: big
 
 /**
  * Staff cancel: the order, then every card payment on it that could still be paid. Open intents are cancelled and
- * add-on links voided (expiresAt 0, as order-addons voidLink). An intent that may be moving money is left alone and
+ * add-on links voided (VOID_EXPIRY). An intent that may be moving money is left alone and
  * noted: if it lands, settle records it on the cancelled order and flags it for a refund.
  */
 export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigint | null): Promise<void> {
@@ -144,7 +144,7 @@ export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigi
       eq(orders.publicId, publicId),
       eq(payments.method, "stripe"),
       paymentStatusIn(UNPAID),
-      or(isNull(payments.expiresAt), ne(payments.expiresAt, 0)),
+      or(isNull(payments.expiresAt), ne(payments.expiresAt, VOID_EXPIRY)),
     ));
   for (const p of open) {
     try {
@@ -153,7 +153,7 @@ export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigi
         const [pay] = await tx.select().from(payments).where(eq(payments.publicId, p.publicId)).for("update").limit(1);
         if (!pay || !inStatuses(UNPAID, pay.status)) return true;
         if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") return false;
-        if (pay.addonRequest) await tx.update(payments).set({ status: "rejected", expiresAt: 0, note: "Order cancelled" }).where(eq(payments.id, pay.id));
+        if (pay.addonRequest) await tx.update(payments).set({ status: "rejected", expiresAt: VOID_EXPIRY, note: "Order cancelled" }).where(eq(payments.id, pay.id));
         return true;
       });
       if (!closed) {

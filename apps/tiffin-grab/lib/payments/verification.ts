@@ -1,3 +1,4 @@
+import { markPaymentCaptured } from "@/lib/payments/capture";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveUserId } from "@/lib/services/session-service";
@@ -7,11 +8,11 @@ import { trackConversion } from "@/lib/services/tracking";
 import { canVerify, findMethod } from "@foundry/payments";
 import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { inStatuses, PAID, SETTLEABLE, UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { db, type Tx } from "@/db/client";
-import { coupons, deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, plans, users, type PaymentProof } from "@/db/schema";
+import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, plans, users, type PaymentProof } from "@/db/schema";
 import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@foundry/cloud/background";
@@ -159,29 +160,9 @@ export async function verifyPayment(
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 
-    await ledgerService.record(tx, {
-      userId: orderUserId,
-      orderId: order.id,
-      paymentId: pay.id,
-      direction: "credit",
-      type: "payment",
-      amount: (Number(pay.amount) + Number(pay.surchargeAmount ?? 0)).toFixed(2),
-      memo: Number(pay.surchargeAmount ?? 0) > 0 ? `incl. card surcharge ${pay.surchargeAmount}` : null,
-      providerEventId: opts.providerEventId ?? null,
-    });
-
-    await tx
-      .update(payments)
-      .set({ status: "paid", capturedAt: Date.now() })
-      .where(eq(payments.id, pay.id));
-
-    // `payments` has baseColumns, not updatableColumns — there is no updatedBy on the row,
-    // so the activity row is the only place the verifier's identity is ever recorded.
-    await tx.insert(orderActivities).values({
-      orderId: order.id,
-      type: "payment_verified",
-      note: `${pay.method} · ${pay.amount}`,
+    await markPaymentCaptured(tx, pay, { id: order.id, userId: orderUserId, organizationId: order.organizationId }, {
       createdBy: actorInternalId,
+      providerEventId: opts.providerEventId ?? null,
     });
 
     const snap = order.pricingSnapshot as OrderPricingSnapshot;

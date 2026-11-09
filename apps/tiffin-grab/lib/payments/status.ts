@@ -2,6 +2,8 @@ import type { payments } from "@/db/schema";
 
 export type PaymentStatus = (typeof payments.status.enumValues)[number];
 
+/** `expiresAt` of an add-on link that was cancelled or replaced: it can never be applied. */
+export const VOID_EXPIRY = 0;
 /** Money confirmed (simulated_paid is the no-payment-rail checkout path). */
 export const PAID = ["paid", "simulated_paid"] as const;
 /**
