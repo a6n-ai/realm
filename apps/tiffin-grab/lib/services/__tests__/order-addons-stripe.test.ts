@@ -37,8 +37,8 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({
   refundIntent: (...a: unknown[]) => refund(...a),
 }));
 vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
-vi.mock("@/lib/services/orders.service", async (orig) => {
-  const real = await orig<typeof import("@/lib/services/orders.service")>();
+vi.mock("@/lib/payments/verification", async (orig) => {
+  const real = await orig<typeof import("@/lib/payments/verification")>();
   verify.mockImplementation(real.verifyPayment);
   return { ...real, verifyPayment: (...a: Parameters<typeof real.verifyPayment>) => verify(...a) };
 });
@@ -55,7 +55,7 @@ const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/c
 const { mealSizeAddons } = await import("@/lib/catalog/types");
 const { getAppSettings, setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
-const { cancelOrder, createOrder } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const { cancelOrderAndOpenPayments } = await import("../stripe-expiry");
 const { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment } = await import("../order-addons.service");
 const { sendPaymentReminder } = await import("../payment-reminder");
@@ -251,7 +251,7 @@ describe("Stripe add-ons (integration)", () => {
   it("records but does not apply when the order was cancelled", async () => {
     const order = await runningOrder();
     const { pay } = await createLink(order);
-    await cancelOrder(order.publicId);
+    await ordersService.cancel(order.publicId);
     succeeded(pay);
 
     expect(await settleStripePayment({ paymentRef: pay.publicId, piId: "pi_a" }, "webhook", "evt_a")).toBe("paid");

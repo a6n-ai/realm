@@ -5,7 +5,7 @@ import { deliveries, orderActivities, orders, payments } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "./orders.service";
+import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "@/lib/orders/queries";
 import { addDaysIso } from "@/lib/dates";
 import { requestNow } from "@/lib/dates/request-now";
 

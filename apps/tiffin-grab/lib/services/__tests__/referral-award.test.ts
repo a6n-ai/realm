@@ -30,6 +30,7 @@ const { account, orders, orderActivities, payments, ledgerEntries, walletLedger,
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
 const svc = await import("../orders.service");
+const paymentsSvc = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 const { attachReferral, getOrCreateReferralCode, getReferralSummary, staffAttachReferral } = await import("../referrals.service");
 
@@ -172,7 +173,7 @@ describe("referral award", () => {
     expect(side(rows2, "referral_referrer")).toEqual([]);
     expect((await rowFor(f2)).skipReason).toBe("cap");
 
-    await svc.refundOrder(o1.publicId);
+    await paymentsSvc.refundOrder(o1.publicId);
     expect((await rowFor(f1)).status).toBe("reversed");
 
     const { friend: f3 } = await refer(0, 59, referrer);
@@ -204,8 +205,8 @@ describe("referral award", () => {
     const { friend } = await refer(64, 65);
     const order = await placeFor(65);
     const pay = await backToUnpaid(friend, order);
-    await svc.verifyPayment(pay.publicId);
-    await svc.verifyPayment(pay.publicId);
+    await paymentsSvc.verifyPayment(pay.publicId);
+    await paymentsSvc.verifyPayment(pay.publicId);
     const rows = await creditsFor(friend);
     expect(side(rows, "referral_friend")).toEqual([10]);
     expect(side(rows, "referral_referrer")).toEqual([20]);
@@ -216,7 +217,7 @@ describe("referral award", () => {
       const { friend } = await refer(a, b);
       const order = await placeFor(b);
       const pay = await backToUnpaid(friend, order, { waitlisted: true });
-      await Promise.all([svc.activateOrder(order.publicId), svc.verifyPayment(pay.publicId)]);
+      await Promise.all([svc.ordersService.activate(order.publicId), paymentsSvc.verifyPayment(pay.publicId)]);
       const rows = await creditsFor(friend);
       expect(side(rows, "referral_friend"), `pair ${a}`).toEqual([10]);
       expect(side(rows, "referral_referrer"), `pair ${a}`).toEqual([20]);
@@ -230,7 +231,7 @@ describe("referral award", () => {
     const oc = await placeFor(74);
     const pb = await backToUnpaid(_b, ob);
     const pc = await backToUnpaid(c, oc);
-    await Promise.all([svc.verifyPayment(pb.publicId), svc.verifyPayment(pc.publicId)]);
+    await Promise.all([paymentsSvc.verifyPayment(pb.publicId), paymentsSvc.verifyPayment(pc.publicId)]);
     expect(side(await creditsFor(_b), "referral_referrer")).toEqual([20]);
     expect(side(await creditsFor(c), "referral_referrer")).toEqual([20]);
     expect(b).toBeDefined();
@@ -241,14 +242,14 @@ describe("referral award", () => {
     const order = await placeFor(76);
     const pay = await backToUnpaid(friend, order);
     expect(await creditsFor(friend)).toHaveLength(0);
-    await svc.verifyPayment(pay.publicId);
+    await paymentsSvc.verifyPayment(pay.publicId);
     expect(side(await creditsFor(friend), "referral_friend")).toEqual([10]);
   });
 
   it("cancelling the qualifying order takes both rewards back, for good", async () => {
     const { friend } = await refer(77, 78);
     const order = await placeFor(78);
-    await svc.cancelOrder(order.publicId);
+    await svc.ordersService.cancel(order.publicId);
     const rows = await creditsFor(friend);
     expect(side(rows, "referral_friend", "debit")).toEqual([10]);
     expect(side(rows, "referral_referrer", "debit")).toEqual([20]);

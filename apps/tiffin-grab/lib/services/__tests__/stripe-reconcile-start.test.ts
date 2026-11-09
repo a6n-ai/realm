@@ -38,8 +38,8 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({
   refundIntent: (...a: unknown[]) => refund(...a),
 }));
 vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
-vi.mock("@/lib/services/orders.service", async (orig) => {
-  const real = await orig<typeof import("@/lib/services/orders.service")>();
+vi.mock("@/lib/payments/verification", async (orig) => {
+  const real = await orig<typeof import("@/lib/payments/verification")>();
   verify.mockImplementation(real.verifyPayment);
   return { ...real, verifyPayment: (...a: Parameters<typeof real.verifyPayment>) => verify(...a) };
 });

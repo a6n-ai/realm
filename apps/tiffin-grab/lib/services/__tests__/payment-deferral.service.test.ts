@@ -6,7 +6,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { couponRedemptions, coupons, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
-const { createOrder, verifyPayment, claimPayment } = await import("../orders.service");
+const { createOrder } = await import("../orders.service");
+const { verifyPayment, claimPayment } = await import("@/lib/payments/verification");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput } = await import("./stripe-fixture");
@@ -275,7 +276,7 @@ describe("createOrder payment deferral", () => {
   });
 
   it("rejectPayment then re-claim; verify from pending_verification settles ledger", async () => {
-    const { rejectPayment } = await import("../orders.service");
+    const { rejectPayment } = await import("@/lib/payments/verification");
     await setPaymentConfig({
       methods: [
         {

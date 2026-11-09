@@ -11,7 +11,7 @@ vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async
 const { db } = await import("@/db/client");
 const { deliveries, holidays, ledgerEntries, orders, organization, payments, subscriptionPauses, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { activateOrder, changeOrderEatingDays, changeOrderStartDate, createOrder, startMigratedOrder } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const { applyHolidaysToOrder, undoHolidayForOrder } = await import("../holiday-apply");
 const { releasePausedDays, releasePausedDaysDetailed } = await import("../pause-days.service");
 const { getPauseUsage } = await import("../pause-limits.service");
@@ -106,14 +106,14 @@ describe("holidays at schedule writes", () => {
   it("a plan cannot start on a holiday", async () => {
     const { order, org } = await orderWithOrg();
     await addHoliday(org, "2030-01-14");
-    await expect(changeOrderStartDate(order.publicId, "2030-01-14")).rejects.toThrow("We are closed on Mon, Jan 14");
+    await expect(ordersService.changeStartDate(order.publicId, "2030-01-14")).rejects.toThrow("We are closed on Mon, Jan 14");
   });
 
   it("a rebuilt schedule after a start-date change closes the holiday and keeps the tiffin total", async () => {
     const { order, org } = await orderWithOrg();
     await addHoliday(org, "2030-01-16");
 
-    await changeOrderStartDate(order.publicId, "2030-01-14");
+    await ordersService.changeStartDate(order.publicId, "2030-01-14");
 
     expect(await scheduledDates(order.id)).toEqual(["2030-01-14", "2030-01-18", "2030-01-21", "2030-01-23"]);
     expect((await rowsOf(order.id)).filter((r) => r.status === "paused").map((r) => [r.deliveryDate, r.holidayId != null])).toEqual([["2030-01-16", true]]);
@@ -130,7 +130,7 @@ describe("holidays at schedule writes", () => {
     expect((await rowsOf(order.id)).some((r) => r.holidayId != null)).toBe(true);
     await addHoliday(org, "2030-01-16");
 
-    await expect(changeOrderStartDate(order.publicId, "2030-01-14")).resolves.toBeUndefined();
+    await expect(ordersService.changeStartDate(order.publicId, "2030-01-14")).resolves.toBeUndefined();
 
     const scheduled = await scheduledDates(order.id);
     expect(scheduled[0]).toBe("2030-01-14");
@@ -145,7 +145,7 @@ describe("holidays at schedule writes", () => {
     await db.delete(deliveries).where(eq(deliveries.orderId, order.id));
     await db.update(orders).set({ status: "pending" }).where(eq(orders.id, order.id));
 
-    await startMigratedOrder(order.publicId, "2030-01-07");
+    await ordersService.startMigrated(order.publicId, "2030-01-07");
 
     expect(await scheduledDates(order.id)).toEqual(["2030-01-07", "2030-01-11", "2030-01-14", "2030-01-16"]);
     expect(await scheduledUnits(order.id)).toBe(order.tiffinCount);
@@ -158,7 +158,7 @@ describe("holidays at schedule writes", () => {
     // Mon/Wed/Fri lays the ten tiffins out to Mon 2030-01-28; the third Wednesday is a holiday.
     await addHoliday(org, "2030-01-23");
 
-    await changeOrderEatingDays(order!.publicId, ["mon", "wed", "fri"]);
+    await ordersService.changeEatingDays(order!.publicId, ["mon", "wed", "fri"]);
 
     const scheduled = await scheduledDates(order!.id);
     expect(scheduled).not.toContain("2030-01-23");
@@ -172,7 +172,7 @@ describe("holidays at schedule writes", () => {
     await db.delete(deliveries).where(eq(deliveries.orderId, order.id));
     await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.id, order.id));
 
-    await activateOrder(order.publicId);
+    await ordersService.activate(order.publicId);
 
     const rows = await rowsOf(order.id);
     expect(rows.filter((r) => r.holidayId != null).map((r) => [r.deliveryDate, r.status])).toEqual([["2030-01-09", "paused"]]);
@@ -207,7 +207,7 @@ describe("holidays at schedule writes", () => {
     const extraIds = before.filter((r) => r.holidayExtraForDeliveryId === closed.id).map((r) => r.id);
     expect(extraIds.length).toBe(1);
 
-    await changeOrderEatingDays(order!.publicId, ["mon", "wed", "fri"]);
+    await ordersService.changeEatingDays(order!.publicId, ["mon", "wed", "fri"]);
 
     const after = await rowsOf(order!.id);
     expect(after.filter((r) => r.holidayExtraForDeliveryId === closed.id).map((r) => r.id)).toEqual(extraIds);
@@ -228,7 +228,7 @@ describe("holidays at schedule writes", () => {
     await addHoliday(org, "2030-01-07");
     await db.delete(deliveries).where(eq(deliveries.orderId, order.id));
     await db.update(orders).set({ status: "pending" }).where(eq(orders.id, order.id));
-    await expect(startMigratedOrder(order.publicId, "2030-01-07")).rejects.toThrow("We are closed on Mon, Jan 7");
+    await expect(ordersService.startMigrated(order.publicId, "2030-01-07")).rejects.toThrow("We are closed on Mon, Jan 7");
   });
 });
 

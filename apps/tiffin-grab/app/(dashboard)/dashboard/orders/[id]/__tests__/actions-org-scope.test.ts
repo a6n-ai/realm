@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "@foundry/commons";
 
 const svc = vi.hoisted(() => ({
-  activateOrder: vi.fn(), cancelOrder: vi.fn(), startMigratedOrder: vi.fn(), changeOrderStartDate: vi.fn(),
-  changeOrderEatingDays: vi.fn(), rejectPayment: vi.fn(), updatePaymentReference: vi.fn(),
+  ordersService: { activate: vi.fn(), cancel: vi.fn(), startMigrated: vi.fn(), changeStartDate: vi.fn(), changeEatingDays: vi.fn() },
+  rejectPayment: vi.fn(), updatePaymentReference: vi.fn(),
   verifyPayment: vi.fn(), assertOrderVisible: vi.fn(), assertDeliveryVisible: vi.fn(), assertPaymentVisible: vi.fn(),
   resolveSessionVisibleOrgIds: vi.fn(),
   sendPaymentReminder: vi.fn(),
@@ -21,6 +21,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/realtime/bus", () => ({ realtimeBus: { publish: () => {} } }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/orders.service", () => svc);
+vi.mock("@/lib/payments/verification", () => ({ verifyPayment: svc.verifyPayment, rejectPayment: svc.rejectPayment, updatePaymentReference: svc.updatePaymentReference }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
 vi.mock("@/lib/services/payment-reminder", () => ({ sendPaymentReminder: svc.sendPaymentReminder }));
 vi.mock("@/lib/services/deliveries.service", () => ({
@@ -55,10 +56,10 @@ const refused = async (call: () => Promise<unknown>) => {
 
 describe("order actions outside the caller's organizations", () => {
   it.each([
-    ["activate", () => actions.activate(ORDER), svc.activateOrder],
-    ["startMigrated", () => actions.startMigrated(ORDER, "2030-01-07"), svc.startMigratedOrder],
-    ["changeStartDateAction", () => actions.changeStartDateAction(ORDER, "2030-01-07"), svc.changeOrderStartDate],
-    ["changeEatingDaysAction", () => actions.changeEatingDaysAction(ORDER, ["mon"]), svc.changeOrderEatingDays],
+    ["activate", () => actions.activate(ORDER), svc.ordersService.activate],
+    ["startMigrated", () => actions.startMigrated(ORDER, "2030-01-07"), svc.ordersService.startMigrated],
+    ["changeStartDateAction", () => actions.changeStartDateAction(ORDER, "2030-01-07"), svc.ordersService.changeStartDate],
+    ["changeEatingDaysAction", () => actions.changeEatingDaysAction(ORDER, ["mon"]), svc.ordersService.changeEatingDays],
     ["cancel", () => actions.cancel(ORDER), svc.cancelOrderAndOpenPayments],
     ["updatePaymentReferenceAction", () => actions.updatePaymentReferenceAction(ORDER, PAYMENT, "ref"), svc.updatePaymentReference],
     ["sendPaymentReminderAction", () => actions.sendPaymentReminderAction(ORDER, PAYMENT), svc.sendPaymentReminder],

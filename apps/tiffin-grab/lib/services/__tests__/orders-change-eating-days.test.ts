@@ -10,7 +10,7 @@ vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, deliveryMoves, orderActivities, orders } = await import("@/db/schema");
-const { changeOrderEatingDays, changeOrderStartDate } = await import("../orders.service");
+const { ordersService } = await import("../orders.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEPLOYMENT = "test-eating-days";
@@ -37,9 +37,9 @@ describe("changeEatingDays", () => {
   it("the start date can still move after the eating days changed", async () => {
     const { order } = await make();
     // 10 tiffins on 3 days a week run 4 weeks: whole weeks x days (12) is no longer what was bought.
-    await changeOrderEatingDays(order.publicId, ["mon", "wed", "fri"]);
+    await ordersService.changeEatingDays(order.publicId, ["mon", "wed", "fri"]);
 
-    await changeOrderStartDate(order.publicId, "2030-01-14");
+    await ordersService.changeStartDate(order.publicId, "2030-01-14");
 
     const rows = await scheduled(order.id);
     expect(units(rows)).toBe(10);
@@ -51,7 +51,7 @@ describe("changeEatingDays", () => {
 
   it("adding Saturday puts it on Friday's delivery and ends the plan sooner", async () => {
     const { order } = await make();
-    await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
+    await ordersService.changeEatingDays(order.publicId, [...MON_FRI, "sat"]);
 
     const rows = await scheduled(order.id);
     expect(units(rows)).toBe(10);
@@ -72,7 +72,7 @@ describe("changeEatingDays", () => {
 
   it("dropping days keeps the balance and runs the plan longer", async () => {
     const { order } = await make();
-    await changeOrderEatingDays(order.publicId, ["mon", "wed", "fri"]);
+    await ordersService.changeEatingDays(order.publicId, ["mon", "wed", "fri"]);
 
     const rows = await scheduled(order.id);
     expect(units(rows)).toBe(10);
@@ -86,7 +86,7 @@ describe("changeEatingDays", () => {
   it("leaves a held delivery where it is and lays the rest around it", async () => {
     const { order, wed } = await make();
     await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, wed.id));
-    await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
+    await ordersService.changeEatingDays(order.publicId, [...MON_FRI, "sat"]);
 
     const [held] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
     expect(held).toMatchObject({ status: "skipped", deliveryDate: "2030-01-09" });
@@ -100,7 +100,7 @@ describe("changeEatingDays", () => {
     const rows = await scheduled(order.id);
     const voided = rows.filter((r) => r.deliveryDate === "2030-01-14" || r.deliveryDate === "2030-01-16").map((r) => r.id);
     await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.id, voided));
-    await changeOrderEatingDays(order.publicId, ["mon", "wed", "fri"]);
+    await ordersService.changeEatingDays(order.publicId, ["mon", "wed", "fri"]);
 
     const after = await scheduled(order.id);
     expect(after.map((r) => r.deliveryDate)).toEqual([
@@ -117,7 +117,7 @@ describe("changeEatingDays", () => {
       orderId: order.id, deliveryDate: "2030-01-21", status: "scheduled", cutoffAt: Date.UTC(2030, 0, 20),
       tiffinUnits: 1, coversDates: ["2030-01-21"], makeupForDeliveryId: wed.id,
     }).returning();
-    await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
+    await ordersService.changeEatingDays(order.publicId, [...MON_FRI, "sat"]);
 
     const [after] = await db.select().from(deliveries).where(eq(deliveries.id, moved.id));
     expect(after).toMatchObject({ deliveryDate: "2030-01-18", coversDates: ["2030-01-18"], makeupForDeliveryId: wed.id });
@@ -138,7 +138,7 @@ describe("changeEatingDays", () => {
       tiffinUnits: 1, coversDates: ["2030-01-24"], makeupForDeliveryId: wed.id,
     }).returning();
     await db.insert(deliveryMoves).values(tail.map((r) => ({ orderId: order.id, fromDeliveryId: r.id, toDeliveryId: moved.id, fromEatDate: r.deliveryDate, toEatDate: "2030-01-24" })));
-    await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
+    await ordersService.changeEatingDays(order.publicId, [...MON_FRI, "sat"]);
 
     const [after] = await db.select().from(deliveries).where(eq(deliveries.id, moved.id));
     expect(after).toMatchObject({ deliveryDate: "2030-01-18", coversDates: ["2030-01-18"] });
@@ -147,14 +147,14 @@ describe("changeEatingDays", () => {
   it("refuses a weekend day when the meal has no weekend dish", async () => {
     const { order } = await make();
     weekend.serves = false;
-    await expect(changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"])).rejects.toThrow(/no weekend dish/);
+    await expect(ordersService.changeEatingDays(order.publicId, [...MON_FRI, "sat"])).rejects.toThrow(/no weekend dish/);
     expect(await scheduled(order.id)).toHaveLength(10);
   });
 
   it("refuses a day outside the meal size's allowed days", async () => {
     const { order } = await make();
     weekend.allowed = ["mon", "wed", "fri"];
-    await expect(changeOrderEatingDays(order.publicId, ["mon", "tue", "wed", "fri"])).rejects.toThrow(/only made on Mon, Wed and Fri/);
+    await expect(ordersService.changeEatingDays(order.publicId, ["mon", "tue", "wed", "fri"])).rejects.toThrow(/only made on Mon, Wed and Fri/);
     expect(await scheduled(order.id)).toHaveLength(10);
     weekend.allowed = null;
   });
@@ -163,7 +163,7 @@ describe("changeEatingDays", () => {
     const { order } = await makeTripOrder(WP, WP_PREFIX, 1, "mwf", 2, { days: MON_FRI, tiffinCount: 10 });
     expect(units(await scheduled(order.id))).toBe(10);
 
-    await changeOrderEatingDays(order.publicId, MON_FRI);
+    await ordersService.changeEatingDays(order.publicId, MON_FRI);
 
     const rows = await scheduled(order.id);
     expect(units(rows)).toBe(10);
@@ -178,7 +178,7 @@ describe("changeEatingDays", () => {
   it("a non-WordPress MWF plan keeps its frequency: same days is a no-op", async () => {
     const { order } = await makeTripOrder(DEPLOYMENT, PREFIX, 1, "mwf", 2, { days: MON_FRI, tiffinCount: 10 });
     const before = (await scheduled(order.id)).map((r) => r.id);
-    await changeOrderEatingDays(order.publicId, MON_FRI);
+    await ordersService.changeEatingDays(order.publicId, MON_FRI);
     expect((await scheduled(order.id)).map((r) => r.id)).toEqual(before);
   });
 });

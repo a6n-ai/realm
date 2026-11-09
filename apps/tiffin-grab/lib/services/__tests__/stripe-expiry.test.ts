@@ -23,7 +23,9 @@ vi.mock("@/lib/notifications/enqueue", async (orig) => {
 
 const { db } = await import("@/db/client");
 const { orders, payments } = await import("@/db/schema");
-const { cancelOrder, createOrder, renewalStatusSql, verifyPayment } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
+const { renewalStatusSql } = await import("@/lib/orders/queries");
+const { verifyPayment } = await import("@/lib/payments/verification");
 const { sendPaymentReminder } = await import("../payment-reminder");
 const { myBillsPage } = await import("../customer-finances.service");
 const { orderActivities } = await import("@/db/schema");
@@ -205,7 +207,7 @@ describe("unpaid Stripe orders expire", () => {
   it("flags a payment that lands on an order cancelled after settle's own check", async () => {
     const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
     const r = await load(publicId);
-    await cancelOrder(publicId);
+    await ordersService.cancel(publicId);
     await verifyPayment(r.pay.publicId, { actorId: null, fromProvider: true });
     const after = await load(publicId);
     expect(after.pay.status).toBe("paid");
@@ -233,7 +235,7 @@ describe("unpaid Stripe orders expire", () => {
     expect(await payable()).toBe(false);
     await expect(sendPaymentReminder(publicId, r.pay.publicId, null)).rejects.toThrow(/can no longer be paid/);
     await db.update(payments).set({ expiresAt: Date.now() + 60_000 }).where(eq(payments.id, r.pay.id));
-    await cancelOrder(publicId);
+    await ordersService.cancel(publicId);
     expect(await payable()).toBe(false);
   });
 });

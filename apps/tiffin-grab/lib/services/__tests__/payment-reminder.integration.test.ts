@@ -13,7 +13,8 @@ const { db } = await import("@/db/client");
 const { account, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, session, users, walletLedger } =
   await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
-const { createOrder, verifyPayment } = await import("../orders.service");
+const { createOrder } = await import("../orders.service");
+const { verifyPayment } = await import("@/lib/payments/verification");
 const { reminderInstructions, sendPaymentReminder } = await import("../payment-reminder");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");

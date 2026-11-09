@@ -6,7 +6,7 @@ import { ValidationError } from "@foundry/commons";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { assertOrderVisible, resolveSessionVisibleOrgIds, reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
+import { assertOrderVisible, resolveSessionVisibleOrgIds, ordersService, type CreateOrderInput } from "@/lib/services/orders.service";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
@@ -133,7 +133,7 @@ export async function emailPaymentLinkAction(orderPublicId: string, paymentPubli
 
 export async function reassignOrderAction(orderId: string, ownerId: string): Promise<void> {
   await requireStaff();
-  await reassignOrder(orderId, ownerId);
+  await ordersService.reassign(orderId, ownerId);
   revalidatePath("/dashboard/orders");
 }
 
@@ -144,7 +144,7 @@ export async function startAllMigratedAction(
 ): Promise<ActionResult<{ started: number; failed: { deploymentId: string; error: string }[] }>> {
   const res = await runAction(async () => {
     await requireAdmin();
-    return startAllMigratedOrders(fromDate);
+    return ordersService.startAllMigrated(fromDate);
   });
   revalidatePath("/dashboard/orders");
   return res;

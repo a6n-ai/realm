@@ -10,7 +10,7 @@ import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from 
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
-import type { ClaimPaymentContext } from "@/lib/services/orders.service";
+import type { ClaimPaymentContext } from "@/lib/payments/verification";
 import { actionModel, PAUSE_OR_RESUME_LABEL, RESUME_DAY_LABEL } from "./action-model";
 import { pausedLine, resumeLine } from "./pause-copy";
 import { TripActions } from "./action-panel";

@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder, cancelOrder } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const {
   assertOwnsDelivery,
   assertOwnsOrder,
@@ -100,7 +100,7 @@ describe("customer-deliveries.service (integration)", () => {
     const aOrder1 = await makeOrder(PHONE_A, "User A");
     const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
     const bOrder = await makeOrder(PHONE_B, "User B");
-    await cancelOrder(bOrder.publicId); // cancelled, and would also fail the userId scoping check
+    await ordersService.cancel(bOrder.publicId); // cancelled, and would also fail the userId scoping check
     const userA = await userIdByPhone(PHONE_A);
 
     const subs = await myActiveSubscriptions(userA);
@@ -198,7 +198,7 @@ describe("customer-deliveries.service (integration)", () => {
     const aSecondOrder = await makeOrder(PHONE_A, "User A", 1);
     const userA = await userIdByPhone(PHONE_A);
 
-    await cancelOrder(aSecondOrder.publicId); // marks rows cancelled
+    await ordersService.cancel(aSecondOrder.publicId); // marks rows cancelled
 
     const rows = await myDeliveries(userA, FROM, UNTIL);
     expect(rows.some((r) => r.orderPublicId === aSecondOrder.publicId)).toBe(false);

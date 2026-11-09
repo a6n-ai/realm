@@ -7,7 +7,7 @@ import { orderActivities, orders, payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { createLogger } from "@foundry/commons/logger";
 import { ValidationError } from "@foundry/commons";
-import { cancelOrder } from "./orders.service";
+import { ordersService } from "./orders.service";
 import { tryChargeLock } from "./payment-stripe";
 
 const log = createLogger("stripe-expiry");
@@ -72,7 +72,7 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
         const [ord] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, r.id)).limit(1);
         if (!pay || !inStatuses(UNPAID, pay.status) || ord?.status !== "pending") return false;
         if (pay.providerRef && (await cancelOpenIntent(pay.providerRef)) === "in_flight") return false;
-        await cancelOrder(r.publicId);
+        await ordersService.cancel(r.publicId);
         await tx.insert(orderActivities).values({ orderId: r.id, type: "note", note });
         return true;
       });
@@ -135,7 +135,7 @@ export function expireUnpaidStripeOrders(scope: { userId?: bigint; orderId?: big
  * noted: if it lands, settle records it on the cancelled order and flags it for a refund.
  */
 export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigint | null): Promise<void> {
-  await cancelOrder(publicId);
+  await ordersService.cancel(publicId);
   const open = await db
     .select({ publicId: payments.publicId, orderId: payments.orderId, organizationId: payments.organizationId })
     .from(payments)

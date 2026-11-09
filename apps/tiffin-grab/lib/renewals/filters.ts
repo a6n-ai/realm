@@ -1,5 +1,5 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
-import type { RenewalStatus } from "@/lib/services/orders.service";
+import type { RenewalStatus } from "@/lib/orders/queries";
 
 /** Plans ending or lapsed (paid / trial), or every customer who has renewed. */
 export type RenewalsTab = "renewals" | "trials" | "customers";

@@ -26,6 +26,7 @@ const { orders, orderActivities, payments, ledgerEntries, walletLedger, eventPay
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { earnCoins } = await import("@/lib/wallet/earn-coins");
 const svc = await import("../orders.service");
+const paymentsSvc = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 
 // Other suites insert their own coin_rate rows (0.5, 0.07…); pin this one's.
@@ -168,7 +169,7 @@ describe("wallet award on order activation", () => {
     await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.publicId, publicId));
 
     // Activate — this is the call site under test
-    await svc.activateOrder(publicId);
+    await svc.ordersService.activate(publicId);
 
     // Assert a credit row was written
     const credits = await db
@@ -264,7 +265,7 @@ describe("wallet award on order activation", () => {
     const earned = await db.select().from(walletLedger).where(eq(walletLedger.sourceId, publicId));
     expect(earned.map((r) => r.coins)).toEqual([expected]);
 
-    await svc.cancelOrder(publicId);
+    await svc.ordersService.cancel(publicId);
     expect(await walletService.balance(orderRow.userId!)).toBe(withAward - expected);
   });
 
@@ -299,11 +300,11 @@ describe("wallet award on order activation", () => {
     await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.publicId, publicId));
 
     // First activation — awards coins
-    await svc.activateOrder(publicId);
+    await svc.ordersService.activate(publicId);
 
     // Second activation attempt should throw (already active), but even if we
     // directly re-call award with the same sourceId, the unique index blocks it.
-    await expect(svc.activateOrder(publicId)).rejects.toThrow();
+    await expect(svc.ordersService.activate(publicId)).rejects.toThrow();
 
     // No double-pay
     expect(await walletService.balance(userId)).toBe(await expectedCoins(publicId));
@@ -344,7 +345,7 @@ describe("refundOrder", () => {
 
     expect(await walletService.balance(userId)).toBe(await expectedCoins(publicId));
 
-    await svc.refundOrder(publicId);
+    await paymentsSvc.refundOrder(publicId);
 
     expect(await walletService.balance(userId)).toBe(0);
     const [pay] = await db.select().from(payments).where(eq(payments.orderId, orderRow.id));
@@ -382,12 +383,12 @@ describe("refundOrder", () => {
 
     expect(await walletService.balance(userId)).toBe(await expectedCoins(publicId));
 
-    await svc.refundOrder(publicId);
+    await paymentsSvc.refundOrder(publicId);
     expect(await walletService.balance(userId)).toBe(0);
 
     // Second refundOrder call throws (payment no longer settled) but must not
     // touch the wallet a second time even if the reversal step were re-run.
-    await expect(svc.refundOrder(publicId)).rejects.toThrow();
+    await expect(paymentsSvc.refundOrder(publicId)).rejects.toThrow();
     expect(await walletService.balance(userId)).toBe(0);
   });
 });
@@ -419,8 +420,8 @@ describe("percent earn edge cases", () => {
     const [pay] = await db.select().from(payments).where(eq(payments.orderId, row.id));
     await db.update(payments).set({ status: "awaiting_payment" }).where(eq(payments.id, pay.id));
 
-    await svc.verifyPayment(pay.publicId);
-    await svc.verifyPayment(pay.publicId);
+    await paymentsSvc.verifyPayment(pay.publicId);
+    await paymentsSvc.verifyPayment(pay.publicId);
 
     const credits = await db
       .select()
@@ -435,7 +436,7 @@ describe("percent earn edge cases", () => {
     const taxTotal = (row.pricingSnapshot as { taxTotal?: number }).taxTotal ?? 0;
     await db.update(orders).set({ status: "waitlisted", total: String(taxTotal) }).where(eq(orders.id, row.id));
 
-    await svc.activateOrder(row.publicId);
+    await svc.ordersService.activate(row.publicId);
 
     expect(await db.select().from(walletLedger).where(eq(walletLedger.sourceId, row.publicId))).toHaveLength(0);
     expect(await notesFor(row.id)).toEqual([]);
@@ -473,7 +474,7 @@ describe("percent earn edge cases", () => {
       const [pay] = await db.select().from(payments).where(eq(payments.orderId, row.id));
       await db.update(payments).set({ status: "awaiting_payment" }).where(eq(payments.id, pay.id));
 
-      await Promise.all([svc.activateOrder(publicId), svc.verifyPayment(pay.publicId)]);
+      await Promise.all([svc.ordersService.activate(publicId), paymentsSvc.verifyPayment(pay.publicId)]);
 
       const credits = await db.select().from(walletLedger).where(eq(walletLedger.sourceId, publicId));
       expect(credits, `round ${i}`).toHaveLength(1);

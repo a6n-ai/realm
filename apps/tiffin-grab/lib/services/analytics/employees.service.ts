@@ -4,7 +4,7 @@ import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets, users } from "@/db/schema";
 import { leadWhere as scopedLeadWhere } from "./leads.service";
-import { laterOrderSql } from "@/lib/services/orders.service";
+import { laterOrderSql } from "@/lib/orders/queries";
 import { revenueBy } from "./metrics/money";
 import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 

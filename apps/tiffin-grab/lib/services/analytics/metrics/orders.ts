@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { and, between, inList, type Condition } from "@foundry/commons/model/condition";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
-import { ordersListWhere } from "@/lib/services/orders.service";
+import { ordersListWhere } from "@/lib/orders/queries";
 import type { AnalyticsScope } from "./scope";
 
 // ORDER_FACET_FIELDS is type-imported by orders-spec.ts, so keep it a plain const. Shared by the Orders page and analytics drill links.

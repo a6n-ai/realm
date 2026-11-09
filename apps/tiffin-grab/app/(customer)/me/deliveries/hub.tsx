@@ -37,7 +37,7 @@ import {
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
-import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
+import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
 import { holidayNamesForUser } from "@/lib/services/holidays.service";
 import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
 import { addDaysIso, mondayOfIso } from "@/lib/dates";

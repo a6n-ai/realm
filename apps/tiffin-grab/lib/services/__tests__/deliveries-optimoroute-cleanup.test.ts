@@ -24,7 +24,7 @@ vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder, cancelOrder } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const { skipDelivery, rescheduleDelivery, pauseRange } = await import("../deliveries.service");
 
 async function reset() {
@@ -100,7 +100,7 @@ describe("OptimoRoute cleanup on skip/cancel", () => {
     expect(rows.length).toBeGreaterThan(1);
     await db.update(deliveries).set({ routeSyncedAt: 1000 }).where(eq(deliveries.id, rows[0].id));
 
-    await cancelOrder(o.publicId);
+    await ordersService.cancel(o.publicId);
 
     expect(deleted).toEqual([rows[0].publicId]);
   });

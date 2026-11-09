@@ -8,20 +8,8 @@ import { deliveries, orders, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import {
-  activateOrder,
-  startMigratedOrder,
-  changeOrderStartDate,
-  changeOrderEatingDays,
-  rejectPayment,
-  updatePaymentReference,
-  setOrderLookOut,
-  verifyPayment,
-  assertOrderVisible,
-  assertDeliveryVisible,
-  assertPaymentVisible,
-  resolveSessionVisibleOrgIds,
-} from "@/lib/services/orders.service";
+import { ordersService, setOrderLookOut, assertOrderVisible, assertDeliveryVisible, assertPaymentVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { rejectPayment, updatePaymentReference, verifyPayment } from "@/lib/payments/verification";
 import { currentUserId } from "@/lib/services/session-service";
 import { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
@@ -39,7 +27,7 @@ const visibleOrgs = async () => resolveSessionVisibleOrgIds(await getSession());
 export async function activate(orderId: string) {
   await requireStaff();
   await assertOrderVisible(orderId, await visibleOrgs());
-  await activateOrder(orderId);
+  await ordersService.activate(orderId);
   revalidateOrder(orderId);
 }
 
@@ -47,7 +35,7 @@ export async function startMigrated(orderId: string, startDate: string): Promise
   const res = await runAction(async () => {
     await requireStaff();
     await assertOrderVisible(orderId, await visibleOrgs());
-    await startMigratedOrder(orderId, startDate);
+    await ordersService.startMigrated(orderId, startDate);
   });
   revalidateOrder(orderId);
   return res;
@@ -57,7 +45,7 @@ export async function changeStartDateAction(orderId: string, startDate: string):
   const res = await runAction(async () => {
     await requireStaff();
     await assertOrderVisible(orderId, await visibleOrgs());
-    await changeOrderStartDate(orderId, startDate);
+    await ordersService.changeStartDate(orderId, startDate);
   });
   revalidateOrder(orderId);
   return res;
@@ -67,7 +55,7 @@ export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[])
   const res = await runAction(async () => {
     await requireStaff();
     await assertOrderVisible(orderId, await visibleOrgs());
-    await changeOrderEatingDays(orderId, days);
+    await ordersService.changeEatingDays(orderId, days);
   });
   revalidateOrder(orderId);
   return res;

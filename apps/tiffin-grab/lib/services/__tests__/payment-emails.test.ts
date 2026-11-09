@@ -9,7 +9,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { notificationOutbox, orders, payments } = await import("@/db/schema");
-const { createOrder, claimPayment, verifyPayment, receiptVars } = await import("../orders.service");
+const { createOrder } = await import("../orders.service");
+const { claimPayment, verifyPayment, receiptVars } = await import("@/lib/payments/verification");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup, makeStripePayment } = await import("./stripe-fixture");

@@ -17,7 +17,7 @@ import { OrderStatusBadge } from "@/components/ds";
 import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
-import type { ClaimPaymentContext } from "@/lib/services/orders.service";
+import type { ClaimPaymentContext } from "@/lib/payments/verification";
 import { emailReceiptAction, loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
 import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";

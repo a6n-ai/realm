@@ -8,7 +8,7 @@ import {
   TRIAL_CONVERT_WINDOW_DAYS,
   type TrialConversionStats,
 } from "@/lib/analytics/trial-conversion";
-import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/services/orders.service";
+import { lastTiffinSql, laterPaidOrderSql, ordersListWhere } from "@/lib/orders/queries";
 import { getComplaintDaily } from "./complaints.service";
 import { getProfitabilityReport, type ProfitabilityReport } from "./profitability.service";
 import { getSignupDaily } from "./customers.service";

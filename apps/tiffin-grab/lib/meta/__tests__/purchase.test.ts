@@ -11,7 +11,8 @@ vi.mock("../capi", () => ({
 
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users } = await import("@/db/schema");
-const { createOrder, claimPayment, verifyPayment } = await import("@/lib/services/orders.service");
+const { createOrder } = await import("@/lib/services/orders.service");
+const { claimPayment, verifyPayment } = await import("@/lib/payments/verification");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput } = await import("@/lib/services/__tests__/stripe-fixture");

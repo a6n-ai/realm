@@ -39,7 +39,7 @@ describe("order lifecycle (integration)", () => {
 
   it("activateOrder waitlisted → active and logs activity", async () => {
     const id = await makeOrder("waitlisted");
-    await svc.activateOrder(id);
+    await svc.ordersService.activate(id);
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
     const acts = await svc.listOrderActivities(o.id);
@@ -51,10 +51,10 @@ describe("order lifecycle (integration)", () => {
     const id = await makeOrder("active");
     // A wide window (order.startDate is computed at runtime as nextWeekday(now)) so every future
     // original — regardless of when the test runs — falls inside it and the order fully pauses.
-    await svc.pauseOrder(id, { from: "2000-01-01", until: "2100-01-01" });
+    await svc.ordersService.pause(id, { from: "2000-01-01", until: "2100-01-01" });
     let [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("paused");
-    await svc.resumeOrder(id);
+    await svc.ordersService.resume(id);
     [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
   });
@@ -66,14 +66,14 @@ describe("order lifecycle (integration)", () => {
     const id = await makeOrder("active");
     const [order] = await db.select().from(orders).where(eq(orders.publicId, id));
 
-    await svc.pauseOrder(id, { from: "2000-01-01", until: "2100-01-01" });
+    await svc.ordersService.pause(id, { from: "2000-01-01", until: "2100-01-01" });
     const [pausedOrder] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(pausedOrder.status).toBe("paused");
     const pausedRows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     expect(pausedRows.length).toBeGreaterThan(0);
     expect(pausedRows.every((r) => r.status === "paused")).toBe(true);
 
-    await svc.resumeOrder(id);
+    await svc.ordersService.resume(id);
     const [resumedOrder] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(resumedOrder.status).toBe("active");
     const resumedRows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
@@ -82,7 +82,7 @@ describe("order lifecycle (integration)", () => {
 
   it("pauseOrder with a window covering none of the order's deliveries leaves it active but still logs", async () => {
     const id = await makeOrder("active");
-    await svc.pauseOrder(id, { from: "2000-01-01", until: "2000-01-02" });
+    await svc.ordersService.pause(id, { from: "2000-01-01", until: "2000-01-02" });
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
 
@@ -97,22 +97,22 @@ describe("order lifecycle (integration)", () => {
 
   it("rejects illegal transitions", async () => {
     const pending = await makeOrder("pending");
-    await expect(svc.pauseOrder(pending, { from: "2026-07-06", until: "2026-07-10" })).rejects.toBeInstanceOf(ValidationError);
-    await expect(svc.resumeOrder(pending)).rejects.toBeInstanceOf(ValidationError);
+    await expect(svc.ordersService.pause(pending, { from: "2026-07-06", until: "2026-07-10" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(svc.ordersService.resume(pending)).rejects.toBeInstanceOf(ValidationError);
     const active = await makeOrder("active");
-    await expect(svc.pauseOrder(active, { from: "2026-07-10", until: "2026-07-06" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(svc.ordersService.pause(active, { from: "2026-07-10", until: "2026-07-06" })).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("pauseOrder rejects malformed dates", async () => {
     const id = await makeOrder("active");
-    await expect(svc.pauseOrder(id, { from: "2026/07/06", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
-    await expect(svc.pauseOrder(id, { from: "2026-07-06", until: "2026/07/10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
-    await expect(svc.pauseOrder(id, { from: "07-06-2026", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+    await expect(svc.ordersService.pause(id, { from: "2026/07/06", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+    await expect(svc.ordersService.pause(id, { from: "2026-07-06", until: "2026/07/10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+    await expect(svc.ordersService.pause(id, { from: "07-06-2026", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
   });
 
   it("cancelOrder works from any non-cancelled status", async () => {
     const id = await makeOrder("active");
-    await svc.cancelOrder(id);
+    await svc.ordersService.cancel(id);
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("cancelled");
     const acts = await svc.listOrderActivities(o.id);

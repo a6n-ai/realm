@@ -21,6 +21,15 @@ export const userIdByPublicId = cache(async (publicId: string): Promise<bigint |
   return row?.id ?? null;
 });
 
+export async function resolveUserId(
+  tx: { select: typeof db.select },
+  publicId: string | null | undefined,
+): Promise<bigint | null> {
+  if (!publicId) return null;
+  const [row] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+  return row?.id ?? null;
+}
+
 async function sessionActorId(): Promise<bigint | null> {
   try {
     const session = await getSession();

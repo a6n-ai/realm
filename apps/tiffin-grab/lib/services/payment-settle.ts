@@ -4,7 +4,7 @@ import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orders, payments, type PaymentProof } from "@/db/schema";
-import { claimPayment, verifyPayment } from "./orders.service";
+import { claimPayment, verifyPayment } from "@/lib/payments/verification";
 
 /** The order's payment that still needs money: awaiting or previously rejected. */
 export async function findUnpaidPayment(orderPublicId: string): Promise<string> {

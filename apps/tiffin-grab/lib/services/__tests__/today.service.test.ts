@@ -13,7 +13,7 @@ const {
 const { getAppSettings } = await import("../app-settings.service");
 const { countMissedDeliveries } = await import("../missed-deliveries.service");
 const { inquiriesService } = await import("../inquiries.service");
-const { countPaymentReviewOrders } = await import("../orders.service");
+const { countPaymentReviewOrders } = await import("@/lib/orders/queries");
 const { PER_KIND_MIXED, countReviewPayments, coversAllOrgs, getTodayCounts, getTodayQueue } = await import("../today.service");
 
 const suffix = Math.random().toString(36).slice(2);

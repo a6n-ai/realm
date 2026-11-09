@@ -19,7 +19,8 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const { cancelOrder, createOrder, refundOrder, verifyPayment } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
+const { refundOrder, verifyPayment } = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 const { setMaxCoinPctOfSubtotal, setMaxCoinRedeemPctOfBalance, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
@@ -439,7 +440,7 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     );
     const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(await walletService.balance(owner.id)).toBe(40);
-    await cancelOrder(order!.publicId);
+    await ordersService.cancel(order!.publicId);
     expect(await walletService.balance(owner.id)).toBe(50);
   });
 

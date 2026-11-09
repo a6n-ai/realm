@@ -25,7 +25,8 @@ import { ledgerService } from "./ledger.service";
 import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { settleAddonPayment } from "./order-addons.service";
-import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
+import { verifyPayment, refundPaymentInTx } from "@/lib/payments/verification";
+import { resolveUserId } from "@/lib/services/session-service";
 
 const log = createLogger("payment-stripe");
 

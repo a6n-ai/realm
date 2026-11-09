@@ -8,7 +8,7 @@ import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
-import { lastTiffinSql, laterOrderSql } from "./orders.service";
+import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
 import { walletService } from "./wallet.service";

@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { cardPayClosed } from "@/lib/orders/display-status";
 import { orderActivities, orders, payments, users } from "@/db/schema";
 import { sendPaymentReminderLink } from "@/lib/auth/invite-links";
-import { paymentTemplateVars } from "./orders.service";
+import { paymentTemplateVars } from "@/lib/payments/verification";
 import { getPaymentConfig } from "./app-settings.service";
 
 type MethodConfig = { payeeHandle?: string | null; instructions?: string | null; requireProof?: boolean };

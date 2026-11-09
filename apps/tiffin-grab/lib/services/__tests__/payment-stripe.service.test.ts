@@ -49,7 +49,7 @@ vi.mock("@/lib/notifications/enqueue", async (orig) => {
 const { db } = await import("@/db/client");
 const { ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const svc = await import("../payment-stripe");
-const { claimPayment } = await import("../orders.service");
+const { claimPayment } = await import("@/lib/payments/verification");
 const fx = await import("./stripe-fixture");
 const { makeStripePayment, reset, cleanup } = fx;
 // The fixture's reset() enables e-Transfer in the shared test DB; restore an empty

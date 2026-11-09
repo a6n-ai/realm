@@ -2,7 +2,7 @@ import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { bucketCounts } from "@/lib/analytics/buckets";
-import { lastTiffinSql, ordersListWhere } from "@/lib/services/orders.service";
+import { lastTiffinSql, ordersListWhere } from "@/lib/orders/queries";
 import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./metrics/scope";
 import { isoDateInZone } from "@/lib/dates";

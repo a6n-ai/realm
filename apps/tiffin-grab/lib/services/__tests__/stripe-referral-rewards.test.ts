@@ -20,7 +20,8 @@ vi.mock("@/lib/services/app-settings.service", async (importOriginal) => ({
 const { db } = await import("@/db/client");
 const { orders, payments, referrals, users, walletLedger } = await import("@/db/schema");
 const { settleStripePayment, recordStripeRefund } = await import("../payment-stripe");
-const { activateOrder, createOrder, verifyPayment } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
+const { verifyPayment } = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 const { attachReferral, getOrCreateReferralCode } = await import("../referrals.service");
 const { setPaymentConfig } = await import("../app-settings.service");
@@ -78,11 +79,11 @@ describe("Stripe order rewards", () => {
     expect((await referral()).status).toBe("joined");
 
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, other.publicId));
-    await activateOrder(publicId);
+    await ordersService.activate(publicId);
     expect((await referral()).status).toBe("rewarded");
     expect(await rewards()).toHaveLength(2);
 
-    await expect(activateOrder(publicId)).rejects.toThrow();
+    await expect(ordersService.activate(publicId)).rejects.toThrow();
     await verifyPayment(pay!.publicId).catch(() => {});
     expect(await rewards()).toHaveLength(2);
     expect(await orderCoins(publicId)).toHaveLength(1);

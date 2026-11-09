@@ -7,7 +7,8 @@ import { db } from "@/db/client";
 import { deliveries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users } from "@/db/schema";
 import type { DateBy, RenewalsFilter, RenewalsTab } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { lastTiffinSql, renewalMoney, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "./orders.service";
+import { renewalMoney } from "./orders.service";
+import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso } from "@/lib/dates";
 
 export type RenewalRow = {

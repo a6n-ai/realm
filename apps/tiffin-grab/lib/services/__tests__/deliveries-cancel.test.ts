@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const { adminSetDeliveryStatus, completeFinishedOrders, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
@@ -87,7 +87,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
       makeupForDeliveryId: before[1].id,
     }).returning();
 
-    await cancelOrder(o.publicId);
+    await ordersService.cancel(o.publicId);
 
     const after = await rowsFor(o);
     expect(after.length).toBe(beforeCount + 1); // nothing deleted, the planted make-up still exists
@@ -115,8 +115,8 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
 
   it("a cancelled order cannot be re-activated", async () => {
     const o = await makeOrder();
-    await cancelOrder(o.publicId);
-    await expect(activateOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await ordersService.cancel(o.publicId);
+    await expect(ordersService.activate(o.publicId)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("maybeComplete does NOT flip when every original is skipped but none are past cutoff (live make-up debt)", async () => {
@@ -135,7 +135,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     let [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("active");
 
-    await cancelOrder(o.publicId);
+    await ordersService.cancel(o.publicId);
     await expect(maybeComplete(o.id)).resolves.toBe(false); // never promotes a cancelled order
     [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("cancelled"); // never promoted from cancelled
@@ -185,7 +185,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     await backdateAllRows(o);
     await maybeComplete(o.id);
 
-    await expect(cancelOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(ordersService.cancel(o.publicId)).rejects.toBeInstanceOf(ValidationError);
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("completed");
     expect((await rowsFor(o)).every((r) => r.status === "scheduled")).toBe(true);

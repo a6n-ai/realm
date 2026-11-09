@@ -9,7 +9,7 @@ const { deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders,
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { getAppSettings } = await import("../app-settings.service");
 const { materializeDeliveries } = await import("../deliveries.service");
-const { activateOrder, createOrder } = await import("../orders.service");
+const { createOrder, ordersService } = await import("../orders.service");
 const { allowWeekendMeals } = await import("./trip-fixture");
 
 async function reset() {
@@ -181,7 +181,7 @@ describe("activate() wiring (integration)", () => {
     const zero = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
     expect(zero.length).toBe(0);
 
-    await activateOrder(o.publicId);
+    await ordersService.activate(o.publicId);
 
     const { timezone, cutoffHour } = await getAppSettings();
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
@@ -190,7 +190,7 @@ describe("activate() wiring (integration)", () => {
     for (const r of rows) expect(r.cutoffAt).toBe(cutoffMsFor(r.deliveryDate, cutoffHour, timezone));
 
     // Second activate() must hit the waitlisted-only guard and leave the rows untouched.
-    await expect(activateOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(ordersService.activate(o.publicId)).rejects.toBeInstanceOf(ValidationError);
     const rowsAfter = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
     expect(rowsAfter.length).toBe(10);
   });
@@ -200,7 +200,7 @@ describe("activate() wiring (integration)", () => {
     // Force materializeDeliveries' daysPerWeek assertion to throw inside activate()'s tx.
     await db.update(deliveryFrequencies).set({ daysPerWeek: 4 }).where(eq(deliveryFrequencies.key, "5_day"));
 
-    await expect(activateOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(ordersService.activate(o.publicId)).rejects.toBeInstanceOf(ValidationError);
 
     const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(after.status).toBe("waitlisted");

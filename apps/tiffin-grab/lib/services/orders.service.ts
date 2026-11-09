@@ -4,29 +4,24 @@ import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { trackConversion } from "@/lib/services/tracking";
-import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
+import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
-import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
-import { commitTax } from "@foundry/payments/stripe";
-import { stripeRuntime } from "@/lib/payments/stripe";
+import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
+import { enabledMethods, findMethod } from "@foundry/payments";
 import { replaceOlderUnpaidCheckouts } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
-import { UNASSIGNED_OWNER } from "@/lib/list/presets";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { unexpired } from "@foundry/wallet";
-import { hasMissedDeliveries } from "@/lib/services/missed-where";
-import { inStatuses, PAID, PENDING, SETTLEABLE, UNPAID } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { inStatuses, PAID } from "@/lib/payments/status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
+import { startPaidStripeOrder, type Tx } from "@/lib/payments/verification";
+import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import { defaultOwner } from "./default-owner";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
-  deliveryZones,
   deliveryCategorySwaps,
   deliveryExtraTiffins,
   deliveryMoves,
@@ -48,9 +43,8 @@ import {
   type AddonRequest,
   type PaymentProof,
 } from "@/db/schema";
-import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
+import { SessionBaseService, SessionUpdatableService, recordAudit, resolveUserId } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
-import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@/lib/runtime/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -67,12 +61,10 @@ import { quoteTrial } from "@/lib/trial/quote";
 import { round2 } from "@foundry/discounts";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
-import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
-import { receiptAttachments } from "@/lib/billing/receipt-link";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
-import { assertStartNotHoliday, upcomingHolidays } from "./holiday-dates";
-import { paidStartDate } from "@/lib/orders/paid-start";
+import { assertStartNotHoliday } from "./holiday-dates";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
@@ -87,8 +79,6 @@ import {
   balanceInTx,
   commitCoinRedemption,
   reserveCoinRedemption,
-  settleCoinReservation,
-  recollectLapsedCoins,
   reverseCoinRedemption,
   reverseCoinAward,
   awardOrderCoins,
@@ -99,9 +89,7 @@ import { eatingDaysError, orderDeliveryDays, planDaysError, planWeek, type DayOf
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
-import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { isProduction } from "@/lib/runtime/env";
-import { utcIso } from "@/lib/dates";
 
 const log = createLogger("orders.service");
 
@@ -119,7 +107,6 @@ function isOpenPauseConflict(e: unknown): boolean {
 
 // A transaction handle (or the base db) — payments + their ledger credit are
 // written inside the same tx as the order they settle.
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentStatusValue = (typeof payments.status.enumValues)[number];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 
@@ -264,15 +251,6 @@ export interface CreateOrderOptions {
 export async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
   const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId))
     .orderBy(sql`${organization.clientCode} is distinct from 'TG'`, asc(organization.createdAt)).limit(1);
-  return row?.id ?? null;
-}
-
-export async function resolveUserId(
-  tx: { select: typeof db.select },
-  publicId: string | null | undefined,
-): Promise<bigint | null> {
-  if (!publicId) return null;
-  const [row] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
   return row?.id ?? null;
 }
 
@@ -871,548 +849,6 @@ export async function createOrder(
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId, paymentPublicId: txResult.paymentPublicId };
 }
 
-const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
-  etransfer: "Interac e-Transfer",
-  cash: "Cash",
-  manual: "Manual",
-  simulated: "Simulated",
-  stripe: "Card (Stripe)",
-};
-
-/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
-export function receiptVars(
-  pay: Pick<typeof payments.$inferSelect, "method" | "amount" | "cardBrand" | "cardLast4" | "surchargeAmount">,
-  taxLines: { name: string; ratePct: number; amount: number }[],
-) {
-  const isCard = pay.method === "stripe";
-  const fee = isCard ? Number(pay.surchargeAmount) : 0;
-  const total = isCard ? formatMoney(Number(pay.amount) + fee) : "";
-  const brand = pay.cardBrand ? pay.cardBrand.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Card";
-  const parts = [
-    ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
-    fee > 0 ? `Card fee ${formatMoney(fee)}` : null,
-    isCard ? `Total charged ${total}` : null,
-  ].filter(Boolean);
-  return {
-    receiptLines: parts.join(" · "),
-    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : METHOD_LABEL[pay.method],
-    cardFee: fee > 0 ? formatMoney(fee) : "",
-    totalCharged: total,
-  };
-}
-
-/** Shared `{{payment.*}}` template variables for the payment_* customer emails. */
-export function paymentTemplateVars(
-  pay: Pick<typeof payments.$inferSelect, "amount" | "method">,
-  orderCode: string,
-  customerName: string | null | undefined,
-) {
-  return {
-    amount: formatMoney(Number(pay.amount)),
-    orderCode,
-    customerName: customerName || "there",
-    method: METHOD_LABEL[pay.method],
-  };
-}
-
-async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
-  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
-  await enqueueStaffNotification(tx, {
-    title: "Card payment needs attention",
-    body: `${note} · order ${order.deploymentId}`,
-    href: `/dashboard/orders/${order.publicId}`,
-    dedupeKey: `paid_not_started:${order.publicId}`,
-  });
-}
-
-// A pending Stripe order starts when its payment settles. Pending orders reserve no days, so
-// the overlap guard runs here with the final dates. A start that can't happen leaves the
-// order pending with a note: the money is already in, staff resolve it.
-async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
-  await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
-  const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
-  // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
-  if (current?.status === "cancelled" || current?.status === "completed") {
-    await flagPaidNotStarted(tx, order, `Paid on a ${current.status} order — refund needed`, actorId);
-    return { started: false, reason: `order is ${current.status}` };
-  }
-  if (current?.status !== "pending") return { started: false, reason: `order is ${current?.status ?? "missing"}` };
-
-  const { timezone, cutoffHour } = await getAppSettings();
-  const todayBase = appToday(timezone, cutoffHour);
-  const closed = new Set((await upcomingHolidays(tx, order.organizationId, utcIso(todayBase))).keys());
-  const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-  const startDate = paidStartDate({
-    chosen: order.startDate,
-    allowedStartDays: plan?.allowedStartDays ?? [],
-    trialSendDays: order.trialLength != null ? (order.trialWeekdays ?? []) : null,
-    todayBase,
-    closed,
-  });
-  try {
-    await assertNoPlanOverlap(tx, { userId: order.userId!, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
-  } catch (e) {
-    if (!(e instanceof ValidationError)) throw e;
-    await flagPaidNotStarted(tx, order, `Paid, but could not start: ${e.message}`, actorId);
-    return { started: false, reason: e.message };
-  }
-  const [row] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId }).where(eq(orders.id, order.id)).returning();
-  await tx.insert(orderActivities).values({
-    orderId: order.id,
-    type: "activated",
-    fromStatus: "pending",
-    toStatus: "active",
-    note: startDate === order.startDate ? null : `Start moved to ${startDate}`,
-    createdBy: actorId,
-  });
-  await materializeDeliveries(tx, row!);
-  await applyHolidaysToOrder(tx, row!, actorId);
-  return { started: true };
-}
-
-// Staff settles a real-method payment: credits the ledger, redeems any deferred
-// coupons from the pricing snapshot, awards earn-back coins, and marks paid.
-// Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
-// pending_verification (after a claim). Idempotent against already-paid rows.
-export async function verifyPayment(
-  paymentPublicId: string,
-  opts: { actorId?: string | null; providerEventId?: string | null; fromProvider?: boolean } = {},
-): Promise<void> {
-  let missedStops: OptimoSyncedRow[] = [];
-  const settled = await db.transaction(async (tx) => {
-    // Locked so a second, concurrent verify waits, then sees "paid" and stops.
-    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
-    if (!pay) throw new NotFoundError("Payment not found");
-    if (inStatuses(PAID, pay.status)) return null;
-    if (pay.method === "stripe" && !opts.fromProvider) throw new ValidationError("Card payments settle automatically");
-    // A provider-confirmed charge settles even a staff-rejected row; a manual verify must not.
-    if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification" && !(opts.fromProvider && pay.status === "rejected")) {
-      throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
-    }
-
-    // Same lock order as cancel and activate (order advisory lock, then the
-    // customer), so a verify racing either one waits instead of deadlocking, and
-    // reads the order's status only after a concurrent activate has committed.
-    await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
-    let [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
-    if (!order?.userId) throw new NotFoundError("Order not found");
-    const orderUserId = order.userId;
-    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${orderUserId} FOR UPDATE`);
-
-    const actorInternalId = await resolveUserId(tx, opts.actorId);
-
-    await ledgerService.record(tx, {
-      userId: orderUserId,
-      orderId: order.id,
-      paymentId: pay.id,
-      direction: "credit",
-      type: "payment",
-      amount: (Number(pay.amount) + Number(pay.surchargeAmount ?? 0)).toFixed(2),
-      memo: Number(pay.surchargeAmount ?? 0) > 0 ? `incl. card surcharge ${pay.surchargeAmount}` : null,
-      providerEventId: opts.providerEventId ?? null,
-    });
-
-    await tx
-      .update(payments)
-      .set({ status: "paid", capturedAt: Date.now() })
-      .where(eq(payments.id, pay.id));
-
-    // `payments` has baseColumns, not updatableColumns — there is no updatedBy on the row,
-    // so the activity row is the only place the verifier's identity is ever recorded.
-    await tx.insert(orderActivities).values({
-      orderId: order.id,
-      type: "payment_verified",
-      note: `${pay.method} · ${pay.amount}`,
-      createdBy: actorInternalId,
-    });
-
-    const snap = order.pricingSnapshot as OrderPricingSnapshot;
-    const pending = snap.pendingRedemptions ?? [];
-    for (const r of pending) {
-      const [coupon] = await tx.select().from(coupons).where(eq(coupons.publicId, r.couponPublicId)).limit(1);
-      if (!coupon) throw new ValidationError(`Pending coupon ${r.code} no longer exists`);
-      const redeemedBy = r.redeemedByPublicId
-        ? await resolveUserId(tx, r.redeemedByPublicId)
-        : null;
-      await couponsService.redeem(tx, {
-        coupon,
-        userId: orderUserId,
-        orderId: order.id,
-        redeemedBy,
-        amountApplied: r.amount,
-        deferredSettlement: true,
-        context: { subtotal: snap.subtotal, planType: snap.planType, kind: coupon.kind },
-      });
-    }
-
-    if (snap.pendingCoinRedemption && snap.pendingCoinRedemption.coins > 0) {
-      const settled = await settleCoinReservation(tx, { userId: orderUserId, orderId: order.id });
-      if (settled.status === "none") {
-        // An order placed before checkout holds existed: nothing was reserved,
-        // so debit now exactly as this path always did.
-        await commitCoinRedemption(tx, {
-          userId: orderUserId,
-          coins: snap.pendingCoinRedemption.coins,
-          currencyValue: snap.pendingCoinRedemption.amount,
-          orderId: order.id,
-        });
-      } else if (settled.status === "expired") {
-        // The hold lapsed before payment was verified, so those coins went back
-        // to the wallet. Take them again so they can't fund a second order;
-        // never block the verify: the customer's money has arrived. Whatever
-        // was already spent is left for staff on the order's activity log.
-        const { collected, notCollected } = await recollectLapsedCoins(tx, {
-          userId: orderUserId,
-          orderId: order.id,
-          orderRef: order.publicId,
-          coins: settled.coins,
-        });
-        log.warn({ orderId: order.publicId, coins: settled.coins, collected, notCollected }, "coin hold expired before payment verification");
-        await tx.insert(orderActivities).values({
-          orderId: order.id,
-          type: "payment_verified",
-          note:
-            notCollected > 0
-              ? `Coin hold expired before verification — ${collected} coins taken again, ${notCollected} coins could not be collected (coin discount of ${snap.pendingCoinRedemption.amount} not fully covered)`
-              : `Coin hold expired before verification — ${collected} coins taken again`,
-          createdBy: actorInternalId,
-        });
-      }
-    }
-
-    if (pending.length || snap.pendingCoinRedemption) {
-      const { pendingRedemptions: _drop, pendingCoinRedemption: _dropCoins, ...rest } = snap;
-      await tx
-        .update(orders)
-        .set({ pricingSnapshot: rest, updatedBy: actorInternalId })
-        .where(eq(orders.id, order.id));
-    }
-
-    // After coupons/coins settle so they apply even when the start fails. WordPress-migrated pending orders are started by staff.
-    // A cancelled order is only seen here when staff cancelled it after settle's own check; startPaidStripeOrder flags it.
-    if ((order.status === "pending" || order.status === "cancelled") && pay.method === "stripe" && !isWordpressImport(order)) {
-      const { started } = await startPaidStripeOrder(tx, order, actorInternalId);
-      if (started) [order] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
-    }
-
-    if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
-
-    const [user] = await tx
-      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
-      .from(users)
-      .where(eq(users.id, orderUserId))
-      .limit(1);
-    const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-
-    await enqueueNotification(tx, {
-      event: "payment_approved",
-      recipientId: orderUserId,
-      title: "Payment confirmed",
-      body: `Your payment of ${formatMoney(Number(pay.amount) + (pay.method === "stripe" ? Number(pay.surchargeAmount) : 0))} for order ${order.deploymentId} is confirmed.`,
-      href: "/me/wallet?tab=bills",
-      data: {
-        payment: {
-          ...paymentTemplateVars(pay, order.deploymentId, user?.name),
-          ...receiptVars(pay, snap.taxLines ?? []),
-          startDate: order.startDate,
-          durationWeeks: order.durationWeeks,
-          deliveryDays: (freq?.weekdays ?? []).join(", "),
-          eatingDays: (order.eatingDays ?? []).join(", "),
-        },
-      },
-      dedupeKey: `payment_approved:${pay.publicId}`,
-      attachments: receiptAttachments(order),
-    });
-
-    // Waitlisted orders earn in activate instead, once they go active.
-    if (order.status === "active") {
-      await awardReferral(tx, order, "paid");
-      await awardOrderCoins(tx, order, "paid");
-    }
-
-    // Card payments are recorded by Stripe through the PaymentIntent's calculation; only manual methods commit here.
-    const taxCommit =
-      pay.taxSource === "stripe" && pay.method !== "stripe" && pay.taxCalculationId
-        ? { calc: pay.taxCalculationId, ref: pay.publicId, orderId: order.id }
-        : null;
-    const purchase = {
-      orderRef: order.publicId,
-      paymentRef: pay.publicId,
-      method: pay.method,
-      value: Number(pay.amount),
-      user: { email: user?.email ?? null, phone: user?.phone ?? null, fullName: user?.name ?? null, externalId: String(orderUserId) },
-      // The buyer declined analytics/ads cookies at checkout: no GA purchase either.
-      consent: (order.metaAttribution as { consent?: boolean } | null)?.consent !== false,
-    };
-    return { userPublicId: user?.publicId ?? null, taxCommit, purchase };
-  });
-  const userPublicId = settled?.userPublicId ?? null;
-  const taxCommit = settled?.taxCommit ?? null;
-  await deleteFromOptimoRouteBestEffort(missedStops);
-
-  // GA purchase only. Meta Purchase is sendMetaPurchaseOnce: same event id as the card
-  // page pixel, stored click ids, and skipped for renewals. This request is a webhook or
-  // a staff verify, so it must not attach this browser.
-  if (settled?.purchase?.consent) {
-    const { purchase } = settled;
-    const { currency } = await getAppSettings();
-    trackConversion(
-      {
-        eventName: "Purchase",
-        eventId: `purchase:${purchase.paymentRef}`,
-        user: purchase.user,
-        customData: { value: purchase.value, currency, order_id: purchase.orderRef },
-        // Same id as browser gtag so GA4 dedupes; payment_type mirrors Meta's single Purchase.
-        transactionId: purchase.paymentRef,
-        paymentType: purchase.method,
-      },
-      { meta: false },
-    );
-  }
-
-  // Refreshes the customer's wallet/bills views.
-  if (userPublicId) publishUserRefresh(userPublicId);
-
-  if (taxCommit) {
-    try {
-      const rt = await stripeRuntime();
-      if (!rt) throw new Error("Stripe not connected");
-      await commitTax(rt.stripe, taxCommit.calc, taxCommit.ref);
-    } catch (e) {
-      log.error({ err: (e as Error).message }, "stripe tax commit failed");
-      await db.insert(orderActivities).values({ orderId: taxCommit.orderId, type: "note", note: "Stripe Tax commit failed — retry from Payments → Stripe" });
-    }
-  }
-
-  // Purchase CAPI after settle commits. Uses stored order attribution — never webhook headers.
-  if (settled) runInBackground(() => sendMetaPurchaseOnce(paymentPublicId), "meta purchase");
-}
-
-// Minimal refund trigger: tiffin-grab has no refund-processing flow yet (no
-// gateway integration, no refund UI) — this is only the trigger point a
-// future one calls. Marks the order's settled payment `refunded` and claws
-// back the order_activated coins that payment's activation/verification
-// awarded, if any. All three award() call sites (createOrder, verifyPayment,
-// activate) use the same (eventType, source) pair for a given order, so this
-// reverses whichever of them actually fired without needing to know which one.
-export async function refundOrder(
-  orderPublicId: string,
-  opts: { actorId?: string | null } = {},
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [order] = await tx.select().from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
-    if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
-
-    const [pay] = await tx.select().from(payments).where(eq(payments.orderId, order.id)).limit(1);
-    if (!pay || !inStatuses(PAID, pay.status)) {
-      throw new ValidationError(`Order ${orderPublicId} has no settled payment to refund`);
-    }
-
-    const actorInternalId = await resolveUserId(tx, opts.actorId);
-
-    await refundPaymentInTx(tx, {
-      orderId: order.id,
-      orderPublicId: order.publicId,
-      userId: order.userId,
-      paymentId: pay.id,
-      actorInternalId,
-      note: "Order refunded",
-    });
-  });
-}
-
-// Clawback runs in the SAME transaction as the payment-status flip: both
-// commit or roll back together, so a crash between them can never leave a
-// refunded order whose coins were never reversed.
-export async function refundPaymentInTx(
-  tx: Tx,
-  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string; /** The Stripe webhook already wrote the ledger refund row(s): it is the only Stripe ledger writer. */ ledgerRecorded?: boolean },
-): Promise<void> {
-  // Keep this UPDATE before the ledger-sum read: its row lock serializes concurrent refunds of one payment.
-  await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
-  await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
-  if (!i.ledgerRecorded && i.userId) {
-    const [{ already }] = await tx
-      .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
-      .from(ledgerEntries)
-      .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
-    const [{ amount, surcharge }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount }).from(payments).where(eq(payments.id, i.paymentId));
-    // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
-    const remainder = round2(Number(amount) + Number(surcharge) - Number(already));
-    if (remainder > 0) {
-      await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
-    }
-  }
-  // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
-  const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
-  if (paid?.addon) return;
-  if (i.userId) {
-    await reverseCoinAward(tx, { userId: i.userId, eventType: "order_activated", source: { type: "order", id: i.orderPublicId } });
-    // Money back means coins back: a refunded order's spent coins return too.
-    await reverseCoinRedemption(tx, { userId: i.userId, orderId: i.orderId });
-  }
-  await couponsService.releaseForOrder(tx, i.orderId);
-  await reverseReferral(tx, { id: i.orderId });
-}
-
-// Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
-// reference and/or a proof image; requireProof on the method config forces the photo.
-// awaiting_payment | rejected → pending_verification. A pending claim is locked.
-// Callers MUST authorize (assertCanManageOrder) before invoking — kept out of this
-// function to avoid an orders ↔ customer-deliveries import cycle.
-export async function claimPayment(
-  paymentPublicId: string,
-  input: { reference?: string | null; proof?: PaymentProof | null },
-  actorId: bigint | null = null,
-): Promise<void> {
-  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
-  if (!pay) throw new NotFoundError("Payment not found");
-  if (pay.method === "stripe") throw new ValidationError("Card payments are settled automatically");
-
-  // Once claimed the payment is in staff hands: no re-submit until they approve or reject it.
-  if (!inStatuses(UNPAID, pay.status)) {
-    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
-  }
-
-  const cfg = await getPaymentConfig();
-  const method = findMethod(cfg, pay.method);
-  const requireProof = method?.requireProof === true;
-
-  const reference = input.reference?.trim() || null;
-  const proof = input.proof ?? null;
-  if (requireProof && !proof) {
-    throw new ValidationError("A payment screenshot is required for this method");
-  }
-  if (!reference && !proof) {
-    throw new ValidationError("Add a payment reference or upload a screenshot");
-  }
-
-  const claimedAt = Date.now();
-  await db.transaction(async (tx) => {
-    await tx
-      .update(payments)
-      .set({
-        reference,
-        proof,
-        claimedAt,
-        status: "pending_verification",
-        // Clear a prior reject note when re-claiming.
-        note: null,
-      })
-      .where(eq(payments.id, pay.id));
-
-    // Re-claiming after a rejection wipes payments.note, so the rejection reason survives
-    // only here. Without this row a rejected-then-reclaimed payment has no history at all.
-    await tx.insert(orderActivities).values({
-      orderId: pay.orderId,
-      type: "payment_claimed",
-      note: [
-        pay.method,
-        reference ? `ref ${reference}` : null,
-        proof ? "proof attached" : null,
-      ].filter(Boolean).join(" · "),
-      createdBy: actorId,
-    });
-
-    const [order] = await tx
-      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId, userId: orders.userId, customerName: users.name })
-      .from(orders)
-      .leftJoin(users, eq(users.id, orders.userId))
-      .where(eq(orders.id, pay.orderId))
-      .limit(1);
-
-    if (order?.userId) {
-      await enqueueNotification(tx, {
-        event: "payment_received",
-        recipientId: order.userId,
-        title: "Payment received",
-        body: `We received your payment details for ${formatMoney(Number(pay.amount))}. We'll confirm once it's verified.`,
-        href: "/me/wallet?tab=bills",
-        data: { payment: paymentTemplateVars(pay, order.deploymentId, order.customerName) },
-        dedupeKey: `payment_received:${pay.publicId}:${claimedAt}`,
-      });
-    }
-
-    if (pay.method === "etransfer") {
-      await enqueueStaffNotification(tx, {
-        // No event on purpose: in-app rows for an event render from an admin-authored DB
-        // template and are skipped when none exists. Without one the payload copy is used.
-        title: "New e-Transfer request",
-        body: `${pay.amount} awaiting approval${order ? ` · order ${order.publicId}` : ""}`,
-        href: "/dashboard/payments/requests",
-        dedupeKey: `etransfer_requested:${pay.publicId}:${claimedAt}`,
-      });
-    }
-  });
-
-  // Staff review queue + sidebar dot via payments:inbox SSE.
-  publishPaymentsInbox();
-
-  // Funnel only: offline claim is not a Purchase. Purchase CAPI waits for verifyPayment.
-  await sendMetaOrderSubmitted(paymentPublicId);
-}
-
-// Staff rejects a submitted claim. pending_verification → rejected with a note;
-// customer may re-claim. Auth lives at the action layer (requireStaff).
-export async function rejectPayment(
-  paymentPublicId: string,
-  note: string,
-  actorId: bigint | null = null,
-): Promise<void> {
-  const reason = note.trim();
-  if (!reason) throw new ValidationError("Add a reason for rejecting this payment");
-
-  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
-  if (!pay) throw new NotFoundError("Payment not found");
-  if (pay.status !== "pending_verification" || !canVerify(pay.status)) {
-    throw new ValidationError(`Payment cannot be rejected from status ${pay.status}`);
-  }
-
-  await db
-    .update(payments)
-    .set({
-      status: "rejected",
-      note: reason,
-    })
-    .where(eq(payments.id, pay.id));
-
-  await db.insert(orderActivities).values({
-    orderId: pay.orderId,
-    type: "payment_rejected",
-    note: reason,
-    createdBy: actorId,
-  });
-}
-
-/** Staff fix a mistyped or missing transfer reference on one of this order's payments.
- * Logged as an order note: a dedicated activity type would need an enum migration. */
-export async function updatePaymentReference(
-  orderPublicId: string,
-  paymentPublicId: string,
-  reference: string,
-  actorId: bigint | null = null,
-): Promise<void> {
-  const next = reference.trim() || null;
-  if (next && next.length > 120) throw new ValidationError("Keep the reference under 120 characters");
-  const [pay] = await db
-    .select({ id: payments.id, orderId: payments.orderId, reference: payments.reference })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(and(eq(payments.publicId, paymentPublicId), eq(orders.publicId, orderPublicId)))
-    .limit(1);
-  if (!pay) throw new NotFoundError("Payment not found");
-  if (pay.reference === next) return;
-
-  await db.update(payments).set({ reference: next }).where(eq(payments.id, pay.id));
-  const change = !pay.reference ? `set to ${next}` : next ? `changed from ${pay.reference} to ${next}` : `cleared (was ${pay.reference})`;
-  await db.insert(orderActivities).values({
-    orderId: pay.orderId,
-    type: "note",
-    note: `Payment ${paymentPublicId} reference ${change}`,
-    createdBy: actorId,
-  });
-}
-
 /** Any staff member flags an order the whole team should watch (always with why), or clears the flag.
  * Marking an already flagged order re-marks it: new note, new marker. Logged as an order note,
  * like updatePaymentReference. */
@@ -1488,145 +924,6 @@ export async function countLookOutOrders(visible: "all" | string[]): Promise<num
   return count;
 }
 
-/** An order's last tiffin: its latest non-cancelled delivery row (the same rule `reservedEndDatesExclusive` uses). */
-export const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
-
-// One rule for "renewed", shared by the renewal reminder, the Orders renewal-rate card and Renewals:
-// any later plan by the same customer counts, unpaid and waitlisted included, so staff chase the
-// payment instead of selling the customer a second plan. Cancelled never counts.
-// "Later" means it starts after this plan AND runs at least as long: a parallel plan that ends first
-// (two plans booked side by side) is not a renewal. A plan with no tiffins yet still counts.
-const laterOrderWhere = sql`next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'waitlisted', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate} and coalesce((select max(nd.delivery_date) from ${deliveries} as nd where nd.order_id = next_order.id and nd.status <> 'cancelled'), '9999-12-31') >= coalesce(${lastTiffinSql}, '0001-01-01')`;
-const laterOrder = (extra?: SQL) => sql`exists (select 1 from ${orders} as next_order where ${laterOrderWhere}${extra ? sql` and ${extra}` : sql``})`;
-
-/** The customer already has a later plan (any start date, unpaid and waitlisted included). */
-export const laterOrderSql = sql<boolean>`${laterOrder()}`;
-
-/** Trial conversion: a later plan that is not itself a trial. */
-export const laterPaidOrderSql = sql<boolean>`${laterOrder(sql`next_order.trial_length is null`)}`;
-
-export type RenewalStatus = "renewed" | "unpaid" | "waitlisted" | "none";
-
-/**
- * Where the renewal stands, best later plan first: one running, finished or paid wins over an
- * unpaid one, which wins over a waitlisted one. `paidPlansOnly` ignores later trials (Trial conversion).
- */
-export function renewalStatusSql(paidPlansOnly = false) {
-  const plan = (extra: SQL) => laterOrder(paidPlansOnly ? sql`next_order.trial_length is null and ${extra}` : extra);
-  const paid = sql`exists (select 1 from ${payments} as np where np.order_id = next_order.id and np.status in ('paid', 'simulated_paid'))`;
-  return sql<RenewalStatus>`case
-    when ${plan(sql`(next_order.status in ('active', 'paused', 'completed') or ${paid})`)} then 'renewed'
-    when ${plan(sql`next_order.status = 'pending'`)} then 'unpaid'
-    when ${plan(sql`next_order.status = 'waitlisted'`)} then 'waitlisted'
-    else 'none' end`;
-}
-
-/** Orders in the organizations a session may see (`resolveSessionVisibleOrgIds`). */
-export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all" ? undefined : inArray(orders.organizationId, visible));
-
-/** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
-export function paymentReviewWhere() {
-  return and(
-    inArray(orders.status, ["active", "pending", "paused"]),
-    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.addonRequest} is null and ${paymentStatusIn(PENDING)})`,
-  );
-}
-
-async function countVisibleOrders(where: SQL | undefined, visible: "all" | string[]): Promise<number> {
-  if (visible !== "all" && visible.length === 0) return 0;
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(orders)
-    .where(and(where, visible === "all" ? undefined : inArray(orders.organizationId, visible)));
-  return count;
-}
-
-/** Running plans ending inside the window, for the Ending soon tab badge. */
-
-/** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
-export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
-
-/** ISO dates (app timezone), both inclusive. */
-export type FreeTiffinRange = { from: string; to: string };
-
-/**
- * Orders where staff gave free tiffins on top of the plan (`complimentary_tiffins`), cancelled ones left out.
- * With a range, only orders with a free tiffin scheduled in it: the analytics Free tiffins rule, so both agree.
- */
-export const freeTiffinsWhere = (range?: FreeTiffinRange) =>
-  and(
-    gt(orders.complimentaryTiffins, 0),
-    ne(orders.status, "cancelled"),
-    range
-      ? sql`exists (select 1 from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.complimentaryNote} is not null
-          and ${deliveries.status} = 'scheduled' and ${deliveries.deliveryDate} between ${range.from} and ${range.to})`
-      : undefined,
-  );
-export const countFreeTiffinOrders = (visible: "all" | string[], range?: FreeTiffinRange) => countVisibleOrders(freeTiffinsWhere(range), visible);
-
-// Serializable claim form context for activate / Finances UI.
-export type ClaimPaymentContext = {
-  paymentPublicId: string;
-  orderPublicId: string;
-  deploymentId: string;
-  amount: string;
-  status: (typeof payments.status.enumValues)[number];
-  methodId: string;
-  methodLabel: string;
-  payeeHandle: string | null;
-  instructions: string | null;
-  requireProof: boolean;
-  rejectNote: string | null;
-  // Human-friendly memo the customer should include in the transfer.
-  referenceHint: string;
-};
-
-export async function getClaimPaymentContext(paymentPublicId: string): Promise<ClaimPaymentContext | null> {
-  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
-  if (!pay) return null;
-  const [order] = await db
-    .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
-    .from(orders)
-    .where(eq(orders.id, pay.orderId))
-    .limit(1);
-  if (!order) return null;
-
-  const cfg = await getPaymentConfig();
-  const method = findMethod(cfg, pay.method);
-  return {
-    paymentPublicId: pay.publicId,
-    orderPublicId: order.publicId,
-    deploymentId: order.deploymentId,
-    amount: pay.amount,
-    status: pay.status,
-    methodId: pay.method,
-    methodLabel: method?.label ?? pay.method,
-    payeeHandle: method?.payeeHandle ?? null,
-    instructions: method?.instructions ?? null,
-    requireProof: method?.requireProof === true,
-    rejectNote: pay.status === "rejected" ? (pay.note ?? null) : null,
-    referenceHint: order.deploymentId,
-  };
-}
-
-/** Claim form for a locked (payment-review) plan on /me/deliveries. */
-export async function getClaimPaymentContextForOrder(orderPublicId: string): Promise<ClaimPaymentContext | null> {
-  const [pay] = await db
-    .select({ publicId: payments.publicId })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(
-      and(
-        eq(orders.publicId, orderPublicId),
-        isNull(payments.addonRequest),
-        paymentStatusIn(SETTLEABLE),
-      ),
-    )
-    .orderBy(desc(payments.createdAt))
-    .limit(1);
-  if (!pay) return null;
-  return getClaimPaymentContext(pay.publicId);
-}
 
 export type OrderListRow = {
   publicId: string;
@@ -1699,111 +996,6 @@ export async function assertPaymentVisible(paymentPublicId: string, visible: "al
     .innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!row) throw new NotFoundError("Order not found");
   await assertOrderVisible(row.publicId, visible);
-}
-
-function filterValues(f: FilterCondition): string[] {
-  return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
-}
-
-// Plan and meal-size tier live on joined tables. The URL carries the plan key
-// or tier name; a subquery resolves it so the orders list can open the rows
-// behind an analytics figure without putting an internal id in the link.
-function ordersListResolver() {
-  const base = columnResolver({
-    status: orders.status,
-    fullName: orders.fullName,
-    deploymentId: orders.deploymentId,
-    createdAt: orders.createdAt,
-    startDate: orders.startDate,
-  });
-  return (f: FilterCondition) => {
-    if (f.field === "owner") {
-      const vals = filterValues(f);
-      const ids = vals.filter((v) => v !== UNASSIGNED_OWNER);
-      return or(
-        vals.includes(UNASSIGNED_OWNER) ? isNull(orders.currentOwner) : undefined,
-        ids.length ? inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(inArray(users.publicId, ids))) : undefined,
-      )!;
-    }
-    if (f.field === "planType") {
-      const v = filterValues(f)[0];
-      return v === "trial" ? isNotNull(orders.trialLength) : isNull(orders.trialLength);
-    }
-    if (f.field === "frequency") {
-      return inArray(orders.frequencyId, db.select({ id: deliveryFrequencies.id }).from(deliveryFrequencies).where(inArray(deliveryFrequencies.key, filterValues(f))));
-    }
-    if (f.field === "plan") {
-      return inArray(
-        orders.planId,
-        db.select({ id: plans.id }).from(plans).where(inArray(plans.key, filterValues(f))),
-      );
-    }
-    if (f.field === "tier") {
-      return inArray(
-        orders.mealSizeId,
-        db
-          .select({ id: mealSizes.id })
-          .from(mealSizes)
-          .where(
-            and(
-              inArray(mealSizes.tier, filterValues(f) as ("budget" | "medium" | "premium")[]),
-              eq(mealSizes.custom, false),
-            ),
-          ),
-      );
-    }
-    if (f.field === "mealSize") {
-      return inArray(orders.mealSizeId, db.select({ id: mealSizes.id }).from(mealSizes).where(inArray(mealSizes.key, filterValues(f))));
-    }
-    if (f.field === "zone") {
-      return inArray(orders.zoneId, db.select({ id: deliveryZones.id }).from(deliveryZones).where(inArray(deliveryZones.name, filterValues(f))));
-    }
-    if (f.field === "org") return inArray(orders.organizationId, filterValues(f));
-    // Orders carry no email of their own; search matches the account's.
-    if (f.field === "email") {
-      return inArray(
-        orders.userId,
-        db.select({ id: users.id }).from(users).where(ilike(users.email, String(f.value))),
-      );
-    }
-    return base(f);
-  };
-}
-
-export interface OrdersListOpts {
-  lookOutOnly?: boolean;
-  paymentReview?: boolean;
-  freeTiffins?: boolean;
-  /** Free tiffins tab: only orders with a free tiffin in this range. */
-  freeRange?: FreeTiffinRange;
-  /** today in the app timezone; keeps orders with a missed delivery before it. */
-  missedAsOf?: string;
-  /**
-   * Orders cancelled inside this epoch window (by the cancel activity timestamp),
-   * matching the Orders "Cancelled" KPI — not `orders.created_at`.
-   */
-  cancelledInRange?: { from: number; to: number };
-}
-
-const cancelledInRangeWhere = (range: { from: number; to: number }) =>
-  sql`exists (
-    select 1 from ${orderActivities} oa
-    where oa.order_id = ${orders.id}
-      and oa.type = 'cancelled'
-      and oa.created_at between ${range.from} and ${range.to}
-  )`;
-
-// Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
-export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
-  return and(
-    conditionToSql(condition, ordersListResolver()),
-    opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
-    opts.freeTiffins ? freeTiffinsWhere(opts.freeRange) : undefined,
-    opts.paymentReview ? paymentReviewWhere() : undefined,
-    opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
-    opts.cancelledInRange ? cancelledInRangeWhere(opts.cancelledInRange) : undefined,
-    visible === "all" ? undefined : inArray(orders.organizationId, visible),
-  );
 }
 
 export async function listOrdersPage(
@@ -2730,23 +1922,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
 export const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
 
-export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
-export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
-export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
-export const changeOrderStartDate = (publicId: string, startDate: string): Promise<void> => ordersService.changeStartDate(publicId, startDate);
-export const changeOrderEatingDays = (publicId: string, days: DayOfWeek[]): Promise<void> => ordersService.changeEatingDays(publicId, days);
-export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
 export async function countMigratedWaiting(): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
     .where(and(eq(orders.status, "pending"), wordpressImportSql));
   return row?.n ?? 0;
 }
-export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>
-  ordersService.pause(publicId, window);
-export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: string): Promise<void> =>
-  ordersService.resume(publicId, actorId, fromDate);
-export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
-  ordersService.reassign(publicId, ownerId);
 
 // Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
 // past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is

@@ -22,14 +22,8 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const {
-  createOrder,
-  claimPayment,
-  rejectPayment,
-  verifyPayment,
-  getClaimPaymentContext,
-  readOrder,
-} = await import("../orders.service");
+const { createOrder, readOrder } = await import("../orders.service");
+const { claimPayment, rejectPayment, verifyPayment, getClaimPaymentContext } = await import("@/lib/payments/verification");
 const { setPaymentConfig, getPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");

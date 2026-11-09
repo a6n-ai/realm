@@ -3,11 +3,7 @@
 import { revalidateOrder } from "@/lib/revalidate";
 import { revalidatePath } from "next/cache";
 import { NotFoundError } from "@foundry/commons";
-import {
-  claimPayment,
-  getClaimPaymentContext,
-  type ClaimPaymentContext,
-} from "@/lib/services/orders.service";
+import { claimPayment, getClaimPaymentContext, type ClaimPaymentContext } from "@/lib/payments/verification";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { assertCanManageOrder, assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
