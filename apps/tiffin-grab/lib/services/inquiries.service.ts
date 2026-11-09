@@ -548,6 +548,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const contactPhone = orderInput.contact.phone?.trim();
     const contactEmail = orderInput.contact.email?.trim();
     if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
+    // A generated "Lead <n>" must never become a customer's name.
+    const quick = isQuickAdd(inq);
+    if (quick && orderInput.contact.fullName.trim() === inq.fullName) {
+      throw new ValidationError("Add the customer's real name before converting");
+    }
     if (!contactPhone) throw new ValidationError("Phone is required");
     if (!contactEmail) throw new ValidationError("Email is required");
 
@@ -588,7 +593,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     await this.update(publicId, {
       phone: contactPhone,
       email: contactEmail,
-      fullName: inq.fullName ?? (orderInput.contact.fullName?.trim() || null),
+      fullName: quick ? orderInput.contact.fullName.trim() : (inq.fullName ?? (orderInput.contact.fullName?.trim() || null)),
       stage: "converted",
       subStatus,
       nextFollowUpAt: null,
