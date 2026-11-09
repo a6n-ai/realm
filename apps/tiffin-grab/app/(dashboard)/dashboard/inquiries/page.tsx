@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
@@ -27,6 +27,7 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
+import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
@@ -142,14 +143,25 @@ async function NewInquiryAction() {
   const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
 
   return (
-    <AddInquirySheet
-      defaultCountry={defaultCountry}
-      timeZone={timezone}
-      sources={sources}
-      zones={zones}
-      catalog={catalog}
-      trigger={newInquiryTrigger()}
-    />
+    <>
+      <QuickAddDialog
+        sources={sources}
+        trigger={
+          <Button variant="outline">
+            <ListPlusIcon className="size-4" />
+            Quick add
+          </Button>
+        }
+      />
+      <AddInquirySheet
+        defaultCountry={defaultCountry}
+        timeZone={timezone}
+        sources={sources}
+        zones={zones}
+        catalog={catalog}
+        trigger={newInquiryTrigger()}
+      />
+    </>
   );
 }
 
