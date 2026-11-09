@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ArrowRightIcon, ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
@@ -27,6 +27,7 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
+import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
@@ -49,13 +50,14 @@ const SUB_STATUS_FACET_OPTIONS = [
   ...SUB_STATUSES.map((s) => ({ value: s, label: SUB_STATUS_META[s].label })),
 ];
 
-const QUEUES: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
+const QUEUES: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed", "quick"];
 const EMPTY_COPY: Record<QueueTab, string> = {
   due: "Nobody to chase today.",
   overdue: "Nothing overdue.",
   upcoming: "No follow-ups scheduled.",
   open: "No open inquiries.",
   closed: "No closed inquiries.",
+  quick: "No quick adds waiting. Paste numbers to add some.",
 };
 
 export default async function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
@@ -142,14 +144,25 @@ async function NewInquiryAction() {
   const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
 
   return (
-    <AddInquirySheet
-      defaultCountry={defaultCountry}
-      timeZone={timezone}
-      sources={sources}
-      zones={zones}
-      catalog={catalog}
-      trigger={newInquiryTrigger()}
-    />
+    <>
+      <QuickAddDialog
+        sources={sources}
+        trigger={
+          <Button variant="outline">
+            <ListPlusIcon className="size-4" />
+            Quick add
+          </Button>
+        }
+      />
+      <AddInquirySheet
+        defaultCountry={defaultCountry}
+        timeZone={timezone}
+        sources={sources}
+        zones={zones}
+        catalog={catalog}
+        trigger={newInquiryTrigger()}
+      />
+    </>
   );
 }
 
@@ -176,6 +189,17 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
+/** Keeps the viewer's filters, jumps to the Quick adds tab (first page, oldest first) and highlights `publicId`. */
+function nextLeadQuery(sp: Awaited<SearchParams>, publicId: string): string {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string" && !["queue", "bucket", "page", "sort", "dir", "highlight"].includes(k)) next.set(k, v);
+  }
+  next.set("queue", "quick");
+  next.set("highlight", publicId);
+  return next.toString();
+}
+
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
@@ -186,7 +210,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const sort = parseSort(
     sp,
     ["name", "owner", "stage", "source", "nextFollowUp", "created"],
-    { column: "created", dir: "desc" },
+    // Quick adds are worked through oldest first.
+    { column: "created", dir: queue === "quick" ? "asc" : "desc" },
   );
 
   const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }, zoneOptions] = await Promise.all([
@@ -217,7 +242,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
-  const [result, counts] = await Promise.all([
+  const [result, counts, nextQuick] = await Promise.all([
     inquiriesService.listForPipeline(
       condition,
       page,
@@ -226,12 +251,23 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       bucket ? inquiryBucketWhere(bucket) : undefined,
     ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
+    inquiriesService.nextQuickAdd(condition),
   ]);
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
     <div className="flex flex-col gap-4">
-    <QueueTabs counts={counts} />
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <QueueTabs counts={counts} />
+      {nextQuick && (
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/dashboard/inquiries?${nextLeadQuery(sp, nextQuick.publicId)}`} prefetch={false}>
+            Next lead
+            <ArrowRightIcon className="size-4" />
+          </Link>
+        </Button>
+      )}
+    </div>
     <InquiriesList
       emptyMessage={EMPTY_COPY[queue]}
       spec={spec}
@@ -244,6 +280,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       staff={staff}
       reassignAction={reassignInquiry}
       dayStart={dayStart}
+      highlight={typeof sp.highlight === "string" ? sp.highlight : undefined}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}

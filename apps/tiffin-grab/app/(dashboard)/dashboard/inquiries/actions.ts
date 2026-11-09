@@ -10,6 +10,7 @@ import {
 import { ValidationError } from "@foundry/commons";
 import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
 
 // Every action returns { error } instead of throwing: production redacts thrown messages and the
 // POST shows up as a 500, so staff saw a generic error for a plain validation miss.
@@ -17,6 +18,7 @@ import { runAction, type ActionResult } from "@/lib/actions/action-result";
 export async function createInquiry(input: {
   fullName?: string;
   phone?: string;
+  whatsappPhone?: string;
   email?: string;
   sourceKey: string;
   subSourceKey?: string;
@@ -38,6 +40,47 @@ export async function createInquiry(input: {
     const { inquiry, folded } = await inquiriesService.createOrFold(input);
     revalidatePath("/dashboard/inquiries");
     return { publicId: inquiry.publicId, folded, fullName: inquiry.fullName };
+  });
+}
+
+/** Rush-time bulk add: each pasted number becomes a "Lead <n>" lead, or folds into its open lead. */
+export async function quickAddInquiries(input: { text: string; sourceKey: string; subSourceKey?: string }): Promise<
+  ActionResult<{ added: number; folded: number; failed: { phone: string; error: string }[] }>
+> {
+  return runAction(async () => {
+    await requireStaff();
+    const { phones, tooMany } = parsePastedPhones(input.text);
+    if (tooMany) throw new ValidationError(`Paste at most ${QUICK_ADD_MAX} numbers at a time`);
+    if (!phones.length) throw new ValidationError("Paste at least one phone number");
+    let added = 0;
+    let folded = 0;
+    const failed: { phone: string; error: string }[] = [];
+    // Sequential: createOrFold owns dedup and owner rotation, and two same-person rows must fold, not race.
+    for (const phone of phones) {
+      try {
+        const r = await inquiriesService.createOrFold({ phone, sourceKey: input.sourceKey, subSourceKey: input.subSourceKey });
+        if (r.folded) folded++;
+        else added++;
+      } catch (e) {
+        if (!(e instanceof ValidationError)) throw e;
+        failed.push({ phone, error: e.message });
+      }
+    }
+    revalidatePath("/dashboard/inquiries");
+    return { added, folded, failed };
+  });
+}
+
+export async function updateInquiryContact(
+  inquiryId: string,
+  input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
+): Promise<ActionResult<{ fullName: string | null }>> {
+  return runAction(async () => {
+    await requireStaff();
+    const inq = await inquiriesService.updateContact(inquiryId, input);
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    return { fullName: inq.fullName };
   });
 }
 

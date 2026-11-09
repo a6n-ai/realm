@@ -24,6 +24,8 @@ import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
 import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
+import { getSession } from "@/lib/auth/session";
+import { eq as facetEq } from "@foundry/commons/model/condition";
 
 export default function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -59,6 +61,9 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
       : Promise.resolve([] as { publicId: string; name: string | null }[]),
     canReassign(),
   ]);
+  // Same default scope as the list's landing view: the viewer's own leads.
+  const viewer = (await getSession())?.user.id;
+  const nextQuick = await inquiriesService.nextQuickAdd(viewer ? facetEq("owner", viewer) : undefined, inq.id);
 
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {
@@ -129,7 +134,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         createdAt={inq.createdAt}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email }}
+        contact={{ fullName: inq.fullName, phone: inq.phone, whatsappPhone: inq.whatsappPhone, email: inq.email, leadNumber: inq.leadNumber }}
+        canEditContact={inq.stage !== "converted"}
         sourceLabel={source?.label ?? ""}
         owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}
         reassign={mayReassign ? { staff: await listAssignableStaff(), action: reassignInquiry } : null}
@@ -150,6 +156,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         prefill={prefill}
         unmatched={unmatched}
         existing={existing}
+        nextQuickHref={nextQuick ? `/dashboard/inquiries/${nextQuick.publicId}` : undefined}
       />
   );
 }

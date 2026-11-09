@@ -6,6 +6,7 @@ import type { InquiryStage } from "@/lib/services/inquiries.service";
 export type ImportFieldKey =
   | "date"
   | "phone"
+  | "whatsappPhone"
   | "fullName"
   | "email"
   | "stage"
@@ -19,6 +20,7 @@ export type ImportFieldKey =
 export const IMPORT_FIELDS: { key: ImportFieldKey; label: string; required: boolean }[] = [
   { key: "date", label: "Date", required: true },
   { key: "phone", label: "Phone Number", required: false },
+  { key: "whatsappPhone", label: "WhatsApp Number", required: false },
   { key: "fullName", label: "Full Name", required: false },
   { key: "email", label: "Email", required: false },
   { key: "stage", label: "Stage", required: false },
@@ -38,7 +40,8 @@ export type ImportMapping = Partial<Record<ImportFieldKey, string>> & { notes: s
 // lands in an ordinary <Select>/checkbox the user can freely change before import.
 const FIELD_ALIASES: Record<ImportFieldKey, string[]> = {
   date: ["date", "inquiry date", "created date", "created", "lead date"],
-  phone: ["phone number", "phone", "mobile", "mobile number", "contact number", "whatsapp number", "whatsapp"],
+  phone: ["phone number", "phone", "mobile", "mobile number", "contact number"],
+  whatsappPhone: ["whatsapp", "whatsapp number", "whatsapp no", "wa number"],
   fullName: ["full name", "name", "customer name", "contact name", "lead name"],
   email: ["email", "email address", "e mail", "mail"],
   stage: ["stage", "pipeline stage", "lead stage"],

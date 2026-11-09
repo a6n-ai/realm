@@ -10,7 +10,7 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones, inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities, leadCounters, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
@@ -23,6 +23,7 @@ import { pickAssignee, strategyFor } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
+import { generatedLeadName, isQuickAdd } from "@/lib/inquiries/quick-add";
 import { SUB_STATUSES, SUB_STATUS_META, assertTransition, groupFor, isClosed, stageFor, type SubStatus } from "@/lib/inquiries/status";
 
 /** Reject inquiry→order convert when this phone already has a live subscription. */
@@ -57,9 +58,12 @@ export type PipelineSortColumn =
   | "nextFollowUp"
   | "created";
 
-export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed";
+export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed" | "quick";
 
 const openSql = sql`${inquiries.stage} not in ('converted', 'lost')`;
+
+/** SQL twin of isQuickAdd (lib/inquiries/quick-add.ts): open, generated name not yet replaced. */
+export const quickAddSql = sql`(${openSql} and ${inquiries.leadNumber} is not null and ${inquiries.fullName} = 'Lead ' || ${inquiries.leadNumber})`;
 
 /** Same buckets as the Inquiries KPI cards. `all` is their union (null sub-status on a closed stage is in none of them). */
 export const INQUIRY_BUCKETS = ["lead", "follow_up", "took", "lost"] as const;
@@ -99,6 +103,7 @@ function queuePredicate(tab: QueueTab, dayStart: number, dayEnd: number): SQL {
     case "upcoming": return sql`(${openSql} and ${next} >= ${dayEnd})`;
     case "open": return openSql;
     case "closed": return sql`not (${openSql})`;
+    case "quick": return quickAddSql;
   }
 }
 
@@ -247,9 +252,16 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * converted/lost) inquiry is the same person. Email wins when phone and email
    * point at different inquiries — email is the login identity. Newest first.
    */
-  async findOpenMatch(phone: string | null, email?: string | null, excludeId?: bigint): Promise<typeof inquiries.$inferSelect | null> {
+  async findOpenMatch(
+    phone: string | null,
+    email?: string | null,
+    excludeId?: bigint,
+    whatsappPhone?: string | null,
+  ): Promise<typeof inquiries.$inferSelect | null> {
+    // A number matches either stored number: people often enquire from WhatsApp on a different phone.
+    const numbers = [...new Set([phone, whatsappPhone].filter((n): n is string => !!n).map((n) => n.toLowerCase()))];
     const parts = [
-      phone ? eq(sql`lower(${inquiries.phone})`, phone.toLowerCase()) : undefined,
+      ...numbers.flatMap((n) => [eq(sql`lower(${inquiries.phone})`, n), eq(sql`lower(${inquiries.whatsappPhone})`, n)]),
       email ? eq(sql`lower(${inquiries.email})`, email.toLowerCase()) : undefined,
     ].filter((p): p is SQL => !!p);
     if (!parts.length) return null;
@@ -276,23 +288,36 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
   }
 
+  /** Next never-resetting "Lead <n>" number for the org. Atomic; a failed insert just skips a number. */
+  private async nextLeadNumber(organizationId: string | null): Promise<number> {
+    const [row] = await db
+      .insert(leadCounters)
+      .values({ orgKey: organizationId ?? "", lastNumber: 1 })
+      .onConflictDoUpdate({ target: leadCounters.orgKey, set: { lastNumber: sql`${leadCounters.lastNumber} + 1` } })
+      .returning({ n: leadCounters.lastNumber });
+    return row.n;
+  }
+
   /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
   async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-    const fullName = clean(values.fullName);
-    const rawPhone = clean(values.phone);
+    let fullName = clean(values.fullName);
+    // WhatsApp-only contact: that number is their phone (keeps the open-phone unique index and dedup working).
+    const rawPhone = clean(values.phone) ?? clean(values.whatsappPhone);
+    const rawWhatsapp = clean(values.phone) ? clean(values.whatsappPhone) : null;
     const rawEmail = clean(values.email);
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
     let phone: string | null = null;
     if (rawPhone) {
       phone = parsePhone(rawPhone);
     }
+    const whatsappPhone = rawWhatsapp ? parsePhone(rawWhatsapp) : null;
     let email: string | null = null;
     if (rawEmail) {
       email = parseEmail(rawEmail);
     }
 
-    const { sourceKey, subSourceKey, subStatus: rawSub, ...rest } = values as {
+    const { sourceKey, subSourceKey, subStatus: rawSub, whatsappPhone: _wa, ...rest } = values as {
       sourceKey: string;
       subSourceKey?: string;
       subStatus?: unknown;
@@ -307,7 +332,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       return { inquiry: existing, folded: true };
     };
 
-    const existing = await this.findOpenMatch(phone, email);
+    const existing = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
     if (existing) return fold(existing);
 
     // Zone resolution depends only on the postal code, so run it alongside the
@@ -318,13 +343,20 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const zoneId = await zoneIdP;
     // Stamped like orders (getBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
     const organizationId = await getBrandOrgId(db);
+    let leadNumber: number | null = null;
+    if (!fullName) {
+      leadNumber = await this.nextLeadNumber(organizationId);
+      fullName = generatedLeadName(leadNumber);
+    }
 
     let inq: typeof inquiries.$inferSelect;
     try {
       inq = await super.create({
         ...rest,
         fullName,
+        leadNumber,
         phone,
+        whatsappPhone,
         email,
         stage: stageFor(subStatus),
         subStatus,
@@ -340,7 +372,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       // insert for the same person won the race — fold into it (the dedup rule,
       // enforced at the DB).
       if (isOpenLeadConflict(e)) {
-        const winner = await this.findOpenMatch(phone, email);
+        const winner = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
         if (winner) return fold(winner);
       }
       throw e;
@@ -356,6 +388,64 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async create(values: Record<string, unknown>) {
     return (await this.createOrFold(values)).inquiry;
+  }
+
+  /**
+   * Edits who the lead is. An absent key is unchanged; null/blank clears it. A blank name keeps a
+   * generated one, or gets a new "Lead <n>" when a phone remains — a lead always has a name or phone.
+   */
+  async updateContact(
+    publicId: string,
+    input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
+  ): Promise<typeof inquiries.$inferSelect> {
+    const inq = await this.read(publicId);
+    if (inq.stage === "converted") throw new ValidationError("A converted inquiry cannot be edited");
+    const clean = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
+    const pick = <K extends keyof typeof input>(k: K, parse: (raw: string) => string, current: string | null) => {
+      if (!(k in input)) return current;
+      const raw = clean(input[k]);
+      return raw ? parse(raw) : null;
+    };
+    const phone = pick("phone", parsePhone, inq.phone);
+    const whatsappPhone = pick("whatsappPhone", parsePhone, inq.whatsappPhone);
+    const email = pick("email", parseEmail, inq.email);
+
+    let fullName = "fullName" in input ? clean(input.fullName) : inq.fullName;
+    let leadNumber = inq.leadNumber;
+    if (!fullName) {
+      if (isQuickAdd(inq)) fullName = inq.fullName;
+      else if (phone) {
+        leadNumber = await this.nextLeadNumber(inq.organizationId);
+        fullName = generatedLeadName(leadNumber);
+      } else throw new ValidationError("Enter a name or phone number");
+    }
+
+    // Only an open lead can collide (a lost one may share the person's newer open lead), and only on changed contact.
+    const contactChanged = phone !== inq.phone || whatsappPhone !== inq.whatsappPhone || email !== inq.email;
+    const isOpen = inq.stage !== "lost";
+    const other = isOpen && contactChanged ? await this.findOpenMatch(phone, email, inq.id, whatsappPhone) : null;
+    const collision = (o: { publicId: string }) =>
+      new ValidationError(`Another open lead has this phone or email (${o.publicId}). Open that lead instead.`);
+    if (other) throw collision(other);
+
+    const labels = { fullName: "Name", phone: "Phone", whatsappPhone: "WhatsApp", email: "Email" } as const;
+    const next = { fullName, phone, whatsappPhone, email };
+    const changes = (Object.keys(labels) as (keyof typeof labels)[])
+      .filter((k) => (inq[k] ?? null) !== (next[k] ?? null))
+      .map((k) => `${labels[k]} changed from ${inq[k] ?? "blank"} to ${next[k] ?? "blank"}`);
+    if (!changes.length) return inq;
+
+    try {
+      await this.update(publicId, { ...next, leadNumber });
+    } catch (e) {
+      if (isOpenLeadConflict(e)) {
+        const winner = await this.findOpenMatch(phone, email, inq.id, whatsappPhone);
+        if (winner) throw collision(winner);
+      }
+      throw e;
+    }
+    await inquiryActivitiesService.create({ inquiryId: inq.id, type: "note", note: changes.join(" · ") });
+    return this.read(publicId);
   }
 
   async addNote(publicId: string, note: string, nextFollowUpAt?: number) {
@@ -462,6 +552,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const contactPhone = orderInput.contact.phone?.trim();
     const contactEmail = orderInput.contact.email?.trim();
     if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
+    // A generated "Lead <n>" must never become a customer's name.
+    const quick = isQuickAdd(inq);
+    if (quick && orderInput.contact.fullName.trim() === inq.fullName) {
+      throw new ValidationError("Add the customer's real name before converting");
+    }
     if (!contactPhone) throw new ValidationError("Phone is required");
     if (!contactEmail) throw new ValidationError("Email is required");
 
@@ -502,7 +597,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     await this.update(publicId, {
       phone: contactPhone,
       email: contactEmail,
-      fullName: inq.fullName ?? (orderInput.contact.fullName?.trim() || null),
+      fullName: quick ? orderInput.contact.fullName.trim() : (inq.fullName ?? (orderInput.contact.fullName?.trim() || null)),
       stage: "converted",
       subStatus,
       nextFollowUpAt: null,
@@ -625,12 +720,23 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async queueCounts(condition: Condition | undefined, dayStart: number, dayEnd: number): Promise<Record<QueueTab, number>> {
     const where = conditionToSql(condition, inquiriesResolver());
-    const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
+    const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed", "quick"];
     const [row] = await db
       .select(Object.fromEntries(tabs.map((t) => [t, sql<number>`cast(count(*) filter (where ${queuePredicate(t, dayStart, dayEnd)}) as int)`])) as Record<QueueTab, SQL<number>>)
       .from(inquiries)
       .where(where);
     return row;
+  }
+
+  /** Oldest unhandled quick add the viewer's list would show (same `condition`), other than `excludeId`. */
+  async nextQuickAdd(condition: Condition | undefined, excludeId?: bigint): Promise<{ publicId: string } | null> {
+    const [row] = await db
+      .select({ publicId: inquiries.publicId })
+      .from(inquiries)
+      .where(and(conditionToSql(condition, inquiriesResolver()), quickAddSql, excludeId != null ? ne(inquiries.id, excludeId) : undefined))
+      .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
+      .limit(1);
+    return row ?? null;
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
@@ -716,6 +822,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async resolveForSource(input: {
     phone?: string;
+    whatsappPhone?: string;
     sourceKey: string;
     contact: { fullName?: string; email?: string };
     interest?: {
@@ -741,6 +848,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const inq = await this.create({
       fullName: input.contact.fullName,
       phone: input.phone,
+      whatsappPhone: input.whatsappPhone,
       ...(input.contact.email ? { email: input.contact.email } : {}),
       sourceKey: input.sourceKey,
       ...(input.interest ?? {}),

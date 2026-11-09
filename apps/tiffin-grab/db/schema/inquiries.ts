@@ -27,6 +27,8 @@ export const inquiries = pgTable("inquiries", {
   ...updatableColumns("inq"),
   fullName: text("full_name"),
   phone: text("phone"),
+  // Blank means "same as phone".
+  whatsappPhone: text("whatsapp_phone"),
   email: text("email"),
   sourceId: bigint("source_id", { mode: "bigint" }).notNull().references(() => leadSources.id),
   subSourceId: bigint("sub_source_id", { mode: "bigint" }).references(() => leadSubsources.id),
@@ -46,12 +48,18 @@ export const inquiries = pgTable("inquiries", {
   quotedPrice: numeric("quoted_price", { precision: 10, scale: 2 }),
   lostReason: inquiryLostReason("lost_reason"),
   notes: text("notes"),
+  // Set only when fullName was generated ("Lead <n>"); see lib/inquiries/quick-add.ts.
+  leadNumber: integer("lead_number"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
   index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
   index("inquiries_owner_idx").on(t.currentOwner),
+  index("inquiries_whatsapp_lower_idx").on(sql`lower(${t.whatsappPhone})`),
+  uniqueIndex("inquiries_org_lead_number_unique")
+    .on(sql`coalesce(${t.organizationId}, '')`, t.leadNumber)
+    .where(sql`${t.leadNumber} is not null`),
   // One open lead per person (phone or email): the DB-level half of the dedup
   // rule createOrFold enforces in app code, closing the read-then-write race.
   // Repeat contacts become `reinquiry` activities on that lead.

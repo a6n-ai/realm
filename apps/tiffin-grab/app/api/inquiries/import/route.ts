@@ -113,6 +113,14 @@ export const POST = handler(async (request: Request): Promise<Response> => {
         phone = parsedPhone.data;
       }
 
+      const rawWhatsapp = cell(row, mapping.whatsappPhone);
+      let whatsappPhone: string | undefined;
+      if (rawWhatsapp) {
+        const parsedWa = phoneSchema(defaultCountry).safeParse(rawWhatsapp);
+        if (!parsedWa.success) throw new ValidationError(`Invalid WhatsApp number: ${rawWhatsapp}`);
+        whatsappPhone = parsedWa.data;
+      }
+
       const warnings: string[] = [];
 
       const rawSource = cell(row, mapping.source);
@@ -144,10 +152,11 @@ export const POST = handler(async (request: Request): Promise<Response> => {
           .join("\n") || undefined;
 
       // Same person (phone or email) with an open lead: the row folds into it as a re-inquiry.
-      const existingOpen = await inquiriesService.findOpenMatch(phone ?? null, email);
+      const existingOpen = await inquiriesService.findOpenMatch(phone ?? null, email, undefined, whatsappPhone);
 
       const publicId = await inquiriesService.resolveForSource({
         phone,
+        whatsappPhone,
         sourceKey,
         contact: { fullName: rawFullName || undefined, email },
         interest: { subSourceKey, notes },

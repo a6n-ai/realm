@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
+import { EditContactDialog } from "./edit-contact-dialog";
 import { cn } from "@foundry/ui/cn";
 import { formatPhone, zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
@@ -104,6 +105,7 @@ export function InquiryDetailClient({
   createdAt,
   currency,
   convertedOrderHref,
+  canEditContact,
   contact,
   sourceLabel,
   owner,
@@ -116,6 +118,7 @@ export function InquiryDetailClient({
   prefill,
   unmatched,
   existing,
+  nextQuickHref,
 }: {
   inquiryId: string;
   subStatus: SubStatus | null;
@@ -125,7 +128,9 @@ export function InquiryDetailClient({
   createdAt: number;
   currency: string;
   convertedOrderHref?: string;
-  contact: { fullName: string | null; phone: string | null; email: string | null };
+  contact: { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
+  /** False once converted: the customer record owns the identity from then on. */
+  canEditContact: boolean;
   sourceLabel: string;
   owner: { publicId: string | null; name: string | null };
   reassign: { staff: { publicId: string; name: string }[]; action: (inquiryId: string, ownerId: string) => Promise<ActionResult> } | null;
@@ -137,6 +142,8 @@ export function InquiryDetailClient({
   prefill: Partial<OrderFormInput>;
   unmatched: string[];
   existing: { publicId: string; fullName: string } | null;
+  /** Next unhandled quick add (see nextQuickAdd); absent when the pile is empty. */
+  nextQuickHref?: string;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -197,7 +204,14 @@ export function InquiryDetailClient({
       <section className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
+              {nextQuickHref && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={nextQuickHref}>Next quick add</Link>
+                </Button>
+              )}
+            </div>
             <p className="text-muted-foreground text-xs break-words">
               {[contact.phone ? formatPhone(contact.phone) : null, contact.email, sourceLabel, `Added ${formatEpoch(createdAt, { mode: "date", timeZone: tz })}`].filter(Boolean).join(" · ")}
             </p>
@@ -260,10 +274,15 @@ export function InquiryDetailClient({
             )}
           </Card>
 
-          <Card title="Contact">
+          <Card>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">Contact</h2>
+              {canEditContact && <EditContactDialog inquiryId={inquiryId} contact={contact} />}
+            </div>
             <div className="flex flex-col gap-2">
               <InfoRow label="Name" value={displayName(contact)} />
               <InfoRow label="Phone" value={contact.phone ? formatPhone(contact.phone) : "No phone"} />
+              <InfoRow label="WhatsApp" value={contact.whatsappPhone ? formatPhone(contact.whatsappPhone) : "Same as phone"} />
               <InfoRow label="Email" value={contact.email || "No email"} />
               <InfoRow label="Source" value={sourceLabel} />
               <InfoRow label="Owner" value={owner.name ?? "Unassigned"} />

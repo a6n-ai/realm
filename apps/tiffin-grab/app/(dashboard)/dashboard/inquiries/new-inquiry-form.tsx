@@ -37,13 +37,13 @@ import type { ZoneLike } from "@/lib/catalog/postal";
 import type { SubStatus } from "@/lib/inquiries/status";
 import { localStore } from "@foundry/ui/safe-storage";
 
-type Src = { key: string; label: string; subs: { key: string; label: string }[] };
+export type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Match = { publicId: string; sourceLabel: string; stage: string };
 
 const START_STATUSES: (SubStatus | null)[] = [
   null, "no_response", "responded", "future", "persistent", "expected", "pending_payment",
 ];
-const LAST_SOURCE_KEY = "inquiry:last-source";
+export const LAST_SOURCE_KEY = "inquiry:last-source";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -51,7 +51,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const pillClass = (active: boolean) =>
+export const pillClass = (active: boolean) =>
   cn(
     "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
     active
@@ -59,7 +59,7 @@ const pillClass = (active: boolean) =>
       : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 
-function readLastSource(): { source?: string; sub?: string } {
+export function readLastSource(): { source?: string; sub?: string } {
   return localStore.getJson(LAST_SOURCE_KEY, {});
 }
 
@@ -106,6 +106,7 @@ export function AddInquirySheet({
   const emptyValues = (sourceKey: string, subSourceKey = ""): InquiryFormInput => ({
     fullName: "",
     phone: "",
+    whatsappPhone: "",
     email: "",
     sourceKey,
     subSourceKey,
@@ -162,6 +163,7 @@ export function AddInquirySheet({
       const res = await unwrapAction(createInquiry({
         fullName: values.fullName || undefined,
         phone: e164 ?? (values.phone || undefined),
+        whatsappPhone: values.whatsappPhone || undefined,
         email: values.email || undefined,
         nextFollowUpAt: followUp?.at,
         sourceKey: values.sourceKey,
@@ -270,6 +272,31 @@ export function AddInquirySheet({
                           <Link className="text-foreground underline" href={`/dashboard/inquiries/${leadMatches[0].publicId}`}>Open</Link>
                         </p>
                       )}
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="whatsappPhone"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>WhatsApp (if different)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="off"
+                          placeholder="Same as phone"
+                          onBlur={() => {
+                            field.onBlur();
+                            const r = phoneSchema(defaultCountry as never).safeParse(field.value ?? "");
+                            if (r.success) form.setValue("whatsappPhone", formatPhone(r.data), { shouldValidate: false });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

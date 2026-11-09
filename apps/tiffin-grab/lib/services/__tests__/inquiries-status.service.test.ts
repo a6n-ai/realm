@@ -54,16 +54,16 @@ describe("inquiriesService.create name-or-phone", () => {
   afterAll(reset);
 
   it("accepts phone only or name only, rejects neither", async () => {
-    expect((await inquiriesService.create({ phone: phone(), sourceKey: "manual" })).fullName).toBeNull();
+    expect((await inquiriesService.create({ phone: phone(), sourceKey: "manual" })).fullName).toMatch(/^Lead \d+$/);
     expect((await inquiriesService.create({ fullName: "Only Name", sourceKey: "manual" })).phone).toBeNull();
     await expect(inquiriesService.create({ sourceKey: "manual" })).rejects.toThrow("Enter a name or phone number");
     await expect(inquiriesService.create({ sourceKey: "manual" })).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it("stores null email and null for a blank name", async () => {
+  it("stores null email and a generated name for a blank name", async () => {
     const inq = await inquiriesService.create({ fullName: "  ", phone: phone(), sourceKey: "manual" });
     expect(inq.email).toBeNull();
-    expect(inq.fullName).toBeNull();
+    expect(inq.fullName).toBe(`Lead ${inq.leadNumber}`);
   });
 
   it("does not fold name-only leads; folds same phone without email; not different phones", async () => {
@@ -258,7 +258,7 @@ describe("inquiriesService queue tabs", () => {
     expect(await names("upcoming")).toEqual(["E"]);
     expect(await names("open")).toEqual(["A", "B", "C", "E"]);
     expect(await names("closed")).toEqual(["F"]);
-    expect(await inquiriesService.queueCounts(undefined, D, D + 86_400_000)).toEqual({ due: 2, overdue: 1, upcoming: 1, open: 4, closed: 1 });
+    expect(await inquiriesService.queueCounts(undefined, D, D + 86_400_000)).toEqual({ due: 2, overdue: 1, upcoming: 1, open: 4, closed: 1, quick: 0 });
   });
 
   it("dayEnd boundary is exclusive for due", async () => {

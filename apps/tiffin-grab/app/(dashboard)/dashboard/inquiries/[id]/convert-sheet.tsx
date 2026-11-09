@@ -6,7 +6,10 @@ import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
 import { formatMoney } from "@foundry/commons";
+import { useState } from "react";
 import { displayName } from "@/lib/inquiries/display";
+import { isQuickAdd } from "@/lib/inquiries/quick-add";
+import { pillClass } from "../new-inquiry-form";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";
 
@@ -50,7 +53,7 @@ export function ConvertSheet({
   hideTrigger,
 }: {
   inquiryId: string;
-  contact: { fullName: string | null; phone: string | null; email: string | null };
+  contact: { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
   prefill?: Partial<OrderFormInput>;
@@ -65,6 +68,13 @@ export function ConvertSheet({
   hideTrigger?: boolean;
 }) {
   const chips = (unmatched ?? []).map((u) => interestChip(u, currency));
+  // A generated "Lead <n>" goes in blank so OrderForm asks for the real name (convert also rejects it).
+  const fullName = isQuickAdd(contact) ? "" : (contact.fullName ?? "");
+  const digits = (p: string | null) => (p ?? "").replace(/\D/g, "");
+  const askNumber = !!contact.phone && !!contact.whatsappPhone && digits(contact.phone) !== digits(contact.whatsappPhone);
+  const [chosenPhone, setChosenPhone] = useState<string | null>(null);
+  // OrderForm reads contact once, so it mounts only after the choice (and remounts if it changes).
+  const phone = askNumber ? chosenPhone : (contact.phone ?? "");
 
   const header = (
     <div className="flex flex-col gap-3">
@@ -120,9 +130,30 @@ export function ConvertSheet({
       flush
     >
       <div className="flex min-h-full flex-col gap-4 px-5 [--bar-inset:1.25rem]">
+        {askNumber && (
+          <section className="flex flex-col gap-2 pt-4">
+            <p id="convert-number-label" className="text-sm font-medium">Which number should the customer use?</p>
+            <div role="radiogroup" aria-labelledby="convert-number-label" className="flex flex-wrap gap-2">
+              {[{ label: "Phone", value: contact.phone! }, { label: "WhatsApp", value: contact.whatsappPhone! }].map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={chosenPhone === o.value}
+                  onClick={() => setChosenPhone(o.value)}
+                  className={pillClass(chosenPhone === o.value)}
+                >
+                  {o.label} {formatPhone(o.value)}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {phone !== null && (
         <OrderForm
+          key={phone}
           inquiryId={inquiryId}
-          contact={{ fullName: contact.fullName ?? "", phone: contact.phone ?? "", email: contact.email ?? "" }}
+          contact={{ fullName, phone, email: contact.email ?? "" }}
           catalog={catalog}
           enabledSlots={enabledSlots}
           prefill={prefill}
@@ -130,6 +161,7 @@ export function ConvertSheet({
           header={header}
           onCreated={() => onOpenChange?.(false)}
         />
+        )}
       </div>
     </ResponsiveDialog>
   );
