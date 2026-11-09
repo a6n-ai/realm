@@ -6,8 +6,7 @@ import { databaseUrl } from "./lib/runtime/env";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "skeleton-audit", ".turbo"]);
-// db/seed-qa-* are manual QA seeders that create live rows (run on demand); e2e specs are Playwright.
-const SKIP_FILE = /^db\/seed-qa-|^e2e\/.*\.spec\.ts$|^e2e\/auth\.setup/;
+const SKIP_FILE = /^e2e\/.*\.spec\.ts$|^e2e\/auth\.setup/;
 // A file that reaches Postgres (directly, or through a service) runs in the serial `db` project.
 // ponytail: an import scan, not a module graph; a pure test that only reaches the DB through a component
 // lands in `unit` and fails loudly there. Add a `// @vitest-db` line to such a file to move it.

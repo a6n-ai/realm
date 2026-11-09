@@ -3,7 +3,7 @@ import { databaseUrl } from "../lib/runtime/env";
  * Is this DATABASE_URL a local dev database?
  *
  * Shared by vitest.teardown.ts (which silently skips reseeding when it is not)
- * and the db/seed-qa-*.test.ts scripts (which refuse to run at all). Those
+ * and the scripts/seed-qa-*.ts scripts (which refuse to run at all). Those
  * scripts create a login with a password committed to this PUBLIC repo, so
  * "probably local" is not good enough: anything that is not unambiguously
  * loopback is treated as remote.

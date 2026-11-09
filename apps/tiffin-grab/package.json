@@ -26,6 +26,7 @@
     "test:e2e:customer": "playwright test -c e2e/playwright.config.ts --project=customer",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "seed:qa": "tsx --require ./scripts/server-only-stub.cjs --env-file-if-exists=.env.local",
     "audit:skeletons": "playwright test skeleton-audit/capture.ts"
   },
   "dependencies": {

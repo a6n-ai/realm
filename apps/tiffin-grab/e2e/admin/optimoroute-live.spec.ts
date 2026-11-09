@@ -22,7 +22,7 @@ test.describe("OptimoRoute live regression (local only, hits real API)", () => {
   test.beforeAll(() => {
     // Idempotent: reuses the QA customer's order if one is already active/paused,
     // otherwise creates a fresh one. Safe to run repeatedly.
-    execSync("npx vitest run --config vitest.seed.config.ts db/seed-qa-customer.test.ts", {
+    execSync("pnpm seed:qa scripts/seed-qa-customer.ts", {
       stdio: "inherit",
     });
   });
