@@ -151,18 +151,14 @@ describe("planDeliveryDays", () => {
     expect(planDeliveryDays(plain, freq, { allowed: ["tue"] })).toEqual(["mon", "wed", "fri"]);
   });
 
-  describe("a trial with no send days (planDaySet vs planWeekdays disagree)", () => {
+  describe("a trial's send days", () => {
     const trial = { ...plain, trialLength: 3, trialWeekdays: [] as string[] };
-    it("sendDaysIfAny falls back to the frequency days", () => {
-      expect(planDeliveryDays(trial, freq, { trial: "sendDaysIfAny" })).toEqual(["mon", "wed", "fri"]);
+    it("with none, fall back to the frequency days", () => {
+      expect(planDeliveryDays(trial, freq, { trial: "sendDays" })).toEqual(["mon", "wed", "fri"]);
     });
-    it("sendDays means no days at all", () => {
-      expect(planDeliveryDays(trial, freq, { trial: "sendDays" })).toEqual([]);
-    });
-    it("both use the send days when there are some, and ignore skips the trial", () => {
+    it("are used when there are some, and ignore skips the trial", () => {
       const sent = { ...trial, trialWeekdays: ["tue", "thu"] };
       expect(planDeliveryDays(sent, freq, { trial: "sendDays" })).toEqual(["tue", "thu"]);
-      expect(planDeliveryDays(sent, freq, { trial: "sendDaysIfAny" })).toEqual(["tue", "thu"]);
       expect(planDeliveryDays(sent, freq)).toEqual(["mon", "wed", "fri"]);
     });
   });

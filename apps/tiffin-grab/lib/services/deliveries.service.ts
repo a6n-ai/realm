@@ -744,7 +744,7 @@ export async function shiftMissedDeliveries(
   )).orderBy(asc(deliveries.deliveryDate));
   if (missed.length === 0) return [];
 
-  const weekdays = await loadPlanDays(tx, order, { trial: "sendDaysIfAny", weekdaysOnly: true });
+  const weekdays = await loadPlanDays(tx, order, { trial: "sendDays", weekdaysOnly: true });
   const yesterday = parseIsoDateUtc(today);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const floor = utcIso(yesterday);
@@ -1063,7 +1063,7 @@ export async function grantComplimentaryTiffin(
     const day = weekdayKey(parseIsoDateUtc(input.date));
     const allowedErr = allowedDaysError([day as DayOfWeek], await mealSizeAllowedDays(order.mealSizeId, tx));
     if (allowedErr) throw new ValidationError(allowedErr);
-    if (!(await loadPlanDays(tx, order, { trial: "sendDaysIfAny", weekdaysOnly: true })).has(day)) {
+    if (!(await loadPlanDays(tx, order, { trial: "sendDays", weekdaysOnly: true })).has(day)) {
       throw new ValidationError("Pick one of this plan's delivery days");
     }
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);

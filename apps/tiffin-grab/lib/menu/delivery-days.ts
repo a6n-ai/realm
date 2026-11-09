@@ -125,13 +125,13 @@ export function orderDeliveryDays(o: {
 }
 
 
-/** What a trial order's delivery days are: ignored (frequency days), its own send days, or its send days when it has any. */
-export type TrialDays = "ignore" | "sendDays" | "sendDaysIfAny";
+/** What a trial order's delivery days are: ignored (frequency days), or its own send days (the frequency's days when it has none). */
+export type TrialDays = "ignore" | "sendDays";
 
 /**
  * The days an order's trucks run: its frequency's days (Sat/Sun flags only on an order without eating days), limited to
- * `allowed` unless that would leave nothing, or a trial's own send days per `trial`. A trial with no send days is
- * "no days" under `sendDays` but the frequency's days under `sendDaysIfAny`. `weekdaysOnly` drops Sat/Sun (weekend food rides Friday).
+ * `allowed` unless that would leave nothing, or a trial's own send days per `trial`; a trial with no send days
+ * falls back to the frequency's days. `weekdaysOnly` drops Sat/Sun (weekend food rides Friday).
  */
 export function planDeliveryDays(
   order: {
@@ -146,7 +146,7 @@ export function planDeliveryDays(
 ): DayOfWeek[] {
   const trial = o.trial ?? "ignore";
   let days: DayOfWeek[];
-  if (trial !== "ignore" && order.trialLength != null && (trial === "sendDays" || order.trialWeekdays?.length)) {
+  if (trial !== "ignore" && order.trialLength != null && order.trialWeekdays?.length) {
     days = [...(order.trialWeekdays ?? [])] as DayOfWeek[];
   } else {
     const flags = !order.eatingDays?.length;
