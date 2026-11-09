@@ -84,7 +84,7 @@ function WeekSwitch({ value }: { value: WeekScope }) {
             "inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-semibold whitespace-nowrap [touch-action:manipulation] transition-colors duration-150 motion-reduce:transition-none",
             w.id === value
               ? "bg-foreground text-background"
-              : "text-[var(--muted-foreground,#6E6558)] hover:bg-card hover:text-foreground",
+              : "text-[var(--muted-foreground)] hover:bg-card hover:text-foreground",
           )}
         >
           {w.label}

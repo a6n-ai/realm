@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { ClockIcon } from "lucide-react";
+import { useNow } from "@/lib/hooks/use-now";
 import { cn } from "@/components/customer/kit/cn";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
@@ -31,13 +31,8 @@ export function CutoffBanner({
 }) {
   const reduce = useReducedMotion();
   // Lazy initialiser: the clock is read once at mount, not on every render.
-  const [now, setNow] = useState(() => injectedNow ?? Date.now());
-
-  useEffect(() => {
-    if (injectedNow != null) return; // test-injected clock is fixed
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, [injectedNow]);
+  const ticking = useNow(30_000);
+  const now = injectedNow ?? ticking ?? Date.now();
 
   const next = days.filter((d) => now < d.lockMs).sort((a, b) => a.lockMs - b.lockMs)[0];
 

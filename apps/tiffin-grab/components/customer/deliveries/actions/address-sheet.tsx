@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -19,7 +18,8 @@ import { useSheetUi } from "./sheet-ui";
 /** Send one delivery somewhere else: a saved address or a new one (saved to the book). Never charged. */
 export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps) {
   const { Shell, PrimaryButton, Notice, OptionCard, Field, AddressFields, PillToggle } = useSheetUi(ui);
-  const av = actionAvailability(trip, Date.now(), plan.ctx).address;
+  const [now] = useState(() => Date.now());
+  const av = actionAvailability(trip, now, plan.ctx).address;
   const addresses = plan.savedAddresses;
   const [picked, setPicked] = useState<string | null>(() =>
     currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),

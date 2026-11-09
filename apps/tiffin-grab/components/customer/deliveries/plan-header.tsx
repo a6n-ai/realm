@@ -19,7 +19,7 @@ export function windowLabel(w: SubscriptionWindow | undefined, today: string): s
 /** Renew surfaces on the plan itself this close to the last tiffin; earlier it stays in the More drawer. */
 const RENEW_SOON_DAYS = 7;
 
-const MUTED = "text-[var(--muted-foreground,#6E6558)]";
+const MUTED = "text-[var(--muted-foreground)]";
 const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "var(--s-vac,#d98a00)", bad: "var(--s-hold,#f43f5e)" };
 const TONE: Record<string, keyof typeof DOT> = { active: "ok", upcoming: "ok", paused: "ok", waitlisted: "warn", payment_review: "warn", cancelled: "bad", rejected: "bad" };
 
@@ -57,7 +57,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
         {/* A custom meal's name is its whole composition — too long for the title on a phone. */}
         <p className="text-title-2 font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
         {sub.mealSizeCustom && (
-          <p className="mt-1 text-subhead leading-snug text-pretty text-[var(--muted-foreground,#6E6558)]" data-testid="plan-composition">{sub.mealSizeName}</p>
+          <p className="mt-1 text-subhead leading-snug text-pretty text-[var(--muted-foreground)]" data-testid="plan-composition">{sub.mealSizeName}</p>
         )}
         {/* One quiet line instead of a row of pills: status, diet, what's left; renew under it. */}
         <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-subhead tabular-nums" data-testid="plan-summary">

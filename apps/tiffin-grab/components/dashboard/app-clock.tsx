@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
+import { useNow } from "@/lib/hooks/use-now";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
@@ -9,13 +9,7 @@ import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
 // so any SSR text would mismatch on hydration.
 export function AppClock({ cutoffHour }: { cutoffHour: number }) {
   const tz = useTimezone();
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 15_000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(15_000);
 
   if (now === null) return null;
 

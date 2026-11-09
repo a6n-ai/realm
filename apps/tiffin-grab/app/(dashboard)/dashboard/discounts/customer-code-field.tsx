@@ -12,6 +12,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "./rep-code-actions";
 import { useFormatMoney } from "@/components/app-currency";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 // Issues a one-off code on the rep's own allowance, capped against this order, and applies it to
 // the estimate so the total shown is what the customer pays after entering it at checkout.
@@ -24,7 +25,7 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ code: string; amount: number; expiresAt: number } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText, reset: resetCopied } = useCopy();
 
   useEffect(() => {
     repCodeAllowance()
@@ -50,17 +51,12 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
     if ("error" in r) return setError(r.error);
     setAllowance(r.allowance);
     setIssued({ code: r.code, amount: value, expiresAt: r.expiresAt });
-    setCopied(false);
+    resetCopied();
   };
 
   const copy = async () => {
     if (!issued) return;
-    try {
-      await navigator.clipboard.writeText(issued.code);
-      setCopied(true);
-    } catch {
-      toast.error("Couldn't copy. Select the code and copy it by hand.");
-    }
+    if (!(await copyText(issued.code))) toast.error("Couldn't copy. Select the code and copy it by hand.");
   };
 
   if (!allowance && !error) return null;

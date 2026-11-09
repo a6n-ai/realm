@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable */
 
 
 import { appTodayIso } from "@/lib/dates/today";

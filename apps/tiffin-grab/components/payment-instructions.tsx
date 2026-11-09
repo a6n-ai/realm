@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 /**
  * How to pay a manual method (e-Transfer): where to send it, the admin's
@@ -49,19 +49,11 @@ function Row({ label, value, what, mono = false }: { label: string; value: strin
 
 /** Small "Copy" pill; inherits text color so it fits the customer kit and admin alike. */
 export function CopyValue({ value, what = "email" }: { value: string; what?: string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy(1500);
   return (
     <button
       type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        } catch {
-          // Clipboard blocked (permissions/insecure context): the value stays visible to copy by hand.
-        }
-      }}
+      onClick={() => copy(value)}
       aria-label={copied ? `${what} copied` : `Copy ${what}`}
       className="text-foreground inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-current/20 px-2.5 text-xs font-semibold transition-colors hover:bg-current/5"
     >

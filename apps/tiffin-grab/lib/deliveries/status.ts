@@ -17,7 +17,7 @@ export const STATUS_COLOR: Record<DeliveryStatus, string> = {
   upcoming: "var(--s-upcoming,#0ea5e9)",
   paused: "var(--s-vac,#d98a00)",
   hold: "var(--s-hold,#f43f5e)",
-  combined: "var(--muted-foreground,#6E6558)",
+  combined: "var(--muted-foreground)",
   // Slate: not one of the plan colours on the week strip (PLAN_COLORS), and the word "Holiday" carries the meaning anyway.
   holiday: "var(--s-holiday,#475569)",
 };

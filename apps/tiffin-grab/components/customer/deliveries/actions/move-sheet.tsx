@@ -96,7 +96,7 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                   <CalendarCheck aria-hidden className="size-5 shrink-0 text-primary" />
                   <span className="flex min-w-0 flex-col">
                     <span className="text-subhead font-semibold">Move to end of plan</span>
-                    <span className="text-footnote text-[var(--muted-foreground,#6E6558)]">{humanDate(end)}</span>
+                    <span className="text-footnote text-[var(--muted-foreground)]">{humanDate(end)}</span>
                   </span>
                 </OptionCard>
               )}

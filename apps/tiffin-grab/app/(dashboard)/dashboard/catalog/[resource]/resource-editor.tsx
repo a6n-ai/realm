@@ -27,7 +27,7 @@ import { cn } from "@foundry/ui/cn";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
 import {
-  RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
+  RESOURCES, emptyForm, rowToForm, slug, sortableColumns, type FieldDef, type FieldType, type ResourceDef,
 } from "@/lib/catalog/resource-config";
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
@@ -56,21 +56,6 @@ const isSpanningType = (f: FieldDef) => isArrayType(f) || f.type === "categoryCo
 // the real header/rows and the .Skeleton twin render from this, so the loading
 // skeleton can never drift from the component.
 const visibleCols = (def: ResourceDef) => def.fields.filter((f) => !f.tableHidden && f.key !== "key");
-
-// Which field types carry a meaningful server sort. Arrays (csv/multiselect) and
-// images are excluded; the first visible column is always sortable regardless.
-const SORTABLE_FIELD_TYPES = new Set<FieldType>(["text", "number", "select", "date", "boolean"]);
-
-// The column keys that are sortable: the visible fields whose type carries a
-// meaningful sort, plus the synthetic "status". page.tsx applies the identical
-// rule server-side to whitelist + orderBy — kept in lockstep by SORTABLE_FIELD_TYPES.
-function sortableColumns(def: ResourceDef): string[] {
-  const cols = visibleCols(def);
-  return [
-    ...cols.filter((f, i) => i === 0 || SORTABLE_FIELD_TYPES.has(f.type)).map((f) => f.key),
-    "status",
-  ];
-}
 
 // DataTable column descriptors — the live header and the .Skeleton twin both
 // render from this array, so they can never drift.

@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 "use client";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -45,7 +44,7 @@ const PREFIX = "pick";
 
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const ADDONS = "__addons";
-const muted = "text-[var(--muted-foreground,#6E6558)]";
+const muted = "text-[var(--muted-foreground)]";
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;

@@ -17,12 +17,12 @@ function TicketSection({ title, hint, tickets, timezone, empty }: { title: strin
       <div className="flex items-end justify-between gap-3">
         <div>
           <h2 className="text-body font-semibold">{title}</h2>
-          <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">{hint}</p>
+          <p className="text-footnote text-[var(--muted-foreground)]">{hint}</p>
         </div>
-        {tickets.length > 0 ? <span className="text-footnote font-semibold tabular-nums text-[var(--muted-foreground,#6E6558)]">{tickets.length}</span> : null}
+        {tickets.length > 0 ? <span className="text-footnote font-semibold tabular-nums text-[var(--muted-foreground)]">{tickets.length}</span> : null}
       </div>
       {tickets.length === 0 ? (
-        <p className="c-surface rounded-2xl bg-card px-4 py-5 text-[14px] text-[var(--muted-foreground,#6E6558)]">{empty}</p>
+        <p className="c-surface rounded-2xl bg-card px-4 py-5 text-[14px] text-[var(--muted-foreground)]">{empty}</p>
       ) : (
         <ListGroup>
           {tickets.map((t) => {

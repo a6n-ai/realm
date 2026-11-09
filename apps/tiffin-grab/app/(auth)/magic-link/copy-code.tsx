@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { OTP_TTL_MINUTES } from "@foundry/commons";
@@ -8,22 +7,15 @@ import { AUTH_LINK, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { AuthLogo } from "@/components/auth/auth-kit";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 /**
  * Email can't run JS, so the code email's "Copy code" button links here.
  * `code` is null when the link is forged, damaged or older than the code lifetime.
  */
 export function CopyCode({ code }: { code: string | null }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code!);
-      setCopied(true);
-    } catch {
-      // Clipboard blocked: the code is select-all, so a tap still selects it.
-    }
-  }
+  const { copied, copy: copyText } = useCopy();
+  const copy = () => copyText(code!);
 
   return (
     <AuthScreen>

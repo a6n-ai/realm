@@ -6,7 +6,7 @@ import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 /** Names of the dishes customers pick most on the sheet's day; the sheet provides it once for every row. */
 export const PopularDishes = createContext<ReadonlySet<string>>(new Set());
 
-const muted = "text-[var(--muted-foreground,#6E6558)]";
+const muted = "text-[var(--muted-foreground)]";
 
 /** One button in a row: a dish, a swap, or what the row was before a swap. */
 export type RowChoice = {

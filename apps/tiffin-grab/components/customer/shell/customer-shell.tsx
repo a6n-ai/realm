@@ -15,6 +15,7 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
 import { PageTransition } from "@/components/motion/page-transition";
 import { subscribeChannel, type RealtimeBootstrap } from "@/components/notifications/realtime";
+import { useNow } from "@/lib/hooks/use-now";
 import { notifyChannel } from "@/lib/realtime/notify";
 
 const ACCOUNT_PATHS = ["/me/account"];
@@ -108,12 +109,7 @@ function AccountAvatar({ name, image, active }: { name: string | null; image: st
 
 function CutoffChip({ cutoffHour }: { cutoffHour: number }) {
   const tz = useTimezone();
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const i = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(i);
-  }, []);
+  const now = useNow(30_000);
   const next = now === null ? null : nextCutoff(now, cutoffHour, tz);
   const urgent = next !== null && next.ms < 2 * 3600_000;
   const chip = useRef<HTMLButtonElement>(null);

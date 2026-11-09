@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { emailPaymentLinkAction } from "./actions";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 export type AdminOrderCreated = {
   publicId: string;
@@ -35,34 +36,22 @@ export function AdminOrderCreatedPanel({
   /** Builds the order recap to paste into WhatsApp; gets the pay link, or null once the order is paid. */
   whatsappText?: (payUrl: string | null) => string;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [copiedMessage, setCopiedMessage] = useState(false);
+  const { copied, copy: copyText } = useCopy(2000);
+  const { copied: copiedMessage, copy: copyMessageText } = useCopy(2000);
   const [email, setEmail] = useState<"idle" | "sending" | "sent">("idle");
 
   const payPath = result.payUrl ?? `/activate/${result.deploymentId}`;
   const payUrl = result.payUrl ?? (typeof window !== "undefined" ? `${window.location.origin}${payPath}` : payPath);
 
   async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(payUrl);
-      setCopied(true);
-      toast.success("Customer payment link copied");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Could not copy link");
-    }
+    if (await copyText(payUrl)) toast.success("Customer payment link copied");
+    else toast.error("Could not copy link");
   }
 
   async function copyMessage() {
     if (!whatsappText) return;
-    try {
-      await navigator.clipboard.writeText(whatsappText(result.paid?.ok ? null : payUrl));
-      setCopiedMessage(true);
-      toast.success("Message copied. Paste it in WhatsApp");
-      setTimeout(() => setCopiedMessage(false), 2000);
-    } catch {
-      toast.error("Could not copy the message");
-    }
+    if (await copyMessageText(whatsappText(result.paid?.ok ? null : payUrl))) toast.success("Message copied. Paste it in WhatsApp");
+    else toast.error("Could not copy the message");
   }
 
   async function emailLink() {

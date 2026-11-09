@@ -103,7 +103,7 @@ export function MonthGrid({ month, days = {}, selected, onSelect }: GridProps) {
   return (
     <div>
       <div role="grid" aria-label={month} className="grid gap-1">
-        <div role="row" className={cn(FONT, "grid grid-cols-7 text-center text-xs font-semibold text-[var(--muted-foreground,#6E6558)]")}>
+        <div role="row" className={cn(FONT, "grid grid-cols-7 text-center text-xs font-semibold text-[var(--muted-foreground)]")}>
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
             <span key={w} role="columnheader">{w}</span>
           ))}

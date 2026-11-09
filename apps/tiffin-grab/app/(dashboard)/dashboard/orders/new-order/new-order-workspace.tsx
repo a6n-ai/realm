@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Country as CountryCode } from "react-phone-number-input";
@@ -188,19 +188,19 @@ function WorkspaceBody({
   // A picked customer with running plans starts from the latest one (the plan they would renew),
   // once per customer and only on an untouched plan, so it never overwrites what staff chose.
   const autoRenewedFor = useRef<string | null>(null);
-  useEffect(() => {
+  const autoRenew = useEffectEvent(() => {
     if (!pickedCustomerId || autoRenewedFor.current === pickedCustomerId || customerCtx.plans.length === 0 || mealSizeId) return;
     autoRenewedFor.current = pickedCustomerId;
     const latest = customerCtx.plans.reduce((a, b) => (b.lastDay > a.lastDay ? b : a));
     void renewFrom(latest.publicId, latest.deploymentId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickedCustomerId, customerCtx.plans]);
+  });
+  useEffect(() => autoRenew(), [pickedCustomerId, customerCtx.plans]);
 
   // The hook reads the email from the form, not from props.
-  useEffect(() => {
+  const syncEmail = useEffectEvent(() => {
     form.setValue("email", email.trim(), { shouldValidate: emailTouched });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email]);
+  });
+  useEffect(() => syncEmail(), [email]);
 
   useEffect(() => {
     form.setValue("phone", phone);
@@ -218,13 +218,13 @@ function WorkspaceBody({
     return () => { cancelled = true; };
   }, [pickedId, catalog.plans, catalog.mealSizes]);
 
-  useEffect(() => {
+  const applyFetchedPrefill = useEffectEvent(() => {
     if (!pickedId || fetchedPrefill?.forId !== pickedId) return;
     for (const [k, v] of Object.entries(fetchedPrefill.prefill)) {
       if (v !== undefined && k !== "email") form.setValue(k as keyof OrderFormInput, v as never, { shouldDirty: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchedPrefill]);
+  });
+  useEffect(() => applyFetchedPrefill(), [fetchedPrefill]);
 
   // Save the lead once the contact is complete and has stopped changing, so an abandoned order still leaves an inquiry.
   useEffect(() => {

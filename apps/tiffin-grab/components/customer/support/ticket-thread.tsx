@@ -72,7 +72,7 @@ export function TicketThread({
         <IconTile tint={topic.tint}><topic.icon /></IconTile>
         <p className="min-w-0 flex-1 truncate text-subhead font-semibold">
           {categoryLabel(ticket.category)}
-          {sub ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {sub}</span> : null}
+          {sub ? <span className="font-normal text-[var(--muted-foreground)]"> · {sub}</span> : null}
         </p>
         <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
       </div>
@@ -81,7 +81,7 @@ export function TicketThread({
         <StatusBanner status={status} />
         {/* Someone on the team in this chat right now beats the posted hours; otherwise the hours say when. */}
         {closed ? null : supportOnline ? (
-          <p aria-live="polite" className="flex items-center gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]">
+          <p aria-live="polite" className="flex items-center gap-2 text-footnote text-[var(--muted-foreground)]">
             <span aria-hidden className="size-2 rounded-full bg-(--s-delivered-fg)" />
             <span><span className="font-semibold text-foreground">Support is online now.</span> Replies come in here.</span>
           </p>
@@ -122,7 +122,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), typing });
 
   if (closed) {
-    return <p className="c-surface rounded-2xl bg-card p-4 text-subhead text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
+    return <p className="c-surface rounded-2xl bg-card p-4 text-subhead text-[var(--muted-foreground)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
   }
 
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" shellClassName="c-liquid border mr-[calc(0.5rem+58px)] lg:mr-0" />;
@@ -131,12 +131,12 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
 const kitChatUi: Partial<ChatUi> = {
   System: ({ message: m }) =>
     m.meta ? (
-      <p className="text-center text-caption-2 text-[var(--muted-foreground,#6E6558)]">
+      <p className="text-center text-caption-2 text-[var(--muted-foreground)]">
         {m.body} · {m.meta}
       </p>
     ) : (
       <p className="flex justify-center py-1">
-        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption-2 font-semibold text-[var(--muted-foreground,#6E6558)]">{m.body}</span>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption-2 font-semibold text-[var(--muted-foreground)]">{m.body}</span>
       </p>
     ),
   // ReUI/shadcn Message + Bubble: the row aligns by sender, the bubble carries the colour (yours saffron,
@@ -148,7 +148,7 @@ const kitChatUi: Partial<ChatUi> = {
           <BubbleContent className={cn("rounded-[20px] px-3.5 py-2 text-subhead leading-snug", mine ? "rounded-br-md" : "rounded-bl-md")}>
             <p className="whitespace-pre-wrap text-pretty">
               {m.body}
-              <span className={cn("float-right mt-1.5 ml-2 text-[10px] leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground,#6E6558)]")}>{m.meta}</span>
+              <span className={cn("float-right mt-1.5 ml-2 text-[10px] leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground)]")}>{m.meta}</span>
             </p>
             {m.attachments?.length ? (
               <div className="mt-2 flex flex-wrap gap-2">

@@ -28,7 +28,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
   const main = "primary";
   const rest = bar ? "glass" : undefined;
   // A see-through button lets the page show through it in the floating bar, so an unavailable one there is glass with dimmed text.
-  const off = (ok: boolean) => !ok && (bar ? "text-[var(--muted-foreground,#6E6558)]" : "opacity-45");
+  const off = (ok: boolean) => !ok && (bar ? "text-[var(--muted-foreground)]" : "opacity-45");
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
   const primary = model.rows.find((r) => r.key === model.primary);
   // Only Move sits beside the primary; the rest (address) lives behind "•••".
@@ -48,7 +48,7 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
         <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-foreground shadow-lg")}>
           {overflow.map((r) => (
             <button key={r.key} type="button" aria-disabled={!r.av.ok || undefined} className={cn(item, !r.av.ok && "opacity-45")} onClick={() => (setMenu(false), fire(r.key, r.av))}>
-              <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
+              <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
               {ACTION_LABEL[r.key]}
             </button>
           ))}

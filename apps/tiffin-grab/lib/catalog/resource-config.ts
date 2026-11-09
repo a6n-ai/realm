@@ -367,3 +367,15 @@ export function emptyForm(def: ResourceDef): Record<string, unknown> {
   }
   return out;
 }
+
+/** Synthetic sort column that maps to `active`. */
+export const STATUS_SORT_KEY = "status";
+
+/** Arrays (csv/multiselect) and images carry no meaningful sort; the first visible column always does. */
+const SORTABLE_FIELD_TYPES = new Set<FieldType>(["text", "number", "select", "date", "boolean"]);
+
+/** Sortable column keys for the editor's header flags and the page's server-side whitelist. */
+export function sortableColumns(def: ResourceDef): string[] {
+  const cols = def.fields.filter((f) => !f.tableHidden && f.key !== "key");
+  return [...cols.filter((f, i) => i === 0 || SORTABLE_FIELD_TYPES.has(f.type)).map((f) => f.key), STATUS_SORT_KEY];
+}

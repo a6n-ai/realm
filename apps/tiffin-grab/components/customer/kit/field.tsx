@@ -45,7 +45,7 @@ export function Field({ label, hint, error, className, labelClassName, wrapperCl
       </label>
       <Input {...rest} id={inputId} invalid={Boolean(error)} aria-describedby={describedBy} className={className} />
       {hint && (
-        <p id={hintId} className="text-footnote text-[var(--muted-foreground,#6E6558)]">
+        <p id={hintId} className="text-footnote text-[var(--muted-foreground)]">
           {hint}
         </p>
       )}
@@ -88,7 +88,7 @@ export function Textarea({ label, hint, error, className, id, ...rest }: Textare
         )}
       />
       {hint && (
-        <p id={hintId} className="text-footnote text-[var(--muted-foreground,#6E6558)]">
+        <p id={hintId} className="text-footnote text-[var(--muted-foreground)]">
           {hint}
         </p>
       )}

@@ -34,7 +34,7 @@ export function StatusBanner({ status }: { status: TicketStatus }) {
       <b.icon aria-hidden className="mt-0.5 size-5 shrink-0" />
       <div>
         <p className="text-subhead font-semibold">{b.title}</p>
-        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">{b.body}</p>
+        <p className="text-footnote text-[var(--muted-foreground)]">{b.body}</p>
       </div>
     </div>
   );
@@ -61,9 +61,9 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
           {[1, 2, 3, 4, 5].map((n) => (
             <Star key={n} aria-hidden className={cn("size-5", n <= rating ? "fill-[#f59e0b] text-[#f59e0b]" : "text-border")} />
           ))}
-          <span className="ml-2 text-footnote text-[var(--muted-foreground,#6E6558)]">{WORDS[rating]}</span>
+          <span className="ml-2 text-footnote text-[var(--muted-foreground)]">{WORDS[rating]}</span>
         </p>
-        {note ? <p className="text-[14px] text-[var(--muted-foreground,#6E6558)]">“{note}”</p> : null}
+        {note ? <p className="text-[14px] text-[var(--muted-foreground)]">“{note}”</p> : null}
         <div>
           <Button variant="quiet" onClick={() => setEditing(true)}>Change rating</Button>
         </div>
@@ -86,7 +86,7 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
     <Card className="flex flex-col gap-3 p-4">
       <div>
         <p className="text-subhead font-semibold">How did we do?</p>
-        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Rate this chat. It helps us get better.</p>
+        <p className="text-footnote text-[var(--muted-foreground)]">Rate this chat. It helps us get better.</p>
       </div>
       <div role="radiogroup" aria-label="Rating" className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -100,7 +100,7 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
             onMouseEnter={() => setHover(n)}
             className={cn(FOCUS, "grid size-11 place-items-center rounded-full [touch-action:manipulation]")}
           >
-            <Star aria-hidden className={cn("size-7 transition-colors", n <= shown ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[var(--muted-foreground,#6E6558)]")} />
+            <Star aria-hidden className={cn("size-7 transition-colors", n <= shown ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[var(--muted-foreground)]")} />
           </button>
         ))}
         <span className="ml-2 text-[14px] font-semibold" aria-live="polite">{shown ? WORDS[shown] : ""}</span>

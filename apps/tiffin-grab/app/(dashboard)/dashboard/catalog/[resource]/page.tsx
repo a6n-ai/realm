@@ -15,25 +15,9 @@ import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCE_HOOKS, type CatalogLoadCtx } from "@/lib/catalog/resource-hooks";
-import { RESOURCES, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "@/lib/catalog/resource-config";
+import { RESOURCES, STATUS_SORT_KEY, WEEKDAY_LABELS, sortableColumns, type ResourceDef } from "@/lib/catalog/resource-config";
 import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
 import { loadDiscountData } from "../discounts/load";
-
-// Synthetic column exposed to sorting that isn't a plain field: maps to `active`.
-const STATUS_SORT_KEY = "status";
-
-// Which field types carry a meaningful server sort. Mirrors SORTABLE_FIELD_TYPES
-// in resource-editor.tsx so the header's sortable flags and the server's
-// whitelist/orderBy stay in lockstep (the client module can't be imported here).
-const SORTABLE_FIELD_TYPES = new Set<FieldType>(["text", "number", "select", "date", "boolean"]);
-
-function sortableColumns(def: ResourceDef): string[] {
-  const cols = def.fields.filter((f) => !f.tableHidden && f.key !== "key");
-  return [
-    ...cols.filter((f, i) => i === 0 || SORTABLE_FIELD_TYPES.has(f.type)).map((f) => f.key),
-    STATUS_SORT_KEY,
-  ];
-}
 
 export type SearchParams = Promise<Record<string, string | undefined>>;
 

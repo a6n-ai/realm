@@ -8,7 +8,7 @@ import { pausedLine, resumeLine } from "../pause-copy";
 import { KIT_UI } from "./sheet-ui";
 import type { ActionSheetProps } from "./types";
 
-const MUTED = "text-[var(--muted-foreground,#6E6558)]";
+const MUTED = "text-[var(--muted-foreground)]";
 const AUTO_MOVE_LABEL = "Add paused days to the end of my plan";
 
 /** Drawer in the Edit meal family. Days are tapped on its own month grid, not on the page calendar. The server decides which days are pausable and refuses the rest. */

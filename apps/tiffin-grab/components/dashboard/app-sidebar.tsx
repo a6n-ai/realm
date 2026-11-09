@@ -62,6 +62,7 @@ import {
 } from "@foundry/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { useFormatMoney } from "@/components/app-currency";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };
@@ -328,21 +329,8 @@ export function AppSidebar({
 // when the rail is collapsed to icons (the detail would not fit).
 function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
   const fmtMoney = useFormatMoney();
-  const [copied, setCopied] = React.useState(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(coupon.code);
-      setCopied(true);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard unavailable (insecure context / denied) — silently no-op; the
-      // code is still visible for manual entry.
-    }
-  };
+  const { copied, copy: copyText } = useCopy(1500);
+  const copy = () => copyText(coupon.code);
 
   const reached = coupon.used >= coupon.total;
   const ceiling = [

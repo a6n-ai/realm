@@ -2,7 +2,7 @@
 
 import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
 import { round2 } from "@foundry/commons/util/money";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
@@ -250,56 +250,56 @@ export function useOrderDraft({
   );
 
   // Keep the picks inside the send days and the max; default to the first send day.
-  useEffect(() => {
+  const clampPickedDays = useEffectEvent(() => {
     setPickedDays((prev) => {
       const kept = trialWeekdays.filter((d) => prev.includes(d)).slice(0, trialMax);
       return kept.length ? kept : trialWeekdays.slice(0, 1);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trialKey]);
+  });
+  useEffect(() => clampPickedDays(), [trialKey]);
 
   // An estimate switches customer without remounting, so the plan picked so far survives.
-  useEffect(() => {
+  const copyContactToForm = useEffectEvent(() => {
     if (estimateOnly) {
       form.setValue("email", contact.email);
       form.setValue("phone", contact.phone);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estimateOnly, contact.email, contact.phone]);
+  });
+  useEffect(() => copyContactToForm(), [estimateOnly, contact.email, contact.phone]);
 
   // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
-  useEffect(() => {
+  const startOnRenewal = useEffectEvent(() => {
     if (!renewalStart) return;
     if (!startDate || startDate < renewFrom!) form.setValue("startDate", renewalStart, { shouldDirty: true, shouldValidate: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renewalStart]);
+  });
+  useEffect(() => startOnRenewal(), [renewalStart]);
 
   // A trial starts on a picked day; move the start date there when the picks change.
-  useEffect(() => {
+  const moveTrialStart = useEffectEvent(() => {
     if (!isTrial || pickedDays.length === 0 || (multiDayTrial ? trialStartOk : !!startDate) && startDate >= minStart) return;
     const next = nextTrialStart(startDate && startDate > minStart ? startDate : minStart, multiDayTrial ? pickedDays : trialWeekdays);
     if (next) form.setValue("startDate", next, { shouldDirty: true, shouldValidate: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTrial, multiDayTrial, pickedDays.join()]);
+  });
+  useEffect(() => moveTrialStart(), [isTrial, multiDayTrial, pickedDays.join()]);
 
-  useEffect(() => {
+  const fixMealSize = useEffectEvent(() => {
     if (!mealSizeId) return;
     if (mealsForPlan.some((m) => m.id === mealSizeId)) return;
     form.setValue("mealSizeId", mealsForPlan[0]?.id ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey]);
+  });
+  useEffect(() => fixMealSize(), [planKey]);
 
   // Add-on eligibility follows the meal size; a stale pick would fail pricing.
   // A renewal prefill sets size and add-ons together, so it skips this reset once.
   const keepAddonsOnce = useRef(false);
-  useEffect(() => {
+  const resetAddons = useEffectEvent(() => {
     if (keepAddonsOnce.current) {
       keepAddonsOnce.current = false;
       return;
     }
     if (form.getValues("addonSelections")?.length) form.setValue("addonSelections", []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mealSizeId]);
+  });
+  useEffect(() => resetAddons(), [mealSizeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -366,7 +366,7 @@ export function useOrderDraft({
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
+  const capDiscount = useEffectEvent(() => {
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available && !estimateOnly ? repInfo.code : undefined;
@@ -421,13 +421,13 @@ export function useOrderDraft({
     // pricing and are per-keystroke, so including them would refire preview on every
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase(), coinsWanted]);
+  });
+  useEffect(() => capDiscount(), [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, phone, contact.email, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase(), coinsWanted]);
 
-  useEffect(() => {
+  const defaultAddress = useEffectEvent(() => {
     if (discount > ceiling) setDiscount(ceiling);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ceiling]);
+  });
+  useEffect(() => defaultAddress(), [ceiling]);
 
   const dropOffs = dropOffCatalog(deliveryOptions?.deliveryCharges ?? undefined, deliveryOptions?.waivers);
 
@@ -454,14 +454,14 @@ export function useOrderDraft({
   }
 
   // An existing customer starts on their default saved address, same as checkout.
-  useEffect(() => {
+  const publishEstimate = useEffectEvent(() => {
     if (addressPublicId != null || addressLine) return;
     const preferred = customerCtx.addresses.find((a) => a.isDefault) ?? customerCtx.addresses[0];
     if (preferred) pickSavedAddress(preferred.publicId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerCtx]);
+  });
+  useEffect(() => publishEstimate(), [customerCtx]);
 
-  useEffect(() => {
+  const repricePreview = useEffectEvent(() => {
     if (!estimateOnly || !onEstimate) return;
     const plan = catalog.plans.find((p) => p.key === planKey)?.name;
     const meal = catalog.mealSizes.find((m) => m.id === mealSizeId)?.name;
@@ -509,8 +509,8 @@ export function useOrderDraft({
       applyAll: applyAllCoupons,
     });
     // Every input to the text also reprices, so the preview alone is the trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownPreview, previewError, coupons, couponCodes.join(), coinPreview]);
+  });
+  useEffect(() => repricePreview(), [shownPreview, previewError, coupons, couponCodes.join(), coinPreview]);
 
   const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
   async function continueToPayment() {

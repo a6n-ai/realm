@@ -5,7 +5,7 @@ import { cn, FONT } from "./cn";
 /** Icon + plain-words line. Explanations are visible text, never tooltips. */
 export function Reason({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn(FONT, "flex items-start gap-2 text-footnote text-[var(--muted-foreground,#6E6558)]", className)}>
+    <p className={cn(FONT, "flex items-start gap-2 text-footnote text-[var(--muted-foreground)]", className)}>
       <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
       <span>{children}</span>
     </p>

@@ -30,7 +30,7 @@ export function Select({ label, hint, error, placeholder, options, className, id
           className={cn(
             FOCUS,
             "min-h-[52px] w-full appearance-none rounded-2xl border border-transparent bg-foreground/7 pl-4 pr-11 text-base text-foreground disabled:opacity-50",
-            !rest.value && placeholder && "text-[var(--muted-foreground,#6E6558)]",
+            !rest.value && placeholder && "text-[var(--muted-foreground)]",
             error ? "border-[#be123c]" : "border-border",
             className,
           )}
@@ -42,10 +42,10 @@ export function Select({ label, hint, error, placeholder, options, className, id
             </option>
           ))}
         </select>
-        <ChevronDown aria-hidden className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground,#6E6558)]" />
+        <ChevronDown aria-hidden className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
       </div>
       {hint && (
-        <p id={`${selectId}-hint`} className="text-footnote text-[var(--muted-foreground,#6E6558)]">
+        <p id={`${selectId}-hint`} className="text-footnote text-[var(--muted-foreground)]">
           {hint}
         </p>
       )}

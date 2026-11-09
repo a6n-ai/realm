@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Check, Copy, Download, Link2, Mail, MessageSquare, Send, Ticket } from "lucide-react";
 import { Button, Card, IconTile, buttonClass, type IconTint } from "@/components/customer/kit";
 import { referCardPath, referPath, shareMessage } from "@/lib/referrals/share";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 /** WhatsApp's glyph (Simple Icons, CC0); lucide ships no brand icons. */
 function WhatsAppGlyph() {
@@ -54,7 +55,8 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const image = referCardPath(code, { theme: useDarkMode() ? "dark" : "light" });
   const [link, setLink] = useState(referPath(code));
   const [file, setFile] = useState<File | null>(null);
-  const [copied, setCopied] = useState<"link" | "code" | null>(null);
+  const linkCopy = useCopy(2000);
+  const codeCopy = useCopy(2000);
 
   // Origin and file sharing exist only in the browser; render the relative link until then.
   useEffect(() => {
@@ -78,15 +80,6 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
   const text = shareMessage(code, link, offer);
   const enc = encodeURIComponent;
 
-  const copy = async (what: "link" | "code") => {
-    try {
-      await navigator.clipboard.writeText({ link, code }[what]);
-      setCopied(what);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      /* clipboard blocked: the code and link are on screen to copy by hand */
-    }
-  };
 
   // Image + caption in one share. WhatsApp keeps the caption on Android but can drop it
   // on iOS, so the message is copied first to paste in. Not awaited: Safari only allows
@@ -112,9 +105,9 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
       </div>
       <div className="rounded-2xl bg-foreground/7 px-4 py-4 text-center">
         <p className="font-mono text-[32px] leading-none font-bold tracking-[0.3em] [padding-left:0.3em]">{code}</p>
-        <Button variant="quiet" size="md" className="mt-3 !min-h-9 !px-3.5 !text-footnote" onClick={() => copy("code")} aria-label={`Copy code ${code}`}>
-          {copied === "code" ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
-          <span role="status">{copied === "code" ? "Code copied" : "Copy code"}</span>
+        <Button variant="quiet" size="md" className="mt-3 !min-h-9 !px-3.5 !text-footnote" onClick={() => codeCopy.copy(code)} aria-label={`Copy code ${code}`}>
+          {codeCopy.copied ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
+          <span role="status">{codeCopy.copied ? "Code copied" : "Copy code"}</span>
         </Button>
       </div>
 
@@ -140,7 +133,7 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
         <Target tint="green" icon={<MessageSquare />} label="Messages" href={`sms:?&body=${enc(text)}`} />
         <Target tint="orange" icon={<Mail />} label="Email" href={`mailto:?subject=${enc("A tiffin treat from a friend")}&body=${enc(text)}`} />
         <Target tint="cyan" icon={<Send />} label="Telegram" href={`https://t.me/share/url?url=${enc(link)}&text=${enc(text.slice(0, text.lastIndexOf("\n")))}`} />
-        <Target tint="gray" icon={copied === "link" ? <Check /> : <Link2 />} label={copied === "link" ? "Copied" : "Copy link"} onClick={() => copy("link")} />
+        <Target tint="gray" icon={linkCopy.copied ? <Check /> : <Link2 />} label={linkCopy.copied ? "Copied" : "Copy link"} onClick={() => linkCopy.copy(link)} />
       </div>
     </Card>
   );

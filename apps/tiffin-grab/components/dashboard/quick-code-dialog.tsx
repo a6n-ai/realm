@@ -11,6 +11,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "@/app/(dashboard)/dashboard/discounts/rep-code-actions";
 import { useFormatMoney } from "@/components/app-currency";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 // The quick path beside Estimate: a one-off code on the staff member's own allowance, without
 // pricing an order first. Limits are enforced by the server action.
@@ -24,7 +25,7 @@ export function QuickCodeDialog({ onOpenChange: setOpen }: { onOpenChange: (o: b
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<{ code: string; amount: number; expiresAt: number } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText, reset: resetCopied } = useCopy();
 
   useEffect(() => {
     repCodeAllowance()
@@ -44,17 +45,12 @@ export function QuickCodeDialog({ onOpenChange: setOpen }: { onOpenChange: (o: b
     }
     setAllowance(r.allowance);
     setIssued({ code: r.code, amount: value, expiresAt: r.expiresAt });
-    setCopied(false);
+    resetCopied();
   };
 
   const copy = async () => {
     if (!issued) return;
-    try {
-      await navigator.clipboard.writeText(issued.code);
-      setCopied(true);
-    } catch {
-      toast.error("Couldn't copy. Select the code and copy it by hand.");
-    }
+    if (!(await copyText(issued.code))) toast.error("Couldn't copy. Select the code and copy it by hand.");
   };
 
   const value = Number(amount);

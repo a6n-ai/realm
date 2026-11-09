@@ -73,7 +73,7 @@ function MealSummary({ meal, portions }: { meal: ResolvedCategory[] | null | und
       <ul className="flex flex-col gap-2">
         {meal.map((cat) => (
           <li key={cat.category}>
-            <p className="text-footnote font-semibold text-[var(--muted-foreground,#6E6558)]">{cat.label}</p>
+            <p className="text-footnote font-semibold text-[var(--muted-foreground)]">{cat.label}</p>
             <ul className="mt-0.5 list-disc pl-4 text-subhead">
               {!cat.selectable && portions[cat.category]
                 ? <li>{portions[cat.category]}</li>
@@ -263,7 +263,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 <h3 className="text-sm font-semibold">Swap options</h3>
                 {options === null && !loadError && (
                   <div className="flex flex-col gap-2" aria-busy="true" aria-label="Finding available swaps">
-                    <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Finding available swaps...</p>
+                    <p className="text-footnote text-[var(--muted-foreground)]">Finding available swaps...</p>
                     <Skeleton className="h-16 w-full rounded-3xl" />
                     <Skeleton className="h-16 w-full rounded-3xl" />
                   </div>
@@ -305,7 +305,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         <span className="flex flex-1 flex-col gap-0.5">
                           <span className="text-subhead font-semibold">{name}</span>
                           {preview && (
-                            <span className="text-footnote text-[var(--muted-foreground,#6E6558)]">{preview}</span>
+                            <span className="text-footnote text-[var(--muted-foreground)]">{preview}</span>
                           )}
                         </span>
                         <span className="text-footnote font-medium text-primary">{on ? "Selected" : "Select"}</span>

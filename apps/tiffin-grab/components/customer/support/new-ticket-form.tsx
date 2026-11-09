@@ -156,7 +156,7 @@ export function NewTicketForm({
           Photos or screenshots
         </label>
         <PhotoPicker id="ticket-photos" files={files} inputRef={inputRef} onAdd={addFiles} onRemove={(i) => setFiles(files.filter((_, j) => j !== i))} disabled={pending} />
-        <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">Optional · up to {MAX_FILES} images, 5 MB each.</p>
+        <p className="text-footnote text-[var(--muted-foreground)]">Optional · up to {MAX_FILES} images, 5 MB each.</p>
       </div>
 
       {error ? <Notice tone="error">{error}</Notice> : null}

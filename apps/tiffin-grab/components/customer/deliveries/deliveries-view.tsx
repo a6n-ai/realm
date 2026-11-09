@@ -56,7 +56,7 @@ interface Props {
 
 /** One pill of the plan tab bar: one line, never shrinks, snaps into place when the bar is swiped. */
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground ring-[1.5px] ring-primary" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground,#6E6558)] hover:text-foreground", className)} />;
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground ring-[1.5px] ring-primary" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground)] hover:text-foreground", className)} />;
 }
 const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -258,11 +258,11 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
             onWeek={(m) => goWeek(m)}
           />
 
-          {menuOut && <p className="mt-3 text-sm text-[var(--muted-foreground,#6E6558)]" data-testid="menu-not-released"><span className="font-semibold text-foreground">Menu not released yet.</span> You can still move a day.</p>}
+          {menuOut && <p className="mt-3 text-sm text-[var(--muted-foreground)]" data-testid="menu-not-released"><span className="font-semibold text-foreground">Menu not released yet.</span> You can still move a day.</p>}
           {shown.length === 0 && (
             <div className="mt-4 space-y-3">
               <p className="text-subhead font-semibold">Nothing to eat this week.</p>
-              {next ? <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button> : <p className="text-sm text-[var(--muted-foreground,#6E6558)]">Nothing else is scheduled.</p>}
+              {next ? <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button> : <p className="text-sm text-[var(--muted-foreground)]">Nothing else is scheduled.</p>}
             </div>
           )}
         </div>

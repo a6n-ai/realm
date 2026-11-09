@@ -1,24 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { PROMO_POPUP_SEEN_KEY, type LandingPromo } from "@/lib/landing/promo-types";
 import { usePublicSession } from "@/lib/auth/public-session";
 import { localStore, sessionStore } from "@foundry/ui/safe-storage";
 import { SavingsReceipt } from "@/components/landing/promo/savings-receipt";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 export function CopyCode({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      // Clipboard blocked (insecure origin, permissions): the code stays visible to type.
-    }
-  };
+  const { copied, copy: copyText } = useCopy(1800);
+  const copy = () => copyText(code);
   return (
     <button type="button" className="tg-code" onClick={copy} aria-label={`Copy code ${code}`}>
       <span className="tg-code__value">{code}</span>

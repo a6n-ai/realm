@@ -19,7 +19,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-subhead font-semibold">{s.mealSizeName} · {s.planName}</p>
-              <p className="text-footnote text-[var(--muted-foreground,#6E6558)]">
+              <p className="text-footnote text-[var(--muted-foreground)]">
                 {s.pay
                   ? s.pay.expired ? "This payment expired." : "Your plan is reserved. Pay by card to get it started."
                   : `${s.daysPerWeek} days a week · deliveries appear once your order is confirmed`}
@@ -39,7 +39,7 @@ export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted
       {waitlisted.length === 0 && !ended && (
         <Card className="p-6">
           <p className="text-body font-semibold">No plan running.</p>
-          <p className="mb-4 mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">Start one and your trips will show up here.</p>
+          <p className="mb-4 mt-1 text-sm text-[var(--muted-foreground)]">Start one and your trips will show up here.</p>
           <Link href="/me/renew?full=1"><Button variant="primary" size="lg">Start a plan</Button></Link>
         </Card>
       )}
@@ -61,7 +61,7 @@ function EndedPlanCard({ plan }: { plan: EndedPlan }) {
         <p className="text-subhead font-semibold">
           {over ? "Your plan is over." : "Your plan was closed."}
         </p>
-        <p className="mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {/* A plan closes on dates alone: days the driver never confirmed are still being checked. */}
           {over && plan.delivered < plan.total
             ? `${plan.delivered} of ${plan.total} tiffins are confirmed delivered${last ? `, the last one on ${shortDate(last)}` : ""}. We're checking the other ${plan.total - plan.delivered} with our driver.`

@@ -23,6 +23,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { cancelAddonLinkAction, regenerateAddonLinkAction, rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
 import { ReferenceEditor } from "./reference-editor";
 import { chargeSavedCardAction, checkStatusAction, refundAction } from "../../payments/stripe/actions";
+import { useCopy } from "@/lib/hooks/use-copy";
 
 function statusLabel(status: OrderPaymentDetail["status"]): string {
   switch (status) {
@@ -161,7 +162,7 @@ function PaymentRow({
   const [pending, start] = useTransition();
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopy(2000);
   const [showRefund, setShowRefund] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
@@ -294,14 +295,8 @@ function PaymentRow({
   }
 
   async function copyPayLink() {
-    try {
-      await navigator.clipboard.writeText(shareUrl());
-      setCopied(true);
-      toast.success("Customer payment link copied");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Could not copy link");
-    }
+    if (await copyText(shareUrl())) toast.success("Customer payment link copied");
+    else toast.error("Could not copy link");
   }
 
   return (

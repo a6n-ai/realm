@@ -13,7 +13,7 @@ const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", t
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => isoToUtcDate(iso);
 /** Bare chevron, 44px hit area, no circle or outline. */
-export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-foreground disabled:opacity-30 [touch-action:manipulation]");
+export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-foreground disabled:opacity-30 [touch-action:manipulation]");
 const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "paused", "holiday"];
 
 interface Props {
@@ -47,7 +47,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
   return (
     <section aria-label="Delivery week" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] p-4 sm:p-5" data-testid="week-timeline">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground)]">
           {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
@@ -88,7 +88,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
 export function Legend() {
   return (
     <Popover.Root>
-      <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground,#6E6558)] transition-colors hover:text-foreground [touch-action:manipulation]")}>
+      <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-foreground [touch-action:manipulation]")}>
         <Info aria-hidden className="size-4" />
       </Popover.Trigger>
       <Popover.Portal>

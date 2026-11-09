@@ -52,7 +52,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
   return (
     <section aria-label="Delivery week" data-testid="week-timeline" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground)]">
           {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
@@ -85,11 +85,11 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
                 selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground" : cn("hover:bg-muted", iso < today && "opacity-45"),
               )}
             >
-              <span className="text-caption-2 font-semibold uppercase tracking-wide text-[var(--muted-foreground,#6E6558)]">{WD.format(at(iso)).slice(0, 3)}</span>
+              <span className="text-caption-2 font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{WD.format(at(iso)).slice(0, 3)}</span>
               <span className={cn("grid size-8 place-items-center rounded-full text-subhead font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-primary")}>{at(iso).getUTCDate()}</span>
               <span aria-hidden className="size-1.5 rounded-full" style={{ background: s ? STATUS_COLOR[s] : "transparent" }} />
               {/* Fixed height so weeks with and without a truck line up. */}
-              <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--muted-foreground,#6E6558)]">
+              <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--muted-foreground)]">
                 {units ? (
                   <>
                     <Truck className="size-3.5" />
