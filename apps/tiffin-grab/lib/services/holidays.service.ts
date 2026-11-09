@@ -1,7 +1,8 @@
 import { NotFoundError, ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
-import { and, asc, desc, eq, gt, gte, inArray, isNull, like, not, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, not, sql } from "drizzle-orm";
+import { dedupeKeyStartsWith } from "@/lib/notifications/dedupe-prefix";
 import { db } from "@/db/client";
 import { deliveries, holidays, orderActivities, orders, organization, users } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
@@ -115,7 +116,7 @@ async function announceRemoved(tx: Tx, orderId: bigint, holiday: Holiday, undone
   if (!order || order.userId == null) return;
   // Only a customer who was told about the closure hears about the reopening.
   const outbox = notificationTables.notificationOutbox;
-  const [told] = await tx.select({ id: outbox.id }).from(outbox).where(like(outbox.dedupeKey, `holiday:${holiday.publicId}:${order.publicId}:%`)).limit(1);
+  const [told] = await tx.select({ id: outbox.id }).from(outbox).where(dedupeKeyStartsWith(`holiday:${holiday.publicId}:${order.publicId}:`)).limit(1);
   if (!told) return;
   const [user] = await tx.select({ name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
   const date = humanDate(holiday.date);

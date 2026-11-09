@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { dedupeKeyStartsWith } from "@/lib/notifications/dedupe-prefix";
 import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, notificationOutbox, orders, users } from "@/db/schema";
@@ -121,7 +122,7 @@ export async function sendRenewalReminderNow(orderPublicId: string, now = Date.n
   }
   const dedupeKey = `renewal:${c.orderPublicId}:${c.lastTiffin}:staff-${today}`;
   // The engine suffixes the channel onto the key, so match by prefix.
-  const [sent] = await db.select({ id: notificationOutbox.id }).from(notificationOutbox).where(like(notificationOutbox.dedupeKey, `${dedupeKey}%`)).limit(1);
+  const [sent] = await db.select({ id: notificationOutbox.id }).from(notificationOutbox).where(dedupeKeyStartsWith(dedupeKey)).limit(1);
   if (sent) return "already-sent";
   const daysLeft = daysBetween(today, c.lastTiffin);
   const m = renewalReminderMessage({ ...c, userId: c.userId, lastTiffin: c.lastTiffin }, daysLeft);
