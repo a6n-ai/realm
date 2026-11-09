@@ -813,6 +813,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async resolveForSource(input: {
     phone?: string;
+    whatsappPhone?: string;
     sourceKey: string;
     contact: { fullName?: string; email?: string };
     interest?: {
@@ -838,6 +839,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const inq = await this.create({
       fullName: input.contact.fullName,
       phone: input.phone,
+      whatsappPhone: input.whatsappPhone,
       ...(input.contact.email ? { email: input.contact.email } : {}),
       sourceKey: input.sourceKey,
       ...(input.interest ?? {}),
