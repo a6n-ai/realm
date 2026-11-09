@@ -10,7 +10,8 @@ const { deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders,
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { getAppSettings } = await import("../app-settings.service");
 const { materializeDeliveries } = await import("../deliveries.service");
-const { createOrder, ordersService } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
+const { ordersService } = await import("../orders.service");
 const { allowWeekendMeals } = await import("./trip-fixture");
 
 async function reset() {

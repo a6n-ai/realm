@@ -17,7 +17,7 @@ const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/c
 const { mealSizeAddons } = await import("@/lib/catalog/types");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { addOrderAddons, quoteOrderAddons } = await import("../order-addons.service");
 
 const PROOF = { path: "payments/test/orig.png", thumbUrl: "https://example.test/thumb.webp", name: "orig.png" };

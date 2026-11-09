@@ -19,7 +19,7 @@ vi.mock("@/lib/services/optimoroute/completions", () => ({
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { listMissedDeliveries, countMissedDeliveries, reconcileMissedDeliveries, moveMissedDelivery } = await import("../missed-deliveries.service");
 
 const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);

@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const schema = await import("@/db/schema");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users, customMealPricing, mealSizeItems, mealSizes } = schema;
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const svc = await import("../custom-meal.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 

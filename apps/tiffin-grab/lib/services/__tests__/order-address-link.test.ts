@@ -9,7 +9,7 @@ import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/lo
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const geocode = vi.fn(async () => null);
 vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: (...a: unknown[]) => geocode(...(a as [])) }));
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { addressService } = await import("../addresses.service");
 
 async function reset() {

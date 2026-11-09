@@ -9,7 +9,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { coupons, couponRedemptions, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 const IST = "Asia/Kolkata";

@@ -58,7 +58,8 @@ import { getAppSettings } from "./app-settings.service";
 import { lockOrder, withOrderLock } from "./order-lock";
 
 // Moved to create-order.ts; kept here for app/(public)/checkout/actions.ts (out of scope this pass) and the integration tests.
-export { assertOnePerson, createOrder, type CreateOrderInput, type CreateOrderOptions } from "./create-order";
+// app/(public)/checkout/actions.ts still imports these from here.
+export { assertOnePerson, createOrder, type CreateOrderInput } from "./create-order";
 
 export type OrderListRow = {
   publicId: string;

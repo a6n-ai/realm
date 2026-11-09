@@ -6,7 +6,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.unmock("@/lib/services/start-date");
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 
 async function reset() {
   await db.delete(deliveries);

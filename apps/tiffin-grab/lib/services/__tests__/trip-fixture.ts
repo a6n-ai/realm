@@ -31,7 +31,7 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
     await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));
   }
-  await db.delete(users).where(like(users.email, `${userPrefix}%@test.invalid`));
+  await db.delete(users).where(like(users.email, `${userPrefix.replace(/[\\%_]/g, "\\$&")}%@test.invalid`));
 }
 
 /** MWF order eating all 7 days for 1 week from MON, materialized: Mon [Mon,Tue], Wed [Wed,Thu], Fri [Fri,Sat,Sun]. */

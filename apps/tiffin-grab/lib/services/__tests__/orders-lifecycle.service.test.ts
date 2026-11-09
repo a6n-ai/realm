@@ -9,6 +9,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const svc = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 
 async function reset() {
   await db.delete(ledgerEntries);
@@ -21,7 +22,7 @@ async function reset() {
 async function makeOrder(status: "pending" | "active" | "waitlisted", mealSizeId?: string) {
   const snap = await loadCatalogSnapshot();
   const mealSize = mealSizeId ? snap.mealSizes.find((m) => m.publicId === mealSizeId)! : snap.mealSizes[0];
-  const { publicId } = await svc.createOrder({
+  const { publicId } = await createOrder({
     planKey: mealSize.planKey,
     selections: {
       mealSizeId: mealSize.publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],

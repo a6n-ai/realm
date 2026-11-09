@@ -14,7 +14,7 @@ const { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, p
 const { pauseDays } = await import("@/lib/services/pause-days.service");
 const { addressService } = await import("@/lib/services/addresses.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("@/lib/services/orders.service");
+const { createOrder } = await import("@/lib/services/create-order");
 const {
   setMyDeliveryAddress,
   clearMyDeliveryAddress,

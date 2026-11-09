@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { couponRedemptions, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { updatePaymentReference } = await import("@/lib/payments/verification");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");

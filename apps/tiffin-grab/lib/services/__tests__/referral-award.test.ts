@@ -30,6 +30,7 @@ const { account, orders, orderActivities, payments, ledgerEntries, walletLedger,
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
 const svc = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const paymentsSvc = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 const { attachReferral, getOrCreateReferralCode, getReferralSummary, staffAttachReferral } = await import("../referrals.service");
@@ -85,7 +86,7 @@ async function refer(referrerN: number, friendN: number, existingReferrer?: bigi
 /** Etobicoke lands active and simulated-paid. `slot` spaces plans two weeks apart (no overlap). */
 async function placeFor(n: number, slot = 0) {
   const snap = await loadCatalogSnapshot();
-  const { publicId } = await svc.createOrder({
+  const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
       mealSizeId: snap.mealSizes[0].publicId,

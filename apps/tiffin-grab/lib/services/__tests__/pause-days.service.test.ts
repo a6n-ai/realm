@@ -38,7 +38,7 @@ const { deliveries, deliveryMoves, durationPackages, ledgerEntries, orderActivit
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { pauseDays, releasePausedDaysDetailed, lapseElapsedPauses, lapseElapsedPausesSafe, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
 const releasePausedDays = async (...a: Parameters<typeof releasePausedDaysDetailed>) => (await releasePausedDaysDetailed(...a)).resumed;
 const { isOrderFullyPaused } = await import("../pause-state");

@@ -2,7 +2,7 @@ import { eq, inArray, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { couponRedemptions, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users, walletLedger } from "@/db/schema";
-import { createOrder } from "../orders.service";
+import { createOrder } from "../create-order";
 import { setPaymentConfig } from "../app-settings.service";
 import { sharedCache } from "@/lib/cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

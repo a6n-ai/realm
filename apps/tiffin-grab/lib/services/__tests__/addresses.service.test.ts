@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { count, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customerAddresses, deliveries, orders, users } from "@/db/schema";
@@ -46,6 +46,7 @@ const orderRow = async (id: bigint) => (await db.select().from(orders).where(eq(
 
 describe("addressService (tiffin-grab hooks)", () => {
   beforeEach(cleanup);
+  afterAll(cleanup);
 
   it("first address becomes the default; setDefault leaves one default", async () => {
     const { scope, home } = await setup();

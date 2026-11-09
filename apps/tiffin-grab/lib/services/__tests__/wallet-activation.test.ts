@@ -26,6 +26,7 @@ const { orders, orderActivities, payments, ledgerEntries, walletLedger, eventPay
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { earnCoins } = await import("@/lib/wallet/earn-coins");
 const svc = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const paymentsSvc = await import("@/lib/payments/verification");
 const { walletService } = await import("../wallet.service");
 
@@ -50,7 +51,7 @@ async function notesFor(orderId: bigint) {
 /** Etobicoke (M9) lands active on the simulated (no payment method) path. */
 async function placeActive(phone: string) {
   const snap = await loadCatalogSnapshot();
-  const { publicId } = await svc.createOrder({
+  const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
       mealSizeId: snap.mealSizes[0].publicId,
@@ -137,7 +138,7 @@ describe("wallet award on order activation", () => {
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
 
     // Create order (may land active or waitlisted depending on zone seed)
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -192,7 +193,7 @@ describe("wallet award on order activation", () => {
     // M9V 1A1 — Etobicoke zone (prefix M9), present in catalog seed.
     // If no matching active zone exists, the order lands "waitlisted" and the
     // award path under test never fires — the assertion below catches that.
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -236,7 +237,7 @@ describe("wallet award on order activation", () => {
     const snap = await loadCatalogSnapshot();
     // Same test phone as the order above: start after its plan so they don't overlap.
     const startDate = nextWeekday(new Date(Date.now() + 21 * 86_400_000)).toISOString().slice(0, 10);
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -273,7 +274,7 @@ describe("wallet award on order activation", () => {
     const snap = await loadCatalogSnapshot();
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
 
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -318,7 +319,7 @@ describe("refundOrder", () => {
 
     // M9V 1A1 — Etobicoke zone (prefix M9): lands "active" immediately, which
     // is what fires createOrder's award call site (create-order.ts).
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -356,7 +357,7 @@ describe("refundOrder", () => {
     const snap = await loadCatalogSnapshot();
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
 
-    const { publicId } = await svc.createOrder({
+    const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId,
@@ -447,7 +448,7 @@ describe("percent earn edge cases", () => {
     // waitlisted, so neither awards. Several rounds to give the race a chance.
     for (let i = 0; i < 6; i++) {
       const snap = await loadCatalogSnapshot();
-      const { publicId } = await svc.createOrder({
+      const { publicId } = await createOrder({
         planKey: snap.plans[0].key,
         selections: {
           mealSizeId: snap.mealSizes[0].publicId,

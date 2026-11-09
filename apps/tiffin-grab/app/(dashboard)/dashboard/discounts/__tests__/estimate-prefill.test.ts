@@ -12,7 +12,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
-const { createOrder } = await import("@/lib/services/orders.service");
+const { createOrder } = await import("@/lib/services/create-order");
 const { estimatePrefill } = await import("../estimate-actions");
 
 async function reset() {

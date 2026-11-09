@@ -14,7 +14,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { account, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, session, users, walletLedger } =
   await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { verifyPayment } = await import("@/lib/payments/verification");
 const { reminderInstructions, sendPaymentReminder } = await import("../payment-reminder");
 const { setPaymentConfig } = await import("../app-settings.service");

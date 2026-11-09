@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, subscriptionPauses, durationPackages, app } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const svc = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { spanDays, getPauseLimits } = await import("../pause-limits.service");
 
 // Reserved duration-package "weeks" value for this suite — no real catalog package
@@ -52,7 +52,7 @@ async function reset() {
 
 async function makeOrder(weeks: number): Promise<bigint> {
   const snap = await loadCatalogSnapshot();
-  const { publicId } = await svc.createOrder({
+  const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
       mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],

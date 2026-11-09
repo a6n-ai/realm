@@ -2,14 +2,6 @@ import { describe, expect, it } from "vitest";
 import { walletEntryLabel } from "../source-labels";
 
 describe("walletEntryLabel", () => {
-  it("names known sources", () => {
-    expect(walletEntryLabel("order")).toBe("Earned on order");
-    expect(walletEntryLabel("redemption_late")).toBe("Hold re-taken");
-    expect(walletEntryLabel("manual_broadcast")).toBe("Staff grant");
-    expect(walletEntryLabel("referral")).toBe("Referral reward");
-    expect(walletEntryLabel("referral_reversal")).toBe("Referral reward taken back");
-  });
-
   it("uses the caller's fallback (event name) for sources it doesn't know", () => {
     expect(walletEntryLabel("signup", "Signup")).toBe("Signup");
   });

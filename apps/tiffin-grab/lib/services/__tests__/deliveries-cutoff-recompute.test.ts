@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { auditLog, deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
 const { getAppSettings, setAppSettings } = await import("../app-settings.service");
 
 async function reset() {

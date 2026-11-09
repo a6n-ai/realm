@@ -8,7 +8,8 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder, ordersService } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
+const { ordersService } = await import("../orders.service");
 const { adminSetDeliveryStatus, completeFinishedOrders, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
@@ -225,7 +226,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     const o = await makeWaitlistedOrder();
     const rows = await rowsFor(o);
     expect(rows.length).toBe(0);
-    await expect(ordersService.update(o.publicId, { durationWeeks: 3 })).resolves.toBeDefined();
+    await ordersService.update(o.publicId, { durationWeeks: 3 });
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.durationWeeks).toBe(3);
   });

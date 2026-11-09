@@ -8,7 +8,8 @@ const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder, ordersService } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
+const { ordersService } = await import("../orders.service");
 const {
   assertOwnsDelivery,
   assertOwnsOrder,

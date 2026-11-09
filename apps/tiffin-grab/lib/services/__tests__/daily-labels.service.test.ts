@@ -79,8 +79,9 @@ describe("dailyLabelSheet (integration)", () => {
   beforeEach(async () => {
     await reset();
     const snap = await loadCatalogSnapshot();
-    mealSizeId = snap.mealSizes[0].id;
-    mealSizePlanId = snap.mealSizes[0].planId;
+    const vegSize = snap.mealSizes.find((m) => m.planKey === "veg")!;
+    mealSizeId = vegSize.id;
+    mealSizePlanId = vegSize.planId;
 
     const [u] = await db
       .insert(users)

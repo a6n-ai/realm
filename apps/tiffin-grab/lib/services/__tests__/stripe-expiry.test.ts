@@ -23,7 +23,8 @@ vi.mock("@/lib/notifications/enqueue", async (orig) => {
 
 const { db } = await import("@/db/client");
 const { orders, payments } = await import("@/db/schema");
-const { createOrder, ordersService } = await import("../orders.service");
+const { createOrder } = await import("../create-order");
+const { ordersService } = await import("../orders.service");
 const { renewalStatusSql } = await import("@/lib/orders/queries");
 const { verifyPayment } = await import("@/lib/payments/verification");
 const { sendPaymentReminder } = await import("../payment-reminder");

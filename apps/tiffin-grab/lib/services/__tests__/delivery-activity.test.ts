@@ -12,7 +12,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("@/lib/services/orders.service");
+const { createOrder } = await import("@/lib/services/create-order");
 const { setMyDeliveryAddress } = await import("@/app/(customer)/me/deliveries/actions");
 
 function actAs(publicId: string) {
