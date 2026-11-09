@@ -1,3 +1,5 @@
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { formatDiscount } from "@/lib/format/currency";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { promoSavings } from "@/lib/landing/savings";
@@ -13,25 +15,25 @@ export type { LandingPromo, LandingPromos, PromoPlacement } from "@/lib/landing/
 // through sign-in to checkout, which re-validates it server side.
 export const subscribeHref = (code: string | null) => (code ? `/subscribe?c=${encodeURIComponent(code)}` : "/subscribe");
 
-export function couponHeadline(c: Pick<AvailableCoupon, "valuePct" | "valueAmount" | "name">): string {
+export function couponHeadline(c: Pick<AvailableCoupon, "valuePct" | "valueAmount" | "name">, currency: string): string {
   const pct = c.valuePct != null ? Number(c.valuePct) : 0;
   const amt = c.valueAmount != null ? Number(c.valueAmount) : 0;
   if (pct > 0) return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% off`;
-  if (amt > 0) return `$${Number.isInteger(amt) ? amt : amt.toFixed(2)} off`;
+  if (amt > 0) return formatDiscount({ valueAmount: amt }, currency);
   return c.name;
 }
 
-function fromCoupon(c: AvailableCoupon, snapshot: CatalogSnapshot | null): LandingPromo {
+function fromCoupon(c: AvailableCoupon, snapshot: CatalogSnapshot | null, currency: string): LandingPromo {
   const savings = snapshot ? promoSavings(snapshot, c) : null;
   return {
     savings,
     id: `coupon:${c.code}`,
-    title: `${couponHeadline(c)} with ${c.code}`,
+    title: `${couponHeadline(c, currency)} with ${c.code}`,
     blurb: c.description ?? c.name,
     html: null,
     imageUrl: null,
     code: c.code,
-    badge: savings?.headline ?? couponHeadline(c),
+    badge: savings?.headline ?? couponHeadline(c, currency),
     href: subscribeHref(c.code),
     cta: "Claim offer",
   };
@@ -53,7 +55,7 @@ export function ownImagePath(url: string | null): string | null {
   }
 }
 
-function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null): LandingPromo {
+function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null, currency: string): LandingPromo {
   const coupon = p.couponCode ? coupons.get(p.couponCode.toUpperCase()) : undefined;
   const savings = coupon && snapshot ? promoSavings(snapshot, coupon) : null;
   return {
@@ -64,7 +66,7 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snap
     html: p.html,
     imageUrl: ownImagePath(p.imageUrl),
     // A worked-out saving beats a typed one: a hand-typed "$65 off" drifted from what checkout gives.
-    badge: savings?.headline ?? (p.badge || (coupon ? couponHeadline(coupon) : null)),
+    badge: savings?.headline ?? (p.badge || (coupon ? couponHeadline(coupon, currency) : null)),
     code: p.couponCode,
     href: p.ctaHref || subscribeHref(p.couponCode),
     cta: p.ctaLabel,
@@ -72,16 +74,17 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snap
 }
 
 export async function loadLandingPromos(): Promise<LandingPromos> {
-  const [coupons, live, snapshot] = await Promise.all([
+  const [coupons, live, snapshot, { currency }] = await Promise.all([
     couponsService.listAvailable().catch(() => [] as AvailableCoupon[]),
     promotionsService.listLive().catch(() => [] as Promotion[]),
     loadCatalogSnapshot().catch(() => null),
+    getAppSettings(),
   ]);
   const byCode = new Map(coupons.map((c) => [c.code.toUpperCase(), c]));
-  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot));
+  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot, currency));
   const strongest = [...coupons].sort((a, b) => strength(b) - strength(a))[0];
   return {
-    sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest, snapshot) : null),
+    sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest, snapshot, currency) : null),
     popup: placed("popup")[0] ?? null,
     sections: placed("section"),
   };

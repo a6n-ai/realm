@@ -35,7 +35,7 @@ import { CoinsField } from "../../discounts/coins-field";
 import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
 import { DropOffToggles } from "./drop-off-toggles";
 import { addDaysIso, daysBetween, isoToUtcDate, utcIso } from "@foundry/commons/util/dates";
-import { useFormatMoney } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
@@ -411,6 +411,7 @@ export function PaymentSection({ d, customerName, extra }: { d: Draft; customerN
 
 export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel: string }) {
   const fmtMoney = useFormatMoney();
+  const currency = useAppCurrency();
   const { coupons, couponCodes, repInfo, discount, shownPreview } = d;
   const discountCount = (coupons?.applied.length ?? 0) + (discount > 0 ? 1 : 0) + ((d.coinPreview?.used ?? 0) > 0 ? 1 : 0);
   const savedTotal = (shownPreview?.adjustments ?? []).reduce((sum, a) => sum + a.amount, 0);
@@ -463,7 +464,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                   )}
                   {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).map((c) => (
                     <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => d.applyCoupon(c.code)}>
-                      <span className="tabular-nums">{c.code}</span> · {discountLine(c)}
+                      <span className="tabular-nums">{c.code}</span> · {discountLine(c, currency)}
                     </Button>
                   ))}
                 </div>

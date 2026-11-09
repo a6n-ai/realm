@@ -18,6 +18,7 @@ describe("discountStatus", () => {
 
 describe("buildRows", () => {
   const rows = buildRows({
+    currency: "CAD",
     discounts: [dto({}), dto({ publicId: "d2", kind: "duration", targetPublicId: "u1", percent: 5.5 }), dto({ publicId: "d3", targetPublicId: "f1" }),
       dto({ publicId: "d4", kind: "meal_size", targetPublicId: "m1", percent: 12 }), dto({ publicId: "d5", kind: "meal_size", targetPublicId: null, percent: 0, amount: 3 })],
     frequencies: [{ publicId: "f1", name: "3 Days/Wk" }],

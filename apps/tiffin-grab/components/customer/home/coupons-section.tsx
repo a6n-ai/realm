@@ -4,20 +4,22 @@ import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button, EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
+import { useAppCurrency } from "@/components/app-currency";
+import { formatDiscount } from "@/lib/format/currency";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 // Discount pill text — distinct from the admin table's couponValue() (which reads
 // "20%"/"$5.00"): the customer pill reads as a benefit ("20% off"/"$5 off").
-export function discountLine(c: Pick<AvailableCoupon, "kind" | "valuePct" | "valueAmount">): string {
+export function discountLine(c: Pick<AvailableCoupon, "kind" | "valuePct" | "valueAmount">, currency: string): string {
   switch (c.kind) {
     case "percentage":
-      return `${Number(c.valuePct)}% off`;
+      return formatDiscount({ valuePct: c.valuePct }, currency);
     case "fixed":
-      return `$${Number(c.valueAmount)} off`;
+      return formatDiscount({ valueAmount: c.valueAmount }, currency);
     case "first_order":
-      return c.valuePct != null ? `${Number(c.valuePct)}% off` : `$${Number(c.valueAmount)} off`;
+      return formatDiscount(c, currency);
     case "free_delivery":
       return "Free delivery";
     case "rep_daily":
@@ -30,6 +32,7 @@ const METHOD_LABELS: Record<string, string> = { stripe: "Card", etransfer: "Inte
 
 function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
   const tz = useTimezone();
+  const currency = useAppCurrency();
   const methods = coupon.allowedPaymentMethods.map((m) => METHOD_LABELS[m] ?? m).join(", ");
   const copy = async () => {
     try {
@@ -46,7 +49,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
           <p className="text-[14px] font-semibold tracking-[0.04em]">{coupon.code}</p>
           <p className="mt-0.5 text-sm text-pretty">{coupon.name}</p>
         </div>
-        <p className="text-primary nums shrink-0 text-base font-semibold">{discountLine(coupon)}</p>
+        <p className="text-primary nums shrink-0 text-base font-semibold">{discountLine(coupon, currency)}</p>
       </div>
       {coupon.description && <p className="c-caption text-pretty">{coupon.description}</p>}
       {(coupon.expiresAt != null || methods) && (

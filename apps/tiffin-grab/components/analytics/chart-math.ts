@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { currencySymbol } from "@/lib/format/currency";
 import { slotTone, type Tone } from "@/lib/analytics/tone";
 
 export { slotTone, type Tone };
@@ -125,11 +126,12 @@ export function axisTicks(max: number, integer = false, intervals = 5): number[]
 }
 
 /** "$0", "$500", "$1k", "$1.5k". The decimal only ever appears on the small (under $3k) scales. */
-export function moneyTick(v: number): string {
+export function moneyTick(v: number, currency: string): string {
   const a = Math.abs(v);
   const sign = v < 0 ? "-" : "";
-  if (a < 1000) return `${sign}$${Math.round(a)}`;
-  return `${sign}$${Number((a / 1000).toFixed(1))}k`;
+  const symbol = currencySymbol(currency);
+  if (a < 1000) return `${sign}${symbol}${Math.round(a)}`;
+  return `${sign}${symbol}${Number((a / 1000).toFixed(1))}k`;
 }
 
 /** Recharts `interval` that leaves roughly every 4th day labelled on a 30-day chart. */

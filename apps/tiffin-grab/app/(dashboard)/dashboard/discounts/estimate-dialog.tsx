@@ -20,7 +20,7 @@ import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { createQuoteLink, estimateFormData, estimatePrefill } from "./estimate-actions";
 import { CustomerCodeField } from "./customer-code-field";
 import { CoinsField } from "./coins-field";
-import { useFormatMoney } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 
 type FormData = Awaited<ReturnType<typeof estimateFormData>>;
 
@@ -205,6 +205,7 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
 // and the codes this customer could use.
 function CouponsField({ estimate }: { estimate: EstimateState }) {
   const fmtMoney = useFormatMoney();
+  const currency = useAppCurrency();
   const [input, setInput] = useState("");
   const { coupons, codes, apply, remove, applyAll } = estimate;
   const open = coupons?.available.filter((c) => !codes.includes(c.code.toUpperCase())) ?? [];
@@ -257,7 +258,7 @@ function CouponsField({ estimate }: { estimate: EstimateState }) {
           )}
           {open.map((c) => (
             <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => apply(c.code)}>
-              <span className="tabular-nums">{c.code}</span> · {discountLine(c)}
+              <span className="tabular-nums">{c.code}</span> · {discountLine(c, currency)}
             </Button>
           ))}
         </div>

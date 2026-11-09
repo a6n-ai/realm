@@ -4,8 +4,8 @@ import { isoDateInZone, mondayIndex } from "@foundry/commons/util/dates";
 
 describe("moneyTick", () => {
   it("uses a lowercase k", () => {
-    expect(moneyTick(2400)).toBe("$2.4k");
-    expect(moneyTick(-1500)).toBe("-$1.5k");
+    expect(moneyTick(2400, "CAD")).toBe("$2.4k");
+    expect(moneyTick(-1500, "CAD")).toBe("-$1.5k");
   });
 });
 
@@ -120,12 +120,12 @@ describe("axis helpers", () => {
     expect(axisTicks(265, true).at(-1)).toBeGreaterThanOrEqual(265);
   });
   it("compact money labels", () => {
-    expect(moneyTick(0)).toBe("$0");
-    expect(moneyTick(500)).toBe("$500");
-    expect(moneyTick(1000)).toBe("$1k");
-    expect(moneyTick(1500)).toBe("$1.5k");
-    expect(moneyTick(12000)).toBe("$12k");
-    expect(moneyTick(-2000)).toBe("-$2k");
+    expect(moneyTick(0, "CAD")).toBe("$0");
+    expect(moneyTick(500, "CAD")).toBe("$500");
+    expect(moneyTick(1000, "CAD")).toBe("$1k");
+    expect(moneyTick(1500, "CAD")).toBe("$1.5k");
+    expect(moneyTick(12000, "CAD")).toBe("$12k");
+    expect(moneyTick(-2000, "CAD")).toBe("-$2k");
   });
   it("labels about every 4th day on a month and every day on a short range", () => {
     expect(tickEvery(30)).toBe(3);

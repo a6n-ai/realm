@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormatMoney } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
+import { currencySymbol } from "@/lib/format/currency";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -198,6 +199,7 @@ export function CouponsManager({
   spec: FacetDef[];
 }) {
   const fmt = useFormatMoney();
+  const currency = useAppCurrency();
   const money = (v: string | null) => (v == null ? "—" : fmt(Number(v)));
   const router = useRouter();
   const tz = useTimezone();
@@ -416,7 +418,7 @@ export function CouponsManager({
                   <NumberField
                     id="cpn-amt"
                     label="Amount off"
-                    prefix="$"
+                    prefix={currencySymbol(currency)}
                     min={0}
                     value={draft.valueAmount}
                     onChange={(v) => setDraft({ ...draft, valueAmount: v })}
@@ -458,7 +460,7 @@ export function CouponsManager({
                   <NumberField
                     id="cpn-min"
                     label="Min subtotal"
-                    prefix="$"
+                    prefix={currencySymbol(currency)}
                     min={0}
                     value={draft.minSubtotal}
                     onChange={(v) => setDraft({ ...draft, minSubtotal: v })}

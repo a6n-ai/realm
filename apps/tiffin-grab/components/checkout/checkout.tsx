@@ -1461,6 +1461,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
   onSwitchMethod: (methodId: string, code: string) => void;
 }) {
   const money = useFormatMoney();
+  const currency = useAppCurrency();
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
   const [focusField, setFocusField] = useState(false);
   const lastCount = useRef(appliedCount);
@@ -1527,7 +1528,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                   type="button"
                   onClick={() => onPick(c.code)}
                   disabled={state.status === "checking"}
-                  aria-label={`Apply ${c.code}, ${discountLine(c)}: ${c.name}`}
+                  aria-label={`Apply ${c.code}, ${discountLine(c, currency)}: ${c.name}`}
                   className="flex min-h-14 max-w-[15rem] items-center gap-2.5 c-surface rounded-2xl bg-(--primary-wash) py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
                 >
                   <span className="min-w-0">
@@ -1536,7 +1537,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                       {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.minSubtotal != null ? `On orders ${money(Number(c.minSubtotal)).replace(/\.00$/, "")}+` : c.name}
                     </span>
                   </span>
-                  <span className="text-primary shrink-0 text-footnote font-semibold">{discountLine(c)}</span>
+                  <span className="text-primary shrink-0 text-footnote font-semibold">{discountLine(c, currency)}</span>
                 </button>
               </li>
             ))}

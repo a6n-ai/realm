@@ -29,7 +29,9 @@ async function AllDiscounts() {
     db.select({ publicId: coupons.publicId, code: coupons.code, kind: coupons.kind, valuePct: coupons.valuePct, valueAmount: coupons.valueAmount, active: coupons.active, startsAt: coupons.startsAt, expiresAt: coupons.expiresAt })
       .from(coupons).where(and(eq(coupons.active, true), notInArray(coupons.kind, ["rep_daily", "rep_code"]))).orderBy(desc(coupons.createdAt)).limit(COUPON_LIMIT + 1),
   ]);
+  const { currency } = await getAppSettings();
   const rows = buildRows({
+    currency,
     discounts: dtos,
     frequencies: freqs,
     durations: durs,

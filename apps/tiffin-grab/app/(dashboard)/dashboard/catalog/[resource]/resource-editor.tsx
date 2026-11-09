@@ -1,5 +1,5 @@
 "use client";
-import { useFormatMoney } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 /* eslint-disable */
 
 
@@ -771,6 +771,7 @@ export function ResourceEditor({
 }) {
   const def = RESOURCES[resource];
   const router = useRouter();
+  const currency = useAppCurrency();
   const [editing, setEditing] = useState<{ id: string; row: Row | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -837,7 +838,7 @@ export function ResourceEditor({
                     className="bg-ok/10 text-ok ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
                     onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })}
                   >
-                    Save {discountValueLabel(discountCtx.byTarget[row.publicId])}
+                    Save {discountValueLabel(discountCtx.byTarget[row.publicId], currency)}
                   </button>
                 ) : null}
                 {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}

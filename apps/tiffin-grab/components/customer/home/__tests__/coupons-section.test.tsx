@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 import { CouponsSection } from "../coupons-section";
+
+vi.mock("@/components/app-currency", () => ({ useAppCurrency: () => "CAD" }));
 
 afterEach(cleanup);
 

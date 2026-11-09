@@ -1,3 +1,4 @@
+import { formatDiscount } from "@/lib/format/currency";
 import { couponStatus, type CouponStatus } from "@/lib/coupons/status";
 import type { WaiverKind } from "@/lib/catalog/types";
 
@@ -53,10 +54,11 @@ export const ALL_TARGETS_LABEL: Record<DiscountKind, string> = {
   meal_size: "All meal sizes",
 };
 
-export const discountValueLabel = (d: Pick<DiscountDto, "percent" | "amount">) =>
-  d.amount != null && d.amount > 0 ? `$${fmt(d.amount)} off` : `${fmt(d.percent)}%`;
+export const discountValueLabel = (d: Pick<DiscountDto, "percent" | "amount">, currency: string) =>
+  d.amount != null && d.amount > 0 ? formatDiscount({ valueAmount: d.amount }, currency) : `${fmt(d.percent)}%`;
 
 export function buildRows(input: {
+  currency: string;
   discounts: DiscountDto[];
   frequencies: { publicId: string; name: string }[];
   durations: { publicId: string; weeks: number }[];
@@ -79,7 +81,7 @@ export function buildRows(input: {
       type: kind,
       typeLabel: TYPE_LABELS[kind],
       appliesTo: d.targetPublicId == null ? ALL_TARGETS_LABEL[kind] : (names[kind].get(d.targetPublicId) ?? "Unknown target"),
-      value: discountValueLabel(d),
+      value: discountValueLabel(d, input.currency),
       status: discountStatus(d, input.now),
       href: null,
       discount: d,
@@ -92,7 +94,7 @@ export function buildRows(input: {
       typeLabel: TYPE_LABELS.coupon,
       appliesTo: c.code,
       value: c.kind === "percentage" && c.valuePct != null ? `${fmt(Number(c.valuePct))}%`
-        : c.kind === "fixed" && c.valueAmount != null ? `$${fmt(Number(c.valueAmount))} off`
+        : c.kind === "fixed" && c.valueAmount != null ? formatDiscount({ valueAmount: c.valueAmount }, input.currency)
         : c.kind.replace(/_/g, " "),
       status: discountStatus({ active: c.active, startsAtMs: c.startsAt, endsAtMs: c.expiresAt }, input.now),
       href: COUPONS_HREF,

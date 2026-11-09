@@ -20,8 +20,8 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
       throw e;
     }
   }
-  const [{ timezone }, available] = await Promise.all([getAppSettings(), couponsService.listAvailable().catch(() => [])]);
-  const coupons = available.map((c) => ({ code: c.code, name: c.name, badge: couponHeadline(c) }));
+  const [{ timezone, currency }, available] = await Promise.all([getAppSettings(), couponsService.listAvailable().catch(() => [])]);
+  const coupons = available.map((c) => ({ code: c.code, name: c.name, badge: couponHeadline(c, currency) }));
   // A linked code that has since expired is still shown so saving does not silently unlink it.
   if (promotion?.couponCode && !coupons.some((c) => c.code === promotion.couponCode)) {
     coupons.unshift({ code: promotion.couponCode, name: "no longer listed", badge: "" });

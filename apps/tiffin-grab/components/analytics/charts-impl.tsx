@@ -254,7 +254,7 @@ function AverageTrend({
       <AreaChart accessibilityLayer data={rows} margin={{ top: 20, right: 12, bottom: 12, left: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={10} minTickGap={24} interval={tickEvery(rows.length)} />
-        <YAxis {...valueAxis(values, format)} />
+        <YAxis {...valueAxis(values, format, currency)} />
         <ChartTooltip
           cursor={false}
           content={
@@ -291,13 +291,13 @@ const tipHeader = (tipKey?: string) => (value: ReactNode, payload: readonly { pa
   headerLabel((tipKey ? payload?.[0]?.payload?.[tipKey] : undefined) ?? value);
 
 /** Value-axis props shared by the vertical bar charts: [0, nice max], about five ticks, compact money. */
-function valueAxis(values: number[], format: ValueFormat) {
+function valueAxis(values: number[], format: ValueFormat, currency: string) {
   const ticks = axisTicks(Math.max(0, ...values), format === "number");
   return {
     ticks,
     domain: [0, ticks.at(-1)!] as [number, number],
     allowDecimals: false,
-    tickFormatter: (v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString()),
+    tickFormatter: (v: number) => (format === "currency" ? moneyTick(v, currency) : v.toLocaleString()),
     width: format === "currency" ? 44 : 36,
     tickLine: false,
     axisLine: false,
@@ -468,11 +468,11 @@ export function BreakdownBarChart({
   );
 }
 
-function donutCentre(total: number, format: ValueFormat, caption: string, label?: string) {
+function donutCentre(total: number, format: ValueFormat, caption: string, currency: string, label?: string) {
   const text =
     label ??
     (format === "currency"
-      ? moneyTick(total)
+      ? moneyTick(total, currency)
       : total.toLocaleString());
   return (
     <Label
@@ -770,7 +770,7 @@ export function PartsDonut({
             {folded.map((p, i) => (
               <Cell key={`${p.label}-${i}`} fill={p.color} />
             ))}
-            {donutCentre(total, format, caption, label)}
+            {donutCentre(total, format, caption, currency, label)}
           </Pie>
         </PieChart>
       </ChartContainer>
@@ -1028,8 +1028,8 @@ export function CalendarHeatmap({
   const positive = values.filter((v) => v > 0);
   const min = Math.min(...positive);
   const max = Math.max(...positive);
-  const cellText = (v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString());
-  const zeroText = format === "currency" ? "$0" : "0";
+  const cellText = (v: number) => (format === "currency" ? moneyTick(v, currency) : v.toLocaleString());
+  const zeroText = format === "currency" ? moneyTick(0, currency) : "0";
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-3">
@@ -1156,7 +1156,7 @@ export function DivergingBarChart({
           tickMargin={4}
           width={48}
           allowDecimals={false}
-          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString())}
+          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v, currency) : v.toLocaleString())}
         />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip
@@ -1414,7 +1414,7 @@ export function WaterfallChart({ start, steps, end, format = "currency", height 
           axisLine={false}
           tickMargin={4}
           width={48}
-          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v) : v.toLocaleString())}
+          tickFormatter={(v: number) => (format === "currency" ? moneyTick(v, currency) : v.toLocaleString())}
         />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip
@@ -1443,7 +1443,7 @@ export function WaterfallChart({ start, steps, end, format = "currency", height 
             dataKey="delta"
             position="top"
             className="fill-foreground text-xs tabular-nums"
-            formatter={(v: unknown) => (format === "currency" ? moneyTick(Number(v)) : Number(v).toLocaleString())}
+            formatter={(v: unknown) => (format === "currency" ? moneyTick(Number(v), currency) : Number(v).toLocaleString())}
           />
         </Bar>
       </BarChart>

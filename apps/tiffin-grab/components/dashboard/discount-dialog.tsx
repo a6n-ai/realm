@@ -8,6 +8,8 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
+import { useAppCurrency } from "@/components/app-currency";
+import { formatDiscount } from "@/lib/format/currency";
 import { ResponsiveDialog } from "@/components/ds";
 import { RESOURCES } from "@/lib/catalog/resource-config";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
@@ -48,6 +50,7 @@ export function DiscountDialog(props: DiscountDialogProps) {
 }
 
 function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDialogProps) {
+  const currency = useAppCurrency();
   const router = useRouter();
   const editing = Boolean(discount);
   const locked = !editing && Boolean(prefill?.lockTarget);
@@ -70,7 +73,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const targetId = target === "all" ? null : target;
-    const autoName = `${isFlat ? `$${value}` : `${value}%`} off ${targetLabel(kind, targetId, options)}`;
+    const autoName = `${formatDiscount(isFlat ? { valueAmount: value } : { valuePct: value }, currency)} ${targetLabel(kind, targetId, options)}`;
     const values = {
       name: name.trim() || autoName,
       kind, targetId,
