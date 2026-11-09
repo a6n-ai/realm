@@ -11,7 +11,8 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { setDeliveryAddress, clearDeliveryAddress, effectiveAddress } = await import("../deliveries.service");
+const { setDeliveryAddress, clearDeliveryAddress } = await import("../deliveries.service");
+const { effectiveAddress } = await import("@/lib/deliveries/row-state");
 
 async function reset() {
   await db.delete(deliveries);

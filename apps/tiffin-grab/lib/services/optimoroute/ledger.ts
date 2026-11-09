@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
 import { labelDeliveryStatus } from "@/lib/deliveries/label-status";
 import { loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { missedPublicIdsOn } from "@/lib/services/missed-where";
 import { getCompletionDetails, searchOrdersForDate } from "./client";

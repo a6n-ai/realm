@@ -4,17 +4,17 @@ import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
-import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
+import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "./optimoroute/stops";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed, getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";
 import { loadExtraDates } from "./delivery-extras";
 import { dateCounts } from "@/lib/menu/coverage";
 import type { Reader } from "./pause-state";
-import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, retireLegacyPaused } from "./pause-state";
 import { lockOrder } from "./order-lock";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,20 +35,6 @@ async function orderByPublicId(publicId: string) {
   if (!order) throw new ValidationError("Order not found");
   return order;
 }
-
-/**
- * After a pause commits: take the rows' stops off OptimoRoute. The route stamp is the evidence a
- * stop still exists, so it goes only once the stop is really gone. Returns how many were removed.
- */
-export async function removeStopsBestEffort(rows: OptimoSyncedRow[]): Promise<number> {
-  const gone = await deleteFromOptimoRouteBestEffort(rows);
-  if (gone.length > 0) {
-    await db.update(deliveries).set({ routeSyncedAt: null, routeDriverSerial: null, routeDriverName: null, routeStopNumber: null })
-      .where(inArray(deliveries.publicId, gone));
-  }
-  return gone.length;
-}
-
 
 type CarrierRow = typeof deliveries.$inferSelect & { movedAway: boolean };
 
@@ -89,7 +75,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   let removed: OptimoSyncedRow[] = [];
   let logId: bigint | null = null;
   // Eating days of a trip that keeps going out: they leave the truck after this commits.
-  const partial: { deliveryPublicId: string; deliveryId: bigint; eat: string }[] = [];
+  const partial: { deliveryPublicId: string; eat: string }[] = [];
   const result = await db.transaction(async (tx) => {
     await lockOrder(tx, order.id);
     await lapsePausedRows(tx, order.id);
@@ -111,7 +97,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     for (const p of picked.values()) {
       if (whole.includes(p)) continue;
       for (const eat of p.days) {
-        for (let i = 0; i < eats.get(p.row.id)!.get(eat)!; i++) partial.push({ deliveryPublicId: p.row.publicId, deliveryId: p.row.id, eat });
+        for (let i = 0; i < eats.get(p.row.id)!.get(eat)!; i++) partial.push({ deliveryPublicId: p.row.publicId, eat });
       }
     }
     // A whole trip spends its own date from the budget (as before); a single eating day spends that day.
@@ -179,7 +165,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
   let closed: OptimoSyncedRow[] = [];
   let reclosed: ReclosedDay[] = [];
   // Eating days of a resumed trip the customer left paused: they leave the truck after commit.
-  const stayPaused: { deliveryPublicId: string; deliveryId: bigint; eat: string; trip: string }[] = [];
+  const stayPaused: { deliveryPublicId: string; eat: string; trip: string }[] = [];
   const eatsOfTrip = new Map<string, string[]>();
   let left: typeof stayPaused = [];
   let chargedOn: bigint | null = null;
@@ -201,7 +187,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
         eatsOfTrip.set(row.deliveryDate, [...counts.keys()]);
         for (const [eat, n] of counts) {
           if (picked.includes(eat)) continue;
-          for (let i = 0; i < n; i++) stayPaused.push({ deliveryPublicId: row.publicId, deliveryId: row.id, eat, trip: row.deliveryDate });
+          for (let i = 0; i < n; i++) stayPaused.push({ deliveryPublicId: row.publicId, eat, trip: row.deliveryDate });
         }
       }
     }

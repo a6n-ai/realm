@@ -20,7 +20,8 @@ import { round2 } from "@foundry/commons/util/money";
 import { couponsService } from "@/lib/services/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
-import { deleteFromOptimoRouteBestEffort, shiftMissedDeliveries, type OptimoSyncedRow } from "@/lib/services/deliveries.service";
+import { shiftMissedDeliveries } from "@/lib/services/deliveries.service";
+import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
 import { scheduleWrite } from "@/lib/services/schedule-write";
 import { upcomingHolidays } from "@/lib/services/holiday-dates";
 import { paidStartDate } from "@/lib/orders/paid-start";
@@ -305,7 +306,7 @@ export async function verifyPayment(
   });
   const userPublicId = settled?.userPublicId ?? null;
   const taxCommit = settled?.taxCommit ?? null;
-  await deleteFromOptimoRouteBestEffort(missedStops);
+  await removeStopsBestEffort(missedStops);
 
   // GA purchase only. Meta Purchase is sendMetaPurchaseOnce: same event id as the card
   // page pixel, stored click ids, and skipped for renewals. This request is a webhook or

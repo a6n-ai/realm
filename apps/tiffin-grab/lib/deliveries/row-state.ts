@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
-import { deliveries } from "@/db/schema";
+import { deliveries, orders } from "@/db/schema";
+
+type Order = typeof orders.$inferSelect;
+type Delivery = typeof deliveries.$inferSelect;
 
 /** An ordinary delivery a holiday added at plan end points back at this row: its tiffins are already re-homed. */
 export const HAS_HOLIDAY_EXTRA = sql`exists (select 1 from deliveries hx where hx.holiday_extra_for_delivery_id = ${deliveries.id})`;
@@ -41,3 +44,26 @@ export const CLEAR_ADDRESS_OVERRIDE = {
   addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
   deliveryInstructions: null, deliveryTagId: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
 };
+
+/** addressLine NULL means "inherit the order's address". */
+export function effectiveAddress(
+  d: Delivery,
+  order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId"> &
+    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryTagId" | "deliveryStrategyIds">>,
+) {
+  return d.addressLine === null
+    ? {
+        fullName: order.fullName, addressLine: order.addressLine, addressUnit: order.addressUnit ?? null, city: order.city,
+        postalCode: order.postalCode, deliveryInstructions: order.deliveryInstructions ?? null, zoneId: order.zoneId,
+        deliveryTagId: order.deliveryTagId ?? null,
+        deliveryStrategyIds: order.deliveryStrategyIds ?? [],
+      }
+    : {
+        // A saved address may carry no recipient name; the plan's name is still who it is for.
+        fullName: d.fullName ?? order.fullName, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
+        postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
+        // A re-addressed delivery carries its address's own drop-off, or none: the plan's
+        // belongs to the plan's address, not this one.
+        deliveryTagId: d.deliveryTagId, deliveryStrategyIds: d.deliveryStrategyIds,
+      };
+}

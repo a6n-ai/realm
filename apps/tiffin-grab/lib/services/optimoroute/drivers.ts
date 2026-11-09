@@ -5,7 +5,7 @@ import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { loadTripDetails, stopNotes } from "./trip-notes";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { effectiveAddress } from "@/lib/deliveries/row-state";
 
 // OptimoRoute exposes no driver-roster endpoint — the only place a driver's
 // serial/name pair exists is on a route it has already planned, which

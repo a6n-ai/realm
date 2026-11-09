@@ -20,7 +20,7 @@ import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
-import { deleteOrder } from "@/lib/services/optimoroute/client";
+import { refreshStopBestEffort, removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
@@ -29,7 +29,7 @@ import { holidayForOrderDate } from "./holiday-dates";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
-import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
+import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows } from "./pause-state";
 import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 import { lockOrder } from "./order-lock";
 
@@ -251,7 +251,7 @@ export async function skipDelivery(
     });
     syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
   });
-  await deleteFromOptimoRouteBestEffort([syncedRow!]);
+  await removeStopsBestEffort([syncedRow!]);
   return { missedDates };
 }
 
@@ -379,7 +379,7 @@ export async function adminSetDeliveryStatus(
       orderId, deliveryId: row.id, type: activityType, note: `Admin set delivery status to ${label}`, createdBy: actorId,
     });
   });
-  if (syncedRow) await deleteFromOptimoRouteBestEffort([syncedRow]);
+  if (syncedRow) await removeStopsBestEffort([syncedRow]);
   if (resumed) await restoreStopsBestEffort(resumed.orderId, resumed.dates, actorId);
 }
 
@@ -390,27 +390,6 @@ const existingMakeup = alias(deliveries, "existing_makeup");
 
 /** A cancelled/skipped row that had already been synced to OptimoRoute — the caller's cue to
  *  also delete it there. `routeSyncedAt` null means OptimoRoute never had this stop. */
-export type OptimoSyncedRow = { publicId: string; routeSyncedAt: number | null };
-
-/**
- * Best-effort OptimoRoute cleanup for a row that just left the schedule. Never throws: a stop
- * OptimoRoute already dropped, or an API hiccup, must not block the DB change that already
- * committed — this only stops printing a label for a delivery nobody is making anymore.
- * Returns the publicIds actually deleted.
- */
-export async function deleteFromOptimoRouteBestEffort(rows: OptimoSyncedRow[]): Promise<string[]> {
-  const deleted: string[] = [];
-  for (const row of rows) {
-    if (row.routeSyncedAt == null) continue;
-    try {
-      await deleteOrder(row.publicId);
-      deleted.push(row.publicId);
-    } catch (e) {
-      log.error({ err: e, publicId: row.publicId }, "optimoroute delete-on-cancel failed");
-    }
-  }
-  return deleted;
-}
 
 /**
  * Marks every scheduled/paused row (originals and make-ups alike) cancelled. Terminal: cancel()
@@ -819,6 +798,7 @@ export async function rescheduleDelivery(
   actorId: bigint | null,
   sourceEatDate: string | null = null,
   count = 1,
+  note?: (carriedOn: string) => string,
 ): Promise<{ merged: boolean; carriedOn: string }> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_TIFFINS_PER_TRIP) throw new ValidationError("Pick how many tiffins to move.");
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -977,34 +957,18 @@ export async function rescheduleDelivery(
             { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `${fromEat}'s tiffin from ${row.deliveryDate}, now eaten ${eatingDateIso}`, createdBy: actorId },
           ],
     );
-    return { merged: moved.merged, carriedOn };
+    return { merged: moved.merged, carriedOn, deliveryId: row.id, orderId };
   };
   const result = await db.transaction(async (tx) => {
     let last = await moveOnce(tx);
     for (let i = 1; i < count; i++) last = await moveOnce(tx);
-    return last;
+    // In the move's own transaction: a note that fails rolls the move back instead of leaving it half-reported.
+    if (note) await tx.insert(orderActivities).values({ orderId: last.orderId, deliveryId: last.deliveryId, type: "note", note: note(last.carriedOn), createdBy: actorId });
+    return { merged: last.merged, carriedOn: last.carriedOn };
   });
-  if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
+  if (oldStop) await removeStopsBestEffort([oldStop]);
   for (const id of refreshIds) await refreshStopBestEffort(id);
   return result;
-}
-
-/**
- * A merge changes the target trip's units and covered days, so a stop already on OptimoRoute
- * must be re-pushed. Best-effort like the delete: the DB change already committed. Only touches
- * a stop we previously synced (routeSyncedAt set), never creates one for an unpushed day.
- * Dynamic import: push.ts imports daily-labels.service, which imports this module.
- */
-async function refreshStopBestEffort(deliveryId: bigint): Promise<void> {
-  try {
-    const [t] = await db.select({ publicId: deliveries.publicId, deliveryDate: deliveries.deliveryDate, routeSyncedAt: deliveries.routeSyncedAt, status: deliveries.status })
-      .from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
-    if (!t || t.routeSyncedAt == null || t.status !== "scheduled") return;
-    const { pushOneDelivery } = await import("@/lib/services/optimoroute/push");
-    await pushOneDelivery(t.publicId, t.deliveryDate);
-  } catch (e) {
-    log.error({ err: e, deliveryId: String(deliveryId) }, "optimoroute refresh-after-merge failed");
-  }
 }
 
 /**
@@ -1059,7 +1023,7 @@ export async function redeliverTrip(
     targetId = moved.id;
     return { targetDate, merged: moved.merged };
   });
-  await deleteFromOptimoRouteBestEffort([syncedRow!]);
+  await removeStopsBestEffort([syncedRow!]);
   if (result.merged) await refreshStopBestEffort(targetId!);
   return result;
 }
@@ -1268,25 +1232,3 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
   });
 }
 
-/** addressLine NULL means "inherit the order's address". */
-export function effectiveAddress(
-  d: Delivery,
-  order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId"> &
-    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryTagId" | "deliveryStrategyIds">>,
-) {
-  return d.addressLine === null
-    ? {
-        fullName: order.fullName, addressLine: order.addressLine, addressUnit: order.addressUnit ?? null, city: order.city,
-        postalCode: order.postalCode, deliveryInstructions: order.deliveryInstructions ?? null, zoneId: order.zoneId,
-        deliveryTagId: order.deliveryTagId ?? null,
-        deliveryStrategyIds: order.deliveryStrategyIds ?? [],
-      }
-    : {
-        // A saved address may carry no recipient name; the plan's name is still who it is for.
-        fullName: d.fullName ?? order.fullName, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
-        postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
-        // A re-addressed delivery carries its address's own drop-off, or none: the plan's
-        // belongs to the plan's address, not this one.
-        deliveryTagId: d.deliveryTagId, deliveryStrategyIds: d.deliveryStrategyIds,
-      };
-}

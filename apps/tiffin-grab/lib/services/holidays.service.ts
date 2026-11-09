@@ -15,9 +15,8 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { notificationTables } from "@/lib/notifications/tables";
 import { getAppSettings } from "./app-settings.service";
 import { getBrandOrgId } from "./organizations.service";
-import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
+import { removeStopsBestEffort, type OptimoSyncedRow } from "./optimoroute/stops";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
-import { removeStopsBestEffort } from "./pause-days.service";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE } from "./pause-state";
 import { isRealDate } from "@foundry/commons/util/dates";
 import { lockOrder } from "./order-lock";
@@ -179,7 +178,7 @@ async function applyToOrders(holiday: Holiday, notify: boolean, actorId: bigint 
       run.failed.push(o.code ?? String(o.id));
     }
   }
-  run.removedFromRoute = await removeStopsBestEffort(stops);
+  run.removedFromRoute = (await removeStopsBestEffort(stops)).removed.length;
   return run;
 }
 
@@ -257,7 +256,7 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
     }
   }
   // The added rows are gone from the database; take their stops off the route too.
-  await deleteFromOptimoRouteBestEffort(stops);
+  await removeStopsBestEffort(stops);
   // A day still owed keeps its tag, which blocks the delete: staff place it, then remove again.
   if (out.failed.length === 0 && out.stillOwed === 0) {
     try {

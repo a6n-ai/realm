@@ -21,7 +21,7 @@ import {
   users,
 } from "@/db/schema";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { dropOffTexts } from "@/lib/services/address-drop-off.service";
 import { menuService } from "@/lib/services/menu.service";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";

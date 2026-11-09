@@ -3,7 +3,7 @@ import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, not, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, not, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 
@@ -163,39 +163,4 @@ export async function releasePausedRows(tx: Tx, orderId: bigint, wanted: string[
   const dates = [...back].sort();
   await tx.insert(orderActivities).values({ orderId, type: "resumed", note: dates.join(", "), createdBy: actorId });
   return dates;
-}
-
-/**
- * After a release commits: pausing took the stop off OptimoRoute, so a resumed day on a date that
- * was already pushed (another delivery of that date, same organization, carries a route stamp)
- * gets its one stop back. A date not pushed yet needs nothing: the day push will include it.
- * Never throws; the release has already committed.
- */
-export async function restoreStopsBestEffort(orderId: bigint, dates: string[], actorId: bigint | null): Promise<void> {
-  try {
-    const [order] = await db.select({ org: orders.organizationId }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order) return;
-    const back = await db.select({ id: deliveries.id, publicId: deliveries.publicId, deliveryDate: deliveries.deliveryDate })
-      .from(deliveries).where(and(eq(deliveries.orderId, orderId), inArray(deliveries.deliveryDate, dates), eq(deliveries.status, "scheduled")));
-    for (const row of back) {
-      try {
-        const [pushed] = await db.select({ id: deliveries.id }).from(deliveries)
-          .innerJoin(orders, eq(orders.id, deliveries.orderId))
-          .where(and(
-            eq(deliveries.deliveryDate, row.deliveryDate),
-            ne(deliveries.id, row.id),
-            isNotNull(deliveries.routeSyncedAt),
-            order.org == null ? isNull(orders.organizationId) : eq(orders.organizationId, order.org),
-          )).limit(1);
-        if (!pushed) continue;
-        // Dynamic import: push.ts imports daily-labels.service, which imports deliveries.service, which imports this module.
-        const { pushOneDelivery } = await import("@/lib/services/optimoroute/push");
-        await pushOneDelivery(row.publicId, row.deliveryDate, actorId);
-      } catch (err) {
-        log.error({ err, deliveryId: String(row.id) }, "optimoroute push after resume failed");
-      }
-    }
-  } catch (err) {
-    log.error({ err, orderId: String(orderId) }, "optimoroute push after resume failed");
-  }
 }

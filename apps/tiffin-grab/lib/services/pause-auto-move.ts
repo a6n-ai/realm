@@ -76,6 +76,9 @@ async function endOfPlanDate(orderId: bigint): Promise<string | null> {
   );
 }
 
+const movedToEndNote = (eat: string, target: string, carriedOn: string) =>
+  `Paused ${eat} moved to ${target}${carriedOn === target ? "" : ` (rides ${carriedOn})`}, the end of the plan`;
+
 /**
  * With the switch on, every paused day that reached its cutoff (a lapsed pause, still holding its
  * tiffin) moves to the end of the plan, one tiffin at a time, through the same reschedule the
@@ -98,9 +101,7 @@ export async function moveLapsedPausesToEnd(orderId: bigint): Promise<number> {
           for (let i = 0; i < n; i++) {
             const target = await endOfPlanDate(orderId);
             if (!target) return moved;
-            const { carriedOn } = await rescheduleDelivery(row.publicId, target, null, eat);
-            const rides = carriedOn === target ? "" : ` (rides ${carriedOn})`;
-            await db.insert(orderActivities).values({ orderId, deliveryId: row.id, type: "note", note: `Paused ${eat} moved to ${target}${rides}, the end of the plan` });
+            await rescheduleDelivery(row.publicId, target, null, eat, 1, (carriedOn) => movedToEndNote(eat, target, carriedOn));
             moved++;
           }
         }
@@ -123,7 +124,7 @@ export async function moveLapsedPausesToEnd(orderId: bigint): Promise<number> {
  */
 export async function movePausedTiffinsToEnd(
   orderId: bigint,
-  tiffins: { deliveryPublicId: string; deliveryId: bigint; eat: string }[],
+  tiffins: { deliveryPublicId: string; eat: string }[],
   actorId: bigint | null,
 ): Promise<{ moved: string[]; failed: string[] }> {
   const moved: string[] = [];
@@ -132,9 +133,7 @@ export async function movePausedTiffinsToEnd(
     try {
       const target = await endOfPlanDate(orderId);
       if (!target) throw new Error("no end-of-plan day");
-      const { carriedOn } = await rescheduleDelivery(t.deliveryPublicId, target, actorId, t.eat);
-      const rides = carriedOn === target ? "" : ` (rides ${carriedOn})`;
-      await db.insert(orderActivities).values({ orderId, deliveryId: t.deliveryId, type: "note", note: `Paused ${t.eat} moved to ${target}${rides}, the end of the plan`, createdBy: actorId });
+      await rescheduleDelivery(t.deliveryPublicId, target, actorId, t.eat, 1, (carriedOn) => movedToEndNote(t.eat, target, carriedOn));
       moved.push(t.eat);
     } catch (err) {
       log.error({ err, orderId: String(orderId), eat: t.eat }, "move paused tiffin to end failed");

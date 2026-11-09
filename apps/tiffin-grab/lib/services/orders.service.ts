@@ -68,7 +68,8 @@ import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows } from "./deliveries.service";
+import { cancelDeliveries, dropVoidRows } from "./deliveries.service";
+import { removeStopsBestEffort } from "./optimoroute/stops";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { scheduleWrite } from "./schedule-write";
 import { assertStartNotHoliday } from "./holiday-dates";
@@ -1750,7 +1751,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
     // External API call, deliberately outside the tx — see walletService.award above for the
     // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.
-    await deleteFromOptimoRouteBestEffort(cancelledRows);
+    await removeStopsBestEffort(cancelledRows);
   }
 
   async reassign(publicId: string, ownerId: string): Promise<void> {
