@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { RangeCalendarPicker } from "@/components/filters/range-calendar-picker";
 import { useListNav } from "@/components/ds";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { activePreset, DATE_PRESETS, presetRange, type DatePresetKey } from "@/lib/analytics/date-presets";
 import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-params";
 

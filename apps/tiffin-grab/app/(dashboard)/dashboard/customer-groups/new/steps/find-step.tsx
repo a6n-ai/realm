@@ -7,7 +7,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { DateInput } from "@/components/dashboard/date-fields";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { Filters, type CustomRendererProps, type Filter, type FilterFieldConfig } from "@/components/reui/filters";
+import { Filters, type CustomRendererProps, type Filter, type FilterFieldConfig } from "@foundry/design-system/filters/reui";
 import { getPayoutCandidates } from "../../actions";
 import type { Candidate } from "../types";
 
@@ -136,7 +136,7 @@ export function FindStep({
       <p className="text-muted-foreground text-sm">
         Add filters to narrow down who gets coins. With no filters, every customer is included.
       </p>
-      <Filters<string> filters={filters} fields={fields} onChange={onFiltersChange} size="sm" showSearchInput={false} />
+      <Filters<string> filters={filters} fields={fields} onChange={onFiltersChange} size="sm" showSearchInput={false} menuList="plain" fieldWidth="fit" />
       {error && (
         <Alert variant="destructive">
           <AlertCircleIcon />

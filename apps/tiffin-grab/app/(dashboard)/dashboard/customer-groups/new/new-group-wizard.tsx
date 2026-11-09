@@ -3,7 +3,7 @@
 import * as React from "react";
 import { CheckIcon } from "lucide-react";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
-import type { Filter } from "@/components/reui/filters";
+import type { Filter } from "@foundry/design-system/filters/reui";
 import { FindStep } from "./steps/find-step";
 import { ReviewStep } from "./steps/review-step";
 import { SaveStep } from "./steps/save-step";

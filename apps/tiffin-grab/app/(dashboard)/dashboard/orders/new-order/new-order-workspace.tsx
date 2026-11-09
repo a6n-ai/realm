@@ -15,7 +15,7 @@ import { Label } from "@foundry/ui/label";
 import { Switch } from "@foundry/ui/switch";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@foundry/ui/card";
 import { makeImageThumbnail } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";

@@ -11,7 +11,7 @@ import { EmptyState, SearchInput } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { PLUGIN_CATEGORIES, PLUGIN_METAS, type PluginCategory } from "@/lib/plugins";
 import type { PluginMeta } from "@foundry/crm";
 import { IconTile } from "../_components/icon-tile";

@@ -3,7 +3,7 @@
 import { useFormatMoney } from "@/components/app-currency";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import {
   cheaperDropOff, dropOffFee, pickInConnection, pickTag, toggleStrategy,
   type DropOffCatalog, type DropOffOption, type DropOffValue,
