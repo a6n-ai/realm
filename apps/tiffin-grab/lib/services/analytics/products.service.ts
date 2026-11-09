@@ -5,6 +5,7 @@ import type { SizeSale } from "@/lib/analytics/size-treemap";
 import { revenueBy } from "./metrics/money";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 import { deliveryWhere } from "./operations.service";
+import { round2 } from "@foundry/commons/util/money";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -218,7 +219,7 @@ export async function getPaidByTier(scope: AnalyticsScope): Promise<PaidTierRow[
   for (const { size, bucket } of await paidByMealSize(scope)) {
     const row = byTier.get(size.tier) ?? { tier: TIER_LABELS[size.tier] ?? size.tier, key: size.tier, payments: 0, paid: 0 };
     row.payments += bucket.payments;
-    row.paid = Math.round((row.paid + bucket.net) * 100) / 100;
+    row.paid = round2(row.paid + bucket.net);
     byTier.set(size.tier, row);
   }
   return [...byTier.values()].sort((a, b) => b.paid - a.paid);
@@ -232,7 +233,7 @@ export async function getPaidByTierAndDiet(scope: AnalyticsScope): Promise<PaidT
   for (const { size, bucket } of await paidByMealSize(scope)) {
     const id = `${size.tier}|${size.plan}`;
     const cell = cells.get(id) ?? { tier: TIER_LABELS[size.tier] ?? size.tier, tierKey: size.tier, diet: size.plan, paid: 0 };
-    cell.paid = Math.round((cell.paid + bucket.net) * 100) / 100;
+    cell.paid = round2(cell.paid + bucket.net);
     cells.set(id, cell);
   }
   return [...cells.values()];

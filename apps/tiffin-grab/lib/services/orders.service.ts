@@ -59,7 +59,7 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";

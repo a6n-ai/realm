@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { CAPTURED, inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, asc, eq, sql } from "drizzle-orm";

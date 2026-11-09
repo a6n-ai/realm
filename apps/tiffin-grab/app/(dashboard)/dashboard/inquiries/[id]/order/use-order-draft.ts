@@ -1,7 +1,7 @@
 "use client";
 
 import { useDebouncedAsync } from "@/lib/hooks/use-debounced-async";
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";

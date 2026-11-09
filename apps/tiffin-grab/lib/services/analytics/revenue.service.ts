@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, payments, users } from "@/db/schema";

@@ -7,6 +7,7 @@ import { ArrowRight, Calculator, Hand } from "lucide-react";
 import { planWeek, type DayOfWeek, MON_FRI } from "@/lib/menu/delivery-days";
 import { consentMoment } from "@/components/consent/cookie-consent";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { round2 } from "@foundry/commons/util/money";
 
 export type MathSize = { id: string; name: string; rate: number; days: DayOfWeek[] };
 export type MathPlan = { key: string; label: string; sizes: MathSize[] };
@@ -17,7 +18,6 @@ const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" }, { key: "thu", short: "Thu" },
   { key: "fri", short: "Fri" }, { key: "sat", short: "Sat" }, { key: "sun", short: "Sun" },
 ];
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** The days to eat on: the wanted ones the size serves, kept within the min and max a week (topped up in week order). */
 function fitDays(want: DayOfWeek[], size: MathSize, b: { min: number; max: number }): DayOfWeek[] {

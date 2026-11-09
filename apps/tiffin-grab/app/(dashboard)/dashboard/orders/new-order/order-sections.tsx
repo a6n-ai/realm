@@ -1,6 +1,6 @@
 "use client";
 
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { useState } from "react";
 import { CalendarDaysIcon, ChevronDownIcon, CopyIcon, MinusIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";

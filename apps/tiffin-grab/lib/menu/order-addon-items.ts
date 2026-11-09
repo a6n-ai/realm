@@ -13,6 +13,7 @@ import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.servi
  * and appending keeps every swap's fromRow pointing at the same meal row.
  */
 import { ADDON_SORT_BASE } from "./pick-addons";
+import { round2 } from "@foundry/commons/util/money";
 export { ADDON_SORT_BASE };
 
 export type AddonItemRow = {
@@ -116,7 +117,7 @@ export function orderAddonValues(
       tuAmount: a.tuAmount.toFixed(2),
       pricePerTiffin: a.pricePerTiffin.toFixed(2),
       qty: a.qty,
-      amount: (Math.round((a.pricePerTiffin * a.qty * tiffinCount + Number.EPSILON) * 100) / 100).toFixed(2),
+      amount: round2(a.pricePerTiffin * a.qty * tiffinCount).toFixed(2),
       organizationId,
     };
   });

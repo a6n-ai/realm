@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { ValidationError } from "@foundry/commons";
 import type { CustomMealItem } from "./composition";
 

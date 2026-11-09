@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { computeTax } from "@foundry/payments";
 import type { OrderPricingSnapshot } from "./types";
 

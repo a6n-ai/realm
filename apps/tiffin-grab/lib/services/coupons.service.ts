@@ -1,6 +1,6 @@
 import { couponStatus } from "@/lib/coupons/status";
 import { isStaffRole } from "@/lib/auth/roles";
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";

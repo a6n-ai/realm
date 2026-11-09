@@ -1,5 +1,6 @@
 import { computeTax, type TaxLine } from "@foundry/payments";
-import { resolveCatalogDiscounts, round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
+import { resolveCatalogDiscounts } from "@foundry/discounts";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "@foundry/delivery";
 import { deliveryWaiverLines, taxWaiverLine } from "./waivers";

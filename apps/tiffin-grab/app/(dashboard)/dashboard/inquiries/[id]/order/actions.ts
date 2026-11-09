@@ -1,6 +1,6 @@
 "use server";
 
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";

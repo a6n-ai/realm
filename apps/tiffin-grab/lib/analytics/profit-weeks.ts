@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { type ProfitRow } from "./profitability";
 import { addDaysIso, mondayIndex } from "@/lib/dates";
 

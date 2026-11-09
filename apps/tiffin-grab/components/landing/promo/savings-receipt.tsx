@@ -3,6 +3,7 @@
 import { useFormatMoney } from "@/components/app-currency";
 import { useEffect, useRef, useState } from "react";
 import type { PromoSavings } from "@/lib/landing/promo-types";
+import { round2 } from "@foundry/commons/util/money";
 
 const COUNT_MS = 900;
 
@@ -27,7 +28,7 @@ export function SavingsReceipt({ savings, className }: { savings: PromoSavings; 
       const start = performance.now() + 120 * savings.lines.length + 200;
       const tick = (now: number) => {
         const t = Math.min(1, Math.max(0, (now - start) / COUNT_MS));
-        setTotal(Math.round(savings.total * (1 - (1 - t) ** 3) * 100) / 100);
+        setTotal(round2(savings.total * (1 - (1 - t) ** 3)));
         if (t < 1) raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);

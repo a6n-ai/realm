@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { inStatuses, SETTLEABLE } from "@/lib/payments/status";
 import { and, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";

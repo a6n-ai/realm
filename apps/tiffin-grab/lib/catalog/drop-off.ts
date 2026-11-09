@@ -1,4 +1,5 @@
 import type { ClientCatalogSnapshot } from "./types";
+import { round2 } from "@foundry/commons/util/money";
 
 /** A delivery strategy as the customer sees it, under one tag, with its own price. */
 export type DropOffOption = {
@@ -72,7 +73,7 @@ export function cheaperDropOff(catalog: DropOffCatalog, value: DropOffValue): { 
       .map((o) => ({ o, c: fixedCost(o) }))
       .filter((x): x is { o: DropOffOption; c: number } => x.c != null && x.c < cost)
       .sort((a, b) => a.c - b.c)[0];
-    if (alt) return { picked, alt: alt.o, saves: Math.round((cost - alt.c) * 100) / 100, perDelivery: picked.chargeBasis === "per_delivery" };
+    if (alt) return { picked, alt: alt.o, saves: round2(cost - alt.c), perDelivery: picked.chargeBasis === "per_delivery" };
   }
   return null;
 }

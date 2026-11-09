@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { coinsFor } from "@foundry/wallet";
 
 export type CoinCapQuote = {

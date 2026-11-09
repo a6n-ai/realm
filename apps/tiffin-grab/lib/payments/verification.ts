@@ -15,7 +15,7 @@ import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@/lib/runtime/background";
 import { type OrderPricingSnapshot } from "@/lib/pricing";
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { couponsService } from "@/lib/services/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { receiptAttachments } from "@/lib/billing/receipt-link";

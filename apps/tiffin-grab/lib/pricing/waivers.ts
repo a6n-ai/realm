@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { computeTax, type TaxLine } from "@foundry/payments";
 import type { DeliveryChargeCalculationResult } from "@foundry/delivery";
 import type { WaiverKind } from "@/lib/catalog/types";

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, eq } from "drizzle-orm";
 import { cutoffMsFor, nextWeekday } from "@foundry/commons";
+import { round2 } from "@foundry/commons/util/money";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const status = vi.fn();
@@ -67,7 +68,6 @@ const { nextCutoffMs } = await import("@/lib/orders/paid-start");
 const { toCents } = await import("@/lib/money");
 const fx = await import("./stripe-fixture");
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 async function stripeAndEtransfer() {
   await setPaymentConfig({

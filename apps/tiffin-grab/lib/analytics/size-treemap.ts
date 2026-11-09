@@ -1,10 +1,10 @@
+import { round2 } from "@foundry/commons/util/money";
+
 export type SizeSale = { plan: string; size: string; custom: boolean; revenue: number; tiffins: number };
 export type SizeMetric = "revenue" | "tiffins";
 export type TreemapGroup = { name: string; children: { name: string; value: number; color?: string }[] };
 
 export const CUSTOM_SIZES_LABEL = "Custom sizes";
-
-const cents = (n: number) => Math.round(n * 100) / 100;
 
 /** Plan -> meal size boxes sized by one metric. Custom sizes of a plan fold into one box; zero boxes and empty plans are dropped. */
 export function buildSizeTreemap(rows: SizeSale[], metric: SizeMetric, planOrder: (a: string, b: string) => number): TreemapGroup[] {
@@ -12,7 +12,7 @@ export function buildSizeTreemap(rows: SizeSale[], metric: SizeMetric, planOrder
   for (const r of rows) {
     const sizes = plans.get(r.plan) ?? new Map<string, number>();
     const name = r.custom ? CUSTOM_SIZES_LABEL : r.size;
-    sizes.set(name, cents((sizes.get(name) ?? 0) + r[metric]));
+    sizes.set(name, round2((sizes.get(name) ?? 0) + r[metric]));
     plans.set(r.plan, sizes);
   }
   return [...plans]
@@ -24,4 +24,4 @@ export function buildSizeTreemap(rows: SizeSale[], metric: SizeMetric, planOrder
     .filter((g) => g.children.length > 0);
 }
 
-export const treemapTotal = (groups: TreemapGroup[]) => cents(groups.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0));
+export const treemapTotal = (groups: TreemapGroup[]) => round2(groups.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0));

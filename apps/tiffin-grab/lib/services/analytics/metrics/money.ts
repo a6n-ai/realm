@@ -6,6 +6,7 @@ import { CAPTURED, PAID } from "@/lib/payments/status";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 import { isoDateInZone } from "@/lib/dates";
+import { round2 } from "@foundry/commons/util/money";
 
 
 /** The date money moved: capture, else row creation (same fallback the payments list uses). */
@@ -216,7 +217,7 @@ export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Prom
     m.amount += n2(r.amount);
     merged.set(key, m);
   }
-  const byReason = [...merged].map(([reason, m]) => ({ reason, count: m.count, amount: Math.round(m.amount * 100) / 100 }))
+  const byReason = [...merged].map(([reason, m]) => ({ reason, count: m.count, amount: round2(m.amount) }))
     .sort((a, b) => b.count - a.count || b.amount - a.amount || a.reason.localeCompare(b.reason));
-  return { count, orders: orderIds.size, valued, notValued: count - valued, amount: Math.round(rows.reduce((s, r) => s + n2(r.amount), 0) * 100) / 100, byReason };
+  return { count, orders: orderIds.size, valued, notValued: count - valued, amount: round2(rows.reduce((s, r) => s + n2(r.amount), 0)), byReason };
 }

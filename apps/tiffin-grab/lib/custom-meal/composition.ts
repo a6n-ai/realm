@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { formatTuHuman, tuToNatural } from "@/lib/menu/format-tu";
 
 export type CustomMealItem = { category: string; planKey: string; tuAmount: number };

@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";

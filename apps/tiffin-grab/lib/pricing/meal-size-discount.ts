@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 export type MealSizeDiscount = { discountType: "none" | "percent" | "flat"; discountValue: number };
 
 /** A `meal_size` row from the central discounts table. targetId null = every meal size. */

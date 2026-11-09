@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, eq } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
+import { round2 } from "@foundry/commons/util/money";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const publish = vi.hoisted(() => ({ failRefresh: false }));
@@ -64,7 +65,6 @@ async function anAddon() {
   return addon;
 }
 
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 type SaveInput = Omit<Parameters<typeof addOrderAddons>[1], "expectedAmountDue">;
 // Saves the way the dialog does: the amount staff were shown is the amount they confirm.

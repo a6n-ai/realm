@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 /**
  * Daily profitability math. Cash (payments captured that day) is deliberately
  * a different number from revenue (plan total allocated onto delivered tiffins).

@@ -1,7 +1,7 @@
 "use server";
 
 import { isCustomerRole } from "@/lib/auth/roles";
-import { round2 } from "@foundry/discounts";
+import { round2 } from "@foundry/commons/util/money";
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { findMethod } from "@foundry/payments";
