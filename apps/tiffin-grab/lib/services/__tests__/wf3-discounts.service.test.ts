@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

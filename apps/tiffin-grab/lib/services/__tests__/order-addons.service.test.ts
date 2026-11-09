@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, ne } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -11,7 +11,7 @@ vi.mock("@/lib/realtime/publish-inbox", async (orig) => {
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
-const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments, users } = await import("@/db/schema");
+const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments } = await import("@/db/schema");
 const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { mealSizeAddons } = await import("@/lib/catalog/types");
 const { setPaymentConfig } = await import("../app-settings.service");

@@ -1,5 +1,4 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { referrals, users } from "@/db/schema";

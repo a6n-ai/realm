@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -10,7 +10,7 @@ vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
-const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
+const { deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { adminSetDeliveryStatus } = await import("../deliveries.service");

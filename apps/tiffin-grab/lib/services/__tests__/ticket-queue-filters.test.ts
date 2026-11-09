@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 // Staff session: listForQueue is staff-only reading, and the filters are the
 // contract complaint analytics links through.

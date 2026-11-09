@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const visible = vi.hoisted(() => ({ ids: "all" as "all" | string[] }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -12,7 +12,7 @@ vi.mock("@/lib/services/orders.service", async (importOriginal) => ({
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
-const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("@/lib/services/orders.service");

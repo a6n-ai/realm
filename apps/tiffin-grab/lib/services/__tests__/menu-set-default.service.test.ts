@@ -1,8 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

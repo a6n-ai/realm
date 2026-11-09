@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };

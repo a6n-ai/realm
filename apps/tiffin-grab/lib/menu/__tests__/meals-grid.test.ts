@@ -3,7 +3,7 @@
 // selection, stale-pick fallback, or diet filtering itself. Every test here asserts BOTH
 // buildMealsGrid and resolveDeliveryMeal AGREE — that agreement is the invariant under test.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, like, ne } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   couponRedemptions, deliveries, deliveryFrequencies, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orders, payments, plans, users, walletLedger,

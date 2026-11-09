@@ -3,9 +3,8 @@
 // call could rewrite a live menu, and a removed dish then silently resolved to the day's
 // default with the subscriber never told. These assert the guard, not the UI.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

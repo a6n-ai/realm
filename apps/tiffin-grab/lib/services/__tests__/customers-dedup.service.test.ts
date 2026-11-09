@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { users } from "@/db/schema";

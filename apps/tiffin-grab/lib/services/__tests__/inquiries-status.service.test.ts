@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser, deleteNonSystemUsers } from "@/db/test-helpers";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, ledgerEntries, orders, payments, users } from "@/db/schema";
 import { nextWeekday, ValidationError } from "@foundry/commons";

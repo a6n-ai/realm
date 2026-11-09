@@ -1,9 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";
-import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, users, customerAddresses } from "@/db/schema";
+import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../delivery.service";
 import { reprice } from "@/app/(public)/subscribe/actions";

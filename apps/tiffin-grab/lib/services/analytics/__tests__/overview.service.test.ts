@@ -1,5 +1,4 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));

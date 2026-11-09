@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";

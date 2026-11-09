@@ -1,7 +1,6 @@
 // The staff order form's customer lookup says nothing about an account, not even that a
 // phone and an email are two different customers, unless the caller can already see it.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";

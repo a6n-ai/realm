@@ -1,8 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers } from "@/db/test-helpers";
-import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
+import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.unmock("@/lib/services/start-date");

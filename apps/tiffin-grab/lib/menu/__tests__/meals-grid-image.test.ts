@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, like, ne } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";

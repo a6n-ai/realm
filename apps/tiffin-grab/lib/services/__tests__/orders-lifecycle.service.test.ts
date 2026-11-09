@@ -1,12 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
-import { nextWeekday, ValidationError } from "@foundry/commons";
+import { eq } from "drizzle-orm";
+import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
-const { orders, payments, orderActivities, ledgerEntries, users, deliveries } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const svc = await import("../orders.service");
 
